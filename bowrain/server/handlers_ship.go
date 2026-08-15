@@ -122,22 +122,3 @@ func shipETag(body []byte) string {
 	sum := sha256.Sum256(body)
 	return `"` + hex.EncodeToString(sum[:16]) + `"`
 }
-
-// applyShipFeedProperty sets or clears the public-feed opt-in on a project's
-// properties from the request's tri-state flag: nil leaves it untouched, true
-// turns the feed on, false turns it off. It returns the map (creating one if the
-// project carried none) so a caller can assign the result back.
-func applyShipFeedProperty(props map[string]string, want *bool) map[string]string {
-	if want == nil {
-		return props
-	}
-	if props == nil {
-		props = map[string]string{}
-	}
-	if *want {
-		props[ShipFeedProperty] = "true"
-	} else {
-		delete(props, ShipFeedProperty)
-	}
-	return props
-}

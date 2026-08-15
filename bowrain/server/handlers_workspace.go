@@ -484,10 +484,43 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+// ProjectRequest is the request body for creating a project in a workspace.
+// The workspace is the route's, not the body's.
+type ProjectRequest struct {
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
+}
+
 // HandleCreateWorkspaceProject creates a project in a workspace.
+//
+// Creating a project is a member-level act: any workspace member may create
+// one. Mutating or deleting an existing project keeps PermManageProject
+// (HandleUpdateEditorProject, HandleDeleteEditorProject,
+// HandlePermanentlyDeleteProject). The asymmetry is deliberate — a new project
+// is empty, so the whole cost of an unwanted one is archiving it again, while
+// renaming or removing a project other people's work already hangs off is not
+// theirs to undo.
+//
+// Membership and delegated authority are separate questions, so the policy is
+// two checks. WorkspaceAccessMiddleware has already refused a non-member;
+// requireRole adds the fail-closed half, refusing a caller whose workspace role
+// never resolved rather than reading an absent role as permission. The
+// permission check answers the second question: an API token authenticates as
+// its owner, so a token minted to read or to translate must not create projects
+// on that owner's behalf. PermManageFiles is the bit that says "may put content
+// into this workspace" — every workspace role holds it, and no read, translate
+// or review scope does.
 func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	if s.Services == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
+	}
+
+	if err := s.requireRole(c, platauth.RoleOwner, platauth.RoleAdmin, platauth.RoleMember); err != nil {
+		return err
+	}
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
 	}
 
 	var req ProjectRequest
@@ -538,12 +571,19 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	// The creator becomes a review-capable project member so governed review has
 	// someone to assign to (and the creator sees pending review on their
 	// dashboard). Best-effort; never blocks creation.
-	if userID, _ := c.Get("user_id").(string); userID != "" {
+	userID, _ := c.Get("user_id").(string)
+	if userID != "" {
 		s.addProjectCreatorMembership(ctx, workspaceID, p.ID, userID)
 	}
 	if s.ContentStore != nil {
 		_ = EnsureDefaultCollection(ctx, s.ContentStore, p.ID)
 		_ = EnsureMainStream(ctx, s.ContentStore, p.ID)
 	}
+
+	props := analytics.Props(workspaceID, p.ID)
+	props["source_language"] = string(p.DefaultSourceLanguage)
+	props["target_count"] = len(p.TargetLanguages)
+	s.trackEvent(userID, analytics.EventProjectCreated, props)
+
 	return c.JSON(http.StatusCreated, p)
 }
