@@ -40,8 +40,12 @@ type Reader struct {
 	aborted      bool
 
 	// names and pendingAnchor implement structural naming — see naming.go.
-	names         model.NameBuilder
-	pendingAnchor string
+	// addrNames and pendingAddress compose the translation-invariant address
+	// that travels beside each name.
+	names          model.NameBuilder
+	pendingAnchor  string
+	addrNames      model.NameBuilder
+	pendingAddress string
 }
 
 // groupFrame is one open structural group on the reader's stack. level and
@@ -52,6 +56,10 @@ type groupFrame struct {
 	kind  string
 	level int
 	title string
+	// addr is the section's translation-invariant segment: the identity of the
+	// heading that opened it, which its title cannot supply because a title is
+	// content.
+	addr string
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -345,9 +353,13 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, li
 	if r.pendingAnchor != "" {
 		segment = r.pendingAnchor
 	}
+	// The heading's own address, issued from the PARENT trail, is also the
+	// segment addressing the section it opens.
+	addr := r.headingAddress(level)
+	r.pendingAddress = addr
 	r.emitBlock(ctx, ch, line.start, contentStart, line.contentEnd,
 		r.sectionPath(fmt.Sprintf("h%d", level)), "heading", model.RoleHeading, level, nil)
-	r.openSection(ctx, ch, level, segment)
+	r.openSection(ctx, ch, level, segment, lastSegment(addr))
 	return i + 1
 }
 
@@ -787,6 +799,9 @@ func (r *Reader) emitBlock(ctx context.Context, ch chan<- model.PartResult,
 	if role != "" {
 		block.SetSemanticRole(role, level)
 	}
+	if addr := r.blockAddress(name); addr != "" {
+		block.SetStructuralAddress(addr)
+	}
 	if level > 0 {
 		block.Properties["level"] = strconv.Itoa(level)
 	}
@@ -834,6 +849,9 @@ func (r *Reader) emitContentBlock(ctx context.Context, ch chan<- model.PartResul
 	block.PreserveWhitespace = true
 	if role != "" {
 		block.SetSemanticRole(role, 0)
+	}
+	if addr := r.blockAddress(name); addr != "" {
+		block.SetStructuralAddress(addr)
 	}
 	maps.Copy(block.Properties, props)
 

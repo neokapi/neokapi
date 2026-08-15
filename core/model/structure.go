@@ -178,6 +178,29 @@ type StructureAnnotation struct {
 	// G3, not span fidelity (see docs/internals/format-maturity.md §2.7).
 	ColSpan int `json:"colSpan,omitempty"`
 	RowSpan int `json:"rowSpan,omitempty"`
+	// Address is the block's TRANSLATION-INVARIANT structural address: the same
+	// path Block.Name describes, with every segment that came from another
+	// block's TEXT replaced by that block's own structural identity. Set only
+	// where the two genuinely differ — a format whose names carry no ancestor
+	// text leaves it empty and its Name is already invariant.
+	//
+	// A structural name is readable because its ancestors' text is in it: a
+	// paragraph under "What it reads" is addressed `what-it-reads/p`. Ancestor
+	// text is safe as a naming input WITHIN one language and is exactly what
+	// makes an address legible to a translator. Across languages it is not: the
+	// translated document calls the same paragraph `hva-den-leser/p`, so pairing
+	// a source file with its translation on Name alone fails for every block
+	// under a translated heading. The address is the same trail with each
+	// heading segment written as that heading's own identity — its parent trail
+	// plus its ordinal among siblings, which is what the naming scheme already
+	// uses for a heading precisely because it must not move when the words
+	// change — so `h/h#2/p` addresses the paragraph in both documents.
+	//
+	// It is not a second name. Name stays the identity everything else is keyed
+	// by: reconcile's context hash, the state store, the XLIFF `name` attribute.
+	// The address exists for the one question Name cannot answer, which is
+	// whether two blocks in two languages are the same unit.
+	Address string `json:"address,omitempty"`
 }
 
 // TypeName implements Payload.
@@ -326,6 +349,23 @@ func (b *Block) SetSemanticRole(role string, level int) {
 	s := b.structureOrNew()
 	s.Role = role
 	s.Level = level
+	b.SetStructure(s)
+}
+
+// StructuralAddress returns the block's translation-invariant structural
+// address, or "" when the block's Name is already invariant.
+func (b *Block) StructuralAddress() string {
+	if s, ok := b.Structure(); ok && s != nil {
+		return s.Address
+	}
+	return ""
+}
+
+// SetStructuralAddress records the block's translation-invariant structural
+// address (upserting the structure annotation).
+func (b *Block) SetStructuralAddress(address string) {
+	s := b.structureOrNew()
+	s.Address = address
 	b.SetStructure(s)
 }
 
