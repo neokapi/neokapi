@@ -80,6 +80,10 @@ type ChangeSetImpact struct {
 	Projects       []ProjectImpact `json:"projects"`
 	Samples        []BlockSample   `json:"samples"`
 
+	// Reach splits the affected content by what acting on it costs — see
+	// reach.go. Nil only on a report built before the split existed.
+	Reach *Reach `json:"reach,omitempty"`
+
 	// Partial reports that the walk stopped before it had seen the whole
 	// workspace, so every count below is a floor and not a total.
 	//
@@ -124,12 +128,16 @@ type ImpactSummary struct {
 	Partial        bool      `json:"partial,omitempty"`
 	PartialReason  string    `json:"partial_reason,omitempty"`
 	ComputedAt     time.Time `json:"computed_at"`
+	// Reach is the cost split, kept on the summary because it is the number a
+	// reviewer reads first and the stored summary is what they read by default.
+	// Absent on summaries computed before the split existed.
+	Reach *ReachSummary `json:"reach,omitempty"`
 }
 
 // Summarize reduces a walked impact report to the summary stored on the
 // change-set, stamped at.
 func (i ChangeSetImpact) Summarize(at time.Time) ImpactSummary {
-	return ImpactSummary{
+	s := ImpactSummary{
 		TotalBlocks:    i.TotalBlocks,
 		AffectedBlocks: i.AffectedBlocks,
 		NewViolations:  i.NewViolations,
@@ -140,6 +148,11 @@ func (i ChangeSetImpact) Summarize(at time.Time) ImpactSummary {
 		PartialReason:  i.PartialReason,
 		ComputedAt:     at.UTC(),
 	}
+	if i.Reach != nil {
+		rs := i.Reach.Summarize()
+		s.Reach = &rs
+	}
+	return s
 }
 
 // Report renders a stored summary as an impact report, flagged Stored and
@@ -147,7 +160,7 @@ func (i ChangeSetImpact) Summarize(at time.Time) ImpactSummary {
 // the summary never carried them.
 func (s ImpactSummary) Report() ChangeSetImpact {
 	at := s.ComputedAt
-	return ChangeSetImpact{
+	out := ChangeSetImpact{
 		TotalBlocks:    s.TotalBlocks,
 		AffectedBlocks: s.AffectedBlocks,
 		NewViolations:  s.NewViolations,
@@ -158,6 +171,11 @@ func (s ImpactSummary) Report() ChangeSetImpact {
 		Stored:         true,
 		ComputedAt:     &at,
 	}
+	if s.Reach != nil {
+		r := s.Reach.Report()
+		out.Reach = &r
+	}
+	return out
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.
@@ -294,12 +312,13 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 	}
 
 	t := newTree(opts.maxSamples())
+	reach := newReachAcc()
 
 	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		t.scan()
 
-		vNew, vResolved, vAffected := voiceImpactForBlock(pairs, colID, colName, b.ID, text)
-		tNew, tResolved, tAffected, err := termImpact(ctx, before, after, locale, text)
+		vNew, vResolved, vAffected, vPrescribed := voiceImpactForBlock(pairs, colID, colName, b.ID, text)
+		tNew, tResolved, tAffected, tPrescribed, err := termImpact(ctx, before, after, locale, text)
 		if err != nil {
 			return err
 		}
@@ -311,6 +330,9 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 		}
 
 		words := b.WordCount()
+		targets, approved := blockTargetLocales(b)
+		reach.observe(p.ID+"\x00"+stream+"\x00"+b.ID, vPrescribed || tPrescribed,
+			p, collKey(colID, colName), words, targets, approved)
 		t.hit(p, colID, colName, stream, locale, newV, resolved, words, 0, BlockSample{
 			ProjectID:      p.ID,
 			Stream:         stream,
@@ -330,6 +352,8 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 	}
 
 	impact := t.toImpact()
+	r := reach.reach()
+	impact.Reach = &r
 	if errors.Is(walkErr, errBudgetExhausted) {
 		impact.Partial = true
 		// The reason names the cause only. Each consumer states the consequence
@@ -411,10 +435,13 @@ func voiceProfileIDs(ops []ChangeSetOp) []string {
 
 // voiceImpactForBlock reuses core/profile.EvaluateBlastRadius — the single source
 // of brand-vocabulary blast-radius truth — per block against each touched
-// profile, summing the new/resolved counts and OR-ing the affected flag.
-func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text string) (newV, resolved int, affected bool) {
+// profile, summing the new/resolved counts and OR-ing the affected and
+// prescribed flags. prescribed marks a block a candidate rule does not merely
+// flag but tells you what to write instead — the signal that acting on it edits
+// the text rather than annotating it.
+func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text string) (newV, resolved int, affected, prescribed bool) {
 	if len(pairs) == 0 {
-		return 0, 0, false
+		return 0, 0, false, false
 	}
 	eb := []coreprofile.EvalBlock{{
 		BlockID:        blockID,
@@ -429,8 +456,11 @@ func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text stri
 		if br.AffectedBlocks > 0 {
 			affected = true
 		}
+		if br.PrescribedBlocks > 0 {
+			prescribed = true
+		}
 	}
-	return newV, resolved, affected
+	return newV, resolved, affected, prescribed
 }
 
 // ---------------------------------------------------------------------------
@@ -450,20 +480,30 @@ type termSig struct {
 // forbidden); resolved counts terms that stop being forbidden (or are removed);
 // changed reports whether any contained term's status or replacement guidance
 // differs at all.
-func termImpact(ctx context.Context, before, after *terms.InMemoryStore, locale model.LocaleID, text string) (newV, resolved int, changed bool, err error) {
+//
+// prescribed marks the block as one the draft tells someone to REWRITE rather
+// than merely flag: a term it contains ends up forbidden with a replacement the
+// after-graph can resolve, and that guidance is new. Banning a word and naming
+// its successor is an instruction to edit the source; banning a word with no
+// successor is an instruction to look at it. The two cost different work, so the
+// reach split needs them apart.
+func termImpact(ctx context.Context, before, after *terms.InMemoryStore, locale model.LocaleID, text string) (newV, resolved int, changed, prescribed bool, err error) {
 	beforeSig, err := termSignatures(ctx, before, locale, text)
 	if err != nil {
-		return 0, 0, false, err
+		return 0, 0, false, false, err
 	}
 	afterSig, err := termSignatures(ctx, after, locale, text)
 	if err != nil {
-		return 0, 0, false, err
+		return 0, 0, false, false, err
 	}
 
 	for k, sa := range afterSig {
 		sb, ok := beforeSig[k]
 		if sa.status == model.TermForbidden && (!ok || sb.status != model.TermForbidden) {
 			newV++
+		}
+		if sa.status == model.TermForbidden && sa.replacement != "" && (!ok || sb != sa) {
+			prescribed = true
 		}
 	}
 	for k, sb := range beforeSig {
@@ -472,7 +512,7 @@ func termImpact(ctx context.Context, before, after *terms.InMemoryStore, locale 
 			resolved++
 		}
 	}
-	return newV, resolved, !sigMapsEqual(beforeSig, afterSig), nil
+	return newV, resolved, !sigMapsEqual(beforeSig, afterSig), prescribed, nil
 }
 
 // termSignatures returns the resolution signature of every term of the lookup

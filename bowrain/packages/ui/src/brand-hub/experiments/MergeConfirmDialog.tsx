@@ -18,6 +18,7 @@ import { ErrorNotice } from "../../errors";
 import type { OpConflict } from "../../types/brand-graph";
 import { useChangesetBlastRadius, useMergeChangeset } from "../../hooks/useChangesetsApi";
 import { BlastRadiusPanel } from "./BlastRadiusPanel";
+import { ReachPanel } from "./ReachPanel";
 import { parseMergeError } from "./merge";
 
 export interface MergeConfirmDialogProps {
@@ -78,6 +79,7 @@ export function MergeConfirmDialog({
         </p>
 
         <BlastRadiusPanel impact={impact} isLoading={isLoading} hideSamples />
+        <ReachPanel impact={impact} />
 
         {blocked && <ConflictView conflicts={conflicts} />}
 

@@ -38,7 +38,15 @@ type BlastRadius struct {
 	NewViolations      int                     `json:"new_violations"`
 	ResolvedViolations int                     `json:"resolved_violations"`
 	CriticalCount      int                     `json:"critical_count"`
-	Collections        []CollectionBlastRadius `json:"collections"`
+	// PrescribedBlocks counts the affected blocks on which the candidate does
+	// more than flag: at least one violation it newly raises carries a
+	// replacement, so the guidance is "write this instead" rather than "look at
+	// this". The two cost different amounts of work — a flag is answered by
+	// annotating the text, a prescribed replacement by editing it — and a reader
+	// deciding whether to adopt a rule needs to know which of the two the
+	// AffectedBlocks number is buying.
+	PrescribedBlocks int                     `json:"prescribed_blocks"`
+	Collections      []CollectionBlastRadius `json:"collections"`
 }
 
 // CollectionBlastRadius breaks down impact for a single collection.
