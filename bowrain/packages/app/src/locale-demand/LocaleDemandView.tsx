@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   Badge,
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -24,30 +25,37 @@ import {
 import { WorldDemandMap } from "./WorldDemandMap";
 import { LanguageDemandTable } from "./LanguageDemandTable";
 import { DemandDrillDownPanel, type DrillDownSelection } from "./DemandDrillDownPanel";
+import { SampleDataMark, SampleDataNotice } from "./SampleDataNotice";
 
 export interface LocaleDemandViewProps {
   /** Sample fixtures by default; the route swaps in PostHogDemandSource when connected. */
   dataSource?: DemandDataSource;
   initialRange?: TimeRange;
   initialSelection?: DrillDownSelection | null;
-  /** Quiet connect prompt shown under the header while on the sample dataset. */
-  connectCallout?: ReactNode;
+  /** Connect affordance for the sample-data notice; the page supplies the button. */
+  connectAction?: ReactNode;
+  /** Set when a configured PostHog source failed and the view fell back to the fixture. */
+  degradedReason?: string;
   /** Called when an async source fails; the previous snapshot stays on screen. */
   onSnapshotError?: (err: unknown) => void;
 }
 
 /**
- * Locale demand — answers "which market/language should we localize for
- * next?" by joining end-user language demand against the project's current
- * locale coverage. Runs on the sample dataset until an analytics source
+ * Locale demand — answers "which market or language should we ship next?" by
+ * joining end-user language demand against the project's current locale
+ * coverage. Runs on the sample dataset until an analytics source
  * (PostHog) is connected; the provenance footer always says which one is on
  * screen. Router-free so Storybook can render the whole page.
+ *
+ * The sample-data label follows the snapshot, not the caller: whatever puts
+ * the fixture on screen also puts the notice and the per-surface marks there.
  */
 export function LocaleDemandView({
   dataSource = sampleDemandDataSource,
   initialRange = "30d",
   initialSelection = null,
-  connectCallout,
+  connectAction,
+  degradedReason,
   onSnapshotError,
 }: LocaleDemandViewProps) {
   const [range, setRange] = useState<TimeRange>(initialRange);
@@ -79,6 +87,8 @@ export function LocaleDemandView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataSource, range]);
 
+  const isSample = snapshot?.provenance.kind === "sample";
+
   return (
     <div className="mx-auto w-full max-w-7xl p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -88,11 +98,6 @@ export function LocaleDemandView({
             <Badge variant="secondary" className="font-normal" data-testid="labs-preview-badge">
               Labs preview
             </Badge>
-            {snapshot?.provenance.kind === "sample" && (
-              <Badge variant="outline" className="font-normal" data-testid="sample-data-badge">
-                Sample data
-              </Badge>
-            )}
             {snapshot?.provenance.kind === "posthog" && (
               <Badge
                 variant="outline"
@@ -121,7 +126,7 @@ export function LocaleDemandView({
         </Select>
       </div>
 
-      {connectCallout}
+      {isSample && <SampleDataNotice action={connectAction} degradedReason={degradedReason} />}
 
       {!snapshot ? (
         <div className="space-y-4" data-testid="demand-loading">
@@ -140,11 +145,17 @@ export function LocaleDemandView({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <WorldDemandMap
-                  countries={snapshot.countries}
-                  selectedCountry={selection?.kind === "country" ? selection.code : null}
-                  onSelectCountry={(code) => setSelection(code ? { kind: "country", code } : null)}
-                />
+                {/* The mark rides on the map itself: a crop of the graphic carries it. */}
+                <div className="relative">
+                  <WorldDemandMap
+                    countries={snapshot.countries}
+                    selectedCountry={selection?.kind === "country" ? selection.code : null}
+                    onSelectCountry={(code) =>
+                      setSelection(code ? { kind: "country", code } : null)
+                    }
+                  />
+                  {isSample && <SampleDataMark className="absolute left-2 top-2" />}
+                </div>
               </CardContent>
             </Card>
 
@@ -155,6 +166,11 @@ export function LocaleDemandView({
                   Demanded languages against the project's current locales — click a row to drill
                   down.
                 </CardDescription>
+                {isSample && (
+                  <CardAction>
+                    <SampleDataMark />
+                  </CardAction>
+                )}
               </CardHeader>
               <CardContent>
                 <LanguageDemandTable

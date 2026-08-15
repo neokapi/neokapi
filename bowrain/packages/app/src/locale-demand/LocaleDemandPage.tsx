@@ -35,7 +35,7 @@ type SourceMode =
 /**
  * Locale demand page: starts optimistically on the live PostHog source; a
  * `not_configured` answer from the server drops it back to the sample
- * dataset with a quiet connect callout. Connecting (or fixing a broken
+ * dataset, which the view labels as such. Connecting (or fixing a broken
  * connection) goes through the PostHogConnectCard in a dialog — the server
  * test-connects before saving, and on success the page switches straight to
  * live data.
@@ -92,27 +92,14 @@ export function LocaleDemandPage({
     });
   }, [api, workspaceSlug, projectId, projectLocales]);
 
-  const connectCallout = useMemo(() => {
+  // The connector hangs off a project, so a workspace without one gets the
+  // sample-data label without the button.
+  const connectAction = useMemo(() => {
     if (mode.kind !== "sample" || !projectId) return undefined;
     return (
-      <div
-        className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed px-4 py-2.5 text-sm text-muted-foreground"
-        data-testid="posthog-connect-callout"
-      >
-        <span>
-          {mode.degraded
-            ? `PostHog connection problem — showing the sample dataset. (${mode.degraded})`
-            : "You're looking at the sample dataset. Connect PostHog to see your real demand."}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={openConnect}
-          data-testid="posthog-connect-open"
-        >
-          {mode.degraded ? "Fix connection" : "Connect PostHog"}
-        </Button>
-      </div>
+      <Button size="sm" variant="outline" onClick={openConnect} data-testid="posthog-connect-open">
+        {mode.degraded ? "Fix connection" : "Connect PostHog"}
+      </Button>
     );
   }, [mode, projectId, openConnect]);
 
@@ -120,7 +107,8 @@ export function LocaleDemandPage({
     <>
       <LocaleDemandView
         dataSource={mode.kind === "live" ? mode.source : sampleDemandDataSource}
-        connectCallout={connectCallout}
+        connectAction={connectAction}
+        degradedReason={mode.kind === "sample" ? mode.degraded : undefined}
         onSnapshotError={handleSnapshotError}
       />
       <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
