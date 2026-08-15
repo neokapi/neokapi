@@ -947,6 +947,18 @@ export function InitContentStore(dbPath) {
 }
 
 /**
+ * JudgeChannelAliasProposal settles one proposal. Both verdicts are records:
+ * neither rewrites a slug in any recipe, because a project resolves its own
+ * coordinates offline.
+ * @param {string} workspaceSlug
+ * @param {$models.ChannelAliasJudgementArgs} args
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function JudgeChannelAliasProposal(workspaceSlug, args) {
+    return $Call.ByID(1653313632, workspaceSlug, args);
+}
+
+/**
  * ListBrandProfiles returns the brand voice profiles for a workspace.
  * The shape is opaque to the proxy; the frontend has the VoiceProfile type.
  * @param {string} workspaceSlug
@@ -964,6 +976,18 @@ export function ListBrandProfiles(workspaceSlug) {
  */
 export function ListChangesets(workspaceSlug, status) {
     return $Call.ByID(1452496417, workspaceSlug, status);
+}
+
+/**
+ * ListChannelAliasProposals returns the workspace's channel-slug equivalence
+ * proposals — the pairs two of its projects spell differently that look like
+ * one channel. An empty status returns every one.
+ * @param {string} workspaceSlug
+ * @param {string} status
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListChannelAliasProposals(workspaceSlug, status) {
+    return $Call.ByID(2483893220, workspaceSlug, status);
 }
 
 /**

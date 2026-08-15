@@ -1087,6 +1087,60 @@ export class CandidateRuleArgs {
 }
 
 /**
+ * ChannelAliasJudgementArgs is the body of POST
+ * /context/channel-proposals/judge: the proposal's key and the verdict.
+ */
+export class ChannelAliasJudgementArgs {
+    /**
+     * Creates a new ChannelAliasJudgementArgs instance.
+     * @param {Partial<ChannelAliasJudgementArgs>} [$$source = {}] - The source object to create the ChannelAliasJudgementArgs.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (!("proposed_channel" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["proposed_channel"] = "";
+        }
+        if (!("existing_channel" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["existing_channel"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is "accepted" or "dismissed".
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChannelAliasJudgementArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ChannelAliasJudgementArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChannelAliasJudgementArgs(/** @type {Partial<ChannelAliasJudgementArgs>} */($$parsedSource));
+    }
+}
+
+/**
  * CollabSession carries everything the frontend needs to open the Yjs
  * presence WebSocket directly from the webview, exactly like the web app.
  * 

@@ -346,8 +346,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	}
 
 	// Auto-set project default stream. Convenience, not correctness: the
-	// content is already stored, and the next push will try again.
-	if totalStored > 0 {
+	// content is already stored, and the next push will try again. A
+	// context-only push counts — it landed this project's collections on this
+	// stream, which is exactly what the field names.
+	if totalStored > 0 || contextResult.total() > 0 {
 		proj, projErr := deps.ContentStore.GetProject(ctx, projectID)
 		if projErr == nil && proj.DefaultStream == "" {
 			proj.DefaultStream = stream
@@ -384,7 +386,14 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	}
 
 	// Publish EventPushCompleted.
-	if totalStored > 0 && deps.EventBus != nil {
+	//
+	// A push that lands only context — a recipe declaring a new collection,
+	// moving a point, renaming a channel — stores no blocks, and gating the
+	// event on blocks alone left every such push silent. The consumers that
+	// care are exactly the ones a context change is FOR: the workspace context
+	// graph, and the channel-slug equivalence the workspace observes across its
+	// projects. Both then waited for a block-carrying push to come along.
+	if (totalStored > 0 || contextResult.total() > 0) && deps.EventBus != nil {
 		// The full item list still rides on "items" because downstream
 		// consumers (per-locale automations in server/automation.go) fan out by
 		// item name. The human-facing activity summary, however, is built from

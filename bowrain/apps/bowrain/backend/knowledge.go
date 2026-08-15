@@ -42,6 +42,10 @@ func contextProfilesPath(ws string) string {
 	return "/api/v1/" + url.PathEscape(ws) + "/profiles"
 }
 
+func channelProposalsPath(ws string) string {
+	return "/api/v1/" + url.PathEscape(ws) + "/context/channel-proposals"
+}
+
 func changesetPath(ws, changesetID string) string {
 	return changesetsPath(ws) + "/" + url.PathEscape(changesetID)
 }
@@ -318,6 +322,34 @@ type StartPilotArgs struct {
 // its content occupies and what governs each.
 func (a *App) ListContextProfiles(workspaceSlug string) (json.RawMessage, error) {
 	return a.govRaw(http.MethodGet, contextProfilesPath(workspaceSlug), nil)
+}
+
+// ListChannelAliasProposals returns the workspace's channel-slug equivalence
+// proposals — the pairs two of its projects spell differently that look like
+// one channel. An empty status returns every one.
+func (a *App) ListChannelAliasProposals(workspaceSlug, status string) (json.RawMessage, error) {
+	q := url.Values{}
+	if status != "" {
+		q.Set("status", status)
+	}
+	return a.govRaw(http.MethodGet, withQuery(channelProposalsPath(workspaceSlug), q), nil)
+}
+
+// ChannelAliasJudgementArgs is the body of POST
+// /context/channel-proposals/judge: the proposal's key and the verdict.
+type ChannelAliasJudgementArgs struct {
+	Profile         string `json:"profile,omitempty"`
+	ProposedChannel string `json:"proposed_channel"`
+	ExistingChannel string `json:"existing_channel"`
+	// Status is "accepted" or "dismissed".
+	Status string `json:"status"`
+}
+
+// JudgeChannelAliasProposal settles one proposal. Both verdicts are records:
+// neither rewrites a slug in any recipe, because a project resolves its own
+// coordinates offline.
+func (a *App) JudgeChannelAliasProposal(workspaceSlug string, args ChannelAliasJudgementArgs) (json.RawMessage, error) {
+	return a.govRaw(http.MethodPost, channelProposalsPath(workspaceSlug)+"/judge", args)
 }
 
 // ListChangesets returns the workspace change-sets, optionally filtered by status.
