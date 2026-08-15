@@ -55,6 +55,10 @@ type ConvergeLocaleResult struct {
 	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
 	// gating, so they hold the locale below its gate until fixed.
 	FailingChecks int `json:"failingChecks,omitempty"`
+	// Stale counts units whose translation was decided against source wording
+	// that has since changed. They hold the locale out of Shippable whether or
+	// not a gate applies: the loop cannot settle a pairing, only a person can.
+	Stale int `json:"stale,omitempty"`
 	// Materialized counts the target files written for this locale by the
 	// post-loop materialize step (defaults.materialize: on-converge, or
 	// --materialize). Only shippable locales materialize; a parked locale
@@ -112,6 +116,16 @@ type ConvergeOutput struct {
 	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
 }
 
+// StaleUnits totals the units held out of shipping because their source moved
+// since the translation was decided, across every locale of the run.
+func (o ConvergeOutput) StaleUnits() int {
+	n := 0
+	for _, lc := range o.Locales {
+		n += lc.Stale
+	}
+	return n
+}
+
 // FormatText renders the convergence summary.
 func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if o.Monolingual {
@@ -150,6 +164,14 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if o.BlockedOnSource > 0 {
 		fmt.Fprintf(w, "%d block(s) held on source — settle your source first "+
 			"(kapi check --ship, or fix terms/brand/source and kapi apply), then re-run.\n", o.BlockedOnSource)
+	}
+	// Source drift under a decided translation: the loop cannot settle it,
+	// because what changed is the pairing a person blessed, not the coverage.
+	// Saying so is the whole point — drift that reports itself as converged is
+	// what this line exists to make impossible.
+	if stale := o.StaleUnits(); stale > 0 {
+		fmt.Fprintf(w, "%d unit(s) stale — their source changed since the translation was decided. "+
+			"Re-review them (kapi status --review) or retranslate; they do not ship until you do.\n", stale)
 	}
 	if o.Converged {
 		fmt.Fprintln(w, "Up to date: every gated scope is shippable.")
@@ -805,6 +827,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 					res.Pct[k] = v
 				}
 			}
+			res.Stale += c.Stale
 			if c.Gated {
 				gatedSomewhere = true
 				if !c.Shippable {
@@ -812,16 +835,24 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 				}
 			}
 		}
+		// Stale content withholds the locale on its own. A project with no ship
+		// gate declared no coverage bar; it did not thereby agree to ship a
+		// translation of a sentence it has rewritten.
+		if res.Stale > 0 {
+			res.Shippable = false
+			out.Converged = false
+		}
 		if gatedSomewhere && !res.Shippable {
 			res.Parked = pendingSet[l]
 			out.Converged = false
 		}
 		out.Locales = append(out.Locales, res)
 	}
-	// Per-scope parked detail: every gated (collection, locale) scope still
-	// short of its gate, in the coverage's stable order.
+	// Per-scope parked detail: every (collection, locale) scope that does not
+	// ship, in the coverage's stable order — short of its gate, or holding stale
+	// pairings a review surface should be pointed at.
 	for _, c := range cov {
-		if c.Gated && !c.Shippable {
+		if !c.Shippable && (c.Gated || c.Stale > 0) {
 			out.ParkedScopes = append(out.ParkedScopes, ParkedScope{Locale: c.Locale, Collection: c.Collection})
 		}
 	}

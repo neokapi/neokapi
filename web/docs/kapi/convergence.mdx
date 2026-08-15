@@ -225,7 +225,7 @@ standing against its gate, recomputed on every run:
 
 ```bash
 kapi status
-# source      2 units · authored 100% · checked 0% · approved 0%
+# source      2 units · authored 100% · checked 100% · approved 0%
 #
 # scope  units  draft  translated  reviewed  signed-off  pipeline         ship
 # de        42   100%        100%       80%         0%   ██████████ 100%  ready
@@ -371,18 +371,24 @@ kapi status
 ```
 
 Edit one source string. Nothing flags the change and no state is written — the
-next derivation simply reads the working tree: the affected unit's translation
-no longer corresponds to its source, so the unit falls back to *pending* and
-the approval bound to the old pair no longer applies:
+next derivation simply reads the working tree and compares each decision against
+the source it blessed. The edited unit's basis no longer matches, so it reads as
+*stale*: it holds a target, so it sits at *draft*, but that target translates a
+sentence the project no longer has, and the approval bound to the old pairing
+does not apply:
 
 ```bash
 kapi status
 # scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%         98%       98%         0%   █████████░  99%  blocked: translate
+# de        42   100%         98%       98%         0%   █████████░  99%  blocked: stale
+#
+# 1 unit(s) stale: the source changed since the translation was decided.
+# They do not ship — re-review them with `kapi status --review`.
 ```
 
-One pass closes what a machine can close — the changed unit is re-translated,
-memory first, then AI:
+One pass closes what a machine can close — where the edit re-keys the unit (a
+prose paragraph, whose identity is its wording), it is re-translated, memory
+first, then AI:
 
 ```bash
 kapi up --passes 1
@@ -395,6 +401,12 @@ kapi status
 `reviewed` threshold left room for the re-opened unit, which now sits in the
 review worklist (`kapi status --review`). Under `reviewed: 100` the scope would
 instead stay *pending* until a person re-approves that unit.
+
+Where the unit keeps its key across the edit — a catalog entry, whose identity is
+its name — the old translation stays attached to it, so a pass has nothing to
+produce and the unit waits in the worklist for a person. Either way the scope
+does not ship until the pairing is settled, which is the property that matters:
+drift is reported, never converged over.
 
 ## One verb, two venues
 
@@ -479,30 +491,45 @@ kapi status --review        # the worklist: file, id, locale per pending unit
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-The record is bound to the **content hash** of the translation it blesses, so
-editing that translation afterwards drops the unit back below *reviewed* — an
-approval can't silently outlive the text it approved. Once recorded, coverage reads
-the unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }` gate flips to
-shippable.
+An approval is not about a translation; it is about a **pairing** — this
+rendering, *of this source*. The record binds both halves by content hash: the
+translation it blesses, and the **basis**, the source wording it blessed that
+translation for. Editing either afterwards drops the unit back below *reviewed*,
+so an approval can't silently outlive the text it approved on either side. Once
+recorded, coverage reads the unit as *reviewed*, `reviewed%` climbs, and a
+`{ reviewed: … }` gate flips to shippable.
+
+A unit whose **source** moved reads as *stale*: it holds a target, so it sits at
+*draft* rather than below the ladder, but it is not a translation of the source
+the project has now. `kapi status` counts it, the review worklist takes it back,
+and the scope does not ship — whether or not a ship gate was declared, because no
+coverage threshold makes a translation of a rewritten sentence shippable. Restore
+the source and it converges back on the decision already recorded; nobody
+re-reviews anything.
+
+Decisions recorded before the basis was tracked carry none. That is *unknown*,
+not drift: such a unit keeps its rung and ships as before, and `kapi status`
+reports how many there are so the assumption is visible. Deciding the unit again
+records a basis.
 
 <PhaseFlow
   nodes={[
     { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
     {
-      label: "state record + content hash",
+      label: "state record + both hashes",
       sub: ".kapi/state/*.jsonl",
       role: "io",
-      edge: "records hash(translation)",
+      edge: "records hash(translation) + hash(source)",
     },
-    { label: "translation edited", role: "translate", edge: "the stored hash no longer matches" },
+    { label: "either side edited", role: "translate", edge: "a stored hash no longer matches" },
     {
       label: "unit reads below reviewed",
       role: "qa",
       edge: "re-derived on the next run",
-      loop: ["re-approve with kapi apply", "binds to the new hash"],
+      loop: ["re-approve with kapi apply", "binds to the new pairing"],
     },
   ]}
-  caption="An approval binds to the content hash of the translation it blesses: edit the text and the unit falls below reviewed until someone approves the new pair."
+  caption="An approval binds to the pairing it blesses — the translation, and the source it was approved for: edit either and the unit falls below reviewed until someone approves the new pair."
 />
 
 The shards are committed with your sources, so the record travels

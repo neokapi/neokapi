@@ -31,12 +31,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	20  the second consolidated baseline (folded 1-19)
 //	21  the audit log keyed on the bus event it records
 //	22  channel alias proposals
+//	23  the third consolidated baseline (folded 1-22) + channel alias judgements
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 23 records who settled a channel-alias proposal
-// and when, on the table version 22 introduced — where the workspace records
-// that two projects' slugs look like one channel without resolving either.
+// bumping its version. Version 24 records the BASIS on a decision — the hash of
+// the source wording it blessed — so a reader can tell an approval whose source
+// has been rewritten from one that still describes the project.
 //
 // Versions 3 and 4 were already retired before the first consolidation — they
 // ran on live databases and were then folded into the v1 baseline. They are
@@ -55,13 +56,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // statement serve an empty database and a database that already ran 15-19
 // alike.
 //
-// Baseline is version 23 — above every number issued, so an existing database
+// Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 24.
+// repaired. Retired numbers are never reused; the next migration is version 25.
 var Migrations = []storage.Migration{
 	{
-		Version:     23,
-		Description: "content store baseline (folds 1-22) + channel alias judgements",
+		Version:     24,
+		Description: "content store baseline (folds 1-23) + the decision basis",
 		SQL: `
 			-- Projects
 			CREATE TABLE IF NOT EXISTS projects (
@@ -1059,9 +1060,9 @@ var Migrations = []storage.Migration{
 			-- ---- folded from version 16: unit decisions ledger (decisions travel the sync protocol) ----
 			-- The latest workflow decision per (item, unit, variant) — the
 			-- server side of core/state.UnitState. A decision is a FACT (who,
-			-- when, which rung, the hash of the translation it blesses);
-			-- freshness against current content is derived by readers, never
-			-- stored. History lives in block_history (change_type 'decision');
+			-- when, which rung, and the hashes of the pairing it blesses — the
+			-- translation, and the source it was blessed for); freshness against
+			-- current content is derived by readers, never stored. History lives in block_history (change_type 'decision');
 			-- this table is the fold of that log, kept because joins and
 			-- projections need current state without replaying events.
 			--
@@ -1078,6 +1079,7 @@ var Migrations = []storage.Migration{
 				variant     TEXT NOT NULL,
 				status      TEXT NOT NULL DEFAULT '',
 				target_hash TEXT NOT NULL DEFAULT '',
+				content_hash TEXT NOT NULL DEFAULT '',
 				review_state TEXT NOT NULL DEFAULT '',
 				decided_by  TEXT NOT NULL DEFAULT '',
 				decided_at  TEXT NOT NULL DEFAULT '',
@@ -1089,6 +1091,12 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (project_id, stream, item_name, unit, variant)
 			);
 			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
+			-- The BASIS a decision blessed: the hash of the SOURCE it approved a
+			-- translation FOR. Declared in the CREATE above for an empty database
+			-- and added here for one that already ran 16-23. Empty means the
+			-- record predates the column — unknown, which a reader must not read
+			-- as a source that has moved.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS content_hash TEXT NOT NULL DEFAULT '';
 
 			-- Channel-slug equivalence proposals.
 			--

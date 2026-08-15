@@ -125,7 +125,7 @@ func TestUpPlan_PlaceholderOnlyTargetIsAlreadyProduced(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, units, 1)
 
-	plan, err := a.computeUpPlan(context.Background(), nil, proj, units)
+	plan, err := a.computeUpPlan(context.Background(), nil, reviewedIndex{}, proj, units)
 	require.NoError(t, err)
 	assert.Zero(t, plan.Totals.MissingTarget,
 		"both units are produced; the placeholder-only one is not work to re-do")

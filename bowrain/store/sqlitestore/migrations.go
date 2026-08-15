@@ -797,4 +797,15 @@ var storeMigrations = []storage.Migration{
 				ON activities(event_id) WHERE event_id <> '';
 		`,
 	},
+	{
+		Version:     18,
+		Description: "a decision records the source it blessed, not only the translation",
+		SQL: `
+			-- Mirrors the Postgres baseline's unit_decisions.content_hash: the
+			-- BASIS a decision blessed — the hash of the SOURCE it approved a
+			-- translation FOR. Empty means the record predates the column, which
+			-- a reader must not read as a source that has moved.
+			ALTER TABLE unit_decisions ADD COLUMN content_hash TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

@@ -77,6 +77,7 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 			Variant:     variantText(u.Variant),
 			Status:      string(u.Status),
 			TargetHash:  u.TargetHash,
+			ContentHash: u.ContentHash,
 			ReviewState: u.Decision.ReviewState,
 			DecidedBy:   u.Decision.By,
 			DecidedAt:   u.Decision.At,
@@ -125,6 +126,11 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 			Variant:    variant,
 			Status:     model.TargetStatus(d.Status),
 			TargetHash: d.TargetHash,
+			// The basis rides down with the decision. Without it a pulled
+			// approval would arrive with nothing to say which source it blessed,
+			// and every unit reviewed on the server would read as current here
+			// however far its source had moved since.
+			ContentHash: d.ContentHash,
 			Decision: state.Decision{
 				ReviewState: d.ReviewState,
 				By:          d.DecidedBy,

@@ -27,8 +27,10 @@ type Scope struct {
 
 // scopeTally is one scope's accumulated distribution.
 type scopeTally struct {
-	cov        gate.Coverage
-	aiReviewed int
+	cov          gate.Coverage
+	aiReviewed   int
+	stale        int
+	basisUnknown int
 }
 
 // CoverageTally accumulates unit states per (collection, locale) scope. Feed
@@ -68,6 +70,22 @@ func (t *CoverageTally) AddAIDecided(s Scope, state, baseline string) {
 	st.cov.AddAIDecided(state, baseline)
 	st.aiReviewed++
 }
+
+// AddStale tallies one unit whose decision was recorded against source wording
+// that has since changed. It counts at `draft` — a committed target exists, so
+// the unit is not below the ladder, but it is not a translation of the current
+// source either — and again as stale, which is what withholds the scope from
+// shipping.
+func (t *CoverageTally) AddStale(s Scope) {
+	st := t.tally(s)
+	st.cov.Add(string(model.TargetStatusDraft))
+	st.stale++
+}
+
+// NoteUnknownBasis records that a unit's decision carries no basis, without
+// tallying it: the unit is counted at its rung by the accompanying Add, and
+// this only makes the assumption behind that rung countable.
+func (t *CoverageTally) NoteUnknownBasis(s Scope) { t.tally(s).basisUnknown++ }
 
 // Coverage returns the accumulated distribution for one scope, with ok=false
 // when the scope was never tallied.
@@ -115,6 +133,7 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		lc := LocaleCoverage{
 			Locale: s.Locale, Collection: s.Collection, Total: cov.Total,
 			Pct: map[string]int{}, AIReviewed: st.aiReviewed,
+			Stale: st.stale, BasisUnknown: st.basisUnknown,
 		}
 		for _, rung := range ladder {
 			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
@@ -135,6 +154,14 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		// so it reads as unverified (the honest default).
 		if vg, ok := verified.Resolve(s.Collection, s.Locale); ok {
 			lc.Verified = gate.Evaluate(vg, cov, ladder).Pass
+		}
+		// Stale content is withheld whether or not a bar was declared. An ungated
+		// scope reads as shippable because nobody asked for a coverage threshold;
+		// nobody asked for wording whose source has been rewritten either, and a
+		// project with no gates is exactly the one with nothing else to catch it.
+		if lc.Stale > 0 {
+			lc.Shippable = false
+			lc.Verified = false
 		}
 		out = append(out, lc)
 	}

@@ -55,6 +55,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 		Variant:     locale,
 		Status:      string(status),
 		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
+		ContentHash: state.SourceHash(sb.Block.SourceText()),
 		ReviewState: reviewState,
 		DecidedBy:   decider,
 		DecidedAt:   now,
@@ -102,6 +103,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 		Variant:     locale,
 		Status:      string(status),
 		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
+		ContentHash: state.SourceHash(sb.Block.SourceText()),
 		ReviewState: reviewState,
 		DecidedBy:   decider,
 	}})

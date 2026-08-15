@@ -205,10 +205,13 @@ Running the journey is how these were found.
 | Gap | Issue |
 | --- | --- |
 | A committed translation identical to its source is dropped when the record is absorbed, so the loop has nothing to recycle for it and re-drafts it on every pass — silently invalidating the reviewer's approval. `settings.terminal` is *Terminal* in all four languages, and it is re-drafted here every time | [#1927](https://github.com/neokapi/neokapi/issues/1927) |
-| `kapi status` reports source readiness as `checked 0%` immediately after a `kapi up` that reported `Settled source: 38 block(s) checked`. The source ladder is re-derived from the files, and a JSON catalog cannot carry a per-block status | [#1928](https://github.com/neokapi/neokapi/issues/1928) |
 
 Fixed while this sample was being built, each found by running the journey on it:
-the built-in `translate` flow's AI step overwriting every unit `recycle` had just
+`kapi status` reporting source readiness as `checked 0%` immediately after a
+`kapi up` that reported `Settled source: 38 block(s) checked`, because the source
+ladder was re-derived from files a JSON catalog cannot write a per-block status
+into ([#1928](https://github.com/neokapi/neokapi/issues/1928)); the built-in
+`translate` flow's AI step overwriting every unit `recycle` had just
 filled from approved wording; `kapi apply` refusing the indented change-set that
 `kapi status --review --json --jq` prints, so the review round-trip did not
 compose; and `kapi commit` writing absolute machine paths into `.kapi/state/`

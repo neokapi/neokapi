@@ -81,6 +81,7 @@ func decisionFields(d store.UnitDecision) []string {
 	return []string{
 		d.Status,
 		d.TargetHash,
+		d.ContentHash,
 		d.ReviewState,
 		d.DecidedBy,
 		d.DecidedAt,
