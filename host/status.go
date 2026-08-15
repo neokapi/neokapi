@@ -208,7 +208,34 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 		t.Row(append(cells, ship)...)
 	}
 	t.Render()
+	o.writeBasisLines(w)
 	o.writeShipSummary(w, s)
+}
+
+// writeBasisLines reports the two things a percentage cannot say: how many units
+// carry a decision whose source has since been rewritten (stale — withheld), and
+// how many carry one recorded before the basis was tracked (unknown — counted as
+// current). Silent when there are none.
+//
+// The unknown line exists because the alternative postures are both wrong:
+// treating a missing basis as drift would demote every decision a project made
+// before it was recorded, and treating it as nothing at all would leave the
+// assumption invisible. It is counted, named, and it clears itself — the next
+// decision on the unit records a basis.
+func (o StatusOutput) writeBasisLines(w io.Writer) {
+	stale, unknown := 0, 0
+	for _, lc := range o.Locales {
+		stale += lc.Stale
+		unknown += lc.BasisUnknown
+	}
+	if stale > 0 {
+		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
+			"They do not ship — re-review them with `kapi status --review`.\n", stale)
+	}
+	if unknown > 0 {
+		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
+			"until the unit is decided again.\n", unknown)
+	}
 }
 
 // writeShipSummary closes the grid with the one number a release decision needs:
@@ -460,6 +487,12 @@ func scopeLabel(lc LocaleCoverage) string {
 // verdict points at the work that unblocks the rest — saying "blocked: sign-off"
 // while translation is also short would send someone to the wrong task.
 func shipCell(lc LocaleCoverage, s *output.Styles) string {
+	// Staleness is read before the gate, and whether or not one applies: a stale
+	// unit is not a shortfall against a bar, it is a translation of wording the
+	// project no longer has, and an ungated scope has nothing else to catch it.
+	if lc.Stale > 0 {
+		return s.Warn.Render("blocked: stale")
+	}
 	if !lc.Gated {
 		return s.Dim("—")
 	}

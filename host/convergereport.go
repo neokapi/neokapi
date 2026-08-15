@@ -202,39 +202,54 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			// items by it, so it is what lets the decision travel scoped to
 			// the right item. The review queue's display path is the target
 			// file, which no other party names anything by.
-			return a.recordDecisionState(ctx, proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc, target, status, decision, note, by)
+			return a.recordDecisionState(ctx, proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc,
+				decidedContent{source: b.SourceText(), target: target}, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
 }
 
+// decidedContent is the pairing a decision is about: the source wording in front
+// of the decider and the translation of it they judged. Both are hashed into the
+// record, because an approval that bound only the translation survived its source
+// being rewritten — the reviewer's blessing outliving the sentence it blessed.
+type decidedContent struct {
+	source string
+	target string
+}
+
 // recordDecisionState records a unit's review decision in the project state store
 // — the authoritative carrier of workflow state — keyed by unit identity + locale,
-// bound to the content hash of the translation it judges so a later edit drops
-// the decision (stale). The decision is transient until Export persists it to the
-// committed state artifact (the export sink). The content memory (.memory.json) is no longer
+// and bound to BOTH halves of what it blessed: the content hash of the translation
+// it judges (targetHash) and the basis, the content hash of the source it judged it
+// against (contentHash). A later edit to either drops the decision (stale), derived
+// on read. The decision is transient until Export persists it to the committed state
+// artifact (the export sink). The content memory (.memory.json) is no longer
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, status model.TargetStatus, decision, note, by string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
 	}
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
-	th := targetHash(target)
+	th := targetHash(content.target)
+	ch := state.SourceHash(content.source)
 	prev, hadPrev := st.Get(ctx, k)
-	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Decision.Note == note && prev.Decision.By == by {
-		return false, nil // already at this decision for this exact translation
+	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&
+		prev.Decision.Note == note && prev.Decision.By == by {
+		return false, nil // already at this decision for this exact pairing
 	}
 	now := nowRFC3339()
 	next := state.UnitState{
-		Unit:       unit,
-		Variant:    model.Variant(locale),
-		Status:     status,
-		TargetHash: th,
-		Decision:   state.Decision{ReviewState: decision, By: by, At: now, Note: note},
-		Updated:    now,
+		Unit:        unit,
+		Variant:     model.Variant(locale),
+		Status:      status,
+		TargetHash:  th,
+		ContentHash: ch,
+		Decision:    state.Decision{ReviewState: decision, By: by, At: now, Note: note},
+		Updated:     now,
 		// The document the unit was decided in. Until the reconcile resolver
 		// is wired into the review path, the display path IS the document key;
 		// when resolved keys land, the working store's document map translates
@@ -247,6 +262,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		// Advisory state rides along; only the decision itself is replaced.
 		next.Origin = prev.Origin
 		next.SourceStatus = prev.SourceStatus
+		next.ContextHash = prev.ContextHash
 		if prev.AIReview.Fresh(th) {
 			next.AIReview = prev.AIReview
 		}
@@ -358,10 +374,15 @@ type ReviewUnitInfo struct {
 	// baseline.
 	Status string `json:"status"`
 	// ReviewState/Note/By carry the last recorded decision when it still judges
-	// the current translation.
+	// the current pairing — the translation it blessed, of the source it blessed
+	// it for.
 	ReviewState string `json:"review_state,omitempty"`
 	Note        string `json:"note,omitempty"`
 	By          string `json:"by,omitempty"`
+	// Stale reports that a decision exists but was recorded against source
+	// wording that has since changed, so the unit is back in the queue: the
+	// reviewer blessed a rendering of a sentence the project no longer has.
+	Stale bool `json:"stale,omitempty"`
 	// AIScore/AIModel/AIFindings surface a fresh AI pre-review annotation.
 	AIScore    *int                    `json:"ai_score,omitempty"`
 	AIModel    string                  `json:"ai_model,omitempty"`
@@ -426,7 +447,9 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 			}
 			if us, found := st.Get(ctx, state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
-				if !us.Stale(th) {
+				ch := state.SourceHash(info.Source)
+				info.Stale = us.SourceStale(ch)
+				if us.Fresh(th, ch) {
 					if us.Status != "" {
 						info.Status = string(us.Status)
 					}

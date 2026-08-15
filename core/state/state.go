@@ -26,6 +26,20 @@ func TargetHash(targetText string) string {
 	return project.HashBytes([]byte(strings.TrimSpace(targetText)))
 }
 
+// SourceHash is the BASIS a decision blesses: the hash of the source wording a
+// reviewer had in front of them. It is model.ComputeContentHash — the same
+// normalization core/reconcile matches identity on — so a unit's basis and its
+// identity signal are one number, and a decision recorded on one path is
+// comparable with a source read on another.
+//
+// Target hash and basis are the two halves of one pairing: an approval is about
+// a specific translation OF a specific source. Editing the translation
+// invalidates the decision through TargetHash; editing the source invalidates it
+// through this one.
+func SourceHash(sourceText string) string {
+	return model.ComputeContentHash(sourceText)
+}
+
 // UnitState is the workflow state of one translatable unit in one locale variant.
 type UnitState struct {
 	// Unit is the unit identity — the block's content hash / stable id, the same
@@ -62,6 +76,11 @@ type UnitState struct {
 	// the evidence for which block it belongs to cannot drift apart, and it is
 	// what lets a block removed in one revision and restored in a later one come
 	// back to its own history instead of being re-translated.
+	//
+	// ContentHash is therefore also the decision's BASIS: the source wording the
+	// decision blessed (state.SourceHash). A record whose basis no longer matches
+	// the unit's current source is stale — see SourceStale — which is what stops
+	// an approval outliving the sentence it approved.
 	//
 	// Scope is the document's resolved key, never its path, so renaming a file
 	// does not disturb the units inside it.
@@ -143,6 +162,26 @@ func (s UnitState) Key() Key { return Key{Unit: s.Unit, Variant: s.Variant} }
 // content to compare).
 func (s UnitState) Stale(targetHash string) bool {
 	return s.TargetHash != "" && targetHash != "" && s.TargetHash != targetHash
+}
+
+// SourceStale reports whether this state was recorded against different SOURCE
+// wording than contentHash — the basis it blessed is gone, so the translation
+// under it renders a sentence the project no longer has and the decision no
+// longer applies.
+//
+// An unset basis on either side is NOT stale but UNKNOWN: a record written
+// before the basis was tracked says nothing about the source it blessed, and
+// reading silence as drift would demote every decision a project already holds.
+// Such a record keeps its rung and is counted as unknown where that count is
+// reported, until the next decision on the unit supplies a basis.
+func (s UnitState) SourceStale(contentHash string) bool {
+	return s.ContentHash != "" && contentHash != "" && s.ContentHash != contentHash
+}
+
+// Fresh reports whether the decision still applies to the pairing in front of
+// the reader: the translation it blessed and the source it blessed it for.
+func (s UnitState) Fresh(targetHash, contentHash string) bool {
+	return !s.Stale(targetHash) && !s.SourceStale(contentHash)
 }
 
 // Reviewed reports whether the unit is at or above the reviewed rung for a fresh

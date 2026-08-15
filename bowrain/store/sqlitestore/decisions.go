@@ -43,11 +43,11 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		var haveOld bool
 		var parked int
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
+			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
 			 FROM unit_decisions
 			 WHERE project_id=? AND stream=? AND item_name=? AND unit=? AND variant=?`,
 			projectID, stream, d.ItemName, d.Unit, d.Variant)
-		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ReviewState, &old.DecidedBy,
+		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
 			&old.DecidedAt, &old.Note, &parked, &old.Assignee, &old.Updated); {
 		case err == nil:
 			old.Parked = parked != 0
@@ -67,15 +67,16 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_name, unit, variant, status, target_hash, review_state,
+				(project_id, stream, item_name, unit, variant, status, target_hash, content_hash, review_state,
 				 decided_by, decided_at, note, parked, assignee, updated, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 			 ON CONFLICT (project_id, stream, item_name, unit, variant) DO UPDATE SET
 				status=excluded.status, target_hash=excluded.target_hash,
+				content_hash=excluded.content_hash,
 				review_state=excluded.review_state, decided_by=excluded.decided_by,
 				decided_at=excluded.decided_at, note=excluded.note, parked=excluded.parked,
 				assignee=excluded.assignee, updated=excluded.updated, updated_at=excluded.updated_at`,
-			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ReviewState,
+			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
 			d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
@@ -140,7 +141,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]platstore.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, review_state,
+		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
 			decided_by, decided_at, note, parked, assignee, updated
 		 FROM unit_decisions WHERE project_id=? AND stream=?
 		 ORDER BY item_name, unit, variant`,
@@ -154,7 +155,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	for rows.Next() {
 		d := platstore.UnitDecision{ProjectID: projectID, Stream: stream}
 		var parked int
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash,
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}

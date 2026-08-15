@@ -134,6 +134,11 @@ const (
 	PropStatus      = "status"
 	PropTargetHash  = "target_hash"
 	PropReviewState = "review_state"
+	// PropContentHash is the decision's BASIS: the hash of the SOURCE wording it
+	// blessed. Paired with PropTargetHash it makes "at which basis" answerable by
+	// traversal — a blessing carries both halves of what it approved, so a reader
+	// can see that the source moved, not only that the translation did.
+	PropContentHash = "content_hash"
 )
 
 // Scope is the tuple an instance node is qualified by. It is the plan's "scope

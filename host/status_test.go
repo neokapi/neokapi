@@ -98,8 +98,10 @@ func TestStatus_CollectionScopedGates(t *testing.T) {
 	assert.False(t, ui.Shippable, "ui gate requires 100% translated")
 }
 
-// writeSourceGateProject creates a project with a source_gate. The source files
-// carry no committed SourceStatus, so they sit at the authored baseline.
+// writeSourceGateProject creates a project with a source_gate. Its source is a
+// JSON catalog — a format with nowhere to write a per-block source status, so
+// the rung it reports can only come from settling the source, never from what
+// the file carries.
 func writeSourceGateProject(t *testing.T, sourceGate string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -119,18 +121,37 @@ collections:
 	return root
 }
 
+// TestStatus_SourceReadiness: the source axis reports the rung the source
+// actually settles at, on a format that cannot carry a per-block status in its
+// own bytes. Reading `SourceStatus` off a freshly parsed JSON catalog reports
+// the presence baseline for every block, so `kapi status` printed `checked 0%`
+// seconds after the same run's settle line said every block was checked — a
+// number contradicted by its own sibling, and a `source_gate` above `authored`
+// that could never pass on a catalog format at all.
 func TestStatus_SourceReadiness(t *testing.T) {
-	// A {checked: 100} source gate against an all-authored source: readiness is
-	// reported (100% authored, 0% checked) and the gate is pending — never an error.
 	t.Chdir(writeSourceGateProject(t, "source_gate: { checked: 100 }"))
 	out := runStatusJSON(t)
 
 	require.NotNil(t, out.Source, "source readiness must be reported")
 	assert.Equal(t, 3, out.Source.Total)
 	assert.Equal(t, 100, out.Source.Pct["authored"], "all source present → authored baseline")
-	assert.Equal(t, 0, out.Source.Pct["checked"], "no source has been checked yet")
+	assert.Equal(t, 100, out.Source.Pct["checked"],
+		"clean source settles to checked; the catalog has nowhere to carry the stamp, so it must be derived")
+	assert.Equal(t, 0, out.Source.Pct["approved"], "approval is authored, never derived from content")
 	assert.True(t, out.Source.Gated)
-	assert.False(t, out.Source.Shippable, "checked:100 is unmet at the authored baseline")
+	assert.True(t, out.Source.Shippable, "checked:100 is met once the clean source settles")
+}
+
+// TestStatus_SourceReadiness_ApprovalIsNotDerived: settling reaches `checked`
+// and stops. `approved` is somebody's decision, so a gate that asks for it stays
+// pending however clean the source is.
+func TestStatus_SourceReadiness_ApprovalIsNotDerived(t *testing.T) {
+	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
+	out := runStatusJSON(t)
+
+	require.NotNil(t, out.Source)
+	assert.Equal(t, 100, out.Source.Pct["checked"])
+	assert.False(t, out.Source.Shippable, "approved:100 is unmet by a settle")
 }
 
 func TestStatus_SourceReadiness_AuthoredGateClears(t *testing.T) {
@@ -142,7 +163,7 @@ func TestStatus_SourceReadiness_AuthoredGateClears(t *testing.T) {
 }
 
 func TestVerify_SourceGate(t *testing.T) {
-	t.Chdir(writeSourceGateProject(t, "source_gate: { checked: 100 }"))
+	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
 
 	// Without --ship: the source gate is not evaluated (source drift is non-blocking).
 	a := &App{}
@@ -155,7 +176,8 @@ func TestVerify_SourceGate(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 	assert.False(t, hasGate(parsed, gateSource), "source gate must be opt-in (--ship)")
 
-	// With --ship: the source gate runs and fails (source is only authored).
+	// With --ship: the source gate runs and fails (the source settles to
+	// `checked`; nobody has approved it).
 	a2 := &App{}
 	cmd2 := NewEnvCommand(context.Background(), "verify")
 	AddProjectFlag(cmd2)
@@ -167,7 +189,7 @@ func TestVerify_SourceGate(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
 	sg, has := findGate(parsed2, gateSource)
 	require.True(t, has, "--ship adds the source gate")
-	assert.False(t, sg.Pass, "source is below checked:100")
+	assert.False(t, sg.Pass, "source is below approved:100")
 	assert.NotEmpty(t, sg.Findings)
 	assert.Error(t, runErr, "a failed source gate exits non-zero")
 }

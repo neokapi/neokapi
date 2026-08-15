@@ -76,6 +76,10 @@ type UnitState struct {
 	ReviewState string
 	// TargetHash is the content hash of the translation the record blesses.
 	TargetHash string
+	// ContentHash is the basis: the content hash of the SOURCE the record
+	// blessed that translation FOR. Empty on a record written before the basis
+	// was tracked.
+	ContentHash string
 }
 
 // UnitStateNode builds the node for one unit-state record.
@@ -86,6 +90,7 @@ func UnitStateNode(s Scope, u UnitState) graph.Node {
 	putIf(props, PropStatus, u.Status)
 	putIf(props, PropReviewState, u.ReviewState)
 	putIf(props, PropTargetHash, u.TargetHash)
+	putIf(props, PropContentHash, u.ContentHash)
 	return graph.Node{ID: UnitStateNodeID(s, u.Unit, u.Variant), Label: NodeUnitState, Properties: props}
 }
 
@@ -169,14 +174,16 @@ func GovernedByEdge(s Scope, collection, profile, channel string, validity *grap
 }
 
 // BlessesEdge builds the unit-state→block edge: which record blesses which
-// block, at which target hash. The hash is edge data rather than identity, so a
-// re-translation moves the same edge rather than accumulating one per revision
-// — and comparing it against the deliverable is how a stale blessing shows.
+// block, at which pairing — the translation hash and the source basis. Both are
+// edge data rather than identity, so a re-translation or a source edit moves the
+// same edge rather than accumulating one per revision, and comparing either
+// against the deliverable is how a stale blessing shows.
 func BlessesEdge(s Scope, u UnitState, contentKey string) graph.Edge {
 	props := s.Properties()
 	props[PropUnit] = u.Unit
 	putIf(props, PropVariant, u.Variant)
 	putIf(props, PropTargetHash, u.TargetHash)
+	putIf(props, PropContentHash, u.ContentHash)
 	putIf(props, PropStatus, u.Status)
 	putIf(props, PropReviewState, u.ReviewState)
 	source := UnitStateNodeID(s, u.Unit, u.Variant)

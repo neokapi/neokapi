@@ -59,6 +59,18 @@ type LocaleCoverage struct {
 	// with an "(ai)" qualifier in displays — but do not satisfy a gate's
 	// reviewed/signed-off threshold unless it says `by: any` (core/gate).
 	AIReviewed int `json:"aiReviewed,omitempty"`
+	// Stale counts units whose decision was recorded against source wording that
+	// has since changed (state.UnitState.SourceStale). They tally at `draft` —
+	// a target exists, but it is not a translation of the source the project has
+	// now — and they hold the scope out of Shippable and Verified however the
+	// percentages read: a gate is a bar on quantity, and shipping a translation
+	// of a sentence that is gone is not a shortfall of quantity.
+	Stale int `json:"stale,omitempty"`
+	// BasisUnknown counts units holding a decision recorded before its basis
+	// was tracked. Such a decision says nothing about the source it blessed, so
+	// it keeps its rung and the scope ships — the count is what makes that
+	// assumption visible rather than silent.
+	BasisUnknown int `json:"basisUnknown,omitempty"`
 }
 
 // SourceCoverage is the source-readiness view for the project: how far its source

@@ -145,21 +145,61 @@ Because the working set is a database rather than memory, staged state survives
 the process. The tiers are *staged* and *committed*, not *in transit* and
 *durable*.
 
-### Unit state is unit-keyed and content-hash-bound
+### Unit state is unit-keyed and bound to the pairing it blessed
 
 State is keyed by the **unit** — `(unit identity, variant)`, where the variant is
-the locale plus any further qualification — not by content. Each record
-additionally carries a `targetHash`: the content hash of the *specific*
-translation it blesses, computed by the one definition every party uses,
-`state.TargetHash`. A record is **stale** when the current translation's hash
-differs from the one it was written against, so editing an approved translation
-drops the unit back below *reviewed* on its own.
+the locale plus any further qualification — not by content.
 
-A content-keyed index structurally cannot express this. Unit-keying plus
-`targetHash` is what makes an approval unable to silently outlive the text it
+A decision is not about a translation; it is about a **pairing**: this rendering,
+*of this source*. Each record therefore carries both halves, computed by the one
+definition every party uses:
+
+- `targetHash` — the content hash of the specific translation it blesses
+  (`state.TargetHash`).
+- `contentHash` — the **basis**: the content hash of the source wording it
+  blessed that translation *for* (`state.SourceHash`, which is
+  `model.ComputeContentHash`, the same normalization `core/reconcile` matches
+  identity on — a unit's basis and its identity signal are one number).
+
+A record is **stale** when either half no longer matches what the project holds.
+Editing an approved translation drops the unit back below *reviewed*; rewriting
+its source does the same. Binding only the target is the half-measure that lets a
+reviewer's blessing outlive the sentence it blessed — the translation stays
+`translated`, stays approved, and ships wording for text the project no longer
+has, reporting nothing.
+
+Staleness is **derived on every read, never stored**. A decision is history and is
+never rewritten; what a source edit changes is not the record but whether it still
+describes the project. So the demotion happens where the state is read — coverage,
+the review queue, the ship gate, the convergence plan — and a restored source
+converges back onto the decision already on record, with nobody re-reviewing
+anything.
+
+A stale unit tallies at `draft`: a committed target exists, so it is not below the
+ladder, but it is not a translation of the current source either. It withholds its
+scope from shipping **whether or not a ship gate applies** — a coverage bar is a
+threshold on quantity, and no threshold makes a translation of a rewritten
+sentence shippable. An ungated project is precisely the one with nothing else to
+catch it.
+
+**A missing basis is unknown, not stale.** A record written before the basis was
+tracked says nothing about the source it blessed, and reading that silence as
+drift would demote every decision every existing project holds. Such a unit keeps
+its rung, ships as it does today, and is *counted* — `kapi status` reports how
+many decisions rest on an unrecorded basis — so the assumption is visible rather
+than silent. It clears itself: the next decision on the unit records a basis.
+
+A content-keyed index structurally cannot express any of this. Unit-keying plus
+the two hashes is what makes an approval unable to silently outlive the text it
 approved — and it is the same fact the graph's `blesses` edge carries
-([C-03](c-03-context-store-and-graph.md)), so *which decision covers this unit,
-at which basis* is answerable by traversal as well as by lookup.
+([C-03](c-03-context-store-and-graph.md)), which carries both hashes for that
+reason, so *which decision covers this unit, at which basis* is answerable by
+traversal as well as by lookup.
+
+The server ledger holds the same two fields and applies the same rule from the
+other side: a source edit demotes the projected status and files a
+`decision.stale` history event, and a decision that arrives blessing content the
+store no longer holds is recorded but moves nothing.
 
 ### Who decided
 

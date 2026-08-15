@@ -16,7 +16,8 @@ import (
 )
 
 // The decision ledger — the server side of core/state. A decision is a FACT
-// (who, when, which rung, the hash of the translation it blesses); the
+// (who, when, which rung, and the hashes of the pairing it blesses — the
+// translation, and the source it was blessed for); the
 // unit_decisions table folds the event log to latest-per-(item, unit, variant),
 // block_history keeps the events, and target_json.status is a written
 // PROJECTION of the ledger so every existing status reader keeps working.
@@ -79,11 +80,11 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 		var old platstore.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
+			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
 			 FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4 AND variant=$5`,
 			projectID, stream, d.ItemName, d.Unit, d.Variant)
-		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ReviewState, &old.DecidedBy,
+		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
 			&old.DecidedAt, &old.Note, &old.Parked, &old.Assignee, &old.Updated); {
 		case err == nil:
 			haveOld = true
@@ -104,15 +105,16 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_name, unit, variant, status, target_hash, review_state,
+				(project_id, stream, item_name, unit, variant, status, target_hash, content_hash, review_state,
 				 decided_by, decided_at, note, parked, assignee, updated, updated_at)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 			 ON CONFLICT (project_id, stream, item_name, unit, variant) DO UPDATE SET
 				status=EXCLUDED.status, target_hash=EXCLUDED.target_hash,
+				content_hash=EXCLUDED.content_hash,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
 				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, parked=EXCLUDED.parked,
 				assignee=EXCLUDED.assignee, updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
-			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ReviewState,
+			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
 			d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
@@ -185,7 +187,7 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]platstore.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, review_state,
+		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
 			decided_by, decided_at, note, parked, assignee, updated
 		 FROM unit_decisions WHERE project_id=$1 AND stream=$2
 		 ORDER BY item_name, unit, variant`,
@@ -198,7 +200,7 @@ func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream
 	var out []platstore.UnitDecision
 	for rows.Next() {
 		d := platstore.UnitDecision{ProjectID: projectID, Stream: stream}
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash,
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}

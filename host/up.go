@@ -18,11 +18,17 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if plan.Monolingual {
 		return "plan: no target languages — reconciling the source only"
 	}
+	if t.MissingTarget == 0 && t.Stale == 0 {
+		return "plan: every unit has a committed target for its decided source — verifying gates"
+	}
 	if t.MissingTarget == 0 {
-		return "plan: every unit has a committed target — verifying gates"
+		return fmt.Sprintf("plan: %d unit(s) stale — their source changed since the translation was decided", t.Stale)
 	}
 	line := fmt.Sprintf("plan: %d unit(s) missing · %d exact-content memory · %d AI · ≈%s tokens",
 		t.MissingTarget, t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))
+	if t.Stale > 0 {
+		line += fmt.Sprintf(" · %d stale", t.Stale)
+	}
 	if plan.Provider != "" {
 		if plan.Subscription {
 			line += fmt.Sprintf(" · %s (your subscription)", plan.Provider)

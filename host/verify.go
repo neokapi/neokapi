@@ -435,14 +435,29 @@ func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root st
 	}
 	g := verifyGateResult{Gate: gateShip, Pass: true}
 	for _, lc := range cov {
-		if !lc.Gated || lc.Shippable {
-			continue
-		}
-		g.Pass = false
 		scope := lc.Locale
 		if lc.Collection != "" {
 			scope = lc.Locale + "/" + lc.Collection
 		}
+		// Stale pairings fail the gate whether or not the scope declared one.
+		// A coverage threshold is a bar on how much is done; this is a statement
+		// that some of what is done describes source the project has rewritten,
+		// and no bar makes that shippable.
+		if lc.Stale > 0 {
+			g.Pass = false
+			g.Findings = append(g.Findings, verifyFinding{
+				Gate:     gateShip,
+				Locale:   lc.Locale,
+				Severity: "error",
+				Message: fmt.Sprintf("%s: %d unit(s) stale — the source changed since the translation was decided",
+					scope, lc.Stale),
+				Suggestion: "re-review the stale units (kapi status --review) or retranslate them",
+			})
+		}
+		if !lc.Gated || lc.Shippable {
+			continue
+		}
+		g.Pass = false
 		for _, sf := range lc.Pending {
 			g.Findings = append(g.Findings, verifyFinding{
 				Gate:       gateShip,

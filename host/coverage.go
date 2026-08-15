@@ -23,22 +23,9 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		return SourceCoverage{}, err
 	}
 
-	seen := map[string]bool{}
-	var states []string
-	for _, u := range units {
-		if seen[u.SourcePath] {
-			continue
-		}
-		seen[u.SourcePath] = true
-		blocks, berr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
-		if berr != nil {
-			return SourceCoverage{}, berr
-		}
-		for _, b := range blocks {
-			if b.Translatable {
-				states = append(states, sourceUnitState(b))
-			}
-		}
+	states, _, err := a.settleSourceStates(ctx, model.SourceGateNone, units)
+	if err != nil {
+		return SourceCoverage{}, err
 	}
 
 	ladder := gate.SourceLadder()
@@ -69,18 +56,25 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 	return model.ResolveSourceGate(proj.Defaults.SourceGate)
 }
 
-// settleAndCountHeldSource settles the project's source-locale blocks (stamping
-// SourceStatus over the distinct source files, deduped by path) and counts how
-// many translatable source blocks rank below the given source gate — the
-// blocked-on-source count `kapi up` surfaces. It is the local, file-scan
-// counterpart of the server's settleSource + gate rollup, sharing the same
-// core.check settle derivation. A disabled gate (SourceGateNone) settles nothing
-// and holds nothing (the opt-out never pays the settlement cost). total is how
-// many translatable source blocks were considered.
-func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, err error) {
-	if gateLevel == model.SourceGateNone {
-		return 0, 0, nil
-	}
+// settleSourceStates settles the project's source-locale blocks and returns each
+// translatable unit's rung on the source ladder, plus how many rank below
+// gateLevel.
+//
+// It is the ONE source-axis derivation. The rungs above the `authored` presence
+// baseline are reachable from content — `check.SettleSourceStatus` runs the
+// provider-free source checks and stamps the terminal readiness rung — so a
+// reader that only looked at what the source FILE carries reported the baseline
+// for every format with nowhere to write a per-block status, which is most
+// catalog formats. Settling here is what lets the source line and the settle
+// line of the same run agree, on every format.
+//
+// A committed status in a format that can carry one still wins: the settle
+// leaves an already-approved clean source untouched.
+//
+// gateLevel == SourceGateNone holds nothing (the convergence opt-out) but still
+// settles, because the report is owed either way — a project that turned the
+// gate off did not ask to be told its source is unchecked.
+func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, err error) {
 	seen := map[string]bool{}
 	for _, u := range units {
 		if seen[u.SourcePath] {
@@ -89,20 +83,38 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.Sour
 		seen[u.SourcePath] = true
 		blocks, berr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
 		if berr != nil {
-			return 0, 0, berr
+			return nil, 0, berr
 		}
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
 			}
-			total++
 			check.SettleSourceStatus(ctx, b)
-			if !gateLevel.Admits(b.SourceStatus) {
+			states = append(states, sourceUnitState(b))
+			if gateLevel != model.SourceGateNone && !gateLevel.Admits(b.SourceStatus) {
 				held++
 			}
 		}
 	}
-	return held, total, nil
+	return states, held, nil
+}
+
+// settleAndCountHeldSource settles the project's source-locale blocks (deduped
+// by path) and counts how many translatable source blocks rank below the given
+// source gate — the blocked-on-source count `kapi up` surfaces. It is the local,
+// file-scan counterpart of the server's settleSource + gate rollup, sharing the
+// same core.check settle derivation. A disabled gate (SourceGateNone) settles
+// nothing and holds nothing (the opt-out never pays the settlement cost). total
+// is how many translatable source blocks were considered.
+func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, err error) {
+	if gateLevel == model.SourceGateNone {
+		return 0, 0, nil
+	}
+	states, held, err := a.settleSourceStates(ctx, gateLevel, units)
+	if err != nil {
+		return 0, 0, err
+	}
+	return held, len(states), nil
 }
 
 // reviewedIndex maps each unit (block identity + locale) to its committed review
@@ -125,11 +137,33 @@ type reviewedIndex struct {
 type reviewedEntry struct {
 	status     model.TargetStatus
 	targetHash string
+	// contentHash is the decision's BASIS: the source wording it blessed
+	// (state.SourceHash). Empty on a record written before the basis was
+	// tracked — unknown, not stale.
+	contentHash string
 	// by is the recorded decider identity ("" for a plain human decision,
 	// "ai/<model>" for an autonomous AI approval, "agent/<client>" for an MCP
 	// agent). Gate evaluation distinguishes only the "ai/" prefix.
 	by string
 }
+
+// basisVerdict grades a recorded decision against the source in front of the
+// reader — the derived half of the basis: a decision is a fact and is never
+// rewritten, so what a source edit changes is not the record but whether it
+// still describes the project.
+type basisVerdict int
+
+const (
+	// basisNone — no decision is recorded for this unit and locale.
+	basisNone basisVerdict = iota
+	// basisUnknown — a decision with no basis. It keeps its rung; only the
+	// count of such records is reported.
+	basisUnknown
+	// basisCurrent — the decision blesses the source the project holds now.
+	basisCurrent
+	// basisStale — the source moved since the decision was recorded.
+	basisStale
+)
 
 type aiReviewEntry struct {
 	score      int
@@ -139,21 +173,53 @@ type aiReviewEntry struct {
 
 func reviewUnitKey(unit, locale string) string { return unit + "\x00" + locale }
 
-// entryFor returns a block's recorded review entry for the locale, or ok=false
-// when none applies — including when the recorded decision is stale (the
-// translation changed since it was approved).
-func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, bool) {
+// grade looks a block's recorded decision up once and reports everything a
+// reader needs from it: the entry, how its basis stands against the CURRENT
+// source, and whether the decision still applies at all.
+//
+// It applies only while both halves of the pairing it blessed still hold — the
+// translation it judged, and the source it judged it for. Either having moved
+// retires it, and the basis is reported separately because the two demotions
+// mean different things to a caller: a moved translation puts the unit back at
+// its presence baseline, a moved source says the target no longer translates
+// anything the project has.
+func (r reviewedIndex) grade(b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
 	if r.byUnit == nil {
-		return reviewedEntry{}, false
+		return reviewedEntry{}, basisNone, false
 	}
 	e, ok := r.byUnit[reviewUnitKey(blockKey(b), locale)]
 	if !ok {
-		return reviewedEntry{}, false
+		return reviewedEntry{}, basisNone, false
+	}
+	switch {
+	case e.contentHash == "":
+		basis = basisUnknown
+	case e.contentHash != state.SourceHash(b.SourceText()):
+		basis = basisStale
+	default:
+		basis = basisCurrent
 	}
 	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
-		return reviewedEntry{}, false // the translation changed since the decision — stale
+		return e, basis, false // the translation changed since the decision
+	}
+	return e, basis, basis != basisStale
+}
+
+// entryFor returns a block's applicable review entry for the locale, or
+// ok=false when none applies.
+func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, bool) {
+	e, _, applies := r.grade(b, locale)
+	if !applies {
+		return reviewedEntry{}, false
 	}
 	return e, true
+}
+
+// basisFor grades the decision recorded for (block, locale) against the block's
+// current source.
+func (r reviewedIndex) basisFor(b *model.Block, locale string) basisVerdict {
+	_, basis, _ := r.grade(b, locale)
+	return basis
 }
 
 // statusFor returns a block's recorded review state for the locale, or ok=false
@@ -163,9 +229,10 @@ func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetSta
 	return e.status, ok
 }
 
-// decided reports whether a block carries a non-stale review decision for the
+// decided reports whether a block carries an applicable review decision for the
 // locale — approved, signed-off, or rejected. The review queue drops decided
-// units: an approved unit is done, a rejected one is back in the work queue.
+// units: an approved unit is done, a rejected one is back in the work queue,
+// and a unit whose pairing has moved is back in the queue too.
 func (r reviewedIndex) decided(b *model.Block, locale string) bool {
 	_, ok := r.statusFor(b, locale)
 	return ok
@@ -173,17 +240,23 @@ func (r reviewedIndex) decided(b *model.Block, locale string) bool {
 
 // apply moves a `translated` unit to its recorded decision rung — up to reviewed
 // or signed-off for an approval, down to draft for a rejection — when the block
-// has a non-stale decision for the locale; otherwise it returns the base state
+// has an applicable decision for the locale; otherwise it returns the base state
 // unchanged. aiDecided reports whether the applied rung came from an autonomous
-// AI decision ("ai/…" identity), which gate evaluation treats separately.
-func (r reviewedIndex) apply(base string, b *model.Block, locale string) (st string, aiDecided bool) {
-	if base != string(model.TargetStatusTranslated) {
-		return base, false
+// AI decision ("ai/…" identity), which gate evaluation treats separately, and
+// basis is how the recorded decision grades against the current source.
+//
+// A unit with no target at all grades basisNone whatever the store holds: there
+// is no pairing for a decision to have blessed, so there is nothing a source
+// edit could invalidate, and reading one would promote an untranslated unit.
+func (r reviewedIndex) apply(base string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict) {
+	if base == "" {
+		return base, false, basisNone
 	}
-	if e, ok := r.entryFor(b, locale); ok {
-		return string(e.status), state.IsAIDecision(e.by)
+	e, basis, applies := r.grade(b, locale)
+	if applies && base == string(model.TargetStatusTranslated) {
+		return string(e.status), state.IsAIDecision(e.by), basis
 	}
-	return base, false
+	return base, false, basis
 }
 
 // aiReviewFor returns a block's fresh AI pre-review annotation for the locale,
@@ -226,7 +299,8 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
 			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
-				status: u.Status, targetHash: u.TargetHash, by: u.Decision.By,
+				status: u.Status, targetHash: u.TargetHash,
+				contentHash: u.ContentHash, by: u.Decision.By,
 			}
 		}
 		if u.AIReview != nil {
@@ -314,13 +388,24 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 			if !b.Translatable {
 				continue
 			}
-			st, aiDecided := reviewed.apply(unitState(b, u.Locale), b, u.Locale)
+			st, aiDecided, basis := reviewed.apply(unitState(b, u.Locale), b, u.Locale)
 			// Check-findings exclusion wins over any decision: a unit failing
 			// the project's bound checks demotes to draft regardless of who
 			// approved it.
 			if excl.excluded(u.SourcePath, b, u.Locale) {
 				tally.Add(s, DemoteFailing(st))
 				continue
+			}
+			// The basis: a decision blessed a specific source, and if that
+			// source has been rewritten the translation under it renders a
+			// sentence the project no longer has. Derived on every read — the
+			// decision itself is history and is never rewritten.
+			switch basis {
+			case basisStale:
+				tally.AddStale(s)
+				continue
+			case basisUnknown:
+				tally.NoteUnknownBasis(s)
 			}
 			if aiDecided {
 				// The AI decision promoted the unit from the `translated`

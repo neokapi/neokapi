@@ -132,7 +132,7 @@ Edge labels:
 | `uses_term` | block → concept | the locale, the document, a use count |
 | `in_collection` | block → collection | membership |
 | `governed_by` | collection → coordinate | the governing profile's validity window |
-| `blesses` | unit state → block | the target hash the decision was written against |
+| `blesses` | unit state → block | the pairing the decision was written against: the target hash, and the source basis |
 
 `host.MaterializeContextGraph` writes all four on the convergence path, after
 extraction commits its block-write transaction. The subgraph is a pure

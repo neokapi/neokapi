@@ -211,6 +211,10 @@ type Blessing struct {
 	Variant    string `json:"variant,omitempty"`
 	Status     string `json:"status,omitempty"`
 	TargetHash string `json:"target_hash,omitempty"`
+	// ContentHash is the basis the decision blessed: the source hash. A blessing
+	// whose basis differs from the block's current source is stale, whatever its
+	// status says.
+	ContentHash string `json:"content_hash,omitempty"`
 }
 
 // BlessingsOfBlock answers "which decision covers this unit, at which basis":
@@ -231,12 +235,13 @@ func BlessingsOfBlock(ctx context.Context, r EdgeReader, s Scope, contentKey str
 			continue
 		}
 		out = append(out, Blessing{
-			Scope:      parsed.Scope,
-			ContentKey: contentKey,
-			Unit:       e.Properties[PropUnit],
-			Variant:    e.Properties[PropVariant],
-			Status:     e.Properties[PropStatus],
-			TargetHash: e.Properties[PropTargetHash],
+			Scope:       parsed.Scope,
+			ContentKey:  contentKey,
+			Unit:        e.Properties[PropUnit],
+			Variant:     e.Properties[PropVariant],
+			Status:      e.Properties[PropStatus],
+			TargetHash:  e.Properties[PropTargetHash],
+			ContentHash: e.Properties[PropContentHash],
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {

@@ -749,8 +749,9 @@ type CollectionTranslationStats struct {
 // one locale variant — the wire form of core/state.UnitState plus the item that
 // scopes the unit's durable identity (the same structural name recurs across
 // items, so an unscoped unit key cannot be joined safely). It records the
-// decision as a FACT — who, when, which rung, and the hash of the translation
-// it blesses. Freshness is derived by whoever reads it, never stored.
+// decision as a FACT — who, when, which rung, and the hashes of the pairing it
+// blesses: the translation, and the source that translation was approved for.
+// Freshness is derived by whoever reads it, never stored.
 type UnitDecision struct {
 	ProjectID string `json:"project_id,omitempty"`
 	Stream    string `json:"stream,omitempty"`
@@ -766,7 +767,12 @@ type UnitDecision struct {
 	Status string `json:"status,omitempty"`
 	// TargetHash is the content hash of the translation the decision blesses
 	// (state.TargetHash of the trimmed target text).
-	TargetHash  string `json:"targetHash,omitempty"`
+	TargetHash string `json:"targetHash,omitempty"`
+	// ContentHash is the BASIS: the content hash of the SOURCE the decision
+	// blessed that translation for (state.SourceHash). Empty on a record written
+	// before the basis was tracked — unknown, which readers must not confuse
+	// with a source that has moved.
+	ContentHash string `json:"contentHash,omitempty"`
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | signed-off
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339

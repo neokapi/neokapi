@@ -152,11 +152,16 @@ Running the journey is how these were found.
 
 | Gap | Issue |
 | --- | --- |
-| **A source edit never reaches its translation.** Rewrite an English sentence and the Norwegian keeps the old wording, still counted `translated`, still carrying its approval, still `✓ shippable`. The convergence plan asks whether a target exists, not whether it is a translation of the current source, and a review decision binds only to the target hash. This is the one failure mode the loop exists to prevent | [#1932](https://github.com/neokapi/neokapi/issues/1932) |
 | A collection's reader config reaches the loop but not the coverage path, so the pipeline line reads `60/48 units` and coverage is computed over a different denominator than the run produced against | [#1933](https://github.com/neokapi/neokapi/issues/1933) |
-| `kapi status` reports the source axis as `checked 0%` right after a run that reported 48 blocks checked | [#1928](https://github.com/neokapi/neokapi/issues/1928) |
 
-Fixed while this sample was being built: a translated heading re-addressed every
+Fixed while this sample was being built: **a source edit never reaching its
+translation** — rewrite an English sentence and the Norwegian kept the old
+wording, still counted `translated`, still carrying its approval, still
+`✓ shippable`, because a review decision bound only to the target hash and the
+plan asked whether a target existed rather than whether it translated the current
+source ([#1932](https://github.com/neokapi/neokapi/issues/1932)); the source axis
+reporting `checked 0%` right after a run that reported 48 blocks checked
+([#1928](https://github.com/neokapi/neokapi/issues/1928)); and a translated heading re-addressing every
 block beneath it, so a fully translated page paired with its source only above the
 first heading and measured 33% translated, could not be reviewed unit by unit, and
 could never clear a ship gate ([#1931](https://github.com/neokapi/neokapi/issues/1931) —

@@ -33,6 +33,13 @@ type UpPlanScope struct {
 	// AIRemaining is the count of missing units left for AI translation
 	// after content-memory leverage.
 	AIRemaining int `json:"aiRemaining"`
+	// Stale is the count of units that HAVE a committed target whose decision
+	// was recorded against source wording that has since changed. It is
+	// reported beside MissingTarget rather than folded into it: this work is
+	// not a translation the loop can price, it is a pairing a person has to
+	// settle, and a cost estimate that quoted it would quote for work no
+	// provider is going to be asked to do.
+	Stale int `json:"stale,omitempty"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
 	// source characters / 4 (a common chars-per-token heuristic — the
 	// providers expose no tokenizer here, so this is an estimate, not a
@@ -75,21 +82,25 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	if len(o.Scopes) == 0 {
-		fmt.Fprintln(w, "Nothing to do: every unit has a committed target.")
+		fmt.Fprintln(w, "Nothing to do: every unit has a committed target for the source it was decided against.")
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
-		Headers("scope", "missing", "content memory exact", "AI work", "~tokens")
+		Headers("scope", "missing", "stale", "content memory exact", "AI work", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
-		t.Rowf(scope, s.MissingTarget, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
+		t.Rowf(scope, s.MissingTarget, s.Stale, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
 	}
-	t.Rowf("total", o.Totals.MissingTarget, o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	t.Rowf("total", o.Totals.MissingTarget, o.Totals.Stale, o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
 	t.Render()
+	if o.Totals.Stale > 0 {
+		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
+			"They are not priced — settle them in review (`kapi status --review`) or retranslate.\n", o.Totals.Stale)
+	}
 	// Always name the provider a run would resolve. A plan exists to answer
 	// "what will this do", and which provider does the work is part of that —
 	// it is also the fastest way to see that a configured default is being
@@ -160,6 +171,11 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// that left a `.kapi/work/store.db` behind would be a dry run with a side effect,
 	// and the next `up` would find a store it did not write.
 	var mem memory.ContentMemory
+	// The decisions the project already holds, for the same reason: a unit whose
+	// basis no longer matches its source is work the plan owes the reader, and it
+	// reads out of the same store. An absent store yields an empty index — no
+	// decisions, so nothing can be stale.
+	reviewed := reviewedIndex{}
 	if a.MemoryBackend != nil {
 		mem = a.MemoryBackend
 	} else {
@@ -178,10 +194,13 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 			if m := db.Memory(); m != nil {
 				mem = m
 			}
+			if idx, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root); rerr == nil {
+				reviewed = idx
+			}
 		}
 	}
 
-	plan, err := a.computeUpPlan(ctx, mem, proj, units)
+	plan, err := a.computeUpPlan(ctx, mem, reviewed, proj, units)
 	if err != nil {
 		return plan, err
 	}
@@ -237,7 +256,7 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units.
-func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
+func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, reviewed reviewedIndex, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
 	type scopeKey struct{ Locale, Collection string }
 	scopes := map[scopeKey]*UpPlanScope{}
 	scopeFor := func(k scopeKey) *UpPlanScope {
@@ -278,7 +297,15 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, proj *
 			// `kapi up` pass re-planned and re-translated a unit that was already
 			// done — billed AI work on content that needed none.
 			if !missing && model.RunsHaveContent(b.TargetRuns(target)) {
-				continue // already produced
+				// Produced — but "a target exists" is not "the target translates
+				// this source". A unit whose decision blessed wording that has
+				// since been rewritten is drift the plan owes the reader, and
+				// reporting only presence is what let an edited sentence read as
+				// converged while its translation said something else.
+				if reviewed.basisFor(b, u.Locale) == basisStale {
+					s.Stale++
+				}
+				continue
 			}
 			s.MissingTarget++
 			if planMemoryExactHit(ctx, tm, b, source, target) {
@@ -298,11 +325,12 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, proj *
 	}
 	out := UpPlanOutput{Flow: flowLabel, Note: upPlanNote}
 	for _, s := range scopes {
-		if s.MissingTarget == 0 {
+		if s.MissingTarget == 0 && s.Stale == 0 {
 			continue
 		}
 		out.Scopes = append(out.Scopes, *s)
 		out.Totals.MissingTarget += s.MissingTarget
+		out.Totals.Stale += s.Stale
 		out.Totals.MemoryExact += s.MemoryExact
 		out.Totals.AIRemaining += s.AIRemaining
 		out.Totals.TokenEstimate += s.TokenEstimate
