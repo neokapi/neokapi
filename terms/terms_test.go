@@ -3,6 +3,7 @@ package terms_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -300,172 +301,161 @@ func TestInMemoryTerms_ConceptHelpers(t *testing.T) {
 
 // --- Okapi parity tests ---
 
-func TestInMemoryTerms_WordBoundaryDetection(t *testing.T) {
-	tb := terms.NewInMemoryStore()
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "src-concept",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "src", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "source", Locale: model.LocaleFrench, Status: model.TermPreferred},
-		},
-	}))
-
-	// LookupAll uses substring matching (strings.Index). The current implementation
-	// does NOT enforce word boundaries, so "src" inside "WithinWordsrcWord" WILL match.
-	// This documents the current behavior. The Okapi SimpleTB uses Unicode word
-	// boundary detection and would NOT match here. This is a known difference.
-	text := "WithinWordsrcWord has src at word boundary"
-	matches := mustLookupAll(t, tb, text, terms.LookupOptions{
-		SourceLocale: model.LocaleEnglish,
-	})
-
-	// Current implementation finds "src" at both positions (substring match).
-	require.GreaterOrEqual(t, len(matches), 2, "substring matching finds 'src' inside compound words too")
-
-	// Verify that word-boundary occurrence is found.
-	var foundWordBoundary bool
-	for _, m := range matches {
-		if m.Position.Start == strings.Index(text, " src ")+1 {
-			foundWordBoundary = true
-		}
+// termMatchStrings renders matches as "term@start-end", the shape a table can
+// assert on without restating the whole TermMatch.
+func termMatchStrings(matches []terms.TermMatch) []string {
+	if len(matches) == 0 {
+		return nil
 	}
-	assert.True(t, foundWordBoundary, "should find 'src' at word boundary position")
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		out = append(out, fmt.Sprintf("%s@%d-%d", m.Term.Text, m.Position.Start, m.Position.End))
+	}
+	return out
 }
 
-func TestInMemoryTerms_LongestMatchFirst(t *testing.T) {
-	tb := terms.NewInMemoryStore()
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "sc",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "source code", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "code source", Locale: model.LocaleFrench, Status: model.TermPreferred},
+// TestInMemoryTerms_MatchRule pins the rule LookupAll matches by: whole words,
+// and where two declared terms cover the same characters, the longer one. It is
+// the rule Okapi's SimpleTB matches by, and the rule the voice-profile half of
+// the same gate has always used — a term is a hit for the whole gate or for
+// none of it.
+func TestInMemoryTerms_MatchRule(t *testing.T) {
+	tests := []struct {
+		name     string
+		declared []terms.Concept
+		text     string
+		want     []string
+	}{
+		{
+			name: "a term is not found inside a longer word",
+			declared: []terms.Concept{{
+				ID:    "src",
+				Terms: []terms.Term{{Text: "src", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+			}},
+			text: "WithinWordsrcWord has src at a word boundary",
+			want: []string{"src@22-25"},
 		},
-	}))
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "c",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "code", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "code", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		{
+			name: "an underscore continues a word, so an identifier is one token",
+			declared: []terms.Concept{
+				{
+					ID:    "berth",
+					Terms: []terms.Term{{Text: "mooring", Locale: model.LocaleEnglish, Status: model.TermDeprecated}},
+				},
+				{
+					ID:    "mooring-id",
+					Terms: []terms.Term{{Text: "mooring_id", Locale: model.LocaleEnglish, Status: model.TermAdmitted}},
+				},
+			},
+			text: "The mooring_id field names the mooring.",
+			want: []string{"mooring_id@4-14", "mooring@31-38"},
 		},
-	}))
-
-	text := "Review the source code carefully"
-	matches := mustLookupAll(t, tb, text, terms.LookupOptions{
-		SourceLocale: model.LocaleEnglish,
-	})
-
-	// Should find both "source code" (longer) and "code" (shorter, overlapping).
-	require.GreaterOrEqual(t, len(matches), 2)
-
-	// LookupAll sorts by position, then longer matches first at same position.
-	// Find the match at the "source code" position.
-	sourceCodeStart := strings.Index(text, "source code")
-	var foundLong, foundShort bool
-	for _, m := range matches {
-		if m.Position.Start == sourceCodeStart && m.Term.Text == "source code" {
-			foundLong = true
-		}
-		if m.Term.Text == "code" {
-			foundShort = true
-		}
+		{
+			name: "a suffixed inflection is not the term",
+			declared: []terms.Concept{{
+				ID:    "berth",
+				Terms: []terms.Term{{Text: "mooring", Locale: model.LocaleEnglish, Status: model.TermDeprecated}},
+			}},
+			text: "hides moorings whose draught is too great",
+			want: nil,
+		},
+		{
+			name: "the longer declared term wins where two cover the same words",
+			declared: []terms.Concept{
+				{
+					ID:    "sc",
+					Terms: []terms.Term{{Text: "source code", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+				{
+					ID:    "c",
+					Terms: []terms.Term{{Text: "code", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+			},
+			text: "Review the source code carefully",
+			want: []string{"source code@11-22"},
+		},
+		{
+			name: "the shorter term still reports where it stands alone",
+			declared: []terms.Concept{
+				{
+					ID:    "sc",
+					Terms: []terms.Term{{Text: "source code", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+				{
+					ID:    "c",
+					Terms: []terms.Term{{Text: "code", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+			},
+			text: "Review the source code, then the code",
+			want: []string{"source code@11-22", "code@33-37"},
+		},
+		{
+			name: "terms that merely overlap are both reported",
+			declared: []terms.Concept{
+				{
+					ID:    "bp",
+					Terms: []terms.Term{{Text: "berth plan", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+				{
+					ID:    "pv",
+					Terms: []terms.Term{{Text: "plan view", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+				},
+			},
+			text: "the berth plan view",
+			want: []string{"berth plan@4-14", "plan view@10-19"},
+		},
+		{
+			name: "matches of one term never overlap",
+			declared: []terms.Concept{{
+				ID:    "ab",
+				Terms: []terms.Term{{Text: "ab", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+			}},
+			text: "ab ab ab",
+			want: []string{"ab@0-2", "ab@3-5", "ab@6-8"},
+		},
+		{
+			name: "a multi-word term matches across any run of whitespace",
+			declared: []terms.Concept{{
+				ID:    "sc",
+				Terms: []terms.Term{{Text: "source code", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+			}},
+			text: "the source\ncode there",
+			want: []string{"source code@4-15"},
+		},
+		{
+			name: "matching folds case",
+			declared: []terms.Concept{{
+				ID:    "sc",
+				Terms: []terms.Term{{Text: "Src1 src2", Locale: model.LocaleEnglish, Status: model.TermPreferred}},
+			}},
+			text: "Here is src1 SRC2 in context",
+			want: []string{"Src1 src2@8-17"},
+		},
 	}
-	assert.True(t, foundLong, "should find 'source code' multi-word match")
-	assert.True(t, foundShort, "should find 'code' single-word match")
 
-	// When multiple matches start at the same position, longer match comes first.
-	for i := 1; i < len(matches); i++ {
-		if matches[i].Position.Start == matches[i-1].Position.Start {
-			assert.GreaterOrEqual(t, matches[i-1].Position.End, matches[i].Position.End,
-				"at same start position, longer match should come first")
-		}
-	}
-}
-
-func TestInMemoryTerms_NonOverlappingMatches(t *testing.T) {
-	tb := terms.NewInMemoryStore()
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "ab",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "ab", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-		},
-	}))
-
-	// Text: "ababab" contains "ab" at positions 0, 2, 4.
-	// The current implementation advances past each match, so it finds non-overlapping matches.
-	text := "ababab"
-	matches := mustLookupAll(t, tb, text, terms.LookupOptions{
-		SourceLocale: model.LocaleEnglish,
-	})
-
-	require.Len(t, matches, 3, "should find 3 non-overlapping 'ab' matches")
-	assert.Equal(t, 0, matches[0].Position.Start)
-	assert.Equal(t, 2, matches[0].Position.End)
-	assert.Equal(t, 2, matches[1].Position.Start)
-	assert.Equal(t, 4, matches[1].Position.End)
-	assert.Equal(t, 4, matches[2].Position.Start)
-	assert.Equal(t, 6, matches[2].Position.End)
-}
-
-func TestInMemoryTerms_MultiWordTermPrecedence(t *testing.T) {
-	tb := terms.NewInMemoryStore()
-
-	// Add multi-word term and its constituent single-word term.
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "src1-src2",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "Src1 src2", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "Quelle1 quelle2", Locale: model.LocaleFrench, Status: model.TermPreferred},
-		},
-	}))
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
-		ID:     "src2-only",
-		Domain: "software",
-		Terms: []terms.Term{
-			{Text: "src2", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "quelle2", Locale: model.LocaleFrench, Status: model.TermPreferred},
-		},
-	}))
-
-	text := "Here is Src1 src2 in context"
-	matches := mustLookupAll(t, tb, text, terms.LookupOptions{
-		SourceLocale:  model.LocaleEnglish,
-		CaseSensitive: false,
-	})
-
-	// Should find both the multi-word "Src1 src2" and the single-word "src2".
-	require.GreaterOrEqual(t, len(matches), 2)
-
-	var foundMulti, foundSingle bool
-	for _, m := range matches {
-		if m.Concept.ID == "src1-src2" {
-			foundMulti = true
-		}
-		if m.Concept.ID == "src2-only" {
-			foundSingle = true
-		}
-	}
-	assert.True(t, foundMulti, "should find multi-word term 'Src1 src2'")
-	assert.True(t, foundSingle, "should find single-word term 'src2'")
-
-	// The multi-word match should appear before the single-word match
-	// when sorted by position (multi-word starts earlier).
-	for _, m := range matches {
-		if m.Concept.ID == "src1-src2" {
-			multiStart := m.Position.Start
-			for _, m2 := range matches {
-				if m2.Concept.ID == "src2-only" {
-					assert.Less(t, multiStart, m2.Position.Start,
-						"multi-word term starts before its constituent single-word term")
-				}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tb := terms.NewInMemoryStore()
+			for _, c := range tt.declared {
+				require.NoError(t, tb.AddConcept(context.Background(), c))
 			}
-		}
+			matches := mustLookupAll(t, tb, tt.text, terms.LookupOptions{
+				SourceLocale: model.LocaleEnglish,
+			})
+			assert.Equal(t, tt.want, termMatchStrings(matches))
+			for _, m := range matches {
+				assert.Equal(t,
+					strings.ToLower(m.Term.Text),
+					strings.ToLower(collapseSpace(tt.text[m.Position.Start:m.Position.End])),
+					"the reported range covers the matched term")
+			}
+		})
 	}
 }
+
+// collapseSpace turns every run of whitespace into a single space, so a
+// multi-word match found across a line break compares against its term.
+func collapseSpace(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 func TestInMemoryTerms_InterfaceCompliance(t *testing.T) {
 	tb := terms.NewInMemoryStore()

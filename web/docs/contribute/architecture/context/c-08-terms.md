@@ -180,6 +180,23 @@ Which tiers run is selected per call through the lookup options, alongside case
 sensitivity, a minimum score, and the status and validity filters — so a caller
 can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
 
+### Scanning a text: one matcher, one rule
+
+`LookupAllTiered` asks a different question — *which declared terms does this
+passage use* — and answers it with `check.TermMatcher`, the single definition of
+what it means for a text to use a term. The voice-profile vocabulary rules, the
+do-not-translate check and the occurrence graph scan with the same matcher, so a
+word is a hit for the whole gate or for none of it. The rule is whole-word and
+Unicode-aware: an underscore continues a word, so `mooring_id` is one token
+rather than a use of `mooring`; scripts written without word separators take no
+boundary rule at all; and a multi-word term matches across any run of
+whitespace.
+
+Where two declared terms cover the same characters, the longer one is reported
+and the shorter suppressed. A project that has declared `mooring_id` a concept of
+its own has said those characters are not a use of the retired name inside them,
+and reporting both would be the graph contradicting itself.
+
 Distinct from lookup, `Search` powers the terms browser in the CLI and the
 desktop app. It uses a full-text tokenizer with relevance ranking rather than
 unranked substring queries.

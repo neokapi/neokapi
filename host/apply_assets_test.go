@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,4 +241,143 @@ func lookupMemoryTarget(t *testing.T, ctx context.Context, tm memory.Store, text
 	require.NoError(t, err)
 	require.NotEmpty(t, matches, "expected a content-memory match for %q", text)
 	return matches[0].Entry.VariantText(model.LocaleID(tgt))
+}
+
+// TestUpsertTerm_JoinsTheConceptItAnswers pins where a term decision lands. The
+// answer to "what should this say instead" is the preferred term of the concept
+// the retired word sits in, so a decision filed on its own island can never be
+// answered however clearly it was written — which is what made every replacement
+// handed to `kapi apply` invisible to the gate.
+func TestUpsertTerm_JoinsTheConceptItAnswers(t *testing.T) {
+	berth := func() []terms.Concept {
+		return []terms.Concept{{
+			ID: "c-berth",
+			Terms: []terms.Term{
+				{Text: "berth", Locale: "en-GB", Status: model.TermPreferred},
+				{Text: "mooring", Locale: "en-GB", Status: model.TermDeprecated, Note: terms.ReplacementNote("berth")},
+			},
+		}}
+	}
+
+	tests := []struct {
+		name        string
+		concepts    []terms.Concept
+		decision    termDecision
+		wantChanged bool
+		wantConcept string   // the concept the term landed in
+		wantTerms   []string // its terms, as "text/status"
+	}{
+		{
+			name:     "a replacement the graph declares joins its concept",
+			concepts: berth(),
+			decision: termDecision{
+				Text: "dock", Locale: "en-GB", Status: model.TermForbidden, Replacement: "berth",
+			},
+			wantChanged: true,
+			wantConcept: "c-berth",
+			wantTerms:   []string{"berth/preferred", "mooring/deprecated", "dock/forbidden"},
+		},
+		{
+			name:     "replaces names the concept to join, by id",
+			concepts: berth(),
+			decision: termDecision{
+				Text: "quay", Locale: "en-GB", Status: model.TermDeprecated, Replaces: "c-berth",
+			},
+			wantChanged: true,
+			wantConcept: "c-berth",
+			wantTerms:   []string{"berth/preferred", "mooring/deprecated", "quay/deprecated"},
+		},
+		{
+			name:     "replaces names the concept to join, by one of its terms",
+			concepts: berth(),
+			decision: termDecision{
+				Text: "quay", Locale: "en-GB", Status: model.TermDeprecated, Replaces: "mooring",
+			},
+			wantChanged: true,
+			wantConcept: "c-berth",
+			wantTerms:   []string{"berth/preferred", "mooring/deprecated", "quay/deprecated"},
+		},
+		{
+			name:     "a replacement the graph has never heard of becomes the preferred sibling",
+			concepts: nil,
+			decision: termDecision{
+				Text: "dock", Locale: "en-GB", Status: model.TermForbidden, Replacement: "berth",
+			},
+			wantChanged: true,
+			wantConcept: "term:en-GB:dock",
+			wantTerms:   []string{"dock/forbidden", "berth/preferred"},
+		},
+		{
+			name:     "a term the entry declares preferred is retired in favour of nothing",
+			concepts: nil,
+			decision: termDecision{
+				Text: "sign in", Locale: "en", Status: model.TermPreferred, Replacement: "log in",
+			},
+			wantChanged: true,
+			wantConcept: "term:en:sign-in",
+			wantTerms:   []string{"sign in/preferred"},
+		},
+		{
+			name:     "a decision already recorded changes nothing",
+			concepts: berth(),
+			decision: termDecision{
+				Text: "mooring", Locale: "en-GB", Status: model.TermDeprecated, Replacement: "berth",
+			},
+			wantChanged: false,
+			wantConcept: "c-berth",
+			wantTerms:   []string{"berth/preferred", "mooring/deprecated"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, changed := upsertTerm(tt.concepts, tt.decision)
+			assert.Equal(t, tt.wantChanged, changed)
+
+			idx := -1
+			for i := range got {
+				if got[i].ID == tt.wantConcept {
+					idx = i
+				}
+			}
+			require.GreaterOrEqual(t, idx, 0, "the term must land in %s (got %+v)", tt.wantConcept, got)
+
+			var have []string
+			for _, term := range got[idx].Terms {
+				have = append(have, term.Text+"/"+string(term.Status))
+			}
+			assert.Equal(t, tt.wantTerms, have)
+
+			// Re-applying the same decision is a no-op, whichever way it landed.
+			_, again := upsertTerm(got, tt.decision)
+			assert.False(t, again, "apply must be idempotent")
+		})
+	}
+}
+
+// TestUpsertTerm_ReplacementIsNeverDeclaredTwice: a word one concept already
+// declares is not copied into a second, which would leave the graph with two
+// concepts for one concept.
+func TestUpsertTerm_ReplacementIsNeverDeclaredTwice(t *testing.T) {
+	concepts := []terms.Concept{
+		{ID: "c-berth", Terms: []terms.Term{{Text: "berth", Locale: "en-GB", Status: model.TermPreferred}}},
+		{ID: "c-dock", Terms: []terms.Term{{Text: "dock", Locale: "en-GB", Status: model.TermProposed}}},
+	}
+
+	got, changed := upsertTerm(concepts, termDecision{
+		Text: "dock", Locale: "en-GB", Status: model.TermForbidden, Replacement: "berth",
+	})
+	require.True(t, changed)
+
+	seen := 0
+	for _, c := range got {
+		for _, term := range c.Terms {
+			if term.Text == "berth" {
+				seen++
+			}
+		}
+	}
+	assert.Equal(t, 1, seen, "the replacement stays in the one concept that declares it")
+	assert.Equal(t, terms.ReplacementNote("berth"), got[1].Terms[0].Note,
+		"and the decision is still recorded on the term it was made about")
 }

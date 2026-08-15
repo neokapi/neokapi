@@ -91,28 +91,26 @@ Terms
   mooring_id               ok (en-GB, admitted)  [api]
 ```
 
-**What the recipe cannot yet say.** The rename is not in the enforced
-vocabulary, because it does not need to be. A **deprecated** term is enforced
-as a **minor** finding — retiring a word never fails anybody's build — so the
-changelog and the API reference keep the retired name, the gate says so, and
-nothing is blocked. The record and the gate agree without an exception
-mechanism.
+**What the recipe says, and what it still cannot.** The rename is not in the
+enforced vocabulary, because it does not need to be. A **deprecated** term is
+enforced as a **minor** finding — retiring a word never fails anybody's build —
+so the changelog keeps the retired name, the gate says so, and nothing is
+blocked. The record and the gate agree without an exception mechanism.
 
-What is still missing is the exception itself. A vocabulary decision is
-project-wide: a channel override carries a tone and a style and no vocabulary,
-and a profile's `terms:` splits on the *product* axis, so there is no way to say
-"permitted in these two files". The point beneath the file that would say it is
-the open case named at the end of
+The API reference needs no exception either. `mooring_id` is its own concept,
+**admitted**, and the gate matches whole words and prefers the longest term the
+project declared, so the field name is not read as a use of the word it
+contains.
+
+What a recipe still cannot say is *permitted in this passage*: an exception
+finer than a file. A file-scoped exception is declarable today — a profile with
+its own `terms:` (or the conventional
+`.kapi/profiles/<name>/terms.json`) governs exactly the files its channels
+carry, because `kapi check` resolves the vocabulary per file the way it resolves
+the voice. Below the file there is no point to bind, which is the open case
+named at the end of
 [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md).
 Until it exists, the advisory severity is what makes the arrangement liveable.
-
-The API reference also shows a defect rather than a limit. Two of its findings
-are on `mooring_id` — a term the graph separately declares **admitted** — being
-reported as the retired `mooring`, because the terms matcher matches substrings
-and does not prefer the longest declared term
-([#1914](https://github.com/neokapi/neokapi/issues/1914)). The voice-profile
-half of the same gate matches whole words. Those two findings are the bug, not
-the rename.
 
 ## The enforced vocabulary
 
@@ -171,13 +169,15 @@ Fix the last one and converge:
 ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
 kapi up                                    # 3 source files changed, re-extracted
 kapi status                                # the source axis, on one line
-kapi check --strict                        # exit 0, with four advisory findings left
+kapi check --strict                        # exit 0, with two advisory findings left
 ```
 
-`kapi check --ship` runs the same gates plus the ship and source coverage gates
-and also passes here; it is left out of the recorded walkthrough only because
-its finding locations are still absolute paths
-([#1906](https://github.com/neokapi/neokapi/issues/1906), item 5).
+The two that remain are the changelog's, and they are correct: the record says
+what was announced, in the words it was announced in.
+
+`kapi check --ship` runs the same gates plus the ship and source coverage gates,
+also passes here, and names its findings the way `kapi check` does — the
+project-relative path and the block.
 
 ## Every file round-trips
 
@@ -196,10 +196,7 @@ left is filed and visible in the sample's own output rather than worked around.
 
 | Gap | Issue |
 | --- | --- |
-| The terms half of the gate matches substrings and ignores the longer declared term, so `mooring_id` — separately declared admitted — reports as the retired `mooring`. Two of the sample's four remaining findings are this | [#1914](https://github.com/neokapi/neokapi/issues/1914) |
-| A replacement handed to `kapi apply` never reaches the finding it should fix, because the concept it creates has no preferred sibling. The walkthrough's decision beat lands without a suggested fix | [#1915](https://github.com/neokapi/neokapi/issues/1915) |
-| `kapi check --ship` prints absolute paths in finding locations, where `kapi check` prints project-relative ones. This is why the walkthrough ends on `--strict` | [#1906](https://github.com/neokapi/neokapi/issues/1906) |
-| No point beneath the file, so a vocabulary decision cannot carry an exception for the two surfaces that legitimately keep a retired name. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
+| No point beneath the file, so a vocabulary decision cannot carry an exception for a passage. A whole surface can keep a retired name — a profile with its own `terms:` does that — but two paragraphs of one file cannot. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
 
 Fixed while this sample was being built, each found by running the journey on
 it: [#1900](https://github.com/neokapi/neokapi/issues/1900) (monolingual
@@ -208,9 +205,15 @@ it: [#1900](https://github.com/neokapi/neokapi/issues/1900) (monolingual
 surfaces disagreeing), [#1902](https://github.com/neokapi/neokapi/issues/1902)
 (the HTML writer reflowing an unedited document),
 [#1903](https://github.com/neokapi/neokapi/issues/1903) (`kapi apply` losing a
-governance file's comments), and
+governance file's comments),
 [#1904](https://github.com/neokapi/neokapi/issues/1904) (no terms gate on a
-monolingual project).
+monolingual project),
+[#1906](https://github.com/neokapi/neokapi/issues/1906) (the monolingual CLI
+surface, including the ship gate's absolute paths),
+[#1914](https://github.com/neokapi/neokapi/issues/1914) (the terms matcher
+reporting `mooring_id` as the retired `mooring` inside it), and
+[#1915](https://github.com/neokapi/neokapi/issues/1915) (a replacement handed to
+`kapi apply` never reaching the finding it answers).
 
 ## Where it is used
 

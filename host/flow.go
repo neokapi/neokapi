@@ -1693,6 +1693,13 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 	}
 	if sel.Path != "" {
 		if _, statErr := os.Stat(sel.Path); statErr == nil {
+			// A point's `terms:` binding names a committed bundle, not a
+			// working store: it is the one place a recipe still names a terms
+			// FILE, so the same path can arrive as either shape and reading it
+			// as the wrong one fails with "file is not a database".
+			if ktb.IsBundlePath(sel.Path) {
+				return conceptsFromKTB(sel.Path)
+			}
 			tb, err := sqltb.NewSQLiteStore(sel.Path)
 			if err != nil {
 				return nil, fmt.Errorf("open terms %q: %w", sel.Path, err)

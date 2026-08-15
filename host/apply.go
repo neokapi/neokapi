@@ -19,7 +19,7 @@ import (
 
 // changeKind discriminates a change-set entry. `apply` is the single write verb:
 // every deliberate, reviewed change Claude proposes — a content edit or an asset
-// edit (glossary term, content memory pair, voice rule, recipe field) — is one typed entry,
+// edit (term, content memory pair, voice rule, recipe field) — is one typed entry,
 // so "is this change reviewed?" has one answer for everything and the backing
 // stores are written by exactly one code path.
 type changeKind string

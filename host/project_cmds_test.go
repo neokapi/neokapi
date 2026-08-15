@@ -3,6 +3,7 @@ package host
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/preset"
@@ -87,4 +88,64 @@ func TestInitProject_ContentScaffold(t *testing.T) {
 	proj, err := project.Load(res.RecipePath)
 	require.NoError(t, err)
 	assert.Empty(t, proj.Defaults.TargetLanguages, "content scaffold declares no targets")
+}
+
+// TestScaffoldRecipe_CommentedExamplesLoad: the tutorial `kapi init` writes is
+// the first recipe most people read, and its examples are copied verbatim. Each
+// commented block must therefore load — an unqualified `channel: docs` did not,
+// so the one example of a governed collection was an example of a load error.
+func TestScaffoldRecipe_CommentedExamplesLoad(t *testing.T) {
+	yaml := string(ScaffoldRecipe("MyApp", "en", []string{"fr"}, nil, "", ""))
+
+	example := uncommentedYAML(t, yaml, "profiles:")
+	require.Contains(t, example, "channel: acme/docs",
+		"a channel names its profile — the loader refuses a bare one")
+
+	dir := t.TempDir()
+	recipePath := filepath.Join(dir, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipePath,
+		[]byte("version: v1\nname: MyApp\ndefaults:\n  source_language: en\n"+example), 0o644))
+
+	_, err := project.Load(recipePath)
+	require.NoError(t, err, "the scaffold's own example must load:\n%s", example)
+}
+
+// uncommentedYAML returns the commented recipe example that starts at the line
+// beginning with start, uncommented. The block runs to the end of the comment
+// run; the sentences interleaved with it are dropped, being unindented prose
+// rather than the mapping keys and list items a recipe is made of.
+func uncommentedYAML(t *testing.T, yaml, start string) string {
+	t.Helper()
+	var out []string
+	collecting := false
+	for line := range strings.SplitSeq(yaml, "\n") {
+		body, isComment := strings.CutPrefix(line, "#")
+		body = strings.TrimPrefix(body, " ")
+		if !collecting {
+			collecting = isComment && strings.HasPrefix(body, start)
+			if collecting {
+				out = append(out, body)
+			}
+			continue
+		}
+		if !isComment {
+			break
+		}
+		if isRecipeLine(body) {
+			out = append(out, body)
+		}
+	}
+	require.NotEmpty(t, out, "the scaffold must carry a %q example", start)
+	return strings.Join(out, "\n") + "\n"
+}
+
+// isRecipeLine reports whether an uncommented line is recipe YAML rather than
+// the prose around it: blank, indented, a comment of its own, or a top-level key
+// (which a recipe writes lower-case, and a sentence does not).
+func isRecipeLine(s string) bool {
+	if s == "" || s[0] == ' ' || s[0] == '#' {
+		return true
+	}
+	key, _, ok := strings.Cut(s, ":")
+	return ok && key != "" && key == strings.ToLower(key) && !strings.ContainsAny(key, " '\"")
 }

@@ -269,7 +269,7 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 #
 # collections:
 #   - name: acme-docs
-#     channel: docs
+#     channel: acme/docs
 #     base: web
 #     content:
 #       - path: "docs/**/*.md"          # web/docs/**/*.md

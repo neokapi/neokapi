@@ -235,17 +235,15 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		return check.Report{}, err
 	}
 
-	opts := checkRunOptions{}
 	// The vocabulary the project decided travels with the profile: a term
 	// retired in the project's terms is a finding here, not only in retrieval.
-	// Opened once for the whole run rather than per file — every file in a
-	// project resolves the same store.
-	tb, releaseTerms, err := a.vocabularyTerms(cmd)
+	// Resolved per file for the same reason the profile is — see checkTerms.
+	vocab, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return check.Report{}, err
 	}
-	defer releaseTerms()
-	opts.terms = tb
+
+	opts := checkRunOptions{}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -269,6 +267,9 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		dnt, _ := cmd.Flags().GetStringSlice("dnt")
 		sourcePath := args[0]
 		if opts.profile, err = voice.forFile(ctx, sourcePath); err != nil {
+			return check.Report{}, err
+		}
+		if opts.terms, err = vocab.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
 		unit := VerifyUnit{SourcePath: sourcePath, TargetPath: targetFile, Locale: targetLang, DisplayPath: targetFile}
@@ -301,10 +302,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		defer prog.Done()
 		for _, file := range args {
 			prog.Step(DisplayName(file))
-			// The voice is resolved per file: a run over a governed project
-			// checks each file against the vocabulary in force where that file
-			// sits, not against one voice picked for the whole invocation.
+			// The governance is resolved per file: a run over a governed
+			// project checks each file against the voice and the vocabulary in
+			// force where that file sits, not against one pair picked for the
+			// whole invocation.
 			if opts.profile, err = voice.forFile(ctx, file); err != nil {
+				return check.Report{}, err
+			}
+			if opts.terms, err = vocab.forFile(ctx, file); err != nil {
 				return check.Report{}, err
 			}
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
@@ -649,6 +654,92 @@ func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
 	return v, nil
 }
 
+// checkTerms resolves the vocabulary in force at a file, the way checkVoice
+// resolves the voice profile there. The two halves of the gate are governed at
+// the same granularity: a project whose profile binds its own `terms:` (or
+// carries the conventional `.kapi/profiles/<name>/terms.json`) has said which
+// words that region of the context space is held to, and a run that read one
+// project-wide vocabulary honoured the recipe's tone binding while ignoring its
+// vocabulary binding.
+//
+// Resolution is per governance point, not per file: the store is built once for
+// each distinct (profile, channel) a run touches, so a thousand files sitting at
+// two points open two vocabularies.
+type checkTerms struct {
+	app   *App
+	cmd   Command
+	proj  *project.KapiProject
+	root  string
+	cache map[string]terms.Terminology
+}
+
+// newCheckTerms builds the resolver for one run. Outside a project there is no
+// decided vocabulary, and the resolver answers nil for every file.
+func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
+	t := &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil || projectPath == "" {
+		return t, err
+	}
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return nil, fmt.Errorf("load project for terms: %w", lerr)
+	}
+	t.proj, t.root = proj, filepath.Dir(projectPath)
+	return t, nil
+}
+
+// forFile returns the vocabulary governing one file, or nil when nothing binds
+// one there.
+func (t *checkTerms) forFile(ctx context.Context, file string) (terms.Terminology, error) {
+	if t == nil || t.proj == nil {
+		return nil, nil
+	}
+	point := t.app.governancePointForFile(t.root, file)
+	rc, err := t.app.ResolveGovernanceAtPoint(t.cmd, t.proj, point)
+	if err != nil {
+		return nil, err
+	}
+	key := rc.Profile + "\x00" + rc.Channel
+	if tb, ok := t.cache[key]; ok {
+		return tb, nil
+	}
+
+	concepts, err := t.app.projectConcepts(t.cmd, point)
+	if err != nil {
+		return nil, err
+	}
+	var tb terms.Terminology
+	if len(concepts) > 0 {
+		// Unlimited: the store holds exactly the vocabulary the project
+		// decided, and a cap would enforce a silently truncated one.
+		mem := terms.NewInMemoryStore(terms.WithMaxConcepts(0))
+		for _, c := range concepts {
+			if aerr := mem.AddConcept(ctx, c); aerr != nil {
+				return nil, fmt.Errorf("load the vocabulary governing %s: %w", DisplayName(file), aerr)
+			}
+		}
+		tb = mem
+	}
+	t.cache[key] = tb
+	return tb, nil
+}
+
+// governancePointForFile is the point a source file sits at: its own, when the
+// file is inside the project, and the project default otherwise.
+func (a *App) governancePointForFile(root, file string) project.GovernancePoint {
+	abs := file
+	if !filepath.IsAbs(abs) {
+		if r, err := filepath.Abs(abs); err == nil {
+			abs = r
+		}
+	}
+	if rel, ok := projectRelPath(root, abs); ok {
+		return a.GovernancePointFor("", rel)
+	}
+	return a.GovernancePointFor("", "")
+}
+
 // forFile returns the voice profile governing one file, or nil when nothing
 // binds one there.
 func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, error) {
@@ -656,17 +747,7 @@ func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoicePr
 		return v.fixed, nil
 	}
 
-	point := v.app.GovernancePointFor("", "")
-	abs := file
-	if !filepath.IsAbs(abs) {
-		if r, aerr := filepath.Abs(abs); aerr == nil {
-			abs = r
-		}
-	}
-	if rel, ok := projectRelPath(v.root, abs); ok {
-		point = v.app.GovernancePointFor("", rel)
-	}
-
+	point := v.app.governancePointForFile(v.root, file)
 	rc, err := v.app.ResolveGovernanceAtPoint(v.cmd, v.proj, point)
 	if err != nil {
 		return nil, err

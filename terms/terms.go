@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
@@ -17,6 +18,33 @@ const (
 	TermSourceTerminology     TermSource = "terminology"
 	TermSourceBrandVocabulary TermSource = "brand_vocabulary"
 )
+
+// replacementNotePrefix marks a term note that names the wording to use
+// instead. A Term has no dedicated replacement field — the answer to "what
+// should this say" is normally the preferred sibling in the term's own concept
+// — so a decision recorded against a term standing alone carries it here, and
+// one definition of the convention serves both the writer (`kapi apply`) and
+// the reader (the vocabulary gate).
+const replacementNotePrefix = "use: "
+
+// ReplacementNote renders a suggested replacement as a term note. An empty
+// replacement yields an empty note.
+func ReplacementNote(replacement string) string {
+	if replacement == "" {
+		return ""
+	}
+	return replacementNotePrefix + replacement
+}
+
+// ReplacementFromNote reads back the wording a note names as the replacement,
+// or "" when the note carries something else.
+func ReplacementFromNote(note string) string {
+	rest, ok := strings.CutPrefix(note, replacementNotePrefix)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(rest)
+}
 
 // Term represents a single term in a specific locale with lifecycle metadata.
 type Term struct {

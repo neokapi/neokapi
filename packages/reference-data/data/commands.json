@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T16:44:22Z",
+  "generatedAt": "2026-08-15T10:27:34Z",
   "commands": [
     {
       "id": "add",
@@ -139,6 +139,12 @@
         {
           "name": "forbid",
           "usage": "regex that must NOT appear in the content (repeatable)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "gate",
+          "usage": "with --ship: run only the named project gates (voice, terminology, qa); repeatable",
           "default": "[]",
           "type": "stringSlice"
         },

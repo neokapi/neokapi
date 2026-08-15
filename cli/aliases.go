@@ -105,6 +105,7 @@ const (
 // Function and variable re-exports.
 var (
 	RegisterInPlace              = host.RegisterInPlace
+	AddGateFlag                  = host.AddGateFlag
 	AddVoiceAIFlags              = host.AddVoiceAIFlags
 	AddProfileFlags              = host.AddProfileFlags
 	AddProgressFlag              = host.AddProgressFlag

@@ -24,7 +24,7 @@ import (
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-// applyAssetEntry lands one asset change (a glossary term, content memory pair, voice rule,
+// applyAssetEntry lands one asset change (a term, content memory pair, voice rule,
 // or recipe field). It implements decision B of the apply design: an asset edit
 // is written into the asset's COMMITTED SOURCE artifact — the git-tracked file
 // the recipe points at — and the EXISTING import/compile then refreshes the
@@ -77,7 +77,7 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 // term → committed .terms.json source → terms import compile into the project store
 // ---------------------------------------------------------------------------
 
-// applyTermEntry upserts a glossary term. It edits the committed .terms.json source
+// applyTermEntry upserts a term. It edits the committed .terms.json source
 // the recipe binds (creating .kapi/terms.json and binding it when none
 // exists), then re-imports the whole .terms.json into the project store's
 // vocabulary so the store reflects the committed source — one write path.
@@ -115,7 +115,13 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		status = model.TermPreferred
 	}
 
-	concepts, changed := upsertTerm(file.Concepts, e.Term, model.LocaleID(locale), status, e.Replacement)
+	concepts, changed := upsertTerm(file.Concepts, termDecision{
+		Text:        e.Term,
+		Locale:      model.LocaleID(locale),
+		Status:      status,
+		Replacement: e.Replacement,
+		Replaces:    e.Replaces,
+	})
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -230,57 +236,134 @@ func writeKTB(path string, file *ktb.File) (bool, error) {
 	return true, nil
 }
 
-// upsertTerm inserts or updates a single-locale term within the concept set.
-// It is idempotent: when a term with the same text/locale already carries the
-// requested status (and the replacement note matches), it returns changed=false
-// so apply reports a skipped no-op. A term is matched case-insensitively on its
-// text within its locale; a new term creates its own concept (one concept per
-// term text), keyed by a stable id so re-seeding is reproducible.
-func upsertTerm(concepts []terms.Concept, text string, locale model.LocaleID, status model.TermStatus, replacement string) ([]terms.Concept, bool) {
+// termDecision is one term entry as apply reads it off the ledger.
+type termDecision struct {
+	Text        string
+	Locale      model.LocaleID
+	Status      model.TermStatus
+	Replacement string
+	// Replaces names the concept the term joins: a concept id, or the text of a
+	// term that concept already declares.
+	Replaces string
+}
+
+// upsertTerm lands a term decision in the concept set.
+//
+// The term joins a CONCEPT rather than getting one of its own wherever the
+// entry says which: the concept that already declares it, else the one
+// `replaces` names, else the one that declares the replacement. Only a decision
+// that names nothing already in the graph opens a new concept. That is what
+// makes the decision answerable later — "what should this say instead" is the
+// preferred term of the concept the retired word sits in, so a term filed on
+// its own island can never be answered, however clearly the decision was
+// written. A replacement no concept declares yet is added to the joined concept
+// as its preferred term, for the same reason.
+//
+// It is idempotent: an entry already recorded this way returns changed=false so
+// apply reports a skipped no-op. Terms are matched case-insensitively on text
+// within a locale; a new concept is keyed by a stable id so re-seeding is
+// reproducible.
+func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, bool) {
 	now := time.Now().UTC()
-	for ci := range concepts {
-		c := &concepts[ci]
-		for ti := range c.Terms {
-			t := &c.Terms[ti]
-			if t.Locale != locale || !strings.EqualFold(t.Text, text) {
-				continue
-			}
-			noteWant := replacementNote(replacement)
-			if t.Status == status && t.Text == text && t.Note == noteWant {
-				return concepts, false
-			}
-			t.Status = status
-			t.Text = text
+	noteWant := terms.ReplacementNote(d.Replacement)
+
+	target := indexOfTerm(concepts, d.Text, d.Locale)
+	if target < 0 && d.Replaces != "" {
+		target = indexOfConcept(concepts, d.Replaces, d.Locale)
+	}
+	if target < 0 && d.Replacement != "" {
+		target = indexOfTerm(concepts, d.Replacement, d.Locale)
+	}
+
+	changed := false
+	if target < 0 {
+		concepts = append(concepts, terms.Concept{
+			ID:        conceptID(d.Text, d.Locale),
+			Source:    terms.TermSourceTerminology,
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		target = len(concepts) - 1
+		changed = true
+	}
+
+	c := &concepts[target]
+	if ti := termIndex(c, d.Text, d.Locale); ti >= 0 {
+		t := &c.Terms[ti]
+		if t.Status != d.Status || t.Text != d.Text || (noteWant != "" && t.Note != noteWant) {
+			t.Status = d.Status
+			t.Text = d.Text
 			if noteWant != "" {
 				t.Note = noteWant
 			}
-			c.UpdatedAt = now
-			return concepts, true
+			changed = true
 		}
+	} else {
+		c.Terms = append(c.Terms, terms.Term{
+			Text:   d.Text,
+			Locale: d.Locale,
+			Status: d.Status,
+			Note:   noteWant,
+		})
+		changed = true
 	}
-	concepts = append(concepts, terms.Concept{
-		ID:     conceptID(text, locale),
-		Source: terms.TermSourceTerminology,
-		Terms: []terms.Term{{
-			Text:   text,
-			Locale: locale,
-			Status: status,
-			Note:   replacementNote(replacement),
-		}},
-		CreatedAt: now,
-		UpdatedAt: now,
-	})
-	return concepts, true
+
+	// The replacement becomes the concept's preferred term when the graph does
+	// not have it yet — including under another concept, which would otherwise
+	// end up declaring the same word twice. A term the entry itself declares
+	// preferred is not retired in favour of anything, so its replacement, if it
+	// named one, stays in the note rather than contradicting it.
+	if d.Replacement != "" && retiredStatus(d.Status) && indexOfTerm(concepts, d.Replacement, d.Locale) < 0 {
+		c.Terms = append(c.Terms, terms.Term{
+			Text:   d.Replacement,
+			Locale: d.Locale,
+			Status: model.TermPreferred,
+		})
+		changed = true
+	}
+
+	if changed {
+		c.UpdatedAt = now
+	}
+	return concepts, changed
 }
 
-// replacementNote folds a forbidden term's suggested replacement into the
-// term note (ktb's Term has no dedicated replacement field), so the guidance
-// survives the round-trip.
-func replacementNote(replacement string) string {
-	if replacement == "" {
-		return ""
+// retiredStatus reports whether a term with this status is one the vocabulary
+// gate reports and therefore one a replacement answers for.
+func retiredStatus(s model.TermStatus) bool {
+	return s == model.TermDeprecated || s == model.TermForbidden
+}
+
+// indexOfTerm returns the index of the concept declaring text in locale, or -1.
+func indexOfTerm(concepts []terms.Concept, text string, locale model.LocaleID) int {
+	for ci := range concepts {
+		if termIndex(&concepts[ci], text, locale) >= 0 {
+			return ci
+		}
 	}
-	return "use: " + replacement
+	return -1
+}
+
+// indexOfConcept resolves a join key — a concept id, or the text of a term the
+// concept declares in locale — to a concept index, or -1.
+func indexOfConcept(concepts []terms.Concept, key string, locale model.LocaleID) int {
+	for ci := range concepts {
+		if concepts[ci].ID == key {
+			return ci
+		}
+	}
+	return indexOfTerm(concepts, key, locale)
+}
+
+// termIndex returns the index of the concept's term with this text in this
+// locale, or -1.
+func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
+	for ti := range c.Terms {
+		if c.Terms[ti].Locale == locale && strings.EqualFold(c.Terms[ti].Text, text) {
+			return ti
+		}
+	}
+	return -1
 }
 
 // conceptID derives a stable, filesystem-safe concept id from the term text and

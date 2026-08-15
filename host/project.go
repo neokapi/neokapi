@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -48,7 +49,7 @@ func AddProjectFlag(cmd Command) {
 func ResolveProjectPath(cmd Command) (string, error) {
 	if cmd != nil {
 		if flag, _ := cmd.Flags().GetString(projectFlagName); flag != "" {
-			return flag, nil
+			return recipeIn(flag), nil
 		}
 	}
 
@@ -60,7 +61,7 @@ func ResolveProjectPath(cmd Command) (string, error) {
 	}
 
 	if env := os.Getenv(projectEnvVar); env != "" {
-		return env, nil
+		return recipeIn(env), nil
 	}
 
 	cwd, err := os.Getwd()
@@ -75,6 +76,18 @@ func ResolveProjectPath(cmd Command) (string, error) {
 		return "", err
 	}
 	return layout.RecipePath, nil
+}
+
+// recipeIn resolves a project location a user named — by flag or environment —
+// to the recipe file itself. Both spellings the flag help offers are accepted:
+// the recipe path, and the directory holding it. A path that is not a directory
+// is returned as given, so a recipe under any name still works and a typo
+// surfaces as the load error naming the path the user actually wrote.
+func recipeIn(path string) string {
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		return filepath.Join(path, project.RecipeFileName)
+	}
+	return path
 }
 
 // RequireProjectPath resolves the project path and returns an error when no
