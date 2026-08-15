@@ -620,6 +620,19 @@ type LocaleTranslationStats struct {
 	// some scope (checks cannot promote an under-covered locale, so the expensive
 	// pass is skipped below the coverage gate).
 	FailingChecks int `json:"failing_checks"`
+	// StaleBlocks counts this scope's (block, locale) pairs whose recorded
+	// decision blessed source wording the block no longer carries — the basis
+	// the decision names against the block's current content hash. A stale pair
+	// withholds the scope from shipping whether or not any coverage bar was
+	// declared (see DeriveShipState). Additive: producers that do not grade the
+	// basis leave it 0 (omitted from JSON).
+	StaleBlocks int `json:"stale_blocks,omitempty"`
+	// BasisUnknownBlocks counts pairs whose decision carries no basis at all.
+	// Such a record says nothing about the source it blessed, so it keeps its
+	// rung and ships as it did before — but the assumption behind that rung is
+	// reported rather than left silent, and it clears itself the next time the
+	// unit is decided.
+	BasisUnknownBlocks int `json:"basis_unknown_blocks,omitempty"`
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
@@ -796,6 +809,35 @@ type DecisionStore interface {
 	// ListUnitDecisions returns the project's latest decision per
 	// (item, unit, variant) on a stream.
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]UnitDecision, error)
+	// TallyDecisionBasis grades the stream's recorded decisions against the
+	// source the project holds NOW, grouped by (item, variant). A decision
+	// records the basis it blessed (UnitDecision.ContentHash) and the block
+	// records its current source hash; the two are the same value
+	// (model.ComputeContentHash of the source text), so the grading is an
+	// equality join and never a re-derivation. Decisions naming a unit this
+	// store holds no block for are omitted — there is nothing to grade them
+	// against.
+	TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]DecisionBasisTally, error)
+}
+
+// DecisionBasisTally is one (item, variant) scope's standing of recorded
+// decisions against the source the project holds now.
+type DecisionBasisTally struct {
+	// ItemName scopes the units, so a consumer can attribute the counts to the
+	// collection the item belongs to.
+	ItemName string
+	// Variant is the decision's locale (and optional tone/channel) in
+	// VariantKey text form, as the ledger stores it.
+	Variant string
+	// Stale counts decisions whose basis names source wording the block no
+	// longer carries: the translation renders a sentence the project has since
+	// rewritten.
+	Stale int
+	// BasisUnknown counts decisions recorded before a basis was tracked. Empty
+	// is unknown, never stale — reading that silence as drift would withhold
+	// every locale of every project holding decisions from before the field
+	// existed.
+	BasisUnknown int
 }
 
 // ChannelAliasProposal is the workspace's observation that two channel slugs

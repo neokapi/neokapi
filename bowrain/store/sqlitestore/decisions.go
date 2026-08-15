@@ -82,11 +82,11 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		}
 		changed++
 
-		var blockID string
+		var blockID, blockHash string
 		if d.ItemName != "" {
 			err := tx.QueryRowContext(ctx,
-				`SELECT id FROM blocks WHERE project_id=? AND item_name=? AND source_id=?`,
-				projectID, d.ItemName, d.Unit).Scan(&blockID)
+				`SELECT id, content_hash FROM blocks WHERE project_id=? AND item_name=? AND source_id=?`,
+				projectID, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
 			if err != nil && err != sql.ErrNoRows {
 				return changed, fmt.Errorf("resolve decision block %s/%s: %w", d.ItemName, d.Unit, err)
 			}
@@ -103,7 +103,13 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 			return changed, fmt.Errorf("log decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
+		// The projection holds only while both halves of the blessed pairing do:
+		// the translation the row carries, and the source it was blessed for.
+		// An empty basis is unknown, not stale, and projects as before.
 		if d.Status == "" {
+			continue
+		}
+		if d.ContentHash != "" && blockHash != "" && d.ContentHash != blockHash {
 			continue
 		}
 		var targetJSON string
@@ -165,46 +171,99 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	return out, rows.Err()
 }
 
-// demoteStaleApprovals drops reviewed/signed-off projected statuses to the
-// presence baseline for every target of a block whose SOURCE content just
-// changed — the SQLite mirror of demoteStaleApprovalsPg.
-func demoteStaleApprovals(ctx context.Context, tx *sql.Tx, projectID, blockID string) error {
-	rows, err := tx.QueryContext(ctx,
-		`SELECT stream, locale FROM translations
-		 WHERE project_id=? AND block_id=?
-		   AND COALESCE(json_extract(target_json, '$.status'),'') IN ('reviewed','signed-off')`,
-		projectID, blockID)
+// TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
+// the Postgres grading, joining each decision's recorded basis to the block's
+// current source hash.
+func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT d.item_name, d.variant,
+			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0)
+		 FROM unit_decisions d
+		 JOIN blocks b ON b.project_id = d.project_id
+			AND b.item_name = d.item_name
+			AND b.source_id = d.unit
+		 WHERE d.project_id=? AND d.stream=? AND b.translatable
+		 GROUP BY d.item_name, d.variant
+		 ORDER BY d.item_name, d.variant`,
+		projectID, stream)
 	if err != nil {
-		return fmt.Errorf("find stale approvals for block %s: %w", blockID, err)
+		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
-	type demoted struct{ stream, locale string }
-	var hits []demoted
+	defer rows.Close()
+
+	var out []platstore.DecisionBasisTally
 	for rows.Next() {
-		var d demoted
-		if err := rows.Scan(&d.stream, &d.locale); err != nil {
-			rows.Close()
-			return fmt.Errorf("scan stale approval: %w", err)
+		var t platstore.DecisionBasisTally
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown); err != nil {
+			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
-		hits = append(hits, d)
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// settleDecisionProjections re-derives the projected statuses of every target
+// of a block whose SOURCE content just changed, against the decision ledger —
+// the SQLite mirror of settleDecisionProjectionsPg, grading through the same
+// shared bstore.SettleDecisionProjection.
+func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, blockID, contentHash string) error {
+	// The ledger keys on the unit identity (item + source_id), not the block id.
+	var itemName, unit string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT item_name, source_id FROM blocks WHERE project_id=? AND id=?`,
+		projectID, blockID).Scan(&itemName, &unit); err != nil {
+		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT t.stream, t.locale, COALESCE(json_extract(t.target_json, '$.status'),''), t.target_json,
+			COALESCE(d.status,''), COALESCE(d.content_hash,''), COALESCE(d.target_hash,'')
+		 FROM translations t
+		 LEFT JOIN unit_decisions d
+			ON d.project_id=t.project_id AND d.stream=t.stream
+			AND d.item_name=? AND d.unit=? AND d.variant=t.locale
+		 WHERE t.project_id=? AND t.block_id=?`,
+		itemName, unit, projectID, blockID)
+	if err != nil {
+		return fmt.Errorf("read projections for block %s: %w", blockID, err)
+	}
+	var settled []bstore.DecisionProjection
+	for rows.Next() {
+		var p bstore.DecisionProjection
+		var targetJSON string
+		if err := rows.Scan(&p.Stream, &p.Locale, &p.Status, &targetJSON,
+			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionTargetHash); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan projection for block %s: %w", blockID, err)
+		}
+		p.TargetText = bstore.TargetTextFromJSON(targetJSON)
+		settled = append(settled, p)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return err
 	}
+
 	now := time.Now().UTC().Format(time.RFC3339)
-	for _, h := range hits {
+	for _, p := range settled {
+		status, event, changed := bstore.SettleDecisionProjection(p, contentHash)
+		if !changed {
+			continue
+		}
 		if _, err := tx.ExecContext(ctx,
-			`UPDATE translations SET target_json = json_set(target_json, '$.status', 'translated'), updated_at=?
+			`UPDATE translations SET target_json = json_set(target_json, '$.status', ?), updated_at=?
 			 WHERE project_id=? AND stream=? AND block_id=? AND locale=?`,
-			now, projectID, h.stream, blockID, h.locale); err != nil {
-			return fmt.Errorf("demote stale approval for block %s: %w", blockID, err)
+			status, now, projectID, p.Stream, blockID, p.Locale); err != nil {
+			return fmt.Errorf("settle projection for block %s: %w", blockID, err)
 		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO block_history
 				(project_id, block_id, locale, change_type, origin, author, stream, created_at)
-			 VALUES (?,?,?,'decision.stale','','system',?,?)`,
-			projectID, blockID, h.locale, h.stream, now); err != nil {
-			return fmt.Errorf("log stale approval for block %s: %w", blockID, err)
+			 VALUES (?,?,?,?,'','system',?,?)`,
+			projectID, blockID, p.Locale, event, p.Stream, now); err != nil {
+			return fmt.Errorf("log settled projection for block %s: %w", blockID, err)
 		}
 	}
 	return nil

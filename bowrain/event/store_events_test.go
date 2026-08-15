@@ -103,8 +103,12 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 func TestEventEmittingStoreCarriesOptionalCapabilities(t *testing.T) {
 	es, _ := newTestEventStore(t)
 
-	_, ok := any(es).(store.DecisionStore)
-	assert.True(t, ok, "the decision ledger must survive the wrapper")
+	decisions, ok := any(es).(store.DecisionStore)
+	require.True(t, ok, "the decision ledger must survive the wrapper")
+	// Exercised, not only asserted: every method of the capability must reach
+	// the inner store, including the basis grading the dashboard reads.
+	_, err := decisions.TallyDecisionBasis(t.Context(), "no-such-project", "main")
+	require.NoError(t, err, "basis grading must reach the inner store")
 	_, ok = any(es).(store.BlockAccessStore)
 	assert.True(t, ok, "the access ladder must survive the wrapper")
 

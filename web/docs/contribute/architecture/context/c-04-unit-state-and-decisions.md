@@ -197,9 +197,16 @@ reason, so *which decision covers this unit, at which basis* is answerable by
 traversal as well as by lookup.
 
 The server ledger holds the same two fields and applies the same rule from the
-other side: a source edit demotes the projected status and files a
-`decision.stale` history event, and a decision that arrives blessing content the
-store no longer holds is recorded but moves nothing.
+other side. A decision that arrives blessing content the store no longer holds —
+either half of the pairing — is recorded but moves nothing. A source edit
+re-derives the projected statuses of the unit's targets against the ledger
+rather than only demoting them: a decision made for the old wording drops the
+projection to the presence baseline, and one that blessed exactly the wording
+the source now carries applies again, so a restored text finds its approval
+without a second review. Both directions file a history event
+(`decision.stale`, `decision.restored`), which is what makes the flip auditable
+rather than silent. The derived ship state reads the same basis: a scope holding
+a unit whose source moved is withheld, exactly as a failing check withholds it.
 
 ### Who decided
 

@@ -154,7 +154,13 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 }
 
 func (s *PostgresStore) DeleteProject(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM projects WHERE id=$1`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM projects WHERE id=$1`, id)
 	if err != nil {
 		return fmt.Errorf("delete project: %w", err)
 	}
@@ -162,7 +168,20 @@ func (s *PostgresStore) DeleteProject(ctx context.Context, id string) error {
 	if n == 0 {
 		return fmt.Errorf("project %s not found", id)
 	}
-	return nil
+
+	// Most of the project's content goes with it on the projects foreign key.
+	// These tables carry a bare project_id, so no cascade reaches them and the
+	// verb clears them itself — otherwise a deleted project's history, notes,
+	// decisions and proposals outlive every block they describe.
+	tables := append(storeutil.ProjectScopedTablesWithoutCascade(), "change_log_archive")
+	for _, table := range tables {
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE project_id=$1`, id); err != nil {
+			return fmt.Errorf("delete %s for project %s: %w", table, id, err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *PostgresStore) ArchiveProject(ctx context.Context, id string) error {
@@ -492,12 +511,12 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
 	}
 
-	// Overlays are per-stream, so this stream's rows for the item's blocks are
-	// orphaned now even though the shared block rows may survive for another
-	// stream. Dropping them stops a later re-push of the same block id from
-	// resurrecting stale targets onto new source text.
-	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
-		//nolint:gosec // table is a fixed literal from the loop above, never user input
+	// The block-scoped rows are per-stream, so this stream's rows for the item's
+	// blocks are orphaned now even though the shared block rows may survive for
+	// another stream. Dropping them stops a later re-push of the same block id
+	// from resurrecting stale targets, notes or proposals onto new source text.
+	for _, table := range storeutil.BlockScopedTables() {
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2
 			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND item_name=$3)`
 		if _, err := tx.ExecContext(ctx, q, projectID, stream, itemName); err != nil {
@@ -830,14 +849,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
-				// The source this unit's approvals were made against no longer
-				// exists, so the approvals no longer apply (use case 2). Demote
-				// the projected status to the presence baseline on EVERY
-				// stream — the source row is stream-global — and log the
-				// demotion per affected target. The decision itself stays in
-				// the ledger: it is a fact about an older text, and history is
-				// what lets a restored text find its approval again.
-				if err := demoteStaleApprovalsPg(ctx, tx, projectID, internalID); err != nil {
+				// The source half of every pairing this unit's decisions blessed
+				// has moved, so the projections are re-derived against the
+				// ledger on EVERY stream — the source row is stream-global. An
+				// approval made for the old wording drops to the presence
+				// baseline; a decision that blessed exactly the wording the
+				// source now carries applies again. The decisions themselves
+				// stay: they are facts about a text, and that history is what
+				// lets a restored text find its approval without a re-review.
+				if err := settleDecisionProjectionsPg(ctx, tx, projectID, internalID, identity.ContentHash); err != nil {
 					return err
 				}
 			}
@@ -1213,10 +1233,11 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 		return fmt.Errorf("delete block: %w", err)
 	}
 
-	// A block is shared across streams and removed project-wide, so its overlays
-	// go with it in every stream — otherwise a re-push of the id resurrects them.
-	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
-		//nolint:gosec // table is a fixed literal from the loop above, never user input
+	// A block is shared across streams and removed project-wide, so everything
+	// filed under its id goes with it in every stream — otherwise a re-push of
+	// the id resurrects them.
+	for _, table := range storeutil.BlockScopedTables() {
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND block_id=$2`
 		if _, err := tx.ExecContext(ctx, q, projectID, blockID); err != nil {
 			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)

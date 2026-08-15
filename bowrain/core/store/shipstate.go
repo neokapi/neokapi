@@ -18,12 +18,18 @@ const (
 
 // DeriveShipState derives the ship state for one locale scope from its block
 // counts. The rule: governed when every translatable block is translated
-// (coverage 100%), none fails checks, and every block's target is approved
-// (reviewed or signed-off); ai_shippable when coverage is 100% and checks pass
-// but approval is incomplete; pending otherwise. An empty scope
-// (totalBlocks == 0) has nothing to ship and is pending.
-func DeriveShipState(translatedBlocks, totalBlocks, approvedBlocks, failingChecks int) ShipState {
-	if totalBlocks == 0 || translatedBlocks < totalBlocks || failingChecks > 0 {
+// (coverage 100%), none fails checks, none is stale, and every block's target is
+// approved (reviewed or signed-off); ai_shippable when coverage is 100% with no
+// failing check and no stale unit but approval is incomplete; pending otherwise.
+// An empty scope (totalBlocks == 0) has nothing to ship and is pending.
+//
+// staleBlocks withholds the scope exactly as failingChecks does, and for the
+// same reason: a unit whose decision blessed source wording the project has
+// since rewritten holds a translation of a sentence nobody has, and no machine
+// has looked at the new source either. That is not a shortfall of quantity, so
+// no coverage arithmetic can offset it.
+func DeriveShipState(translatedBlocks, totalBlocks, approvedBlocks, failingChecks, staleBlocks int) ShipState {
+	if totalBlocks == 0 || translatedBlocks < totalBlocks || failingChecks > 0 || staleBlocks > 0 {
 		return ShipStatePending
 	}
 	if approvedBlocks >= totalBlocks {

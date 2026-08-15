@@ -148,13 +148,22 @@ func (s *SQLiteStore) UpdateStream(ctx context.Context, st *platstore.Stream) er
 	return nil
 }
 
-// DeleteStream removes a stream and its associated data.
+// DeleteStream removes a stream and everything filed under it. A deleted stream
+// is ERASED, not retained: its items, targets, annotations, overlays, history,
+// notes, change log, decision ledger and source proposals go with it, so a
+// stream created again under the same name starts empty instead of inheriting a
+// dead one's work. stream_members and stream_tags follow on their foreign key.
 func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) error {
 	if name == "main" {
 		return errors.New("cannot delete the main stream")
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 
-	res, err := s.db.ExecContext(ctx,
+	res, err := tx.ExecContext(ctx,
 		`DELETE FROM streams WHERE project_id = ? AND name = ?`,
 		projectID, name)
 	if err != nil {
@@ -163,6 +172,87 @@ func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) 
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("stream %q not found in project %s", name, projectID)
+	}
+
+	// The items this stream held, read before the rows go: their blocks are
+	// shared with other streams and can only be reclaimed once no item names
+	// them at all.
+	itemRows, err := tx.QueryContext(ctx,
+		`SELECT name FROM items WHERE project_id=? AND stream=?`, projectID, name)
+	if err != nil {
+		return fmt.Errorf("list items for stream %q: %w", name, err)
+	}
+	var itemNames []string
+	for itemRows.Next() {
+		var itemName string
+		if err := itemRows.Scan(&itemName); err != nil {
+			itemRows.Close()
+			return fmt.Errorf("scan item for stream %q: %w", name, err)
+		}
+		itemNames = append(itemNames, itemName)
+	}
+	itemRows.Close()
+	if err := itemRows.Err(); err != nil {
+		return err
+	}
+
+	for _, table := range storeutil.StreamScopedTables() {
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=? AND stream=?`, projectID, name); err != nil {
+			return fmt.Errorf("delete %s for stream %q: %w", table, name, err)
+		}
+	}
+
+	if err := reclaimUnreferencedBlocks(ctx, tx, projectID, itemNames); err != nil {
+		return fmt.Errorf("reclaim blocks for stream %q: %w", name, err)
+	}
+
+	return tx.Commit()
+}
+
+// reclaimUnreferencedBlocks removes the block rows of the named items that no
+// item names any more, together with everything filed under their ids on every
+// stream — the SQLite mirror of reclaimUnreferencedBlocksPg.
+func reclaimUnreferencedBlocks(ctx context.Context, tx *sql.Tx, projectID string, itemNames []string) error {
+	for _, itemName := range itemNames {
+		if itemName == "" {
+			continue
+		}
+		rows, err := tx.QueryContext(ctx,
+			`SELECT id FROM blocks
+			 WHERE project_id=? AND item_name=?
+			   AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=? AND name=?)`,
+			projectID, itemName, projectID, itemName)
+		if err != nil {
+			return fmt.Errorf("find blocks of item %q: %w", itemName, err)
+		}
+		var ids []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan block of item %q: %w", itemName, err)
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			for _, table := range storeutil.BlockScopedTables() {
+				//nolint:gosec // table is a fixed literal from storeutil, never user input
+				if _, err := tx.ExecContext(ctx,
+					`DELETE FROM `+table+` WHERE project_id=? AND block_id=?`, projectID, id); err != nil {
+					return fmt.Errorf("delete %s for block %s: %w", table, id, err)
+				}
+			}
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, id); err != nil {
+				return fmt.Errorf("delete block %s: %w", id, err)
+			}
+		}
 	}
 	return nil
 }

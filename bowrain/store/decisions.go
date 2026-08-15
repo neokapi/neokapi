@@ -123,11 +123,11 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 		// Resolve the stored block the unit names. A decision for content this
 		// store has never held stays ledger-only and heals when the content
 		// arrives.
-		var blockID string
+		var blockID, blockHash string
 		if d.ItemName != "" {
 			err := tx.QueryRowContext(ctx,
-				`SELECT id FROM blocks WHERE project_id=$1 AND item_name=$2 AND source_id=$3`,
-				projectID, d.ItemName, d.Unit).Scan(&blockID)
+				`SELECT id, content_hash FROM blocks WHERE project_id=$1 AND item_name=$2 AND source_id=$3`,
+				projectID, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
 			if err != nil && err != sql.ErrNoRows {
 				return changed, fmt.Errorf("resolve decision block %s/%s: %w", d.ItemName, d.Unit, err)
 			}
@@ -146,10 +146,16 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 			return changed, fmt.Errorf("log decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
-		// Project the status — only when the decision still blesses the
-		// translation the row currently holds. A stale-on-arrival decision is
-		// recorded but moves nothing.
+		// Project the status — only while BOTH halves of the pairing the
+		// decision blessed still hold: the translation the row currently
+		// carries, and the source it was blessed for. A decision arriving
+		// against source this store has since rewritten is recorded but moves
+		// nothing; projecting it would stamp an approval onto wording nobody
+		// approved. An empty basis is unknown, not stale, and projects as before.
 		if d.Status == "" {
+			continue
+		}
+		if d.ContentHash != "" && blockHash != "" && d.ContentHash != blockHash {
 			continue
 		}
 		var targetJSON string
@@ -209,45 +215,185 @@ func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream
 	return out, rows.Err()
 }
 
-// demoteStaleApprovalsPg drops reviewed/signed-off projected statuses back to
-// the presence baseline for every target of a block whose SOURCE content just
-// changed — an approval is about a specific pairing of source and translation,
-// and half of that pairing is gone. Runs inside the storeBlocks transaction.
-// The block_history event ("decision.stale", author "system") is what makes
-// the demotion auditable rather than a silent status flip.
-func demoteStaleApprovalsPg(ctx context.Context, tx *sql.Tx, projectID, blockID string) error {
-	rows, err := tx.QueryContext(ctx,
-		`UPDATE translations
-		 SET target_json = jsonb_set(target_json, '{status}', to_jsonb('translated'::text)), updated_at = NOW()
-		 WHERE project_id=$1 AND block_id=$2
-		   AND COALESCE(target_json->>'status','') IN ('reviewed','signed-off')
-		 RETURNING stream, locale`,
-		projectID, blockID)
+// TallyDecisionBasis implements platstore.DecisionStore. The basis a decision
+// blessed and the block's current source hash are the same value, so grading is
+// a plain equality join on (project, item, unit → source_id); a decision whose
+// unit resolves to no stored block is not graded at all, because there is
+// nothing to grade it against. Only translatable blocks are counted: the
+// dashboard's denominators exclude the rest, and a stale count outside the
+// denominator would withhold a scope for content nobody ships.
+func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT d.item_name, d.variant,
+			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0)
+		 FROM unit_decisions d
+		 JOIN blocks b ON b.project_id = d.project_id
+			AND b.item_name = d.item_name
+			AND b.source_id = d.unit
+		 WHERE d.project_id=$1 AND d.stream=$2 AND b.translatable
+		 GROUP BY d.item_name, d.variant
+		 ORDER BY d.item_name, d.variant`,
+		projectID, stream)
 	if err != nil {
-		return fmt.Errorf("demote stale approvals for block %s: %w", blockID, err)
+		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
-	type demoted struct{ stream, locale string }
-	var hits []demoted
+	defer rows.Close()
+
+	var out []platstore.DecisionBasisTally
 	for rows.Next() {
-		var d demoted
-		if err := rows.Scan(&d.stream, &d.locale); err != nil {
-			rows.Close()
-			return fmt.Errorf("scan demoted approval: %w", err)
+		var t platstore.DecisionBasisTally
+		if err := rows.Scan(&t.ItemName, &t.Variant, &t.Stale, &t.BasisUnknown); err != nil {
+			return nil, fmt.Errorf("scan decision basis tally: %w", err)
 		}
-		hits = append(hits, d)
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// The block_history change types a re-derived projection files. Both are
+// written by "system": nobody reviewed anything, the source moved under a
+// decision that was already recorded, and the flip is logged so it is auditable
+// rather than silent.
+const (
+	// DecisionStaleEvent — the source moved away from the wording a decision
+	// blessed, so the projection dropped to the presence baseline.
+	DecisionStaleEvent = "decision.stale"
+	// DecisionRestoredEvent — the source moved back to wording a recorded
+	// decision blesses, so that decision applies again.
+	DecisionRestoredEvent = "decision.restored"
+)
+
+// The edit_reason each event carries, in the log the audit trail reads.
+const (
+	decisionStaleReason    = "source content changed"
+	decisionRestoredReason = "source content restored"
+)
+
+// DecisionProjection is one target row of a block whose SOURCE content just
+// changed, paired with the decision recorded for that unit and locale.
+type DecisionProjection struct {
+	Stream string
+	Locale string
+	// Status is the rung the row currently projects.
+	Status string
+	// TargetText is the translation the row holds now — the target half of the
+	// pairing a decision blessed.
+	TargetText string
+	// DecisionStatus, DecisionBasis and DecisionTargetHash are the recorded
+	// decision for (unit, locale); all empty when the ledger holds none.
+	DecisionStatus     string
+	DecisionBasis      string
+	DecisionTargetHash string
+}
+
+// SettleDecisionProjection reports the status a target row must project once
+// its block's source has moved to contentHash, and the history event that
+// records the move. Shared by both backends so they cannot disagree about when
+// an approval applies.
+//
+// A decision is about a PAIRING — this translation, of this source — and it is
+// a fact that is never rewritten. So the projection is re-derived rather than
+// only demoted: when the source moves away from the wording a decision blessed,
+// the projection drops to the presence baseline; when it moves BACK to that
+// wording with the translation still intact, the same decision applies again
+// and the unit needs no second review. A decision with no recorded basis grades
+// nothing — unknown is not a match — and leaves a row that is not an approval
+// exactly where it stands.
+func SettleDecisionProjection(p DecisionProjection, contentHash string) (status, event string, changed bool) {
+	if p.DecisionStatus != "" && p.DecisionBasis != "" && p.DecisionBasis == contentHash &&
+		(p.DecisionTargetHash == "" || state.TargetHash(p.TargetText) == p.DecisionTargetHash) {
+		if p.DecisionStatus == p.Status {
+			return p.Status, "", false
+		}
+		return p.DecisionStatus, DecisionRestoredEvent, true
+	}
+	if p.Status == string(model.TargetStatusReviewed) || p.Status == string(model.TargetStatusSignedOff) {
+		return string(model.TargetStatusTranslated), DecisionStaleEvent, true
+	}
+	return p.Status, "", false
+}
+
+// DecisionEventReason names the edit_reason a settled projection files.
+func DecisionEventReason(event string) string {
+	if event == DecisionRestoredEvent {
+		return decisionRestoredReason
+	}
+	return decisionStaleReason
+}
+
+// TargetTextFromJSON reads the plain target text out of a stored target_json
+// payload. An unreadable payload yields "", which grades as a target that
+// cannot match any recorded hash.
+func TargetTextFromJSON(targetJSON string) string {
+	var tgt model.Target
+	if err := json.Unmarshal([]byte(targetJSON), &tgt); err != nil {
+		return ""
+	}
+	return model.RunsText(tgt.Runs)
+}
+
+// settleDecisionProjectionsPg re-derives the projected statuses of every target
+// of a block whose SOURCE content just changed, against the decision ledger.
+// Runs inside the storeBlocks transaction, on EVERY stream — the block row is
+// stream-global — and only when the content hash actually moved.
+func settleDecisionProjectionsPg(ctx context.Context, tx *sql.Tx, projectID, blockID, contentHash string) error {
+	// The ledger keys on the unit identity (item + source_id), not the block id.
+	var itemName, unit string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT item_name, source_id FROM blocks WHERE project_id=$1 AND id=$2`,
+		projectID, blockID).Scan(&itemName, &unit); err != nil {
+		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT t.stream, t.locale, COALESCE(t.target_json->>'status',''), t.target_json,
+			COALESCE(d.status,''), COALESCE(d.content_hash,''), COALESCE(d.target_hash,'')
+		 FROM translations t
+		 LEFT JOIN unit_decisions d
+			ON d.project_id=t.project_id AND d.stream=t.stream
+			AND d.item_name=$3 AND d.unit=$4 AND d.variant=t.locale
+		 WHERE t.project_id=$1 AND t.block_id=$2`,
+		projectID, blockID, itemName, unit)
+	if err != nil {
+		return fmt.Errorf("read projections for block %s: %w", blockID, err)
+	}
+	var settled []DecisionProjection
+	for rows.Next() {
+		var p DecisionProjection
+		var targetJSON string
+		if err := rows.Scan(&p.Stream, &p.Locale, &p.Status, &targetJSON,
+			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionTargetHash); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan projection for block %s: %w", blockID, err)
+		}
+		p.TargetText = TargetTextFromJSON(targetJSON)
+		settled = append(settled, p)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return err
 	}
+
 	now := time.Now().UTC()
-	for _, h := range hits {
+	for _, p := range settled {
+		status, event, changed := SettleDecisionProjection(p, contentHash)
+		if !changed {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE translations SET target_json = jsonb_set(target_json, '{status}', to_jsonb($5::text)), updated_at=$6
+			 WHERE project_id=$1 AND stream=$2 AND block_id=$3 AND locale=$4`,
+			projectID, p.Stream, blockID, p.Locale, status, now); err != nil {
+			return fmt.Errorf("settle projection for block %s: %w", blockID, err)
+		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO block_history
 				(project_id, block_id, locale, change_type, origin, author, actor_role, edit_reason, stream, created_at)
-			 VALUES ($1,$2,$3,'decision.stale','','system','system','source content changed',$4,$5)`,
-			projectID, blockID, h.locale, h.stream, now); err != nil {
-			return fmt.Errorf("log stale approval for block %s: %w", blockID, err)
+			 VALUES ($1,$2,$3,$4,'','system','system',$5,$6,$7)`,
+			projectID, blockID, p.Locale, event, DecisionEventReason(event), p.Stream, now); err != nil {
+			return fmt.Errorf("log settled projection for block %s: %w", blockID, err)
 		}
 	}
 	return nil
