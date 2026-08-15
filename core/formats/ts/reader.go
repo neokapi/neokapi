@@ -824,7 +824,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 						numerusFormRuns[i] = applyCodeFinder(numerusFormRuns[i])
 					}
 					var block *model.Block
-					if hasInlineCodes(sourceRuns) {
+					if model.RunsHaveInlineCodes(sourceRuns) {
 						block = &model.Block{
 							ID:           blockID,
 							Translatable: translatable,
@@ -877,7 +877,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 								emptyFormFlags.WriteByte(',')
 							}
 							hasText := strings.TrimSpace(form) != ""
-							hasInline := i < len(numerusFormRuns) && hasInlineCodes(numerusFormRuns[i])
+							hasInline := i < len(numerusFormRuns) && model.RunsHaveInlineCodes(numerusFormRuns[i])
 							if hasText || hasInline {
 								emptyFormFlags.WriteByte('1')
 							} else {
@@ -983,7 +983,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					} else {
 						targetText := transBuilder.String()
 						if targetText != "" || transType == "unfinished" {
-							if hasInlineCodes(transRuns) {
+							if model.RunsHaveInlineCodes(transRuns) {
 								block.SetTargetRuns(targetLocale, transRuns)
 							} else {
 								block.SetTargetText(targetLocale, targetText)
@@ -1395,18 +1395,6 @@ func (r *Reader) Close() error {
 		return r.Doc.Reader.Close()
 	}
 	return nil
-}
-
-// hasInlineCodes reports whether a run sequence contains any Ph /
-// PcOpen / PcClose / Sub run — i.e. the block needs the structured
-// Run path instead of the plain-text path.
-func hasInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // appendTSTextRun appends text to the run sequence, coalescing with

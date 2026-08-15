@@ -812,7 +812,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 	}
 
 	text := model.FlattenRuns(finalRuns)
-	if text == "" && !runsHaveInlineCodes(finalRuns) {
+	if text == "" && !model.RunsHaveInlineCodes(finalRuns) {
 		return
 	}
 
@@ -828,7 +828,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 	// text where the writer preserves it verbatim. preserveWS skips
 	// this filter — when whitespace is explicitly significant we
 	// want the block.
-	if !frame.preserveWS && !runsHaveInlineCodes(finalRuns) && isWhitespaceOnly(text) {
+	if !frame.preserveWS && !model.RunsHaveInlineCodes(finalRuns) && isWhitespaceOnly(text) {
 		return
 	}
 	// Purely structural runs (only standalone Ph for comments / PIs /
@@ -2270,18 +2270,6 @@ func appendTextRun(runs []model.Run, text string) []model.Run {
 	return append(runs, model.Run{Text: &model.TextRun{Text: text}})
 }
 
-// runsHaveInlineCodes reports whether the run slice contains any
-// non-text run. Used by flushBlock to decide whether a segment with
-// no flattened text is still worth emitting (e.g. a <br/> run alone).
-func runsHaveInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
-}
-
 // runsHaveNonWhitespaceText returns true when the run slice contains
 // any TextRun whose content has at least one non-whitespace character,
 // or any open inline span (PcOpen). Used by the inline auto-promotion
@@ -2418,7 +2406,7 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 	for i := range r.cfg.Subfilters {
 		sf := &r.cfg.Subfilters[i]
-		if matchGlob(sf.Pattern, path) {
+		if format.MatchSubfilterPattern(sf.Pattern, path) {
 			return sf
 		}
 	}
@@ -2489,14 +2477,6 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	subReader.Close()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
-}
-
-// matchGlob matches a path against a glob pattern using dot-separated segments.
-func matchGlob(pattern, path string) bool {
-	patternNorm := strings.ReplaceAll(pattern, ".", "/")
-	pathNorm := strings.ReplaceAll(path, ".", "/")
-	matched, _ := filepath.Match(patternNorm, pathNorm)
-	return matched
 }
 
 // Close releases resources.

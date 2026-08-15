@@ -1618,7 +1618,7 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 	if len(srcRuns) == 0 {
 		return
 	}
-	if !runsHaveInlineCodes(srcRuns) {
+	if !model.RunsHaveInlineCodes(srcRuns) {
 		// Plain-text blocks carry their content in Source/Targets already;
 		// only blocks with inline markup need the Run sequences.
 		return
@@ -1635,17 +1635,6 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		}
 		bi.TargetsRuns[locale] = runs
 	}
-}
-
-// runsHaveInlineCodes reports whether a Run sequence contains any non-text
-// run (paired code, placeholder, sub, plural, or select).
-func runsHaveInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // enrichBlockEntities extracts entity annotations from a block's entity overlay

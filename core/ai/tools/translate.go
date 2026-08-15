@@ -645,7 +645,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	// placeholder-preserving LLM path so the model can keep them
 	// intact.
 	sourceRuns := v.SourceRuns()
-	if hasInlineCodes(sourceRuns) {
+	if model.RunsHaveInlineCodes(sourceRuns) {
 		return t.translateWithInlineCodes(v, sourceRuns)
 	}
 
@@ -767,17 +767,6 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 
 	t.emitProgress(true, "")
 	return nil
-}
-
-// hasInlineCodes reports whether a Run sequence contains any
-// non-text run.
-func hasInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // decodeFirstJSON decodes the first JSON value in s into v, tolerating a leading
@@ -903,7 +892,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 			continue
 		}
 		sourceRuns := block.SourceRuns()
-		inline := hasInlineCodes(sourceRuns)
+		inline := model.RunsHaveInlineCodes(sourceRuns)
 		text := src
 		if inline {
 			text = model.RunsPlaceholderText(sourceRuns)

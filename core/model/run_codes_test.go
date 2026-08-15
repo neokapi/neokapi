@@ -14,6 +14,39 @@ func ph(id, equiv string) model.Run {
 
 func txt(s string) model.Run { return model.Run{Text: &model.TextRun{Text: s}} }
 
+// The gate every reader, writer, translator and editor uses to decide whether
+// a block can travel as a string. Anything that is not text counts as a code,
+// including the structured constructs, so a block holding one is never
+// flattened.
+func TestRunsHaveInlineCodes(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		runs []model.Run
+		want bool
+	}{
+		{"no runs at all", nil, false},
+		{"empty slice", []model.Run{}, false},
+		{"one text run", []model.Run{model.TextR("plain")}, false},
+		{"several text runs", []model.Run{model.TextR("a"), model.TextR("b")}, false},
+		{"an empty text run is still text", []model.Run{model.TextR("")}, false},
+		{"a placeholder", []model.Run{model.PhR(model.PlaceholderRun{ID: "1"})}, true},
+		{"text then a placeholder", []model.Run{model.TextR("Hi "), model.PhR(model.PlaceholderRun{ID: "1"})}, true},
+		{"a paired open", []model.Run{model.PcOpenR(model.PcOpenRun{ID: "b"})}, true},
+		{"a paired close", []model.Run{model.PcCloseR(model.PcCloseRun{ID: "b"})}, true},
+		{"a subflow reference", []model.Run{model.SubR(model.SubRun{ID: "s"})}, true},
+		{"a plural construct", []model.Run{model.PluralR(model.PluralRun{})}, true},
+		{"a select construct", []model.Run{model.SelectR(model.SelectRun{})}, true},
+		{"a zero Run sets no discriminator and counts as a code", []model.Run{{}}, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, model.RunsHaveInlineCodes(tc.runs))
+		})
+	}
+}
+
 func TestRunCodeSignature(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
