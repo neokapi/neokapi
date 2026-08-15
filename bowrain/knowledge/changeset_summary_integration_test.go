@@ -83,6 +83,15 @@ func TestSetChangeSetImpactRoundtrips(t *testing.T) {
 		TotalBlocks: 900, AffectedBlocks: 12, NewViolations: 7, Words: 340, Projects: 2,
 		Partial: true, PartialReason: "time budget exhausted",
 		ComputedAt: time.Date(2026, 8, 9, 10, 0, 0, 0, time.UTC),
+		// The cost split rides the same JSONB column. It is the number a reviewer
+		// reads first and the stored summary is what they read by default, so a
+		// nested field that did not survive the column would take the split off
+		// the page for every submitted change-set while the totals stayed.
+		Reach: &ReachSummary{
+			AnnotateBlocks: 9, AnnotateTargets: 20, AnnotateApproved: 6,
+			TransformBlocks: 3, TransformTargets: 7, TransformApproved: 2,
+			TransformProjects: 1,
+		},
 	}
 	require.NoError(t, store.SetChangeSetImpact(ctx, testWS, cs.ID, summary))
 
