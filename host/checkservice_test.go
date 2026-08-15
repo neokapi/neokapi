@@ -86,6 +86,59 @@ func TestOverlayTargets(t *testing.T) {
 	assert.Empty(t, src[1].TargetText("fr"), "unmatched unit keeps an empty target")
 }
 
+// TestOverlayTargets_TranslatedStructuralNames covers a markdown pair whose
+// block keys are structural addresses built from heading slugs: translating a
+// heading re-addresses every block beneath it, so the key match reaches only the
+// blocks above the first heading. Equal block counts mean the target is the
+// source's own skeleton in another language, so the rest pair by position.
+// Without it a fully translated docs page measured one third translated, could
+// not be reviewed unit by unit, and could never clear a ship gate.
+func TestOverlayTargets_TranslatedStructuralNames(t *testing.T) {
+	src := []*model.Block{
+		{ID: "1", Name: "p", Translatable: true},
+		{ID: "2", Name: "h", Translatable: true},
+		{ID: "3", Name: "what-it-reads/p", Translatable: true},
+	}
+	src[0].SetSourceText("Tidewatch compares the forecast.")
+	src[1].SetSourceText("What it reads")
+	src[2].SetSourceText("Three inputs, in this order:")
+
+	tgt := []*model.Block{
+		{ID: "1", Name: "p", Translatable: true},
+		{ID: "2", Name: "h", Translatable: true},
+		{ID: "3", Name: "hva-den-leser/p", Translatable: true},
+	}
+	tgt[0].SetSourceText("Tidewatch sammenligner prognosen.")
+	tgt[1].SetSourceText("Hva den leser")
+	tgt[2].SetSourceText("Tre kilder, i denne rekkefølgen:")
+
+	OverlayTargets(src, tgt, "nb")
+	assert.Equal(t, "Tidewatch sammenligner prognosen.", src[0].TargetText("nb"), "keyed match")
+	assert.Equal(t, "Hva den leser", src[1].TargetText("nb"), "keyed match")
+	assert.Equal(t, "Tre kilder, i denne rekkefølgen:", src[2].TargetText("nb"),
+		"a block whose address changed with its heading pairs by position")
+}
+
+// TestOverlayTargets_DivergedDocumentKeepsKeyMatchOnly proves the positional
+// fallback is guarded by equal block counts: a target that genuinely diverged
+// from its source is not pairwise-aligned, and guessing there would report
+// translations that are not translations of the blocks they were attached to.
+func TestOverlayTargets_DivergedDocumentKeepsKeyMatchOnly(t *testing.T) {
+	src := []*model.Block{
+		{ID: "1", Name: "p", Translatable: true},
+		{ID: "2", Name: "intro/p", Translatable: true},
+	}
+	src[0].SetSourceText("First")
+	src[1].SetSourceText("Second")
+
+	tgt := []*model.Block{{ID: "1", Name: "p", Translatable: true}}
+	tgt[0].SetSourceText("Først")
+
+	OverlayTargets(src, tgt, "nb")
+	assert.Equal(t, "Først", src[0].TargetText("nb"))
+	assert.Empty(t, src[1].TargetText("nb"), "unequal counts fall back to nothing, not to a guess")
+}
+
 // TestOverlayTargets_Bilingual covers a bilingual target file — kapi's own .kbf.json
 // interchange, where the source stays in place and the translation lives under
 // targets.<locale>. OverlayTargets must lift the target-locale runs, not the

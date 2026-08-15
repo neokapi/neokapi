@@ -108,5 +108,9 @@ export const DEMOS: RegistryEntry[] = [
   {
     "id": "s1-compass-multilingual",
     "title": "A language appears when it is ready"
+  },
+  {
+    "id": "s2-tidewatch-docs",
+    "title": "A docs site that catches up on its own"
   }
 ];

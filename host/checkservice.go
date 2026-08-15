@@ -41,15 +41,38 @@ func (a *App) WithDocumentCache(root string, fn func() error) error {
 // locale. Source blocks with no matching target keep an empty target, so QA
 // flags them as untranslated. It is the pairing leg of the bilingual check
 // pipeline (the core of the CLI's bilingualBlocks).
+//
+// # Why the key is not enough on its own
+//
+// A markdown block's key is a structural address whose segments are the slugs of
+// the headings above it (core/formats/markdown/naming.go). Those headings are
+// content, so a translated document addresses the very same paragraph as
+// `hva-den-leser/p` where its source calls it `what-it-reads/p`, and every block
+// under a translated heading fails to pair. A fully translated docs page
+// therefore read as one third translated, could not be reviewed unit by unit,
+// and could never clear a ship gate.
+//
+// So the key match is the first pass, and anything it leaves unpaired falls back
+// to document position — but only when the two documents hold the same number of
+// blocks. That guard is what makes the fallback exact rather than a guess: a
+// target is materialized from the source's own skeleton, so equal counts mean
+// the same sequence of blocks in the same order, and the nth block is the nth
+// block's translation. Unequal counts mean the target has genuinely diverged
+// (edited by hand, or produced by a different reader configuration), and there
+// the honest answer is the key match alone.
 func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.LocaleID) {
 	targetByKey := make(map[string]*model.Block, len(targetBlocks))
 	for _, tb := range targetBlocks {
 		targetByKey[convergence.BlockKey(tb)] = tb
 	}
-	for _, sb := range sourceBlocks {
+	positional := len(sourceBlocks) == len(targetBlocks)
+	for i, sb := range sourceBlocks {
 		tb, ok := targetByKey[convergence.BlockKey(sb)]
 		if !ok {
-			continue // no target → empty; QA flags as untranslated.
+			if !positional {
+				continue // no target → empty; QA flags as untranslated.
+			}
+			tb = targetBlocks[i]
 		}
 		// Carry the translation onto the source block as the target locale so
 		// checkers can compare inline codes structurally. A bilingual target

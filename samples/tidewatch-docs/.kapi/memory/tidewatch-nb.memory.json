@@ -1,0 +1,206 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-memory",
+  "entries": [
+    {
+      "id": "tidewatch-nb:0001",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Tidewatch operator handbook" }],
+        "nb": [{ "text": "Tidewatch driftshåndbok" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0002",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Overview" }],
+        "nb": [{ "text": "Oversikt" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0003",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Berths" }],
+        "nb": [{ "text": "Kaiplasser" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0004",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Alerts" }],
+        "nb": [{ "text": "Varsler" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0005",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Integrating" }],
+        "nb": [{ "text": "Integrasjon" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0006",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "What it reads" }],
+        "nb": [{ "text": "Hva den leser" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0007",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "What it produces" }],
+        "nb": [{ "text": "Hva den produserer" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0008",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Where to go next" }],
+        "nb": [{ "text": "Videre lesning" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0009",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Three inputs, in this order:" }],
+        "nb": [{ "text": "Tre kilder, i denne rekkefølgen:" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0010",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The tidal forecast for the terminal, refreshed every ten minutes." }],
+        "nb": [{ "text": "Tidevannsprognosen for terminalen, oppdatert hvert tiende minutt." }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0011",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The arrivals plan, as Compass holds it." }],
+        "nb": [{ "text": "Ankomstplanen, slik Compass holder den." }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0012",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Declaring a berth" }],
+        "nb": [{ "text": "Registrere en kaiplass" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0013",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Releasing a berth" }],
+        "nb": [{ "text": "Frigi en kaiplass" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0014",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The lifecycle" }],
+        "nb": [{ "text": "Livsløpet" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0015",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Acknowledging" }],
+        "nb": [{ "text": "Kvittering" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0016",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Field names" }],
+        "nb": [{ "text": "Feltnavn" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0017",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Reading alerts" }],
+        "nb": [{ "text": "Lese varsler" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0018",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Webhook delivery" }],
+        "nb": [{ "text": "Levering via webhook" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0019",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "What an alert never does" }],
+        "nb": [{ "text": "Hva et varsel aldri gjør" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    },
+    {
+      "id": "tidewatch-nb:0020",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "When a constraint changes inside an open window" }],
+        "nb": [{ "text": "Når en begrensning endres i et åpent vindu" }]
+      },
+      "created": "2026-01-28T10:00:00Z",
+      "updated": "2026-01-28T10:00:00Z"
+    }
+  ]
+}
