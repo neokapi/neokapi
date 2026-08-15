@@ -55,7 +55,7 @@ The `qa` tool validates:
 Create `.kapi/flows/source-qa.yaml`:
 
 Step config keys are the tool's own schema keys, in camelCase — see
-[the tool reference](https://neokapi.github.io/web/neokapi/reference/tools/qa).
+[the tool reference](https://neokapi.github.io/reference/tools/qa).
 An unrecognized key is silently ignored, so a misspelling costs you the check
 rather than an error. The locale is not a config key either: it comes from the
 run's `--target-lang`, so one flow serves every locale.

@@ -22,7 +22,7 @@ Never convert a stack to a different key model in the same change as adoption.
 ## Path A — adopt @neokapi/i18n-react (zero-wrapper, T0)
 
 Write plain JSX; a bundler plugin extracts it at build time. See the
-[neokapi-i18n quickstart](https://neokapi.github.io/web/neokapi/react/quickstart).
+[neokapi-i18n quickstart](https://neokapi.github.io/react/quickstart).
 
 **Change as little as possible:**
 
