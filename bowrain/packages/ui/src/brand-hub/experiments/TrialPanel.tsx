@@ -196,11 +196,7 @@ function FindingRow({ finding, tone }: { finding: TrialFinding; tone: "raised" |
     <li className="rounded-md border bg-card px-3 py-2">
       <div className="flex flex-wrap items-baseline gap-x-1.5 text-xs">
         <span
-          className={cn(
-            "font-medium",
-            tone === "raised" ? "text-destructive" : "text-success",
-            "line-through-none",
-          )}
+          className={cn("font-medium", tone === "raised" ? "text-destructive" : "text-success")}
         >
           {finding.rule}
         </span>

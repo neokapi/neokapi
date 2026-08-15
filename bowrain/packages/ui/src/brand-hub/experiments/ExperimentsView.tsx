@@ -77,7 +77,7 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
       actions={
         <Button size="sm" onClick={() => setWizardOpen(true)}>
           <Plus />
-          New experiment
+          New change
         </Button>
       }
       toolbar={
@@ -105,12 +105,12 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
       ) : groups.length === 0 ? (
         <EmptyState
           icon={<FlaskConical />}
-          title="No experiments yet"
+          title="No changes yet"
           description="Start a change-set to propose a governed change — banning a term, changing a preferred term, or piloting a rule on real content."
           action={
             <Button size="sm" variant="outline" onClick={() => setWizardOpen(true)}>
               <Plus />
-              New experiment
+              New change
             </Button>
           }
         />

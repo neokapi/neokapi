@@ -1,4 +1,4 @@
-// The detail page for a single change-set / experiment (AD-021): a PR-like
+// The detail page for a single change-set (AD-021): a PR-like
 // header with its lifecycle, the ordered operations as a human-readable diff,
 // the measured blast radius as the hero, reviews (separation-of-duties aware),
 // pilots, and the merge / abandon controls. Governed changes can only merge with
@@ -55,21 +55,21 @@ export function ExperimentDetailView({
 
   if (isLoading) {
     return (
-      <BrandHub title="Experiment" width="wide">
+      <BrandHub title="Change" width="wide">
         <Skeleton className="h-64 w-full" />
       </BrandHub>
     );
   }
   if (!cs) {
     return (
-      <BrandHub title="Experiment" width="wide">
+      <BrandHub title="Change" width="wide">
         <EmptyState
-          title="Experiment not found"
+          title="Change not found"
           description="This change-set may have been abandoned or removed."
           action={
             <Button size="sm" variant="outline" onClick={onBack}>
               <ArrowLeft />
-              Back to experiments
+              Back to changes
             </Button>
           }
         />
@@ -87,7 +87,7 @@ export function ExperimentDetailView({
       actions={
         <Button size="sm" variant="outline" onClick={onBack}>
           <ArrowLeft />
-          Experiments
+          Changes
         </Button>
       }
       toolbar={
