@@ -270,7 +270,9 @@ func TestSubfilter_Roundtrip(t *testing.T) {
 	assert.Contains(t, output, `Rich content`)
 }
 
-func TestMatchGlob(t *testing.T) {
+// The shared subfilter matcher read against JSON key paths, which is the
+// vocabulary this reader hands it.
+func TestMatchSubfilterPattern(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		pattern string
@@ -286,7 +288,7 @@ func TestMatchGlob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.pattern+"_"+tt.path, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, matchGlob(tt.pattern, tt.path))
+			assert.Equal(t, tt.want, format.MatchSubfilterPattern(tt.pattern, tt.path))
 		})
 	}
 }
