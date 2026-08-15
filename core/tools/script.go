@@ -53,16 +53,6 @@ func (c *ScriptConfig) Validate() error {
 	return nil
 }
 
-// ScriptSchema returns the auto-generated schema for the script tool.
-func ScriptSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&ScriptConfig{}, schema.ToolMeta{
-		ID:          "script",
-		Category:    schema.CategoryTextProcessing,
-		DisplayName: "Script",
-		Description: "Run a JavaScript processing script on each part",
-	})
-}
-
 // NewScriptFromConfig creates a script tool from a config map.
 func NewScriptFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg ScriptConfig

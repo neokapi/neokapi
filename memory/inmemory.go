@@ -43,11 +43,6 @@ type InMemoryStore struct {
 // InMemoryStoreOption configures an InMemoryStore instance.
 type InMemoryStoreOption func(*InMemoryStore)
 
-// WithMaxEntries sets the maximum number of entries; 0 = unlimited.
-func WithMaxEntries(max int) InMemoryStoreOption {
-	return func(tm *InMemoryStore) { tm.maxEntries = max }
-}
-
 // NewInMemoryStore creates a new empty in-memory content memory.
 func NewInMemoryStore(opts ...InMemoryStoreOption) *InMemoryStore {
 	tm := &InMemoryStore{

@@ -199,17 +199,6 @@ func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
 	return cfg
 }
 
-// QACheckSchema returns the auto-generated schema for the qa tool.
-func QACheckSchema() *schema.ComponentSchema {
-	return schema.FromStruct(NewQACheckConfig(""), schema.ToolMeta{
-		ID:          "qa",
-		Category:    schema.CategoryQuality,
-		DisplayName: "QA Check",
-		Description: "Run rule-based quality checks on translations",
-		Requires:    []string{schema.RequiresTargetLanguage},
-	})
-}
-
 // NewQACheckFromConfig creates a qa tool from a config map.
 //
 // This is the path a recipe's `qa:` step config travels, so it is the one

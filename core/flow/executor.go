@@ -131,13 +131,6 @@ func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
 	return &DefaultExecutor{config: cfg}
 }
 
-// NewFlowExecutor is a deprecated alias for [NewExecutor].
-//
-// Deprecated: Use [NewExecutor] instead.
-func NewFlowExecutor(opts ...ExecutorOption) *DefaultExecutor {
-	return NewExecutor(opts...)
-}
-
 // SetChannelSize configures the buffer size for inter-tool channels.
 func (e *DefaultExecutor) SetChannelSize(size int) {
 	if size > 0 {

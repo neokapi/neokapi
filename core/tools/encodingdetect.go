@@ -27,16 +27,6 @@ func (c *EncodingDetectConfig) Reset() {}
 // Validate checks configuration validity.
 func (c *EncodingDetectConfig) Validate() error { return nil }
 
-// EncodingDetectSchema returns the auto-generated schema for the encoding-detect tool.
-func EncodingDetectSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&EncodingDetectConfig{}, schema.ToolMeta{
-		ID:          "encoding-detect",
-		Category:    schema.CategoryAnalysis,
-		DisplayName: "Encoding Detect",
-		Description: "Detect character encoding of source files",
-	})
-}
-
 // NewEncodingDetectFromConfig creates an encoding-detect tool from a config map.
 func NewEncodingDetectFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg EncodingDetectConfig

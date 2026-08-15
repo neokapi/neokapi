@@ -53,17 +53,6 @@ func (c *DiffLeverageConfig) Validate() error {
 	return nil
 }
 
-// DiffLeverageSchema returns the auto-generated schema for the diff-leverage tool.
-func DiffLeverageSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&DiffLeverageConfig{}, schema.ToolMeta{
-		ID:          "diff-leverage",
-		Category:    schema.CategoryTranslation,
-		DisplayName: "Diff Leverage",
-		Description: "Leverage translations from previous versions using diff analysis",
-		Requires:    []string{schema.RequiresTargetLanguage},
-	})
-}
-
 // NewDiffLeverageFromConfig creates a diff-leverage tool from a config map.
 func NewDiffLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg DiffLeverageConfig
