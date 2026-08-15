@@ -497,8 +497,10 @@ type ProjectRequest struct {
 // Creating a project is a member-level act: any workspace member may create
 // one. Mutating or deleting an existing project keeps PermManageProject
 // (HandleUpdateEditorProject, HandleDeleteEditorProject,
-// HandlePermanentlyDeleteProject). The asymmetry is deliberate — a new project
-// is empty, so the whole cost of an unwanted one is archiving it again, while
+// HandlePermanentlyDeleteProject), which a member's workspace role does not
+// grant — they hold it only where addProjectCreatorMembership below gives it to
+// them, on the project they made. The asymmetry is deliberate: a new project is
+// empty, so the whole cost of an unwanted one is archiving it again, while
 // renaming or removing a project other people's work already hangs off is not
 // theirs to undo.
 //

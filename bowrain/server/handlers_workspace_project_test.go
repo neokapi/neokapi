@@ -155,14 +155,18 @@ func TestPersonalWorkspaceBlocksPublicVisibility(t *testing.T) {
 }
 
 // policyWorkspace is a team workspace whose members cover every workspace role,
-// plus a user who is not a member of it at all.
+// a second plain member, and a user who is not a member of it at all. Its role
+// templates are seeded, as `CreateWorkspaceWithOwner` seeds them in production —
+// without them a project creator gets no project membership and the mutation
+// tests would pass for a reason that does not hold for a real workspace.
 type policyWorkspace struct {
-	srv      *Server
-	slug     string
-	byRole   map[platauth.Role]string // role → JWT
-	outsider string                   // JWT of a non-member
-	ownerID  string
-	wsID     string
+	srv         *Server
+	slug        string
+	byRole      map[platauth.Role]string // role → JWT
+	otherMember string                   // JWT of a second plain member
+	outsider    string                   // JWT of a non-member
+	ownerID     string
+	wsID        string
 }
 
 func newPolicyWorkspace(t *testing.T) *policyWorkspace {
@@ -177,6 +181,7 @@ func newPolicyWorkspace(t *testing.T) *policyWorkspace {
 	ctx := t.Context()
 	ws := &platauth.Workspace{ID: "policy-ws", Name: "Policy", Slug: "policy", Type: platauth.WorkspaceTypeTeam}
 	require.NoError(t, srv.AuthStore.CreateWorkspace(ctx, ws))
+	require.NoError(t, srv.AuthStore.SeedDefaultRoleTemplates(ctx, ws.ID))
 
 	pw := &policyWorkspace{
 		srv:    srv,
@@ -185,23 +190,25 @@ func newPolicyWorkspace(t *testing.T) *policyWorkspace {
 		byRole: map[platauth.Role]string{},
 	}
 
-	for _, role := range []platauth.Role{platauth.RoleOwner, platauth.RoleAdmin, platauth.RoleMember} {
-		u := &platauth.User{ID: "user-" + string(role), Email: string(role) + "@example.com", Name: string(role)}
+	newUser := func(id string, role platauth.Role) string {
+		u := &platauth.User{ID: id, Email: id + "@example.com", Name: id}
 		require.NoError(t, srv.AuthStore.CreateUser(ctx, u))
-		require.NoError(t, srv.AuthStore.AddMember(ctx, ws.ID, u.ID, role))
+		if role != "" {
+			require.NoError(t, srv.AuthStore.AddMember(ctx, ws.ID, u.ID, role))
+		}
 		tok, err := platauth.GenerateToken(u, cfg.JWTSecret, time.Hour)
 		require.NoError(t, err)
-		pw.byRole[role] = tok
-		if role == platauth.RoleOwner {
-			pw.ownerID = u.ID
-		}
+		return tok
 	}
 
-	outsider := &platauth.User{ID: "user-outsider", Email: "outsider@example.com", Name: "Outsider"}
-	require.NoError(t, srv.AuthStore.CreateUser(ctx, outsider))
-	tok, err := platauth.GenerateToken(outsider, cfg.JWTSecret, time.Hour)
-	require.NoError(t, err)
-	pw.outsider = tok
+	for _, role := range []platauth.Role{platauth.RoleOwner, platauth.RoleAdmin, platauth.RoleMember} {
+		pw.byRole[role] = newUser("user-"+string(role), role)
+		if role == platauth.RoleOwner {
+			pw.ownerID = "user-" + string(role)
+		}
+	}
+	pw.otherMember = newUser("user-other-member", platauth.RoleMember)
+	pw.outsider = newUser("user-outsider", "")
 
 	return pw
 }
@@ -291,8 +298,11 @@ func TestCreateWorkspaceProjectHonorsTokenScopes(t *testing.T) {
 	}
 }
 
-// TestProjectMutationStaysManagerOnly is the other side of the asymmetry: the
-// member who may create a project may not rename or archive one.
+// TestProjectMutationStaysManagerOnly is the other side of the asymmetry.
+// Creating is member-level; changing a project is manage_project, which a
+// member holds only where they hold it — on the project they created, where the
+// creator enrollment makes them a project admin. A second member of the same
+// workspace, holding nothing on that project, is refused.
 func TestProjectMutationStaysManagerOnly(t *testing.T) {
 	pw := newPolicyWorkspace(t)
 
@@ -303,13 +313,16 @@ func TestProjectMutationStaysManagerOnly(t *testing.T) {
 
 	base := "/api/v1/" + pw.slug + "/" + created.ID
 
+	rec = pw.do(t, http.MethodPut, base, pw.otherMember, `{"name":"Renamed"}`)
+	assert.Equal(t, http.StatusForbidden, rec.Code, "a member may not rename another member's project")
+
+	rec = pw.do(t, http.MethodDelete, base, pw.otherMember, "")
+	assert.Equal(t, http.StatusForbidden, rec.Code, "a member may not archive another member's project")
+
 	rec = pw.do(t, http.MethodPut, base, pw.byRole[platauth.RoleMember], `{"name":"Renamed"}`)
-	assert.Equal(t, http.StatusForbidden, rec.Code, "a member may not rename the project it created")
+	assert.Equal(t, http.StatusOK, rec.Code, "the creator governs what it created: %s", rec.Body.String())
 
-	rec = pw.do(t, http.MethodDelete, base, pw.byRole[platauth.RoleMember], "")
-	assert.Equal(t, http.StatusForbidden, rec.Code, "a member may not archive the project it created")
-
-	rec = pw.do(t, http.MethodPut, base, pw.byRole[platauth.RoleAdmin], `{"name":"Renamed"}`)
+	rec = pw.do(t, http.MethodPut, base, pw.byRole[platauth.RoleAdmin], `{"name":"Renamed by an admin"}`)
 	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	rec = pw.do(t, http.MethodDelete, base, pw.byRole[platauth.RoleAdmin], "")
