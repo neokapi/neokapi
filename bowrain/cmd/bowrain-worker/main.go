@@ -258,8 +258,10 @@ func runWorker(dbURL string) error {
 
 	// Product analytics (epic 018): the worker emits content_pushed after sync
 	// push processing. Keyless deployments stay silent (nil tracker). Mirrors
-	// the server's POSTHOG_API_KEY / POSTHOG_HOST configuration.
-	if phKey := os.Getenv("POSTHOG_API_KEY"); phKey != "" {
+	// the server's POSTHOG_API_KEY / POSTHOG_HOST configuration, including its
+	// rejection of the provisioning placeholder — a token that reads as
+	// configured builds a client whose every enqueue is dropped in silence.
+	if phKey := os.Getenv("POSTHOG_API_KEY"); analytics.IsProjectAPIKey(phKey) {
 		phClient, err := analytics.NewPostHogClient(phKey, os.Getenv("POSTHOG_HOST"))
 		if err != nil {
 			slog.Warn("failed to init PostHog client, analytics disabled", "error", err)

@@ -107,6 +107,42 @@ func TestResolveFlowLocales_ParallelSteps(t *testing.T) {
 	assert.Len(t, result, 4) // 3 targets + qps
 }
 
+// A project with no target languages resolves to no locale pass whatever the
+// flow, so "which locales" cannot answer "does this flow need one at all" —
+// FlowNeedsTargetLanguage is the separate question, and it is what decides
+// whether a run on a monolingual project is missing something or complete.
+func TestFlowNeedsTargetLanguage(t *testing.T) {
+	infos := toolMap(
+		registry.ToolInfo{Name: "voice-vocab-check", Cardinality: schema.Monolingual},
+		registry.ToolInfo{Name: "word-count", Cardinality: schema.Monolingual},
+		registry.ToolInfo{Name: "translate", Cardinality: schema.Bilingual},
+		registry.ToolInfo{Name: "terminology", Cardinality: schema.Multilingual},
+		registry.ToolInfo{Name: "no-cardinality"},
+	)
+
+	tests := []struct {
+		name  string
+		steps []FlowStep
+		want  bool
+	}{
+		{"the scaffolded check flow", []FlowStep{{Tool: "voice-vocab-check"}}, false},
+		{"every step monolingual", []FlowStep{{Tool: "voice-vocab-check"}, {Tool: "word-count"}}, false},
+		{"one bilingual step is enough", []FlowStep{{Tool: "word-count"}, {Tool: "translate"}}, true},
+		{"multilingual", []FlowStep{{Tool: "terminology"}}, true},
+		{"nested in a parallel branch", []FlowStep{{Parallel: []FlowStep{{Tool: "translate"}}}}, true},
+		{"unset cardinality is assumed to need one", []FlowStep{{Tool: "no-cardinality"}}, true},
+		{"a tool the registry does not know", []FlowStep{{Tool: "plugin-tool"}}, true},
+		{"no steps", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FlowNeedsTargetLanguage(&StepsSpec{Steps: tt.steps}, infos))
+		})
+	}
+
+	assert.False(t, FlowNeedsTargetLanguage(nil, infos))
+}
+
 func TestResolveFlowLocales_NilSpec(t *testing.T) {
 	result := ResolveFlowLocales(nil, nil, "en-US", projectTargets)
 	assert.Nil(t, result)

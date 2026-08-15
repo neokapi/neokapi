@@ -387,7 +387,10 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 			// Canonical output resolution: the matched project content
 			// item's target template, else the <base>_<lang><ext> sibling.
-			outputPath := a.resolveOutputPath(inputPath, "")
+			outputPath, oerr := a.resolveOutputPath(inputPath, "")
+			if oerr != nil {
+				return oerr
+			}
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,

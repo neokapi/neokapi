@@ -10,6 +10,7 @@ import (
 type AddEntry struct {
 	Pattern string `json:"pattern"`
 	Format  string `json:"format,omitempty"`
+	Target  string `json:"target,omitempty"`
 	Files   int    `json:"files"`
 	Skipped bool   `json:"skipped,omitempty"`
 }
@@ -22,13 +23,17 @@ type AddOutput struct {
 // FormatText renders the add result as human-readable lines.
 func (o AddOutput) FormatText(w io.Writer) error {
 	for _, e := range o.Added {
+		target := ""
+		if e.Target != "" {
+			target = " → " + e.Target
+		}
 		switch {
 		case e.Skipped:
 			fmt.Fprintf(w, "Already tracked: %s\n", e.Pattern)
 		case e.Format != "":
-			fmt.Fprintf(w, "Added %s (%s) — %d file(s)\n", e.Pattern, e.Format, e.Files)
+			fmt.Fprintf(w, "Added %s (%s)%s — %d file(s)\n", e.Pattern, e.Format, target, e.Files)
 		default:
-			fmt.Fprintf(w, "Added %s — %d file(s)\n", e.Pattern, e.Files)
+			fmt.Fprintf(w, "Added %s%s — %d file(s)\n", e.Pattern, target, e.Files)
 		}
 	}
 	return nil

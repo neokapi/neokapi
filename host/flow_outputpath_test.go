@@ -67,3 +67,59 @@ func TestProjectItemTargetPath(t *testing.T) {
 	_, ok = a.projectItemTargetPath(filepath.Join(root, "elsewhere/readme.md"), "fr")
 	assert.False(t, ok)
 }
+
+// A destination inside the collection that supplied the input is self-feeding:
+// the glob reads back whatever the run writes, and the project doubles on every
+// pass. There is no safe sibling to fall back to, so the run is refused and the
+// message names the two ways out.
+func TestResolveOutputPath_RefusesADestinationTheCollectionTracks(t *testing.T) {
+	root := t.TempDir()
+	proj := &project.KapiProject{
+		Version:  "v1",
+		Defaults: project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{
+			{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
+			{Name: "site", Content: []project.ContentItem{
+				{Path: "site/**/*.md", Target: "build/{lang}/{name}.md"},
+			}},
+		},
+	}
+	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "kapi.yaml"))}
+	a.TargetLang = "en"
+
+	_, err := a.resolveOutputPath(filepath.Join(root, "docs/index.md"), "")
+	require.Error(t, err, "docs/index_en.md is matched by docs/**/*.md")
+	assert.Contains(t, err.Error(), "docs/**/*.md")
+	assert.Contains(t, err.Error(), "target:")
+
+	// A collection WITH a target resolves normally — the fallback is never reached.
+	out, err := a.resolveOutputPath(filepath.Join(root, "site/index.md"), "")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(root, "build/en/index.md"), out)
+
+	// An explicit -o is the user's own choice of destination, and wins.
+	out, err = a.resolveOutputPath(filepath.Join(root, "docs/index.md"), filepath.Join(root, "out/{lang}"))
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(root, "out/en/index.md"), out)
+}
+
+// Outside a project there are no collections to feed, so the sibling default
+// stands — that is the ad-hoc `kapi run <flow> -i file` shape.
+func TestResolveOutputPath_AdHocKeepsTheSibling(t *testing.T) {
+	a := &App{}
+	a.TargetLang = "fr"
+
+	out, err := a.resolveOutputPath(filepath.Join("docs", "index.md"), "")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join("docs", "index_fr.md"), out)
+}
+
+// With no target language the sibling would be `index_.md` — a name for
+// nothing. Refuse and say what is missing instead of writing it.
+func TestResolveOutputPath_RefusesWithNoTargetLanguage(t *testing.T) {
+	a := &App{}
+
+	_, err := a.resolveOutputPath(filepath.Join("docs", "index.md"), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no output destination")
+}

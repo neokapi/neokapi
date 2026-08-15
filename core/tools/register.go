@@ -253,14 +253,19 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// the project/starter pack, never from step config — hence no schema properties
 	// and no config factory. A recipe names it as a step (`kapi init` scaffolds
 	// exactly that); the standalone command is `kapi check --profile`.
+	//
+	// Monolingual, and it must stay that way: the tool reads the block's SOURCE
+	// text (annotateBlock → v.SourceText()) and scores it against the voice
+	// vocabulary, exactly as its LLM sibling voice-check does. A bilingual
+	// declaration makes flow.ResolveFlowLocales yield no pass at all on a
+	// project with no target languages — which is precisely the project
+	// `kapi init` scaffolds around this step.
 	reg.RegisterWithSchema("voice-vocab-check", func() tool.Tool {
 		return NewVoiceVocabCheckTool(nil, nil)
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
 		ID: "voice-vocab-check", DisplayName: "Voice Vocabulary Check", Category: schema.CategoryQuality,
-		Cardinality: schema.Bilingual,
-		Consumes:    []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
+		Cardinality: schema.Monolingual,
 		Produces:    []schema.IOPort{{Type: model.AnnoVoice, Side: model.SideTarget}},
-		Requires:    []string{"target-language"},
 		Internal:    true,
 	}})
 

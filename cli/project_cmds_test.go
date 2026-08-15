@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,21 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	steps := p.Flows["check"].Steps
 	require.NotEmpty(t, steps)
 	assert.Equal(t, "voice-vocab-check", steps[0].Tool)
+
+	// The scaffold and the registry have to agree, because the scaffold writes a
+	// project with no target languages: the flow it ships must resolve to a
+	// source-only run rather than to a locale it will then demand.
+	infos := flow.BuildToolInfoMap(app.ToolReg)
+	assert.False(t, flow.FlowNeedsTargetLanguage(p.Flows["check"], infos),
+		"the scaffolded check flow must run on the project the scaffold creates")
+	assert.Nil(t, flow.ResolveFlowLocales(p.Flows["check"], infos, "en", nil),
+		"no target languages and an all-monolingual chain is one source-only pass")
+
+	// The recipe's own next-step comment names a command; it has to be one that
+	// works here.
+	recipeText, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	assert.Contains(t, string(recipeText), "'kapi check' to score them")
 }
 
 func TestInitCmd_translationScaffold(t *testing.T) {

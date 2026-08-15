@@ -47,6 +47,11 @@ collections:
     target: "src/locales/{lang}"
 ```
 
+The `target:` says where a translated file goes. `kapi add` writes it for you —
+`kapi add "src/locales/en/*.json" --target "src/locales/{lang}"` — and refuses a
+target that lands back inside the pattern it comes from, which would make the
+collection re-track its own output as source.
+
 Then catch up, inspect, and gate:
 
 ```bash

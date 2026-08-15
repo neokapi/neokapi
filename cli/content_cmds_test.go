@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +93,83 @@ collections:
 	noProj.SetOut(&bytes.Buffer{})
 	noProj.SetErr(&bytes.Buffer{})
 	require.Error(t, noProj.Execute())
+}
+
+// The `target:` a documented recipe shows has to be reachable from the command
+// the get-started page routes a newcomer through, or it is only reachable by
+// hand-editing the recipe — and a collection with no target is the one that
+// can be made to feed itself.
+func TestAdd_DeclaresACollectionTarget(t *testing.T) {
+	a := processOnlyApp(t)
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "app.kapi")
+
+	const initial = `version: v1
+name: TargetTest
+defaults:
+  source_language: en
+  target_languages:
+    - fr
+collections: []
+`
+	require.NoError(t, os.WriteFile(recipe, []byte(initial), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(real, "docs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "docs", "index.md"), []byte("# Hi\n"), 0o644))
+
+	add := func(args ...string) (string, error) {
+		cmd := NewAddCmd(a)
+		cmd.SetArgs(append(args, "--project", recipe))
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		err := cmd.Execute()
+		return out.String(), err
+	}
+
+	out, err := add("docs/**/*.md", "--target", "translated/{lang}/{path}.md")
+	require.NoError(t, err)
+	assert.Contains(t, out, "translated/{lang}/{path}.md", "the destination is reported, not silently recorded")
+
+	proj, err := coreproj.Load(recipe)
+	require.NoError(t, err)
+	require.Len(t, proj.Collections, 1)
+	assert.Equal(t, "translated/{lang}/{path}.md", proj.Collections[0].Target)
+}
+
+// A target inside the pattern that produced it is the self-feeding shape: the
+// glob re-tracks the output as source and the project doubles on every run.
+// Refused where it is authored, not discovered later as a file count.
+func TestAdd_RefusesATargetInsideItsOwnCollection(t *testing.T) {
+	a := processOnlyApp(t)
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "app.kapi")
+
+	const initial = `version: v1
+name: SelfFeeding
+defaults:
+  source_language: en
+  target_languages:
+    - fr
+collections: []
+`
+	require.NoError(t, os.WriteFile(recipe, []byte(initial), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(real, "docs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "docs", "index.md"), []byte("# Hi\n"), 0o644))
+
+	cmd := NewAddCmd(a)
+	cmd.SetArgs([]string{"docs/**/*.md", "--target", "docs/{lang}/{path}.md", "--project", recipe})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err = cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "docs/**/*.md")
+	assert.Contains(t, err.Error(), "double")
+
+	raw, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "docs/**/*.md", "a refused add writes nothing")
 }
 
 // TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin proves the boundary

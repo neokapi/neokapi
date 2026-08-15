@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T10:27:34Z",
+  "generatedAt": "2026-08-15T12:13:14Z",
   "kind": "tool",
   "entries": [
     {
@@ -4419,13 +4419,7 @@
       "kind": "tool",
       "displayName": "Voice Vocabulary Check",
       "category": "quality",
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "consumes": [
-        "target@target"
-      ],
+      "cardinality": "monolingual",
       "produces": [
         "voice@target"
       ],
@@ -4436,16 +4430,7 @@
           "id": "voice-vocab-check",
           "category": "quality",
           "displayName": "Voice Vocabulary Check",
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual",
-          "consumes": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
+          "cardinality": "monolingual",
           "produces": [
             {
               "type": "voice",

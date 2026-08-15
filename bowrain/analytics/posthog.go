@@ -1,6 +1,8 @@
 package analytics
 
 import (
+	"strings"
+
 	"github.com/posthog/posthog-go"
 
 	"github.com/neokapi/neokapi/core/version"
@@ -9,6 +11,23 @@ import (
 // DefaultHost is the default PostHog ingestion host. All bowrain analytics
 // go to the PostHog EU project (EU data residency, Bowrain AD-018 / epic 018).
 const DefaultHost = "https://eu.i.posthog.com"
+
+// projectAPIKeyPrefix is the prefix of a PostHog project API key. The prefix is
+// stable across projects and environments.
+const projectAPIKeyPrefix = "phc_"
+
+// IsProjectAPIKey reports whether v looks like a PostHog project API key.
+//
+// "Non-empty" is not the same as "configured". The SSM parameter behind
+// POSTHOG_API_KEY is seeded with a provisioning placeholder, and a placeholder
+// that reads as configured is the worst state available: a client is built
+// around an invalid token, every event is enqueued against it, and the SDK
+// reports nothing back — so the deployment believes it has product analytics
+// and has none. A value that fails this check is treated as absent, which
+// leaves the server with no analytics client and says so once at startup.
+func IsProjectAPIKey(v string) bool {
+	return strings.HasPrefix(v, projectAPIKeyPrefix)
+}
 
 // PostHogClient wraps the PostHog Go SDK for product analytics.
 type PostHogClient struct {

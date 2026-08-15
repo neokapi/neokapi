@@ -111,6 +111,28 @@ func ResolveFlowLocales(spec *StepsSpec, toolInfos map[registry.ToolID]registry.
 	return passes
 }
 
+// FlowNeedsTargetLanguage reports whether the flow works across a language
+// pair and therefore cannot run without a target language. It is the companion
+// question to ResolveFlowLocales: that answers "which locales", this answers
+// "is a locale needed at all", which the two differ on for a project with no
+// targets — no passes to iterate, and, for an all-monolingual chain, nothing
+// missing either.
+//
+// A tool the registry does not know is assumed to need one, matching
+// ResolveFlowLocales' conservative treatment of unknown and unset cardinality.
+func FlowNeedsTargetLanguage(spec *StepsSpec, toolInfos map[registry.ToolID]registry.ToolInfo) bool {
+	if spec == nil || len(spec.Steps) == 0 {
+		return false
+	}
+	for _, name := range collectToolNames(spec.Steps) {
+		info, ok := toolInfos[registry.ToolID(name)]
+		if !ok || info.Cardinality != schema.Monolingual {
+			return true
+		}
+	}
+	return false
+}
+
 // collectToolNames extracts all tool names from a step list, recursing into
 // parallel steps.
 func collectToolNames(steps []FlowStep) []string {

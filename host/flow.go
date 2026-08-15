@@ -419,7 +419,13 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// in scope and no explicit -o was given, otherwise the ad-hoc template or
 	// the <basename>_<lang><ext> default.
 	outputFlag, _ := cmd.Flags().GetString("output")
-	outputPath := a.resolveOutputPath(inputPath, outputFlag)
+	outputPath, err := a.resolveOutputPath(inputPath, outputFlag)
+	if err != nil {
+		if stopProgress != nil {
+			stopProgress()
+		}
+		return err
+	}
 
 	// Whole-image (target-asset) replacement: when the source is a binary asset
 	// and a localized variant already exists at the target, it is authoritative —
@@ -790,6 +796,30 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		}
 	}
 
+	// In project mode this file's run belongs to the same project block store the
+	// single-file path uses, keyed by the same project root, so a batch run commits
+	// the same `targets/<locale>` overlays and a later merge finds them. A run with
+	// no store leaves the project holding files it cannot account for, and
+	// materializing then writes the source back over them. Autocommit sessions make
+	// the store safe for the concurrent per-file goroutines (host/workspace.go).
+	var projStore blockstore.Store
+	projRoot := ""
+	if a.ProjectContext != nil {
+		projStore = a.openProjectBlockStore(ctx)
+		projRoot = a.ProjectContext.ProjectDir
+	}
+
+	// Process-only default in a project (AD-026 §3/§5) — the same decision
+	// RunSingleFile makes, so a batch and a one-file run of the same flow agree:
+	// with a recipe in scope and no explicit -o, the run commits its
+	// `targets/<locale>` overlays and emits no file, and `kapi merge`
+	// materializes afterwards. It is also what stops a run feeding itself. The
+	// ad-hoc destination below is a SIBLING of the input, which the collection
+	// glob that supplied that input re-tracks as source on the next run, so a
+	// writing batch inside a project doubles its own content every time.
+	processOnly := a.ProjectContext != nil && projStore != nil &&
+		!cmd.Flags().Changed("output") && !a.convergeWriteFiles
+
 	// Wrap tools with TracingTool if recorder is set.
 	var traceNodes []flow.TraceNode
 	if recorder != nil {
@@ -803,12 +833,32 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 			})
 			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 		}
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "writer", Type: flow.NodeWriter, Name: registryName, Label: registryName + " writer",
-		})
+		if !processOnly {
+			traceNodes = append(traceNodes, flow.TraceNode{
+				ID: "writer", Type: flow.NodeWriter, Name: registryName, Label: registryName + " writer",
+			})
+		}
 	}
 
-	outputPath := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    a.FormatReg,
+		SourceLocale: model.LocaleID(a.SourceLang),
+		Encoding:     a.Encoding,
+		Store:        projStore,
+		ProjectRoot:  projRoot,
+	})
+
+	if processOnly {
+		if err := runner.RunFileToStore(ctx, flowName, flowTools, inputPath, a.TargetLang, reader); err != nil {
+			return traceNodes, err
+		}
+		return traceNodes, nil
+	}
+
+	outputPath, err := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
+	if err != nil {
+		return traceNodes, err
+	}
 
 	// Writer format defaults to the reader's format but a different output
 	// extension selects a different writer — see registry.WriterFormatFor,
@@ -832,26 +882,6 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		}
 	}
 
-	// In project mode this file's run belongs to the same project block store the
-	// single-file path uses, keyed by the same project root, so a batch run commits
-	// the same `targets/<locale>` overlays and a later merge finds them. A run with
-	// no store leaves the project holding files it cannot account for, and
-	// materializing then writes the source back over them. Autocommit sessions make
-	// the store safe for the concurrent per-file goroutines (host/workspace.go).
-	var projStore blockstore.Store
-	projRoot := ""
-	if a.ProjectContext != nil {
-		projStore = a.openProjectBlockStore(ctx)
-		projRoot = a.ProjectContext.ProjectDir
-	}
-	runner := flow.NewFileRunner(flow.FileRunnerConfig{
-		FormatReg:    a.FormatReg,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
-		Store:        projStore,
-		ProjectRoot:  projRoot,
-	})
-
 	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang, reader, writer); err != nil {
 		return traceNodes, err
 	}
@@ -869,12 +899,15 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 //     full path-token set, the legacy bare `*`, and directory targets — and so
 //     fixes the double-extension class of bug.
 //  2. No explicit -o and no project target → the ad-hoc default
-//     <basename>_<lang><ext> beside the source.
+//     <basename>_<lang><ext> beside the source, unless that sibling would land
+//     inside a collection the project already tracks as source (see
+//     collectionTracking), in which case there is no safe destination and the
+//     run is refused.
 //  3. An explicit -o template/path → the shared ad-hoc token vocabulary
 //     (project.ResolvePathPattern + project.ExpandTemplate); a template ending
 //     in a separator or naming a directory mirrors the input beneath it. An
 //     explicit -o always wins over the project target (user override).
-func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
+func (a *App) resolveOutputPath(inputPath, outputTemplate string) (string, error) {
 	return a.resolveOutputPathFrom(inputPath, outputTemplate, filepath.Dir(inputPath))
 }
 
@@ -882,15 +915,24 @@ func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
 // directory-style -o mirrors the input beneath it relative to base. Batch runs
 // pass the files' common root so nested inputs keep their structure; single
 // runs pass the file's own dir (via resolveOutputPath).
-func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) string {
+func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (string, error) {
 	if outputTemplate == "" {
 		if out, ok := a.projectItemTargetPath(inputPath, a.TargetLang); ok {
 			ensureParentDir(out)
-			return out
+			return out, nil
+		}
+		if a.TargetLang == "" {
+			return "", fmt.Errorf("%s: no output destination — give the collection a target: template, or pass -o",
+				filepath.Base(inputPath))
 		}
 		ext := format.Ext(inputPath)
 		name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
-		return filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
+		out := filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
+		if pattern, tracked := a.collectionTracking(out); tracked {
+			return "", fmt.Errorf("%s: writing %s beside its source would land inside the collection %q, which tracks it as source on the next run — give the collection a target: template, or pass -o",
+				filepath.Base(inputPath), filepath.Base(out), pattern)
+		}
+		return out, nil
 	}
 
 	if base == "" {
@@ -898,7 +940,36 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) stri
 	}
 	out := expandAdhocOutputTemplate(outputTemplate, inputPath, base, a.TargetLang)
 	ensureParentDir(out)
-	return out
+	return out, nil
+}
+
+// collectionTracking reports the first collection pattern in the active project
+// that matches outPath, and so would pick it up as SOURCE on the next run.
+//
+// A destination inside the collection that supplied the input is self-feeding
+// by construction: whatever the run writes, the glob reads back, and the
+// project doubles on every pass. Callers refuse rather than write there.
+// Returns ("", false) outside a project, or for a path the project does not
+// track.
+func (a *App) collectionTracking(outPath string) (string, bool) {
+	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
+		return "", false
+	}
+	rel, ok := projectRelPath(a.ProjectContext.ProjectDir, outPath)
+	if !ok {
+		return "", false
+	}
+	for _, coll := range a.ProjectContext.Project.Collections {
+		for _, item := range coll.EffectiveItems() {
+			if item.Path == "" {
+				continue
+			}
+			if project.MatchGlob(item.Path, rel) {
+				return item.Path, true
+			}
+		}
+	}
+	return "", false
 }
 
 // projectItemTargetPath resolves inputPath to its output path via the matched
@@ -1812,7 +1883,10 @@ func firstExistingTermsBundle(root string) string {
 func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext, inputPaths []string) error {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
-	if a.TargetLang == "" {
+	// A flow whose every tool is monolingual reconciles the source alone, so it
+	// runs on a project that declares no target languages. Only a chain that
+	// crosses a language pair needs the locale.
+	if a.TargetLang == "" && flow.FlowNeedsTargetLanguage(spec, flow.BuildToolInfoMap(a.ToolReg)) {
 		return errors.New("--target-lang is required")
 	}
 

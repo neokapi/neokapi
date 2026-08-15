@@ -14,7 +14,7 @@ import (
 
 // NewAddCmd returns `kapi add` — add file patterns to the project's content.
 func NewAddCmd(a *App) *cobra.Command {
-	var format, name, channel string
+	var format, name, channel, target string
 	cmd := &cobra.Command{
 		Use:     "add <pattern> [pattern...]",
 		Short:   "Add file patterns to the project's content",
@@ -29,9 +29,16 @@ that collection to a point in the context space (profile/channel), so a surface
 is governed by the voice that suits it rather than by the project default.
 Adding to a name that already exists extends that collection.
 
+--target declares where a translated file goes: a template over {lang} and the
+path tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one
+a flow that writes has nowhere of its own to write, so give it here rather than
+by hand-editing the recipe. A target that lands back inside the pattern it
+comes from is refused: the collection would re-track its own output as source.
+
   kapi add "src/**/*.html"
   kapi add "locales/*.json" --format json
   kapi add "src/**/*.html" "content/**/*.md"
+  kapi add "docs/**/*.md" --target "translated/{lang}/{path}.md"
   kapi add "support/**/*.md" --name northsea-support --channel northsea/docs`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,7 +64,7 @@ Adding to a name that already exists extends that collection.
 					return cerr
 				}
 			}
-			target, err := CollectionForAdd(proj, name, channel)
+			collection, err := CollectionForAdd(proj, name, channel)
 			if err != nil {
 				return err
 			}
@@ -84,20 +91,24 @@ Adding to a name that already exists extends that collection.
 				if gerr != nil {
 					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing — fix it before adding it: %w", pattern, gerr)
 				}
+				if bad, feeds := targetFeedsItsOwnCollection(pattern, target, probeLocale(proj), matches); feeds {
+					return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run — point the target outside the collection",
+						target, bad, pattern)
+				}
 				var spec *coreproj.FormatSpec
 				if fmtName != "" {
 					spec = &coreproj.FormatSpec{Name: fmtName}
 				}
-				if target == nil {
-					proj.Collections = append(proj.Collections, coreproj.Collection{Path: pattern, Format: spec})
+				if collection == nil {
+					proj.Collections = append(proj.Collections, coreproj.Collection{Path: pattern, Format: spec, Target: target})
 				} else {
-					itemPath, berr := CollectionRelativePath(target, pattern)
+					itemPath, berr := CollectionRelativePath(collection, pattern)
 					if berr != nil {
 						return berr
 					}
-					target.Content = append(target.Content, coreproj.ContentItem{Path: itemPath, Format: spec})
+					collection.Content = append(collection.Content, coreproj.ContentItem{Path: itemPath, Format: spec, Target: target})
 				}
-				result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Format: fmtName, Files: len(matches)})
+				result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Format: fmtName, Target: target, Files: len(matches)})
 			}
 			if err := coreproj.Save(recipePath, proj); err != nil {
 				return fmt.Errorf("save recipe: %w", err)
@@ -110,7 +121,37 @@ Adding to a name that already exists extends that collection.
 	cmd.Flags().StringVarP(&format, "format", "f", "", "file format (e.g. html, json); auto-detected if omitted")
 	cmd.Flags().StringVar(&name, "name", "", "put the patterns in a named collection (created, or extended if it exists)")
 	cmd.Flags().StringVar(&channel, "channel", "", "bind the named collection to a point in the context space (profile/channel)")
+	cmd.Flags().StringVar(&target, "target", "", "where translated files go — a template over {lang} and the path tokens, or a directory to mirror into")
 	return cmd
+}
+
+// probeLocale is the language a target template is expanded with to test where
+// it lands. A project target is used when there is one, so the answer is about
+// a path the project will really write; the placeholder covers a project that
+// has declared none yet, and a self-feeding template feeds itself in every
+// language anyway.
+func probeLocale(proj *coreproj.KapiProject) string {
+	if len(proj.Defaults.TargetLanguages) > 0 {
+		return string(proj.Defaults.TargetLanguages[0])
+	}
+	return "xx"
+}
+
+// targetFeedsItsOwnCollection reports the first resolved target that lands back
+// inside the pattern that produced it. Such a collection reads its own output
+// as source on the next run, so it doubles on every pass — the shape a run has
+// to refuse at authoring time rather than discover as a growing file count.
+func targetFeedsItsOwnCollection(pattern, target, lang string, matches []string) (string, bool) {
+	if target == "" {
+		return "", false
+	}
+	for _, rel := range matches {
+		out := filepath.ToSlash(coreproj.ResolveTargetPath(pattern, "", target, rel, lang))
+		if coreproj.MatchGlob(pattern, out) {
+			return out, true
+		}
+	}
+	return "", false
 }
 
 // NewLsCmd returns `kapi ls` — list the files the project's content tracks.

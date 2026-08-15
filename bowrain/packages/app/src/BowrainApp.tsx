@@ -43,7 +43,9 @@ function makeQueryClient() {
 export function BowrainApp({ api, platform, queryClient, history }: BowrainAppProps) {
   const [qc] = useState(() => queryClient ?? makeQueryClient());
   const [plat] = useState(() => platform ?? webPlatform());
-  const [router] = useState(() => createBowrainRouter({ queryClient: qc, api }, { history }));
+  const [router] = useState(() =>
+    createBowrainRouter({ queryClient: qc, api, analytics: plat.analytics }, { history }),
+  );
 
   // Subscribe the root to neokapi-i18n's translation store so the whole route
   // tree re-renders when the dictionary changes (startup catalog load below,

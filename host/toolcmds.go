@@ -89,8 +89,8 @@ var ToolExamples = map[string]string{
   kapi exec qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi exec term-check app.xliff --source-lang en --target-lang fr
   kapi exec term-check messages.json --source-lang en --target-lang fr`,
-	"voice-vocab-check": `  kapi exec voice-vocab-check app.xliff --target-lang fr
-  kapi exec voice-vocab-check messages.json --target-lang de`,
+	"voice-vocab-check": `  kapi exec voice-vocab-check docs/index.md
+  kapi exec voice-vocab-check messages.json --source-lang en`,
 
 	// ── Translation ─────────────────────────────────────────────────────
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
