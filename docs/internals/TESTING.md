@@ -223,18 +223,22 @@ user flow — for example:
 
 ```
 bowrain/apps/bowrain/frontend/e2e/
+├── connection-flow.spec.ts     — Server connect and sign-in gate
 ├── context-panel.spec.ts       — content memory/term context panel in editor
-├── flow-builder.spec.ts        — Visual flow builder
-├── inline-codes.spec.ts        — Inline tag editing with coded text
+├── flow-builder.spec.ts        — Flow list and canvas, under a project's Automations
+├── memory-explorer.spec.ts     — Content memory CRUD
+├── offline-state.spec.ts       — Offline launch and retry
 ├── project-dashboard.spec.ts   — Project creation and listing
 ├── project-view.spec.ts        — File management, upload, stats
-├── rich-editor.spec.ts         — Lexical editor behavior
 ├── settings.spec.ts            — Settings page, theme toggle
-├── term-explorer.spec.ts       — Terminology CRUD
-├── memory-explorer.spec.ts     — Content memory CRUD
-├── memory-leverage.spec.ts     — content-memory leverage in translation
-└── translation-editor.spec.ts  — Block editing, status, word count
+└── term-explorer.spec.ts       — Terminology CRUD
 ```
+
+The editor flows this suite once covered are asserted against a real server by
+`bowrain/apps/web/e2e/editor-happy-path.spec.ts` and at component level under
+`bowrain/packages/ui/src/__tests__/`: the mock backend models Wails bindings,
+and the desktop editor reads its blocks over calls it does not serve. Moving
+the suite onto the headless binary and a real server is tracked in #1579.
 
 **Running:**
 
