@@ -1,6 +1,7 @@
 package knowledge
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -270,7 +271,7 @@ func blockTargetLocales(b *store.StoredBlock) (locales, approved []string) {
 			best[key.Locale] = t.Status
 		}
 	}
-	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+	slices.Sort(order)
 	for _, l := range order {
 		locales = append(locales, string(l))
 		if best[l].Rank() >= model.TargetStatusReviewed.Rank() {
