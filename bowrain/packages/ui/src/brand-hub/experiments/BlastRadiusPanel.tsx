@@ -22,6 +22,7 @@ import { AlertTriangle, CircleCheck, FileText, Clock, Layers } from "../../compo
 import { ErrorNotice } from "../../errors";
 import type { ChangeSetImpact, BlockSample } from "../../types/brand-graph";
 import {
+  byCollection,
   byLocale,
   byProject,
   formatCompact,
@@ -264,13 +265,20 @@ function Stat({
 
 // ── Break-down chart ─────────────────────────────────────────────────────────
 
-type Dimension = "project" | "locale";
+type Dimension = "project" | "collection" | "locale";
+
+const DIMENSION_LABEL: Record<Dimension, string> = {
+  project: "projects",
+  collection: "collections",
+  locale: "locales",
+};
 
 function BreakdownChart({ impact, partial }: { impact: ChangeSetImpact; partial?: boolean }) {
   const [dim, setDim] = useState<Dimension>("project");
   const locales = useMemo(() => byLocale(impact), [impact]);
   const projects = useMemo(() => byProject(impact), [impact]);
-  const bars = dim === "project" ? projects : locales;
+  const collections = useMemo(() => byCollection(impact), [impact]);
+  const bars = dim === "project" ? projects : dim === "collection" ? collections : locales;
   const data = bars.slice(0, 8);
 
   return (
@@ -284,6 +292,13 @@ function BreakdownChart({ impact, partial }: { impact: ChangeSetImpact; partial?
             <TabsList className="h-7">
               <TabsTrigger value="project" className="text-xs">
                 By project
+              </TabsTrigger>
+              <TabsTrigger
+                value="collection"
+                className="text-xs"
+                disabled={collections.length === 0}
+              >
+                By collection
               </TabsTrigger>
               <TabsTrigger value="locale" className="text-xs" disabled={locales.length === 0}>
                 By locale
@@ -365,9 +380,8 @@ function BreakdownChart({ impact, partial }: { impact: ChangeSetImpact; partial?
             <Legend />
             {partial && (
               <p className="text-xs text-muted-foreground">
-                Only the {dim === "project" ? "projects" : "locales"} the scan reached appear here.
-                Others were not examined, so their absence is not a sign that the draft leaves them
-                alone.
+                Only the {DIMENSION_LABEL[dim]} the scan reached appear here. Others were not
+                examined, so their absence is not a sign that the draft leaves them alone.
               </p>
             )}
           </>

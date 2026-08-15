@@ -32,6 +32,7 @@ import { ChangeSetStatusBadge, EmptyState, formatRelative } from "../shell/atoms
 import { OpsDiff } from "./OpsDiff";
 import { OpBuilder } from "./OpBuilder";
 import { BlastRadiusPanel } from "./BlastRadiusPanel";
+import { ReachPanel } from "./ReachPanel";
 import { ReviewsPanel } from "./ReviewsPanel";
 import { PilotsPanel } from "./PilotsPanel";
 import { MergeConfirmDialog } from "./MergeConfirmDialog";
@@ -224,6 +225,7 @@ function BlastRadiusSection({ changesetId }: { changesetId: string }) {
         error={error}
         onRetry={() => void refetch()}
       />
+      <ReachPanel impact={data} />
     </section>
   );
 }

@@ -49,11 +49,15 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 		candKeys := hitKeySet(candHits)
 
 		newV, resolvedV, newCrit := 0, 0, 0
-		for k, sev := range candKeys {
+		prescribed := false
+		for k, h := range candKeys {
 			if _, ok := baseKeys[k]; !ok {
 				newV++
-				if sev == SeverityCritical {
+				if h.severity == SeverityCritical {
 					newCrit++
+				}
+				if h.replacement != "" {
+					prescribed = true
 				}
 			}
 		}
@@ -70,6 +74,9 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 		changed := newV > 0 || resolvedV > 0
 		if changed {
 			br.AffectedBlocks++
+		}
+		if prescribed {
+			br.PrescribedBlocks++
 		}
 		if delta > 0 {
 			br.ImprovedBlocks++
@@ -115,13 +122,23 @@ func CandidateWithRule(baseline *VoiceProfile, r SuggestedRule) *VoiceProfile {
 	return c
 }
 
+// keyedHit carries the two properties a diff of two hit sets reads: how bad the
+// violation is, and whether the rule that raised it says what to write instead.
+type keyedHit struct {
+	severity    Severity
+	replacement string
+}
+
 // hitKeySet keys each hit by category and byte range so the same violation in the
 // same text is comparable between the baseline and candidate runs (both score the
 // identical text, so positions align).
-func hitKeySet(hits []VocabHit) map[string]Severity {
-	m := make(map[string]Severity, len(hits))
+func hitKeySet(hits []VocabHit) map[string]keyedHit {
+	m := make(map[string]keyedHit, len(hits))
 	for _, h := range hits {
-		m[fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)] = h.Severity
+		m[fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)] = keyedHit{
+			severity:    h.Severity,
+			replacement: h.Replacement,
+		}
 	}
 	return m
 }

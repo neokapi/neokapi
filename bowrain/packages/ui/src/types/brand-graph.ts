@@ -526,6 +526,44 @@ export interface ProjectImpact {
   collections: CollectionImpact[];
 }
 
+/** A project named in a report without its whole record (knowledge.ProjectRef). */
+export interface ProjectRef {
+  project_id: string;
+  project_name: string;
+}
+
+/**
+ * One cost class of a change-set's reach (knowledge.ReachClass): the content it
+ * covers, and the translations that content already carries.
+ */
+export interface ReachClass {
+  blocks: number;
+  words: number;
+  collections: number;
+  projects: number;
+  /** Translations the class's blocks already carry. */
+  targets: number;
+  /** The subset of those at reviewed or above. */
+  approved: number;
+  /** The locales those translations are in, sorted. */
+  locales: string[];
+}
+
+/**
+ * The reach split (knowledge.Reach): the affected content divided by what
+ * acting on it costs. An ANNOTATION changes only what the checks flag, so the
+ * next check fans it out and the approved translations that now violate it come
+ * back into review. A TRANSFORM says the source text itself must change, which
+ * invalidates every translation of that block and routes the decision to the
+ * people entitled to edit source.
+ */
+export interface Reach {
+  annotate: ReachClass;
+  transform: ReachClass;
+  /** The projects whose source a transform reaches. */
+  transform_projects: ProjectRef[];
+}
+
 /**
  * The blast radius of a change-set over stored content
  * (knowledge.ChangeSetImpact). Two readings answer this shape: a live walk,
@@ -553,6 +591,12 @@ export interface ChangeSetImpact {
   stored?: boolean;
   /** When the stored summary was computed. Absent on a live walk. */
   computed_at?: string;
+  /**
+   * The affected content split by what acting on it costs. Absent on a report
+   * computed before the split existed; on a stored summary the counts stand but
+   * the locale lists and project names are empty.
+   */
+  reach?: Reach;
 }
 
 /**
@@ -569,6 +613,21 @@ export interface ImpactSummary {
   partial?: boolean;
   partial_reason?: string;
   computed_at: string;
+  reach?: ReachSummary;
+}
+
+/**
+ * The reach split as the stored summary keeps it (knowledge.ReachSummary):
+ * the two classes' counts, without the per-locale and per-project detail.
+ */
+export interface ReachSummary {
+  annotate_blocks: number;
+  annotate_targets: number;
+  annotate_approved: number;
+  transform_blocks: number;
+  transform_targets: number;
+  transform_approved: number;
+  transform_projects: number;
 }
 
 /** The per-(stream, locale) leaf of a concept usage report (knowledge.LocaleUsage). */
