@@ -17,7 +17,6 @@ COPY apps/kapi-desktop/go.mod apps/kapi-desktop/go.sum ./apps/kapi-desktop/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 COPY bowrain/core/go.mod bowrain/core/go.sum ./bowrain/core/
 COPY bowrain/plugin/go.mod bowrain/plugin/go.sum ./bowrain/plugin/
-COPY bowrain/plugin/schema/go.mod bowrain/plugin/schema/go.sum ./bowrain/plugin/schema/
 # GOWORK=off: download per-module deps without the workspace. go.work lists
 # scripts/* modules whose go.mod isn't copied into this layer, so a workspace
 # `go mod download` would fail loading them (#610). The build step below keeps
