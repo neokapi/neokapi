@@ -211,9 +211,15 @@ func monolingualConcept(row []string, conceptID string, opts CSVImportOptions) (
 }
 
 // ExportCSV writes all concepts as CSV source/target pairs.
+//
+// The flush is explicit, and its error is the export's error. csv.Writer
+// buffers, so Write reports only what has already spilled to the destination —
+// an export smaller than the buffer reaches it for the first time at Flush, and
+// that is where a full disk or a closed pipe announces itself. Deferring the
+// flush puts it after the return value is computed, which is how an export that
+// wrote nothing at all can report success.
 func ExportCSV(ctx context.Context, tb Terminology, writer io.Writer, sourceLocale, targetLocale model.LocaleID, includeHeader bool) error {
 	csvWriter := csv.NewWriter(writer)
-	defer csvWriter.Flush()
 
 	if includeHeader {
 		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id", "term_source", "competitor_term"}); err != nil {
@@ -251,7 +257,11 @@ func ExportCSV(ctx context.Context, tb Terminology, writer io.Writer, sourceLoca
 		}
 	}
 
-	return csvWriter.Error()
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		return fmt.Errorf("flush CSV: %w", err)
+	}
+	return nil
 }
 
 func parseTermStatus(s string) model.TermStatus {

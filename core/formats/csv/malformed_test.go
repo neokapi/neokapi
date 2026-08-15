@@ -2,6 +2,7 @@ package csv_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -228,4 +229,98 @@ func TestOpenRejectsNilDocument(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+}
+
+// writeBlocks runs the writer's non-skeleton path over blocks carrying the
+// given properties, and returns the output alongside the error.
+func writeBlocks(t *testing.T, props ...map[string]string) (string, error) {
+	t.Helper()
+	var out strings.Builder
+	w := csvfmt.NewWriter()
+	w.Output = &out
+
+	ch := make(chan *model.Part, len(props)+1)
+	for i, p := range props {
+		block := model.NewBlock(fmt.Sprintf("b%d", i), fmt.Sprintf("cell %d", i))
+		block.Properties = p
+		ch <- &model.Part{Type: model.PartBlock, Resource: block}
+	}
+	close(ch)
+	err := w.Write(t.Context(), ch)
+	return out.String(), err
+}
+
+// TestWriteRejectsCellsWithoutGridPosition pins the writer's half of the same
+// rule the reader tests state: content that cannot be placed must say so.
+//
+// Row and column are how a cell finds its place in the rebuilt grid, and data
+// rows are 1-based — so a cell that arrives without them, or with a value that
+// is not an index, used to default to row 0 and fall outside the emit loop
+// entirely. Every such cell vanished, and the writer returned an empty file
+// with a nil error: the exact outcome of directing a non-tabular document at a
+// .csv output, where no block carries a grid position at all.
+func TestWriteRejectsCellsWithoutGridPosition(t *testing.T) {
+	t.Parallel()
+
+	placed := map[string]string{"row": "1", "column": "0"}
+
+	cases := map[string]struct {
+		props   []map[string]string
+		wantErr string
+	}{
+		"no properties at all": {
+			props:   []map[string]string{nil, nil},
+			wantErr: "no column property",
+		},
+		"row missing": {
+			props:   []map[string]string{{"column": "2"}},
+			wantErr: "no row property",
+		},
+		"column missing": {
+			props:   []map[string]string{{"row": "3"}},
+			wantErr: "no column property",
+		},
+		"row not a number": {
+			props:   []map[string]string{{"row": "seven", "column": "0"}},
+			wantErr: `row="seven"`,
+		},
+		"column not a number": {
+			props:   []map[string]string{{"row": "1", "column": "1e3"}},
+			wantErr: `column="1e3"`,
+		},
+		"negative row": {
+			props:   []map[string]string{{"row": "-1", "column": "0"}},
+			wantErr: "row=-1",
+		},
+		"one bad cell among good ones": {
+			props:   []map[string]string{placed, {"column": "1"}, placed},
+			wantErr: "no row property",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			out, err := writeBlocks(t, tc.props...)
+			require.Error(t, err, "an unplaceable cell must not be silently dropped")
+			assert.Contains(t, err.Error(), tc.wantErr, "the error says which coordinate is wrong")
+			assert.Empty(t, out, "nothing is written when the grid cannot be rebuilt")
+		})
+	}
+}
+
+// TestWritePlacedCellsRoundTrip is the companion assertion: coordinates the
+// reader records are still accepted, so the check above rejects only what it
+// was written to reject.
+func TestWritePlacedCellsRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	out, err := writeBlocks(t,
+		map[string]string{"column": "0", "header": "true"},
+		map[string]string{"column": "1", "header": "true"},
+		map[string]string{"row": "1", "column": "0"},
+		map[string]string{"row": "1", "column": "1"},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "cell 0,cell 1\ncell 2,cell 3\n", out)
 }
