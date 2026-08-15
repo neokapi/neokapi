@@ -19,7 +19,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 		return "plan: no target languages — reconciling the source only"
 	}
 	if t.MissingTarget == 0 && t.Stale == 0 {
-		return "plan: every unit has a committed target for its decided source — verifying gates"
+		return "plan: every unit has a committed target for the current source — verifying gates"
 	}
 	if t.MissingTarget == 0 {
 		return fmt.Sprintf("plan: %d unit(s) stale — their source changed since the translation was decided", t.Stale)

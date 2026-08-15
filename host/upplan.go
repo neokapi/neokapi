@@ -82,7 +82,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	if len(o.Scopes) == 0 {
-		fmt.Fprintln(w, "Nothing to do: every unit has a committed target for the source it was decided against.")
+		fmt.Fprintln(w, "Nothing to do: every unit has a committed target for the current source.")
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
@@ -170,33 +170,36 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan
 	// that left a `.kapi/work/store.db` behind would be a dry run with a side effect,
 	// and the next `up` would find a store it did not write.
+	// The decisions the project already holds are read under the same guard, and
+	// for the same reason: a unit whose basis no longer matches its source is
+	// work the plan owes the reader. Read out of the store on its own axis, not
+	// inside the memory branch — an injected MemoryBackend says where leverage
+	// comes from, and says nothing about whether the project has decisions.
+	// An absent store yields an empty index: no decisions, so nothing is stale.
 	var mem memory.ContentMemory
-	// The decisions the project already holds, for the same reason: a unit whose
-	// basis no longer matches its source is work the plan owes the reader, and it
-	// reads out of the same store. An absent store yields an empty index — no
-	// decisions, so nothing can be stale.
 	reviewed := reviewedIndex{}
 	if a.MemoryBackend != nil {
 		mem = a.MemoryBackend
-	} else {
-		layout, lerr := project.LayoutFor(projectPath)
-		if lerr != nil {
-			return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
+	}
+	layout, lerr := project.LayoutFor(projectPath)
+	if lerr != nil {
+		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
+	}
+	if _, statErr := os.Stat(layout.StorePath()); statErr == nil {
+		db, derr := a.ProjectDB(ctx, layout.Root)
+		if derr != nil {
+			return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w — the plan's "+
+				"leverage, token and cost figures are computed against it, so they would understate "+
+				"the work and overstate the spend; fix or remove the store before planning",
+				layout.StorePath(), derr)
 		}
-		if _, statErr := os.Stat(layout.StorePath()); statErr == nil {
-			db, derr := a.ProjectDB(ctx, layout.Root)
-			if derr != nil {
-				return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w — the plan's "+
-					"leverage, token and cost figures are computed against it, so they would understate "+
-					"the work and overstate the spend; fix or remove the store before planning",
-					layout.StorePath(), derr)
-			}
+		if mem == nil {
 			if m := db.Memory(); m != nil {
 				mem = m
 			}
-			if idx, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root); rerr == nil {
-				reviewed = idx
-			}
+		}
+		if idx, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root); rerr == nil {
+			reviewed = idx
 		}
 	}
 
