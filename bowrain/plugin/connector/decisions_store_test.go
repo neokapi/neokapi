@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ func TestStagePulledDecisions_WritesThroughTheAppsHandle(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	staged, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
 		ItemName:    "locales/en.json",
 		Unit:        "greeting",
 		Variant:     "fr",
@@ -74,7 +74,7 @@ func TestStagePulledDecisions_LeavesANewerLocalRecord(t *testing.T) {
 		Updated:  "2026-08-05T12:00:00Z",
 	}))
 
-	staged, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
 		Unit:        "greeting",
 		Variant:     "fr",
 		ReviewState: "approved",
@@ -98,7 +98,7 @@ func TestStagePulledDecisions_CountsUnreadableVariants(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	staged, skipped, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{
+	staged, skipped, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{
 		{Unit: "greeting", Variant: "fr", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
 		{Unit: "farewell", Variant: "", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
 		{Unit: "welcome", Variant: ";;;not a variant", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
@@ -113,7 +113,7 @@ func TestStagePulledDecisions_CountsUnreadableVariants(t *testing.T) {
 // would have hidden.
 func TestStagePulledDecisions_WithoutAnAppIsAnError(t *testing.T) {
 	c := newDecisionsConnector(t, nil)
-	_, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	_, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
 		Unit: "greeting", Variant: "fr", ReviewState: "approved",
 	}})
 	require.Error(t, err)

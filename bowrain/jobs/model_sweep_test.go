@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	brand "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func sweepStored(id, text string) *store.StoredBlock {
-	return &store.StoredBlock{Block: model.NewBlock(id, text)}
+func sweepStored(id, text string) *venue.StoredBlock {
+	return &venue.StoredBlock{Block: model.NewBlock(id, text)}
 }
 
 func sweepTestContext() *SweepContext {
@@ -34,7 +34,7 @@ func sweepTestContext() *SweepContext {
 
 func TestDeriveSweepFixtures_TrapClassificationAndDeterminism(t *testing.T) {
 	sc := sweepTestContext()
-	blocks := []*store.StoredBlock{
+	blocks := []*venue.StoredBlock{
 		sweepStored("b3", "Just plain prose with no traps at all"),
 		sweepStored("b1", "Save your work before leaving"),        // glossary trap
 		sweepStored("b2", "Better than Localizely in every test"), // voice trap (competitor in source)
@@ -56,14 +56,14 @@ func TestDeriveSweepFixtures_TrapClassificationAndDeterminism(t *testing.T) {
 	assert.NotContains(t, byID, "b3", "trapless prose must not be selected")
 
 	// Deterministic: shuffled input yields the identical fixture set.
-	shuffled := []*store.StoredBlock{blocks[4], blocks[2], blocks[0], blocks[3], blocks[1]}
+	shuffled := []*venue.StoredBlock{blocks[4], blocks[2], blocks[0], blocks[3], blocks[1]}
 	again := DeriveSweepFixtures(shuffled, sc)
 	assert.Equal(t, fixtures, again)
 }
 
 func TestDeriveSweepFixtures_CapsAtBudget(t *testing.T) {
 	sc := sweepTestContext()
-	var blocks []*store.StoredBlock
+	var blocks []*venue.StoredBlock
 	for i := range 40 {
 		blocks = append(blocks, sweepStored(
 			// Two-letter IDs so lexicographic block-ID order is stable.
@@ -80,7 +80,7 @@ func TestDeriveSweepFixtures_CapsAtBudget(t *testing.T) {
 
 func TestDeriveSweepFixtures_QuotasBalanceMixedTraps(t *testing.T) {
 	sc := sweepTestContext()
-	var blocks []*store.StoredBlock
+	var blocks []*venue.StoredBlock
 	// 30 glossary traps with IDs sorting BEFORE the dnt traps: without the
 	// balanced first pass they would crowd out every other kind.
 	for i := range 30 {

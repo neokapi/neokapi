@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // newTestStore stands up a real SQLite-backed Bowrain ContentStore,
@@ -56,7 +57,7 @@ func newTestStore(t *testing.T) (blockstore.Store, platstore.ContentStore, strin
 
 // seedBlock stores one block and returns it as the store holds it. An overlay
 // names a block, so every overlay test needs the block it names to exist.
-func seedBlock(t *testing.T, cs platstore.ContentStore, projectID, id, text string) *platstore.StoredBlock {
+func seedBlock(t *testing.T, cs platstore.ContentStore, projectID, id, text string) *venue.StoredBlock {
 	t.Helper()
 	ctx := context.Background()
 	b := model.NewRunsBlock(id, []model.Run{{Text: &model.TextRun{Text: text}}})

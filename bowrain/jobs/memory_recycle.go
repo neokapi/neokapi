@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 )
@@ -63,7 +64,7 @@ const defaultMemoryMinScore = 0.7
 // content memory-filled when it carries a fresh target for the locale after the
 // pass. minScore comes from the project's recipe content memory threshold when
 // present (default fuzzy at defaultMemoryMinScore, matching the CLI recycle flow).
-func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*store.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64) (recycleResult, error) {
+func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*venue.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64) (recycleResult, error) {
 	if minScore <= 0 {
 		minScore = defaultMemoryMinScore
 	}
@@ -71,7 +72,7 @@ func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*store.S
 	// Blocks that already carry a target for this locale are neither recycled
 	// nor re-translated — they are already done. Keep them out of both buckets
 	// so we never re-pay or double-count them.
-	var candidates []*store.StoredBlock
+	var candidates []*venue.StoredBlock
 	for _, sb := range storedBlocks {
 		if sb == nil || sb.Block == nil {
 			continue
@@ -213,14 +214,14 @@ func projectMemoryMinScore(proj *store.Project) float64 {
 // filterStoredByRemainder returns the subset of stored blocks whose IDs appear
 // in the remainder set, preserving the original StoredBlock wrapper (with its
 // store metadata) the AI translate loop expects.
-func filterStoredByRemainder(stored []*store.StoredBlock, remainder []*model.Block) []*store.StoredBlock {
+func filterStoredByRemainder(stored []*venue.StoredBlock, remainder []*model.Block) []*venue.StoredBlock {
 	keep := make(map[string]struct{}, len(remainder))
 	for _, b := range remainder {
 		if b != nil {
 			keep[b.ID] = struct{}{}
 		}
 	}
-	out := make([]*store.StoredBlock, 0, len(remainder))
+	out := make([]*venue.StoredBlock, 0, len(remainder))
 	for _, sb := range stored {
 		if sb == nil || sb.Block == nil {
 			continue

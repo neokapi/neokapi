@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The worker half of the freshness ref's compare-and-swap.
@@ -34,14 +34,14 @@ func assertContextRef(ctx context.Context, deps *WorkerDeps, projectID, stream s
 	}
 	hashes := make(map[string]string, len(collections))
 	for _, col := range collections {
-		if col == nil || !coresync.IsRecipeOwned(col.Owner) {
+		if col == nil || !venue.IsRecipeOwned(col.Owner) {
 			continue
 		}
 		hashes[col.Name] = col.ContextHash
 	}
 	current := ""
 	if len(hashes) > 0 {
-		current = coresync.ComputeContextHash(hashes)
+		current = venue.ComputeContextHash(hashes)
 	}
 	return ref.Assert(ref.ComponentContext, expected.Context, current)
 }
@@ -56,5 +56,5 @@ func assertDecisionsRef(ctx context.Context, ds store.DecisionStore, projectID, 
 	if err != nil {
 		return fmt.Errorf("read the ledger for the decisions assertion: %w", err)
 	}
-	return ref.Assert(ref.ComponentDecisions, expected.Decisions, coresync.DecisionsComponent(current))
+	return ref.Assert(ref.ComponentDecisions, expected.Decisions, venue.DecisionsComponent(current))
 }

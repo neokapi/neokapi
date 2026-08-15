@@ -28,7 +28,7 @@ func TestDescriptorInitialises(t *testing.T) {
 	// Walk every message in the file so a corrupt prefix anywhere surfaces here
 	// rather than at some importer's startup.
 	fd := md.ParentFile()
-	require.Equal(t, "bowrain/core/proto/sync/v1/sync.proto", fd.Path())
+	require.Equal(t, "core/proto/sync/v1/sync.proto", fd.Path())
 	for i := range fd.Messages().Len() {
 		m := fd.Messages().Get(i)
 		assert.NotEmpty(t, m.Name(), "message %d has no name", i)

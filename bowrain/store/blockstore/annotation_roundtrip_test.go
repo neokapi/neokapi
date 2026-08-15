@@ -11,6 +11,7 @@ import (
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // An annotation written through the block store's overlay API and one written
@@ -25,7 +26,7 @@ import (
 // clears by the row id alone, so counting only that key would score a leak as a
 // clean sweep: a row filed under the content key is invisible to the delete and
 // to a probe that spells the block the same way the delete does.
-func overlayRows(t *testing.T, b backend, table string, block *platstore.StoredBlock) int {
+func overlayRows(t *testing.T, b backend, table string, block *venue.StoredBlock) int {
 	t.Helper()
 	mark := func(n int) string {
 		if b.dialect == bwblockstore.PostgresDialect {

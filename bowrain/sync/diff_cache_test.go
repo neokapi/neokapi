@@ -6,6 +6,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ type countingStore struct {
 	getBlocksCalls int
 
 	items  []*platstore.Item
-	blocks map[string][]*platstore.StoredBlock // itemName → blocks
+	blocks map[string][]*venue.StoredBlock // itemName → blocks
 }
 
 func (s *countingStore) ListItems(_ context.Context, _, _ string) ([]*platstore.Item, error) {
@@ -34,7 +35,7 @@ func (s *countingStore) ListItems(_ context.Context, _, _ string) ([]*platstore.
 	return s.items, nil
 }
 
-func (s *countingStore) GetBlocks(_ context.Context, q platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
+func (s *countingStore) GetBlocks(_ context.Context, q platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	s.getBlocksCalls++
 	return s.blocks[q.ItemName], nil
 }
@@ -88,7 +89,7 @@ func TestDiffEngine_CacheMiss_LoadsFromStoreAndPopulatesCache(t *testing.T) {
 
 	store := &countingStore{
 		items: []*platstore.Item{{Name: "en.json"}},
-		blocks: map[string][]*platstore.StoredBlock{
+		blocks: map[string][]*venue.StoredBlock{
 			"en.json": {
 				{SourceID: "b1", ContentHash: "hash-b1"},
 				{SourceID: "b2", ContentHash: "hash-b2"},

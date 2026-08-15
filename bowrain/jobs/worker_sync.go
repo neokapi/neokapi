@@ -16,11 +16,11 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 )
 
@@ -294,7 +294,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// this protocol keeps having to confess. A store without the ledger
 	// capability skips with a log line rather than failing content it can
 	// otherwise apply.
-	var decisions []store.UnitDecision
+	var decisions []venue.UnitDecision
 	if len(manifest.Decisions) > 0 {
 		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
 			markJobFailed(ctx, deps, job.ID, "invalid decisions payload")
@@ -507,7 +507,7 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 	// Group blocks by item.
 	itemGroups := map[string][]*model.Block{}
 	for _, sb := range chunk.Blocks {
-		b, err := bowsync.ProtoToBlock(sb)
+		b, err := venue.ProtoToBlock(sb)
 		if err != nil {
 			return 0, nil, fmt.Errorf("decode block %s in %s: %w", sb.Id, sb.ItemName, err)
 		}

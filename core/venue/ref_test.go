@@ -1,28 +1,27 @@
-package sync
+package venue
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
 
-func decision(unit, variant, status string) store.UnitDecision {
-	return store.UnitDecision{
+func decision(unit, variant, status string) UnitDecision {
+	return UnitDecision{
 		ItemName: "docs/intro.md", Unit: unit, Variant: variant,
 		Status: status, ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
 	}
 }
 
 func TestDecisionsComponentIsOrderIndependent(t *testing.T) {
-	a := DecisionsComponent([]store.UnitDecision{
+	a := DecisionsComponent([]UnitDecision{
 		decision("u1", "nb", "reviewed"),
 		decision("u2", "fr", "translated"),
 	})
-	b := DecisionsComponent([]store.UnitDecision{
+	b := DecisionsComponent([]UnitDecision{
 		decision("u2", "fr", "translated"),
 		decision("u1", "nb", "reviewed"),
 	})
@@ -32,43 +31,43 @@ func TestDecisionsComponentIsOrderIndependent(t *testing.T) {
 }
 
 func TestDecisionsComponentMovesOnlyOnADecision(t *testing.T) {
-	base := []store.UnitDecision{decision("u1", "nb", "reviewed")}
+	base := []UnitDecision{decision("u1", "nb", "reviewed")}
 	component := DecisionsComponent(base)
 
 	tests := []struct {
 		name   string
-		mutate func(store.UnitDecision) store.UnitDecision
+		mutate func(UnitDecision) UnitDecision
 		moves  bool
 	}{
-		{name: "an unchanged replay", mutate: func(d store.UnitDecision) store.UnitDecision { return d }},
+		{name: "an unchanged replay", mutate: func(d UnitDecision) UnitDecision { return d }},
 		{
 			name:   "a bumped record time alone",
-			mutate: func(d store.UnitDecision) store.UnitDecision { d.Updated = "2099-01-01T00:00:00Z"; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.Updated = "2099-01-01T00:00:00Z"; return d },
 		},
 		{
 			name:   "a changed rung",
-			mutate: func(d store.UnitDecision) store.UnitDecision { d.Status = "signed-off"; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.Status = "signed-off"; return d },
 			moves:  true,
 		},
 		{
 			name:   "a changed review verdict",
-			mutate: func(d store.UnitDecision) store.UnitDecision { d.ReviewState = "rejected"; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.ReviewState = "rejected"; return d },
 			moves:  true,
 		},
 		{
 			name:   "a different decider",
-			mutate: func(d store.UnitDecision) store.UnitDecision { d.DecidedBy = "ben"; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.DecidedBy = "ben"; return d },
 			moves:  true,
 		},
 		{
 			name:   "a parked unit",
-			mutate: func(d store.UnitDecision) store.UnitDecision { d.Parked = true; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.Parked = true; return d },
 			moves:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			next := []store.UnitDecision{tt.mutate(base[0])}
+			next := []UnitDecision{tt.mutate(base[0])}
 			got := DecisionsComponent(next)
 			if tt.moves {
 				assert.NotEqual(t, component, got)
@@ -99,7 +98,7 @@ func TestDecisionIdentityAgreesWithSameDecision(t *testing.T) {
 
 func TestDecisionsComponentIgnoresUnkeyedRecords(t *testing.T) {
 	assert.Empty(t, DecisionsComponent(nil))
-	assert.Empty(t, DecisionsComponent([]store.UnitDecision{{ItemName: "x"}}),
+	assert.Empty(t, DecisionsComponent([]UnitDecision{{ItemName: "x"}}),
 		"a record with no unit or variant keys nothing and must not fabricate a component")
 }
 

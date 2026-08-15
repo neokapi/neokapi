@@ -32,7 +32,7 @@ var projectionAllowlist = map[string][]string{
 	// schema; see sync.proto header). SyncSegmentList is a repeated-field
 	// wrapper around canonical SegmentMessages (proto3 maps cannot have
 	// repeated-message values directly), not a segment redefinition.
-	"bowrain/core/proto/sync/v1/sync.proto": {"SyncBlock", "SyncSegmentList"},
+	"core/proto/sync/v1/sync.proto": {"SyncBlock", "SyncSegmentList"},
 }
 
 // messageDefRe matches a proto message definition whose name redefines the

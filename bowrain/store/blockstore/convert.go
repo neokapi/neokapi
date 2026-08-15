@@ -1,9 +1,9 @@
 package blockstore
 
 import (
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // toKBF produces the kbf.Block projection of a ContentStore-backed
@@ -29,7 +29,7 @@ import (
 //
 // Placeholders and preview hints stay on the Bowrain side for now;
 // adding them here is non-breaking and we'll do it as callers need them.
-func toKBF(sb *platstore.StoredBlock) *kbf.Block {
+func toKBF(sb *venue.StoredBlock) *kbf.Block {
 	if sb == nil || sb.Block == nil {
 		return nil
 	}

@@ -9,6 +9,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // EventEmittingStore wraps a ContentStore and emits events on mutations.
@@ -396,11 +397,11 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 	return nil
 }
 
-func (s *EventEmittingStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*store.StoredBlock, error) {
+func (s *EventEmittingStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
 	return s.inner.GetBlock(ctx, projectID, stream, blockID)
 }
 
-func (s *EventEmittingStore) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*store.StoredBlock, error) {
+func (s *EventEmittingStore) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*venue.StoredBlock, error) {
 	return s.inner.GetBlocks(ctx, query)
 }
 
@@ -503,15 +504,15 @@ func (s *EventEmittingStore) Close() error {
 // Asset CRUD (Bowrain AD-007) — delegate to inner store
 // ---------------------------------------------------------------------------
 
-func (s *EventEmittingStore) StoreAsset(ctx context.Context, projectID, stream string, asset *store.Asset) error {
+func (s *EventEmittingStore) StoreAsset(ctx context.Context, projectID, stream string, asset *venue.Asset) error {
 	return s.inner.StoreAsset(ctx, projectID, stream, asset)
 }
 
-func (s *EventEmittingStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*store.Asset, error) {
+func (s *EventEmittingStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*venue.Asset, error) {
 	return s.inner.GetAsset(ctx, projectID, stream, assetID)
 }
 
-func (s *EventEmittingStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*store.Asset, error) {
+func (s *EventEmittingStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*venue.Asset, error) {
 	return s.inner.ListAssets(ctx, projectID, stream, itemName)
 }
 
@@ -519,15 +520,15 @@ func (s *EventEmittingStore) DeleteAsset(ctx context.Context, projectID, stream,
 	return s.inner.DeleteAsset(ctx, projectID, stream, assetID)
 }
 
-func (s *EventEmittingStore) StoreAssetVariant(ctx context.Context, projectID string, variant *store.AssetVariant) error {
+func (s *EventEmittingStore) StoreAssetVariant(ctx context.Context, projectID string, variant *venue.AssetVariant) error {
 	return s.inner.StoreAssetVariant(ctx, projectID, variant)
 }
 
-func (s *EventEmittingStore) GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*store.AssetVariant, error) {
+func (s *EventEmittingStore) GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*venue.AssetVariant, error) {
 	return s.inner.GetAssetVariant(ctx, projectID, assetID, locale)
 }
 
-func (s *EventEmittingStore) ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*store.AssetVariant, error) {
+func (s *EventEmittingStore) ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*venue.AssetVariant, error) {
 	return s.inner.ListAssetVariants(ctx, projectID, assetID)
 }
 
@@ -540,7 +541,7 @@ var _ store.ContentStore = (*EventEmittingStore)(nil)
 // this the capability silently vanished exactly where the server needed it —
 // the editor's review handler — while the worker, holding the raw store, kept
 // it. No event is emitted here; decision events live in block_history.
-func (s *EventEmittingStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []store.UnitDecision) (int, error) {
+func (s *EventEmittingStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error) {
 	ds, ok := s.inner.(store.DecisionStore)
 	if !ok {
 		return 0, fmt.Errorf("content store %T keeps no decision ledger", s.inner)
@@ -549,7 +550,7 @@ func (s *EventEmittingStore) UpsertUnitDecisions(ctx context.Context, projectID,
 }
 
 // ListUnitDecisions forwards the optional DecisionStore capability.
-func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]store.UnitDecision, error) {
+func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error) {
 	ds, ok := s.inner.(store.DecisionStore)
 	if !ok {
 		return nil, nil

@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +43,7 @@ func pushInitContext(t *testing.T, srv *Server, authHeader, projectID, contextHa
 // serverContextHash folds the entry hashes a set of stored collections would
 // produce, which is what a client negotiating "unchanged" has to send.
 func serverContextHash(collections map[string]string) string {
-	return bowsync.ComputeContextHash(collections)
+	return venue.ComputeContextHash(collections)
 }
 
 // TestSyncPushInit_ContextNegotiation covers the fast path from the server's
@@ -57,7 +57,7 @@ func TestSyncPushInit_ContextNegotiation(t *testing.T) {
 
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "docs", Stream: "main",
-		Owner: bowsync.ContextOwnerRecipe, ContextHash: "hash-docs",
+		Owner: venue.ContextOwnerRecipe, ContextHash: "hash-docs",
 	}))
 
 	matching := serverContextHash(map[string]string{"docs": "hash-docs"})
@@ -93,15 +93,15 @@ func TestSyncPushInit_ReportsUndeclaredCollections(t *testing.T) {
 
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "docs", Stream: "main",
-		Owner: bowsync.ContextOwnerRecipe, ContextHash: "hash-docs",
+		Owner: venue.ContextOwnerRecipe, ContextHash: "hash-docs",
 	}))
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "marketing", Stream: "main",
-		Owner: bowsync.ContextOwnerRecipe, ContextHash: "hash-marketing",
+		Owner: venue.ContextOwnerRecipe, ContextHash: "hash-marketing",
 	}))
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "uploads", Stream: "main",
-		Owner: bowsync.ContextOwnerWorkspace,
+		Owner: venue.ContextOwnerWorkspace,
 	}))
 
 	out := pushInitContext(t, srv, authHeader, pid,
@@ -129,7 +129,7 @@ func TestSyncPull_CarriesContextEntries(t *testing.T) {
 
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "docs", Stream: "main",
-		Owner:       bowsync.ContextOwnerRecipe,
+		Owner:       venue.ContextOwnerRecipe,
 		ContextHash: "hash-docs",
 		Context:     map[string]string{"product": "kapi"},
 		ConnectorConfig: map[string]string{
@@ -138,7 +138,7 @@ func TestSyncPull_CarriesContextEntries(t *testing.T) {
 	}))
 	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &store.Collection{
 		ProjectID: pid, Name: "uploads", Stream: "main",
-		Owner: bowsync.ContextOwnerWorkspace,
+		Owner: venue.ContextOwnerWorkspace,
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/pull", nil)
@@ -157,19 +157,19 @@ func TestSyncPull_CarriesContextEntries(t *testing.T) {
 
 	docs := byName["docs"]
 	require.NotNil(t, docs)
-	assert.Equal(t, bowsync.ContextOwnerRecipe, docs.Owner)
+	assert.Equal(t, venue.ContextOwnerRecipe, docs.Owner)
 	assert.Equal(t, map[string]string{"product": "kapi"}, docs.Coordinates)
 	assert.Equal(t, "docs", docs.Channel)
 	assert.Equal(t, "hash-docs", docs.ContentHash)
 
 	uploads := byName["uploads"]
 	require.NotNil(t, uploads)
-	assert.Equal(t, bowsync.ContextOwnerWorkspace, uploads.Owner)
+	assert.Equal(t, venue.ContextOwnerWorkspace, uploads.Owner)
 
 	// The collection every project is created with predates the recipe and is
 	// carried as the workspace's, which is what stops a recipe that never
 	// mentions it from being handed authority over it.
 	def := byName["default"]
 	require.NotNil(t, def, "the project's own default collection travels too")
-	assert.Equal(t, bowsync.ContextOwnerWorkspace, def.Owner)
+	assert.Equal(t, venue.ContextOwnerWorkspace, def.Owner)
 }

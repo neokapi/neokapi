@@ -1,6 +1,6 @@
 // Package synctest provides the canonical "kitchen-sink" content-model fixture
 // shared by every kapi↔bowrain sync wire-path parity test: the proto push
-// converter (bowrain/core/sync), the JSON pull converter (bowrain/core/client),
+// converter (core/venue), the JSON pull converter (bowrain/core/client),
 // and the full model→wire→store→pull chain (bowrain/store).
 //
 // One fixture, reused everywhere, is the durable guard: a Block with every
@@ -10,7 +10,7 @@
 // fixture) fails until the fixture and converters are updated.
 //
 // See web/docs/contribute/implementation/foundations/content-parity.md.
-package synctest
+package venuetest
 
 import (
 	"time"

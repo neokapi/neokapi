@@ -49,11 +49,11 @@ both directions, and gate both directions with a populated fixture.
 
 | Path | Direction | Where | Overlay carriage |
 | --- | --- | --- | --- |
-| **Proto push** | kapi → server | `bowrain/core/sync` (`BlockToProto`/`ProtoToBlock`), message `SyncBlock` in `bowrain/core/proto/sync/v1` | typed `neokapi.content.v1.OverlayMessage` (reuses `protoconvert.OverlayToProto`) |
-| **JSON pull** | server → kapi | `bowrain/core/client` (`StoredBlockToSyncBlock`/`SyncBlockToBlock`), JSON `SyncBlock` | discriminated JSON blob via `bowrain/core/sync.MarshalOverlays` (matches the annotations blob idiom) |
-| **Store** | server persistence | `bowrain/store` (`StoreBlocks`/`GetBlock`) | `overlays` column, `bowrain/store.MarshalOverlays` → delegates to `bowrain/core/sync` |
+| **Proto push** | kapi → server | `core/venue` (`BlockToProto`/`ProtoToBlock`), message `SyncBlock` in `core/proto/sync/v1` | typed `neokapi.content.v1.OverlayMessage` (reuses `protoconvert.OverlayToProto`) |
+| **JSON pull** | server → kapi | `bowrain/core/client` (`StoredBlockToSyncBlock`/`SyncBlockToBlock`), JSON `SyncBlock` | discriminated JSON blob via `core/venue.MarshalOverlays` (matches the annotations blob idiom) |
+| **Store** | server persistence | `bowrain/store` (`StoreBlocks`/`GetBlock`) | `overlays` column, `bowrain/store.MarshalOverlays` → delegates to `core/venue` |
 
-The overlay JSON codec lives once in `bowrain/core/sync` (`overlays_json.go`)
+The overlay JSON codec lives once in `core/venue` (`overlays_json.go`)
 and is shared by the JSON pull path and the store, so the wire shape is defined
 in one place rather than mirrored per consumer.
 
@@ -70,7 +70,7 @@ This is the one intentional divergence from the `BlockMessage` overlay rule.
 
 The list below is the model's parity surface — what any projection's fixture
 has to populate before its round-trip test means anything. The sync wire's
-fixture is `bowrain/core/synctest.KitchenSinkBlock`; a new projection writes
+fixture is `core/venue/venuetest.KitchenSinkBlock`; a new projection writes
 its own against the same list.
 
 - **Scalars**: `ID`, `Name`, `Type`, `MimeType`, `Translatable`,
@@ -119,7 +119,7 @@ The canonical leg is gated in the framework, once for everyone:
 
 Each projection then gates its own legs. For the sync wire:
 
-- **Kitchen-sink round-trip** (`bowrain/core/sync/conformance_test.go`,
+- **Kitchen-sink round-trip** (`core/venue/conformance_test.go`,
   `TestKitchenSinkRoundTrip`): model → proto → model is deep-equal for the fully
   populated fixture. The JSON pull equivalent lives in
   `bowrain/core/client/sync_conformance_test.go`.
@@ -151,7 +151,7 @@ Adding a Block/Run/Overlay field, or a new Run/Overlay kind:
    Everything downstream reads the model through this schema, so it comes first.
 2. **Each projection's converters, both directions** — a projection that must
    carry the field converts it on the way out and on the way back. On the sync
-   wire that is `bowrain/core/sync` (`BlockToProto`/`ProtoToBlock`) **and** the
+   wire that is `core/venue` (`BlockToProto`/`ProtoToBlock`) **and** the
    JSON pull path (`bowrain/core/client/sync_convert.go`); a projection with its
    own envelope message adds the field there too.
 3. **Persistence** — if a projection stores the field, add the column and its

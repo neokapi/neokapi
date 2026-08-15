@@ -13,9 +13,9 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The workspace's governance profiles: the points its content occupies in the
@@ -292,7 +292,7 @@ func (p *profilePoints) add(project *store.Project, col *store.Collection) {
 		ProjectName: project.Name,
 		Stream:      col.Stream,
 		ItemLabel:   col.ItemLabel,
-		Owner:       bowsync.NormalizeContextOwner(col.Owner),
+		Owner:       venue.NormalizeContextOwner(col.Owner),
 	})
 
 	// The bound voice and channel come from the two keys core/profile reads on

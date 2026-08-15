@@ -10,14 +10,14 @@ import (
 	"io"
 	"testing"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	corestorage "github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -546,15 +546,15 @@ func TestComputeHashes(t *testing.T) {
 		"b1": "hash1",
 		"b2": "hash2",
 	}
-	h1 := bowsync.ComputeItemHash(blockHashes)
-	h2 := bowsync.ComputeItemHash(blockHashes)
+	h1 := venue.ComputeItemHash(blockHashes)
+	h2 := venue.ComputeItemHash(blockHashes)
 	assert.Equal(t, h1, h2, "item hash should be deterministic")
 
 	itemHashes := map[string]string{
 		"en.json": h1,
 		"fr.json": "other",
 	}
-	r1 := bowsync.ComputeRootHash(itemHashes)
-	r2 := bowsync.ComputeRootHash(itemHashes)
+	r1 := venue.ComputeRootHash(itemHashes)
+	r2 := venue.ComputeRootHash(itemHashes)
 	assert.Equal(t, r1, r2, "root hash should be deterministic")
 }

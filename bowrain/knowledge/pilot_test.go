@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // pilotContentStore is a minimal BlockSource that also implements
@@ -37,7 +38,7 @@ func (c *pilotContentStore) ListStreams(context.Context, string, bool) ([]*store
 	return nil, nil
 }
 
-func (c *pilotContentStore) GetBlocks(context.Context, store.BlockQuery) ([]*store.StoredBlock, error) {
+func (c *pilotContentStore) GetBlocks(context.Context, store.BlockQuery) ([]*venue.StoredBlock, error) {
 	return nil, nil
 }
 

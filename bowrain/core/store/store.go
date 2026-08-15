@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The persistence surface is decomposed into role interfaces by concern so
@@ -73,8 +74,8 @@ type ItemStore interface {
 type BlockStore interface {
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
-	GetBlock(ctx context.Context, projectID, stream, blockID string) (*StoredBlock, error)
-	GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
+	GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error)
+	GetBlocks(ctx context.Context, query BlockQuery) ([]*venue.StoredBlock, error)
 	// CountBlocks answers a BlockQuery's totals and its per-locale status
 	// histogram in SQL, hydrating nothing. Limit and Offset are ignored — the
 	// counts describe the whole matching set — and so is Status, which is the
@@ -122,14 +123,14 @@ type ChangeFeed interface {
 
 // AssetStore manages assets and their locale variants (Bowrain AD-007).
 type AssetStore interface {
-	StoreAsset(ctx context.Context, projectID, stream string, asset *Asset) error
-	GetAsset(ctx context.Context, projectID, stream, assetID string) (*Asset, error)
-	ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*Asset, error)
+	StoreAsset(ctx context.Context, projectID, stream string, asset *venue.Asset) error
+	GetAsset(ctx context.Context, projectID, stream, assetID string) (*venue.Asset, error)
+	ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*venue.Asset, error)
 	DeleteAsset(ctx context.Context, projectID, stream, assetID string) error
 
-	StoreAssetVariant(ctx context.Context, projectID string, variant *AssetVariant) error
-	GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*AssetVariant, error)
-	ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*AssetVariant, error)
+	StoreAssetVariant(ctx context.Context, projectID string, variant *venue.AssetVariant) error
+	GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*venue.AssetVariant, error)
+	ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*venue.AssetVariant, error)
 }
 
 // ContentStore is the primary persistence interface for localization content,

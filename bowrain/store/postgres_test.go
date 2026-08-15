@@ -7,6 +7,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -725,7 +726,7 @@ func TestAssetCRUD(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Store asset.
-	asset := &platstore.Asset{
+	asset := &venue.Asset{
 		ItemName:   "docs/manual.docx",
 		SourceID:   "image1",
 		BlobKey:    "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
@@ -774,14 +775,14 @@ func TestAssetVariantCRUD(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Create asset first.
-	asset := &platstore.Asset{
+	asset := &venue.Asset{
 		BlobKey:  "aabbccdd",
 		MimeType: "image/png",
 	}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
 
 	// Store variant.
-	variant := &platstore.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID:    asset.ID,
 		Locale:     "fr-FR",
 		BlobKey:    "eeff0011",
@@ -821,14 +822,14 @@ func TestAssetDedup(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Store same blob_key twice — should upsert (dedup).
-	asset1 := &platstore.Asset{
+	asset1 := &venue.Asset{
 		BlobKey:  "sameblobkey",
 		MimeType: "image/png",
 		Filename: "first.png",
 	}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset1))
 
-	asset2 := &platstore.Asset{
+	asset2 := &venue.Asset{
 		BlobKey:  "sameblobkey",
 		MimeType: "image/png",
 		Filename: "second.png",
@@ -848,10 +849,10 @@ func TestAssetCascadeDelete(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Create asset with variant.
-	asset := &platstore.Asset{BlobKey: "cascadetest", MimeType: "image/png"}
+	asset := &venue.Asset{BlobKey: "cascadetest", MimeType: "image/png"}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
 
-	variant := &platstore.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID: asset.ID, Locale: "de-DE", BlobKey: "devariant", MimeType: "image/png",
 	}
 	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
@@ -870,14 +871,14 @@ func TestAssetChangeLog(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Store asset — should log "asset_added".
-	asset := &platstore.Asset{
+	asset := &venue.Asset{
 		BlobKey:  "changelog1234",
 		MimeType: "image/png",
 	}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
 
 	// Store same blob key again — should log "asset_modified".
-	asset2 := &platstore.Asset{
+	asset2 := &venue.Asset{
 		BlobKey:  "changelog1234",
 		MimeType: "image/png",
 		Filename: "updated.png",
@@ -885,7 +886,7 @@ func TestAssetChangeLog(t *testing.T) {
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset2))
 
 	// Store variant — should log "variant_added".
-	variant := &platstore.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID: asset.ID, Locale: "fr-FR", BlobKey: "frblob", MimeType: "image/png",
 	}
 	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
@@ -1047,10 +1048,10 @@ func TestStoreAssetVariantRequiresItsChangeLogEntry(t *testing.T) {
 	ctx := t.Context()
 	p := createTestProject(t, s)
 
-	asset := &platstore.Asset{BlobKey: "aabbccdd", MimeType: "image/png"}
+	asset := &venue.Asset{BlobKey: "aabbccdd", MimeType: "image/png"}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
 
-	variant := &platstore.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID:  asset.ID,
 		Locale:   "fr-FR",
 		BlobKey:  "eeff0011",
@@ -1070,7 +1071,7 @@ func TestStoreAssetVariantRequiresItsChangeLogEntry(t *testing.T) {
 	_, err := s.SQLDB().ExecContext(ctx, `DROP TABLE change_log`)
 	require.NoError(t, err)
 
-	err = s.StoreAssetVariant(ctx, p.ID, &platstore.AssetVariant{
+	err = s.StoreAssetVariant(ctx, p.ID, &venue.AssetVariant{
 		AssetID:  asset.ID,
 		Locale:   "de-DE",
 		BlobKey:  "22334455",

@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -479,7 +480,7 @@ func TestCountFailingBlocks(t *testing.T) {
 	}
 	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
 
-	blocks := []*platstore.StoredBlock{{Block: dropped}, {Block: clean}, {Block: nonTranslatable}}
+	blocks := []*venue.StoredBlock{{Block: dropped}, {Block: clean}, {Block: nonTranslatable}}
 	assert.Equal(t, 1, countFailingBlocks(t.Context(), blocks, fr))
 }
 

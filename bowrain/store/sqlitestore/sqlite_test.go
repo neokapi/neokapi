@@ -6,6 +6,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -307,10 +308,10 @@ func TestStoreAssetVariantRequiresItsChangeLogEntry(t *testing.T) {
 	ctx := t.Context()
 	p := createTestProject(t, s)
 
-	asset := &platstore.Asset{BlobKey: "aabbccdd", MimeType: "image/png"}
+	asset := &venue.Asset{BlobKey: "aabbccdd", MimeType: "image/png"}
 	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
 
-	variant := &platstore.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID:  asset.ID,
 		Locale:   "fr-FR",
 		BlobKey:  "eeff0011",
@@ -330,7 +331,7 @@ func TestStoreAssetVariantRequiresItsChangeLogEntry(t *testing.T) {
 	_, err := s.db.ExecContext(ctx, `DROP TABLE change_log`)
 	require.NoError(t, err)
 
-	err = s.StoreAssetVariant(ctx, p.ID, &platstore.AssetVariant{
+	err = s.StoreAssetVariant(ctx, p.ID, &venue.AssetVariant{
 		AssetID:  asset.ID,
 		Locale:   "de-DE",
 		BlobKey:  "22334455",

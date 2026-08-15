@@ -109,7 +109,7 @@ Two RPCs use server-side streaming:
 - **Subscribe**: Streams events matching the subscription filter
 
 Block content does not travel this service. It moves over the canonical
-`neokapi.content.v1` sync wire (`bowrain/core/proto/sync/v1/sync.proto`), which
+`neokapi.content.v1` sync wire (`core/proto/sync/v1/sync.proto`), which
 carries runs, overlays, segmentation and source-locale losslessly.
 
 ### Client Example

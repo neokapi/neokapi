@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 const (
@@ -233,14 +234,14 @@ type Collection struct {
 	// Empty for a workspace-owned collection, which sits at no declared point.
 	Context map[string]string `json:"context,omitempty"`
 
-	// Owner is "recipe" or "workspace" (bowrain/core/sync.ContextOwner*). It
+	// Owner is "recipe" or "workspace" (core/venue.ContextOwner*). It
 	// arrives as a protocol field on the pushed context entry and is stored
 	// verbatim: every later ownership decision is a lookup of this field, not a
 	// rule reconstructed from how the row happens to look.
 	Owner string `json:"owner,omitempty"`
 
 	// ContextHash is the hash of the context entry this row was reconciled
-	// from (bowrain/core/sync.ComputeContextEntryHash). It is what makes a
+	// from (core/venue.ComputeContextEntryHash). It is what makes a
 	// re-push idempotent: an entry arriving with an unchanged hash leaves the
 	// row — and its UpdatedAt — untouched.
 	ContextHash string `json:"context_hash,omitempty"`
@@ -722,10 +723,10 @@ type DecisionStore interface {
 	// (item, unit, variant): an identical record is a no-op, a changed one
 	// replaces the latest state and appends a history event. Returns how many
 	// records actually changed.
-	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []UnitDecision) (int, error)
+	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error)
 	// ListUnitDecisions returns the project's latest decision per
 	// (item, unit, variant) on a stream.
-	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]UnitDecision, error)
+	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)
 	// TallyDecisionBasis grades the stream's recorded decisions against the
 	// source the project holds NOW, grouped by (item, variant). A decision
 	// records the basis it blessed (UnitDecision.ContentHash) and the block

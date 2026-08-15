@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // recordReviewDecision appends a server-made review to the decision ledger
@@ -26,7 +27,7 @@ import (
 // by the store) must not fail the review the user just made — but the ledger
 // is what makes the review a decision rather than an enum flip, so the write
 // is attempted on every rung change.
-func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *platstore.StoredBlock, locale string, status model.TargetStatus, approved bool) {
+func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
 	ds, ok := s.ContentStore.(platstore.DecisionStore)
 	if !ok || sb == nil || sb.SourceID == "" {
 		return
@@ -49,7 +50,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 		reviewState = "rejected"
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	if _, err := ds.UpsertUnitDecisions(ctx, projectID, stream, []platstore.UnitDecision{{
+	if _, err := ds.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
 		ItemName:    sb.ItemName,
 		Unit:        sb.SourceID,
 		Variant:     locale,
@@ -97,7 +98,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 			"workspace", slug, "error", terr)
 		return
 	}
-	jobs.PromoteDecisionsToMemory(ctx, s.ContentStore, tm, projectID, stream, proj.DefaultSourceLanguage, []platstore.UnitDecision{{
+	jobs.PromoteDecisionsToMemory(ctx, s.ContentStore, tm, projectID, stream, proj.DefaultSourceLanguage, []venue.UnitDecision{{
 		ItemName:    sb.ItemName,
 		Unit:        sb.SourceID,
 		Variant:     locale,

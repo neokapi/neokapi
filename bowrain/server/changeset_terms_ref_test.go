@@ -5,13 +5,14 @@ import (
 	"net/url"
 	"testing"
 
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"

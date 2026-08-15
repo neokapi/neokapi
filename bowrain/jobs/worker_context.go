@@ -14,8 +14,8 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The context content type's server half: turning the collections a recipe
@@ -127,7 +127,7 @@ func reconcileContext(
 				Kind:            store.CollectionConnected,
 				Stream:          stream,
 				Context:         maps.Clone(e.Coordinates),
-				Owner:           bowsync.ContextOwnerRecipe,
+				Owner:           venue.ContextOwnerRecipe,
 				ContextHash:     e.ContentHash,
 				ConnectorConfig: governanceConfig(nil, profileID, e.Channel),
 			}
@@ -143,7 +143,7 @@ func reconcileContext(
 		// it. Declaring a collection in kapi.yaml is the act that claims it:
 		// after this push git decides what that collection is, and the API
 		// refusal keyed on Owner has something to refuse on behalf of.
-		claiming := !bowsync.IsRecipeOwned(current.Owner)
+		claiming := !venue.IsRecipeOwned(current.Owner)
 
 		// Idempotence. The stored hash covers exactly the fields this entry
 		// carries, so an unchanged hash means the recipe has not moved — and
@@ -159,7 +159,7 @@ func reconcileContext(
 		}
 
 		current.Context = maps.Clone(e.Coordinates)
-		current.Owner = bowsync.ContextOwnerRecipe
+		current.Owner = venue.ContextOwnerRecipe
 		current.ContextHash = e.ContentHash
 		current.ConnectorConfig = wantConfig
 		if uerr := deps.ContentStore.UpdateCollection(ctx, current); uerr != nil {
@@ -179,7 +179,7 @@ func reconcileContext(
 		if _, ok := declared[name]; ok {
 			continue
 		}
-		if bowsync.IsRecipeOwned(col.Owner) {
+		if venue.IsRecipeOwned(col.Owner) {
 			result.Undeclared = append(result.Undeclared, name)
 		}
 	}

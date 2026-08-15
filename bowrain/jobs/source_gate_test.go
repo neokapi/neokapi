@@ -5,19 +5,20 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 )
 
-func blk(id string, translatable bool, status model.SourceStatus) *store.StoredBlock {
+func blk(id string, translatable bool, status model.SourceStatus) *venue.StoredBlock {
 	b := &model.Block{ID: id, Translatable: translatable, SourceStatus: status}
 	b.SetSourceText("text")
-	return &store.StoredBlock{Block: b}
+	return &venue.StoredBlock{Block: b}
 }
 
 // TestGateBlocksBySource: the worker translates only blocks whose source clears
 // the gate; a partially-settled item keeps its ready blocks and drops the rest.
 func TestGateBlocksBySource(t *testing.T) {
-	blocks := []*store.StoredBlock{
+	blocks := []*venue.StoredBlock{
 		blk("checked", true, model.SourceStatusChecked),
 		blk("approved", true, model.SourceStatusApproved),
 		blk("authored", true, model.SourceStatusAuthored),

@@ -38,6 +38,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -1583,7 +1584,7 @@ func editorAttachProjectShape(ctx context.Context, cs store.ContentStore, projID
 }
 
 // storedBlockToInfoResponse converts a StoredBlock to a BlockInfoResponse.
-func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) BlockInfoResponse {
+func storedBlockToInfoResponse(sb *venue.StoredBlock, targetLocales []string) BlockInfoResponse {
 	targets := make(map[string]BlockTargetInfo, len(targetLocales))
 	for _, locale := range targetLocales {
 		loc := model.LocaleID(locale)
@@ -1664,7 +1665,7 @@ func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
 }
 
 // storedBlocksToParts wraps stored blocks as Part objects for tool processing.
-func storedBlocksToParts(storedBlocks []*store.StoredBlock) []*model.Part {
+func storedBlocksToParts(storedBlocks []*venue.StoredBlock) []*model.Part {
 	parts := make([]*model.Part, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
 		parts = append(parts, &model.Part{

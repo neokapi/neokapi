@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The blast radius is the most expensive read in the platform: a walk over every
@@ -32,7 +33,7 @@ func TestEvaluateChangeSet_BudgetExhaustedReportsPartial(t *testing.T) {
 
 	bs := newFakeBlockSource()
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
-	var blocks []*store.StoredBlock
+	var blocks []*venue.StoredBlock
 	for i := range 50 {
 		blocks = append(blocks, srcBlock(fmt.Sprintf("b%d", i), "guide.md", "en-US", "Please use foobar here"))
 	}
@@ -85,7 +86,7 @@ func TestEvaluateChangeSet_ResolvesEachCollectionOnce(t *testing.T) {
 
 	bs := newFakeBlockSource()
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
-	var blocks []*store.StoredBlock
+	var blocks []*venue.StoredBlock
 	for i := range 40 {
 		item := "a.md" // twenty blocks each in two items
 		if i >= 20 {

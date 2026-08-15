@@ -133,7 +133,7 @@ type SyncPushRequest struct {
 // tag that does not match the generated one silently drops the field. That is
 // what happened to BlockIndex, which travelled as "block_index" against the
 // proto's "block_index_json" and never reached a stored item. Keep the tags
-// aligned with bowrain/core/proto/sync/v1.SyncItemMeta.
+// aligned with core/proto/sync/v1.SyncItemMeta.
 type ItemMeta struct {
 	Name        string `json:"name"`                       // item name (relative file path)
 	Format      string `json:"format"`                     // detected format

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 func newAliasStore(t *testing.T) *PostgresStore {
@@ -26,18 +26,18 @@ func TestChannelAliasProposalsRoundTrip(t *testing.T) {
 		{
 			WorkspaceID: "ws1", Profile: "acme",
 			ProposedChannel: "website", ExistingChannel: "web",
-			Evidence: coresync.EvidencePrefix, ProjectID: "p1", Collection: "site",
+			Evidence: venue.EvidencePrefix, ProjectID: "p1", Collection: "site",
 		},
 		{
 			WorkspaceID: "ws1", Profile: "acme",
 			ProposedChannel: "marketing-site", ExistingChannel: "marketingsite",
-			Evidence: coresync.EvidenceSameNormalized, ProjectID: "p1", Collection: "marketing",
+			Evidence: venue.EvidenceSameNormalized, ProjectID: "p1", Collection: "marketing",
 		},
 		// Another workspace's proposal is not this one's.
 		{
 			WorkspaceID: "ws2", Profile: "acme",
 			ProposedChannel: "website", ExistingChannel: "web",
-			Evidence: coresync.EvidencePrefix, ProjectID: "p9",
+			Evidence: venue.EvidencePrefix, ProjectID: "p9",
 		},
 	})
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestChannelAliasProposalKeepsItsJudgement(t *testing.T) {
 	proposal := platstore.ChannelAliasProposal{
 		WorkspaceID: "ws1", Profile: "acme",
 		ProposedChannel: "website", ExistingChannel: "web",
-		Evidence: coresync.EvidencePrefix, ProjectID: "p1", Collection: "site",
+		Evidence: venue.EvidencePrefix, ProjectID: "p1", Collection: "site",
 	}
 	_, err := s.UpsertChannelAliasProposals(ctx, []platstore.ChannelAliasProposal{proposal})
 	require.NoError(t, err)
@@ -111,12 +111,12 @@ func TestJudgeChannelAliasProposalIsKeyed(t *testing.T) {
 		{
 			WorkspaceID: "ws1", Profile: "acme",
 			ProposedChannel: "website", ExistingChannel: "web",
-			Evidence: coresync.EvidencePrefix, ProjectID: "p1",
+			Evidence: venue.EvidencePrefix, ProjectID: "p1",
 		},
 		{
 			WorkspaceID: "ws2", Profile: "acme",
 			ProposedChannel: "website", ExistingChannel: "web",
-			Evidence: coresync.EvidencePrefix, ProjectID: "p9",
+			Evidence: venue.EvidencePrefix, ProjectID: "p9",
 		},
 	})
 	require.NoError(t, err)

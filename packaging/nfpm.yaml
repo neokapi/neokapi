@@ -32,6 +32,13 @@ contents:
     dst: /usr/bin/kapi
     file_info:
       mode: 0755
+  # The license text, not just the SPDX id above. Apache-2.0 §4(a) requires a
+  # copy of the License to reach every recipient of the work; `license:` is a
+  # label the package index reads, not the grant.
+  - src: LICENSE
+    dst: /usr/share/doc/kapi-cli/LICENSE
+    file_info:
+      mode: 0644
   # Multi-call toolbox aliases — symlinks to the kapi binary, which dispatches
   # on its invocation name. No extra binaries, no extra size.
   - src: /usr/bin/kapi

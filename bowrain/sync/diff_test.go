@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,7 +76,7 @@ func TestDiffEngine_CompareItems_Unchanged(t *testing.T) {
 	// Compute what the server has.
 	serverBlockHashes, err := engine.loadBlockHashes(ctx, "proj-1", "main", "en.json")
 	require.NoError(t, err)
-	serverItemHash := coresync.ComputeItemHash(serverBlockHashes)
+	serverItemHash := venue.ComputeItemHash(serverBlockHashes)
 
 	// Client sends matching hash.
 	clientHashes := map[string]string{
@@ -180,7 +180,7 @@ func TestDiffEngine_RootHashFastPath(t *testing.T) {
 	// Compute server root hash.
 	serverItemHashes, err := engine.loadItemHashes(ctx, "proj-1", "main")
 	require.NoError(t, err)
-	serverRoot := coresync.ComputeRootHash(serverItemHashes)
+	serverRoot := venue.ComputeRootHash(serverItemHashes)
 
 	// Matching root hash → unchanged.
 	unchanged, err := engine.CheckRootHash(ctx, "proj-1", "main", serverRoot)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsynccore "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // Ownership of a collection row: the second read-only gate on the collections
@@ -31,7 +31,7 @@ import (
 // refused reports that the request has been answered and the caller must return
 // immediately — err carries only the response write, which is nil on success.
 func guardRecipeOwned(c echo.Context, coll *store.Collection) (refused bool, err error) {
-	if coll == nil || !bowsynccore.IsRecipeOwned(coll.Owner) {
+	if coll == nil || !venue.IsRecipeOwned(coll.Owner) {
 		return false, nil
 	}
 	return true, c.JSON(http.StatusConflict, ErrorResponse{Error: recipeOwnedMessage(coll)})

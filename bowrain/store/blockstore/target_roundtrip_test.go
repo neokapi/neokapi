@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // A target written through the block store's overlay API and a target written
@@ -108,7 +109,7 @@ func eachBackend(t *testing.T, fn func(t *testing.T, b backend)) {
 // seedItemBlock stores one block inside a named item, the shape a real project
 // holds: the item names the document, the block's own id is the durable unit
 // identity a decision addresses it by.
-func seedItemBlock(t *testing.T, b backend, item, unit, text string) *platstore.StoredBlock {
+func seedItemBlock(t *testing.T, b backend, item, unit, text string) *venue.StoredBlock {
 	t.Helper()
 	ctx := context.Background()
 	mb := model.NewRunsBlock(unit, []model.Run{{Text: &model.TextRun{Text: text}}})
@@ -189,7 +190,7 @@ func TestOverlayWrite_EveryReaderSeesTheTarget(t *testing.T) {
 		t.Run("decision basis", func(t *testing.T) {
 			decisions, ok := b.content.(platstore.DecisionStore)
 			require.True(t, ok)
-			n, err := decisions.UpsertUnitDecisions(ctx, b.projectID, "main", []platstore.UnitDecision{{
+			n, err := decisions.UpsertUnitDecisions(ctx, b.projectID, "main", []venue.UnitDecision{{
 				ItemName:    "greetings.json",
 				Unit:        block.SourceID,
 				Variant:     "fr",

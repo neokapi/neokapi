@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // blockQueryStore is the slice of ContentStore these cases exercise, so the
@@ -21,7 +22,7 @@ import (
 type blockQueryStore interface {
 	CreateProject(ctx context.Context, p *platstore.Project) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
-	GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error)
+	GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error)
 	CountBlocks(ctx context.Context, query platstore.BlockQuery) (platstore.BlockCounts, error)
 }
 
@@ -72,7 +73,7 @@ func seedBlockQueryProject(t *testing.T, s blockQueryStore) string {
 
 // sourcesOf names the matched blocks by their source text, the only stable
 // coordinate across stores (both mint their own block ids).
-func sourcesOf(blocks []*platstore.StoredBlock) []string {
+func sourcesOf(blocks []*venue.StoredBlock) []string {
 	out := make([]string, 0, len(blocks))
 	for _, sb := range blocks {
 		out = append(out, sb.Block.SourceText())

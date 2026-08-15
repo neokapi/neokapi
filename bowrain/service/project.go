@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // ProjectService provides project and block operations.
@@ -83,7 +84,7 @@ func (s *ProjectService) StoreBlocksForItem(ctx context.Context, projectID, item
 }
 
 // GetBlock retrieves a single block.
-func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string) (*store.StoredBlock, error) {
+func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string) (*venue.StoredBlock, error) {
 	if projectID == "" {
 		return nil, ErrProjectIDRequired
 	}
@@ -94,7 +95,7 @@ func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string
 }
 
 // GetBlocks retrieves blocks matching a query.
-func (s *ProjectService) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*store.StoredBlock, error) {
+func (s *ProjectService) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*venue.StoredBlock, error) {
 	if query.ProjectID == "" {
 		return nil, ErrProjectIDRequired
 	}

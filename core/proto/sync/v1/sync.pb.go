@@ -1,12 +1,12 @@
-// sync.proto — Sync protocol messages (Bowrain AD-009).
-// Defines the content layer for chunked, diff-based content sync.
+// sync.proto — Sync protocol messages.
+// Defines the content layer for chunked, diff-based content sync between a
+// project and a venue.
 //
-// These messages live in their own proto + Go package (syncv1) so the
-// framework-only bowrain/core module can import them for the push client
-// without pulling the editor/server gRPC service surface. The wire format is
-// unchanged from when these lived alongside the service protos — proto wire
-// encoding depends only on field numbers, not the proto/Go package name, and
-// no service proto references any Sync* message by name.
+// These messages live in their own proto + Go package (syncv1), beside the
+// canonical content schema, so any client can speak the sync wire without
+// pulling in a venue's service surface. The proto package name carries no
+// venue noun and the encoding depends only on field numbers, so the schema is
+// independent of where either side of the exchange lives.
 //
 // Run/segment content embeds the canonical content-model schema
 // (core/proto/content/v1, see AD-034) instead of redefining it. The former
@@ -20,7 +20,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.1
-// source: bowrain/core/proto/sync/v1/sync.proto
+// source: core/proto/sync/v1/sync.proto
 
 package syncv1
 
@@ -74,7 +74,7 @@ type SyncRef struct {
 
 func (x *SyncRef) Reset() {
 	*x = SyncRef{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[0]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -86,7 +86,7 @@ func (x *SyncRef) String() string {
 func (*SyncRef) ProtoMessage() {}
 
 func (x *SyncRef) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[0]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -99,7 +99,7 @@ func (x *SyncRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRef.ProtoReflect.Descriptor instead.
 func (*SyncRef) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{0}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SyncRef) GetContent() int64 {
@@ -161,7 +161,7 @@ type SyncPushInit struct {
 
 func (x *SyncPushInit) Reset() {
 	*x = SyncPushInit{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[1]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +173,7 @@ func (x *SyncPushInit) String() string {
 func (*SyncPushInit) ProtoMessage() {}
 
 func (x *SyncPushInit) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[1]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +186,7 @@ func (x *SyncPushInit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPushInit.ProtoReflect.Descriptor instead.
 func (*SyncPushInit) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{1}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SyncPushInit) GetProjectId() string {
@@ -285,7 +285,7 @@ type SyncPushInitResponse struct {
 
 func (x *SyncPushInitResponse) Reset() {
 	*x = SyncPushInitResponse{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[2]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +297,7 @@ func (x *SyncPushInitResponse) String() string {
 func (*SyncPushInitResponse) ProtoMessage() {}
 
 func (x *SyncPushInitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[2]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,7 +310,7 @@ func (x *SyncPushInitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPushInitResponse.ProtoReflect.Descriptor instead.
 func (*SyncPushInitResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{2}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SyncPushInitResponse) GetUploadId() string {
@@ -401,7 +401,7 @@ type SyncItemDiff struct {
 
 func (x *SyncItemDiff) Reset() {
 	*x = SyncItemDiff{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -413,7 +413,7 @@ func (x *SyncItemDiff) String() string {
 func (*SyncItemDiff) ProtoMessage() {}
 
 func (x *SyncItemDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -426,7 +426,7 @@ func (x *SyncItemDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemDiff.ProtoReflect.Descriptor instead.
 func (*SyncItemDiff) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{3}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SyncItemDiff) GetUploadId() string {
@@ -468,7 +468,7 @@ type SyncItemDiffResponse struct {
 
 func (x *SyncItemDiffResponse) Reset() {
 	*x = SyncItemDiffResponse{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +480,7 @@ func (x *SyncItemDiffResponse) String() string {
 func (*SyncItemDiffResponse) ProtoMessage() {}
 
 func (x *SyncItemDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +493,7 @@ func (x *SyncItemDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemDiffResponse.ProtoReflect.Descriptor instead.
 func (*SyncItemDiffResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{4}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncItemDiffResponse) GetNeeded() []string {
@@ -568,7 +568,7 @@ type SyncManifest struct {
 
 func (x *SyncManifest) Reset() {
 	*x = SyncManifest{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +580,7 @@ func (x *SyncManifest) String() string {
 func (*SyncManifest) ProtoMessage() {}
 
 func (x *SyncManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +593,7 @@ func (x *SyncManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncManifest.ProtoReflect.Descriptor instead.
 func (*SyncManifest) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{5}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SyncManifest) GetUploadId() string {
@@ -686,7 +686,7 @@ type ChunkRef struct {
 
 func (x *ChunkRef) Reset() {
 	*x = ChunkRef{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -698,7 +698,7 @@ func (x *ChunkRef) String() string {
 func (*ChunkRef) ProtoMessage() {}
 
 func (x *ChunkRef) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -711,7 +711,7 @@ func (x *ChunkRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChunkRef.ProtoReflect.Descriptor instead.
 func (*ChunkRef) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{6}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ChunkRef) GetIndex() int32 {
@@ -766,7 +766,7 @@ type SyncChunk struct {
 
 func (x *SyncChunk) Reset() {
 	*x = SyncChunk{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -778,7 +778,7 @@ func (x *SyncChunk) String() string {
 func (*SyncChunk) ProtoMessage() {}
 
 func (x *SyncChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +791,7 @@ func (x *SyncChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncChunk.ProtoReflect.Descriptor instead.
 func (*SyncChunk) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{7}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SyncChunk) GetContentType() string {
@@ -891,7 +891,7 @@ type SyncBlock struct {
 
 func (x *SyncBlock) Reset() {
 	*x = SyncBlock{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +903,7 @@ func (x *SyncBlock) String() string {
 func (*SyncBlock) ProtoMessage() {}
 
 func (x *SyncBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +916,7 @@ func (x *SyncBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncBlock.ProtoReflect.Descriptor instead.
 func (*SyncBlock) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{8}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SyncBlock) GetId() string {
@@ -1079,7 +1079,7 @@ type SyncSegmentList struct {
 
 func (x *SyncSegmentList) Reset() {
 	*x = SyncSegmentList{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1091,7 @@ func (x *SyncSegmentList) String() string {
 func (*SyncSegmentList) ProtoMessage() {}
 
 func (x *SyncSegmentList) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1104,7 @@ func (x *SyncSegmentList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncSegmentList.ProtoReflect.Descriptor instead.
 func (*SyncSegmentList) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{9}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SyncSegmentList) GetSegments() []*v1.SegmentMessage {
@@ -1132,7 +1132,7 @@ type SyncTerm struct {
 
 func (x *SyncTerm) Reset() {
 	*x = SyncTerm{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1144,7 +1144,7 @@ func (x *SyncTerm) String() string {
 func (*SyncTerm) ProtoMessage() {}
 
 func (x *SyncTerm) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1157,7 +1157,7 @@ func (x *SyncTerm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTerm.ProtoReflect.Descriptor instead.
 func (*SyncTerm) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SyncTerm) GetConceptId() string {
@@ -1234,7 +1234,7 @@ type SyncTermTranslation struct {
 
 func (x *SyncTermTranslation) Reset() {
 	*x = SyncTermTranslation{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1246,7 +1246,7 @@ func (x *SyncTermTranslation) String() string {
 func (*SyncTermTranslation) ProtoMessage() {}
 
 func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1259,7 +1259,7 @@ func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTermTranslation.ProtoReflect.Descriptor instead.
 func (*SyncTermTranslation) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{11}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SyncTermTranslation) GetLocale() string {
@@ -1311,7 +1311,7 @@ type SyncMemoryEntry struct {
 
 func (x *SyncMemoryEntry) Reset() {
 	*x = SyncMemoryEntry{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1323,7 +1323,7 @@ func (x *SyncMemoryEntry) String() string {
 func (*SyncMemoryEntry) ProtoMessage() {}
 
 func (x *SyncMemoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[12]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1336,7 +1336,7 @@ func (x *SyncMemoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMemoryEntry.ProtoReflect.Descriptor instead.
 func (*SyncMemoryEntry) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{12}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SyncMemoryEntry) GetId() string {
@@ -1425,7 +1425,7 @@ type SyncMedia struct {
 
 func (x *SyncMedia) Reset() {
 	*x = SyncMedia{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1437,7 +1437,7 @@ func (x *SyncMedia) String() string {
 func (*SyncMedia) ProtoMessage() {}
 
 func (x *SyncMedia) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1450,7 +1450,7 @@ func (x *SyncMedia) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMedia.ProtoReflect.Descriptor instead.
 func (*SyncMedia) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SyncMedia) GetId() string {
@@ -1584,7 +1584,7 @@ type SyncContextEntry struct {
 
 func (x *SyncContextEntry) Reset() {
 	*x = SyncContextEntry{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1596,7 +1596,7 @@ func (x *SyncContextEntry) String() string {
 func (*SyncContextEntry) ProtoMessage() {}
 
 func (x *SyncContextEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1609,7 +1609,7 @@ func (x *SyncContextEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncContextEntry.ProtoReflect.Descriptor instead.
 func (*SyncContextEntry) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SyncContextEntry) GetName() string {
@@ -1681,7 +1681,7 @@ type SyncItemMeta struct {
 
 func (x *SyncItemMeta) Reset() {
 	*x = SyncItemMeta{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1693,7 +1693,7 @@ func (x *SyncItemMeta) String() string {
 func (*SyncItemMeta) ProtoMessage() {}
 
 func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1706,7 +1706,7 @@ func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemMeta.ProtoReflect.Descriptor instead.
 func (*SyncItemMeta) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SyncItemMeta) GetName() string {
@@ -1779,7 +1779,7 @@ type SyncPullRequest struct {
 
 func (x *SyncPullRequest) Reset() {
 	*x = SyncPullRequest{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1791,7 +1791,7 @@ func (x *SyncPullRequest) String() string {
 func (*SyncPullRequest) ProtoMessage() {}
 
 func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[16]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1804,7 +1804,7 @@ func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullRequest.ProtoReflect.Descriptor instead.
 func (*SyncPullRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{16}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SyncPullRequest) GetProjectId() string {
@@ -1872,7 +1872,7 @@ type SyncPullResponse struct {
 
 func (x *SyncPullResponse) Reset() {
 	*x = SyncPullResponse{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1884,7 +1884,7 @@ func (x *SyncPullResponse) String() string {
 func (*SyncPullResponse) ProtoMessage() {}
 
 func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[17]
+	mi := &file_core_proto_sync_v1_sync_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1897,7 +1897,7 @@ func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullResponse.ProtoReflect.Descriptor instead.
 func (*SyncPullResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{17}
+	return file_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SyncPullResponse) GetCursor() int64 {
@@ -1956,11 +1956,11 @@ func (x *SyncPullResponse) GetRef() *SyncRef {
 	return nil
 }
 
-var File_bowrain_core_proto_sync_v1_sync_proto protoreflect.FileDescriptor
+var File_core_proto_sync_v1_sync_proto protoreflect.FileDescriptor
 
-const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
+const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
-	"%bowrain/core/proto/sync/v1/sync.proto\x12\x0fneokapi.sync.v1\x1a#core/proto/content/v1/content.proto\"q\n" +
+	"\x1dcore/proto/sync/v1/sync.proto\x12\x0fneokapi.sync.v1\x1a#core/proto/content/v1/content.proto\"q\n" +
 	"\aSyncRef\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\x03R\acontent\x12\x18\n" +
 	"\acontext\x18\x02 \x01(\tR\acontext\x12\x14\n" +
@@ -2181,22 +2181,22 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x0ememory_entries\x18\f \x03(\v2 .neokapi.sync.v1.SyncMemoryEntryR\rmemoryEntries\x120\n" +
 	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\x12=\n" +
 	"\bcontexts\x18\x0e \x03(\v2!.neokapi.sync.v1.SyncContextEntryR\bcontexts\x12*\n" +
-	"\x03ref\x18\x0f \x01(\v2\x18.neokapi.sync.v1.SyncRefR\x03refB>Z<github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1b\x06proto3"
+	"\x03ref\x18\x0f \x01(\v2\x18.neokapi.sync.v1.SyncRefR\x03refB6Z4github.com/neokapi/neokapi/core/proto/sync/v1;syncv1b\x06proto3"
 
 var (
-	file_bowrain_core_proto_sync_v1_sync_proto_rawDescOnce sync.Once
-	file_bowrain_core_proto_sync_v1_sync_proto_rawDescData []byte
+	file_core_proto_sync_v1_sync_proto_rawDescOnce sync.Once
+	file_core_proto_sync_v1_sync_proto_rawDescData []byte
 )
 
-func file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP() []byte {
-	file_bowrain_core_proto_sync_v1_sync_proto_rawDescOnce.Do(func() {
-		file_bowrain_core_proto_sync_v1_sync_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc), len(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc)))
+func file_core_proto_sync_v1_sync_proto_rawDescGZIP() []byte {
+	file_core_proto_sync_v1_sync_proto_rawDescOnce.Do(func() {
+		file_core_proto_sync_v1_sync_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_core_proto_sync_v1_sync_proto_rawDesc), len(file_core_proto_sync_v1_sync_proto_rawDesc)))
 	})
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescData
+	return file_core_proto_sync_v1_sync_proto_rawDescData
 }
 
-var file_bowrain_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
-var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
+var file_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncRef)(nil),              // 0: neokapi.sync.v1.SyncRef
 	(*SyncPushInit)(nil),         // 1: neokapi.sync.v1.SyncPushInit
 	(*SyncPushInitResponse)(nil), // 2: neokapi.sync.v1.SyncPushInitResponse
@@ -2229,7 +2229,7 @@ var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*v1.SegmentMessage)(nil),    // 29: neokapi.content.v1.SegmentMessage
 	(*v1.OverlayMessage)(nil),    // 30: neokapi.content.v1.OverlayMessage
 }
-var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
+var file_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	18, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
 	0,  // 1: neokapi.sync.v1.SyncPushInitResponse.ref:type_name -> neokapi.sync.v1.SyncRef
 	19, // 2: neokapi.sync.v1.SyncItemDiff.block_hashes:type_name -> neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
@@ -2268,26 +2268,26 @@ var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	0,  // [0:31] is the sub-list for field type_name
 }
 
-func init() { file_bowrain_core_proto_sync_v1_sync_proto_init() }
-func file_bowrain_core_proto_sync_v1_sync_proto_init() {
-	if File_bowrain_core_proto_sync_v1_sync_proto != nil {
+func init() { file_core_proto_sync_v1_sync_proto_init() }
+func file_core_proto_sync_v1_sync_proto_init() {
+	if File_core_proto_sync_v1_sync_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc), len(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_proto_sync_v1_sync_proto_rawDesc), len(file_core_proto_sync_v1_sync_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_bowrain_core_proto_sync_v1_sync_proto_goTypes,
-		DependencyIndexes: file_bowrain_core_proto_sync_v1_sync_proto_depIdxs,
-		MessageInfos:      file_bowrain_core_proto_sync_v1_sync_proto_msgTypes,
+		GoTypes:           file_core_proto_sync_v1_sync_proto_goTypes,
+		DependencyIndexes: file_core_proto_sync_v1_sync_proto_depIdxs,
+		MessageInfos:      file_core_proto_sync_v1_sync_proto_msgTypes,
 	}.Build()
-	File_bowrain_core_proto_sync_v1_sync_proto = out.File
-	file_bowrain_core_proto_sync_v1_sync_proto_goTypes = nil
-	file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = nil
+	File_core_proto_sync_v1_sync_proto = out.File
+	file_core_proto_sync_v1_sync_proto_goTypes = nil
+	file_core_proto_sync_v1_sync_proto_depIdxs = nil
 }

@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/contextgraph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	fwterms "github.com/neokapi/neokapi/terms"
 )
 
@@ -63,7 +63,7 @@ func (f *writerFixture) seedProject(t *testing.T, ctx context.Context, name, col
 		Kind:      platstore.CollectionUploaded,
 		Stream:    writerStream,
 		Context:   map[string]string{"product": "acme", "channel": channel},
-		Owner:     coresync.ContextOwnerRecipe,
+		Owner:     venue.ContextOwnerRecipe,
 	})) //nolint:exhaustruct // the writer reads name, context and stream
 	item := collection + ".json"
 	require.NoError(t, f.content.StoreItem(ctx, proj.ID, writerStream, &platstore.Item{
@@ -226,7 +226,7 @@ func TestServerWritesBlessings(t *testing.T) {
 
 	decisions, ok := f.content.(platstore.DecisionStore)
 	require.True(t, ok)
-	_, err := decisions.UpsertUnitDecisions(ctx, proj.ID, writerStream, []platstore.UnitDecision{{
+	_, err := decisions.UpsertUnitDecisions(ctx, proj.ID, writerStream, []venue.UnitDecision{{
 		ItemName: "docs.json", Unit: "intro", Variant: "nb",
 		Status: "reviewed", ReviewState: "approved", TargetHash: "th-1",
 	}})

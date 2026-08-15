@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ import (
 // TestPushItemHashesCoverSentSubset documents and verifies the additive-only
 // wire contract (#43): the ItemHashes/RootHash in the init request are computed
 // over exactly the blocks the caller passed in (the changed subset), and match
-// bowsync.ComputeItemHash/ComputeRootHash over that same set. They are change
+// venue.ComputeItemHash/ComputeRootHash over that same set. They are change
 // indicators, not authoritative Merkle roots — the server must treat the push
 // as additive.
 func TestPushItemHashesCoverSentSubset(t *testing.T) {
@@ -38,9 +38,9 @@ func TestPushItemHashesCoverSentSubset(t *testing.T) {
 		for _, b := range blocks {
 			bh[b.ID] = model.ComputeIdentity(b).ContentHash
 		}
-		wantItem[item] = bowsync.ComputeItemHash(bh)
+		wantItem[item] = venue.ComputeItemHash(bh)
 	}
-	wantRoot := bowsync.ComputeRootHash(wantItem)
+	wantRoot := venue.ComputeRootHash(wantItem)
 
 	var gotInit PushInitRequest
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

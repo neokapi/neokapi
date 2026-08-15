@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,7 @@ func seedOrphanFixture(t *testing.T, s *PostgresStore, projectID, stream, itemNa
 		ProjectID: projectID, Stream: stream, ItemName: itemName, BlockID: blockID,
 		OriginalSource: "Hello", ProposedSource: "Hello there", FinderUser: "reviewer",
 	}))
-	_, err = s.UpsertUnitDecisions(ctx, projectID, stream, []platstore.UnitDecision{{
+	_, err = s.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
 		ItemName: itemName, Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),

@@ -11,7 +11,7 @@
 //   - Target variants are keyed by locale on the wire (TargetEntry.locale);
 //     tone/channel variant dimensions and Target status/origin/score do not
 //     cross this schema. The sync protocol stashes those in segment
-//     properties (bowrain/core/sync).
+//     properties (core/venue).
 //   - Segmentation overlays are reconstructed from segment boundaries rather
 //     than carried as OverlayMessages.
 package protoconvert_test

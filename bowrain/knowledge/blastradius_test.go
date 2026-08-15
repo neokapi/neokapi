@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // ---------------------------------------------------------------------------
@@ -25,7 +26,7 @@ import (
 type fakeBlockSource struct {
 	projects []*store.Project
 	streams  map[string][]*store.Stream      // projectID → streams (excludes implicit "main")
-	blocks   map[string][]*store.StoredBlock // projectID|stream → blocks
+	blocks   map[string][]*venue.StoredBlock // projectID|stream → blocks
 	items    map[string]*store.Item          // projectID|stream|itemName → item
 	cols     map[string]*store.Collection    // projectID|collectionID → collection
 
@@ -37,7 +38,7 @@ type fakeBlockSource struct {
 func newFakeBlockSource() *fakeBlockSource {
 	return &fakeBlockSource{
 		streams: map[string][]*store.Stream{},
-		blocks:  map[string][]*store.StoredBlock{},
+		blocks:  map[string][]*venue.StoredBlock{},
 		items:   map[string]*store.Item{},
 		cols:    map[string]*store.Collection{},
 	}
@@ -45,7 +46,7 @@ func newFakeBlockSource() *fakeBlockSource {
 
 func (f *fakeBlockSource) addProject(p *store.Project) { f.projects = append(f.projects, p) }
 
-func (f *fakeBlockSource) addBlocks(projectID, stream string, blocks ...*store.StoredBlock) {
+func (f *fakeBlockSource) addBlocks(projectID, stream string, blocks ...*venue.StoredBlock) {
 	key := projectID + "|" + stream
 	for _, b := range blocks {
 		b.ProjectID = projectID
@@ -75,7 +76,7 @@ func (f *fakeBlockSource) ListStreams(_ context.Context, projectID string, _ boo
 	return f.streams[projectID], nil
 }
 
-func (f *fakeBlockSource) GetBlocks(_ context.Context, q store.BlockQuery) ([]*store.StoredBlock, error) {
+func (f *fakeBlockSource) GetBlocks(_ context.Context, q store.BlockQuery) ([]*venue.StoredBlock, error) {
 	stream := q.Stream
 	if stream == "" {
 		stream = "main"
@@ -125,10 +126,10 @@ func (f *fakeProfileStore) UpdateProfile(_ context.Context, p *coreprofile.Voice
 }
 
 // srcBlock builds a translatable StoredBlock with a single source TextRun.
-func srcBlock(id, itemName string, locale model.LocaleID, text string) *store.StoredBlock {
+func srcBlock(id, itemName string, locale model.LocaleID, text string) *venue.StoredBlock {
 	b := &model.Block{ID: id, Translatable: true, SourceLocale: locale}
 	b.SetSourceText(text)
-	return &store.StoredBlock{Block: b, ItemName: itemName}
+	return &venue.StoredBlock{Block: b, ItemName: itemName}
 }
 
 // ---------------------------------------------------------------------------
@@ -347,7 +348,7 @@ func TestEvaluateChangeSet_SampleCap(t *testing.T) {
 
 	bs := newFakeBlockSource()
 	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
-	var blocks []*store.StoredBlock
+	var blocks []*venue.StoredBlock
 	for i := range 10 {
 		blocks = append(blocks, srcBlock("b"+string(rune('0'+i)), "home.json", "en-US", "synergy everywhere"))
 	}
@@ -505,7 +506,7 @@ func TestEvaluateChangeSet_StoredBlockWithNoSourceLocale(t *testing.T) {
 	require.NoError(t, tb.AddConcept(ctx, concept("c1", term("utilise", "en", model.TermAdmitted))))
 
 	// Exactly what GetBlocks returns: source runs, no SourceLocale, no targets.
-	stored := &store.StoredBlock{Block: &model.Block{ID: "b1", Translatable: true}, ItemName: "pricing.json"}
+	stored := &venue.StoredBlock{Block: &model.Block{ID: "b1", Translatable: true}, ItemName: "pricing.json"}
 	stored.SetSourceText("You can utilise the API here")
 
 	bs := newFakeBlockSource()

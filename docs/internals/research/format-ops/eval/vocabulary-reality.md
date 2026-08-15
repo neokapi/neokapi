@@ -50,7 +50,7 @@ Writers, however, round-trip on `Data`, not `Type`: `core/model/run.go:355-368` 
 - Markdown: `core/formats/markdown/reader.go:844-845` `block.Type = "heading"; block.Properties["level"] = strconv.Itoa(n.Level)`; also `"admonition-body"` (line 1102), `Properties["language"]` for code (1671).
 - OpenXML does **not** surface `pStyle` (Heading1 etc.) as block semantics at all — `core/formats/openxml/styles.go` uses paragraph styles only for run-property inheritance.
 - The only typed block-kind enum is JSX-specific: `core/model/run.go:30-41` `BlockContentType` (`jsx:element`, `jsx:attribute`, `js:t`).
-- `core/model/displayhint.go:1-9` defines `DisplayHint{Preview, Context, MaxLength, ContentType}` ("heading", "button", "paragraph") — but **no format reader sets it**; only `bowrain/connector/figma.go:164` and the sync converters (`bowrain/core/sync/convert.go:157`, `bowrain/core/client/sync_convert.go:219`).
+- `core/model/displayhint.go:1-9` defines `DisplayHint{Preview, Context, MaxLength, ContentType}` ("heading", "button", "paragraph") — but **no format reader sets it**; only `bowrain/connector/figma.go:164` and the sync converters (`core/venue/convert.go:157`, `bowrain/core/client/sync_convert.go:219`).
 
 ### Layers: structure only
 

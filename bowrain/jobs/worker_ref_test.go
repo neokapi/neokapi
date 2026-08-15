@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The worker's compare-and-swap, immediately before the writes it guards.
@@ -42,9 +42,9 @@ func declare(t *testing.T, deps *WorkerDeps, projectID, name, hash, owner string
 
 func TestAssertContextRef(t *testing.T) {
 	deps, projectID := newRefWorkerStore(t)
-	declare(t, deps, projectID, "docs", "h-docs", coresync.ContextOwnerRecipe)
+	declare(t, deps, projectID, "docs", "h-docs", venue.ContextOwnerRecipe)
 
-	inForce := coresync.ComputeContextHash(map[string]string{"docs": "h-docs"})
+	inForce := venue.ComputeContextHash(map[string]string{"docs": "h-docs"})
 
 	tests := []struct {
 		name     string
@@ -77,10 +77,10 @@ func TestAssertContextRef(t *testing.T) {
 // in the hub is not the recipe's, so it must not refuse a recipe's push.
 func TestAssertContextRef_IgnoresWorkspaceOwnedCollections(t *testing.T) {
 	deps, projectID := newRefWorkerStore(t)
-	declare(t, deps, projectID, "docs", "h-docs", coresync.ContextOwnerRecipe)
-	observed := ref.Ref{Context: coresync.ComputeContextHash(map[string]string{"docs": "h-docs"})}
+	declare(t, deps, projectID, "docs", "h-docs", venue.ContextOwnerRecipe)
+	observed := ref.Ref{Context: venue.ComputeContextHash(map[string]string{"docs": "h-docs"})}
 
-	declare(t, deps, projectID, "hub-only", "h-hub", coresync.ContextOwnerWorkspace)
+	declare(t, deps, projectID, "hub-only", "h-hub", venue.ContextOwnerWorkspace)
 	require.NoError(t, assertContextRef(t.Context(), deps, projectID, "main", observed))
 }
 
@@ -89,16 +89,16 @@ func TestAssertDecisionsRef(t *testing.T) {
 	ds, ok := deps.ContentStore.(store.DecisionStore)
 	require.True(t, ok)
 
-	first := store.UnitDecision{
+	first := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
 		Status: "reviewed", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
 	}
-	_, err := ds.UpsertUnitDecisions(t.Context(), projectID, "main", []store.UnitDecision{first})
+	_, err := ds.UpsertUnitDecisions(t.Context(), projectID, "main", []venue.UnitDecision{first})
 	require.NoError(t, err)
 
 	ledger, err := ds.ListUnitDecisions(t.Context(), projectID, "main")
 	require.NoError(t, err)
-	inForce := coresync.DecisionsComponent(ledger)
+	inForce := venue.DecisionsComponent(ledger)
 	require.NotEmpty(t, inForce)
 
 	require.NoError(t, assertDecisionsRef(t.Context(), ds, projectID, "main", ref.Ref{}))
@@ -108,7 +108,7 @@ func TestAssertDecisionsRef(t *testing.T) {
 	second := first
 	second.Unit = "farewell"
 	second.Updated = "2026-08-02T00:00:00Z"
-	_, err = ds.UpsertUnitDecisions(t.Context(), projectID, "main", []store.UnitDecision{second})
+	_, err = ds.UpsertUnitDecisions(t.Context(), projectID, "main", []venue.UnitDecision{second})
 	require.NoError(t, err)
 
 	var conflict *ref.Conflict
@@ -126,7 +126,7 @@ func TestClientLedgerFoldMatchesTheServers(t *testing.T) {
 	deps, projectID := newRefWorkerStore(t)
 	ds := deps.ContentStore.(store.DecisionStore)
 
-	sent := []store.UnitDecision{
+	sent := []venue.UnitDecision{
 		{ItemName: "en.json", Unit: "farewell", Variant: "fr", Status: "translated",
 			ReviewState: "approved", DecidedBy: "ben", Updated: "2026-08-02T00:00:00Z"},
 		{ItemName: "en.json", Unit: "greeting", Variant: "fr", Status: "reviewed",
@@ -137,5 +137,5 @@ func TestClientLedgerFoldMatchesTheServers(t *testing.T) {
 
 	stored, err := ds.ListUnitDecisions(t.Context(), projectID, "main")
 	require.NoError(t, err)
-	assert.Equal(t, coresync.DecisionsComponent(sent), coresync.DecisionsComponent(stored))
+	assert.Equal(t, venue.DecisionsComponent(sent), venue.DecisionsComponent(stored))
 }

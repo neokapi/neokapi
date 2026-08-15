@@ -1,4 +1,4 @@
-package sync
+package venue
 
 import (
 	"encoding/json"

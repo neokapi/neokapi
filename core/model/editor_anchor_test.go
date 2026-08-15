@@ -93,7 +93,7 @@ func TestEditorAnchor_JSONRoundTrip(t *testing.T) {
 
 // TestEditorAnchor_RegistryEnvelopeRoundTrip exercises the model's typed-payload
 // serialization contract — the {type,data} envelope plus model.NewPayload that
-// the wire (core/plugin/protoconvert) and store (bowrain/core/sync) layers use,
+// the wire (core/plugin/protoconvert) and store (core/venue) layers use,
 // because a plain json.Unmarshal cannot reconstruct the polymorphic Span.Value
 // interface. The concrete *EditorAnchor (and its optional Range) must survive.
 func TestEditorAnchor_RegistryEnvelopeRoundTrip(t *testing.T) {
@@ -191,7 +191,7 @@ func TestEditorAnchor_SurvivesBlockCopy(t *testing.T) {
 // that an editor anchor touches: the source runs (via Run's own JSON codec) and
 // the run-anchored overlay spans, each span's polymorphic Value carried as the
 // {type,data} typed-payload envelope. It mirrors the contract in
-// core/plugin/protoconvert and bowrain/core/sync so the round-trip below is the
+// core/plugin/protoconvert and core/venue so the round-trip below is the
 // same one a read→write→read across the wire/store performs.
 type blockJSONEnvelope struct {
 	ID       string           `json:"id"`

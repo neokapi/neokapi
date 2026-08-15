@@ -17,11 +17,11 @@ import (
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The freshness ref, end to end over a real content store: what the server
@@ -101,7 +101,7 @@ func (h *refHarness) declareCollection(t *testing.T, name, contextHash string) {
 		Name:        name,
 		Kind:        platstore.CollectionConnected,
 		Stream:      refTestStream,
-		Owner:       coresync.ContextOwnerRecipe,
+		Owner:       venue.ContextOwnerRecipe,
 		ContextHash: contextHash,
 	}))
 }
@@ -110,7 +110,7 @@ func (h *refHarness) declareCollection(t *testing.T, name, contextHash string) {
 func (h *refHarness) decide(t *testing.T, unit, reviewState string) {
 	t.Helper()
 	_, err := h.store.UpsertUnitDecisions(t.Context(), h.project.ID, refTestStream,
-		[]platstore.UnitDecision{{
+		[]venue.UnitDecision{{
 			ItemName: "docs/intro.md", Unit: unit, Variant: "fr",
 			Status: "reviewed", ReviewState: reviewState, DecidedBy: "ana",
 			Updated: "2026-08-01T00:00:00Z",
@@ -167,7 +167,7 @@ func TestSyncRef_ContextComponentIgnoresWorkspaceOwnedCollections(t *testing.T) 
 
 	require.NoError(t, h.store.CreateCollection(t.Context(), &platstore.Collection{
 		ProjectID: h.project.ID, Name: "hub-only", Kind: platstore.CollectionConnected,
-		Stream: refTestStream, Owner: coresync.ContextOwnerWorkspace, ContextHash: "hash-hub",
+		Stream: refTestStream, Owner: venue.ContextOwnerWorkspace, ContextHash: "hash-hub",
 	}))
 	assert.Equal(t, declared, h.currentRef(t).Context)
 }

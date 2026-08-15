@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,10 +14,10 @@ import (
 
 // storedBlock is a small helper to build a StoredBlock around a source-only
 // model.Block, mirroring what the content store hands the worker.
-func storedBlock(id, source string) *store.StoredBlock {
+func storedBlock(id, source string) *venue.StoredBlock {
 	b := model.NewBlock(id, source)
 	b.SourceLocale = "en"
-	return &store.StoredBlock{Block: b}
+	return &venue.StoredBlock{Block: b}
 }
 
 // seedMemoryEntry adds a single (en→fr) exact pair to the in-memory content memory.
@@ -41,7 +42,7 @@ func TestRecycleBlocks_FillsFromMemoryAndLeavesRemainder(t *testing.T) {
 	// "Hello" has a content-memory match; "Brand new string" does not.
 	seedMemoryEntry(t, tm, "Hello", "Bonjour")
 
-	blocks := []*store.StoredBlock{
+	blocks := []*venue.StoredBlock{
 		storedBlock("b1", "Hello"),
 		storedBlock("b2", "Brand new string"),
 	}
@@ -71,7 +72,7 @@ func TestRecycleBlocks_SkipsAlreadyTranslated(t *testing.T) {
 	done.Block.Targets = map[model.VariantKey]*model.Target{
 		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}},
 	}
-	res, err := recycleBlocks(ctx, tm, []*store.StoredBlock{done}, "en", "fr", 1.0)
+	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{done}, "en", "fr", 1.0)
 	require.NoError(t, err)
 	assert.Zero(t, res.memoryCount)
 	assert.Empty(t, res.filled)
@@ -96,13 +97,13 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	}
 	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
 
-	approval := store.UnitDecision{
+	approval := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
 		ReviewState: "approved", Status: "reviewed",
 		TargetHash: state.TargetHash("Bonjour"),
 		DecidedBy:  "reviewer@example.com",
 	}
-	promoted, evicted := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{approval})
+	promoted, evicted := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
 	assert.Equal(t, 1, promoted)
 	assert.Zero(t, evicted)
 	count, err := tm.Count(ctx)
@@ -110,7 +111,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Idempotent: the entry ID is content-derived.
-	promoted, _ = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{approval})
+	promoted, _ = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
 	assert.Equal(t, 1, promoted, "re-promotion upserts the same row")
 	count, err = tm.Count(ctx)
 	require.NoError(t, err)
@@ -119,7 +120,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	// A stale decision (blesses a different translation) moves nothing.
 	stale := approval
 	stale.TargetHash = state.TargetHash("Salut")
-	promoted, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{stale})
+	promoted, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{stale})
 	assert.Zero(t, promoted)
 	assert.Zero(t, evicted)
 
@@ -127,16 +128,16 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	rejection := approval
 	rejection.ReviewState = "rejected"
 	rejection.Status = "draft"
-	_, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{rejection})
+	_, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{rejection})
 	assert.Equal(t, 1, evicted)
 	count, err = tm.Count(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, count, "rejected wording leaves the corpus")
 
 	// Disabled paths are no-ops, never panics.
-	p, e := PromoteDecisionsToMemory(ctx, deps.ContentStore, nil, projectID, "main", "en", []store.UnitDecision{approval})
+	p, e := PromoteDecisionsToMemory(ctx, deps.ContentStore, nil, projectID, "main", "en", []venue.UnitDecision{approval})
 	assert.Zero(t, p+e)
-	p, e = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "", []store.UnitDecision{approval})
+	p, e = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "", []venue.UnitDecision{approval})
 	assert.Zero(t, p+e)
 }
 
@@ -180,7 +181,7 @@ func TestRecycleBlocks_FillsUnambiguousLeavesAmbiguous(t *testing.T) {
 		HintSrcLang: "en",
 	}))
 
-	blocks := []*store.StoredBlock{
+	blocks := []*venue.StoredBlock{
 		storedBlock("b1", "Hello"),
 		storedBlock("b2", "Goodbye"),
 	}

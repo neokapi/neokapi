@@ -1,19 +1,19 @@
-package sync_test
+package venue_test
 
 import (
 	"reflect"
 	"testing"
 
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
-	"github.com/neokapi/neokapi/bowrain/core/synctest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/core/venue/venuetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // This file is the durable content-model parity guard for the kapi↔bowrain sync
-// PUSH wire (the typed proto path, bowrain/core/sync). It round-trips the shared
-// kitchen-sink fixture (bowrain/core/synctest) — every Run kind, every Overlay
+// PUSH wire (the typed proto path, core/venue). It round-trips the shared
+// kitchen-sink fixture (core/venue/venuetest) — every Run kind, every Overlay
 // kind, multiple target variants, annotations, provenance, and every
 // scalar/struct field on model.Block — and asserts model → proto → model is
 // deep-equal to the original. A reflect-based completeness guard then fails
@@ -29,18 +29,18 @@ import (
 // deep-equal to the original for a Block with every field, run kind, and overlay
 // kind populated.
 func TestKitchenSinkRoundTrip(t *testing.T) {
-	orig := synctest.KitchenSinkBlock()
+	orig := venuetest.KitchenSinkBlock()
 
-	proto := bowsync.BlockToProto(orig, "kitchen.json")
+	proto := venue.BlockToProto(orig, "kitchen.json")
 	require.NotNil(t, proto)
 
-	got, err := bowsync.ProtoToBlock(proto)
+	got, err := venue.ProtoToBlock(proto)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
 	// Identity is derived (not carried); compare against a fresh fixture with it
 	// left nil on both sides.
-	want := synctest.KitchenSinkBlock()
+	want := venuetest.KitchenSinkBlock()
 	want.Identity = nil
 	got.Identity = nil
 
@@ -52,27 +52,27 @@ func TestKitchenSinkRoundTrip(t *testing.T) {
 // newly-added Run kind trips this until it is added to the fixture.
 func TestKitchenSinkCoversEveryRunKind(t *testing.T) {
 	present := map[model.RunKind]bool{}
-	for _, r := range synctest.KitchenSinkBlock().Source {
+	for _, r := range venuetest.KitchenSinkBlock().Source {
 		present[r.Kind()] = true
 	}
-	for _, k := range synctest.AllRunKinds {
+	for _, k := range venuetest.AllRunKinds {
 		assert.Truef(t, present[k], "kitchen-sink source must contain a %q run (add it + wire the converter)", k)
 	}
 	// Cross-check the enumerated table itself covers the model's discriminators:
 	// if this count drifts, model.RunKind gained a constant not in AllRunKinds.
-	assert.Len(t, synctest.AllRunKinds, 7, "AllRunKinds must enumerate every model.RunKind (add the new kind + converter arm)")
+	assert.Len(t, venuetest.AllRunKinds, 7, "AllRunKinds must enumerate every model.RunKind (add the new kind + converter arm)")
 }
 
 // TestKitchenSinkCoversEveryOverlayKind proves the fixture carries every overlay
 // kind and that each survives the round-trip with its type, anchors, props,
 // variant, and typed value intact.
 func TestKitchenSinkCoversEveryOverlayKind(t *testing.T) {
-	orig := synctest.KitchenSinkBlock()
+	orig := venuetest.KitchenSinkBlock()
 
-	got, err := bowsync.ProtoToBlock(bowsync.BlockToProto(orig, "kitchen.json"))
+	got, err := venue.ProtoToBlock(venue.BlockToProto(orig, "kitchen.json"))
 	require.NoError(t, err)
 
-	for _, kind := range synctest.AllOverlayKinds {
+	for _, kind := range venuetest.AllOverlayKinds {
 		var origOverlay, gotOverlay *model.Overlay
 		for i := range orig.Overlays {
 			if orig.Overlays[i].Type == kind {
@@ -113,7 +113,7 @@ func TestUnknownOverlayKindDegradesGracefully(t *testing.T) {
 		Value: &model.GenericAnnotation{Kind: "vendor:thing", Fields: map[string]any{"weight": "high"}},
 	})
 
-	got, err := bowsync.ProtoToBlock(bowsync.BlockToProto(b, "item.json"))
+	got, err := venue.ProtoToBlock(venue.BlockToProto(b, "item.json"))
 	require.NoError(t, err)
 
 	o := got.OverlayOf(model.OverlayType("x-plugin-marks"))
@@ -135,9 +135,9 @@ func TestUnknownOverlayKindDegradesGracefully(t *testing.T) {
 // this test, forcing the author to decide whether it must round-trip — and, if
 // so, to wire it through the .proto, the converter (both directions), and the
 // fixture. Fields that are intentionally derived (not carried) are allow-listed
-// in synctest.BlockDerivedFields with a stated reason.
+// in venuetest.BlockDerivedFields with a stated reason.
 func TestBlockFixtureIsComplete(t *testing.T) {
-	b := synctest.KitchenSinkBlock()
+	b := venuetest.KitchenSinkBlock()
 	v := reflect.ValueOf(*b)
 	typ := v.Type()
 
@@ -146,7 +146,7 @@ func TestBlockFixtureIsComplete(t *testing.T) {
 		if !field.IsExported() {
 			continue
 		}
-		if reason, ok := synctest.BlockDerivedFields[field.Name]; ok {
+		if reason, ok := venuetest.BlockDerivedFields[field.Name]; ok {
 			// Allow-listed: assert it is genuinely derived (left zero) so the
 			// list can't silently mask a field that IS being populated.
 			assert.Truef(t, v.Field(i).IsZero(),
@@ -155,7 +155,7 @@ func TestBlockFixtureIsComplete(t *testing.T) {
 			continue
 		}
 		assert.Falsef(t, v.Field(i).IsZero(),
-			"model.Block.%s is zero in the kitchen-sink fixture — a new Block field must be added to synctest.KitchenSinkBlock() AND carried by the sync converter (or allow-listed in synctest.BlockDerivedFields if derived). See content-parity.md.",
+			"model.Block.%s is zero in the kitchen-sink fixture — a new Block field must be added to venuetest.KitchenSinkBlock() AND carried by the sync converter (or allow-listed in venuetest.BlockDerivedFields if derived). See content-parity.md.",
 			field.Name)
 	}
 }
@@ -168,7 +168,7 @@ func TestBlockFixtureIsComplete(t *testing.T) {
 // a field added to it must be populated in the fixture (and therefore carried by
 // both converters) rather than quietly not carried.
 func TestOriginFixtureIsComplete(t *testing.T) {
-	b := synctest.KitchenSinkBlock()
+	b := venuetest.KitchenSinkBlock()
 
 	var populated *model.Origin
 	for _, tgt := range b.Targets {
@@ -188,7 +188,7 @@ func TestOriginFixtureIsComplete(t *testing.T) {
 			continue
 		}
 		assert.Falsef(t, v.Field(i).IsZero(),
-			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in synctest.KitchenSinkBlock() AND carried by both sync converters (bowrain/core/sync and bowrain/core/client). See content-parity.md.",
+			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in venuetest.KitchenSinkBlock() AND carried by both sync converters (core/venue and bowrain/core/client). See content-parity.md.",
 			field.Name)
 	}
 }

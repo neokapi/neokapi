@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

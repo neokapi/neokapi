@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -290,7 +291,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	}
 	// A push carries source only; the target is already stored.
 	storeSource("Hello", true)
-	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),
@@ -370,7 +371,7 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 
 	// The record predates the basis: no ContentHash at all.
-	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),
@@ -424,7 +425,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 
 	ds, ok := srv.ContentStore.(platstore.DecisionStore)
 	require.True(t, ok)
-	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),

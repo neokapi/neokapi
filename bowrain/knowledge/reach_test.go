@@ -14,11 +14,12 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // withTarget attaches a committed translation to a block so the reach split can
 // count the work a change would pull back or invalidate.
-func withTarget(b *store.StoredBlock, locale model.LocaleID, text string, status model.TargetStatus) *store.StoredBlock {
+func withTarget(b *venue.StoredBlock, locale model.LocaleID, text string, status model.TargetStatus) *venue.StoredBlock {
 	if b.Targets == nil {
 		b.Targets = map[model.VariantKey]*model.Target{}
 	}

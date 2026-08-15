@@ -11,6 +11,7 @@ import (
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/occurrence"
 	fwproject "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/venue"
 	fwterms "github.com/neokapi/neokapi/terms"
 )
 
@@ -225,7 +226,7 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 	if err != nil {
 		return nil, fmt.Errorf("materialize context graph: read blocks: %w", err)
 	}
-	index := make(map[string]*platstore.StoredBlock, len(stored))
+	index := make(map[string]*venue.StoredBlock, len(stored))
 	for _, sb := range stored {
 		if sb == nil || sb.SourceID == "" {
 			continue
