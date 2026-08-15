@@ -2360,7 +2360,7 @@ export interface ConnectorStatusBatch {
 
 /**
  * One item a connector can see, for the read-only content browser. This is a
- * verbatim mirror of the Go `core/connector.ContentItem` struct, which the
+ * verbatim mirror of the Go `bowrain/core/connector.ContentItem` struct, which the
  * server marshals with NO json tags — so keys are PascalCase, not camelCase.
  * On a listing `Blocks` is null (List does not fetch content) and `LastChanged`
  * is an RFC3339 string. The desktop maps its ContentItemInfo binding into the

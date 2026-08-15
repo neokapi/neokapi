@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	venueauth "github.com/neokapi/neokapi/host/venue/auth"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
@@ -96,14 +98,14 @@ type oidcAuthParams struct {
 // newOIDCAuthParams generates fresh PKCE, nonce, and state values for an
 // OIDC authorization redirect.
 func newOIDCAuthParams() (*oidcAuthParams, error) {
-	verifier, err := platformAuth.GenerateCodeVerifier()
+	verifier, err := venueauth.GenerateCodeVerifier()
 	if err != nil {
 		return nil, fmt.Errorf("generate PKCE verifier: %w", err)
 	}
 	return &oidcAuthParams{
 		State:        randomHex(16),
 		CodeVerifier: verifier,
-		Challenge:    platformAuth.ComputeCodeChallenge(verifier),
+		Challenge:    venueauth.ComputeCodeChallenge(verifier),
 		Nonce:        randomHex(16),
 	}, nil
 }
@@ -149,7 +151,7 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 
 	baseURL := requestBaseURL(c)
 
-	return c.JSON(http.StatusOK, platformAuth.DeviceAuthResponse{
+	return c.JSON(http.StatusOK, venueauth.DeviceAuthResponse{
 		DeviceCode:      deviceCode,
 		UserCode:        userCode,
 		VerificationURI: baseURL + "/device/verify",
@@ -212,7 +214,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	_ = sessionDelete(ctx, s.SessionStore, prefixDeviceCode, deviceCode)
 	_ = s.SessionStore.Delete(ctx, prefixUserCode+entry.UserCode)
 
-	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
+	return c.JSON(http.StatusOK, venueauth.TokenResponse{
 		AccessToken:  token,
 		TokenType:    "Bearer",
 		ExpiresIn:    900,
@@ -1138,7 +1140,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	// echoing them in the JS-readable body would hand any XSS a fresh 30-day
 	// refresh token to exfiltrate, cookie HttpOnly-ness notwithstanding. Only the
 	// CLI/desktop (body) path, which has no cookie jar, receives them in the body.
-	resp := platformAuth.TokenResponse{
+	resp := venueauth.TokenResponse{
 		TokenType: "Bearer",
 		ExpiresIn: 900,
 	}

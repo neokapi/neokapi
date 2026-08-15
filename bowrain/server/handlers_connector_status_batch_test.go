@@ -10,9 +10,10 @@ import (
 	"testing"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,7 +110,7 @@ func TestHandleConnectorStatusBatch(t *testing.T) {
 		require.NoError(t, s.HandleConnectorStatus(c))
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		var one connector.SyncStatus
+		var one venueconn.SyncStatus
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &one))
 		assert.Equal(t, &one, post(t, "?ids="+second).Statuses[second])
 	})

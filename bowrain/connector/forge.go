@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
@@ -243,10 +245,10 @@ func (c *ForgeConnector) RepoPath() string { return c.repo.Path }
 // convergence and the one deliveries merge into.
 func (c *ForgeConnector) BaseBranch() string { return c.git.branch }
 
-func (c *ForgeConnector) ID() string                  { return c.git.ID() }
-func (c *ForgeConnector) Name() string                { return c.git.Name() }
-func (c *ForgeConnector) Category() platconn.Category { return platconn.CategoryCode }
-func (c *ForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *ForgeConnector) ID() string                   { return c.git.ID() }
+func (c *ForgeConnector) Name() string                 { return c.git.Name() }
+func (c *ForgeConnector) Category() venueconn.Category { return venueconn.CategoryCode }
+func (c *ForgeConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	// Status probes the remote (clone/pull + list), so it needs the same
 	// per-call credential as Fetch/List — without it, app-mode status of a
 	// private repository fails on every poll.

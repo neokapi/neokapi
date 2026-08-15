@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )

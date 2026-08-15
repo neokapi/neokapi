@@ -15,7 +15,7 @@ import (
 )
 
 // convergenceRunView is the REST shape of a run — the JSON the kapi-bowrain
-// client (bowrain/core/client.ConvergenceRun) decodes. It renames the stored
+// client (host/venue/client.ConvergenceRun) decodes. It renames the stored
 // `standing` to `locales` and carries RFC3339 timestamps.
 type convergenceRunView struct {
 	ID            string                             `json:"id"`

@@ -2,7 +2,7 @@ package backend
 
 import "github.com/neokapi/neokapi/bowrain/editorclient"
 
-// This file converts between the bowrain/core/client editor types (which mirror
+// This file converts between the host/venue/client editor types (which mirror
 // the server REST shapes, carrying canonical core/model.Run for block content)
 // and the frontend-facing *Info types the Wails bindings expose. It is the one
 // place the desktop translates the REST editor surface into its presentation

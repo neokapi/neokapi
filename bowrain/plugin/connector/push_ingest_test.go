@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

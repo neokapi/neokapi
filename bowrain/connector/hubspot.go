@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
@@ -72,9 +74,9 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 	}, nil
 }
 
-func (c *HubSpotConnector) ID() string                  { return c.id }
-func (c *HubSpotConnector) Name() string                { return c.connName }
-func (c *HubSpotConnector) Category() platconn.Category { return platconn.CategoryMarketing }
+func (c *HubSpotConnector) ID() string                   { return c.id }
+func (c *HubSpotConnector) Name() string                 { return c.connName }
+func (c *HubSpotConnector) Category() venueconn.Category { return venueconn.CategoryMarketing }
 
 func (c *HubSpotConnector) Configure(config map[string]string) error {
 	maps.Copy(c.config, config)
@@ -170,12 +172,12 @@ func (c *HubSpotConnector) List(ctx context.Context) ([]*platconn.ContentItem, e
 	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *HubSpotConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *HubSpotConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &platconn.SyncStatus{
+	return &venueconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

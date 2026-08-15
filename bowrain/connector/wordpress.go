@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/model"
@@ -75,9 +77,9 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 	}, nil
 }
 
-func (c *WordPressConnector) ID() string                  { return c.id }
-func (c *WordPressConnector) Name() string                { return c.connName }
-func (c *WordPressConnector) Category() platconn.Category { return platconn.CategoryCMS }
+func (c *WordPressConnector) ID() string                   { return c.id }
+func (c *WordPressConnector) Name() string                 { return c.connName }
+func (c *WordPressConnector) Category() venueconn.Category { return venueconn.CategoryCMS }
 
 func (c *WordPressConnector) Configure(config map[string]string) error {
 	maps.Copy(c.config, config)
@@ -166,12 +168,12 @@ func (c *WordPressConnector) List(ctx context.Context) ([]*platconn.ContentItem,
 	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *WordPressConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *WordPressConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &platconn.SyncStatus{
+	return &venueconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/host/venue/client"
 )
 
 // This file adds the real-time editor surface — block review, presence

@@ -3,6 +3,8 @@ package connector
 import (
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -80,7 +82,7 @@ func TestRegisterLocalOffersFilesystemConnectors(t *testing.T) {
 	c, err := reg.NewConnector("file", map[string]string{"path": t.TempDir()})
 	require.NoError(t, err)
 	require.NotNil(t, c)
-	assert.Equal(t, platconn.CategoryFile, c.Category())
+	assert.Equal(t, venueconn.CategoryFile, c.Category())
 }
 
 // TestRegisterRemoteIsFilesystemFree: the desktop app's registry, which is

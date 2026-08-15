@@ -4,9 +4,9 @@ import (
 	"errors"
 	"slices"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/convergence"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // runAccumulator rolls a server run's convergence.Event stream up into the same

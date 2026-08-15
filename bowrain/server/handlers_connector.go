@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -56,13 +58,13 @@ type connectorInfo struct {
 	ID       string             `json:"id"`
 	Type     string             `json:"type"`
 	Name     string             `json:"name"`
-	Category connector.Category `json:"category"`
+	Category venueconn.Category `json:"category"`
 	Config   map[string]string  `json:"config,omitempty"`
 }
 
 // connectorCategory resolves a connector type to its category via the registry.
 // Returns "" for an unknown type.
-func (s *Server) connectorCategory(connectorType string) connector.Category {
+func (s *Server) connectorCategory(connectorType string) venueconn.Category {
 	if s.ConnectorReg == nil {
 		return ""
 	}
@@ -435,7 +437,7 @@ const maxConnectorStatusBatch = 100
 // element the per-connector route returns; `unknown` names the ids neither the
 // live service nor the config store could answer.
 type ConnectorStatusBatchResponse struct {
-	Statuses map[string]*connector.SyncStatus `json:"statuses"`
+	Statuses map[string]*venueconn.SyncStatus `json:"statuses"`
 	Unknown  []string                         `json:"unknown"`
 }
 
@@ -465,7 +467,7 @@ func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
 	probe := boolParam(c, "probe")
 	ctx := c.Request().Context()
 
-	statuses := make(map[string]*connector.SyncStatus, len(ids))
+	statuses := make(map[string]*venueconn.SyncStatus, len(ids))
 	unknown := []string{}
 	for _, connID := range ids {
 		if _, done := statuses[connID]; done {
@@ -494,7 +496,7 @@ func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
 // would otherwise 404 every poll and the recorded last_error (with the failed
 // import behind it) would never reach the client. An error is returned only
 // when the probe failed AND no stored row exists.
-func (s *Server) connectorStatus(ctx context.Context, wsID, connID string, probe bool) (*connector.SyncStatus, error) {
+func (s *Server) connectorStatus(ctx context.Context, wsID, connID string, probe bool) (*venueconn.SyncStatus, error) {
 	var cfg *bstore.ConnectorConfig
 	if s.ConnectorConfigStore != nil {
 		if got, cfgErr := s.ConnectorConfigStore.Get(ctx, wsID, connID); cfgErr == nil {
@@ -534,8 +536,8 @@ func (s *Server) connectorStatus(ctx context.Context, wsID, connID string, probe
 
 // storedConnectorStatus projects a stored connector row onto a sync status: the
 // authoritative last-sync time plus whatever the last ingest recorded.
-func storedConnectorStatus(connID string, cfg *bstore.ConnectorConfig) *connector.SyncStatus {
-	status := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
+func storedConnectorStatus(connID string, cfg *bstore.ConnectorConfig) *venueconn.SyncStatus {
+	status := &venueconn.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
 	if cfg.LastError != "" {
 		status.Errors = append(status.Errors, cfg.LastError)
 	}

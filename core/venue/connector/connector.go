@@ -1,16 +1,12 @@
-// Package connector defines the interfaces for external content system
-// integration. Two distinct connector perspectives require two interfaces:
+// Package connector defines the contract a content source implements to
+// exchange content with a venue: identity and lifecycle, and the Push/Pull
+// operations named from the source system's perspective.
 //
-// IntegrationConnector: Server-side connectors that Bowrain reaches into
-// (WordPress, Figma, HubSpot, filesystem, Git). Uses Fetch/Publish terminology
-// from Bowrain's perspective.
-//
-// SourceConnector: Client-side connectors that push content TO Bowrain
-// (kapi CLI). Uses Push/Pull terminology from the source system's perspective.
-//
-// The two are disjoint: no type in one perspective is referenced by the other.
-// What they share is the identity and lifecycle in this file, which both
-// interfaces embed.
+// A connector is implemented by whatever holds the content — a checkout, a CI
+// job, a directory — and is driven by the project side of the exchange, so the
+// contract belongs beside the wire it speaks rather than beside any one venue.
+// The dispatch that runs a connector out of process claims the same four op
+// names (host/pluginhost.SourceConnectorOpsClaimed).
 package connector
 
 import (

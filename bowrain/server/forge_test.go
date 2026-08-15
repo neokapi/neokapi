@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -55,14 +57,14 @@ type stubForgeConnector struct {
 
 func (f *stubForgeConnector) ID() string                               { return f.id }
 func (f *stubForgeConnector) Name() string                             { return "stub" }
-func (f *stubForgeConnector) Category() platconn.Category              { return platconn.CategoryCode }
+func (f *stubForgeConnector) Category() venueconn.Category             { return venueconn.CategoryCode }
 func (f *stubForgeConnector) Configure(config map[string]string) error { return nil }
 func (f *stubForgeConnector) Close() error                             { return nil }
-func (f *stubForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (f *stubForgeConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	if f.statusErr != nil {
 		return nil, f.statusErr
 	}
-	return &platconn.SyncStatus{}, nil
+	return &venueconn.SyncStatus{}, nil
 }
 func (f *stubForgeConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	f.fetched++
@@ -112,7 +114,7 @@ func newForgeTestServer(t *testing.T, cfgID, projectID, secret string) (*Server,
 
 	reg := platconn.NewRegistry()
 	stub := &stubForgeConnector{id: cfgID}
-	reg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	reg.Register("forge", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		// The shared stub serves the harness's pinned connector; anything else
 		// (e.g. a setup-flow bind) gets its own identity, mirroring how the
 		// real constructor derives ids — a pinned-id stub would collide with

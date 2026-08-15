@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
@@ -31,7 +33,7 @@ type freshItemsConnector struct {
 
 func (c *freshItemsConnector) ID() string                   { return c.id }
 func (c *freshItemsConnector) Name() string                 { return "test" }
-func (c *freshItemsConnector) Category() connector.Category { return connector.CategoryFile }
+func (c *freshItemsConnector) Category() venueconn.Category { return venueconn.CategoryFile }
 func (c *freshItemsConnector) Fetch(_ context.Context, _ connector.FetchOptions) ([]*connector.ContentItem, error) {
 	return c.make(), nil
 }
@@ -41,8 +43,8 @@ func (c *freshItemsConnector) Publish(_ context.Context, _ []*connector.ContentI
 func (c *freshItemsConnector) List(_ context.Context) ([]*connector.ContentItem, error) {
 	return c.make(), nil
 }
-func (c *freshItemsConnector) Status(_ context.Context) (*connector.SyncStatus, error) {
-	return &connector.SyncStatus{ConnectorID: c.id}, nil
+func (c *freshItemsConnector) Status(_ context.Context) (*venueconn.SyncStatus, error) {
+	return &venueconn.SyncStatus{ConnectorID: c.id}, nil
 }
 func (c *freshItemsConnector) Configure(_ map[string]string) error { return nil }
 func (c *freshItemsConnector) Close() error                        { return nil }
@@ -65,7 +67,7 @@ func TestConnectorServiceFetch_CreatesItemBookkeeping(t *testing.T) {
 	// silently clobbered one file's block with the other's. Items are built
 	// FRESH per Fetch, like a real connector re-reading its source.
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &freshItemsConnector{
 			id: "test-1",
 			make: func() []*connector.ContentItem {

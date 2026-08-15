@@ -8,7 +8,7 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as client$0 from "../../../core/client/models.js";
+import * as client$0 from "../../../../host/venue/client/models.js";
 
 /**
  * AddChangesetOpArgs is the body of POST /changesets/:id/ops

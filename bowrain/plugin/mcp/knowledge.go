@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // This file adds MCP tools that read the workspace brand knowledge graph

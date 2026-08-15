@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -19,7 +21,7 @@ type testConnector struct {
 
 func (c *testConnector) ID() string                   { return c.id }
 func (c *testConnector) Name() string                 { return "test" }
-func (c *testConnector) Category() connector.Category { return connector.CategoryFile }
+func (c *testConnector) Category() venueconn.Category { return venueconn.CategoryFile }
 func (c *testConnector) Fetch(_ context.Context, _ connector.FetchOptions) ([]*connector.ContentItem, error) {
 	return c.items, nil
 }
@@ -29,8 +31,8 @@ func (c *testConnector) Publish(_ context.Context, _ []*connector.ContentItem, _
 func (c *testConnector) List(_ context.Context) ([]*connector.ContentItem, error) {
 	return c.items, nil
 }
-func (c *testConnector) Status(_ context.Context) (*connector.SyncStatus, error) {
-	return &connector.SyncStatus{ConnectorID: c.id, ItemCount: len(c.items)}, nil
+func (c *testConnector) Status(_ context.Context) (*venueconn.SyncStatus, error) {
+	return &venueconn.SyncStatus{ConnectorID: c.id, ItemCount: len(c.items)}, nil
 }
 func (c *testConnector) Configure(_ map[string]string) error { return nil }
 func (c *testConnector) Close() error                        { return nil }
@@ -38,7 +40,7 @@ func (c *testConnector) Close() error                        { return nil }
 func TestConnectorServiceAddRemove(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{id: "test-1"}, nil
 	})
 
@@ -64,7 +66,7 @@ func TestConnectorServiceAddRemove(t *testing.T) {
 func TestConnectorServiceWorkspaceScoping(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{id: "wp-shared-id"}, nil
 	})
 	svc := NewConnectorService(s, reg)
@@ -108,7 +110,7 @@ func TestConnectorServiceFetch(t *testing.T) {
 	require.NoError(t, s.CreateProject(ctx, p))
 
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{
 			id: "test-1",
 			items: []*connector.ContentItem{{
@@ -136,7 +138,7 @@ func TestConnectorServiceFetch(t *testing.T) {
 func TestConnectorServiceStatus(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{
 			id:    "test-1",
 			items: []*connector.ContentItem{{ID: "a"}, {ID: "b"}},

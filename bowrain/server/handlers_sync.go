@@ -15,7 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
@@ -25,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/storage/compression"
 	"github.com/neokapi/neokapi/core/venue"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // The sync handlers scope to a stream via refParam (editor.go): every sync

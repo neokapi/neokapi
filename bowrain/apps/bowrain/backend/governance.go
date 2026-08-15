@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // governance.go is the desktop's REST proxy for the bowrain-server governance

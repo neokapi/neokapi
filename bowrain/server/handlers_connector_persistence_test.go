@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	bconn "github.com/neokapi/neokapi/bowrain/connector"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -211,7 +213,7 @@ func TestListConnectorsRedactsSecretsFromPersistedSet(t *testing.T) {
 	require.Len(t, list, 1)
 	assert.Equal(t, "hubspot", list[0].Type)
 	assert.Equal(t, "Marketing", list[0].Name)
-	assert.Equal(t, platconn.CategoryMarketing, list[0].Category, "category is enriched from the registry")
+	assert.Equal(t, venueconn.CategoryMarketing, list[0].Category, "category is enriched from the registry")
 	assert.Contains(t, list[0].Config, "api_key", "the secret key is present so the UI knows it is set")
 	assert.Empty(t, list[0].Config["api_key"], "the secret value is redacted")
 
@@ -234,7 +236,7 @@ type recordingConnector struct {
 
 func (r *recordingConnector) ID() string                        { return r.id }
 func (r *recordingConnector) Name() string                      { return r.id }
-func (r *recordingConnector) Category() platconn.Category       { return platconn.CategoryCMS }
+func (r *recordingConnector) Category() venueconn.Category      { return venueconn.CategoryCMS }
 func (r *recordingConnector) Configure(map[string]string) error { return nil }
 func (r *recordingConnector) Close() error                      { return nil }
 func (r *recordingConnector) Fetch(ctx context.Context, _ platconn.FetchOptions) ([]*platconn.ContentItem, error) {
@@ -245,8 +247,8 @@ func (r *recordingConnector) Publish(context.Context, []*platconn.ContentItem, p
 	return nil
 }
 func (r *recordingConnector) List(context.Context) ([]*platconn.ContentItem, error) { return nil, nil }
-func (r *recordingConnector) Status(context.Context) (*platconn.SyncStatus, error) {
-	return &platconn.SyncStatus{ConnectorID: r.id}, nil
+func (r *recordingConnector) Status(context.Context) (*venueconn.SyncStatus, error) {
+	return &venueconn.SyncStatus{ConnectorID: r.id}, nil
 }
 
 func TestFetchPrefersPathIDOverBody(t *testing.T) {
@@ -254,7 +256,7 @@ func TestFetchPrefersPathIDOverBody(t *testing.T) {
 	const wsID = "ws-1"
 
 	var fetched []string
-	s.ConnectorReg.Register("stub", platconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	s.ConnectorReg.Register("stub", venueconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return &recordingConnector{id: config["id"], record: func(id string) { fetched = append(fetched, id) }}, nil
 	})
 
@@ -288,7 +290,7 @@ type listingConnector struct {
 
 func (l *listingConnector) ID() string                        { return l.id }
 func (l *listingConnector) Name() string                      { return l.id }
-func (l *listingConnector) Category() platconn.Category       { return platconn.CategoryCMS }
+func (l *listingConnector) Category() venueconn.Category      { return venueconn.CategoryCMS }
 func (l *listingConnector) Configure(map[string]string) error { return nil }
 func (l *listingConnector) Close() error                      { return nil }
 func (l *listingConnector) Fetch(context.Context, platconn.FetchOptions) ([]*platconn.ContentItem, error) {
@@ -300,8 +302,8 @@ func (l *listingConnector) Publish(context.Context, []*platconn.ContentItem, pla
 func (l *listingConnector) List(context.Context) ([]*platconn.ContentItem, error) {
 	return l.items, nil
 }
-func (l *listingConnector) Status(context.Context) (*platconn.SyncStatus, error) {
-	return &platconn.SyncStatus{ConnectorID: l.id}, nil
+func (l *listingConnector) Status(context.Context) (*venueconn.SyncStatus, error) {
+	return &venueconn.SyncStatus{ConnectorID: l.id}, nil
 }
 
 // connContentCtx builds an echo context for a workspace-member caller hitting the
@@ -329,7 +331,7 @@ func TestConnectorContentListsItems(t *testing.T) {
 		{ID: "home", Path: "/home", Name: "Home", Format: "html"},
 		{ID: "about", Path: "/about", Name: "About", Format: "html"},
 	}
-	s.ConnectorReg.Register("listing", platconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	s.ConnectorReg.Register("listing", venueconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return &listingConnector{id: config["id"], items: items}, nil
 	})
 	_, err := s.Services.Connector.AddConnector(wsID, "listing", map[string]string{"id": "wp-1"})

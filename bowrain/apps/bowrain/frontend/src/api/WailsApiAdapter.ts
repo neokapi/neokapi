@@ -1072,7 +1072,7 @@ export class WailsApiAdapter implements ApiAdapter {
     // and queues the operation for replay when offline (backend/offlineop.go).
     // Desktop mode is stream-unaware by design: the entire desktop editor
     // surface is pinned to the "main" stream (editorRef in
-    // bowrain/core/client/editor.go), so the adapter accepts and ignores the
+    // bowrain/editorclient/editor.go), so the adapter accepts and ignores the
     // stream parameter — same as rollbackBlock/getBlockHistory above. The
     // demotion rung only applies to a clearing call (reviewed=false).
     return Backend.ReviewBlock(

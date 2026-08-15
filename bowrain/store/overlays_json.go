@@ -13,7 +13,7 @@ import (
 // dropped on the next GetBlocks.
 //
 // The JSON codec is the canonical one in core/venue, shared with the
-// REST sync-pull projection (bowrain/core/client) so the overlay wire shape is
+// REST sync-pull projection (host/venue/client) so the overlay wire shape is
 // defined once rather than mirrored per consumer. These wrappers keep the
 // store's historical MarshalOverlays/UnmarshalOverlays call sites and the
 // byte-stable "[]" column default unchanged.

@@ -10,7 +10,7 @@ import (
 )
 
 // ProjectWatcher subscribes to a project's change-event stream over the server's
-// /:ws/events SSE relay (via bowrain/core/client) and fans each event out to the
+// /:ws/events SSE relay (via host/venue/client) and fans each event out to the
 // frontend. It replaces the former gRPC WatchProject stream; the same relay
 // backs the web app's useWorkspaceEvents.
 type ProjectWatcher struct {

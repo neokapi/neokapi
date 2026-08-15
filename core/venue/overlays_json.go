@@ -12,7 +12,7 @@ import (
 // positional, run-anchored layers (segmentation, term, entity, term-candidate,
 // qa, alignment, and any plugin-defined type) that ride alongside a block's
 // source runs. It lives in the framework-only bowrain/core module so BOTH the
-// JSON sync-pull projection (bowrain/core/client) and the server-side content
+// JSON sync-pull projection (host/venue/client) and the server-side content
 // store (bowrain/store, which may import bowrain/core) share one implementation
 // rather than mirroring it — the store delegates here.
 //

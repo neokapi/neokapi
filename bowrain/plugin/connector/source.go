@@ -19,9 +19,6 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
-	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -34,7 +31,10 @@ import (
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/venue"
+	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 )
 
 // Project is re-exported so callers can keep typing connector.Project.

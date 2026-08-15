@@ -188,7 +188,7 @@ func TestOriginFixtureIsComplete(t *testing.T) {
 			continue
 		}
 		assert.Falsef(t, v.Field(i).IsZero(),
-			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in venuetest.KitchenSinkBlock() AND carried by both sync converters (core/venue and bowrain/core/client). See content-parity.md.",
+			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in venuetest.KitchenSinkBlock() AND carried by both sync converters (core/venue and host/venue/client). See content-parity.md.",
 			field.Name)
 	}
 }

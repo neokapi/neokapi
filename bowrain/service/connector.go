@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -240,7 +242,7 @@ func (s *ConnectorService) Publish(ctx context.Context, workspaceID, connectorID
 }
 
 // ConnectorStatus returns the sync status for a connector.
-func (s *ConnectorService) ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*connector.SyncStatus, error) {
+func (s *ConnectorService) ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*venueconn.SyncStatus, error) {
 	c, err := s.lookup(workspaceID, connectorID)
 	if err != nil {
 		return nil, err

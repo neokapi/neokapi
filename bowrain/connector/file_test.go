@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
@@ -28,7 +30,7 @@ func setupFileConnector(t *testing.T, dir string) *FileConnector {
 func TestFileConnectorIdentity(t *testing.T) {
 	c := setupFileConnector(t, ".")
 	assert.Equal(t, "test-file", c.ID())
-	assert.Equal(t, platconn.CategoryFile, c.Category())
+	assert.Equal(t, venueconn.CategoryFile, c.Category())
 	assert.NoError(t, c.Close())
 }
 

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
@@ -20,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	clioutput "github.com/neokapi/neokapi/host/output"
 )
 

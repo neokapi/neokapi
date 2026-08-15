@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // goOffline transitions the app to offline state and starts the reconnection goroutine.
