@@ -33,7 +33,6 @@ GOTAGS="${GOTAGS:-fts5}"
 # Modules covered, longest path first so file→module assignment can take the
 # first prefix match. Keep in sync with go.work (minus the exclusions above).
 MODULES=(
-  bowrain/plugin/schema
   bowrain/plugin
   bowrain/core
   bowrain/cli
@@ -52,10 +51,9 @@ fallback_pkgs() {
     cli) echo "./" ;;
     kapi) echo "./preset" ;;
     bowrain) echo "./service" ;;
-    bowrain/core) echo "./project" ;;
+    bowrain/core) echo "./store" ;;
     bowrain/cli) echo "./cmd/kapi-bowrain" ;;
     bowrain/plugin) echo "./" ;;
-    bowrain/plugin/schema) echo "./" ;;
   esac
 }
 
