@@ -414,7 +414,12 @@ jobs:
           done < dist/checksums.txt
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
-          CERT_ID="https://github.com/${REPO}/.github/workflows/release-bowrain.yml@refs/tags/${REF_NAME}"
+          # See release.yml's registry step: Fulcio's SAN is the OIDC
+          # `job_workflow_ref` claim — this workflow file at the ref the run
+          # resolved it from — which is refs/tags/<tag> on a tag push and the
+          # coordinator's ref under release-coordinated.yml's workflow_call.
+          # $GITHUB_REF is that ref in both modes.
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-bowrain.yml@${GITHUB_REF}"
           RELEASED="$(date -u +%Y-%m-%d)"
           ISSUER="https://token.actions.githubusercontent.com"
 
@@ -988,6 +993,7 @@ jobs:
       # registry repo. No-ops until the updater signing key + registry token
       # are configured.
       - name: Publish updater appcast (macOS)
+        id: appcast
         # Non-blocking: the cask's .dmg is already uploaded to the release above,
         # so a registry git stall here (a known macOS-runner connect-phase hang)
         # must never block cask publication or zombie the runner for hours. The
@@ -1011,6 +1017,23 @@ jobs:
           fi
           bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
             bowrain/apps/bowrain/bin/Bowrain.app darwin arm64
+
+      # continue-on-error keeps the release moving, and would otherwise leave a
+      # green job whose in-app-update feed never published — indistinguishable,
+      # from the outside, from "no update available". Say so where the release is
+      # read.
+      - name: Report a skipped macOS update feed
+        if: always() && steps.appcast.outcome == 'failure'
+        env:
+          REF_NAME: ${{ needs.setup.outputs.tag }}
+        run: |
+          echo "::error::The macOS in-app-update feed did not publish for ${REF_NAME}. The release itself is complete; re-run this job, or re-publish the feed by hand, before Bowrain users on macOS can update in place."
+          {
+            echo "### macOS update feed not published"
+            echo
+            echo "\`appcast-bowrain-darwin-arm64*.xml\` was not refreshed for \`${REF_NAME}\`."
+            echo "Existing installs will not be offered this version until it is."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Windows: Create ZIP
       - name: Create ZIP

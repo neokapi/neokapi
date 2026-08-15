@@ -79,10 +79,55 @@ base_branch() {
   printf '%s\n' "$ref"
 }
 
+# open_new_pr opens the pull request for a freshly pushed bot branch, and says
+# something usable when it cannot.
+#
+# The commit is already on the remote by this point, so a refused `gh pr create`
+# means the content was delivered and only the announcement is missing — a
+# distinction the raw `gh` error does not draw. The common refusal is the
+# repository's own "Allow GitHub Actions to create and approve pull requests"
+# setting, which is off here; `bot/release-downloads-kapi` sat at a stale release
+# for a fortnight behind exactly that, with the install page promising links the
+# branch already had. So: name the cause when it is that one, hand over the
+# compare URL either way, and still fail — an unopened pull request is nobody's
+# dashboard, and a green run would repeat the fortnight.
+open_new_pr() {
+  local branch="$1" title="$2" base err
+  base="$(base_branch)"
+  err="$(mktemp)"
+
+  if gh pr create --head "$branch" --base "$base" \
+    --title "$title" --body "$(pr_body)" 2>"$err"; then
+    rm -f "$err"
+    return 0
+  fi
+  cat "$err" >&2
+
+  local compare="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-neokapi/neokapi}/compare/${base}...${branch}?expand=1"
+  local cause="Opening it failed; the branch itself is pushed and current."
+  if grep -qi 'not permitted to create.*pull request' "$err"; then
+    cause="GitHub Actions is not permitted to open pull requests in this repository (Settings → Actions → General → Workflow permissions). The branch itself is pushed and current."
+  fi
+  rm -f "$err"
+
+  echo "::error::${title}: the change is on ${branch} but has no pull request. ${cause} Open it at ${compare}"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    {
+      echo "### Delivered to \`${branch}\`, not yet opened"
+      echo
+      echo "${cause}"
+      echo
+      echo "[Open the pull request](${compare})"
+    } >> "$GITHUB_STEP_SUMMARY"
+  fi
+  return 1
+}
+
 # ── the flow ─────────────────────────────────────────────────────────────────
 #
-# Returns 0 whether or not a pull request was opened: nothing to deliver is a
-# successful run, not a silent failure.
+# Nothing to deliver is a successful run, not a silent failure, so a quiet stream
+# returns 0. A delivery that reached the branch but could not be opened as a pull
+# request returns non-zero — see open_new_pr.
 auto_pr() {
   local branch="$1" title="$2"
   shift 2
@@ -124,7 +169,7 @@ auto_pr() {
     echo "auto-pr: refreshed pull request #${open_pr} on ${branch}."
     gh pr comment "$open_pr" --body "Refreshed by run ${GITHUB_RUN_ID:-local} (force-push)."
   else
-    gh pr create --head "$branch" --base "$(base_branch)" --title "$title" --body "$(pr_body)"
+    open_new_pr "$branch" "$title"
   fi
   # The commit stays on the local (usually detached) checkout; only the bot
   # branch carries it remotely.
@@ -139,7 +184,9 @@ auto_pr() {
 SELFTEST_STATUS=0
 
 # stub_gh installs a `gh` on PATH that logs every invocation to $GH_LOG and
-# answers `gh pr list` with the contents of $GH_OPEN_PR.
+# answers `gh pr list` with the contents of $GH_OPEN_PR. With $GH_CREATE_REFUSED
+# non-empty, `gh pr create` refuses the way a repository that forbids Actions
+# pull requests refuses — on stderr, non-zero.
 stub_gh() {
   local bin="$1/bin"
   mkdir -p "$bin"
@@ -148,6 +195,10 @@ stub_gh() {
 printf '%s\n' "$*" >>"$GH_LOG"
 if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then
   cat "$GH_OPEN_PR" 2>/dev/null || true
+fi
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "create" ] && [ -n "${GH_CREATE_REFUSED:-}" ]; then
+  echo "pull request create failed: GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)" >&2
+  exit 1
 fi
 exit 0
 STUB
@@ -289,6 +340,42 @@ self_test() {
     ok "a removed artifact is delivered as a removal"
   else
     fail "a removal was not delivered" "$(git -C "$repo" show --name-status --format= HEAD)"
+  fi
+
+  # A repository that forbids Actions pull requests still gets the content: the
+  # branch is pushed and current, and the run says where to open it instead of
+  # re-raising `gh`'s message about a permission the reader cannot place.
+  git -C "$repo" reset -q --hard HEAD~1
+  git -C "$repo" clean -qfd
+  printf 'five\n' >"$repo/owned/a.json"
+  : >"$GH_LOG"
+  local rc=0 summary="$tmp/step-summary.md"
+  : >"$summary"
+  # Exported, not prefixed: the stub is an external script, so a shell variable
+  # it cannot read would make this case pass for the wrong reason. The three
+  # GitHub variables are pinned rather than inherited, because this suite also
+  # runs inside Actions: there GITHUB_REF_NAME is the branch under test, which
+  # is the base the compare URL is built from, and GITHUB_STEP_SUMMARY is the
+  # real job summary, which would collect this case's notice.
+  local had_ref="${GITHUB_REF_NAME-}" had_repo="${GITHUB_REPOSITORY-}"
+  local had_sum="${GITHUB_STEP_SUMMARY-}"
+  export GH_CREATE_REFUSED=1 GITHUB_REPOSITORY=neokapi/neokapi \
+    GITHUB_REF_NAME=main GITHUB_STEP_SUMMARY="$summary"
+  out="$(run_case "$repo" bot/refused "chore: deliver" "${owned[@]}")" || rc=$?
+  unset GH_CREATE_REFUSED
+  export GITHUB_REPOSITORY="$had_repo" GITHUB_REF_NAME="$had_ref"
+  export GITHUB_STEP_SUMMARY="$had_sum"
+
+  local expect="https://github.com/neokapi/neokapi/compare/main...bot/refused?expand=1"
+  if [ "$rc" -ne 0 ] &&
+    git -C "$remote" show-ref --verify --quiet refs/heads/bot/refused &&
+    grep -qF "$expect" <<<"$out" &&
+    grep -qF "$expect" "$summary" &&
+    grep -q "not permitted to open pull requests" <<<"$out"; then
+    ok "a refused pull request still delivers the branch, and says where to open it"
+  else
+    fail "a refused pull request was not reported usefully (rc=$rc)" \
+      "$out" "summary: $(cat "$summary")" "gh: $(cat "$GH_LOG")"
   fi
 
   cd "$start"

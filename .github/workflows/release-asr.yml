@@ -299,3 +299,16 @@ jobs:
           git config user.email "release-bot@neokapi.dev"; git config user.name "release-bot"
           git add manifest-plugins.json
           git diff --staged --quiet || { git commit -m "Register asr ${VERSION}"; git push; }
+
+  # The tap formula, rendered from this run's checksum artifacts. Runs beside
+  # the registry write, not after it: `brew install` and `kapi plugin install`
+  # are two views of the same release and neither is the other's gate.
+  publish-asr-formula:
+    name: Publish kapi-asr Homebrew formula
+    if: startsWith(github.ref, 'refs/tags/asr-v')
+    needs: publish-asr-release
+    uses: ./.github/workflows/_publish-plugin-formula.yml
+    with:
+      plugin: asr
+      tag: ${{ github.ref_name }}
+    secrets: inherit
