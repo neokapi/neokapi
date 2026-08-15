@@ -208,8 +208,7 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 
 func TestCORSDevLandingOrigin(t *testing.T) {
 	// DevMode: dynamic allow-list — localhost plus the landing. Development is
-	// now opted into explicitly; it used to be whatever happened when
-	// OIDCPublicURL was left empty.
+	// opted into explicitly, never inferred from an unset field.
 	e := corsEcho(Config{DevMode: true, PublicSiteURL: "https://bowrain.cloud"})
 
 	for _, origin := range []string{"http://localhost:5173", "https://bowrain.cloud"} {

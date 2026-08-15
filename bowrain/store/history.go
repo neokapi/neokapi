@@ -52,7 +52,7 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 
 // recordTargetHistoryPg appends a block_history row for each target whose text
 // changed, within the PostgreSQL store-blocks transaction. This makes the PG
-// content store retain prior target content (previously SQLite-only), which is
+// content store retain prior target content, as the SQLite store does, which is
 // the substrate for per-edit rollback. author is left empty here; the audit_log
 // captures the acting user for the corresponding block.updated event.
 func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target) error {

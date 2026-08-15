@@ -566,8 +566,8 @@ export async function injectMockBackend(page: Page) {
     // The desktop adapter converts the editor's coded text + spans to an RFC
     // 0001 Run sequence (WailsApiAdapter.updateBlockTargetCoded \u2192
     // Backend.UpdateBlockTargetRuns), so the request carries `runs`, not
-    // coded_text. (This handler was previously registered under a
-    // non-existent IDS.UpdateBlockTargetCoded key, i.e. dead code.)
+    // coded_text, so the handler binds IDS.UpdateBlockTargetRuns — the key the
+    // adapter actually calls.
     mock[IDS.UpdateBlockTargetRuns] = (req: any) => {
       const itemName = req.item_name || req.file_name;
       const files = projectFiles[req.project_id];

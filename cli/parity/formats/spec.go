@@ -7,7 +7,7 @@
 //
 // Each entry in `formatSpecs` declares one filter. The fields that
 // can't live in YAML stay inline; the per-format parity KNOWLEDGE
-// moved to the format's spec.yaml as of #852 (see resolveParity):
+// lives in the format's spec.yaml (#852, see resolveParity):
 //
 //	ID            okf_<name> — the manifest id and the default
 //	              FilterClass sent to BridgeService.Process.

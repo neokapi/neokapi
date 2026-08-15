@@ -8,8 +8,7 @@ import { withDiagramTheme } from "./storyEnv";
 /*
   The diagrams exactly as they appear on the docs pages — kept here so the page
   visuals have a home in Storybook and a place to review light/dark before
-  publishing. Each story mirrors a converted ASCII diagram (formerly a code
-  fence) one-for-one.
+  publishing. Each story mirrors one diagram on a docs page, one-for-one.
 */
 const meta: Meta = {
   title: "Diagrams/Doc examples",

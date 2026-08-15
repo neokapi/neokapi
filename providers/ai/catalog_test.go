@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The catalog is only a single source of truth if the things that used to be the
-// source — the provider defaults and the limits table — actually agree with it.
+// The catalog is only a single source of truth if the other places carrying the
+// same knowledge — the provider defaults and the limits table — agree with it.
 // These tests are the fold's guardrail: change a default in a provider file without
 // adding it to the catalog, and one of them fails rather than the two drifting
 // apart in silence.

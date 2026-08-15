@@ -196,9 +196,9 @@ func findNote(b *model.Block, from string) *model.NoteAnnotation {
 	return nil
 }
 
-// #928: `#.` extracted (developer) comments were previously dropped
-// entirely in normal mode. They now surface as a developer NoteAnnotation
-// on the owning block, without adding any new part to the stream.
+// #928: `#.` extracted (developer) comments surface as a developer
+// NoteAnnotation on the owning block, without adding any new part to the
+// stream.
 func TestReadExtractedCommentsAsNote(t *testing.T) {
 	t.Parallel()
 	input := "#. This is an extracted comment\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"

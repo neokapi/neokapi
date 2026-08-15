@@ -8,10 +8,10 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// The prompts below were previously written inline at each tool's call site.
-// They live here for the same reason the translate prompt does: a prompt is an
-// input to a build, and the reference documentation is generated from these
-// builders, so the docs cannot describe a prompt kapi does not send.
+// The prompts below live here, rather than inline at each tool's call site, for
+// the same reason the translate prompt does: a prompt is an input to a build,
+// and the reference documentation is generated from these builders, so the docs
+// cannot describe a prompt kapi does not send.
 //
 // Each renders provider-neutral Turns from typed sections, so --explain-prompts
 // attributes every block to what produced it.

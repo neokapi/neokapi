@@ -149,10 +149,10 @@ func TestSQLiteTerms_Search(t *testing.T) {
 	assert.Len(t, results, 1)
 }
 
-// TestSQLiteTerms_NoDeadSearchTable guards against reintroducing the
-// previously-dead contentless tb_search FTS5 table (audit finding #39). The
-// portable FTS path is the trigram index, which must exist and back Search;
-// the never-populated/never-queried tb_search table must not.
+// TestSQLiteTerms_NoDeadSearchTable guards against reintroducing the contentless
+// tb_search FTS5 table (audit finding #39). The portable FTS path is the trigram
+// index, which must exist and back Search; the never-populated/never-queried
+// tb_search table must not.
 func TestSQLiteTerms_NoDeadSearchTable(t *testing.T) {
 	tb, err := terms.NewSQLiteStore(":memory:")
 	require.NoError(t, err)

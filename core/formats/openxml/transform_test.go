@@ -105,7 +105,7 @@ func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 
 	// Kept / transformed
 	assert.Equal(t, true, result["translateDocProperties"])
-	assert.Equal(t, "HYPERLINK", result["complexFieldDefinitionsToExtract"]) // renamed from ts-prefixed
+	assert.Equal(t, "HYPERLINK", result["complexFieldDefinitionsToExtract"]) // key dropped its ts- prefix
 	assert.Equal(t, "some-mapping", result["fontMappings"])                  // passed through
 	assert.Equal(t, true, result["extractRunFontsInfo"])                     // passed through
 

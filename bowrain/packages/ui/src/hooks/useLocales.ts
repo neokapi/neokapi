@@ -9,8 +9,8 @@ const EMPTY_LOCALES: LocaleInfo[] = [];
 /**
  * The adapter's known-locale catalog, cached for the session. The list is
  * static server metadata (GET /api/v1/info on the web adapter), so it is
- * fetched once per QueryClient and shared by every consumer — previously each
- * mounting component issued its own uncached /info request.
+ * fetched once per QueryClient and shared by every consumer, so a mounting
+ * component never issues its own uncached /info request.
  */
 export function useLocales() {
   const api = useApi();

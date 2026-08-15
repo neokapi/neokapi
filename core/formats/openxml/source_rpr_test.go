@@ -13,9 +13,8 @@ import (
 // reader's run-property parsing (parseRunProps / parseRunPropsFromRaw)
 // that feeds the per-run rPr sidecar, and the per-paragraph
 // intersection (commonRPrChildren in source_rpr.go) the writer prepends
-// on every emitted <w:r>. They were previously colocated with the now-
-// deleted Word Style Optimisation tests but exercise the always-on
-// faithful path, not WSO.
+// on every emitted <w:r>. They exercise the always-on faithful path,
+// not Word Style Optimisation.
 
 func TestParseRunProps_StripsDefaultValuedRtl(t *testing.T) {
 	// rtl is a WpmlToggleRunProperty (RunPropertyFactory.java:219).

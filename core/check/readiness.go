@@ -50,11 +50,11 @@ type SeverityLister interface {
 	FindingSeverities() []Severity
 }
 
-// NewSourceReadinessTool creates the source-readiness stamp (formerly the
-// source-check registry tool): a terminal check step that promotes a block's
-// SourceStatus from the `authored` baseline to `checked` once the source is
-// clean, and demotes it back to `authored` when it is not. It is the
-// source-side counterpart of a translation producer stamping a target.
+// NewSourceReadinessTool creates the source-readiness stamp: a terminal check
+// step that promotes a block's SourceStatus from the `authored` baseline to
+// `checked` once the source is clean, and demotes it back to `authored` when it
+// is not. It is the source-side counterpart of a translation producer stamping
+// a target.
 //
 // It is derived, not a checker itself: it reads the findings the upstream
 // source checks already left on the block (the unified Findings annotation

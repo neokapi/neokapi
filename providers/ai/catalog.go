@@ -76,8 +76,8 @@ type Model struct {
 	// and this axis only sorts the *active* ones.
 	Recommended *bool `json:"recommended,omitempty"`
 
-	// MaxOutputTokens and ContextWindow are the model's hard ceilings. These fold in
-	// what used to be the limits.go table; LimitsForModel now reads them from here.
+	// MaxOutputTokens and ContextWindow are the model's hard ceilings.
+	// LimitsForModel reads them from here.
 	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 	ContextWindow   int `json:"context_window,omitempty"`
 

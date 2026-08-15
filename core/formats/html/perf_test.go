@@ -16,8 +16,8 @@ import (
 // elements that fall through to remainingContent + forwardScanForBlock-
 // Children in the reader (#608, N1). Each block carries a short inline run so
 // the classifier exercises its forward scan, and each block's text is unique
-// (an incrementing counter) so the formerly O(n) bytes.Index in
-// remainingContent cannot short-circuit on an earlier identical block — it
+// (an incrementing counter) so the bytes.Index in remainingContent
+// cannot short-circuit on an earlier identical block — it
 // must scan from byte 0 to the live tokenizer position, which is what made
 // the path O(n^2). The structure is byte-stable so it also feeds the
 // byte-exact skeleton roundtrip assertion.
@@ -51,7 +51,7 @@ func TestDivSpanHeavy_ByteExactRoundtrip(t *testing.T) {
 }
 
 // BenchmarkHTMLDivSpanHeavy benchmarks the reader on a div/span-heavy document
-// — the input class that exercised the formerly O(n^2) remainingContent /
+// — the input class that drives the remainingContent /
 // forwardScanForBlockChildren path (#608, N1). Run with increasing -benchtime
 // or compare across sizes to confirm linear scaling.
 func BenchmarkHTMLDivSpanHeavy(b *testing.B) {

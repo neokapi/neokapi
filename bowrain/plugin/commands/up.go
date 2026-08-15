@@ -363,8 +363,8 @@ func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *PushB
 		if stream == nil {
 			stream = output.NewNDJSONStream(cmd.OutOrStdout())
 		}
-		// Unlike host's PrintUpResult this record's error used to be dropped.
-		// Encode returns nil when the consumer merely went away.
+		// Unlike host's PrintUpResult this record's error is returned, not
+		// dropped. Encode returns nil when the consumer merely went away.
 		return stream.Encode(struct {
 			Type    string `json:"type"`
 			Profile string `json:"brand_profile"`

@@ -38,7 +38,7 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 	g.GET("/concepts/locale-coverage", s.HandleGetConceptLocaleCoverage)
 	g.POST("/concepts", s.HandleCreateConcept)
 
-	// Import/export (renamed from /terms/...; behavior preserved).
+	// Import/export.
 	g.POST("/concepts/import/csv", s.HandleImportConceptsCSV)
 	g.POST("/concepts/import/json", s.HandleImportConceptsJSON)
 	g.GET("/concepts/export/json", s.HandleExportConceptsJSON)
@@ -1012,7 +1012,7 @@ func (s *Server) HandleDeleteMarket(c echo.Context) error {
 }
 
 // ---------------------------------------------------------------------------
-// Import / export (renamed from /terms/...; behavior preserved)
+// Import / export
 // ---------------------------------------------------------------------------
 
 // HandleImportConceptsCSV imports concepts from CSV.

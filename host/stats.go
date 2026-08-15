@@ -31,8 +31,8 @@ type StatsRecord struct {
 	ByRole            map[string]int `json:"by_role,omitempty"`
 
 	// charSet is the distinct-rune inventory of the translatable source text
-	// (the aggregate that used to be the chars-listing tool — useful for font
-	// subsetting). It backs UniqueCharacters and is unioned by add().
+	// (useful for font subsetting). It backs UniqueCharacters and is unioned
+	// by add().
 	charSet map[rune]struct{}
 }
 

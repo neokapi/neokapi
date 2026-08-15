@@ -16,11 +16,10 @@ import (
 
 // `kapi info` reports what `kapi pack` would capture, and what a `.kpz` holds.
 //
-// The two used to be different commands' worth of knowledge: `pack` worked on a
-// project *or* a `.kpz`, while `info` accepted only a `.kpz` — so there was no
-// way to ask "what would packing this project actually include?" before doing
-// it. One verb now answers for both subjects, and the answer is organised the
-// same way in each case: the archive's parts, one line each, with a size.
+// One verb answers for both subjects — a project and a `.kpz` — so "what would
+// packing this project actually include?" is answerable before doing it. The
+// answer is organised the same way in each case: the archive's parts, one line
+// each, with a size.
 //
 // That symmetry is the point of the trio. `pack` writes exactly the parts `info`
 // lists; `unpack` restores exactly those parts. When `info` on a project and

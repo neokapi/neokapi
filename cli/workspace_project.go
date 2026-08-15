@@ -45,10 +45,9 @@ machine and "kapi unpack" it to resume work there.`,
 // One verb, two subjects, because they are two views of the same thing: `kapi
 // info` in a project lists the parts a snapshot would capture (and what it
 // deliberately omits), and `kapi info work.kpz` lists what an archive actually
-// holds plus whether its working cache has drifted from it. Asking "what would I
-// be handing over?" before `kapi pack` used to be impossible — info took only a
-// .kpz. Named `info` rather than `status` because the bowrain plugin owns
-// `status`.
+// holds plus whether its working cache has drifted from it. One verb answers
+// "what would I be handing over?" both before and after `kapi pack`. Named
+// `info` rather than `status` because the bowrain plugin owns `status`.
 func NewInfoCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "info [work.kpz]",

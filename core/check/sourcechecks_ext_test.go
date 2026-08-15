@@ -177,7 +177,7 @@ func TestSourcePatternToolValidation(t *testing.T) {
 	require.ErrorContains(t, err, "both")
 }
 
-// ── source readiness (formerly source-check) ────────────────────────────────
+// ── source readiness ────────────────────────────────────────────────────────
 
 // runReadiness seeds a block, runs the source-readiness stamp over it, and
 // returns the stamped source status.

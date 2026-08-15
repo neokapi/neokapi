@@ -1606,7 +1606,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
 	g.POST("/providers/test", s.HandleTestProviderConfig)
 
-	// Connectors — Bowrain AD-011: /:ws/connectors (moved from public)
+	// Connectors — Bowrain AD-011: /:ws/connectors (workspace-scoped, not public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
 	// GitHub App post-install setup: mint the state that ties an installation
 	// to this workspace, redeem it on the way back, then list the
@@ -2295,8 +2295,7 @@ func originOf(rawURL string) string {
 // socket is a different privilege — the notification stream, and join-and-write
 // access to a collaboration room — and nothing off-origin needs it. So the
 // landing is not here, and the app's own origin arrives via AppPublicURL rather
-// than via the identity provider's URL, which is what this policy used to be
-// keyed off and was never the right value for it.
+// than via the identity provider's URL, which never names this application.
 //
 // What is allowed:
 //

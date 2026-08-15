@@ -43,9 +43,8 @@ var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-
 // On round-trip the decoded character flows through the markdown
 // writer's MarkdownEncoder (which does not re-escape) so the entity
 // reference is dropped — exactly matching okapi's reference output. The
-// `idCounter` parameter is retained for callers that previously relied
-// on placeholder ids being bumped per entity; it is now a no-op for
-// pure-text input but kept for API stability.
+// `idCounter` parameter is a no-op for pure-text input, kept for API
+// stability.
 func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 	if text == "" {
 		return

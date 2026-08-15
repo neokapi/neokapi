@@ -12,10 +12,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// This file connects the two loops the platform previously ran disconnected —
-// governed review and delivery (DECISIONS R11). Approving the last pending
-// review now continues the loop straight through to delivery with no extra user
-// action:
+// This file connects governed review and delivery (DECISIONS R11). Approving the
+// last pending review continues the loop straight through to delivery with no
+// extra user action:
 //
 //	approve last block ──▶ review.completed ──▶ completing convergence run
 //	                                              ──▶ run.completed(converged)

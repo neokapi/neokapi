@@ -268,10 +268,10 @@ func TestMemoryLookup(t *testing.T) {
 }
 
 // TestMemorySearch verifies `kapi memory search` resolves source terms against the
-// imported content memory. This previously returned "No entries found." (#701) because
-// single-file `kapi memory import` did not rebuild the FTS5 search side-tables;
-// that was fixed by #38 (import now calls rebuildMemorySearchIndexes), so the
-// search now finds the same entries `kapi memory lookup` resolves.
+// imported content memory. Single-file `kapi memory import` rebuilds the FTS5
+// search side-tables (rebuildMemorySearchIndexes), so search finds the same
+// entries `kapi memory lookup` resolves rather than reporting "No entries found."
+// (#701).
 func TestMemorySearch(t *testing.T) {
 	memoryFile := importedMemory(t)
 

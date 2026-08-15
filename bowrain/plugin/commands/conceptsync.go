@@ -874,12 +874,10 @@ func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
 // projectTerms returns the terms store a concept pull/push works against: the
 // project's own, out of its one store.
 //
-// There is no path to resolve any more. The recipe used to be able to bind a
-// terms FILE under `defaults:`, and the fallback was the conventional
-// `.kapi/terms.db`; both are gone. Terminology now lives in the project's store
-// and every term-aware command reads it with no flag and no recipe entry — a
-// profile's `terms:` remains the one place a recipe names a file, and that binds
-// a standalone vocabulary to a region of the context space, not the project's
+// There is no path to resolve. Terminology lives in the project's store and
+// every term-aware command reads it with no flag and no recipe entry — a
+// profile's `terms:` is the one place a recipe names a file, and that binds a
+// standalone vocabulary to a region of the context space, not the project's
 // own.
 //
 // The handle belongs to the App: do not close it.
