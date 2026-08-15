@@ -33,6 +33,45 @@ reads a corpus and drafts a voice profile and term candidates to review.
   outdated="wording"
 />
 
+## Profiles
+
+The hub opens on **Profiles**: one card per point the workspace's content sits
+at. A point is a coordinate — a product, a channel, a market — and a profile is
+what governs it. The workspace's own point, where content that declares no
+coordinates sits, is labelled **Brand**.
+
+Each card answers the same four questions about its point: which voice governs
+it and how large that voice is; how much vocabulary is in force — the workspace's
+concepts, plus the rules the point's own voice adds; what the stored checks say,
+as a score over the blocks checked and the findings they raised; and what is
+waiting in review. A point nothing has checked says so rather than showing a
+zero. Opening a card gives the same four as sections, plus the collections
+sitting at the point and which project declared each.
+
+Check standing is scoped by the **voice**, not by the point: a stored check
+records the voice it resolved through, which is the narrowest coordinate the
+check itself carries. Two points sharing one voice therefore share the number,
+and the card says as much.
+
+A profile is derived, never stored. A [`kapi push`](/cli/commands/push) declares
+each collection's coordinates and the voice they resolved to; grouping the
+collections by point recovers the profiles. A recipe's own `profiles:` regions
+never cross the wire — the project resolves them and sends the outcome — so one
+broad profile governing two points reads here as the two points it governs.
+
+### Channel names
+
+Two projects can spell one channel differently, and neither can see it: a recipe
+declares its own channels and resolves them offline, and nothing inside it knows
+what the workspace's other project called the same surface. The workspace can
+see it, so it says so — the pair, and why the two look alike — and stops there.
+
+Accepting records that the two names one channel; dismissing records that they
+do not, and that is what keeps the next push from raising the pair again.
+Neither rewrites a slug in any recipe. A project must resolve its coordinates
+the same way whether or not it has ever been connected, so the workspace owns
+equivalence and the recipe keeps resolution.
+
 ## Concepts
 
 The unit the hub curates is the **concept** — the language-neutral notion

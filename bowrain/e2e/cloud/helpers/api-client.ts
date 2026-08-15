@@ -1,1 +1,9 @@
-export { BowrainAPI, deviceAuth, waitForReady, type ReadinessInfo } from "../../shared/index";
+export {
+  BowrainAPI,
+  deviceAuth,
+  waitForReady,
+  type ReadinessInfo,
+  type ChannelAliasProposal,
+  type ContextProfilesResponse,
+  type SyncContextEntry,
+} from "../../shared/index";

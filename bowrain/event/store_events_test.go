@@ -95,6 +95,44 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 	// 2 updates + 1 delete
 }
 
+// The optional capabilities must survive the wrapper. An assertion sees the
+// wrapper's method set, not the inner store's, so a capability the wrapper does
+// not carry explicitly vanishes exactly where the server holds the wrapper —
+// which is everywhere the HTTP handlers run.
+func TestEventEmittingStoreCarriesOptionalCapabilities(t *testing.T) {
+	es, _ := newTestEventStore(t)
+
+	_, ok := any(es).(store.DecisionStore)
+	assert.True(t, ok, "the decision ledger must survive the wrapper")
+	_, ok = any(es).(store.BlockAccessStore)
+	assert.True(t, ok, "the access ladder must survive the wrapper")
+
+	aliases, ok := any(es).(store.ChannelAliasStore)
+	require.True(t, ok, "channel alias proposals must survive the wrapper")
+
+	ctx := t.Context()
+	n, err := aliases.UpsertChannelAliasProposals(ctx, []store.ChannelAliasProposal{{
+		WorkspaceID: "ws-wrapper", Profile: "acme",
+		ProposedChannel: "website", ExistingChannel: "web",
+		Evidence: "one slug is a prefix of the other within the same product",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+
+	judged, err := aliases.JudgeChannelAliasProposal(ctx, store.ChannelAliasJudgement{
+		WorkspaceID: "ws-wrapper", Profile: "acme",
+		ProposedChannel: "website", ExistingChannel: "web",
+		Status: store.ChannelAliasDismissed, JudgedBy: "u1",
+	})
+	require.NoError(t, err)
+	assert.True(t, judged)
+
+	got, err := aliases.ListChannelAliasProposals(ctx, "ws-wrapper", "")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, store.ChannelAliasDismissed, got[0].Status)
+}
+
 func TestEventEmittingStoreVersion(t *testing.T) {
 	es, bus := newTestEventStore(t)
 	ctx := t.Context()

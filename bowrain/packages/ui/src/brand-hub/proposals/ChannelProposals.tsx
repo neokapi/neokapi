@@ -1,6 +1,6 @@
-import { Badge, Button, Card, Skeleton, cn } from "@neokapi/ui-primitives";
+import { Badge, Button, Card, cn } from "@neokapi/ui-primitives";
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
-import { EmptyState, formatRelative } from "../shell/atoms";
+import { formatRelative } from "../shell/atoms";
 import { Check, Link, X } from "../../components/icons";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import type { ChannelAliasProposal } from "../../types/channel-proposals";
@@ -31,10 +31,9 @@ export function ChannelProposalsPanel({ className }: { className?: string }) {
   const judged = proposals.filter((p) => (p.status ?? "proposed") !== "proposed");
 
   // The listing is empty for most workspaces most of the time, and an empty
-  // governance section is noise on a hub about profiles. It appears when there
-  // is something to say.
-  if (isLoading) return <Skeleton className={cn("h-32 w-full rounded-xl", className)} />;
-  if (error || proposals.length === 0) return null;
+  // governance section is noise on a hub about profiles — so is a skeleton
+  // standing in for one. The section appears when there is something to say.
+  if (isLoading || error || proposals.length === 0) return null;
 
   return (
     <section className={cn("space-y-3", className)} data-testid="channel-proposals">
@@ -171,16 +170,5 @@ function ProposalRow({
         )}
       </div>
     </div>
-  );
-}
-
-/** The panel's empty shape, for a hub that has raised nothing. */
-export function ChannelProposalsEmpty() {
-  return (
-    <EmptyState
-      icon={<Link />}
-      title="No channel names to reconcile"
-      description="When two projects push what looks like one channel under different slugs, the pair appears here for a decision."
-    />
   );
 }

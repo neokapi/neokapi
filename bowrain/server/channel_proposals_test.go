@@ -184,6 +184,29 @@ func TestJudgeChannelAliasProposalRefusals(t *testing.T) {
 	assert.Equal(t, platstore.ChannelAliasProposed, proposals[0].Status)
 }
 
+// A project created through the API carries no stream of its own. Reading its
+// collections on the empty stream returns none, which reads exactly like a
+// workspace holding no channels — so the pair goes unproposed and nothing says
+// why. The other side of the comparison resolves the default stream.
+func TestChannelAliasProposalsSeeProjectsWithNoDeclaredStream(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := t.Context()
+
+	held := seedChannelProject(t, srv, "app", "test-ws", "site", "web")
+	held.DefaultStream = ""
+	require.NoError(t, srv.ContentStore.UpdateProject(ctx, held))
+
+	arriving := seedChannelProject(t, srv, "docs", "test-ws", "docs", "website")
+	srv.raiseChannelAliasProposals(ctx, arriving, "main")
+
+	aliases, ok := srv.ContentStore.(platstore.ChannelAliasStore)
+	require.True(t, ok)
+	proposals, err := aliases.ListChannelAliasProposals(ctx, "test-ws", "")
+	require.NoError(t, err)
+	require.Len(t, proposals, 1)
+	assert.Equal(t, "web", proposals[0].ExistingChannel)
+}
+
 // A project pushing vocabulary nobody else shares proposes nothing.
 func TestChannelAliasProposalsStaySilentWithoutFragmentation(t *testing.T) {
 	srv, _ := newTestServer(t)

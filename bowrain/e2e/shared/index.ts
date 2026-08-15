@@ -22,6 +22,9 @@ export type {
   NotificationPreferences,
   Activity,
   Entry,
+  SyncContextEntry,
+  ChannelAliasProposal,
+  ContextProfilesResponse,
   ReadinessComponentStatus,
   ReadinessInfo,
 } from "./api-client.js";

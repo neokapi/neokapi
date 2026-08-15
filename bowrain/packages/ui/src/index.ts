@@ -908,7 +908,6 @@ export {
   // Channel names — the workspace's slug-equivalence proposals, judged here
   // and resolved nowhere.
   ChannelProposalsPanel,
-  ChannelProposalsEmpty,
   useChannelProposals,
   useJudgeChannelProposal,
   channelProposalKey,

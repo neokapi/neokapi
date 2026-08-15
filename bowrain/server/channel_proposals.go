@@ -108,6 +108,12 @@ func (s *Server) channelsByProfile(ctx context.Context, projectID, stream string
 // workspace holds. The pushing project is excluded so it cannot propose an
 // equivalence with itself — a project's own two channels are two channels, and
 // only its recipe gets to say otherwise.
+//
+// Each project is read on its default stream, resolved through
+// projectDefaultStream: a project created through the API carries no stream of
+// its own, and asking the store for the collections on the empty stream returns
+// none — which reads exactly like a workspace that holds no channels, and
+// silently proposes nothing.
 func (s *Server) workspaceChannelsByProfile(ctx context.Context, workspaceID, exceptProjectID string) (map[string]map[string]string, error) {
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
@@ -118,7 +124,7 @@ func (s *Server) workspaceChannelsByProfile(ctx context.Context, workspaceID, ex
 		if p == nil || p.ID == exceptProjectID || p.WorkspaceID != workspaceID || p.Archived {
 			continue
 		}
-		byProfile, err := s.channelsByProfile(ctx, p.ID, p.DefaultStream)
+		byProfile, err := s.channelsByProfile(ctx, p.ID, projectDefaultStream(p))
 		if err != nil {
 			return nil, err
 		}

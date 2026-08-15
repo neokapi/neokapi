@@ -1,4 +1,4 @@
-export { ChannelProposalsPanel, ChannelProposalsEmpty } from "./ChannelProposals";
+export { ChannelProposalsPanel } from "./ChannelProposals";
 export {
   useChannelProposals,
   useJudgeChannelProposal,
