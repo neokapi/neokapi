@@ -2,8 +2,10 @@ import { Button, Skeleton } from "@neokapi/ui-primitives";
 import { BrandHub } from "../shell/BrandHub";
 import { EmptyState } from "../shell/atoms";
 import { ChannelProposalsPanel } from "../proposals";
+import { ContextOnboarding } from "./ContextOnboarding";
 import { ProfileCard } from "./ProfileCard";
 import { useContextProfiles } from "./useContextProfiles";
+import { useWorkspace } from "../../context/WorkspaceContext";
 import { Layers, Sparkles } from "../../components/icons";
 
 export interface ProfilesViewProps {
@@ -11,14 +13,17 @@ export interface ProfilesViewProps {
   onOpenProfile: (slug: string) => void;
   /** Opens the hosted brand scan. Omitted when the server runs no scan jobs. */
   onScanBrand?: () => void;
+  /** Server origin folded into the onboarding prompt (web shells). */
+  serverUrl?: string;
 }
 
 /**
  * The Context hub's landing view: one card per governance profile — every point
  * the workspace's content occupies, and what governs each.
  */
-export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) {
+export function ProfilesView({ onOpenProfile, onScanBrand, serverUrl }: ProfilesViewProps) {
   const { data, isLoading, error } = useContextProfiles();
+  const { activeWorkspace } = useWorkspace();
 
   if (isLoading) return <ProfilesSkeleton />;
 
@@ -38,6 +43,10 @@ export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) 
   const points = profiles.filter((p) => p.declared || p.is_default);
   const unbound = profiles.filter((p) => !p.declared && !p.is_default);
   const declaredPoints = points.filter((p) => !p.is_default);
+  // Nothing has been pushed and nothing governs anything: the front door of the
+  // hub is this workspace's first screen, so it offers the ways in rather than
+  // the next refinement.
+  const nothingYet = profiles.every((p) => !p.declared && !p.voice);
 
   return (
     <BrandHub
@@ -66,12 +75,20 @@ export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) 
 
         <ChannelProposalsPanel />
 
-        {declaredPoints.length === 0 && (
-          <EmptyState
-            icon={<Layers />}
-            title="One point so far"
-            description="Declare axes under coordinates: in a project's kapi.yaml, give each content collection a context:, then run kapi push. Every point you declare appears here."
+        {nothingYet ? (
+          <ContextOnboarding
+            workspaceName={activeWorkspace?.name}
+            serverUrl={serverUrl}
+            onScanBrand={onScanBrand}
           />
+        ) : (
+          declaredPoints.length === 0 && (
+            <EmptyState
+              icon={<Layers />}
+              title="One point so far"
+              description="Declare axes under coordinates: in a project's kapi.yaml, give each content collection a context:, then run kapi push. Every point you declare appears here."
+            />
+          )
         )}
 
         {unbound.length > 0 && (

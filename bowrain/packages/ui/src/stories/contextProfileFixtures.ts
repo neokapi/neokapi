@@ -142,6 +142,25 @@ export const emptyProfiles: ContextProfilesResponse = {
   ],
 };
 
+/** A workspace with a voice on its default point, but nothing pushed yet. */
+export const governedButUndeclared: ContextProfilesResponse = {
+  axes: [],
+  terms: { concept_count: 12 },
+  scan_scope: "workspace",
+  profiles: [
+    {
+      slug: "default",
+      name: "",
+      label: "Brand",
+      is_default: true,
+      declared: false,
+      collections: [],
+      voice: voice("v-core", "Core voice", 1),
+      pending_changes: 0,
+    },
+  ],
+};
+
 /** A workspace whose two projects spell one channel two ways. */
 export const fragmentedChannels: ChannelAliasProposalsResponse = {
   proposals: [
