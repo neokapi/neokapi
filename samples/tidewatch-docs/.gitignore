@@ -1,0 +1,8 @@
+# The Docusaurus i18n tree is a build artifact: `kapi up` writes it from the
+# source plus the committed context, so a fresh clone regenerates it and a diff
+# never carries a generated translation. The committed record for this site is
+# the content memory under .kapi/memory/ and the decisions under .kapi/state/.
+i18n/
+build/
+.docusaurus/
+node_modules/

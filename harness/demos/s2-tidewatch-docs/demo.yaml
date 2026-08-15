@@ -1,0 +1,153 @@
+id: s2-tidewatch-docs
+title: A docs site that catches up on its own
+subtitle: Four handbook pages, two more languages, and a CI job that reports what is behind instead of failing on it.
+tagline: drift is work, not a broken build.
+kind: use-case
+publishAs: docs-site-convergence
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/tidewatch-docs
+needsAi: false
+# The sandbox IS the Tidewatch docs sample, copied from samples/tidewatch-docs so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/tidewatch-docs
+project: true
+captureTimeoutSec: 300
+aspects:
+  - the i18n tree is build output
+  - front matter is content
+  - coverage, not a verdict
+  - the build never waits for a language
+
+script:
+  # --- 1. The shape -------------------------------------------------------
+  - comment: A documentation site. Four pages, English, and a target layout its build already understands.
+  - command: ls docs
+  - command: cat kapi.yaml
+  - comment: The i18n tree is not in git. It is written by the loop from the source and the committed context, so a clone regenerates it and no diff ever carries a generated translation.
+  - command: cat .gitignore
+
+  # --- 2. Converge --------------------------------------------------------
+  - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
+  - command: kapi up
+  - comment: Front matter is content — a reader sees the title in the sidebar and the description in a search result — so it converges with the prose.
+  - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
+  - comment: And it landed where Docusaurus looks, with no copy step and no plugin.
+  - command: find i18n -name '*.md' | sort
+
+  # --- 3. What CI reports -------------------------------------------------
+  - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
+  - command: >-
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: Review Norwegian and it clears the ship gate. Dutch has not been reviewed, so it does not.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > nb.json
+  - command: kapi apply nb.json 2>&1 | tail -2
+  - command: kapi commit
+  - command: kapi status
+
+  # --- 4. Behind is not broken --------------------------------------------
+  - comment: Dutch is behind. Nothing about that fails — the source gate is what a pull request is held to, and it is about the source.
+  - command: kapi check --strict
+  - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
+  - comment: The CI job that builds the site does not depend on the job that converges it. That is the whole arrangement.
+  - command: cat .github/workflows/kapi.yml
+
+artifacts:
+  - id: coverage
+    caption: "kapi status --json — coverage per language, what CI reads"
+    source: command
+    # Artifact commands run under the harness's kapi isolation, which turns
+    # recipe discovery off, so the recipe is named rather than walked to.
+    command: kapi status -p kapi.yaml --json
+    report: json
+    reportTitle: "kapi status --json"
+    reportSub: "per language: how much is there, how much a person has read"
+    width: 1200
+    height: 900
+  - id: translated
+    caption: "i18n/nb/…/index.md — front matter and prose, where the build looks"
+    source: report
+    report: markdown
+    path: i18n/nb/docusaurus-plugin-content-docs/current/index.md
+    reportTitle: "i18n/nb/…/current/index.md"
+    reportSub: "written by kapi up; not in git"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A documentation site is the easiest place to see why a translated project
+      needs a loop rather than a project plan. The source moves every week, the
+      languages follow at their own pace, and the one thing that must never
+      happen is a build failing because a translator has not caught up yet.
+
+  - id: shape
+    kind: terminal
+    text: >
+      Four handbook pages and a recipe. The target path is the tree Docusaurus
+      already reads translations from, so nothing copies anything: the loop
+      writes where the build looks. And that tree is not in version control. It
+      is derived from the source and the committed context, so a clone
+      regenerates it and a pull request never carries a generated translation
+      into review.
+    caption: "the i18n tree is build output, not a record"
+
+  - id: converge
+    kind: terminal
+    text: >
+      One verb converges both languages. Wording the project has approved before
+      is recycled first; only what is left reaches a provider, which here is the
+      offline demo stub that marks everything it produces. Front matter travels
+      with the prose, because a title in a sidebar and a description in a search
+      result are things a reader reads.
+    caption: "recycled first, drafted second, front matter included"
+
+  - id: translated
+    kind: artifact
+    artifact: translated
+    text: >
+      This is the file the loop wrote. Title, sidebar label and body, in the tree
+      the site build already knows about — and the stub's own marks on the
+      strings it invented, so nobody mistakes a demo for a translation.
+
+  - id: coverage
+    kind: artifact
+    artifact: coverage
+    text: >
+      And this is what the continuous-integration job posts on a pull request:
+      how much of each language is there, how much of it a person has read, and
+      whether it clears the bar to be offered. It is a report, not a verdict. The
+      job that posts it cannot fail the build.
+
+  - id: review
+    kind: terminal
+    text: >
+      Review Norwegian and it clears the ship gate. Dutch has not been reviewed,
+      so it does not — and that is the ordinary state of a translated site rather
+      than an incident. The English is what the pull request is actually held to,
+      and the source gate passes with one advisory finding: an API reference
+      keeping a field name the vocabulary retired, reported and never blocking.
+    caption: "one language ready, one pending, nothing failing"
+
+  - id: workflow
+    kind: terminal
+    text: >
+      The workflow says it plainly. A pull request gets a dry run and a coverage
+      comment; the default branch converges and commits what moved; and the job
+      that builds the site does not depend on either of them. Fail-on-parked
+      stays off, deliberately — parked means a language is waiting for a person,
+      which is the condition this whole arrangement exists to make survivable.
+    caption: "the build job depends on neither"
+
+  - id: outro
+    kind: outro
+    text: >
+      Source strict, targets warn. Coverage reported, never enforced on a push.
+      A language that is behind is work in progress, and the site ships in the
+      languages that are ready while it catches up.

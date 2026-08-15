@@ -1,0 +1,78 @@
+# The Tidewatch operator handbook — a docs site, converged in CI.
+#
+# The same point the monolingual sample governs (northsea/docs), with a locale
+# axis added. The target layout is the Docusaurus i18n tree, so a build picks the
+# translations up with no copy step and no plugin.
+version: v1
+name: tidewatch-docs
+defaults:
+  source_language: en-GB
+  target_languages: [nb, nl]
+  materialize: on-converge
+  flow: converge
+  voice:
+    profile_file: .kapi/voice.yaml
+  terms_source: .kapi/terms.json
+  memory:
+    fuzzy_threshold: 75
+  # Front matter is content: a reader sees the title in the sidebar and the
+  # description in a search result. The three keys below are the ones this site
+  # renders; every other front-matter key is configuration and is left alone.
+  formats:
+    markdown:
+      config:
+        translateFrontMatter: true
+        frontMatterKeys: [title, description, sidebar_label]
+  exclude:
+    - "**/node_modules/**"
+    - "**/.git/**"
+    - "build/**"
+    - "i18n/**"
+
+profiles:
+  northsea:
+    channels: [docs]
+    voice: .kapi/voice.yaml
+
+collections:
+  - name: tidewatch-docs
+    channel: northsea/docs
+    content:
+      - path: docs/**/*.md
+        format:
+          name: markdown
+          config:
+            translateFrontMatter: true
+            frontMatterKeys: [title, description, sidebar_label]
+        target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+
+# The ship gate is a coverage bar, and it gates DELIVERY — not the build. A
+# language below the bar is reported as pending by `kapi status` and withheld by
+# whatever reads `kapi status --ship`; the site still builds, and the site still
+# serves, because a target language falling behind its source is the ordinary,
+# continuous work rather than a break.
+ship_gate:
+  translated: 100
+  reviewed: 50
+verified_gate:
+  reviewed: 100
+
+flows:
+  # Recycle first, then draft the remainder. skipMatched is what makes the second
+  # step mean "the remainder": without it the AI step re-translates the units
+  # recycle just filled from approved wording.
+  #
+  # provider: demo is the built-in offline stub — deterministic, keyless, and
+  # visibly synthetic, so this sample converges in CI with no secret configured
+  # and nobody mistakes its output for a translation. A real project names its
+  # own provider here and gives CI the credential.
+  converge:
+    steps:
+      - tool: recycle
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
+      - tool: translate
+        config:
+          provider: demo
+          skipMatched: true

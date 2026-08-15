@@ -1,0 +1,94 @@
+# The CI leg: converge on every push to the default branch, report coverage on
+# every pull request, and never fail a build because a target language is behind.
+#
+# The two actions are consumed as published, not vendored: `setup-kapi` installs
+# and caches the CLI, `kapi-action` runs one kapi command and reports what it
+# found. Delivery — commit, push, open a pull request — is this workflow's own
+# step, which is why the action does not do it for you.
+name: kapi
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # On a pull request: report, never write. `plan: true` is a dry run — it says
+  # what is pending, how much of it recycles from the content memory, and what
+  # the remainder would cost, and posts that on the PR as one sticky comment.
+  # It is the number a reviewer wants before the wording is merged, not after.
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: neokapi/setup-kapi@v1
+        with:
+          plugins: ""
+      - uses: neokapi/kapi-action@v1
+        with:
+          command: up
+          plan: true
+          pr-comment: true
+
+      # Coverage, per language, as a job summary. `kapi status --json` is the
+      # dashboard in machine shape; this reduces it to one line per scope.
+      - name: Report coverage
+        run: |
+          kapi status --json --jq '.locales[]
+            | "\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"' \
+            | tr -d '"' >> "$GITHUB_STEP_SUMMARY"
+
+  # On the default branch: converge and deliver. The loop writes the i18n tree
+  # and grows the committed record; the workflow commits what moved.
+  #
+  # fail-on-parked stays false, deliberately. Parked means work remains that the
+  # loop could not carry to the ship gate — a language awaiting review, most
+  # often — and that is the ordinary state of a translated site, not a broken
+  # build. Gate a release on coverage if you must; never gate a push.
+  converge:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: neokapi/setup-kapi@v1
+        with:
+          plugins: ""
+      - uses: neokapi/kapi-action@v1
+        id: kapi
+        with:
+          command: up
+          fail-on-parked: false
+
+      # Only the committed record travels: the i18n tree is gitignored and
+      # rebuilt by whoever builds the site.
+      # The outcome travels through the environment rather than being
+      # interpolated into the shell: a workflow that splices any expression
+      # straight into `run:` teaches the habit that makes the untrusted ones
+      # dangerous.
+      - name: Commit what moved
+        env:
+          OUTCOME: ${{ steps.kapi.outputs.outcome }}
+        run: |
+          git add .kapi
+          git diff --cached --quiet && exit 0
+          git -c user.name=kapi -c user.email=kapi@northsea.example \
+            commit -m "chore: converge translations ($OUTCOME)"
+          git push
+
+  # The site build, and the point of the whole arrangement: it does not depend on
+  # the job above. A language behind its source builds and serves; the source
+  # locale is strict and the target locales warn.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: neokapi/setup-kapi@v1
+        with:
+          plugins: ""
+      - run: kapi up --materialize
+      - run: npm ci && npm run build
