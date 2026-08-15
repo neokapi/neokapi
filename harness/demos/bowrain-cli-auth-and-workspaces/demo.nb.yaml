@@ -1,0 +1,49 @@
+id: bowrain-cli-auth-and-workspaces
+title: "Logg inn, finn arbeidsområdene dine, test lokalt"
+subtitle: kapi auth og workspace viser hvem og hvor du er koblet til; pseudo-translate sjekker layout før du sender til ekte oversettelse.
+tagline: bowrain-pluginen håndterer serveren; kapi håndterer filene.
+kind: use-case
+publishAs: bowrain-cli-auth-and-workspaces
+terminal: shell
+brand: bowrain
+cwd: ~/bowmart/help-center
+needsAi: false
+captureTimeoutSec: 180
+aspects:
+  - kapi auth · workspace
+  - server + konto på ett blikk
+  - mange arbeidsområder
+  - pseudo-oversett for å teste
+
+script:
+  - comment: Hvilken server og konto er denne utsjekken koblet til?
+  - command: kapi auth status
+  - comment: List opp arbeidsområdene du kan skyve prosjekter til.
+  - command: kapi workspace list
+  - comment: "Før du sender til ekte oversettelse, bruk pseudo-oversettelse for å teste layout."
+  - command: kapi pseudo-translate src/locales/en.json
+  - comment: "Polstret, aksentuert kopi (qps) — avslører avkortings- og layoutfeil tidlig."
+  - command: cat src/locales/qps.json
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Når bowrain-pluginen er installert, får kapi en håndfull serverbevisste kommandoer. De svarer på de daglige spørsmålene: hvem er jeg, hvor kan jeg publisere, og er innholdet mitt klart.
+  - id: auth
+    kind: terminal
+    text: >
+      kapi auth status viser serveren og kontoen denne utsjekken er koblet til — nyttig når du jobber på tvers av mer enn én Bowrain-server.
+    caption: "kapi auth status — server + konto"
+  - id: workspace
+    kind: terminal
+    text: >
+      kapi workspace list viser alle arbeidsområder du tilhører. Et prosjekt skyves inn i ett av dem, og hvert holder sine egne prosjekter, minne og terminologi.
+    caption: "kapi workspace list — hvor du kan publisere"
+  - id: pseudo
+    kind: terminal
+    text: >
+      Og fordi kapi fremdeles er filverktøykjeden i bunn, kan du pseudo-oversette lokalt først — utfylt, aksentert kopi som avslører layout- og avkortingsproblemer før en oversetter noen gang ser filen.
+    caption: "kapi pseudo-translate — test layout lokalt"
+  - id: outro
+    kind: outro

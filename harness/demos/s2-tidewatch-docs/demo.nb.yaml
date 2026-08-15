@@ -1,0 +1,123 @@
+id: s2-tidewatch-docs
+title: Et dokumentasjonssted som tar igjen på egen hånd
+subtitle: "Fire håndboksider, to nye språk, og en CI-jobb som rapporterer hva som er etter i stedet for å feile på det."
+tagline: "avvik er arbeid, ikke et mislykket bygg."
+kind: use-case
+publishAs: docs-site-convergence
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/tidewatch-docs
+needsAi: false
+# The sandbox IS the Tidewatch docs sample, copied from samples/tidewatch-docs so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/tidewatch-docs
+project: true
+captureTimeoutSec: 300
+aspects:
+  - i18n-treet er byggeresultat
+  - frontmatter er innhold
+  - "dekning, ikke en dom"
+  - bygget venter aldri på et språk
+
+script:
+  # --- 1. The shape -------------------------------------------------------
+  - comment: "Et dokumentasjonssted. Fire sider, engelsk, og et målformat som byggeprosessen allerede forstår."
+  - command: ls docs
+  - command: cat kapi.yaml
+  - comment: "i18n-treet er ikke i git. Det skrives av løkken fra kilden og den inncheckede konteksten, slik at en kloning regenererer det og ingen diff noen gang inneholder en generert oversettelse."
+  - command: cat .gitignore
+
+  # --- 2. Converge --------------------------------------------------------
+  - comment: Ett verb. Godkjent ordlyd gjenbrukes; bare resten sendes til en leverandør.
+  - command: kapi up
+  - comment: Frontmatter er innhold — en leser ser tittelen i sidepanelet og beskrivelsen i et søkeresultat — så den flyter sammen med brødteksten.
+  - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
+  - comment: "Og det havnet der Docusaurus ser, uten noe kopieringstrinn og uten tillegg."
+  - command: find i18n -name '*.md' | sort
+
+  # --- 3. What CI reports -------------------------------------------------
+  - comment: "Dette er det pull-request-jobben publiserer. Dekning per språk, i maskinlesbart format."
+  - command: >-
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: "Gjennomgå norsk, og det passerer skipskontrollen. Nederlandsk er ikke gjennomgått, så det gjør det ikke."
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > nb.json
+  - command: kapi apply nb.json 2>&1 | tail -2
+  - command: kapi commit
+  - command: kapi status
+
+  # --- 4. Behind is not broken --------------------------------------------
+  - comment: "Nederlandsk er på etterskudd. Det er ingen feil ved det – kildeporten er det en pull request holdes til, og den handler om kilden."
+  - command: kapi check --strict
+  - comment: "Ett veiledende funn, og det er API-referansen som beholder et navn som vokabularet har pensjonert. Rapportert, aldri blokkerende."
+  - comment: CI-jobben som bygger nettstedet er ikke avhengig av jobben som konvergerer det. Det er hele opplegget.
+  - command: cat .github/workflows/kapi.yml
+
+artifacts:
+  - id: dekning
+    caption: "kapi status --json — dekning per språk, hva CI leser"
+    source: kommando
+    # Artifact commands run under the harness's kapi isolation, which turns
+    # recipe discovery off, so the recipe is named rather than walked to.
+    command: kapi status -p kapi.yaml --json
+    report: json
+    reportTitle: "kapi status --json"
+    reportSub: "per språk: hvor mye som finnes, hvor mye en person har lest"
+    width: 1200
+    height: 900
+  - id: oversatt
+    caption: "i18n/nb/…/index.md — frontmatter og prosa, der bygget leter"
+    source: rapport
+    report: markdown
+    path: i18n/nb/docusaurus-plugin-content-docs/current/index.md
+    reportTitle: "i18n/nb/…/current/index.md"
+    reportSub: "skrevet av kapi opp; ikke i git"
+    width: 1200
+    height: 900
+
+narration:
+  - id: tittel
+    kind: tittel
+    text: >
+      Et dokumentasjonssted er det enkleste stedet å se hvorfor et oversatt prosjekt trenger en løkke snarere enn en prosjektplan. Kilden beveger seg hver uke, språkene følger i sitt eget tempo, og det ene som aldri må skje er at et bygg mislykkes fordi en oversetter ikke har klart å holde tritt ennå.
+  - id: shape
+    kind: terminal
+    text: >
+      Fire håndboksider og en oppskrift. Målstien er treet Docusaurus allerede leser oversettelser fra, så ingenting kopierer noe: løkken skriver der byggeprosessen leter. Og det treet er ikke i versjonskontroll. Det er avledet fra kilden og den committede konteksten, så en kloning regenererer det og en pull-forespørsel bærer aldri en generert oversettelse inn i gjennomgang.
+    caption: "i18n-treet er byggeresultat, ikke en oversikt"
+
+  - id: konvergere
+    kind: terminal
+    text: >
+      Ett verb konvergerer begge språk. Formuleringer prosjektet har godkjent tidligere gjenbrukes først; bare det som er igjen når frem til en leverandør, som her er den frakoblede demostubben som merker alt den produserer. Front matter følger med prosen, fordi en tittel i en sidefelt og en beskrivelse i et søkeresultat er ting en leser leser.
+    caption: "gjenbrukt først, utkast andre, front matter inkludert"
+
+  - id: oversatt
+    kind: artefakt
+    artifact: oversatt
+    text: >
+      Dette er filen løkken skrev. Tittel, sidefeltetikett og innhold, i treet som nettstedsbyggingen allerede kjenner til – og stubbens egne merker på strengene den fant på, slik at ingen forveksler en demo med en oversettelse.
+  - id: dekning
+    kind: artefakt
+    artifact: dekning
+    text: >
+      Og dette er det kontinuerlig-integrasjonsjobben legger ut på en pull request: hvor mye av hvert språk som finnes, hvor mye av det en person har lest, og om det passerer terskelen for å bli tilbudt. Det er en rapport, ikke en dom. Jobben som legger den ut kan ikke feile bygget.
+  - id: gjennomgang
+    kind: terminal
+    text: >
+      Gjennomgå norsk og det passerer ship-porten. Nederlandsk er ikke gjennomgått, så det gjør det ikke — og det er den vanlige tilstanden til et oversatt nettsted snarere enn en hendelse. Det er engelsken pull-requesten faktisk holdes til, og kildeporten passerer med ett rådgivende funn: en API-referanse som beholder et feltnavn vokabularet avviklet, rapportert og aldri blokkerende.
+    caption: "ett språk klart, ett venter, ingenting feiler"
+
+  - id: workflow
+    kind: terminal
+    text: >
+      Arbeidsflyten sier det tydelig. En pull-request får en tørrkjøring og en dekningskommentar; standardgrenen konvergerer og committer det som flyttet seg; og jobben som bygger nettstedet er ikke avhengig av noen av dem. Fail-on-parked forblir av, med vilje — parkert betyr at et språk venter på en person, som er tilstanden hele dette opplegget er laget for å gjøre overlevbar.
+    caption: "byggejobben er avhengig av ingen av dem"
+
+  - id: outro
+    kind: outro
+    text: >
+      Kilde streng, mål advarer. Dekning rapportert, aldri håndhevet ved en push. Et språk som henger etter er et pågående arbeid, og nettstedet leveres på de språkene som er klare mens det tar igjen.

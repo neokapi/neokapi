@@ -1,0 +1,56 @@
+id: bowrain-cli-kom-i-gang
+title: Koble til et prosjekt og oppdater det
+subtitle: "kapi init kobler de lokale filene dine til en Bowrain-server; push og pull flytter innhold som git, og kapi up kjører løkken på serveren."
+tagline: "filene dine forblir dine — serveren legger til teamet, minnet og styringen."
+kind: use-case
+publishAs: bowrain-cli-getting-started
+# A scripted plain-shell demo (no Claude): the bowrain CLI runs for real against
+# a live server (seeded by `make harness-seed`), so the commands and their output
+# are recorded exactly as a developer would see them.
+terminal: skall
+brand: bowrain
+cwd: ~/bowmart/help-center
+needsAi: false
+captureTimeoutSec: 180
+aspects:
+  - kapi init · push · up
+  - "filene dine, teamets server"
+  - push/pull som git
+  - "løkken, kjørt på serveren"
+
+script:
+  - comment: "BowMarts hjelpesenter-tekst — engelsk, lagret i repositoriet ditt."
+  - command: cat src/locales/en.json
+  - comment: Koble dette prosjektet til Bowrain-serveren din.
+  - command: kapi init --name help-center --source en --targets fr,de --server $BOWRAIN_SERVER_URL -y
+  - comment: Spor filene du vil ha oversatt.
+  - command: kapi add "src/locales/*.json"
+  - comment: "Skyv kilden opp — ren transport, som git push."
+  - command: kapi push
+  - comment: "Sjekk status — dekning og hva som venter, som git status."
+  - command: kapi status
+  - comment: Oppdater prosjektet — kapi up kjører løkken på serveren og henter resultatene tilbake.
+  - command: kapi up
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Bowrain er serversidekompanjongen til kapi. Innholdet ditt forblir i repositoriet ditt; serveren legger til et team, delt innholdsminne og styring over tid. Å koble et prosjekt til det krever bare én kommando.
+  - id: init
+    kind: terminal
+    text: >
+      Her er BowMarts hjelpesenter-tekst — noen engelske strenger i en JSON-fil. kapi init setter opp prosjektet og oppretter det i arbeidsområdet ditt på Bowrain-serveren, med kilde- og målspråk angitt.
+    caption: "kapi init — koble prosjektet til Bowrain"
+  - id: push
+    kind: terminal
+    text: >
+      Spor filene du vil ha oversatt, og push deretter. Push er ren transport — det flytter kilden opp til serveren, som git push; det oversetter ikke på egenhånd. kapi status viser deretter statusen: dekningstabellen per lokalitet, samt serverlinjen, vilkårslinjen og stedslinjen — hvilken server dette prosjektet tilhører, hva organisasjonens vilkår krever, og hvor løkken vil kjøre.
+    caption: "kapi push — kilde opp til serveren"
+  - id: up
+    kind: terminal
+    text: >
+      kapi up kjører løkken og skriver ut stedet sitt først: server, fordi oppskriften erklærer én. Alt i bakgrunnen henter seg inn på Bowrain-serveren, med teamets nøkler, delt minne og porter — minne først, så AI, deretter kontroller — og det strømmer fremdriften tilbake til terminalen din, og trekker resultatene inn i de samme filene og formatet du startet med. Alt som krever en person parkeres for gjennomgang. Før noe brukes, forhåndsviser kapi up --plan det ventende arbeidet og kostnadene. Dette er kommandoen CI-en din kjører.
+    caption: "kapi up — kjør løkken på serveren"
+  - id: outro
+    kind: outro

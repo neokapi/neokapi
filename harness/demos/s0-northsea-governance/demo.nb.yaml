@@ -1,0 +1,167 @@
+id: s0-northsea-governance
+title: Styr innholdet du allerede har
+subtitle: "Ett repository, ett språk, tre flater — oppdaget, kontrollert, korrigert og konvergert, uten server og uten modell."
+tagline: "kontroller for prosa, slik tester fungerer for kode."
+kind: brukstilfelle
+publishAs: monolingual-governance
+# A scripted plain-shell demo: every command is deterministic, so it runs for
+# real and its output is recorded exactly. Nothing here reaches a network.
+#
+# Two `kapi check --strict` runs exit 3 on purpose — a failing gate is the point
+# of acts 3 and 4 — and each declares it with `expectExit: 3`, so a take where
+# the gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/northsea
+needsAi: false
+# The sandbox IS the Northsea sample project, copied from samples/northsea so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/northsea
+project: true
+captureTimeoutSec: 180
+aspects:
+  - ett språk
+  - tre flater
+  - frakoblede porter
+  - "beslutninger, ikke redigeringer"
+
+# The sample ships the context graph as the assistant drafted it — untracked,
+# next to content that is already committed. That is the state a review starts
+# from, so the first act can be the review rather than a re-enactment of it.
+setup:
+  - git init -q
+  - git config user.email ops@northsea.example
+  - git config user.name Northsea
+  - git add docs app landing README.md
+  - git commit -qm "Northsea documentation, interface strings and landing page"
+
+script:
+  # --- 1. Discover: the graph arrives as files you review -------------------
+  - comment: "Et bedriftsrepository. Operatørdokumentasjon, grensesnittstrenger, én markedsføringsside. Ett språk."
+  - command: ls
+  - comment: "En assistent leste alle tre overflatene og foreslo en kontekstgraf. Det er filer i repoet – usporing, venter på deg."
+  - command: git status --short
+  - comment: "Oppskriften knytter hver flate til et punkt — produktet, og deretter kanalen det leveres på."
+  - command: cat kapi.yaml
+  - comment: Merkevarestemme-profilen den utarbeidet er skjemavalid.
+  - command: kapi voice validate .kapi/voice.yaml
+  - comment: "Du korrigerte et utkast i stedet for å skrive ett. Committ det, og grafen er versjonert, sammenlignbar, gjennomgått kilde."
+  - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
+  - comment: "Ett verb forener den committede grafen og kildene. Ingen målspråk, ingen leverandør, ingenting å spørre om."
+  - command: kapi up
+
+  # --- 2. Ask where you are ------------------------------------------------
+  - comment: "Det første spørsmålet en agent stiller. Hvor er jeg, og hva styrer her?"
+  - command: kapi context docs/berths.md | head -6
+  - comment: "Det samme spørsmålet, tre kataloger unna — et annet poeng, et annet register."
+  - command: kapi context landing/index.html | head -6
+  - comment: "Det andre spørsmålet. Hva kaller vi dette, og hvorfor?"
+  - command: kapi context search mooring
+
+  # --- 3. Checks are tests for prose ---------------------------------------
+  - comment: Kjør nå portene slik du kjører tester.
+  # The gate must fail here: one major finding is the substance of this beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - comment: "Den samme kjøringen, i formen CI leser."
+  - command: kapi check --json --no-fail > findings.json
+
+  # --- 4. Corrections teach the graph --------------------------------------
+  - comment: "Tre av disse er formuleringer kilden fikk feil, så korriger kilden."
+  - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
+  - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
+  - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
+  - comment: "Korrekturleseren oppdager også et ord grafen aldri har fått vite om — «dock», der Northsea sier berth. Det er en beslutning, ikke en redigering."
+  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+  - command: kapi apply decisions.jsonl
+  - comment: Grafen lærte. Den neste kontrollen finner det den forrige slapp gjennom.
+  # And again here: a decision that changed nothing would be no decision at all.
+  - command: kapi check --strict
+    expectExit: 3
+  - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
+
+  # --- 5. Converge ---------------------------------------------------------
+  - comment: "Konverger, og les hvor du står."
+  - command: kapi up
+  - command: kapi status
+  - comment: "Grønt. Det som gjenstår er endringsloggen og API-referansen som beholder et navn vokabularet har pensjonert — rådgivende, aldri blokkerende."
+  - command: kapi check --strict
+
+artifacts:
+  - id: landing
+    caption: "landing/index.html — flaten landing-kanalen styrer"
+    source: html
+    path: landing/index.html
+    width: 1200
+    height: 900
+  - id: findings
+    caption: "kapi check --json — regel, punkt og erstatning, per funn"
+    source: report
+    report: json
+    path: findings.json
+    reportTitle: "kapi check --json"
+    reportSub: "hva CI leser ved hver pull request"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Det meste av innholdsarbeid er ikke oversettelse. Det er et team, et repository og ett språk — og spørsmålet om det som nettopp ble skrevet fortsatt høres ut som selskapet. Dette er den reisen, fra start til slutt, uten server og uten modell noe sted i den.
+  - id: oppdag
+    kind: terminal
+    text: >
+      Northsea selger programvare til havneoperatører. Repositoriet inneholder operatørdokumentasjon, tekststrengene i appen og en markedsføringsside. En assistent leste alle tre og foreslo en kontekstgraf — en oppskrift, en stemme­profil, et vokabular. Den ankommer som usporede filer, så det første som skjer med den, er gjennomgang.
+    caption: "grafen ankommer som filer, ikke som en tjeneste"
+
+  - id: adopt
+    kind: terminal
+    text: >
+      Oppskriften binder hver flate til et punkt. Produktet er profilen; kanalen er flaten den leveres på. Ingenting erklærer en taksonomi ved siden av innholdet — rommet leses ut av det oppskriften allerede sier. Commit den, og ett verb forener grafen med kildene. Det er ingen andre pipeline, og ingenting å logge inn på.
+    caption: "committed, deretter konvergert — ingen målspråk nødvendig"
+
+  - id: landing
+    kind: artifact
+    artifact: landing
+    text: >
+      Dette er en av de tre flatene — markedsføringssiden. Den ligger på northsea skråstrek landing, og registeret der er varmere enn i dokumentasjonen. Vokabularet er det ikke: et ord selskapet ikke bruker, brukes heller ikke her.
+  - id: where
+    kind: terminal
+    text: >
+      Nå de to spørsmålene enhver assistent trenger svar på. Først, etter plassering: hvor er jeg, og hva gjelder her? Dokumentasjonen og landingssiden er tre mapper fra hverandre og får forskjellige svar — den samme stemmen, et annet register.
+    caption: "etter plassering: du er på northsea/docs"
+
+  - id: search
+    kind: terminal
+    text: >
+      For det andre, etter innhold. Northsea omdøpte et sted underveis fra mooring til berth. Grafen svarer med begge halvdeler — mooring frarådes, si berth; API-feltet mooring underscore i-d er tillatt, fordi trådkontrakten beholder navnet vokabularet pensjonerte — og med hvert sted der hvert av dem faktisk brukes, og hvilken flate det brukes på.
+    caption: "etter innhold: beslutningen, og overalt den lander"
+
+  - id: check
+    kind: terminal
+    text: >
+      Deretter kjører portene slik tester kjører. Et forbudt ord på markedsføringssiden, alvorlig. En pensjonert term som fortsatt finnes i dokumentasjonen og i en grensesnittstreng, mindre alvorlig — fordi pensjonering av et ord aldri bør feile noens bygg. Hvert funn navngir regelen, punktet det er avgrenset til, og rettelsen.
+    caption: "én alvorlig, resten veiledende"
+
+  - id: findings
+    kind: artifact
+    artifact: findings
+    text: >
+      Den samme kjøringen i maskinformat. Hvert funn bærer sin regel, filen og blokken det befinner seg i, og erstatningen — som er det en pull request-kontroll og en assistent begge leser.
+  - id: korriger
+    kind: terminal
+    text: >
+      Tre av disse er rett og slett feil ordbruk, så kilden rettes. Den fjerde er annerledes. En gjennomleser legger merke til ordet dock på landingssiden — Northsea sier berth — og grafen har aldri blitt fortalt det. Det er en beslutning, ikke en redigering, så det skrives ned som nettopp det: én enkelt oppføring, i det vokabularet hele prosjektet leser.
+    caption: "en korreksjon grafen beholder"
+
+  - id: lært
+    kind: terminal
+    text: >
+      Kjør kontrollen på nytt og den finner det forrige kjøring godkjente. Én beslutning nådde både posten og porten. Fiks den siste, konverger, og prosjektet er grønt — med ett språk, ingen server og ingen legitimasjon. Det som gjenstår er endringsloggen og API-referansen som beholder et navn vokabularet har pensjonert, som porten rapporterer og aldri blokkerer.
+    caption: "neste kontroll håndhever beslutningen"
+
+  - id: outro
+    kind: outro
+    text: >
+      Ett repository, ett språk, én løkke. Oppdag grafen, spør den hvor du er, kontroller prosaen, og la korrigeringer lære den. Et andre språk er en utvidelse av dette — ikke grunnen til å begynne.
