@@ -82,8 +82,8 @@ test.describe("Context governance", () => {
     const ws = await api.getOrCreateWorkspace("E2E Context", `e2e-context-${suffix}`);
     wsSlug = ws.slug;
 
-    const held = await api.createWorkspaceProject(wsSlug, "Support Site", "en", ["nb"]);
-    const arriving = await api.createWorkspaceProject(wsSlug, "Help App", "en", ["nb"]);
+    const held = await api.createProject(wsSlug, "Support Site", "en", ["nb"]);
+    const arriving = await api.createProject(wsSlug, "Help App", "en", ["nb"]);
     heldProject = held.id;
     arrivingProject = arriving.id;
 

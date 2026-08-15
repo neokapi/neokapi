@@ -1,9 +1,15 @@
 /**
- * Unified Bowrain API client for all e2e test suites.
- * Merges the cloud and web-app clients into a single class covering
- * health, auth, workspaces, editor projects, file upload, pseudo-translate,
- * content memory, terms, invites, automations, brand profiles, streams, tasks,
- * notifications, and activities.
+ * Unified Bowrain API client for all e2e test suites, covering health, auth,
+ * workspaces, projects, file upload, pseudo-translate, content memory, terms,
+ * invites, automations, brand profiles, streams, tasks, notifications, and
+ * activities.
+ *
+ * Two route families reach the server, and the split is the whole of it
+ * (Bowrain AD-011). `/api/v1/workspaces` carries the collection verbs alone —
+ * list a user's workspaces, create one. Everything scoped to a workspace hangs
+ * off the bare slug, `/api/v1/:ws/...`, and a project off `/api/v1/:ws/:id/...`
+ * with no noun between them. A path of the shape `/workspaces/:ws/anything` is
+ * registered nowhere and 404s.
  */
 
 // ---------------------------------------------------------------------------
@@ -365,7 +371,7 @@ export class BowrainAPI {
   }
 
   async getWorkspace(slug: string): Promise<Workspace> {
-    return this.get(`/workspaces/${slug}`);
+    return this.get(`/${slug}`);
   }
 
   async listWorkspaces(): Promise<Workspace[]> {
@@ -381,7 +387,7 @@ export class BowrainAPI {
   }
 
   // -----------------------------------------------------------------------
-  // Editor Projects
+  // Projects
   // -----------------------------------------------------------------------
 
   async createProject(
@@ -390,7 +396,7 @@ export class BowrainAPI {
     sourceLanguage: string,
     targetLanguages: string[],
   ): Promise<Project> {
-    return this.post(`/workspaces/${wsSlug}/editor/projects`, {
+    return this.post(`/${wsSlug}/projects`, {
       name,
       default_source_language: sourceLanguage,
       target_languages: targetLanguages,
@@ -398,15 +404,15 @@ export class BowrainAPI {
   }
 
   async getProject(wsSlug: string, projectId: string): Promise<Project> {
-    return this.get(`/workspaces/${wsSlug}/editor/projects/${projectId}`);
+    return this.get(`/${wsSlug}/${projectId}`);
   }
 
   async listProjects(wsSlug: string): Promise<Project[]> {
-    return this.get(`/workspaces/${wsSlug}/editor/projects`);
+    return this.get(`/${wsSlug}/projects`);
   }
 
   async deleteProject(wsSlug: string, projectId: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/editor/projects/${projectId}`);
+    return this.del(`/${wsSlug}/${projectId}`);
   }
 
   async deleteAllProjects(wsSlug: string): Promise<void> {
@@ -427,17 +433,23 @@ export class BowrainAPI {
   // File Operations
   // -----------------------------------------------------------------------
 
+  /**
+   * Uploads a file onto a project's stream. Every project gets a `main` stream
+   * at creation, so that is the default a caller with no stream of its own
+   * wants.
+   */
   async uploadFile(
     wsSlug: string,
     projectId: string,
     fileName: string,
     content: string | Buffer | Uint8Array,
+    stream = "main",
   ): Promise<void> {
     const formData = new FormData();
     formData.append("files", new Blob([content]), fileName);
 
     const resp = await fetch(
-      `${this.apiUrl}/workspaces/${wsSlug}/editor/projects/${projectId}/files`,
+      `${this.apiUrl}/${wsSlug}/${projectId}/items/${encodeURIComponent(stream)}`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${this.token}` },
@@ -447,14 +459,16 @@ export class BowrainAPI {
     if (!resp.ok) throw new Error(`Upload ${fileName}: ${resp.status} ${await resp.text()}`);
   }
 
+  /** The file is named in `?item=`; the action itself is scoped to the stream. */
   async pseudoTranslate(
     wsSlug: string,
     projectId: string,
     fileName: string,
     targetLocale: string,
+    stream = "main",
   ): Promise<{ total_blocks: number; translated_blocks: number }> {
     return this.post(
-      `/workspaces/${wsSlug}/editor/projects/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`,
+      `/${wsSlug}/${projectId}/actions/${encodeURIComponent(stream)}/pseudo-translate?item=${encodeURIComponent(fileName)}`,
       { target_locale: targetLocale },
     );
   }
@@ -463,6 +477,11 @@ export class BowrainAPI {
   // Content Memory
   // -----------------------------------------------------------------------
 
+  /**
+   * The content memory's route keeps the `translation-memory` spelling: it is a
+   * wire path clients are already built against, and so sits behind the rename
+   * boundary.
+   */
   async addMemoryEntry(
     wsSlug: string,
     source: string,
@@ -470,7 +489,7 @@ export class BowrainAPI {
     sourceLocale: string,
     targetLocale: string,
   ): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/tm`, {
+    return this.post(`/${wsSlug}/translation-memory`, {
       source,
       target,
       source_locale: sourceLocale,
@@ -479,43 +498,39 @@ export class BowrainAPI {
   }
 
   async searchMemory(wsSlug: string, query: string): Promise<unknown> {
-    return this.get(`/workspaces/${wsSlug}/tm?q=${encodeURIComponent(query)}`);
+    return this.get(`/${wsSlug}/translation-memory?q=${encodeURIComponent(query)}`);
   }
 
   // -----------------------------------------------------------------------
-  // Terminology
+  // Terms
   // -----------------------------------------------------------------------
 
-  async addConcept(wsSlug: string, concept: Concept): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/terms`, concept);
+  /** Creates a concept through ordinary curation and returns it with its id. */
+  async addConcept(
+    wsSlug: string,
+    concept: {
+      domain?: string;
+      definition?: string;
+      terms: Array<{
+        text: string;
+        locale: string;
+        status?: string;
+        part_of_speech?: string;
+        gender?: string;
+      }>;
+    },
+  ): Promise<{ id: string }> {
+    return this.post(`/${wsSlug}/concepts`, concept);
   }
 
   async searchTerms(wsSlug: string, query: string): Promise<unknown> {
-    return this.get(`/workspaces/${wsSlug}/terms?q=${encodeURIComponent(query)}`);
+    return this.get(`/${wsSlug}/concepts?q=${encodeURIComponent(query)}`);
   }
 
   // -----------------------------------------------------------------------
   // Context: the points a workspace's content occupies, and the channel-slug
   // equivalence the workspace observes between its projects
   // -----------------------------------------------------------------------
-
-  /**
-   * Creates a project on the workspace-scoped route the sync and context
-   * endpoints share, so a project seeded here is addressable at
-   * /:ws/:id/... without a second id space.
-   */
-  async createWorkspaceProject(
-    wsSlug: string,
-    name: string,
-    sourceLanguage: string,
-    targetLanguages: string[],
-  ): Promise<Project> {
-    return this.post(`/${wsSlug}/projects`, {
-      name,
-      default_source_language: sourceLanguage,
-      target_languages: targetLanguages,
-    });
-  }
 
   /**
    * Pushes the context content type alone — the collections a recipe declares,
@@ -565,46 +580,6 @@ export class BowrainAPI {
   // things a reviewer reads before approving one — its reach and its trial.
   // -----------------------------------------------------------------------
 
-  /**
-   * Uploads a file onto a workspace project's stream, on the bare-slug route
-   * family (`/:ws/:id/items/:ref`) the workspace projects live under. The
-   * `/workspaces/:ws/editor/...` family several older helpers still use is a
-   * different, earlier shape; a project created with createWorkspaceProject is
-   * only addressable here.
-   */
-  async uploadToStream(
-    wsSlug: string,
-    projectId: string,
-    stream: string,
-    fileName: string,
-    content: string | Buffer | Uint8Array,
-  ): Promise<void> {
-    const formData = new FormData();
-    formData.append("files", new Blob([content]), fileName);
-
-    const resp = await fetch(
-      `${this.apiUrl}/${wsSlug}/${projectId}/items/${encodeURIComponent(stream)}`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${this.token}` },
-        body: formData,
-      },
-    );
-    if (!resp.ok) throw new Error(`Upload ${fileName}: ${resp.status} ${await resp.text()}`);
-  }
-
-  /** Creates a concept through ordinary curation and returns it with its id. */
-  async createConcept(
-    wsSlug: string,
-    concept: {
-      domain?: string;
-      definition?: string;
-      terms: Array<{ text: string; locale: string; status?: string }>;
-    },
-  ): Promise<{ id: string }> {
-    return this.post(`/${wsSlug}/concepts`, concept);
-  }
-
   async createChangeset(
     wsSlug: string,
     name: string,
@@ -652,9 +627,7 @@ export class BowrainAPI {
     changesetId: string,
     fresh = false,
   ): Promise<ChangeSetImpactInfo> {
-    return this.get(
-      `/${wsSlug}/changesets/${changesetId}/blast-radius${fresh ? "?fresh=1" : ""}`,
-    );
+    return this.get(`/${wsSlug}/changesets/${changesetId}/blast-radius${fresh ? "?fresh=1" : ""}`);
   }
 
   /** The findings diff for one stream under a change-set's draft. */
@@ -667,19 +640,6 @@ export class BowrainAPI {
     return this.get(
       `/${wsSlug}/changesets/${changesetId}/pilots/${encodeURIComponent(projectId)}/${encodeURIComponent(stream)}/findings`,
     );
-  }
-
-  /**
-   * The workspace activity feed on the bare-slug route family
-   * (`/:ws/activities`), which is where it lives. The older listActivities
-   * helper still points at `/workspaces/:ws/activities`, a shape the server no
-   * longer serves.
-   */
-  async workspaceActivities(wsSlug: string): Promise<Activity[]> {
-    const page = await this.get<{ activities?: Activity[] } | Activity[]>(
-      `/${wsSlug}/activities`,
-    );
-    return Array.isArray(page) ? page : (page.activities ?? []);
   }
 
   async startPilot(
@@ -709,11 +669,11 @@ export class BowrainAPI {
     if (email) body.email = email;
     if (maxUses !== undefined) body.max_uses = maxUses;
     if (ttlDays !== undefined) body.ttl_days = ttlDays;
-    return this.post(`/workspaces/${wsSlug}/invites`, body);
+    return this.post(`/${wsSlug}/invites`, body);
   }
 
   async listInvites(wsSlug: string): Promise<Invite[]> {
-    return this.get(`/workspaces/${wsSlug}/invites`);
+    return this.get(`/${wsSlug}/invites`);
   }
 
   async acceptInvite(code: string): Promise<void> {
@@ -725,7 +685,7 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listAutomationRules(wsSlug: string, projectId: string): Promise<AutomationRule[]> {
-    return this.get(`/workspaces/${wsSlug}/projects/${projectId}/automations`);
+    return this.get(`/${wsSlug}/${projectId}/automations`);
   }
 
   async createAutomationRule(
@@ -733,7 +693,7 @@ export class BowrainAPI {
     projectId: string,
     rule: Partial<AutomationRule>,
   ): Promise<AutomationRule> {
-    return this.post(`/workspaces/${wsSlug}/projects/${projectId}/automations`, rule);
+    return this.post(`/${wsSlug}/${projectId}/automations`, rule);
   }
 
   async updateAutomationRule(
@@ -742,11 +702,11 @@ export class BowrainAPI {
     ruleId: string,
     rule: Partial<AutomationRule>,
   ): Promise<AutomationRule> {
-    return this.put(`/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`, rule);
+    return this.put(`/${wsSlug}/${projectId}/automations/${ruleId}`, rule);
   }
 
   async deleteAutomationRule(wsSlug: string, projectId: string, ruleId: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`);
+    return this.del(`/${wsSlug}/${projectId}/automations/${ruleId}`);
   }
 
   // -----------------------------------------------------------------------
@@ -754,12 +714,12 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listBrandProfiles(wsSlug: string): Promise<BrandProfile[]> {
-    const result = await this.get<BrandProfile[] | null>(`/workspaces/${wsSlug}/brand-profiles`);
+    const result = await this.get<BrandProfile[] | null>(`/${wsSlug}/brand-profiles`);
     return result ?? [];
   }
 
   async createBrandProfile(wsSlug: string, profile: Partial<BrandProfile>): Promise<BrandProfile> {
-    return this.post(`/workspaces/${wsSlug}/brand-profiles`, profile);
+    return this.post(`/${wsSlug}/brand-profiles`, profile);
   }
 
   async updateBrandProfile(
@@ -767,15 +727,15 @@ export class BowrainAPI {
     profileId: string,
     profile: Partial<BrandProfile>,
   ): Promise<BrandProfile> {
-    return this.put(`/workspaces/${wsSlug}/brand-profiles/${profileId}`, profile);
+    return this.put(`/${wsSlug}/brand-profiles/${profileId}`, profile);
   }
 
   async deleteBrandProfile(wsSlug: string, profileId: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/brand-profiles/${profileId}`);
+    return this.del(`/${wsSlug}/brand-profiles/${profileId}`);
   }
 
   async checkBrandProfile(wsSlug: string, profileId: string): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/brand-profiles/${profileId}/check`);
+    return this.post(`/${wsSlug}/brand-profiles/${profileId}/check`);
   }
 
   async createBrandProfileFromStarter(
@@ -785,7 +745,7 @@ export class BowrainAPI {
   ): Promise<BrandProfile> {
     const body: Record<string, unknown> = { pack };
     if (name) body.name = name;
-    return this.post(`/workspaces/${wsSlug}/brand-profiles/from-starter`, body);
+    return this.post(`/${wsSlug}/brand-profiles/from-starter`, body);
   }
 
   // -----------------------------------------------------------------------
@@ -793,7 +753,7 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listStreams(wsSlug: string, projectId: string): Promise<Stream[]> {
-    return this.get(`/workspaces/${wsSlug}/projects/${projectId}/streams`);
+    return this.get(`/${wsSlug}/${projectId}/streams`);
   }
 
   async createStream(
@@ -801,13 +761,11 @@ export class BowrainAPI {
     projectId: string,
     opts: { name: string; parent?: string; description?: string },
   ): Promise<Stream> {
-    return this.post(`/workspaces/${wsSlug}/projects/${projectId}/streams`, opts);
+    return this.post(`/${wsSlug}/${projectId}/streams`, opts);
   }
 
   async getStream(wsSlug: string, projectId: string, streamName: string): Promise<Stream> {
-    return this.get(
-      `/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`,
-    );
+    return this.get(`/${wsSlug}/${projectId}/streams/${encodeURIComponent(streamName)}`);
   }
 
   async updateStream(
@@ -816,24 +774,19 @@ export class BowrainAPI {
     streamName: string,
     updates: Partial<Stream>,
   ): Promise<Stream> {
-    return this.patch(
-      `/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`,
-      updates,
-    );
+    return this.patch(`/${wsSlug}/${projectId}/streams/${encodeURIComponent(streamName)}`, updates);
   }
 
   async deleteStream(wsSlug: string, projectId: string, streamName: string): Promise<void> {
-    return this.del(
-      `/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`,
-    );
+    return this.del(`/${wsSlug}/${projectId}/streams/${encodeURIComponent(streamName)}`);
   }
 
-  async mergeStream(wsSlug: string, streamId: string): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/${streamId}/merge`);
+  async mergeStream(wsSlug: string, projectId: string, streamName: string): Promise<unknown> {
+    return this.post(`/${wsSlug}/${projectId}/streams/${encodeURIComponent(streamName)}/merge`);
   }
 
-  async diffStream(wsSlug: string, streamId: string): Promise<unknown> {
-    return this.get(`/workspaces/${wsSlug}/${streamId}/diff`);
+  async diffStream(wsSlug: string, projectId: string, streamName: string): Promise<unknown> {
+    return this.get(`/${wsSlug}/${projectId}/streams/${encodeURIComponent(streamName)}/diff`);
   }
 
   // -----------------------------------------------------------------------
@@ -841,9 +794,7 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listTasks(wsSlug: string): Promise<Task[]> {
-    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(
-      `/workspaces/${wsSlug}/tasks`,
-    );
+    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(`/${wsSlug}/tasks`);
     return result.tasks;
   }
 
@@ -858,19 +809,19 @@ export class BowrainAPI {
       assignee_id?: string;
     },
   ): Promise<Task> {
-    return this.post(`/workspaces/${wsSlug}/tasks`, task);
+    return this.post(`/${wsSlug}/tasks`, task);
   }
 
   async getTask(wsSlug: string, taskId: string): Promise<Task> {
-    return this.get(`/workspaces/${wsSlug}/tasks/${taskId}`);
+    return this.get(`/${wsSlug}/tasks/${taskId}`);
   }
 
   async updateTask(wsSlug: string, taskId: string, updates: Partial<Task>): Promise<Task> {
-    return this.patch(`/workspaces/${wsSlug}/tasks/${taskId}`, updates);
+    return this.patch(`/${wsSlug}/tasks/${taskId}`, updates);
   }
 
   async deleteTask(wsSlug: string, taskId: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/tasks/${taskId}`);
+    return this.del(`/${wsSlug}/tasks/${taskId}`);
   }
 
   async assignTask(wsSlug: string, taskId: string, assigneeId?: string): Promise<unknown> {
@@ -880,20 +831,24 @@ export class BowrainAPI {
       const me = await this.me();
       uid = me.id;
     }
-    return this.post(`/workspaces/${wsSlug}/tasks/${taskId}/assign`, { assignee_id: uid });
+    return this.post(`/${wsSlug}/tasks/${taskId}/assign`, { assignee_id: uid });
   }
 
   async completeTask(wsSlug: string, taskId: string): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/tasks/${taskId}/complete`);
+    return this.post(`/${wsSlug}/tasks/${taskId}/complete`);
   }
 
   async cancelTask(wsSlug: string, taskId: string): Promise<unknown> {
-    return this.post(`/workspaces/${wsSlug}/tasks/${taskId}/cancel`);
+    return this.post(`/${wsSlug}/tasks/${taskId}/cancel`);
   }
 
+  /**
+   * "My tasks" is a filter on the task list, not a route of its own: the server
+   * resolves the literal `me` to the authenticated user.
+   */
   async myTasks(wsSlug: string): Promise<Task[]> {
     const result = await this.get<{ tasks: Task[]; next_cursor: string }>(
-      `/workspaces/${wsSlug}/my/tasks`,
+      `/${wsSlug}/tasks?assignee_id=me`,
     );
     return result.tasks;
   }
@@ -903,25 +858,24 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listNotifications(wsSlug: string): Promise<Notification[]> {
-    return this.get(`/workspaces/${wsSlug}/notifications`);
+    return this.get(`/${wsSlug}/notifications`);
   }
 
   async markNotificationRead(wsSlug: string, notificationId: string): Promise<void> {
-    await this.post(`/workspaces/${wsSlug}/notifications/${notificationId}/read`);
+    await this.post(`/${wsSlug}/notifications/${notificationId}/read`);
   }
 
   async markAllNotificationsRead(wsSlug: string): Promise<void> {
-    await this.post(`/workspaces/${wsSlug}/notifications/read-all`);
+    await this.post(`/${wsSlug}/notifications/read-all`);
   }
 
   async deleteNotification(wsSlug: string, notificationId: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/notifications/${notificationId}`);
+    return this.del(`/${wsSlug}/notifications/${notificationId}`);
   }
 
+  /** Preferences are a workspace-level resource, not a child of the feed. */
   async getNotificationPreferences(wsSlug: string): Promise<NotificationPreferences> {
-    const result = await this.get<{ preferences: unknown }>(
-      `/workspaces/${wsSlug}/notifications/preferences`,
-    );
+    const result = await this.get<{ preferences: unknown }>(`/${wsSlug}/notification-preferences`);
     return result as NotificationPreferences;
   }
 
@@ -949,7 +903,7 @@ export class BowrainAPI {
         })),
       };
     }
-    return this.put(`/workspaces/${wsSlug}/notifications/preferences`, body);
+    return this.put(`/${wsSlug}/notification-preferences`, body);
   }
 
   // -----------------------------------------------------------------------
@@ -958,9 +912,9 @@ export class BowrainAPI {
 
   async listActivities(wsSlug: string): Promise<Activity[]> {
     const result = await this.get<{ activities: Activity[]; next_cursor: string }>(
-      `/workspaces/${wsSlug}/activities`,
+      `/${wsSlug}/activities`,
     );
-    return result.activities;
+    return result.activities ?? [];
   }
 }
 
