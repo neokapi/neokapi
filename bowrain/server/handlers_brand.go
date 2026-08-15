@@ -537,13 +537,13 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 
-	// Run vocabulary-based brand checks against the profile using the shared
-	// matcher + mapper (profile.MatchVocabulary → profile.HitsToFindings): whole-word,
-	// Unicode-aware matching (so "use" never matches inside "user") and concept_id
-	// propagation, identical to the streaming pipeline tool and the MCP tool. A
-	// single text run anchors each finding's position to the checked text.
+	// Run the profile's whole deterministic gate (profile.Findings): whole-word,
+	// Unicode-aware vocabulary matching (so "use" never matches inside "user")
+	// with concept_id propagation, plus the prohibited style patterns — identical
+	// to the streaming pipeline tool and the MCP tool. A single text run anchors
+	// each finding's position to the checked text.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, req.Text), req.Text, runs)
+	findings := coreprofile.Findings(profile, req.Text, runs)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 

@@ -151,13 +151,13 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	sourceRuns := v.SourceRuns()
 
-	// Forbidden and competitor terms are matched by the shared vocabulary matcher
-	// (profile.MatchVocabulary) — whole-word, Unicode-aware (check.FindTerm), so
-	// "use" never matches inside "user" — and mapped to findings by the shared
-	// profile.HitsToFindings (message, structured replacement, concept_id). The same
-	// matcher + mapper back the blast-radius evaluator, the /check endpoint, and
-	// the check_vocabulary MCP tool, so none of these paths diverge.
-	findings := profile.HitsToFindings(profile.MatchVocabulary(t.profile, sourceText), sourceText, sourceRuns)
+	// The profile's whole deterministic gate (profile.Findings): forbidden and
+	// competitor terms, matched whole-word and Unicode-aware (check.FindTerm) so
+	// "use" never matches inside "user", plus the prohibited style patterns
+	// matched as authored. The same entry point backs the /check endpoint, the
+	// check_vocabulary MCP tool and the desktop inspector, so none of these paths
+	// enforces half a profile.
+	findings := profile.Findings(t.profile, sourceText, sourceRuns)
 
 	// The bound terms store, when there is one: the vocabulary the project
 	// DECIDED, enforced alongside the profile's own lists.

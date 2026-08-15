@@ -359,22 +359,22 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 
 | Source pattern                            | Extracted? | Notes                                                                    |
 | ----------------------------------------- | ---------- | ------------------------------------------------------------------------ |
-| `<h1>Hello</h1>`                          | ✓          | standard translatable element                                            |
-| `<div>Hello</div>`                        | ✓          | auto-promoted silently                                                   |
-| `<>Hello <b>you</b></>`                   | ✓          | fragment root; descriptor is `fragment`                                  |
-| `<Button><Icon/>Save</Button>`            | ✓          | "Save" extracts with `{=m0}` standalone for the icon                     |
-| `<TabsTrigger>Hello</TabsTrigger>`        | ✓          | warning suggests `componentMap`                                          |
-| `<PageHeader title="Hi" />`               | ✓          | `title` is an HTML attribute — any element                              |
-| `<PageHeader title={cond ? "A" : "B"} />` | ✓          | both branches — one block each                                           |
-| `<MyComp description="Hi" />`             | ✓          | `description` is a convention prop — components only                     |
-| `<div label="draft-pending" />`           | ✗          | convention prop on a plain element — not copy                            |
-| `<p>Click <a>here</a></p>`                | ✓          | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
-| `<code>foo</code>`                        | ✗          | non-translatable element                                                 |
-| `<h1 translate="no">X</h1>`               | ✗          | explicit opt-out (suppresses lint too)                                   |
-| `<button>{label}</button>`                | ✗          | bare expression — use `t()` on the source                                |
-| `<button>{obj.label}</button>`            | ✗          | flagged by `prefer-t-for-label-expr` — wrap the source                   |
-| `<button>{cond ? "A" : "B"}</button>`     | ✗          | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
-| `<div>{cond && 'Hi'}</div>`               | ✗          | expression — use `t()`                                                   |
+| `<h1>Hello</h1>`                          | yes        | standard translatable element                                            |
+| `<div>Hello</div>`                        | yes        | auto-promoted silently                                                   |
+| `<>Hello <b>you</b></>`                   | yes        | fragment root; descriptor is `fragment`                                  |
+| `<Button><Icon/>Save</Button>`            | yes        | "Save" extracts with `{=m0}` standalone for the icon                     |
+| `<TabsTrigger>Hello</TabsTrigger>`        | yes        | warning suggests `componentMap`                                          |
+| `<PageHeader title="Hi" />`               | yes        | `title` is an HTML attribute — any element                              |
+| `<PageHeader title={cond ? "A" : "B"} />` | yes        | both branches — one block each                                           |
+| `<MyComp description="Hi" />`             | yes        | `description` is a convention prop — components only                     |
+| `<div label="draft-pending" />`           | no         | convention prop on a plain element — not copy                            |
+| `<p>Click <a>here</a></p>`                | yes        | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
+| `<code>foo</code>`                        | no         | non-translatable element                                                 |
+| `<h1 translate="no">X</h1>`               | no         | explicit opt-out (suppresses lint too)                                   |
+| `<button>{label}</button>`                | no         | bare expression — use `t()` on the source                                |
+| `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr` — wrap the source                   |
+| `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
+| `<div>{cond && 'Hi'}</div>`               | no         | expression — use `t()`                                                   |
 
 ## Next
 

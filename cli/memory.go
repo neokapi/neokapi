@@ -82,9 +82,9 @@ overrides.
 
 By default, imports entries matching the given --source-locale and --target-locale.
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
-each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where
-a single TU may contain 24+ languages). Combine with --locales to restrict the
-pair set (e.g. --all-pairs --locales en-GB,fr,de).
+each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports, where
+a single TU may carry every official EU language). Combine with --locales to
+restrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).
 
 The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
 without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV

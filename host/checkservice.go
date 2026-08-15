@@ -22,7 +22,7 @@ import (
 // verify/status path.
 func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName, sourceLang string) ([]*model.Block, error) {
 	ctx = ctxOrBackground(ctx)
-	return a.readBlocksAs(ctx, path, formatName, sourceLang)
+	return a.readBlocksAs(ctx, path, formatName, nil, sourceLang)
 }
 
 // WithDocumentCache opens the project document cache for the project rooted

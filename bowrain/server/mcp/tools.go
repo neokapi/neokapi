@@ -57,7 +57,7 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, runs)
+	findings := coreprofile.Findings(profile, input.Text, runs)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 

@@ -469,10 +469,11 @@ func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "profile is required"})
 	}
 
-	// Same shared matcher + mapper as the stored-profile check: whole-word,
-	// Unicode-aware vocabulary matching anchored to a single text run.
+	// Same deterministic gate as the stored-profile check: whole-word,
+	// Unicode-aware vocabulary matching plus prohibited style patterns, anchored
+	// to a single text run.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(req.Profile, req.Text), req.Text, runs)
+	findings := coreprofile.Findings(req.Profile, req.Text, runs)
 	if findings == nil {
 		findings = []coreprofile.VoiceFinding{}
 	}

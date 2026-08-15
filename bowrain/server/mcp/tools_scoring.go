@@ -100,7 +100,7 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, runs)
+	findings := coreprofile.Findings(profile, input.Text, runs)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 	score.WordCount = model.CountWords(input.Text)

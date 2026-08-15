@@ -313,17 +313,21 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// brandOverlay builds an OverlayQA over the source runs from the project's brand
-// profile (coreprofile.MatchVocabulary). Brand findings ride on the QA overlay type
-// (the model's overlay enum has no dedicated brand type) tagged with
-// category="voice-vocabulary" plus the matched term, severity, kind and any
-// preferred replacement. Returns nil when nothing matches.
+// brandOverlay builds an OverlayQA over the source runs from the project's voice
+// profile — both halves of its deterministic gate, vocabulary
+// (coreprofile.MatchVocabulary) and prohibited style patterns
+// (coreprofile.MatchPatterns). Findings ride on the QA overlay type (the model's
+// overlay enum has no dedicated voice type) tagged with
+// category="voice-vocabulary" or category="voice-pattern" plus the matched term
+// or rule, severity, kind and any preferred replacement. Returns nil when
+// nothing matches.
 func brandOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
 	hits := coreprofile.MatchVocabulary(profile, source)
-	if len(hits) == 0 {
+	patterns := coreprofile.MatchPatterns(profile, source)
+	if len(hits) == 0 && len(patterns) == 0 {
 		return nil
 	}
-	spans := make([]model.Span, 0, len(hits))
+	spans := make([]model.Span, 0, len(hits)+len(patterns))
 	for _, h := range hits {
 		props := map[string]string{
 			"category": "voice-vocabulary",
@@ -346,5 +350,27 @@ func brandOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source st
 			Props: props,
 		})
 	}
+	for _, p := range patterns {
+		spans = append(spans, model.Span{
+			Range: model.RunRangeForBytes(runs, p.Start, p.End),
+			Props: patternSpanProps(p),
+		})
+	}
 	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
+}
+
+// patternSpanProps renders one prohibited-pattern hit as overlay span props,
+// keyed the same way the vocabulary spans are so a single panel renders both.
+func patternSpanProps(p coreprofile.PatternHit) map[string]string {
+	message := p.Description
+	if strings.TrimSpace(message) == "" {
+		message = fmt.Sprintf("Prohibited pattern %q matched", p.Regex)
+	}
+	return map[string]string{
+		"category": "voice-pattern",
+		"severity": string(p.Severity),
+		"kind":     "pattern",
+		"pattern":  p.Regex,
+		"message":  message,
+	}
 }

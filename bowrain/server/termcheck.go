@@ -60,9 +60,10 @@ func blockTermCompliant(ctx context.Context, block *model.Block, srcLoc, tgtLoc 
 	if tb != nil && targetHasForbiddenTerm(ctx, tb, targetText, tgtLoc) {
 		return false
 	}
-	// PRESENCE (brand vocabulary): a forbidden/competitor brand rule matches the
-	// target. core/profile.MatchVocabulary is the canonical brand-vocab matcher.
-	if profile != nil && len(coreprofile.MatchVocabulary(profile, targetText)) > 0 {
+	// PRESENCE (voice profile): a forbidden/competitor rule or a prohibited style
+	// pattern matches the target. core/profile.Findings is the canonical
+	// deterministic gate.
+	if profile != nil && len(coreprofile.Findings(profile, targetText, nil)) > 0 {
 		return false
 	}
 	// ABSENCE (terms): the source uses a concept whose mandated rendering for

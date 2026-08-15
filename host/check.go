@@ -243,7 +243,14 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		return check.Report{}, err
 	}
 
-	opts := checkRunOptions{}
+	// The formats the project declared for its content: what a file IS to this
+	// project, resolved once for the run.
+	formats, err := a.newCheckFormats(cmd)
+	if err != nil {
+		return check.Report{}, err
+	}
+
+	opts := checkRunOptions{formats: formats}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -343,8 +350,10 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	var blocks []*model.Block
 	var diags []check.Diagnostic
 
+	fmtName, fmtCfg := opts.formats.forFile(a, file)
+
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, a.FormatFlag, a.SourceLang, validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, a.SourceLang, validateMode)
 		if rerr != nil {
 			return nil, nil, rerr
 		}
@@ -353,7 +362,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file)))
 		}
 	} else {
-		bl, rerr := a.readBlocks(ctx, file, a.SourceLang)
+		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, a.SourceLang)
 		if rerr != nil {
 			// A read failure is operational in off mode: the lenient readers
 			// extract from imperfect inputs, so a hard error means the file
@@ -425,6 +434,9 @@ type checkRunOptions struct {
 	require  []string
 	voice    bool
 	voiceMin float64
+	// formats binds each file to the format and reader config the project
+	// declared for it; nil outside a project.
+	formats *checkFormats
 }
 
 // collectFileDiagnostics runs the source-side content checkset over one file's
@@ -610,6 +622,74 @@ func gateFromFlags(cmd Command) check.Gate {
 //
 // Resolved profiles are cached by point, so a check over a thousand files loads
 // each voice once.
+// checkFormats answers, for one source file, the format the project declared it
+// as and the reader config it declared for it — the same binding the flow runner
+// and extract/merge apply.
+//
+// Without it the gate read every file by extension under reader defaults, so it
+// judged content the project does not declare as content: a demo script's
+// `command:` lines, which the recipe's keyPathPatterns exclude, and `.md` docs
+// read by the markdown reader when the recipe binds mdx. Both are text no
+// convergence run ever touches, held to a bar meant for prose.
+type checkFormats struct {
+	// byPath is keyed by absolute path; a file the project does not declare is
+	// absent, and reads as "detect by extension, reader defaults".
+	byPath map[string]resolvedFormat
+}
+
+type resolvedFormat struct {
+	name string
+	cfg  map[string]any
+}
+
+// newCheckFormats builds the binding for one run. Outside a project — or with an
+// explicit --format override, which names one format for everything the caller
+// passed — there is nothing to bind and every file falls back to detection.
+func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
+	f := &checkFormats{byPath: map[string]resolvedFormat{}}
+	if a.FormatFlag != "" {
+		return f, nil
+	}
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil || projectPath == "" {
+		return f, nil
+	}
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return nil, fmt.Errorf("load project for formats: %w", lerr)
+	}
+	pctx := project.NewProjectContext(proj, filepath.Join(filepath.Dir(projectPath), "x.kapi"))
+	resolved, rerr := pctx.ResolveContent(a.FormatReg)
+	if rerr != nil {
+		return nil, rerr
+	}
+	for _, rf := range resolved {
+		if _, seen := f.byPath[rf.Path]; seen {
+			continue
+		}
+		f.byPath[rf.Path] = resolvedFormat{name: rf.Format, cfg: mergedFormatConfig(proj, rf.Format, rf.Item)}
+	}
+	return f, nil
+}
+
+// forFile returns the format name and reader config to read one file under. An
+// empty name means "detect by extension".
+func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
+	if f == nil || len(f.byPath) == 0 {
+		return app.FormatFlag, nil
+	}
+	abs := file
+	if !filepath.IsAbs(abs) {
+		if r, err := filepath.Abs(abs); err == nil {
+			abs = r
+		}
+	}
+	if rf, ok := f.byPath[abs]; ok {
+		return rf.name, rf.cfg
+	}
+	return app.FormatFlag, nil
+}
+
 type checkVoice struct {
 	app   *App
 	cmd   Command
