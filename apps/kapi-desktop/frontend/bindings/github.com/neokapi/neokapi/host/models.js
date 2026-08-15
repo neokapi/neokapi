@@ -883,11 +883,24 @@ export class ConvergeLocaleResult {
             /**
              * Stale counts units whose translation was decided against source wording
              * that has since changed. They hold the locale out of Shippable whether or
-             * not a gate applies: the loop cannot settle a pairing, only a person can.
+             * not a gate applies: the decision on record no longer describes the
+             * project, and only a person can replace it.
              * @member
              * @type {number | undefined}
              */
             this["stale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Redrafted counts the stale units this run produced over — recycled against
+             * the rewritten source, or drafted for the remainder. It is what the loop
+             * owes them: a translation of the source the project has now. The decision
+             * they carried is NOT restored, so they stay in Stale until someone reviews
+             * the new draft, which is why the two are reported side by side.
+             * @member
+             * @type {number | undefined}
+             */
+            this["redrafted"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1296,11 +1309,14 @@ export class UpPlanScope {
         if (/** @type {any} */(false)) {
             /**
              * Stale is the count of units that HAVE a committed target whose decision
-             * was recorded against source wording that has since changed. It is
-             * reported beside MissingTarget rather than folded into it: this work is
-             * not a translation the loop can price, it is a pairing a person has to
-             * settle, and a cost estimate that quoted it would quote for work no
-             * provider is going to be asked to do.
+             * was recorded against source wording that has since changed. The run
+             * re-drafts them — recycle against the new wording, AI for the remainder —
+             * so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
+             * unit with no target is. They are reported on their own axis as well, and
+             * not folded into MissingTarget, because the two ask different things of the
+             * reader: missing work finishes when the loop finishes it, stale work also
+             * owes a review, and the tokens are being spent on a unit a person had
+             * already decided.
              * @member
              * @type {number | undefined}
              */

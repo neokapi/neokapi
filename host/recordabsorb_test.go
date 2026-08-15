@@ -380,3 +380,114 @@ func TestAbsorbCommittedRecord_KeepsPulledApproval(t *testing.T) {
 	assert.Equal(t, "Hei, verden", seen.VariantText("nb"),
 		"the pulled approval survives — the artifact it came from has not moved")
 }
+
+// The superseded pairing. A catalog entry keeps its key across a source
+// rewrite, so its old translation stays sitting beside the new sentence. The
+// absorber reads documents, not decisions, so it read that adjacency as a pair
+// and taught the memory an exact answer for wording nobody had ever translated
+// — which is what left `kapi up` recycling a stale target back over itself
+// every pass and reporting the drift it had just confirmed.
+
+// approveRecordUnit approves the (key, nb) unit through the real review path, so
+// the decision carries the basis a live approval would.
+func approveRecordUnit(t *testing.T, a *App, recipe, key string) {
+	t.Helper()
+	changed, err := a.ApproveReviewUnit(context.Background(), recipe, "en", "nb", "src/nb.json", key, "reviewed")
+	require.NoError(t, err)
+	require.True(t, changed)
+}
+
+// extractRecordBlocks populates the project block store from the working tree —
+// the pre-pass step every `kapi up` runs, and the reason the wording a decision
+// blessed is still recoverable after the source file has moved on.
+func extractRecordBlocks(t *testing.T, a *App, recipe string) {
+	t.Helper()
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	pctx := project.NewProjectContext(proj, recipe)
+	resolved, rerr := pctx.ResolveContent(a.FormatReg)
+	require.NoError(t, rerr)
+	_, _, serr := a.syncProjectBlockStore(context.Background(), pctx, recipe, resolved)
+	require.NoError(t, serr)
+}
+
+// TestAbsorbCommittedRecord_SupersededPairingKeepsItsOwnSource: the reviewer's
+// wording is absorbed against the sentence it actually translates, recovered
+// from the block store by the decision's own basis hash. Refusing the pair
+// outright would be safe but lossy — a translation the loop produced and a
+// person then approved has never been absorbed (the run stamps its own output),
+// so the rewrite would throw it away instead of leaving it as leverage.
+func TestAbsorbCommittedRecord_SupersededPairingKeepsItsOwnSource(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+	ctx := context.Background()
+
+	extractRecordBlocks(t, a, recipe)
+	approveRecordUnit(t, a, recipe, "greeting")
+
+	// The source sentence is rewritten; its key survives, so the old
+	// translation is still beside it.
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Record.Superseded, "the record's own basis contradicts the document's layout")
+	assert.Equal(t, 1, res.Record.Learned)
+
+	entries := storeEntries(t, a, root)
+	require.Len(t, entries, 1)
+	_, wrong := entries["Good evening, world"]
+	assert.False(t, wrong, "the rewritten sentence has no translation, and the memory must not claim one")
+	blessed := entries["Hello world"]
+	assert.Equal(t, "Hei verden", blessed.VariantText("nb"),
+		"the reviewer's wording is kept under the sentence it translates, as leverage for the rewrite")
+}
+
+// TestAbsorbCommittedRecord_UnrecoverableSupersededPairingIsRefused: with no
+// extracted blocks there is nothing to recover the blessed wording from. The
+// pair is then not written at all — a memory with one fewer entry costs a
+// lookup, an entry asserting a translation of the wrong sentence costs the
+// translation.
+func TestAbsorbCommittedRecord_UnrecoverableSupersededPairingIsRefused(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+
+	approveRecordUnit(t, a, recipe, "greeting")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Record.Superseded)
+	assert.Zero(t, res.Record.Learned, "an unrecoverable pairing is declined, not guessed at")
+	assert.Empty(t, storeEntries(t, a, root))
+	assert.True(t, res.Compiled(), "and the decline is reported, not silent")
+}
+
+// TestAbsorbCommittedRecord_SupersededOnlyWhileTheDecisionStillBlessesTheTarget:
+// the refusal is scoped to the pairing the record actually describes. Once the
+// translation has moved on too — the loop re-drafted it, or a person rewrote it
+// — the decision says nothing about what is on disk, and the pair is absorbed
+// like any undecided one. Without this the unit would be refused forever and
+// every `kapi up` would pay to draft it again.
+func TestAbsorbCommittedRecord_SupersededOnlyWhileTheDecisionStillBlessesTheTarget(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+	ctx := context.Background()
+
+	extractRecordBlocks(t, a, recipe)
+	approveRecordUnit(t, a, recipe, "greeting")
+
+	// Both halves move: the source is rewritten and the translation with it.
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"God kveld, verden"}`)
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Zero(t, res.Record.Superseded, "neither half of the decision is on disk any more")
+	assert.Equal(t, 1, res.Record.Learned)
+	learned := storeEntries(t, a, root)["Good evening, world"]
+	assert.Equal(t, "God kveld, verden", learned.VariantText("nb"))
+}

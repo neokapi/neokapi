@@ -11,9 +11,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -63,6 +65,13 @@ type RecordAbsorbResult struct {
 	// Contested counts source texts the record answers more than one way. The
 	// pair the corpus repeats most often wins; the rest are reported here.
 	Contested int `json:"contested,omitempty"`
+	// Superseded counts pairs the project's own decision record says do not go
+	// together: the decision blessed source wording that has since been
+	// rewritten, so the committed target translates a sentence the project no
+	// longer has. Such a pair is absorbed against the source it actually
+	// translates when that wording is still recoverable, and otherwise not at
+	// all — never against the source now sitting beside it.
+	Superseded int `json:"superseded,omitempty"`
 	// Skipped counts target artifacts already absorbed at their current digest.
 	Skipped int `json:"skipped,omitempty"`
 	// Unreadable counts target artifacts whose format could not be read back
@@ -149,6 +158,17 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		return res, nil
 	}
 
+	// The decisions the project holds, so a pair the record's own basis
+	// contradicts is not written into the memory as if it were a translation of
+	// the source beside it. A state store that cannot be read yields an empty
+	// index — no decisions, so no pair is contradicted — which is the same
+	// posture every other reader of it takes.
+	reviewed, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root)
+	if rerr != nil {
+		return res, rerr
+	}
+	prior := newPriorSourceIndex(ctx, db)
+
 	stamps := loadRecordDigests(ctx, db)
 	next := make(map[string]string, len(units))
 	pairs := map[string]*recordPair{}
@@ -183,6 +203,39 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 			srcRuns, tgtRuns, keep := recordRuns(b, sourceLocale, u.locale)
 			if !keep {
 				continue
+			}
+			// A pairing the record's own basis contradicts. This unit's key
+			// survived a source rewrite, so its translation still sits beside a
+			// sentence it was never a translation of — and reading that adjacency
+			// as a pair is what taught the memory an exact answer for the NEW
+			// wording, so every `kapi up` recycled the stale target back over
+			// itself and reported the drift it had just confirmed.
+			//
+			// The pair is not simply dropped. The wording the decision blessed is
+			// still in the block store (this runs before the pass re-extracts),
+			// and recovering it by its own basis hash is not a guess: it is the
+			// pairing the reviewer approved, reconstructed. Kept under that
+			// source it stays reachable as leverage for the rewrite, which is
+			// what stops a one-word source edit from throwing a careful
+			// translation away. Unrecoverable — nothing extracted yet, or a store
+			// already re-read — means nothing is written: a memory with one fewer
+			// entry costs a lookup, an entry asserting a translation of the wrong
+			// sentence costs the translation.
+			//
+			// Scoped to the decision's other half still holding. Once the target
+			// has moved on too — the loop re-drafted it, or a person rewrote it —
+			// the record describes neither side of what is on disk, and the pair
+			// is absorbed like any undecided one. That is also what keeps the
+			// re-draft from repeating: the next run learns the fresh draft and
+			// recycles it rather than paying to produce it again.
+			if e, basis, _ := reviewed.grade(b, string(u.locale)); basis == basisStale &&
+				e.blessesTarget(b, u.locale) {
+				res.Superseded++
+				blessed, ok := prior.runsFor(e.contentHash)
+				if !ok {
+					continue
+				}
+				srcRuns = blessed
 			}
 			if !model.DiffRunCodes(srcRuns, tgtRuns).Balanced() {
 				// The three-layer protection holds here too: an asymmetric pair
@@ -366,6 +419,85 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 	}
 	a.RebuildMemorySearchIndexes(ctx, tm)
 	return nil
+}
+
+// priorSourceIndex answers "what wording did this decision bless?" from the
+// project block store, keyed by the basis itself (state.SourceHash of a block's
+// source text — the same number a decision records).
+//
+// The store is the only carrier of that wording: a decision keeps the basis
+// hash, not the sentence. It holds it because the absorber runs BEFORE the pass
+// re-extracts the working tree, so at this moment the store still describes the
+// project as it was when the decision was made. Keying on the hash rather than
+// on the unit means a recovered source is verified by construction — a block
+// whose hash is the basis IS the wording that was blessed, whatever document it
+// has since moved to.
+//
+// The scan is deferred until something actually asks: most runs hold no
+// superseded pairing, and a project's whole block set is not worth reading to
+// answer a question nobody put.
+type priorSourceIndex struct {
+	ctx    context.Context
+	db     *projectdb.DB
+	loaded bool
+	byHash map[string][]model.Run
+}
+
+func newPriorSourceIndex(ctx context.Context, db *projectdb.DB) *priorSourceIndex {
+	return &priorSourceIndex{ctx: ctx, db: db}
+}
+
+// runsFor returns the source runs whose basis hash is the given one, and
+// ok=false when the store cannot supply them (nothing extracted yet, a build
+// with no block store, or a store already re-read past the edit).
+func (p *priorSourceIndex) runsFor(basis string) ([]model.Run, bool) {
+	if basis == "" {
+		return nil, false
+	}
+	if !p.loaded {
+		p.loaded = true
+		p.byHash = p.scan()
+	}
+	runs, ok := p.byHash[basis]
+	return runs, ok
+}
+
+// scan reads every translatable block the store holds and indexes its source
+// runs by basis. Autocommit, not the session-transactional store: this is a read
+// beside the run's own writes, and holding the write permit for the length of a
+// full scan would stall them. Any failure yields an empty index — the caller
+// then declines to absorb rather than absorbing something wrong.
+func (p *priorSourceIndex) scan() map[string][]model.Run {
+	out := map[string][]model.Run{}
+	if p.db == nil {
+		return out
+	}
+	store := p.db.BlocksAutocommit()
+	if store == nil {
+		return out
+	}
+	sess, err := store.Begin(p.ctx)
+	if err != nil {
+		return out
+	}
+	defer sess.Close()
+	translatable := true
+	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
+		if berr != nil {
+			return out
+		}
+		// model.RunsText, the same projection model.Block.SourceText makes, so a
+		// stored block hashes to the number a decision recorded for it.
+		text := model.RunsText(b.Source)
+		if text == "" {
+			continue
+		}
+		h := state.SourceHash(text)
+		if _, seen := out[h]; !seen {
+			out[h] = b.Source
+		}
+	}
+	return out
 }
 
 // withRecordOrigin adds the record origin to an entry's origins, replacing the

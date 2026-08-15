@@ -128,7 +128,16 @@ func locale(o StatusOutput, loc string) (LocaleCoverage, bool) {
 // gate that needs 50% reviewed, plus a bound (initially absent) .memory.json source.
 func writeReviewProject(t *testing.T) string {
 	t.Helper()
+	// Dogfood isolation contract (CLAUDE.md). Discovery stays ON — one test in
+	// this family chdirs into the fixture and relies on the upward walk finding
+	// its recipe — so every OTHER root a run could inherit is pinned instead:
+	// the developer's ~/.config/kapi, the plugin roots, the shared caches.
 	t.Setenv("KAPI_NO_PROJECT", "")
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	root := t.TempDir()
 	recipe := `version: v1
 name: rev

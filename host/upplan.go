@@ -34,11 +34,14 @@ type UpPlanScope struct {
 	// after content-memory leverage.
 	AIRemaining int `json:"aiRemaining"`
 	// Stale is the count of units that HAVE a committed target whose decision
-	// was recorded against source wording that has since changed. It is
-	// reported beside MissingTarget rather than folded into it: this work is
-	// not a translation the loop can price, it is a pairing a person has to
-	// settle, and a cost estimate that quoted it would quote for work no
-	// provider is going to be asked to do.
+	// was recorded against source wording that has since changed. The run
+	// re-drafts them — recycle against the new wording, AI for the remainder —
+	// so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
+	// unit with no target is. They are reported on their own axis as well, and
+	// not folded into MissingTarget, because the two ask different things of the
+	// reader: missing work finishes when the loop finishes it, stale work also
+	// owes a review, and the tokens are being spent on a unit a person had
+	// already decided.
 	Stale int `json:"stale,omitempty"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
 	// source characters / 4 (a common chars-per-token heuristic — the
@@ -99,7 +102,8 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	t.Render()
 	if o.Totals.Stale > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
-			"They are not priced — settle them in review (`kapi status --review`) or retranslate.\n", o.Totals.Stale)
+			"They are re-drafted against the current source (priced above) and return to review "+
+			"un-approved — `kapi status --review`.\n", o.Totals.Stale)
 	}
 	// Always name the provider a run would resolve. A plan exists to answer
 	// "what will this do", and which provider does the work is part of that —
@@ -305,12 +309,18 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, review
 				// since been rewritten is drift the plan owes the reader, and
 				// reporting only presence is what let an edited sentence read as
 				// converged while its translation said something else.
-				if reviewed.basisFor(b, u.Locale) == basisStale {
-					s.Stale++
+				//
+				// It is also WORK, and priced below with everything else. A plan
+				// that named the drift but quoted nothing for it described a run
+				// that would go on to spend tokens the reader had not been shown
+				// — the one thing a plan exists to prevent.
+				if reviewed.basisFor(b, u.Locale) != basisStale {
+					continue
 				}
-				continue
+				s.Stale++
+			} else {
+				s.MissingTarget++
 			}
-			s.MissingTarget++
 			if planMemoryExactHit(ctx, tm, b, source, target) {
 				s.MemoryExact++
 				continue

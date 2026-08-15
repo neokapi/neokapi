@@ -386,27 +386,42 @@ kapi status
 # They do not ship — re-review them with `kapi status --review`.
 ```
 
-One pass closes what a machine can close — where the edit re-keys the unit (a
-prose paragraph, whose identity is its wording), it is re-translated, memory
-first, then AI:
+One pass closes what a machine can close. A stale unit is **work**, not only a
+report: the loop re-drafts it against the source the project has now — content
+memory first, then AI for the remainder, exactly as it produces a unit that has
+no translation at all — and the plan quotes that work before any tokens burn:
 
 ```bash
+kapi up --plan
+# scope  missing  stale  content memory exact  AI work  ~tokens
+# de           0      1                     0        1        9
+#
+# 1 unit(s) stale: their source changed since the translation was decided.
+# They are re-drafted against the current source (priced above) and return
+# to review un-approved — `kapi status --review`.
+
 kapi up --passes 1
+# Re-drafted 1 stale unit(s) against the current source — they return to
+# review un-approved (the earlier approval is not restored).
 kapi status
 # scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%        100%       98%         0%   ██████████ 100%  ready
+# de        42   100%        100%       98%         0%   █████████░  99%  blocked: stale
 ```
 
-*Translated* recovers to 100% and the scope clears its gate again — the 80%
-`reviewed` threshold left room for the re-opened unit, which now sits in the
-review worklist (`kapi status --review`). Under `reviewed: 100` the scope would
-instead stay *pending* until a person re-approves that unit.
+The re-draft holds however the unit is identified. Where the edit re-keys the
+unit — a prose paragraph, whose identity is its wording — the old translation no
+longer pairs with it at all. Where the unit keeps its key — a catalog entry,
+whose identity is its name — the old translation is still sitting beside the
+rewritten sentence, and the loop declines to read that adjacency as a
+translation of it: the wording a reviewer approved is kept in the content memory
+under the sentence it *does* translate, where a later fuzzy match can still
+recycle it, and the entry itself is drafted afresh.
 
-Where the unit keeps its key across the edit — a catalog entry, whose identity is
-its name — the old translation stays attached to it, so a pass has nothing to
-produce and the unit waits in the worklist for a person. Either way the scope
-does not ship until the pairing is settled, which is the property that matters:
-drift is reported, never converged over.
+What the loop does not do is decide. Producing a translation is not approving
+one, so the re-drafted unit comes back at *draft*, in the review worklist, with
+the earlier approval **not** restored — the scope does not ship until a person
+reviews the new pairing. That is the property that matters on both sides: drift
+is never converged over, and it is never left un-worked either.
 
 ## One verb, two venues
 
@@ -503,9 +518,11 @@ A unit whose **source** moved reads as *stale*: it holds a target, so it sits at
 *draft* rather than below the ladder, but it is not a translation of the source
 the project has now. `kapi status` counts it, the review worklist takes it back,
 and the scope does not ship — whether or not a ship gate was declared, because no
-coverage threshold makes a translation of a rewritten sentence shippable. Restore
-the source and it converges back on the decision already recorded; nobody
-re-reviews anything.
+coverage threshold makes a translation of a rewritten sentence shippable. The
+next `kapi up` re-drafts it against the current source (priced in `--plan`, and
+reported as a re-draft in the run summary) and leaves it un-approved for review.
+Restore the source *before* that run and it converges back on the decision
+already recorded; nobody re-reviews anything.
 
 Decisions recorded before the basis was tracked carry none. That is *unknown*,
 not drift: such a unit keeps its rung and ships as before, and `kapi status`
