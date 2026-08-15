@@ -252,6 +252,19 @@ func (r reviewedIndex) decided(b *model.Block, locale string) bool {
 	return ok
 }
 
+// approvesTarget reports whether a graded decision is an APPROVAL that still
+// holds: reviewed or signed-off, with both halves of the pairing it blessed
+// still on disk (which is what `applies` from grade already says).
+//
+// A rejection is a decision too, and `decided` counts it; it is not an
+// endorsement of the translation on disk, so a reader asking "did a person say
+// this wording is right?" has to ask separately. It takes the graded entry
+// rather than the block so a caller that already graded it does not look the
+// same unit up twice.
+func approvesTarget(e reviewedEntry, applies bool) bool {
+	return applies && (e.status == model.TargetStatusReviewed || e.status == model.TargetStatusSignedOff)
+}
+
 // apply moves a `translated` unit to its recorded decision rung — up to reviewed
 // or signed-off for an approval, down to draft for a rejection — when the block
 // has an applicable decision for the locale; otherwise it returns the base state

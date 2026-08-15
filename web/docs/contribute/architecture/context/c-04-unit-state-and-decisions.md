@@ -199,13 +199,41 @@ committed target with the source *beside* it, and a unit whose key survives a
 source rewrite keeps its old translation in that position — so the pair it
 learned was an exact content-memory answer for wording nobody had translated,
 and the next pass recycled the stale target back over itself. A pairing the
-record's own basis contradicts is therefore not absorbed against the source now
+project's own record contradicts is therefore not absorbed against the source now
 beside it. It is absorbed against the source it *does* translate, recovered from
-the block store by its own basis hash (the absorber runs before the pass
-re-extracts, so that wording is still there), and when it is unrecoverable the
-pair is not written at all. The refusal is scoped to the decision it belongs to:
-once the target has moved on too, the record describes neither half of what is
-on disk and the pair is absorbed like any undecided one.
+the block store (the absorber runs before the pass re-extracts, so that wording
+is still there), and when it is unrecoverable the pair is not written at all.
+
+Two things say the pairing is contradicted, and a unit needs only one of them.
+The **decision's basis** answers for the locale that holds a decision: the
+wording it blessed is recovered by the basis hash, which makes the recovered
+source verified by construction — a block whose hash *is* the basis is the
+pairing the reviewer approved, reconstructed rather than guessed. A **source
+rewrite** answers for all of them: the block store holds the wording the unit had
+when the pass last read the working tree, and every locale's committed target was
+produced against that one. Only the first would be a per-locale reading of a
+fact about the source, which is what left the locales holding no decision
+learning the mispair and serving the translation of a deleted sentence with the
+loop reporting them caught up.
+
+Both are scoped by the same question, asked of the target rather than the source:
+has it moved too? A decision answers it with the target hash it recorded; a unit
+with no decision answers it with the corpus, which already holds the loop's own
+last output for the wording that is gone. Once the target has moved as well the
+record describes neither half of what is on disk, so the pair is absorbed like
+any undecided one — which is also what lets a person who rewrites a sentence and
+its translation together keep the pairing they authored, and what keeps the next
+run from paying to draft the same unit again.
+
+**An identical translation is a decision or it is nothing.** A target equal to
+its source is dropped: unapproved, the identity is far more often a catalog
+carrying its untranslated leaves verbatim than a translation that happens to
+coincide, and absorbing one would fill the unit from its own source and take it
+away from the AI step for good. Carrying an approval it is absorbed like any
+other pair — a person read the pairing and said this wording is right, which is
+what proper nouns, product names and short labels look like when they are
+correct. Dropping those re-drafted them on every pass and overwrote the approval
+bound to each, which is the one thing the ledger exists to prevent.
 
 **A missing basis is unknown, not stale.** A record written before the basis was
 tracked says nothing about the source it blessed, and reading that silence as

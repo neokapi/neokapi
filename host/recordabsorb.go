@@ -65,12 +65,12 @@ type RecordAbsorbResult struct {
 	// Contested counts source texts the record answers more than one way. The
 	// pair the corpus repeats most often wins; the rest are reported here.
 	Contested int `json:"contested,omitempty"`
-	// Superseded counts pairs the project's own decision record says do not go
-	// together: the decision blessed source wording that has since been
-	// rewritten, so the committed target translates a sentence the project no
-	// longer has. Such a pair is absorbed against the source it actually
-	// translates when that wording is still recoverable, and otherwise not at
-	// all — never against the source now sitting beside it.
+	// Superseded counts pairs the project's own record says do not go together:
+	// the committed target translates source wording that has since been
+	// rewritten, so it is not a translation of the sentence now beside it. Such
+	// a pair is absorbed against the source it actually translates when that
+	// wording is still recoverable, and otherwise not at all — never against the
+	// source now sitting beside it.
 	Superseded int `json:"superseded,omitempty"`
 	// Skipped counts target artifacts already absorbed at their current digest.
 	Skipped int `json:"skipped,omitempty"`
@@ -168,6 +168,9 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		return res, rerr
 	}
 	prior := newPriorSourceIndex(ctx, db)
+	// What the corpus already answers, so a rewritten unit's committed target can
+	// be recognized as the loop's own last output for the wording that is gone.
+	corpus := &memoryAnswers{ctx: ctx, tm: tm, source: sourceLocale, cache: map[string][]memory.Entry{}}
 
 	stamps := loadRecordDigests(ctx, db)
 	next := make(map[string]string, len(units))
@@ -200,39 +203,37 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		}
 		res.Documents++
 		for _, b := range blocks {
-			srcRuns, tgtRuns, keep := recordRuns(b, sourceLocale, u.locale)
+			e, basis, applies := reviewed.grade(b, string(u.locale))
+			srcRuns, tgtRuns, keep := recordRuns(b, u.locale, approvesTarget(e, applies))
 			if !keep {
 				continue
 			}
-			// A pairing the record's own basis contradicts. This unit's key
+			// A pairing the project's own record contradicts. This unit's key
 			// survived a source rewrite, so its translation still sits beside a
 			// sentence it was never a translation of — and reading that adjacency
 			// as a pair is what taught the memory an exact answer for the NEW
 			// wording, so every `kapi up` recycled the stale target back over
 			// itself and reported the drift it had just confirmed.
 			//
-			// The pair is not simply dropped. The wording the decision blessed is
+			// The pair is not simply dropped. The wording it does translate is
 			// still in the block store (this runs before the pass re-extracts),
-			// and recovering it by its own basis hash is not a guess: it is the
-			// pairing the reviewer approved, reconstructed. Kept under that
-			// source it stays reachable as leverage for the rewrite, which is
-			// what stops a one-word source edit from throwing a careful
-			// translation away. Unrecoverable — nothing extracted yet, or a store
-			// already re-read — means nothing is written: a memory with one fewer
-			// entry costs a lookup, an entry asserting a translation of the wrong
-			// sentence costs the translation.
+			// and recovering it is not a guess. Kept under that source it stays
+			// reachable as leverage for the rewrite, which is what stops a
+			// one-word source edit from throwing a careful translation away.
+			// Unrecoverable — nothing extracted yet, or a store already re-read —
+			// means nothing is written: a memory with one fewer entry costs a
+			// lookup, an entry asserting a translation of the wrong sentence
+			// costs the translation.
 			//
-			// Scoped to the decision's other half still holding. Once the target
-			// has moved on too — the loop re-drafted it, or a person rewrote it —
-			// the record describes neither side of what is on disk, and the pair
-			// is absorbed like any undecided one. That is also what keeps the
-			// re-draft from repeating: the next run learns the fresh draft and
-			// recycles it rather than paying to produce it again.
-			if e, basis, _ := reviewed.grade(b, string(u.locale)); basis == basisStale &&
-				e.blessesTarget(b, u.locale) {
+			// Two things say the pairing is superseded, and a unit needs only one
+			// of them.
+			blessed, superseded, serr := supersededSource(b, u, e, basis, srcRuns, tgtRuns, prior, corpus)
+			if serr != nil {
+				return res, serr
+			}
+			if superseded {
 				res.Superseded++
-				blessed, ok := prior.runsFor(e.contentHash)
-				if !ok {
+				if blessed == nil {
 					continue
 				}
 				srcRuns = blessed
@@ -421,26 +422,85 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 	return nil
 }
 
-// priorSourceIndex answers "what wording did this decision bless?" from the
-// project block store, keyed by the basis itself (state.SourceHash of a block's
-// source text — the same number a decision records).
+// supersededSource decides whether a committed pair translates the source now
+// beside it, and recovers the wording it does translate when it does not.
+//
+// blessed is the source to absorb the target against; superseded with a nil
+// blessed means the pairing is contradicted and the wording it belongs to cannot
+// be recovered, so nothing is written for it at all.
+//
+// The two signals are not alternatives to each other, they answer for different
+// units. A decision's basis is per locale and only the decided locale has one; a
+// source rewrite is a fact about the source, and every locale of the unit is
+// mispaired by it. Reading the record with only the first left the undecided
+// locales silently serving the translation of a deleted sentence, which the loop
+// then confirmed as caught up.
+func supersededSource(
+	b *model.Block, u recordUnit, e reviewedEntry, basis basisVerdict,
+	srcRuns, tgtRuns []model.Run, prior *priorSourceIndex, corpus *memoryAnswers,
+) (blessed []model.Run, superseded bool, err error) {
+	// The decision's own basis contradicts the adjacency: it blessed source
+	// wording that is gone, and the translation it blessed is still on disk.
+	// Recovering that wording by the basis hash is verified by construction — a
+	// block whose hash IS the basis is the pairing the reviewer approved,
+	// reconstructed rather than guessed at.
+	//
+	// Scoped to the decision's other half still holding. Once the target has
+	// moved on too — the loop re-drafted it, or a person rewrote it — the record
+	// describes neither side of what is on disk, and the pair is absorbed like
+	// any undecided one. That is also what keeps the re-draft from repeating: the
+	// next run learns the fresh draft and recycles it rather than paying to
+	// produce it again.
+	if basis == basisStale && e.blessesTarget(b, u.locale) {
+		runs, _ := prior.runsFor(e.contentHash)
+		return runs, true, nil
+	}
+
+	// No decision, or one that no longer describes either half. The block store
+	// still holds the source this unit had when the pass last read the working
+	// tree, and the committed target was produced against THAT. A unit whose
+	// source has moved since is mispaired in every locale, decided or not.
+	//
+	// Scoped the same way the basis is, and by the same evidence: the corpus
+	// already answering the prior wording with exactly this target is what says
+	// the target has not moved with the source — it is the loop's own last
+	// output for the sentence that is gone. A target rewritten alongside its
+	// source answers nothing, and is absorbed as the fresh pairing it is, so a
+	// person who edits both halves together is not made to re-review their own
+	// work.
+	runs, ok := prior.runsForUnit(u.sourceRel, b.ID)
+	if !ok || model.RunsText(runs) == model.RunsText(srcRuns) {
+		return nil, false, nil
+	}
+	held, err := corpus.answers(runs, u.locale, tgtRuns)
+	if err != nil || !held {
+		return nil, false, err
+	}
+	return runs, true, nil
+}
+
+// priorSourceIndex answers "what wording is this translation of?" from the
+// project block store, two ways: by the basis a decision recorded
+// (state.SourceHash of a block's source text) and by the unit the block store
+// keys the source under.
 //
 // The store is the only carrier of that wording: a decision keeps the basis
-// hash, not the sentence. It holds it because the absorber runs BEFORE the pass
-// re-extracts the working tree, so at this moment the store still describes the
-// project as it was when the decision was made. Keying on the hash rather than
-// on the unit means a recovered source is verified by construction — a block
-// whose hash is the basis IS the wording that was blessed, whatever document it
-// has since moved to.
+// hash, not the sentence, and an undecided unit keeps nothing at all. It holds
+// it because the absorber runs BEFORE the pass re-extracts the working tree, so
+// at this moment the store still describes the project as it was when the
+// committed targets were last produced.
 //
-// The scan is deferred until something actually asks: most runs hold no
-// superseded pairing, and a project's whole block set is not worth reading to
-// answer a question nobody put.
+// The scan is deferred until something actually asks, and asked once for the
+// run. Only a document the digest stamp did not skip puts the question at all,
+// and reading that document's source and target back through their format
+// readers — which the absorber has already done by then — costs more than the
+// scan does.
 type priorSourceIndex struct {
 	ctx    context.Context
 	db     *projectdb.DB
 	loaded bool
 	byHash map[string][]model.Run
+	byUnit map[string][]model.Run
 }
 
 func newPriorSourceIndex(ctx context.Context, db *projectdb.DB) *priorSourceIndex {
@@ -454,37 +514,60 @@ func (p *priorSourceIndex) runsFor(basis string) ([]model.Run, bool) {
 	if basis == "" {
 		return nil, false
 	}
-	if !p.loaded {
-		p.loaded = true
-		p.byHash = p.scan()
-	}
+	p.load()
 	runs, ok := p.byHash[basis]
 	return runs, ok
 }
 
+// runsForUnit returns the source runs the store holds for one unit of one source
+// document — the wording that unit had when the working tree was last read.
+func (p *priorSourceIndex) runsForUnit(sourceRel, id string) ([]model.Run, bool) {
+	if sourceRel == "" || id == "" {
+		return nil, false
+	}
+	p.load()
+	runs, ok := p.byUnit[priorUnitKey(sourceRel, id)]
+	return runs, ok
+}
+
+// priorUnitKey is the identity the block store places a block by: the source
+// document it was extracted from and its in-file id. It is what
+// project.BlockStoreHash keys a stored block on, minus the source text — which
+// is exactly the part a rewrite moves.
+func priorUnitKey(sourceRel, id string) string { return sourceRel + "\x00" + id }
+
+func (p *priorSourceIndex) load() {
+	if p.loaded {
+		return
+	}
+	p.loaded = true
+	p.byHash, p.byUnit = p.scan()
+}
+
 // scan reads every translatable block the store holds and indexes its source
-// runs by basis. Autocommit, not the session-transactional store: this is a read
-// beside the run's own writes, and holding the write permit for the length of a
-// full scan would stall them. Any failure yields an empty index — the caller
-// then declines to absorb rather than absorbing something wrong.
-func (p *priorSourceIndex) scan() map[string][]model.Run {
-	out := map[string][]model.Run{}
+// runs by basis and by unit. Autocommit, not the session-transactional store:
+// this is a read beside the run's own writes, and holding the write permit for
+// the length of a full scan would stall them. Any failure yields empty indexes —
+// the caller then absorbs no differently than it did before the store existed,
+// rather than acting on half a scan.
+func (p *priorSourceIndex) scan() (byHash, byUnit map[string][]model.Run) {
+	byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}
 	if p.db == nil {
-		return out
+		return byHash, byUnit
 	}
 	store := p.db.BlocksAutocommit()
 	if store == nil {
-		return out
+		return byHash, byUnit
 	}
 	sess, err := store.Begin(p.ctx)
 	if err != nil {
-		return out
+		return byHash, byUnit
 	}
 	defer sess.Close()
 	translatable := true
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
 		if berr != nil {
-			return out
+			return map[string][]model.Run{}, map[string][]model.Run{}
 		}
 		// model.RunsText, the same projection model.Block.SourceText makes, so a
 		// stored block hashes to the number a decision recorded for it.
@@ -493,11 +576,50 @@ func (p *priorSourceIndex) scan() map[string][]model.Run {
 			continue
 		}
 		h := state.SourceHash(text)
-		if _, seen := out[h]; !seen {
-			out[h] = b.Source
+		if _, seen := byHash[h]; !seen {
+			byHash[h] = b.Source
+		}
+		byUnit[priorUnitKey(b.Properties.File, b.ID)] = b.Source
+	}
+	return byHash, byUnit
+}
+
+// memoryAnswers asks the content memory the question `recycle` asks: for this
+// source, in this locale, does the corpus already give exactly this translation?
+//
+// It reads the store's PRE-RUN state, which is the point — an absorbing pass
+// stages its writes and flushes them at the end, so what this sees is what the
+// previous run left, not what this one is about to assert.
+//
+// Cached per source: a rewritten unit is asked about once per locale, and the
+// full-score query is the same one for all of them.
+type memoryAnswers struct {
+	ctx    context.Context
+	tm     *memory.SQLiteStore
+	source model.LocaleID
+	cache  map[string][]memory.Entry
+}
+
+// answers reports whether the corpus gives the given target for the given source
+// in the locale.
+func (m *memoryAnswers) answers(src []model.Run, locale model.LocaleID, tgt []model.Run) (bool, error) {
+	key := recordSourceKey(src)
+	entries, ok := m.cache[key]
+	if !ok {
+		var err error
+		entries, err = m.tm.FullScoreEntries(m.ctx, src, m.source)
+		if err != nil {
+			return false, fmt.Errorf("read content-memory entries for a rewritten unit: %w", err)
+		}
+		m.cache[key] = entries
+	}
+	want := memory.NormalizeText(model.FlattenRuns(tgt))
+	for _, e := range entries {
+		if e.HasLocale(locale) && memory.NormalizeText(e.VariantText(locale)) == want {
+			return true, nil
 		}
 	}
-	return out
+	return false, nil
 }
 
 // withRecordOrigin adds the record origin to an entry's origins, replacing the
@@ -516,12 +638,26 @@ func withRecordOrigin(origins []memory.Origin, origin memory.Origin, now time.Ti
 
 // recordRuns projects a paired block onto the source and target runs the memory
 // stores, reporting keep=false for a block that carries no pair worth absorbing.
+// approved says the project's committed record holds an approval for this unit
+// in this locale, with both halves of what it blessed still on disk.
 //
-// A target identical to its source is deliberately not a pair: it teaches the
-// memory nothing an unfilled target would not produce anyway, and as an entry it
-// would compete — at full score — with the real translation another surface
-// gives the same string.
-func recordRuns(b *model.Block, sourceLocale, locale model.LocaleID) (src, tgt []model.Run, keep bool) {
+// A target identical to its source is not a pair unless a person decided it is.
+// Unapproved, the identity is far more often a catalog carrying its untranslated
+// leaves verbatim than a translation that happens to coincide, and absorbing one
+// is worse than absorbing nothing: it teaches the memory nothing an unfilled
+// target would not produce anyway, it competes at full score with the real
+// translation another surface gives the same string, and — since the convergence
+// flow skips what recycle matched — it would fill the unit with its own source
+// and take it away from the AI step for good, freezing an untranslated leaf as
+// translated.
+//
+// Approved, all three arguments fall away. The record is not guessing at what
+// the identity means: a person read the pairing and said this wording is right,
+// which is what proper nouns, product names and short labels look like when they
+// are correct. Dropping it re-drafted them on every pass and overwrote the
+// approval bound to each — the automated pass discarding the decision the unit
+// ledger exists to keep.
+func recordRuns(b *model.Block, locale model.LocaleID, approved bool) (src, tgt []model.Run, keep bool) {
 	if !b.Translatable {
 		return nil, nil, false
 	}
@@ -531,7 +667,10 @@ func recordRuns(b *model.Block, sourceLocale, locale model.LocaleID) (src, tgt [
 		return nil, nil, false
 	}
 	srcText, tgtText := model.FlattenRuns(src), model.FlattenRuns(tgt)
-	if srcText == "" || tgtText == "" || srcText == tgtText {
+	if srcText == "" || tgtText == "" {
+		return nil, nil, false
+	}
+	if srcText == tgtText && !approved {
 		return nil, nil, false
 	}
 	return src, tgt, true
