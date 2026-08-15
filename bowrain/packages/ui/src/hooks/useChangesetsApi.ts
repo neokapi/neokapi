@@ -194,6 +194,29 @@ export function useChangesetBlastRadius(changesetId: string, enabled = true) {
   });
 }
 
+/**
+ * The findings diff for one stream. Scoped to a single project and stream, so
+ * unlike the blast radius it is a small read — but it is still a walk, so it
+ * follows the same one-retry rule rather than turning a slow stream into four
+ * slow requests.
+ */
+export function useTrialFindings(
+  changesetId: string,
+  projectId: string,
+  stream: string,
+  enabled = true,
+) {
+  const { api, ws } = useWs();
+  return useQuery({
+    queryKey: ["changeset-trial", ws, changesetId, projectId, stream],
+    queryFn: () => api.trialFindings(ws, changesetId, projectId, stream),
+    enabled: enabled && !!ws && !!changesetId && !!projectId && !!stream,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useAddPilot(changesetId: string) {
   const { api, ws } = useWs();
   const qc = useQueryClient();

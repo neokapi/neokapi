@@ -30,6 +30,15 @@ type EvalOptions struct {
 	// preview can include the content already exercising the draft.
 	PilotStreams map[string][]string
 
+	// ProjectID restricts the walk to one project. Empty walks every project of
+	// the workspace.
+	ProjectID string
+	// Streams replaces the default stream set ("main" plus the project's pilot
+	// streams) with exactly these, for a walk that is about one branch rather
+	// than about the workspace. A stream the project does not have is dropped,
+	// same as a pilot stream is.
+	Streams []string
+
 	// Locales restricts which locales each block is evaluated in. When empty,
 	// each block is evaluated in its own source locale — the canonical, on-brand
 	// source text — which is what brand vocabulary and terminology enforcement
@@ -676,6 +685,9 @@ func (e *Engine) walkBlocks(
 		if workspaceID != "" && p.WorkspaceID != workspaceID {
 			continue
 		}
+		if opts.ProjectID != "" && p.ID != opts.ProjectID {
+			continue
+		}
 		for _, stream := range e.resolveStreams(ctx, p.ID, opts) {
 			blocks, err := e.blocks.GetBlocks(ctx, store.BlockQuery{ProjectID: p.ID, Stream: stream})
 			if err != nil {
@@ -693,7 +705,7 @@ func (e *Engine) walkBlocks(
 				}
 				colID, colName := cols.resolve(ctx, p.ID, stream, b)
 				for _, locale := range evalLocales(opts, b, p) {
-					text := b.Text(locale)
+					text := blockText(b, p, locale)
 					if isBlank(text) {
 						continue
 					}
@@ -734,25 +746,38 @@ func (c *collectionCache) resolve(ctx context.Context, projectID, stream string,
 // resolveStreams returns the streams to walk for a project: "main" always, plus
 // each pilot stream named in opts that the project actually has.
 func (e *Engine) resolveStreams(ctx context.Context, projectID string, opts EvalOptions) []string {
-	streams := []string{"main"}
+	if len(opts.Streams) > 0 {
+		return e.existingStreams(ctx, projectID, opts.Streams, nil)
+	}
 	pilots := opts.PilotStreams[projectID]
 	if len(pilots) == 0 {
-		return streams
+		return []string{"main"}
 	}
+	return e.existingStreams(ctx, projectID, pilots, []string{"main"})
+}
+
+// existingStreams keeps the names the project actually has, appended to base in
+// first-seen order without repeats. "main" always exists — it is the implicit
+// stream every project has whether or not a row records it.
+func (e *Engine) existingStreams(ctx context.Context, projectID string, names, base []string) []string {
 	existing := map[string]bool{"main": true}
 	if list, err := e.blocks.ListStreams(ctx, projectID, false); err == nil {
 		for _, s := range list {
 			existing[s.Name] = true
 		}
 	}
-	seen := map[string]bool{"main": true}
-	for _, name := range pilots {
+	out := append([]string{}, base...)
+	seen := map[string]bool{}
+	for _, n := range base {
+		seen[n] = true
+	}
+	for _, name := range names {
 		if name != "" && existing[name] && !seen[name] {
 			seen[name] = true
-			streams = append(streams, name)
+			out = append(out, name)
 		}
 	}
-	return streams
+	return out
 }
 
 // resolveCollection maps a block to its collection via the BlockSource when it
@@ -774,6 +799,27 @@ func (e *Engine) resolveCollection(ctx context.Context, projectID, stream string
 // evalLocales returns the locales a block is evaluated in: opts.Locales when set,
 // otherwise the block's own source locale (falling back to the project's default
 // source language).
+// blockText returns a block's text in locale, for a stored block that may not
+// know what language its source is in.
+//
+// The content store keeps a block's source runs but not the language they are
+// in — the PROJECT owns that — so a block read back from the store has an empty
+// SourceLocale. Block.Text compares the requested locale against that empty
+// field, decides the request is not for the source, and returns the TARGET in
+// that locale, which for a source-only project does not exist. Asking a stored
+// block for the project's own source language therefore returned "" for every
+// block in the workspace, and the whole blast radius read as a workspace with
+// nothing in it: total_blocks 0, affected 0, "no measurable impact on published
+// content" — the most dangerous sentence this report can say, and it said it on
+// every real deployment. evalLocales already falls back to the project's
+// language for exactly this case; this is the other half of that fallback.
+func blockText(b *store.StoredBlock, p *store.Project, locale model.LocaleID) string {
+	if b.SourceLocale == "" && p != nil && locale == p.DefaultSourceLanguage {
+		return b.SourceText()
+	}
+	return b.Text(locale)
+}
+
 func evalLocales(opts EvalOptions, b *store.StoredBlock, p *store.Project) []model.LocaleID {
 	if len(opts.Locales) > 0 {
 		return opts.Locales

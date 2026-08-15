@@ -126,6 +126,7 @@ import type {
   UpdateChangeSetRequest,
   ReviewRequest,
   ChangeSetImpact,
+  TrialReport,
   MergeResult,
   Pilot,
   StartPilotRequest,
@@ -1984,6 +1985,19 @@ export class WailsApiAdapter implements ApiAdapter {
     stream: string,
   ): Promise<void> {
     return Backend.RemovePilot(workspaceSlug, changesetId, projectId, stream);
+  }
+  async trialFindings(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<TrialReport> {
+    return Backend.TrialFindings(
+      workspaceSlug,
+      changesetId,
+      projectId,
+      stream,
+    ) as Promise<TrialReport>;
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

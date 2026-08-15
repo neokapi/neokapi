@@ -247,3 +247,58 @@ func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ok)
 }
+
+// A pilot is bound to one stream. Its shadow entries must therefore be invisible
+// to every read that does not name that stream — and the reads that matter most
+// are the stream-blind ones the checks and the sync go through
+// (Terminology.LookupAll, ConceptStore.Concepts). Without this, starting a pilot
+// on a side branch makes the draft's forbidden terms bite on main, and drags
+// machine-written duplicate concepts into every `kapi pull`.
+func TestStartPilot_ShadowsAreInvisibleToStreamBlindReads(t *testing.T) {
+	ctx := context.Background()
+	ws := "ws"
+	pilotStream := "pilot/rebrand"
+
+	tb := newSQLiteTB(t)
+	require.NoError(t, tb.AddConcept(ctx, concept("old", term("kaputt", "en-US", model.TermAdmitted))))
+
+	store := newMemStore()
+	cs := &ChangeSet{ID: "cs1", WorkspaceID: ws, Name: "Ban kaputt", CreatedBy: "alice"}
+	require.NoError(t, store.CreateChangeSet(ctx, cs))
+	appendOp(t, store, ws, cs.ID, 0, OpTermStatus, TermStatusPayload{
+		ConceptID: "old", Locale: "en-US", Text: "kaputt",
+		From: model.TermAdmitted, To: model.TermForbidden,
+	})
+	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
+	require.NoError(t, err)
+
+	before, err := tb.Concepts(ctx)
+	require.NoError(t, err)
+	beforeMatches, err := tb.LookupAll(ctx, "the kaputt thing", terms.LookupOptions{SourceLocale: "en-US"})
+	require.NoError(t, err)
+
+	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
+	require.NoError(t, err)
+
+	// The shadow was written — the pilot did its job.
+	_, ok, err := tb.GetConcept(ctx, pilotConceptID(cs.ID, pilotStream, "old"))
+	require.NoError(t, err)
+	require.True(t, ok, "the pilot must write its stream shadow")
+
+	after, err := tb.Concepts(ctx)
+	require.NoError(t, err)
+	assert.Len(t, after, len(before), "a pilot adds nothing to the workspace's concepts")
+	for _, c := range after {
+		assert.False(t, terms.IsShadowID(c.ID), "shadow %q escaped into a stream-blind listing", c.ID)
+	}
+
+	afterMatches, err := tb.LookupAll(ctx, "the kaputt thing", terms.LookupOptions{SourceLocale: "en-US"})
+	require.NoError(t, err)
+	assert.Len(t, afterMatches, len(beforeMatches),
+		"a pilot must not change what a stream-blind lookup — every check's terms read — finds")
+	for _, m := range afterMatches {
+		assert.NotEqual(t, model.TermForbidden, m.Term.Status,
+			"the draft's ban reached a lookup nobody bound the pilot to")
+	}
+}

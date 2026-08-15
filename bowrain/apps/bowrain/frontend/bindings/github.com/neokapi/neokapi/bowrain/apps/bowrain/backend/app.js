@@ -1703,6 +1703,20 @@ export function TestProviderConfig(req) {
 }
 
 /**
+ * TrialFindings returns the findings diff for one stream: what the check
+ * matchers raise under the live graph and under the graph the draft would
+ * produce.
+ * @param {string} workspaceSlug
+ * @param {string} changesetID
+ * @param {string} projectID
+ * @param {string} stream
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function TrialFindings(workspaceSlug, changesetID, projectID, stream) {
+    return $Call.ByID(4053230998, workspaceSlug, changesetID, projectID, stream);
+}
+
+/**
  * TryAutoConnect attempts to reconnect using stored auth on startup.
  * @returns {$CancellablePromise<void>}
  */

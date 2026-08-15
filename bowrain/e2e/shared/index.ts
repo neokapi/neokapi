@@ -25,6 +25,11 @@ export type {
   SyncContextEntry,
   ChannelAliasProposal,
   ContextProfilesResponse,
+  ChangeSetSummary,
+  MergeResultInfo,
+  ReachClassInfo,
+  ChangeSetImpactInfo,
+  TrialReportInfo,
   ReadinessComponentStatus,
   ReadinessInfo,
 } from "./api-client.js";

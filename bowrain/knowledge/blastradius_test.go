@@ -493,3 +493,39 @@ func findProjectUsage(ps []ProjectUsage, id string) *ProjectUsage {
 	}
 	return nil
 }
+
+// A block read back from the content store carries its source runs but no
+// source locale — the project owns the language, and the store keeps no column
+// for it. Every such block must still be scanned in the project's own language,
+// or the walk answers "nothing is affected" for a workspace full of content.
+func TestEvaluateChangeSet_StoredBlockWithNoSourceLocale(t *testing.T) {
+	ctx := context.Background()
+
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, concept("c1", term("utilise", "en", model.TermAdmitted))))
+
+	// Exactly what GetBlocks returns: source runs, no SourceLocale, no targets.
+	stored := &store.StoredBlock{Block: &model.Block{ID: "b1", Translatable: true}, ItemName: "pricing.json"}
+	stored.SetSourceText("You can utilise the API here")
+
+	bs := newFakeBlockSource()
+	bs.addProject(&store.Project{
+		ID: "proj1", Name: "Pricing", WorkspaceID: "ws", DefaultSourceLanguage: "en",
+	})
+	bs.addBlocks("proj1", "main", stored)
+
+	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
+		mustOp(t, 0, OpTermStatus, TermStatusPayload{
+			ConceptID: "c1", Locale: "en", Text: "utilise",
+			From: model.TermAdmitted, To: model.TermForbidden,
+		}),
+	}, EvalOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, imp.TotalBlocks, "the block is scanned in the project's language")
+	assert.Equal(t, 1, imp.AffectedBlocks)
+	assert.Equal(t, 1, imp.NewViolations)
+	require.NotNil(t, imp.Reach)
+	assert.Equal(t, 1, imp.Reach.Annotate.Blocks)
+}

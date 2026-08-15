@@ -46,7 +46,11 @@ var (
 // re-home the single live row onto the pilot branch and destroy the workspace
 // graph. Namespacing keeps the live graph untouched and makes StopPilot a clean,
 // deterministic delete-by-ID.
-const pilotShadowPrefix = "__pilot__"
+//
+// The namespace is the framework's, not this package's: a store has to filter it
+// out of its stream-blind reads for a pilot to stay on its own stream, so the
+// reservation belongs where every store can see it.
+const pilotShadowPrefix = terms.ShadowIDPrefix
 
 // pilotConceptID is the stream-shadow ID for a concept under a pilot.
 func pilotConceptID(changesetID, stream, conceptID string) string {
