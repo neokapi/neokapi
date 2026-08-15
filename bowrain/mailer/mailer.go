@@ -602,6 +602,44 @@ func (m *Mailer) renderNotification(locale string, data NotificationData) (strin
 	return m.execute(locale, "notification.html", td)
 }
 
+// WelcomeData holds the dynamic values for the welcome email — the one greeting
+// a new account receives, when its first workspace is provisioned.
+type WelcomeData struct {
+	// WorkspaceName is the human-readable name of the workspace just created.
+	WorkspaceName string
+	// WorkspaceURL is the full URL of that workspace's home.
+	WorkspaceURL string
+}
+
+// SendWelcome renders and sends the welcome email. It is sent once per account,
+// at the moment the account's first workspace exists; a returning member and an
+// invitee joining someone else's workspace never receive it.
+func (m *Mailer) SendWelcome(ctx context.Context, to, locale string, data WelcomeData) error {
+	body, err := m.renderWelcome(locale, data)
+	if err != nil {
+		return err
+	}
+	subject, err := m.subject(locale, "welcome", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderWelcome renders the welcome email template to an HTML string (exposed
+// for tests).
+func (m *Mailer) RenderWelcome(locale string, data WelcomeData) (string, error) {
+	return m.renderWelcome(locale, data)
+}
+
+func (m *Mailer) renderWelcome(locale string, data WelcomeData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"WorkspaceURL":  escapeURL(data.WorkspaceURL),
+	}
+	return m.execute(locale, "welcome.html", td)
+}
+
 // SendDigest sends a pre-rendered digest email (HTML body built by
 // DigestWorker). The digest body is assembled Go-side from range blocks,
 // so it has no localized template variant yet; it ships in English.

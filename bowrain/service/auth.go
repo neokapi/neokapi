@@ -107,9 +107,7 @@ func (s *AuthService) NeedsOnboarding(ctx context.Context, userID string) (bool,
 	}
 	for _, w := range workspaces {
 		if w.Type == platauth.WorkspaceTypePersonal {
-			now := time.Now().UTC()
-			u.OnboardedAt = &now
-			_ = s.store.UpdateUser(ctx, u)
+			_, _ = s.store.MarkUserOnboarded(ctx, userID, time.Now().UTC())
 			return false, nil
 		}
 	}
@@ -177,35 +175,37 @@ func (s *AuthService) IsSlugAvailable(ctx context.Context, slug string) (bool, s
 // CompleteOnboarding marks the user as onboarded and creates their personal
 // workspace with the chosen slug. If the user is already onboarded with a
 // personal workspace, it is returned without modification (idempotent).
-func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, displayName string) (*platauth.Workspace, error) {
+//
+// The second return reports whether this call is the one that turned the
+// account into a workspace: it provisioned the personal workspace and won the
+// conditional onboarded_at write. It is false on the idempotent path and false
+// for an account that predates the marker, so a first-run side effect gated on
+// it fires exactly once per account, ever.
+func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, displayName string) (*platauth.Workspace, bool, error) {
 	if userID == "" {
-		return nil, errors.New("user ID is required")
+		return nil, false, errors.New("user ID is required")
 	}
 	if slug == "" {
-		return nil, errors.New("slug is required")
+		return nil, false, errors.New("slug is required")
 	}
 	u, err := s.store.GetUser(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, false, fmt.Errorf("get user: %w", err)
 	}
 	// Idempotent: if user already has a personal workspace, return it.
 	if existing, err := s.findPersonalWorkspace(ctx, userID); err == nil && existing != nil {
-		if u.OnboardedAt == nil {
-			now := time.Now().UTC()
-			u.OnboardedAt = &now
-			_ = s.store.UpdateUser(ctx, u)
-		}
-		return existing, nil
+		_, _ = s.store.MarkUserOnboarded(ctx, userID, time.Now().UTC())
+		return existing, false, nil
 	}
 	if err := platauth.ValidateWorkspaceSlug(slug); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	taken, err := s.isSlugTaken(ctx, slug)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if taken {
-		return nil, fmt.Errorf("slug %q is not available", slug)
+		return nil, false, fmt.Errorf("slug %q is not available", slug)
 	}
 	if displayName == "" {
 		displayName = u.Name
@@ -219,14 +219,15 @@ func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, disp
 		Type: platauth.WorkspaceTypePersonal,
 	}
 	if err := s.CreateWorkspaceWithOwner(ctx, w, userID); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	now := time.Now().UTC()
-	u.OnboardedAt = &now
-	if err := s.store.UpdateUser(ctx, u); err != nil {
-		return w, fmt.Errorf("mark onboarded: %w", err)
+	// Stamped after the workspace exists: a marker set ahead of a failed
+	// creation would leave the account looking onboarded with nothing to open.
+	first, err := s.store.MarkUserOnboarded(ctx, userID, time.Now().UTC())
+	if err != nil {
+		return w, false, fmt.Errorf("mark onboarded: %w", err)
 	}
-	return w, nil
+	return w, first, nil
 }
 
 // isSlugTaken reports whether `slug` is in use as an active workspace slug

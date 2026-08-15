@@ -202,6 +202,55 @@ func TestAcceptInviteRejectsUnknownUser(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestCompleteOnboardingReportsTheFirstTime pins the signal a once-per-account
+// side effect hangs off: true exactly when this call turned an account into a
+// workspace. Everything else — a repeat, an account that already had one — is
+// false, and the marker is stamped either way.
+func TestCompleteOnboardingReportsTheFirstTime(t *testing.T) {
+	t.Run("first onboarding wins", func(t *testing.T) {
+		store := newTestAuthStore(t)
+		svc := NewAuthService(store, "test-secret")
+		ctx := t.Context()
+
+		u, err := svc.GetOrCreateUser(ctx, "dana@example.com", "Dana", "", "sub-dana", "en")
+		require.NoError(t, err)
+
+		ws, first, err := svc.CompleteOnboarding(ctx, u.ID, "dana", "Dana")
+		require.NoError(t, err)
+		assert.True(t, first, "the call that provisioned the workspace is the first")
+		assert.Equal(t, platauth.WorkspaceTypePersonal, ws.Type)
+
+		again, first, err := svc.CompleteOnboarding(ctx, u.ID, "dana", "Dana")
+		require.NoError(t, err)
+		assert.False(t, first, "onboarding is idempotent, and so is what hangs off it")
+		assert.Equal(t, ws.ID, again.ID)
+	})
+
+	t.Run("an account that predates the marker is not first", func(t *testing.T) {
+		store := newTestAuthStore(t)
+		svc := NewAuthService(store, "test-secret")
+		ctx := t.Context()
+
+		u, err := svc.GetOrCreateUser(ctx, "otto@example.com", "Otto", "", "sub-otto", "en")
+		require.NoError(t, err)
+		// A personal workspace written straight to the store, as the accounts
+		// created before onboarding existed have: onboarded_at still NULL.
+		ws := &platauth.Workspace{Name: "Otto", Slug: "otto", Type: platauth.WorkspaceTypePersonal}
+		require.NoError(t, store.CreateWorkspace(ctx, ws))
+		require.NoError(t, store.AddMember(ctx, ws.ID, u.ID, platauth.RoleOwner))
+		require.Nil(t, u.OnboardedAt)
+
+		got, first, err := svc.CompleteOnboarding(ctx, u.ID, "otto-2", "Otto")
+		require.NoError(t, err)
+		assert.False(t, first, "the workspace was already there; the account is not new")
+		assert.Equal(t, ws.ID, got.ID)
+
+		after, err := store.GetUser(ctx, u.ID)
+		require.NoError(t, err)
+		assert.NotNil(t, after.OnboardedAt, "the marker is stamped regardless, so /welcome stops asking")
+	})
+}
+
 // panickingTokenStore validates a token fine and then panics on the
 // fire-and-forget bookkeeping write that follows it. Only the two methods
 // ValidateAPIToken reaches are implemented; the embedded nil interface turns
