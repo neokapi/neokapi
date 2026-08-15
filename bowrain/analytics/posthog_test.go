@@ -58,6 +58,28 @@ func TestPostHogClient_CaptureWithProperties(t *testing.T) {
 	})
 }
 
+// The provisioning placeholder is non-empty, so an emptiness test reads it as
+// configured — a client built around an invalid token whose every enqueue is
+// dropped without a word. Only a value shaped like a project API key counts.
+func TestIsProjectAPIKey(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		want bool
+	}{
+		{"a project API key", "phc_abc123", true},
+		{"the provisioning placeholder", "CHANGEME", false},
+		{"empty", "", false},
+		{"a personal API key is not a project key", "phx_abc123", false},
+		{"junk", "not-a-key", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsProjectAPIKey(tt.key))
+		})
+	}
+}
+
 func TestPostHogClient_IdentifyWithProperties(t *testing.T) {
 	client, err := NewPostHogClient("phc_test_key", "")
 	require.NoError(t, err)

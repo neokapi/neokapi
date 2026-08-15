@@ -19,6 +19,7 @@ import (
 	// Register the AWS Bedrock AI provider ("bedrock") in the aiprovider registry,
 	// so BOWRAIN_PLATFORM_PROVIDER=bedrock resolves for platform-path translation.
 	_ "github.com/neokapi/neokapi/bowrain/ai/bedrock"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/crypto"
@@ -70,14 +71,18 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 	return nil
 }
 
-// acceptStripeValue returns the environment value for a Stripe setting when it
-// looks like the Stripe identifier it should be, and "" otherwise — so an
-// unprovisioned or mistyped value degrades to "this deployment does not sell",
-// never to a half-configured billing surface. The distinction between the
-// Terraform placeholder and a genuinely wrong value is worth making in the logs:
-// the first is an expected state before provisioning, the second is an operator
-// error.
-func acceptStripeValue(envVar string, valid func(string) bool, want string) string {
+// acceptSecretValue returns the environment value for a provisioned credential
+// when it looks like the identifier it should be, and "" otherwise — so an
+// unprovisioned or mistyped value degrades to "this deployment does not carry
+// that surface", never to a half-configured one that advertises itself and
+// fails every call. The distinction between the Terraform placeholder and a
+// genuinely wrong value is worth making in the logs: the first is an expected
+// state before provisioning, the second is an operator error.
+//
+// billing.IsPlaceholder names the seeded value, which Terraform writes into
+// every one of these parameters — it is a provisioning fact, not a billing one,
+// and it is defined once.
+func acceptSecretValue(envVar string, valid func(string) bool, want string) string {
 	v := os.Getenv(envVar)
 	switch {
 	case v == "":
@@ -85,11 +90,11 @@ func acceptStripeValue(envVar string, valid func(string) bool, want string) stri
 	case valid(v):
 		return v
 	case billing.IsPlaceholder(v):
-		slog.Info("stripe: "+envVar+" is still the provisioning placeholder; billing stays off until it is filled in",
+		slog.Info(envVar+" is still the provisioning placeholder; the surface behind it stays off until it is filled in",
 			"env", envVar)
 		return ""
 	default:
-		slog.Warn("stripe: ignoring "+envVar+": not a Stripe identifier",
+		slog.Warn("ignoring "+envVar+": not the credential it names",
 			"env", envVar, "expected_prefix", want)
 		return ""
 	}
@@ -328,14 +333,16 @@ func run() error {
 	// placeholder that reads as "configured" would put the deployment in the worst
 	// state available: billing advertised, every Stripe call failing. Rejecting it
 	// here means an unprovisioned deployment simply has no checkout surface.
-	cfg.StripeSecretKey = acceptStripeValue("STRIPE_SECRET_KEY", billing.IsStripeSecretKey, "sk_… or rk_…")
-	cfg.StripeWebhookSecret = acceptStripeValue("STRIPE_WEBHOOK_SECRET", billing.IsStripeWebhookSecret, "whsec_…")
-	cfg.StripeProPriceID = acceptStripeValue("STRIPE_PRO_PRICE_ID", billing.IsStripePriceID, "price_…")
-	cfg.StripeTeamPriceID = acceptStripeValue("STRIPE_TEAM_PRICE_ID", billing.IsStripePriceID, "price_…")
-	cfg.StripeCreditPriceID = acceptStripeValue("STRIPE_CREDIT_PRICE_ID", billing.IsStripePriceID, "price_…")
-	if v := os.Getenv("POSTHOG_API_KEY"); v != "" {
-		cfg.PostHogAPIKey = v
-	}
+	cfg.StripeSecretKey = acceptSecretValue("STRIPE_SECRET_KEY", billing.IsStripeSecretKey, "sk_… or rk_…")
+	cfg.StripeWebhookSecret = acceptSecretValue("STRIPE_WEBHOOK_SECRET", billing.IsStripeWebhookSecret, "whsec_…")
+	cfg.StripeProPriceID = acceptSecretValue("STRIPE_PRO_PRICE_ID", billing.IsStripePriceID, "price_…")
+	cfg.StripeTeamPriceID = acceptSecretValue("STRIPE_TEAM_PRICE_ID", billing.IsStripePriceID, "price_…")
+	cfg.StripeCreditPriceID = acceptSecretValue("STRIPE_CREDIT_PRICE_ID", billing.IsStripePriceID, "price_…")
+	// Product analytics, by the same rule as the Stripe values above: the SSM
+	// parameter is seeded with the provisioning placeholder, and a placeholder
+	// that reads as configured builds a client around an invalid token whose
+	// enqueue errors nothing surfaces.
+	cfg.PostHogAPIKey = acceptSecretValue("POSTHOG_API_KEY", analytics.IsProjectAPIKey, "phc_…")
 	if v := os.Getenv("POSTHOG_HOST"); v != "" {
 		cfg.PostHogHost = v
 	}
