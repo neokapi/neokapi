@@ -59,22 +59,22 @@ test.describe("Governance chrome", () => {
     const ws = await api.getOrCreateWorkspace("E2E Chrome", `e2e-chrome-${suffix}`);
     wsSlug = ws.slug;
 
-    const project = await api.createWorkspaceProject(wsSlug, "Pricing Site", "en", ["nb"]);
+    const project = await api.createProject(wsSlug, "Pricing Site", "en", ["nb"]);
     projectId = project.id;
     // Real content through the real parse — the walk has nothing to see
     // otherwise, and a blast radius over nothing proves nothing.
-    await api.uploadToStream(wsSlug, projectId, "main", "pricing.json", CONTENT);
+    await api.uploadFile(wsSlug, projectId, "pricing.json", CONTENT);
 
     // Two concepts: the one to ban, and the one it should give way to. The
     // successor is what turns the ban from an annotation into an instruction to
     // rewrite the source, which is the distinction Reach exists to price.
-    const banned = await api.createConcept(wsSlug, {
+    const banned = await api.addConcept(wsSlug, {
       domain: "product",
       definition: "A word we no longer write.",
       terms: [{ text: TERM, locale: "en", status: "admitted" }],
     });
     conceptId = banned.id;
-    const successor = await api.createConcept(wsSlug, {
+    const successor = await api.addConcept(wsSlug, {
       domain: "product",
       definition: "What we write instead.",
       terms: [{ text: SUCCESSOR, locale: "en", status: "admitted" }],
@@ -173,7 +173,7 @@ test.describe("Governance chrome", () => {
     await expect
       .poll(
         async () => {
-          const activities = await api.workspaceActivities(wsSlug);
+          const activities = await api.listActivities(wsSlug);
           return activities.some((a) => (a as { entity_id?: string }).entity_id === cs.id);
         },
         { timeout: 30_000, intervals: [1_000] },

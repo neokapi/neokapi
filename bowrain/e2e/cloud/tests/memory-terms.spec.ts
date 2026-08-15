@@ -24,9 +24,9 @@ test.describe("Content Memory & Terminology", () => {
       domain: "software",
       definition: "A reusable software element",
       terms: [
-        { text: "component", locale: "en", status: "preferred" },
-        { text: "composant", locale: "fr", status: "preferred" },
-        { text: "Komponente", locale: "de", status: "preferred" },
+        { text: "component", locale: "en", status: "admitted" },
+        { text: "composant", locale: "fr", status: "admitted" },
+        { text: "Komponente", locale: "de", status: "admitted" },
       ],
     });
 
@@ -34,7 +34,7 @@ test.describe("Content Memory & Terminology", () => {
       domain: "software",
       definition: "A visual interface element",
       terms: [
-        { text: "widget", locale: "en", status: "preferred" },
+        { text: "widget", locale: "en", status: "admitted" },
         { text: "widget", locale: "fr", status: "admitted" },
       ],
     });
@@ -42,5 +42,20 @@ test.describe("Content Memory & Terminology", () => {
     // Verify the add succeeded (no error thrown) and search returns a response.
     const results = await api.searchTerms(wsSlug, "component");
     expect(results).toBeTruthy();
+  });
+
+  // Admitting a term is ordinary curation; declaring one preferred or forbidden
+  // is an instruction to every writer downstream, so the direct route refuses it
+  // and sends the author to a change-set. governance-chrome.spec.ts walks that
+  // reviewed path end to end; here we only pin the refusal, so the gate cannot
+  // quietly stop applying.
+  test("a preferred term is refused on the direct route", async ({ api }) => {
+    await expect(
+      api.addConcept(wsSlug, {
+        domain: "software",
+        definition: "A word we would rather writers used",
+        terms: [{ text: "sign in", locale: "en", status: "preferred" }],
+      }),
+    ).rejects.toThrow(/change-set/);
   });
 });

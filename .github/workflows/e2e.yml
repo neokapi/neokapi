@@ -306,6 +306,33 @@ jobs:
         working-directory: bowrain/apps/web
         run: vpx playwright install --with-deps chromium
 
+      # The cloud suite talks to a live server over HTTP and nothing else, so it
+      # rides the stack that is already up rather than standing one of its own.
+      # This is the half of its lane that exercises responses; the half that
+      # catches route drift pre-merge is TestSharedClientRouteSurface, which
+      # needs no stack and runs in the ordinary bowrain Go job.
+      #
+      # Through the make target, not a bare `playwright test`: bowrain/e2e/cloud
+      # is deliberately outside the pnpm workspace, so its dependencies and
+      # browsers are installed by run.sh rather than by the root install, and CI
+      # runs what a developer runs.
+      - name: Run cloud E2E tests
+        env:
+          BOWRAIN_URL: http://localhost:8080
+          KEYCLOAK_URL: http://localhost:8180
+        run: make -C bowrain test-e2e-cloud
+        timeout-minutes: 10
+
+      - name: Upload cloud test results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: cloud-e2e-report
+          path: |
+            bowrain/e2e/cloud/playwright-report/
+            bowrain/e2e/cloud/test-results/
+          retention-days: 30
+
       - name: Run web app E2E tests
         working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.e2e.config.ts
