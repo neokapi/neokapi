@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Hold and apply a project's content context — the terms, voice and rules it goes by — and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting in-voice copy, voice profile/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Hold and apply a project's content context — the terms, voice and rules it goes by — and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting in-voice copy, voice profile/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context"), refreshing a context that already exists ("refresh our brand context", "we renamed a product", "our style guide changed", "which content is not covered by our setup?"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -26,7 +26,13 @@ Two jobs follow from that, and they are the ones to reach for first:
   drifted from what the material actually says. Point kapi at what already
   exists — the repo, the published site, whatever style guide there is — and
   propose the profile, the terminology and the checks for the user to correct.
-  They review a draft instead of authoring one. See
+  They review a draft instead of authoring one.
+
+  The **second visit** is the same loop: a surface appeared that nobody
+  declared, a product was renamed, the register drifted. Read the drift
+  (`kapi ls --untracked` names content no collection governs), propose the
+  delta, and apply only what the user approves — a refresh is a change-set,
+  never a rewrite of files they have not seen. See
   [references/context-discovery.md](references/context-discovery.md).
 - **Context retrieval** — before you write or rewrite anything, ask. There are
   two questions and never a store, because which store holds the answer is not
@@ -52,7 +58,7 @@ Two jobs follow from that, and they are the ones to reach for first:
 
   Retrieve first, then write; a check that fails afterwards is the expensive way
   to learn the same fact.
-- **Context refresh** — a retrieved answer is a snapshot, and the project's
+- **Context freshness** — a retrieved answer is a snapshot, and the project's
   context moves while you work: a colleague approves a terminology decision, a
   `kapi up` run brings one down. Two surfaces tell you, and both only tell you:
 
@@ -130,11 +136,12 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   (`kapi voice rewrite` swaps forbidden/competitor terms offline; for tone and
   phrasing, rewrite the text yourself against the guide.) See
   [references/voice.md](references/voice.md).
-- **Discover a project's context** — assemble it from the user's site, repo, and
-  materials (voice profile + terminology seed + the checks that enforce both),
-  review it with the user, bind it in a project, and push it to a Bowrain
-  project; also the refresh flow that diffs new material against the bound
-  context as an approve-then-apply change-set. See
+- **Discover or refresh a project's context** — assemble it from the user's
+  repo, site, and materials (voice profile + terminology seed + the checks that
+  enforce both), review it with the user, and bind it in a project; a complete
+  journey in one language, with a Bowrain server as an optional last step. Then
+  the refresh flow for the second visit, which diffs new material against the
+  bound context and lands it as an approve-then-apply change-set. See
   [references/context-discovery.md](references/context-discovery.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a terms store

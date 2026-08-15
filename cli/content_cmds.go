@@ -14,7 +14,7 @@ import (
 
 // NewAddCmd returns `kapi add` — add file patterns to the project's content.
 func NewAddCmd(a *App) *cobra.Command {
-	var format string
+	var format, name, channel string
 	cmd := &cobra.Command{
 		Use:     "add <pattern> [pattern...]",
 		Short:   "Add file patterns to the project's content",
@@ -23,9 +23,16 @@ func NewAddCmd(a *App) *cobra.Command {
 process. Patterns support ** for recursive matching. Format is auto-detected
 from the extension unless --format is given.
 
+By default each pattern becomes a bare entry, which the project's default point
+governs. --name puts them in a named collection instead, and --channel binds
+that collection to a point in the context space (profile/channel), so a surface
+is governed by the voice that suits it rather than by the project default.
+Adding to a name that already exists extends that collection.
+
   kapi add "src/**/*.html"
   kapi add "locales/*.json" --format json
-  kapi add "src/**/*.html" "content/**/*.md"`,
+  kapi add "src/**/*.html" "content/**/*.md"
+  kapi add "support/**/*.md" --name northsea-support --channel northsea/docs`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)
@@ -37,6 +44,23 @@ from the extension unless --format is given.
 				return fmt.Errorf("load recipe: %w", err)
 			}
 			root := filepath.Dir(recipePath)
+
+			// A channel is a binding into the context space, and the recipe
+			// validator requires a named collection to carry one. Resolve it
+			// before anything is written, so an undeclared channel is reported
+			// against the flag rather than as a recipe that no longer loads.
+			if channel != "" {
+				if name == "" {
+					return fmt.Errorf("--channel %q needs --name: a channel binds a named collection, not a bare entry", channel)
+				}
+				if _, cerr := proj.ResolveChannel(channel); cerr != nil {
+					return cerr
+				}
+			}
+			target, err := CollectionForAdd(proj, name, channel)
+			if err != nil {
+				return err
+			}
 
 			var result output.AddOutput
 			for _, pattern := range args {
@@ -60,11 +84,19 @@ from the extension unless --format is given.
 				if gerr != nil {
 					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing — fix it before adding it: %w", pattern, gerr)
 				}
-				entry := coreproj.Collection{Path: pattern}
+				var spec *coreproj.FormatSpec
 				if fmtName != "" {
-					entry.Format = &coreproj.FormatSpec{Name: fmtName}
+					spec = &coreproj.FormatSpec{Name: fmtName}
 				}
-				proj.Collections = append(proj.Collections, entry)
+				if target == nil {
+					proj.Collections = append(proj.Collections, coreproj.Collection{Path: pattern, Format: spec})
+				} else {
+					itemPath, berr := CollectionRelativePath(target, pattern)
+					if berr != nil {
+						return berr
+					}
+					target.Content = append(target.Content, coreproj.ContentItem{Path: itemPath, Format: spec})
+				}
 				result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Format: fmtName, Files: len(matches)})
 			}
 			if err := coreproj.Save(recipePath, proj); err != nil {
@@ -76,14 +108,17 @@ from the extension unless --format is given.
 	AddProjectFlag(cmd)
 	output.AddFlags(cmd.Flags())
 	cmd.Flags().StringVarP(&format, "format", "f", "", "file format (e.g. html, json); auto-detected if omitted")
+	cmd.Flags().StringVar(&name, "name", "", "put the patterns in a named collection (created, or extended if it exists)")
+	cmd.Flags().StringVar(&channel, "channel", "", "bind the named collection to a point in the context space (profile/channel)")
 	return cmd
 }
 
 // NewLsCmd returns `kapi ls` — list the files the project's content tracks.
-// With --stats it adds per-file block and word counts. Sync state
+// With --stats it adds per-file block and word counts. With --untracked it
+// inverts the listing into the files no collection tracks. Sync state
 // (changed-vs-server) is reported by the platform's `status` command, not here.
 func NewLsCmd(a *App) *cobra.Command {
-	var stats bool
+	var stats, untracked bool
 	cmd := &cobra.Command{
 		Use:     "ls [path...]",
 		Short:   "List the files the project's content tracks",
@@ -91,13 +126,20 @@ func NewLsCmd(a *App) *cobra.Command {
 		Long: `List the files matched by the project's content collections (honoring the
 exclude list). With --stats, also show per-file block and word counts.
 
+--untracked inverts the question: the files kapi can read that NO collection
+tracks. That is what a surface added since the recipe was written looks like —
+governed by nothing, and invisible to every listing that starts from the
+collections. Review it and declare what belongs; like an untracked file in a
+version-control status, it is reported and never adopted.
+
 In a server-connected project (a recipe with a bowrain: block, with the
 bowrain plugin installed) a SYNC column reports each file's pending-push
 standing ("2 to push" / "synced"), derived from the sync cache.
 
   kapi ls
   kapi ls src/
-  kapi ls --stats`,
+  kapi ls --stats
+  kapi ls --untracked`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)
 			if err != nil {
@@ -109,6 +151,14 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 			}
 			root := filepath.Dir(recipePath)
 			ctx := cmd.Context()
+
+			if untracked {
+				res, uerr := a.UntrackedContent(proj, recipePath, args)
+				if uerr != nil {
+					return uerr
+				}
+				return output.Print(cmd, res)
+			}
 
 			out := output.LsOutput{HasStats: stats}
 			seen := map[string]bool{}
@@ -170,6 +220,8 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 	AddProjectFlag(cmd)
 	output.AddFlags(cmd.Flags())
 	cmd.Flags().BoolVarP(&stats, "stats", "s", false, "show per-file block and word counts")
+	cmd.Flags().BoolVar(&untracked, "untracked", false, "list readable files no collection tracks")
+	cmd.MarkFlagsMutuallyExclusive("stats", "untracked")
 	return cmd
 }
 

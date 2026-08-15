@@ -59,6 +59,7 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/i18n-react*` private-registry limit as #9; retrofit lint can't install |
 | 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | yes — `check --ship` green, fr 100%, `values-fr/` created |
 | 16 | "Set up our brand from this repo and connect the project to Bowrain." (fixture: a fresh repo with a README + a few marketing `.md`/`.docx` files) | context discovery (onboard) | — | — (not yet run) |
+| 17 | "We renamed Tidewatch to Tideguard and launched a support site — refresh our context." (fixture: a copy of `samples/northsea` with a `support/` directory added and the new name used only there) | context discovery (refresh) | — | — (not yet run) |
 
 Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
 terms fixture gap, #12 didn't surface grades), **2 blocked** on the
@@ -81,6 +82,18 @@ sandbox with no server: "completed" there means the context files exist
 (`kapi init --server … --anonymous` → claim URL → `kapi push`) needs a
 sandboxed bowrain-server plus the kapi-bowrain plugin in the sandbox's plugin
 dir, so score it separately or stop the scenario at the hand-off message.
+
+Scenario 17 is the refresh — the second visit, on a project that already has a
+context. It fails in two directions, so score both. "Completed" means the
+assistant **read the drift before writing**: it found the undeclared surface
+(`kapi ls --untracked`), read the record for the old name, proposed the delta,
+and only then applied. It has **failed** if any governance file changed before
+the user approved anything — a rewritten profile is the failure mode this
+scenario exists to catch, and it looks like success from the transcript alone.
+Check `git diff` at the point the assistant first asks for approval; it must be
+empty. Its acceptance path runs as a test — `TestRefresh_NorthseaDrift` in
+`cli/refresh_northsea_test.go` drives the same fixture through the CLI, so this
+row scores the assistant's judgement rather than the verbs.
 
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:
 `grep` cannot see inside a `.docx`, so a `docs/` of plain `.md` alone tests

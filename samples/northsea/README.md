@@ -179,6 +179,59 @@ what was announced, in the words it was announced in.
 also passes here, and names its findings the way `kapi check` does — the
 project-relative path and the block.
 
+## The second visit
+
+The journey above is the first visit: a context drafted from the material and
+corrected once. The second visit is what keeps it true. Northsea launched a
+support site and renamed Tidewatch to Tideguard, and neither fact is in the
+record — so the material and the record disagree, which is the only reason to
+refresh.
+
+Seed that drift on a copy of this directory:
+
+```bash
+mkdir support
+printf '# Support\n\nTideguard re-evaluates an approved movement whenever the\nforecast changes.\n' > support/faq.md
+```
+
+Read what moved before writing anything:
+
+```bash
+kapi ls --untracked                  # support/faq.md — and README.md, which you will decline
+kapi context search Tideguard        # nothing: the record has never been told this name
+kapi context search Tidewatch        # the name the record still prefers
+```
+
+`kapi ls --untracked` is the recipe subtracted from the disk. It reports and
+never adopts, so what it finds is a list of candidates a reviewer works through
+— this README appears there too, and declining it is the correct answer.
+
+Then apply only what was approved. The new surface takes the point that suits
+it, and the rename is two term decisions:
+
+```bash
+kapi add "support/**/*.md" --name northsea-support --channel northsea/docs
+
+printf '%s\n%s\n' \
+  '{"kind":"term","op":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}' \
+  '{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}' \
+  > refresh.jsonl
+kapi apply refresh.jsonl
+
+kapi up
+kapi check --strict
+```
+
+Both writes edit the committed file rather than re-emitting it: `kapi.yaml` and
+`.kapi/terms.json` keep their comments and their key order, so `git diff` is
+small enough to read as a decision. The check that follows reports the retired
+name wherever the documentation still carries it, each finding naming Tideguard
+as the fix — advisory, as a retirement always is, and exactly the sweep the
+decision created.
+
+`TestRefresh_NorthseaDrift` (`cli/refresh_northsea_test.go`) drives this same
+sequence against this directory, so the sample and the flow cannot drift apart.
+
 ## Every file round-trips
 
 Editing any file in this sample through kapi rewrites it byte-identically apart
