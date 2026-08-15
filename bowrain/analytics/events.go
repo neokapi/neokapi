@@ -45,6 +45,11 @@ const (
 	// work a run would do so the new-workspace credit grant can be sized.
 	EventConvergenceEstimateComputed = "convergence_estimate_computed"
 
+	// Machine channel. An API token is the credential a CI job, a kapi-action
+	// step or an agent-driven kapi authenticates with, so minting one is the
+	// moment a workspace wires the loop to something that is not a person.
+	EventAPITokenCreated = "api_token_created"
+
 	// MCP surface.
 	EventMCPSessionStart = "mcp_session_start"
 	EventMCPToolCall     = "mcp_tool_call"
@@ -76,6 +81,13 @@ const (
 	PropWorkspaceID = "workspace_id"
 	// PropProjectID scopes an event to a project.
 	PropProjectID = "project_id"
+	// PropAcquisitionSource names the channel an account arrived through — the
+	// campaign the landing stamped, or the site that referred the visitor. It
+	// rides user_signup only: where an account came from is knowable once, and
+	// repeating it on every login would let the last visit overwrite the first.
+	// Absent when the visitor arrived with nothing to say, and on the signup
+	// flows with no browser to carry it (device code, desktop).
+	PropAcquisitionSource = "acquisition_source"
 
 	// SurfaceServer is the surface value for all bowrain-server events.
 	SurfaceServer = "server"

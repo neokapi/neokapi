@@ -37,6 +37,7 @@ import {
   clearIntendedPlan,
   type IntendedPlan,
 } from "./intended-plan";
+import { stashAcquisitionSource } from "./acquisition";
 import { AnalyticsEvents } from "../analytics-events";
 import type { PlatformAdapter } from "../platform";
 import { RootLayout } from "./root-layout";
@@ -121,6 +122,12 @@ const indexRoute = createRoute({
     // the only path that needs it. The plan depends on `search` alone, so it
     // does not have to wait for the bootstrap at all.
     if (search.plan) stashIntendedPlan({ plan: search.plan, seats: search.seats });
+
+    // The campaign or referrer this visit arrived with, stashed for the same
+    // round-trip and for the same reason: the visitor who needs it is the one
+    // with no session, and every line after an await is unreachable on that
+    // path. It depends on the current URL alone.
+    stashAcquisitionSource();
 
     // Fire all three bootstrap fetches at once — config only decides how the
     // OTHER two are consumed, so waiting for it before starting them just

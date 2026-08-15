@@ -278,3 +278,26 @@ func TestUseAPITokenForAuth(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &meResp))
 	assert.Equal(t, "tokenuser@example.com", meResp["email"])
 }
+
+func TestScopeActions(t *testing.T) {
+	tests := []struct {
+		name   string
+		scopes string
+		want   string
+	}{
+		{"full access", `["*"]`, "*"},
+		{"the CI scope", `["contribute"]`, "contribute"},
+		{"a language constraint does not splinter the value", `["translate:fr,de"]`, "translate"},
+		{"a project constraint does not splinter the value", `["project:proj-123:translate:fr"]`, "translate"},
+		{"two scopes, sorted", `["review","contribute"]`, "contribute,review"},
+		{"the same action twice collapses", `["translate:fr","translate:de"]`, "translate"},
+		{"an unparseable scope is skipped", `["contribute","not a scope:::"]`, "contribute"},
+		{"malformed JSON yields nothing", `not json`, ""},
+		{"an empty array yields nothing", `[]`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, scopeActions(tt.scopes))
+		})
+	}
+}
