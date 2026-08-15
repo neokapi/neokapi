@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -249,6 +251,211 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	assertOnBrand(t, localeByCode(t, colA.Locales, "de"), 0, 0.0, platstore.OnBrandBasisVoice)
 	colB := collByID(t, stats.CollectionStats, "col-b")
 	assertOnBrand(t, localeByCode(t, colB.Locales, "de"), 1, 1.0, platstore.OnBrandBasisChecks)
+}
+
+// TestApplyShipStates_StaleBasisWithholdsLocale is #1957's regression, over the
+// two surfaces that read the derivation: the dashboard's per-locale (and
+// per-collection) ship state, and the public ship manifest the picker consumes.
+//
+// A decision blesses a pairing. Rewriting the source under an approved
+// translation leaves a target that renders a sentence the project no longer
+// has, and no machine has looked at the new source either — so the locale is
+// not shippable on anyone's review. Restoring the source converges back on the
+// decision already recorded.
+func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
+	require.NoError(t, err)
+	ctx := t.Context()
+
+	proj := &platstore.Project{
+		Name:                  "stale-proj",
+		DefaultSourceLanguage: "en",
+		TargetLanguages:       []model.LocaleID{"nb"},
+		WorkspaceID:           "ws-1",
+	}
+	require.NoError(t, cs.CreateProject(ctx, proj))
+	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
+		Name: "en.json", Format: "json", ItemType: "file", CollectionID: "col-a",
+	}))
+
+	storeSource := func(text string, withTarget bool) {
+		b := &model.Block{ID: "greeting", Translatable: true}
+		b.SetSourceText(text)
+		if withTarget {
+			b.SetTargetText("nb", "Hei")
+			b.Target("nb").Status = model.TargetStatusTranslated
+		}
+		require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
+	}
+	// A push carries source only; the target is already stored.
+	storeSource("Hello", true)
+	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"),
+		ReviewState: "approved",
+		DecidedBy:   "reviewer@example.com",
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+
+	derive := func() platstore.LocaleTranslationStats {
+		t.Helper()
+		p, err := cs.GetProject(ctx, proj.ID)
+		require.NoError(t, err)
+		stats, err := editorGetDashboardStats(ctx, cs, p, "main")
+		require.NoError(t, err)
+		require.NoError(t, applyShipStates(ctx, cs, nil, proj.ID, "main", nil, stats))
+		// The manifest the public feed serves is the same derivation projected.
+		feed := shipManifestFromStats(stats)
+		nb := localeByCode(t, stats.LocaleStats, "nb")
+		assert.Equal(t, nb.ShipState == platstore.ShipStateGoverned || nb.ShipState == platstore.ShipStateAIShippable,
+			feed["nb"].Shippable, "the feed reads the same ship state the dashboard does")
+		assert.Equal(t, nb.ShipState == platstore.ShipStateGoverned, feed["nb"].Verified)
+		// The collection rollup carries the same verdict for its one item.
+		coll := localeByCode(t, collByID(t, stats.CollectionStats, "col-a").Locales, "nb")
+		assert.Equal(t, nb.ShipState, coll.ShipState, "the collection rollup agrees with the project")
+		assert.Equal(t, nb.StaleBlocks, coll.StaleBlocks)
+		return nb
+	}
+
+	approved := derive()
+	require.Equal(t, platstore.ShipStateGoverned, approved.ShipState, "approved and current: governed")
+	assert.Zero(t, approved.StaleBlocks)
+
+	// The source moves under the approval.
+	storeSource("Hello there", false)
+	stale := derive()
+	assert.Equal(t, platstore.ShipStatePending, stale.ShipState,
+		"a translation of rewritten source is not shippable on anyone's review")
+	assert.Equal(t, 1, stale.StaleBlocks)
+	assert.Equal(t, 1, stale.TranslatedBlocks, "the target is still there — this is not a coverage shortfall")
+	assert.Zero(t, stale.FailingChecks, "and it is not a failing check either")
+
+	// The source comes back.
+	storeSource("Hello", false)
+	restored := derive()
+	assert.Equal(t, platstore.ShipStateGoverned, restored.ShipState,
+		"the recorded decision applies again — the locale recovers without a second review")
+	assert.Zero(t, restored.StaleBlocks)
+}
+
+// TestApplyShipStates_MissingBasisShipsAndIsCounted: a decision recorded before
+// the basis was tracked says nothing about the source it blessed. Reading that
+// silence as drift would withhold every locale of every project holding older
+// decisions, so the unit keeps its rung and ships as it did — and the
+// assumption is counted rather than left silent.
+func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
+	require.NoError(t, err)
+	ctx := t.Context()
+
+	proj := &platstore.Project{
+		Name:                  "unknown-basis-proj",
+		DefaultSourceLanguage: "en",
+		TargetLanguages:       []model.LocaleID{"nb"},
+		WorkspaceID:           "ws-1",
+	}
+	require.NoError(t, cs.CreateProject(ctx, proj))
+	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
+		Name: "en.json", Format: "json", ItemType: "file", CollectionID: "col-a",
+	}))
+	b := &model.Block{ID: "greeting", Translatable: true}
+	b.SetSourceText("Hello")
+	b.SetTargetText("nb", "Hei")
+	b.StampTargetProvenance("nb", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
+
+	// The record predates the basis: no ContentHash at all.
+	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ReviewState: "approved",
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+
+	p, err := cs.GetProject(ctx, proj.ID)
+	require.NoError(t, err)
+	stats, err := editorGetDashboardStats(ctx, cs, p, "main")
+	require.NoError(t, err)
+	require.NoError(t, applyShipStates(ctx, cs, nil, proj.ID, "main", nil, stats))
+
+	nb := localeByCode(t, stats.LocaleStats, "nb")
+	assert.Equal(t, platstore.ShipStateGoverned, nb.ShipState, "an unknown basis ships as before")
+	assert.Zero(t, nb.StaleBlocks, "unknown is not stale")
+	assert.Equal(t, 1, nb.BasisUnknownBlocks, "and it is counted, not silent")
+	assert.True(t, shipManifestFromStats(stats)["nb"].Shippable)
+}
+
+// TestPublicShipManifestWithholdsStaleLocale drives the R8 feed endpoint end to
+// end: the public manifest a picker reads must drop a locale whose source moved
+// under its approval, exactly as the dashboard does.
+func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := t.Context()
+
+	proj := &platstore.Project{
+		Name:                  "feed-proj",
+		DefaultSourceLanguage: "en",
+		TargetLanguages:       []model.LocaleID{"nb"},
+		WorkspaceID:           "test-ws",
+		Properties:            map[string]string{ShipFeedProperty: "true"},
+	}
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, proj))
+	require.NoError(t, srv.ContentStore.StoreItem(ctx, proj.ID, "main", &platstore.Item{
+		Name: "en.json", Format: "json", ItemType: "file",
+	}))
+	storeSource := func(text string, withTarget bool) {
+		b := &model.Block{ID: "greeting", Translatable: true}
+		b.SetSourceText(text)
+		if withTarget {
+			b.SetTargetText("nb", "Hei")
+			b.Target("nb").Status = model.TargetStatusTranslated
+		}
+		require.NoError(t, srv.ContentStore.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
+		srv.invalidateDashboardCache(proj.WorkspaceID, proj.ID)
+	}
+	storeSource("Hello", true)
+
+	ds, ok := srv.ContentStore.(platstore.DecisionStore)
+	require.True(t, ok)
+	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"),
+		ReviewState: "approved",
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	srv.invalidateDashboardCache(proj.WorkspaceID, proj.ID)
+
+	feed := func() map[string]shipManifestEntry {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+proj.ID+"/ship.json", nil)
+		rec := httptest.NewRecorder()
+		srv.GetEcho().ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		var out map[string]shipManifestEntry
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
+		return out
+	}
+
+	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true}, feed()["nb"],
+		"approved against the current source: the picker may offer it, badged verified")
+
+	storeSource("Hello there", false)
+	assert.Equal(t, shipManifestEntry{}, feed()["nb"],
+		"the picker must not offer a locale rendering source the project rewrote")
+
+	storeSource("Hello", false)
+	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true}, feed()["nb"],
+		"and it recovers when the source comes back, with no second review")
 }
 
 // TestTranslationDashboardShipStateWire asserts the dashboard endpoint carries

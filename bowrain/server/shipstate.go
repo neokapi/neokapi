@@ -12,8 +12,11 @@ import (
 )
 
 // applyShipStates enriches dashboard stats in place with failing-check counts,
-// the derived per-locale ship state (store.DeriveShipState), and the on-brand
-// rate, on both the project-wide locale stats and each collection rollup.
+// stale/basis-unknown decision counts, the derived per-locale ship state
+// (store.DeriveShipState), and the on-brand rate, on both the project-wide
+// locale stats and each collection rollup. It is the ONE place the server
+// decides what a locale can ship as: the dashboard, the public ship manifest
+// and the workspace loop rollup all read the ShipState it stamps.
 //
 // The QA pass is bounded the same way the convergence derive path bounds it
 // (deriveFunc): the expensive full-block read happens only when some locale has
@@ -39,6 +42,11 @@ import (
 // failing the dashboard. The gate is resolved once per (workspace, locale) by the
 // caller and reused across every block; a nil gate (no terms, no brand store)
 // makes the term half a no-op, keeping the numbers byte-identical to before.
+//
+// Staleness is graded by the ledger, not by this pass: TallyDecisionBasis joins
+// each decision's recorded basis to the block's current source hash. It runs
+// unbounded by the coverage gate because a stale unit withholds a scope at any
+// coverage, and it is one grouped query rather than a per-block read.
 func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore coreprofile.Store, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
@@ -82,16 +90,24 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 	// contributed. Applied to both the project-locale and every collection-locale.
 	termActive := map[string]bool{}
 
+	// The item → collection map both passes attribute through. Built from the
+	// full item list (the dashboard pages its response only after this pass).
+	collByItem := make(map[string]string, len(stats.ItemStats))
+	for _, it := range stats.ItemStats {
+		collByItem[it.ItemName] = it.CollectionID
+	}
+
+	basis, err := tallyDecisionBasis(ctx, cs, projectID, stream, collByItem)
+	if err != nil {
+		return err
+	}
+
 	if len(rateCandidates) > 0 {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream})
 		if err != nil {
 			return fmt.Errorf("load blocks for ship-state checks: %w", err)
 		}
 		scores := latestVoiceScores(ctx, brandStore, projectID, stream)
-		collByItem := make(map[string]string, len(stats.ItemStats))
-		for _, it := range stats.ItemStats {
-			collByItem[it.ItemName] = it.CollectionID
-		}
 		for localeStr := range rateCandidates {
 			loc := model.LocaleID(localeStr)
 			scored := scores[string(locale.Normalize(loc))]
@@ -141,7 +157,9 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 	for i := range stats.LocaleStats {
 		ls := &stats.LocaleStats[i]
 		ls.FailingChecks = failing[ls.Locale]
-		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
+		ls.StaleBlocks = basis.forLocale(ls.Locale).Stale
+		ls.BasisUnknownBlocks = basis.forLocale(ls.Locale).BasisUnknown
+		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
 		applyOnBrand(ls, onBrand[ls.Locale], voiceUsed[ls.Locale], termActive[ls.Locale])
 	}
 	for i := range stats.CollectionStats {
@@ -149,11 +167,91 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		for j := range coll.Locales {
 			ls := &coll.Locales[j]
 			ls.FailingChecks = failingByColl[coll.CollectionID][ls.Locale]
-			ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
+			ls.StaleBlocks = basis.forCollection(coll.CollectionID, ls.Locale).Stale
+			ls.BasisUnknownBlocks = basis.forCollection(coll.CollectionID, ls.Locale).BasisUnknown
+			ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
 			applyOnBrand(ls, onBrandByColl[coll.CollectionID][ls.Locale], voiceUsedByColl[coll.CollectionID][ls.Locale], termActive[ls.Locale])
 		}
 	}
 	return nil
+}
+
+// basisCounts is one scope's stale / unknown-basis decision counts.
+type basisCounts struct {
+	Stale        int
+	BasisUnknown int
+}
+
+// basisRollup carries the graded decision basis at both aggregation levels the
+// dashboard reports: project-wide per locale, and per (collection, locale).
+// Locale keys are normalized on both sides (locale.Normalize), so a ledger
+// variant and a project's declared target language cannot miss each other over
+// a difference in spelling.
+type basisRollup struct {
+	project map[string]basisCounts
+	byColl  map[string]map[string]basisCounts
+}
+
+// forLocale returns the project-wide counts for one locale as the dashboard
+// spells it.
+func (r basisRollup) forLocale(loc string) basisCounts {
+	return r.project[basisLocaleKey(loc)]
+}
+
+// forCollection returns one collection's counts for one locale.
+func (r basisRollup) forCollection(collectionID, loc string) basisCounts {
+	return r.byColl[collectionID][basisLocaleKey(loc)]
+}
+
+func basisLocaleKey(loc string) string {
+	return string(locale.Normalize(model.LocaleID(loc)))
+}
+
+// tallyDecisionBasis grades the stream's decisions against the source the
+// project holds now and folds the per-(item, variant) counts the ledger returns
+// into the two scopes the dashboard reports. The ledger keys on variants (locale
+// plus optional tone/channel); the dashboard reports locales, so every variant
+// of a locale folds into that locale's counts.
+//
+// A content store with no decision ledger grades nothing, which reads as no
+// stale units — the same answer a project that has never recorded a decision
+// gives, and the honest one: a store that keeps no decisions holds no basis to
+// contradict.
+func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, stream string, collByItem map[string]string) (basisRollup, error) {
+	out := basisRollup{project: map[string]basisCounts{}, byColl: map[string]map[string]basisCounts{}}
+	ds, ok := cs.(store.DecisionStore)
+	if !ok {
+		return out, nil
+	}
+	tallies, err := ds.TallyDecisionBasis(ctx, projectID, stream)
+	if err != nil {
+		return out, fmt.Errorf("grade decision basis: %w", err)
+	}
+	for _, t := range tallies {
+		if t.Stale == 0 && t.BasisUnknown == 0 {
+			continue
+		}
+		var variant model.VariantKey
+		if err := variant.UnmarshalText([]byte(t.Variant)); err != nil || variant.Locale == "" {
+			continue // a variant that names no locale belongs to no locale scope
+		}
+		loc := basisLocaleKey(string(variant.Locale))
+
+		p := out.project[loc]
+		p.Stale += t.Stale
+		p.BasisUnknown += t.BasisUnknown
+		out.project[loc] = p
+
+		cid := collByItem[t.ItemName]
+		if out.byColl[cid] == nil {
+			out.byColl[cid] = map[string]basisCounts{}
+		}
+		c := out.byColl[cid][loc]
+		c.Stale += t.Stale
+		c.BasisUnknown += t.BasisUnknown
+		out.byColl[cid][loc] = c
+	}
+	return out, nil
 }
 
 // applyOnBrand stamps the derived on-brand fields onto one locale scope. A

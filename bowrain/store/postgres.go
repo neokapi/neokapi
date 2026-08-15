@@ -830,14 +830,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
-				// The source this unit's approvals were made against no longer
-				// exists, so the approvals no longer apply (use case 2). Demote
-				// the projected status to the presence baseline on EVERY
-				// stream — the source row is stream-global — and log the
-				// demotion per affected target. The decision itself stays in
-				// the ledger: it is a fact about an older text, and history is
-				// what lets a restored text find its approval again.
-				if err := demoteStaleApprovalsPg(ctx, tx, projectID, internalID); err != nil {
+				// The source half of every pairing this unit's decisions blessed
+				// has moved, so the projections are re-derived against the
+				// ledger on EVERY stream — the source row is stream-global. An
+				// approval made for the old wording drops to the presence
+				// baseline; a decision that blessed exactly the wording the
+				// source now carries applies again. The decisions themselves
+				// stay: they are facts about a text, and that history is what
+				// lets a restored text find its approval without a re-review.
+				if err := settleDecisionProjectionsPg(ctx, tx, projectID, internalID, identity.ContentHash); err != nil {
 					return err
 				}
 			}

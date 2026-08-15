@@ -73,3 +73,182 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, got, 1, "the decision stays in the ledger")
 }
+
+// TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite: a source that comes
+// back to the wording a decision blessed converges on that decision — the
+// projection returns to the decided rung with no second review.
+func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	src := &model.Block{ID: "greeting", Translatable: true}
+	src.SetSourceText("Hello")
+	src.SetTargetText("nb", "Hei")
+	src.Target("nb").Status = model.TargetStatusTranslated
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"),
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+
+	status := func() model.TargetStatus {
+		rows, err := s.GetBlocks(ctx, platstore.BlockQuery{
+			ProjectID: p.ID, Stream: "main", ItemName: "en.json", Limit: 10,
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		return rows[0].Block.Target("nb").Status
+	}
+	require.Equal(t, model.TargetStatusReviewed, status())
+
+	rewrite := func(text string) {
+		edited := &model.Block{ID: "greeting", Translatable: true}
+		edited.SetSourceText(text)
+		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{edited}))
+	}
+	rewrite("Hello there")
+	assert.Equal(t, model.TargetStatusTranslated, status(), "the approval stops applying")
+
+	rewrite("Hello")
+	assert.Equal(t, model.TargetStatusReviewed, status(),
+		"a restored source converges on the decision already recorded — no re-review")
+
+	tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Zero(t, tallies[0].Stale)
+}
+
+// TestTallyDecisionBasis_SQLite pins the grading of recorded decisions against
+// the source the project holds now: the basis a decision names and the block's
+// content hash are the same value, so the verdict is an equality join.
+func TestTallyDecisionBasis_SQLite(t *testing.T) {
+	tests := []struct {
+		name string
+		// basis is the content hash the decision records; "current" means the
+		// hash of the stored source, "" means a record written before the basis
+		// was tracked.
+		basis            string
+		rewriteSourceTo  string
+		translatable     bool
+		unit             string
+		wantStale        int
+		wantUnknown      int
+		wantNoTallyRow   bool
+		wantTallyForUnit string
+	}{
+		{
+			name: "basis matches the current source", basis: "current",
+			translatable: true, unit: "greeting", wantNoTallyRow: true,
+		},
+		{
+			name: "source rewritten under the decision", basis: "current",
+			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting",
+			wantStale: 1,
+		},
+		{
+			name: "decision recorded before the basis was tracked", basis: "",
+			translatable: true, unit: "greeting", wantUnknown: 1,
+		},
+		{
+			name: "an unknown basis stays unknown when the source moves", basis: "",
+			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting",
+			wantUnknown: 1,
+		},
+		{
+			name: "decision for a unit this store holds no block for", basis: "current",
+			translatable: true, unit: "absent", wantNoTallyRow: true,
+		},
+		{
+			name: "a non-translatable block is outside every denominator", basis: "current",
+			rewriteSourceTo: "Hello there", translatable: false, unit: "greeting",
+			wantNoTallyRow: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestStore(t)
+			ctx := t.Context()
+			p := createTestProject(t, s)
+
+			src := &model.Block{ID: "greeting", Translatable: tt.translatable}
+			src.SetSourceText("Hello")
+			src.SetTargetText("nb", "Hei")
+			require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+
+			basis := tt.basis
+			if basis == "current" {
+				basis = state.SourceHash("Hello")
+			}
+			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
+				Status:      string(model.TargetStatusReviewed),
+				TargetHash:  state.TargetHash("Hei"),
+				ContentHash: basis,
+				Updated:     "2026-08-04T10:00:00Z",
+			}})
+			require.NoError(t, err)
+
+			if tt.rewriteSourceTo != "" {
+				edited := &model.Block{ID: "greeting", Translatable: tt.translatable}
+				edited.SetSourceText(tt.rewriteSourceTo)
+				require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{edited}))
+			}
+
+			tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+			require.NoError(t, err)
+			if tt.wantNoTallyRow || (tt.wantStale == 0 && tt.wantUnknown == 0) {
+				for _, got := range tallies {
+					assert.Zero(t, got.Stale, "nothing is stale")
+					assert.Zero(t, got.BasisUnknown, "no basis is unknown")
+				}
+				return
+			}
+			require.Len(t, tallies, 1)
+			assert.Equal(t, "en.json", tallies[0].ItemName)
+			assert.Equal(t, "nb", tallies[0].Variant)
+			assert.Equal(t, tt.wantStale, tallies[0].Stale)
+			assert.Equal(t, tt.wantUnknown, tallies[0].BasisUnknown)
+		})
+	}
+}
+
+// TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite: a decision arriving
+// against source this store has since rewritten is recorded in the ledger and
+// projects nothing — the approval was for wording the project no longer has.
+func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	src := &model.Block{ID: "greeting", Translatable: true}
+	src.SetSourceText("Hello there")
+	src.SetTargetText("nb", "Hei")
+	src.Target("nb").Status = model.TargetStatusTranslated
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"), // the wording the reviewer saw
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "the decision is a fact and is recorded")
+
+	rows, err := s.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: p.ID, Stream: "main", ItemName: "en.json", Limit: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, model.TargetStatusTranslated, rows[0].Block.Target("nb").Status,
+		"a decision blessing source the store has rewritten must not project an approval")
+}

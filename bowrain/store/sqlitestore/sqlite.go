@@ -785,10 +785,10 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
-				// The source this unit's approvals were made against no longer
-				// exists, so the approvals no longer apply (use case 2) —
-				// mirrors demoteStaleApprovalsPg exactly.
-				if err := demoteStaleApprovals(ctx, tx, projectID, internalID); err != nil {
+				// The source half of every pairing this unit's decisions blessed
+				// has moved, so the projections are re-derived against the
+				// ledger — mirrors settleDecisionProjectionsPg exactly.
+				if err := settleDecisionProjections(ctx, tx, projectID, internalID, identity.ContentHash); err != nil {
 					return err
 				}
 			}

@@ -169,3 +169,167 @@ func TestUnitDecisions_SourceEditDemotesApproval(t *testing.T) {
 	assert.Equal(t, "reviewer@example.com", ledger["en.json|greeting|nb"].DecidedBy,
 		"the decision stays in the ledger — it is a fact about an older text")
 }
+
+// TestUnitDecisions_RestoredSourceFindsItsApproval: the decision is a fact, so
+// a source that comes back to the wording it blessed converges on it — the
+// projection returns to the decided rung with nobody reviewing anything twice,
+// and both flips are in the history.
+func TestUnitDecisions_RestoredSourceFindsItsApproval(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
+	}))
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"),
+		DecidedBy:   "reviewer@example.com",
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, p.ID, "en.json", "greeting"))
+
+	// The source moves: the approval no longer describes the project.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithText("greeting", "Hello there"),
+	}))
+	require.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"))
+	tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Equal(t, 1, tallies[0].Stale)
+
+	// The source comes back — the recorded decision applies again.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithText("greeting", "Hello"),
+	}))
+	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, p.ID, "en.json", "greeting"),
+		"a restored source converges on the decision already recorded — no re-review")
+	tallies, err = s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Zero(t, tallies[0].Stale, "the basis matches the source again")
+
+	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: "en.json"})
+	require.NoError(t, err)
+	require.Len(t, blocks, 1)
+	history, err := s.GetBlockHistory(ctx, p.ID, "main", blocks[0].Block.ID, "nb", 50)
+	require.NoError(t, err)
+	var kinds []string
+	for _, h := range history {
+		kinds = append(kinds, h.ChangeType)
+	}
+	assert.Contains(t, kinds, DecisionStaleEvent, "the demotion is auditable")
+	assert.Contains(t, kinds, DecisionRestoredEvent, "so is the recovery")
+}
+
+// TestTallyDecisionBasis pins the Postgres grading of recorded decisions
+// against the source the project holds now — the equality join between a
+// decision's recorded basis and the block's content hash.
+func TestTallyDecisionBasis(t *testing.T) {
+	tests := []struct {
+		name string
+		// basis is the content hash the decision records; "current" means the
+		// hash of the stored source, "" a record written before the basis was
+		// tracked.
+		basis           string
+		rewriteSourceTo string
+		translatable    bool
+		unit            string
+		wantStale       int
+		wantUnknown     int
+	}{
+		{name: "basis matches the current source", basis: "current", translatable: true, unit: "greeting"},
+		{
+			name: "source rewritten under the decision", basis: "current",
+			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantStale: 1,
+		},
+		{name: "decision recorded before the basis was tracked", basis: "", translatable: true, unit: "greeting", wantUnknown: 1},
+		{
+			name: "an unknown basis stays unknown when the source moves", basis: "",
+			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantUnknown: 1,
+		},
+		{name: "decision for a unit this store holds no block for", basis: "current", translatable: true, unit: "absent"},
+		{
+			name: "a non-translatable block is outside every denominator", basis: "current",
+			rewriteSourceTo: "Hello there", translatable: false, unit: "greeting",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestStore(t)
+			ctx := t.Context()
+			p := createTestProject(t, s)
+
+			src := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)
+			src.Translatable = tt.translatable
+			require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+
+			basis := tt.basis
+			if basis == "current" {
+				basis = state.SourceHash("Hello")
+			}
+			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
+				Status:      string(model.TargetStatusReviewed),
+				TargetHash:  state.TargetHash("Hei"),
+				ContentHash: basis,
+				Updated:     "2026-08-04T10:00:00Z",
+			}})
+			require.NoError(t, err)
+
+			if tt.rewriteSourceTo != "" {
+				edited := blockWithText("greeting", tt.rewriteSourceTo)
+				edited.Translatable = tt.translatable
+				require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{edited}))
+			}
+
+			tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+			require.NoError(t, err)
+			if tt.wantStale == 0 && tt.wantUnknown == 0 {
+				for _, got := range tallies {
+					assert.Zero(t, got.Stale, "nothing is stale")
+					assert.Zero(t, got.BasisUnknown, "no basis is unknown")
+				}
+				return
+			}
+			require.Len(t, tallies, 1)
+			assert.Equal(t, "en.json", tallies[0].ItemName)
+			assert.Equal(t, "nb", tallies[0].Variant)
+			assert.Equal(t, tt.wantStale, tallies[0].Stale)
+			assert.Equal(t, tt.wantUnknown, tallies[0].BasisUnknown)
+		})
+	}
+}
+
+// TestUnitDecisions_StaleBasisDoesNotProject: a decision arriving against
+// source this store has since rewritten is recorded and projects nothing — the
+// approval was for wording the project no longer has.
+func TestUnitDecisions_StaleBasisDoesNotProject(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("greeting", "Hello there", "Hei", model.TargetStatusTranslated),
+	}))
+
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:      string(model.TargetStatusReviewed),
+		TargetHash:  state.TargetHash("Hei"),
+		ContentHash: state.SourceHash("Hello"), // the wording the reviewer saw
+		DecidedBy:   "reviewer@example.com",
+		Updated:     "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "the fact is recorded")
+	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"),
+		"a decision blessing source the store has rewritten must not project an approval")
+	assert.Len(t, listDecisions(t, s, p.ID), 1)
+}

@@ -557,6 +557,17 @@ func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, s
 	return ds.ListUnitDecisions(ctx, projectID, stream)
 }
 
+// TallyDecisionBasis forwards the optional DecisionStore capability. A store
+// that keeps no ledger grades nothing, which the dashboard reads as no stale
+// units — the same answer a project with no decisions gives.
+func (s *EventEmittingStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]store.DecisionBasisTally, error) {
+	ds, ok := s.inner.(store.DecisionStore)
+	if !ok {
+		return nil, nil
+	}
+	return ds.TallyDecisionBasis(ctx, projectID, stream)
+}
+
 // GetBlockAccess forwards the optional BlockAccessStore capability.
 func (s *EventEmittingStore) GetBlockAccess(ctx context.Context, projectID, blockID string) (string, string, error) {
 	as, ok := s.inner.(store.BlockAccessStore)
