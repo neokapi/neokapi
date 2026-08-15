@@ -37,6 +37,8 @@ import {
   clearIntendedPlan,
   type IntendedPlan,
 } from "./intended-plan";
+import { AnalyticsEvents } from "../analytics-events";
+import type { PlatformAdapter } from "../platform";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
@@ -67,6 +69,14 @@ import {
 export interface RouterContext {
   queryClient: QueryClient;
   api: ApiAdapter;
+  /**
+   * The host's analytics seam, for the events a route fires before anything
+   * renders. Components reach analytics through `useAnalytics()`, but the
+   * unauthenticated entry never mounts a component — it redirects out of the
+   * router — so its one event has to come from `beforeLoad`. Optional: a shell
+   * that wires no analytics (desktop) leaves it undefined.
+   */
+  analytics?: PlatformAdapter["analytics"];
 }
 
 export interface WorkspaceRouteContext {
@@ -101,7 +111,17 @@ const indexRoute = createRoute({
     plan: searchPlan(search.plan),
     seats: searchSeats(search.seats),
   }),
-  beforeLoad: async ({ context: { queryClient, api }, search }) => {
+  beforeLoad: async ({ context: { queryClient, api, analytics }, search }) => {
+    // Carry the intended plan across the OIDC round-trip, BEFORE anything is
+    // awaited. The visitor who needs this is the one who has no session, and
+    // that path runs through fetches that never settle: `fetchJSON`'s
+    // unrecoverable-401 branch calls `onSessionExpired` and then returns a
+    // promise that blocks forever while the page leaves for the identity
+    // provider. Anything stashed behind an await is therefore never stashed on
+    // the only path that needs it. The plan depends on `search` alone, so it
+    // does not have to wait for the bootstrap at all.
+    if (search.plan) stashIntendedPlan({ plan: search.plan, seats: search.seats });
+
     // Fire all three bootstrap fetches at once — config only decides how the
     // OTHER two are consumed, so waiting for it before starting them just
     // serializes the waterfall. In standalone mode the user/workspaces
@@ -115,6 +135,9 @@ const indexRoute = createRoute({
     const config = await configPromise;
 
     if (config.mode === "standalone") {
+      // Standalone has no billing surface, so a plan from a landing CTA means
+      // nothing here — drop it rather than leave it to hijack a later visit.
+      clearIntendedPlan();
       throw redirect({
         to: "/$workspace",
         params: { workspace: "local" },
@@ -122,17 +145,29 @@ const indexRoute = createRoute({
       });
     }
 
-    // Server mode — the user/workspaces fetches are already in flight.
-    const [user, workspaces] = await Promise.all([userPromise, workspacesPromise]);
+    // Server mode — the user/workspaces fetches are already in flight. Whether
+    // there is a session is decided by the user fetch ALONE: `getCurrentUser`
+    // answers an unauthenticated 401 with `null`, while `listWorkspaces` goes
+    // through `fetchJSON`, whose 401 branch never settles. Awaiting the two
+    // together would put every line below behind a promise that, for an
+    // anonymous visitor, resolves never.
+    const user = await userPromise;
 
     if (!user) {
-      // Carry the intended plan across the OIDC round-trip: stash it before we
-      // leave for the identity provider, restore it when the user returns.
-      if (search.plan) stashIntendedPlan({ plan: search.plan, seats: search.seats });
+      // The conversion step, marked on the way out. Beacon transport, because
+      // the navigation below discards anything the default transport is still
+      // batching.
+      analytics?.capture?.(
+        AnalyticsEvents.signupRedirectStarted,
+        { has_plan: Boolean(search.plan), plan: search.plan },
+        { transport: "beacon" },
+      );
       window.location.href = "/api/v1/auth/login";
       await new Promise(() => {}); // Prevent render while redirecting
       throw new Error("unreachable");
     }
+
+    const workspaces = await workspacesPromise;
 
     // First-run users have no personal workspace yet — route them through
     // /welcome to pick a handle. We bias to the user's onboarded_at flag

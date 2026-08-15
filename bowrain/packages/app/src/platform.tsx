@@ -31,8 +31,21 @@ export interface PlatformAdapter {
   analytics?: {
     identify(user: { id: string; email?: string; name?: string }): void;
     reset(): void;
-    /** Fire-and-forget product event ($pageview, feature_entered, …). */
-    capture(event: string, props?: Record<string, unknown>): void;
+    /**
+     * Fire-and-forget product event ($pageview, feature_entered, …).
+     *
+     * `transport: "beacon"` is for the events a page fires on its way out. The
+     * default transport batches, and a batch queued microseconds before a
+     * top-level navigation is discarded with the document — which is exactly
+     * the step worth measuring, since it is where a visitor leaves for the
+     * identity provider. A shell that cannot honour it ignores the option and
+     * still records the event.
+     */
+    capture(
+      event: string,
+      props?: Record<string, unknown>,
+      options?: { transport?: "beacon" },
+    ): void;
     /** Associate the session with a PostHog group (e.g. "workspace"). */
     group(type: string, key: string, props?: Record<string, unknown>): void;
     /**

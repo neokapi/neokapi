@@ -49,9 +49,24 @@ export function identifyUser(id: string, properties?: Record<string, unknown>) {
   posthog.identify(id, properties);
 }
 
-/** Fire-and-forget product event (platform seam `analytics.capture`). */
-export function captureEvent(event: string, properties?: Record<string, unknown>) {
+/**
+ * Fire-and-forget product event (platform seam `analytics.capture`).
+ *
+ * `transport: "beacon"` maps to posthog-js's `sendBeacon`, which hands the
+ * request to the browser to deliver after the document is gone. An event fired
+ * immediately before a top-level navigation needs it: the default batching
+ * transport would still be holding the payload when the page unloads.
+ */
+export function captureEvent(
+  event: string,
+  properties?: Record<string, unknown>,
+  options?: { transport?: "beacon" },
+) {
   if (!POSTHOG_KEY) return;
+  if (options?.transport === "beacon") {
+    posthog.capture(event, properties, { transport: "sendBeacon" });
+    return;
+  }
   posthog.capture(event, properties);
 }
 
