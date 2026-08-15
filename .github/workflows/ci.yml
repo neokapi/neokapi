@@ -502,12 +502,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
-      # The shared setup action does not cover the plugin modules (separate
-      # go.mod, not reachable from any other ./...); download them here.
+      # The shared setup action does not cover the plugin module (separate
+      # go.mod, not reachable from any other ./...); download it here.
       - name: Download plugin modules
         run: |
           cd bowrain/plugin && go mod download && go mod verify
-          cd schema && go mod download && go mod verify
 
       - name: Run Bowrain Plugin tests
         id: run-tests
