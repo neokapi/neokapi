@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T13:11:50Z",
+  "generatedAt": "2026-08-15T15:09:13Z",
   "commands": [
     {
       "id": "add",
@@ -5419,7 +5419,7 @@
       ],
       "use": "import [file]",
       "short": "Import a TMX file or a native .memory.json bundle into content memory",
-      "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+      "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports, where\na single TU may carry every official EU language). Combine with --locales to\nrestrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
       "flags": [
         {
           "name": "all-pairs",
