@@ -600,6 +600,58 @@ export interface ChangeSetImpact {
 }
 
 /**
+ * One named finding in a trial (knowledge.TrialFinding): enough to recognize
+ * the rule that fired and the text it fired on.
+ */
+export interface TrialFinding {
+  /** Which half of the gate raised it. */
+  kind: "term" | "voice";
+  /** The designation for a term finding, the matched term for a voice finding. */
+  rule: string;
+  /** What the rule says to write instead, when it says. */
+  replacement?: string;
+  /** The voice half's severity; absent on a term finding. */
+  severity?: string;
+  concept_id?: string;
+  block_id: string;
+  item_name: string;
+  collection_name?: string;
+  locale: string;
+  text: string;
+}
+
+/**
+ * The findings diff for one stream under a change-set's draft
+ * (knowledge.TrialReport).
+ *
+ * The two halves have different standing and the report says which is which.
+ * The VOICE half is live on the stream when `voice_bound` is set: a pilot
+ * materialized a candidate profile and bound it there, and the profile resolver
+ * reads that rung, so a check on this stream really does resolve through the
+ * draft. The TERMS half is always computed for the report — no check resolves
+ * terms per stream — which is what `terms_computed` states.
+ */
+export interface TrialReport {
+  changeset_id: string;
+  project_id: string;
+  stream: string;
+  /** (block, locale) rows scanned, and the rows whose findings changed. */
+  total_blocks: number;
+  changed_blocks: number;
+  /** The findings the draft adds and removes. Capped; the totals are not. */
+  raised: TrialFinding[];
+  cleared: TrialFinding[];
+  raised_total: number;
+  cleared_total: number;
+  /** The candidate profile a pilot bound to this stream, when one is bound. */
+  voice_bound?: string;
+  terms_computed: boolean;
+  partial?: boolean;
+  partial_reason?: string;
+  computed_at: string;
+}
+
+/**
  * The stored totals a change-set carries on its header
  * (knowledge.ImpactSummary). `projects` is a count here, not a breakdown.
  */

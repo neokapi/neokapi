@@ -259,6 +259,36 @@ type ChangeSetImpact struct {
 	Stored bool `json:"stored,omitempty"`
 	// ComputedAt stamps a stored summary. Nil on a live walk.
 	ComputedAt *time.Time `json:"computed_at,omitempty"`
+
+	// Reach splits the affected content by what acting on it costs: an
+	// annotation the next check fans out, or a source rewrite that invalidates
+	// every translation of the block and belongs to whoever may edit source.
+	Reach *Reach `json:"reach,omitempty"`
+}
+
+// Reach is the cost split of a change-set's blast radius.
+type Reach struct {
+	Annotate          ReachClass   `json:"annotate"`
+	Transform         ReachClass   `json:"transform"`
+	TransformProjects []ProjectRef `json:"transform_projects"`
+}
+
+// ReachClass is one cost class: the content it covers and the translations that
+// content already carries.
+type ReachClass struct {
+	Blocks      int      `json:"blocks"`
+	Words       int      `json:"words"`
+	Collections int      `json:"collections"`
+	Projects    int      `json:"projects"`
+	Targets     int      `json:"targets"`
+	Approved    int      `json:"approved"`
+	Locales     []string `json:"locales"`
+}
+
+// ProjectRef names a project in a report without carrying its whole record.
+type ProjectRef struct {
+	ProjectID   string `json:"project_id"`
+	ProjectName string `json:"project_name"`
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.
@@ -512,6 +542,58 @@ func (c *BowrainClient) changesetBlastRadius(ctx context.Context, id string, q u
 		return nil, err
 	}
 	return &out, nil
+}
+
+// TrialFindings returns the findings diff for one stream
+// (GET /api/v1/:ws/changesets/:id/pilots/:project/:stream/findings): what the
+// check matchers raise under the live graph and under the graph the draft would
+// produce. No pilot need exist — a reviewer may ask what a draft would do to a
+// stream before binding it to one.
+func (c *BowrainClient) TrialFindings(ctx context.Context, id, projectID, stream string) (*TrialReport, error) {
+	var out TrialReport
+	path := "/changesets/" + url.PathEscape(id) + "/pilots/" +
+		url.PathEscape(projectID) + "/" + url.PathEscape(stream) + "/findings"
+	if err := c.getWorkspaceJSON(ctx, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// TrialFinding is one named finding in a trial report.
+type TrialFinding struct {
+	Kind           string `json:"kind"` // term | voice
+	Rule           string `json:"rule"`
+	Replacement    string `json:"replacement,omitempty"`
+	Severity       string `json:"severity,omitempty"`
+	ConceptID      string `json:"concept_id,omitempty"`
+	BlockID        string `json:"block_id"`
+	ItemName       string `json:"item_name"`
+	CollectionName string `json:"collection_name,omitempty"`
+	Locale         string `json:"locale"`
+	Text           string `json:"text"`
+}
+
+// TrialReport is the findings diff for one stream under a change-set's draft.
+type TrialReport struct {
+	ChangesetID   string         `json:"changeset_id"`
+	ProjectID     string         `json:"project_id"`
+	Stream        string         `json:"stream"`
+	TotalBlocks   int            `json:"total_blocks"`
+	ChangedBlocks int            `json:"changed_blocks"`
+	Raised        []TrialFinding `json:"raised"`
+	Cleared       []TrialFinding `json:"cleared"`
+	RaisedTotal   int            `json:"raised_total"`
+	ClearedTotal  int            `json:"cleared_total"`
+	// VoiceBound names the candidate profile a pilot bound to this stream. Its
+	// presence is what makes the voice half of the report a description of what
+	// a check on this stream actually resolves.
+	VoiceBound string `json:"voice_bound,omitempty"`
+	// TermsComputed says the terms half was applied for this report rather than
+	// resolved on the branch: no check resolves terms per stream.
+	TermsComputed bool      `json:"terms_computed"`
+	Partial       bool      `json:"partial,omitempty"`
+	PartialReason string    `json:"partial_reason,omitempty"`
+	ComputedAt    time.Time `json:"computed_at"`
 }
 
 // ---------------------------------------------------------------------------

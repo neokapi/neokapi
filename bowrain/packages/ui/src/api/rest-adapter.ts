@@ -192,6 +192,7 @@ import type {
   UpdateChangeSetRequest,
   ReviewRequest,
   ChangeSetImpact,
+  TrialReport,
   ChangeSetCounts,
   ConceptStatusCounts,
   LocaleCoverageReport,
@@ -3807,6 +3808,17 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(
       `${this.changesetEp(workspaceSlug, changesetId)}/pilots/${encodeURIComponent(projectId)}/${encodeURIComponent(stream)}`,
       { method: "DELETE" },
+    );
+  }
+
+  async trialFindings(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<TrialReport> {
+    return this.fetchJSON(
+      `${this.changesetEp(workspaceSlug, changesetId)}/pilots/${encodeURIComponent(projectId)}/${encodeURIComponent(stream)}/findings`,
     );
   }
 

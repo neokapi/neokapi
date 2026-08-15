@@ -34,6 +34,75 @@ export interface Concept {
   }>;
 }
 
+/** A governance change-set as its list/detail routes report it. */
+export interface ChangeSetSummary {
+  id: string;
+  name: string;
+  status: string;
+  created_by: string;
+  governed?: boolean;
+  merged_at?: string;
+  merged_by?: string;
+  reviews?: Array<{ reviewer: string; verdict: string; basis?: string }>;
+  solo_review?: boolean;
+}
+
+/** What merging a change-set did (knowledge.MergeResult). */
+export interface MergeResultInfo {
+  applied?: number;
+  conflicts?: unknown[];
+  revisions_created?: number;
+  pilots_stopped?: number;
+}
+
+/** One cost class of a change-set's reach (knowledge.ReachClass). */
+export interface ReachClassInfo {
+  blocks: number;
+  words: number;
+  collections: number;
+  projects: number;
+  targets: number;
+  approved: number;
+  locales: string[];
+}
+
+/** The blast radius, with the reach split the reviewer reads before approving. */
+export interface ChangeSetImpactInfo {
+  total_blocks: number;
+  affected_blocks: number;
+  new_violations: number;
+  resolved: number;
+  words: number;
+  projects?: Array<{
+    project_id: string;
+    project_name: string;
+    affected_blocks: number;
+    collections?: Array<{ collection_name: string; affected_blocks: number }>;
+  }> | null;
+  reach?: {
+    annotate: ReachClassInfo;
+    transform: ReachClassInfo;
+    transform_projects: Array<{ project_id: string; project_name: string }>;
+  };
+  partial?: boolean;
+  stored?: boolean;
+}
+
+/** The findings diff for one stream (knowledge.TrialReport). */
+export interface TrialReportInfo {
+  changeset_id: string;
+  project_id: string;
+  stream: string;
+  total_blocks: number;
+  changed_blocks: number;
+  raised: Array<{ kind: string; rule: string; replacement?: string; block_id: string }>;
+  cleared: Array<{ kind: string; rule: string; block_id: string }>;
+  raised_total: number;
+  cleared_total: number;
+  voice_bound?: string;
+  terms_computed: boolean;
+}
+
 /**
  * One collection a recipe declares, as the context content type carries it:
  * the point it sits at and the voice governing it. Mirrors
@@ -489,6 +558,140 @@ export class BowrainAPI {
     },
   ): Promise<ChannelAliasProposal> {
     return this.post(`/${wsSlug}/context/channel-proposals/judge`, judgement);
+  }
+
+  // -----------------------------------------------------------------------
+  // Governance change-sets: the reviewed path into the graph, and the two
+  // things a reviewer reads before approving one — its reach and its trial.
+  // -----------------------------------------------------------------------
+
+  /**
+   * Uploads a file onto a workspace project's stream, on the bare-slug route
+   * family (`/:ws/:id/items/:ref`) the workspace projects live under. The
+   * `/workspaces/:ws/editor/...` family several older helpers still use is a
+   * different, earlier shape; a project created with createWorkspaceProject is
+   * only addressable here.
+   */
+  async uploadToStream(
+    wsSlug: string,
+    projectId: string,
+    stream: string,
+    fileName: string,
+    content: string | Buffer | Uint8Array,
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("files", new Blob([content]), fileName);
+
+    const resp = await fetch(
+      `${this.apiUrl}/${wsSlug}/${projectId}/items/${encodeURIComponent(stream)}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}` },
+        body: formData,
+      },
+    );
+    if (!resp.ok) throw new Error(`Upload ${fileName}: ${resp.status} ${await resp.text()}`);
+  }
+
+  /** Creates a concept through ordinary curation and returns it with its id. */
+  async createConcept(
+    wsSlug: string,
+    concept: {
+      domain?: string;
+      definition?: string;
+      terms: Array<{ text: string; locale: string; status?: string }>;
+    },
+  ): Promise<{ id: string }> {
+    return this.post(`/${wsSlug}/concepts`, concept);
+  }
+
+  async createChangeset(
+    wsSlug: string,
+    name: string,
+    description?: string,
+  ): Promise<ChangeSetSummary> {
+    return this.post(`/${wsSlug}/changesets`, { name, description });
+  }
+
+  async addChangesetOp(
+    wsSlug: string,
+    changesetId: string,
+    op: string,
+    payload: unknown,
+  ): Promise<unknown> {
+    return this.post(`/${wsSlug}/changesets/${changesetId}/ops`, { op, payload });
+  }
+
+  async submitChangeset(wsSlug: string, changesetId: string): Promise<ChangeSetSummary> {
+    return this.post(`/${wsSlug}/changesets/${changesetId}/submit`);
+  }
+
+  async approveChangeset(
+    wsSlug: string,
+    changesetId: string,
+    comment?: string,
+  ): Promise<ChangeSetSummary> {
+    return this.post(`/${wsSlug}/changesets/${changesetId}/approve`, { comment });
+  }
+
+  async mergeChangeset(wsSlug: string, changesetId: string): Promise<MergeResultInfo> {
+    return this.post(`/${wsSlug}/changesets/${changesetId}/merge`);
+  }
+
+  async getChangeset(wsSlug: string, changesetId: string): Promise<ChangeSetSummary> {
+    return this.get(`/${wsSlug}/changesets/${changesetId}`);
+  }
+
+  /**
+   * The blast radius. `fresh` runs the live walk, which is the only path that
+   * carries the per-project breakdown; without it a submitted change-set
+   * answers from the summary stored at submit.
+   */
+  async changesetBlastRadius(
+    wsSlug: string,
+    changesetId: string,
+    fresh = false,
+  ): Promise<ChangeSetImpactInfo> {
+    return this.get(
+      `/${wsSlug}/changesets/${changesetId}/blast-radius${fresh ? "?fresh=1" : ""}`,
+    );
+  }
+
+  /** The findings diff for one stream under a change-set's draft. */
+  async trialFindings(
+    wsSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<TrialReportInfo> {
+    return this.get(
+      `/${wsSlug}/changesets/${changesetId}/pilots/${encodeURIComponent(projectId)}/${encodeURIComponent(stream)}/findings`,
+    );
+  }
+
+  /**
+   * The workspace activity feed on the bare-slug route family
+   * (`/:ws/activities`), which is where it lives. The older listActivities
+   * helper still points at `/workspaces/:ws/activities`, a shape the server no
+   * longer serves.
+   */
+  async workspaceActivities(wsSlug: string): Promise<Activity[]> {
+    const page = await this.get<{ activities?: Activity[] } | Activity[]>(
+      `/${wsSlug}/activities`,
+    );
+    return Array.isArray(page) ? page : (page.activities ?? []);
+  }
+
+  async startPilot(
+    wsSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<unknown> {
+    return this.post(`/${wsSlug}/changesets/${changesetId}/pilots`, {
+      project_id: projectId,
+      stream,
+    });
   }
 
   // -----------------------------------------------------------------------

@@ -308,10 +308,11 @@ func (tb *PostgresStore) RelationsOf(ctx context.Context, conceptID string, scop
 // ListRelations returns all relations, filtered by the validity scope when one
 // is given.
 func (tb *PostgresStore) ListRelations(ctx context.Context, scope *graph.Scope) ([]fw.ConceptRelation, error) {
+	notShadow, shadowArg := fw.NotShadowSQL("id", "$2")
 	rows, err := tb.db.QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations WHERE workspace_id = $1 ORDER BY id
-	`, tb.workspaceID)
+		FROM tb_relations WHERE workspace_id = $1 AND `+notShadow+` ORDER BY id
+	`, tb.workspaceID, shadowArg)
 	if err != nil {
 		return nil, fmt.Errorf("list relations: %w", err)
 	}
@@ -725,8 +726,14 @@ func (tb *PostgresStore) Count(ctx context.Context) (int, error) {
 }
 
 // Concepts returns all concepts for this workspace.
+// Concepts returns the workspace's concepts. The shadow namespace is not among
+// them: a stream-scoped shadow belongs to the branch it was written for, and
+// this list is what the sync carries into a project's own terms.
 func (tb *PostgresStore) Concepts(ctx context.Context) ([]fw.Concept, error) {
-	rows, err := tb.db.QueryContext(ctx, "SELECT id FROM tb_concepts WHERE workspace_id = $1 ORDER BY id", tb.workspaceID)
+	notShadow, shadowArg := fw.NotShadowSQL("id", "$2")
+	rows, err := tb.db.QueryContext(ctx,
+		"SELECT id FROM tb_concepts WHERE workspace_id = $1 AND "+notShadow+" ORDER BY id",
+		tb.workspaceID, shadowArg)
 	if err != nil {
 		return nil, fmt.Errorf("list concepts: %w", err)
 	}
@@ -987,9 +994,13 @@ func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSourc
 }
 
 func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
-	where := "t.workspace_id = $1 AND t.locale = $2"
-	args := []any{tb.workspaceID, string(locale)}
-	argN := 3
+	// This query is the terms half of every check. It names no stream, so it
+	// must exclude the shadow namespace: a shadow written for one branch would
+	// otherwise decide what the checks flag everywhere.
+	notShadow, shadowArg := fw.NotShadowSQL("c.id", "$3")
+	where := "t.workspace_id = $1 AND t.locale = $2 AND " + notShadow
+	args := []any{tb.workspaceID, string(locale), shadowArg}
+	argN := 4
 
 	if len(domains) > 0 {
 		placeholders := make([]string, len(domains))

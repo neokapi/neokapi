@@ -57,6 +57,7 @@ func (s *Server) registerChangesetRoutes(g *echo.Group) {
 	g.GET("/changesets/:id/blast-radius", s.HandleChangeSetBlastRadius)
 	g.POST("/changesets/:id/pilots", s.HandleStartPilot)
 	g.DELETE("/changesets/:id/pilots/:project/:stream", s.HandleStopPilot)
+	g.GET("/changesets/:id/pilots/:project/:stream/findings", s.HandleTrialFindings)
 }
 
 // ---------------------------------------------------------------------------
@@ -905,6 +906,51 @@ func (s *Server) HandleStopPilot(c echo.Context) error {
 		pilotEvent(knowledge.EventPilotStopped, wsID, cs.ID, project, stream, actor),
 	})
 	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleTrialFindings reports the findings diff for one pilot's stream: what the
+// check matchers raise under the live graph and under the graph the draft would
+// produce. It reads; nothing is persisted, and it does not require a pilot to
+// exist — a reviewer may ask what a draft would do to a stream before binding it
+// to one, and refusing that would make "bind it and find out" the only way to
+// find out.
+//
+// The walk is bounded like the blast radius, and for the same reason: an
+// unbounded scan leaves a reader on a loading state that never resolves.
+func (s *Server) HandleTrialFindings(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	if s.KnowledgeStore == nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, errKnowledgeUnavailable)
+	}
+	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	ctx := c.Request().Context()
+
+	cs, resp := s.getChangeSetOr404(c, wsID, c.Param("id"))
+	if cs == nil {
+		return resp
+	}
+	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	report, err := engine.TrialFindings(ctx, wsID, *cs, changeSetOpValues(opPtrs),
+		c.Param("project"), c.Param("stream"), knowledge.EvalOptions{Budget: blastRadiusBudget})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if report.Partial {
+		slog.WarnContext(ctx, "trial findings returned partial: the walk did not finish inside its budget",
+			"workspace_id", wsID, "change_set_id", cs.ID,
+			"project", report.ProjectID, "stream", report.Stream, "scanned", report.TotalBlocks)
+	}
+	return c.JSON(http.StatusOK, report)
 }
 
 // ---------------------------------------------------------------------------

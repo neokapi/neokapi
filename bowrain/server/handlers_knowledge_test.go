@@ -159,6 +159,7 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 		"GET /:ws/changesets/:id/blast-radius",
 		"POST /:ws/changesets/:id/pilots",
 		"DELETE /:ws/changesets/:id/pilots/:project/:stream",
+		"GET /:ws/changesets/:id/pilots/:project/:stream/findings",
 	}
 	for _, w := range want {
 		assert.True(t, got[w], "route not registered: %s", w)

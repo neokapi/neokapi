@@ -180,6 +180,7 @@ import type {
   UpdateChangeSetRequest,
   ReviewRequest,
   ChangeSetImpact,
+  TrialReport,
   ChangeSetCounts,
   ConceptStatusCounts,
   LocaleCoverageReport,
@@ -1487,6 +1488,18 @@ export interface ApiAdapter {
     projectId: string,
     stream: string,
   ): Promise<void>;
+  /**
+   * The findings diff for one stream: what the check matchers raise under the
+   * live graph and under the graph the draft would produce. No pilot need
+   * exist — a reviewer may ask what a draft would do to a stream before binding
+   * it to one.
+   */
+  trialFindings(
+    workspaceSlug: string,
+    changesetId: string,
+    projectId: string,
+    stream: string,
+  ): Promise<TrialReport>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

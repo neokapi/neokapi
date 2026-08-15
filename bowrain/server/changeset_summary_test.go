@@ -161,6 +161,35 @@ func TestBlastRadiusWithoutASummaryWalks(t *testing.T) {
 	assertEngineUnavailable(t, h.srv.HandleChangeSetBlastRadius(c))
 }
 
+// The trial endpoint sits under the pilot path, which already carries a
+// :project/:stream pair the DELETE claims. This pins that the router lands on
+// the findings route rather than folding the trailing segment into the stream.
+func TestTrialFindingsRouteShape(t *testing.T) {
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
+	e := echo.New()
+	g := e.Group("/:ws")
+	srv.registerChangesetRoutes(g)
+
+	path := "/acme/changesets/cs-1/pilots/proj-1/main/findings"
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	c := e.NewContext(req, httptest.NewRecorder())
+	e.Router().Find(http.MethodGet, path, c)
+	assert.Equal(t, "/:ws/changesets/:id/pilots/:project/:stream/findings", c.Path())
+}
+
+// A trial needs a walk, and the harness carries no content store — so a 503 is
+// the proof the handler reached for the engine. It also pins that a trial does
+// NOT require a pilot to exist: the refusal is the missing engine, not a missing
+// pilot, because "bind it and find out" must not be the only way to find out.
+func TestTrialFindingsNeedsTheEngineNotAPilot(t *testing.T) {
+	h := newKGHarness(t)
+	cs := h.seedChangeSet(t, "trial", 1)
+
+	c, _ := h.req(http.MethodGet, "/changesets/"+cs.ID+"/pilots/proj-1/main/findings", "",
+		platauth.PermViewContent, "id", cs.ID, "project", "proj-1", "stream", "main")
+	assertEngineUnavailable(t, h.srv.HandleTrialFindings(c))
+}
+
 // assertEngineUnavailable asserts the handler refused with a 503 because the
 // walk had no engine to run on — the harness carries no content store.
 func assertEngineUnavailable(t *testing.T, err error) {

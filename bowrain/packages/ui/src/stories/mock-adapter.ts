@@ -1922,6 +1922,42 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       created_at: MOCK_NOW,
     }),
     removePilot: async () => {},
+    trialFindings: async (_ws, changesetId, projectId, stream) => ({
+      changeset_id: changesetId,
+      project_id: projectId,
+      stream,
+      total_blocks: 42,
+      changed_blocks: 2,
+      raised: [
+        {
+          kind: "term",
+          rule: "utilise",
+          replacement: "use",
+          concept_id: "c-utilise",
+          block_id: "b-1",
+          item_name: "pricing.md",
+          collection_name: "Docs",
+          locale: "en-US",
+          text: "You can utilise the API to fetch a quote.",
+        },
+      ],
+      cleared: [
+        {
+          kind: "voice",
+          rule: "synergy",
+          severity: "major",
+          block_id: "b-2",
+          item_name: "home.json",
+          collection_name: "Pages",
+          locale: "en-US",
+          text: "Embrace synergy across teams.",
+        },
+      ],
+      raised_total: 1,
+      cleared_total: 1,
+      terms_computed: true,
+      computed_at: MOCK_NOW,
+    }),
   };
   return adapter;
 }

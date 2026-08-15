@@ -351,10 +351,11 @@ func (tb *SQLiteStore) RelationsOf(ctx context.Context, conceptID string, scope 
 // ListRelations returns all relations, filtered by the validity scope when one
 // is given.
 func (tb *SQLiteStore) ListRelations(ctx context.Context, scope *graph.Scope) ([]ConceptRelation, error) {
+	notShadow, arg := NotShadowSQL("id", "?")
 	rows, err := tb.db.QueryContext(ctx, `
 		SELECT id, source_id, target_id, relation, note, valid_from, valid_to, tags, created_at
-		FROM tb_relations ORDER BY id
-	`)
+		FROM tb_relations WHERE `+notShadow+` ORDER BY id
+	`, arg)
 	if err != nil {
 		return nil, fmt.Errorf("list relations: %w", err)
 	}
@@ -706,8 +707,14 @@ func (tb *SQLiteStore) Count(ctx context.Context) (int, error) {
 // Concepts returns all concepts. Callers that write the result out — TBX
 // export, JSON/CSV import diffing, concept sync — depend on it being all of
 // them or an error, never a silently short list.
+//
+// "All" excludes the shadow namespace: a stream-scoped shadow is not a concept
+// of the workspace, and every one of those callers writes what it gets
+// somewhere durable.
 func (tb *SQLiteStore) Concepts(ctx context.Context) ([]Concept, error) {
-	rows, err := tb.db.QueryContext(ctx, "SELECT id FROM tb_concepts ORDER BY id")
+	notShadow, arg := NotShadowSQL("id", "?")
+	rows, err := tb.db.QueryContext(ctx,
+		"SELECT id FROM tb_concepts WHERE "+notShadow+" ORDER BY id", arg)
 	if err != nil {
 		return nil, fmt.Errorf("list concepts: %w", err)
 	}
@@ -1079,8 +1086,12 @@ func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource 
 }
 
 func (tb *SQLiteStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
-	where := "t.locale = ?"
-	args := []any{string(locale)}
+	// This query is the terms half of every check. It names no stream, so it
+	// must exclude the shadow namespace: a shadow written for one branch would
+	// otherwise decide what the checks flag everywhere.
+	notShadow, shadowArg := NotShadowSQL("c.id", "?")
+	where := "t.locale = ? AND " + notShadow
+	args := []any{string(locale), shadowArg}
 
 	if len(domains) > 0 {
 		placeholders := make([]string, len(domains))

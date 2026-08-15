@@ -442,6 +442,15 @@ func (a *App) RemovePilot(workspaceSlug, changesetID, projectID, stream string) 
 	return a.govRequest(http.MethodDelete, path, nil, nil)
 }
 
+// TrialFindings returns the findings diff for one stream: what the check
+// matchers raise under the live graph and under the graph the draft would
+// produce.
+func (a *App) TrialFindings(workspaceSlug, changesetID, projectID, stream string) (json.RawMessage, error) {
+	path := changesetPath(workspaceSlug, changesetID) + "/pilots/" +
+		url.PathEscape(projectID) + "/" + url.PathEscape(stream) + "/findings"
+	return a.govRaw(http.MethodGet, path, nil)
+}
+
 // govRaw is a small helper around govRequest for the many knowledge endpoints
 // that return an opaque JSON value the frontend decodes into a typed shape.
 func (a *App) govRaw(method, path string, body any) (json.RawMessage, error) {

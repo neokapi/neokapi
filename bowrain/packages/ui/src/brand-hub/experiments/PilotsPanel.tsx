@@ -28,6 +28,7 @@ import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import { useAddPilot, useRemovePilot } from "../../hooks/useChangesetsApi";
 import { useProjects } from "../../hooks/useProjectApi";
 import { formatRelative } from "../shell/atoms";
+import { TrialPanel, TrialToggle } from "./TrialPanel";
 
 export interface PilotsPanelProps {
   changeset: ChangeSetDetail;
@@ -35,6 +36,7 @@ export interface PilotsPanelProps {
 
 export function PilotsPanel({ changeset }: PilotsPanelProps) {
   const remove = useRemovePilot(changeset.id);
+  const { data: projects } = useProjects();
   const [addOpen, setAddOpen] = useState(false);
   const terminal = TERMINAL_CHANGESET_STATUSES.has(changeset.status);
 
@@ -55,7 +57,7 @@ export function PilotsPanel({ changeset }: PilotsPanelProps) {
           <div className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-center">
             <FlaskConical className="size-5 text-muted-foreground" />
             <p className="max-w-xs text-xs text-muted-foreground">
-              Bind this experiment to a content stream to exercise it on real content before merge.
+              Bind this change to a content stream to exercise it on real content before merge.
             </p>
           </div>
         ) : (
@@ -63,7 +65,9 @@ export function PilotsPanel({ changeset }: PilotsPanelProps) {
             {changeset.pilots.map((p) => (
               <PilotRow
                 key={`${p.project_id}/${p.stream}`}
+                changesetId={changeset.id}
                 pilot={p}
+                projectName={projects?.find((x) => x.id === p.project_id)?.name}
                 onRemove={() => remove.mutate({ projectId: p.project_id, stream: p.stream })}
                 removing={
                   remove.isPending &&
@@ -81,35 +85,57 @@ export function PilotsPanel({ changeset }: PilotsPanelProps) {
 }
 
 function PilotRow({
+  changesetId,
   pilot,
+  projectName,
   onRemove,
   removing,
 }: {
+  changesetId: string;
   pilot: Pilot;
+  projectName?: string;
   onRemove: () => void;
   removing: boolean;
 }) {
+  // A trial is a walk over the stream, so it is fetched when it is asked for
+  // rather than on every render of the detail page.
+  const [showFindings, setShowFindings] = useState(false);
+
   return (
-    <li className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm">
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium text-foreground">{pilot.project_id}</div>
-        <div className="text-[11px] text-muted-foreground">
-          started {formatRelative(pilot.created_at)}
+    <li className="space-y-2 rounded-md border bg-card px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium text-foreground">
+            {projectName ?? pilot.project_id}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            started {formatRelative(pilot.created_at)}
+          </div>
         </div>
+        <Badge variant="outline" className="font-mono text-[10px]">
+          {pilot.stream}
+        </Badge>
+        <TrialToggle open={showFindings} onToggle={() => setShowFindings((v) => !v)} />
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-muted-foreground hover:text-destructive"
+          onClick={onRemove}
+          disabled={removing}
+          aria-label="Stop pilot"
+        >
+          <Trash2 />
+        </Button>
       </div>
-      <Badge variant="outline" className="font-mono text-[10px]">
-        {pilot.stream}
-      </Badge>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-7 text-muted-foreground hover:text-destructive"
-        onClick={onRemove}
-        disabled={removing}
-        aria-label="Stop pilot"
-      >
-        <Trash2 />
-      </Button>
+      {showFindings && (
+        <TrialPanel
+          changesetId={changesetId}
+          projectId={pilot.project_id}
+          stream={pilot.stream}
+          projectName={projectName}
+          className="border-0 bg-transparent shadow-none"
+        />
+      )}
     </li>
   );
 }
