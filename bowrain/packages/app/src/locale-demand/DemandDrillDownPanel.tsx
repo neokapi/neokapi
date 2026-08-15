@@ -12,6 +12,7 @@ import {
   localeDisplayName,
 } from "@neokapi/ui";
 import { CoverageBadge } from "./CoverageBadge";
+import { SampleDataMark } from "./SampleDataNotice";
 import {
   countryByCode,
   demandProvenanceLabel,
@@ -246,11 +247,14 @@ export function DemandDrillDownPanel({
             {country ? "Market drill-down" : "Language drill-down"}
           </p>
         </div>
-        {onClose && (
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close drill-down">
-            <X className="size-4" />
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {snapshot.provenance.kind === "sample" && <SampleDataMark />}
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close drill-down">
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">

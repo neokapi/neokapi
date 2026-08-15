@@ -4,9 +4,24 @@ import { describeCoverage } from "./CoverageBadge";
 import { LanguageDemandTable, sortLanguages } from "./LanguageDemandTable";
 import { DemandDrillDownPanel } from "./DemandDrillDownPanel";
 import { WorldDemandMap, demandFill } from "./WorldDemandMap";
+import { LocaleDemandView } from "./LocaleDemandView";
 import { sampleDemandDataSource, languageByCode, countryByCode } from "./locale-demand-fixtures";
+import type { DemandDataSource, DemandSnapshot } from "./locale-demand-fixtures";
 
 const snapshot = sampleDemandDataSource.getSnapshot("30d");
+
+/** The same numbers, carrying live provenance — what a connected workspace sees. */
+const liveSnapshot: DemandSnapshot = {
+  ...snapshot,
+  provenance: {
+    kind: "posthog",
+    hostLabel: "eu.posthog.com",
+    posthogProjectId: "12345",
+    cachedAt: "2026-07-03T09:12:00Z",
+  },
+};
+
+const liveDataSource: DemandDataSource = { getSnapshot: () => liveSnapshot };
 
 describe("coverage badge logic", () => {
   it("labels covered languages", () => {
@@ -132,6 +147,59 @@ describe("DemandDrillDownPanel", () => {
     expect(
       screen.getByText(/sample dataset \(web beacon \+ app telemetry ingest\)/i),
     ).toBeVisible();
+  });
+});
+
+describe("sample-data label", () => {
+  // The fixture is the default view for a workspace without PostHog, so the
+  // label is pinned to the fixture rather than to the caller: it renders for
+  // the sample source and for nothing else.
+  const cases = [
+    { name: "the sample fixture", dataSource: sampleDemandDataSource, labeled: true },
+    { name: "a live PostHog snapshot", dataSource: liveDataSource, labeled: false },
+  ];
+
+  for (const { name, dataSource, labeled } of cases) {
+    it(`${labeled ? "labels" : "leaves unlabeled"} a page rendering ${name}`, () => {
+      render(<LocaleDemandView dataSource={dataSource} />);
+      const notice = screen.queryByTestId("sample-data-notice");
+      // One mark per surface that can be screenshotted on its own: the map
+      // graphic and the demand-vs-coverage card.
+      const marks = screen.queryAllByTestId("sample-data-mark");
+      if (labeled) {
+        expect(notice).toBeVisible();
+        expect(notice).toHaveTextContent("Sample data — connect PostHog to see your own");
+        expect(marks).toHaveLength(2);
+      } else {
+        expect(notice).not.toBeInTheDocument();
+        expect(marks).toHaveLength(0);
+      }
+    });
+  }
+
+  it("carries the connect affordance inside the notice", () => {
+    render(
+      <LocaleDemandView
+        dataSource={sampleDemandDataSource}
+        connectAction={<button type="button">Connect PostHog</button>}
+      />,
+    );
+    const notice = screen.getByTestId("sample-data-notice");
+    expect(within(notice).getByRole("button", { name: "Connect PostHog" })).toBeVisible();
+  });
+
+  it("marks the drill-down panel, which detaches from the labeled page", () => {
+    render(
+      <DemandDrillDownPanel snapshot={snapshot} selection={{ kind: "country", code: "BR" }} />,
+    );
+    expect(screen.getByTestId("sample-data-mark")).toBeVisible();
+  });
+
+  it("leaves a live drill-down panel unmarked", () => {
+    render(
+      <DemandDrillDownPanel snapshot={liveSnapshot} selection={{ kind: "country", code: "BR" }} />,
+    );
+    expect(screen.queryByTestId("sample-data-mark")).not.toBeInTheDocument();
   });
 });
 

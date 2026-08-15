@@ -4,7 +4,7 @@ import { LocaleDemandPage, type LocaleDemandApi } from "./LocaleDemandPage";
 
 // Locale demand page with the PostHog source wired to a mocked fetch layer —
 // the live-provenance variant used for the PR screenshots, plus the
-// unconnected fallback (sample dataset + quiet connect callout).
+// unconnected fallback (sample dataset under its sample-data label).
 
 /** Deterministic 12-week trend around a weekly base. */
 function trend(base: number, growth: number) {
@@ -131,7 +131,7 @@ export const LiveProvenance: Story = {
   args: { api: liveApi },
 };
 
-/** Unconnected: sample dataset + badge + quiet connect callout. */
+/** Unconnected: sample dataset under the sample-data notice, with the connect button. */
 export const Unconnected: Story = {
   args: { api: unconnectedApi },
 };

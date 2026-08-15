@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import type { PostHogConnectorConfig, PostHogDemandResponse } from "@neokapi/ui";
 import {
   PostHogDemandSource,
@@ -279,7 +279,7 @@ describe("PostHogConnectCard", () => {
 });
 
 describe("LocaleDemandPage source selection", () => {
-  it("falls back to the sample dataset with a quiet callout when unconnected", async () => {
+  it("falls back to the labeled sample dataset when unconnected", async () => {
     const api: LocaleDemandApi = {
       getPostHogConnector: vi.fn().mockResolvedValue({ configured: false }),
       savePostHogConnector: vi.fn(),
@@ -288,8 +288,9 @@ describe("LocaleDemandPage source selection", () => {
     render(
       <LocaleDemandPage api={api} workspaceSlug="acme" projectId="p1" projectLocales={["en"]} />,
     );
-    expect(await screen.findByTestId("sample-data-badge")).toBeInTheDocument();
-    expect(screen.getByTestId("posthog-connect-callout")).toHaveTextContent(/sample dataset/i);
+    const notice = await screen.findByTestId("sample-data-notice");
+    expect(notice).toHaveTextContent("Sample data — connect PostHog to see your own");
+    expect(within(notice).getByTestId("posthog-connect-open")).toHaveTextContent("Connect PostHog");
     expect(screen.getByTestId("page-demand-provenance")).toHaveTextContent(
       /sample dataset \(web beacon \+ app telemetry ingest\)/i,
     );
@@ -308,7 +309,7 @@ describe("LocaleDemandPage source selection", () => {
     expect(screen.getByTestId("page-demand-provenance")).toHaveTextContent(
       "Demand data: PostHog (eu.posthog.com · project 12345 · cached 09:12 UTC)",
     );
-    expect(screen.queryByTestId("posthog-connect-callout")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sample-data-notice")).not.toBeInTheDocument();
   });
 
   it("degrades to the sample dataset with the error surfaced when the source breaks", async () => {
@@ -326,8 +327,9 @@ describe("LocaleDemandPage source selection", () => {
     render(
       <LocaleDemandPage api={api} workspaceSlug="acme" projectId="p1" projectLocales={["en"]} />,
     );
-    const callout = await screen.findByTestId("posthog-connect-callout");
-    expect(callout).toHaveTextContent(/connection problem/i);
-    expect(callout).toHaveTextContent("personal API key was rejected");
+    const notice = await screen.findByTestId("sample-data-notice");
+    expect(notice).toHaveTextContent(/PostHog could not be read/i);
+    expect(notice).toHaveTextContent("personal API key was rejected");
+    expect(within(notice).getByTestId("posthog-connect-open")).toHaveTextContent("Fix connection");
   });
 });
