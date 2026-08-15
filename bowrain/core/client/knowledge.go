@@ -778,7 +778,7 @@ func (c *BowrainClient) knowledgeWrite(ctx context.Context, method, path string,
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("request %s: %w", strings.TrimPrefix(path, "/"), err)
 	}
@@ -827,7 +827,7 @@ func (c *BowrainClient) getWorkspaceJSON(ctx context.Context, path string, query
 		return fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("request %s: %w", strings.TrimPrefix(path, "/"), err)
 	}

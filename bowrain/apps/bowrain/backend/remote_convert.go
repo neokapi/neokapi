@@ -1,6 +1,6 @@
 package backend
 
-import apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+import "github.com/neokapi/neokapi/bowrain/editorclient"
 
 // This file converts between the bowrain/core/client editor types (which mirror
 // the server REST shapes, carrying canonical core/model.Run for block content)
@@ -10,7 +10,7 @@ import apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 
 // --- Workspaces ---
 
-func editorWorkspaceToInfo(w apiclient.EditorWorkspace) WorkspaceInfo {
+func editorWorkspaceToInfo(w editorclient.EditorWorkspace) WorkspaceInfo {
 	return WorkspaceInfo{
 		ID:          w.ID,
 		Name:        w.Name,
@@ -21,7 +21,7 @@ func editorWorkspaceToInfo(w apiclient.EditorWorkspace) WorkspaceInfo {
 	}
 }
 
-func editorWorkspacesToInfos(ws []apiclient.EditorWorkspace) []WorkspaceInfo {
+func editorWorkspacesToInfos(ws []editorclient.EditorWorkspace) []WorkspaceInfo {
 	out := make([]WorkspaceInfo, len(ws))
 	for i, w := range ws {
 		out[i] = editorWorkspaceToInfo(w)
@@ -31,7 +31,7 @@ func editorWorkspacesToInfos(ws []apiclient.EditorWorkspace) []WorkspaceInfo {
 
 // --- Projects ---
 
-func editorProjectItemToInfo(it apiclient.EditorProjectItem) ProjectItem {
+func editorProjectItemToInfo(it editorclient.EditorProjectItem) ProjectItem {
 	return ProjectItem{
 		ID:         it.ID,
 		Name:       it.Name,
@@ -43,7 +43,7 @@ func editorProjectItemToInfo(it apiclient.EditorProjectItem) ProjectItem {
 	}
 }
 
-func editorProjectToInfo(p apiclient.EditorProject) ProjectInfo {
+func editorProjectToInfo(p editorclient.EditorProject) ProjectInfo {
 	items := make([]ProjectItem, len(p.Items))
 	for i, it := range p.Items {
 		items[i] = editorProjectItemToInfo(it)
@@ -59,7 +59,7 @@ func editorProjectToInfo(p apiclient.EditorProject) ProjectInfo {
 	}
 }
 
-func editorProjectsToInfos(ps []apiclient.EditorProject) []ProjectInfo {
+func editorProjectsToInfos(ps []editorclient.EditorProject) []ProjectInfo {
 	out := make([]ProjectInfo, len(ps))
 	for i, p := range ps {
 		out[i] = editorProjectToInfo(p)
@@ -69,7 +69,7 @@ func editorProjectsToInfos(ps []apiclient.EditorProject) []ProjectInfo {
 
 // --- Blocks ---
 
-func editorBlockToInfo(b apiclient.EditorBlock) BlockInfo {
+func editorBlockToInfo(b editorclient.EditorBlock) BlockInfo {
 	info := BlockInfo{
 		ID:           b.ID,
 		SourceRuns:   runsToRunInfos(b.SourceRuns),
@@ -91,7 +91,7 @@ func editorBlockToInfo(b apiclient.EditorBlock) BlockInfo {
 	return info
 }
 
-func editorBlocksToInfos(bs []apiclient.EditorBlock) []BlockInfo {
+func editorBlocksToInfos(bs []editorclient.EditorBlock) []BlockInfo {
 	out := make([]BlockInfo, len(bs))
 	for i, b := range bs {
 		out[i] = editorBlockToInfo(b)
@@ -101,7 +101,7 @@ func editorBlocksToInfos(bs []apiclient.EditorBlock) []BlockInfo {
 
 // --- Item actions ---
 
-func editorStatsToStats(s *apiclient.EditorTranslationStats) *TranslationStats {
+func editorStatsToStats(s *editorclient.EditorTranslationStats) *TranslationStats {
 	if s == nil {
 		return &TranslationStats{}
 	}
@@ -112,7 +112,7 @@ func editorStatsToStats(s *apiclient.EditorTranslationStats) *TranslationStats {
 	}
 }
 
-func editorTermEnforceToResults(rs []apiclient.EditorTermEnforceResult) []TermEnforceResult {
+func editorTermEnforceToResults(rs []editorclient.EditorTermEnforceResult) []TermEnforceResult {
 	if len(rs) == 0 {
 		return nil
 	}
@@ -134,7 +134,7 @@ func editorTermEnforceToResults(rs []apiclient.EditorTermEnforceResult) []TermEn
 
 // --- content memory ---
 
-func editorMemoryEntryToInfo(e apiclient.EditorMemoryEntry) MemoryEntryInfo {
+func editorMemoryEntryToInfo(e editorclient.EditorMemoryEntry) MemoryEntryInfo {
 	return MemoryEntryInfo{
 		ID:           e.ID,
 		Source:       e.Source,
@@ -145,7 +145,7 @@ func editorMemoryEntryToInfo(e apiclient.EditorMemoryEntry) MemoryEntryInfo {
 	}
 }
 
-func editorMemoryResultToSearch(r *apiclient.EditorMemorySearchResult) *MemorySearchResult {
+func editorMemoryResultToSearch(r *editorclient.EditorMemorySearchResult) *MemorySearchResult {
 	entries := make([]MemoryEntryInfo, len(r.Entries))
 	for i, e := range r.Entries {
 		entries[i] = editorMemoryEntryToInfo(e)
@@ -153,7 +153,7 @@ func editorMemoryResultToSearch(r *apiclient.EditorMemorySearchResult) *MemorySe
 	return &MemorySearchResult{Entries: entries, TotalCount: r.TotalCount}
 }
 
-func editorMemoryMatchesToInfos(ms []apiclient.EditorMemoryMatch) []MemoryMatchInfo {
+func editorMemoryMatchesToInfos(ms []editorclient.EditorMemoryMatch) []MemoryMatchInfo {
 	out := make([]MemoryMatchInfo, len(ms))
 	for i, m := range ms {
 		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, Score: m.Score, MatchType: m.MatchType}
@@ -161,7 +161,7 @@ func editorMemoryMatchesToInfos(ms []apiclient.EditorMemoryMatch) []MemoryMatchI
 	return out
 }
 
-func editorTermMatchesToBlockMatches(ms []apiclient.EditorTermMatch) []BlockTermMatch {
+func editorTermMatchesToBlockMatches(ms []editorclient.EditorTermMatch) []BlockTermMatch {
 	out := make([]BlockTermMatch, len(ms))
 	for i, m := range ms {
 		out[i] = BlockTermMatch{
@@ -178,8 +178,8 @@ func editorTermMatchesToBlockMatches(ms []apiclient.EditorTermMatch) []BlockTerm
 
 // --- Terminology (concepts) ---
 
-func termInfoToEditor(t TermInfo) apiclient.EditorTerm {
-	return apiclient.EditorTerm{
+func termInfoToEditor(t TermInfo) editorclient.EditorTerm {
+	return editorclient.EditorTerm{
 		Text:         t.Text,
 		Locale:       t.Locale,
 		Status:       t.Status,
@@ -189,15 +189,15 @@ func termInfoToEditor(t TermInfo) apiclient.EditorTerm {
 	}
 }
 
-func termInfosToEditor(ts []TermInfo) []apiclient.EditorTerm {
-	out := make([]apiclient.EditorTerm, len(ts))
+func termInfosToEditor(ts []TermInfo) []editorclient.EditorTerm {
+	out := make([]editorclient.EditorTerm, len(ts))
 	for i, t := range ts {
 		out[i] = termInfoToEditor(t)
 	}
 	return out
 }
 
-func editorTermToInfo(t apiclient.EditorTerm) TermInfo {
+func editorTermToInfo(t editorclient.EditorTerm) TermInfo {
 	return TermInfo{
 		Text:         t.Text,
 		Locale:       t.Locale,
@@ -208,7 +208,7 @@ func editorTermToInfo(t apiclient.EditorTerm) TermInfo {
 	}
 }
 
-func editorConceptToInfo(c apiclient.EditorConcept) ConceptInfo {
+func editorConceptToInfo(c editorclient.EditorConcept) ConceptInfo {
 	terms := make([]TermInfo, len(c.Terms))
 	for i, t := range c.Terms {
 		terms[i] = editorTermToInfo(t)
@@ -224,7 +224,7 @@ func editorConceptToInfo(c apiclient.EditorConcept) ConceptInfo {
 	}
 }
 
-func editorTermResultToSearch(r *apiclient.EditorTermSearchResult) *TermSearchResult {
+func editorTermResultToSearch(r *editorclient.EditorTermSearchResult) *TermSearchResult {
 	concepts := make([]ConceptInfo, len(r.Concepts))
 	for i, c := range r.Concepts {
 		concepts[i] = editorConceptToInfo(c)
@@ -234,7 +234,7 @@ func editorTermResultToSearch(r *apiclient.EditorTermSearchResult) *TermSearchRe
 
 // --- Providers ---
 
-func editorProviderToInfo(c apiclient.EditorProviderConfig) ProviderConfigInfo {
+func editorProviderToInfo(c editorclient.EditorProviderConfig) ProviderConfigInfo {
 	return ProviderConfigInfo{
 		ID:           c.ID,
 		Name:         c.Name,
@@ -244,7 +244,7 @@ func editorProviderToInfo(c apiclient.EditorProviderConfig) ProviderConfigInfo {
 	}
 }
 
-func editorProvidersToInfos(cs []apiclient.EditorProviderConfig) []ProviderConfigInfo {
+func editorProvidersToInfos(cs []editorclient.EditorProviderConfig) []ProviderConfigInfo {
 	out := make([]ProviderConfigInfo, len(cs))
 	for i, c := range cs {
 		out[i] = editorProviderToInfo(c)
@@ -252,8 +252,8 @@ func editorProvidersToInfos(cs []apiclient.EditorProviderConfig) []ProviderConfi
 	return out
 }
 
-func saveProviderReqToEditor(r SaveProviderRequest) apiclient.EditorSaveProviderRequest {
-	return apiclient.EditorSaveProviderRequest{
+func saveProviderReqToEditor(r SaveProviderRequest) editorclient.EditorSaveProviderRequest {
+	return editorclient.EditorSaveProviderRequest{
 		ID:           r.ID,
 		Name:         r.Name,
 		ProviderType: r.ProviderType,

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 )
 
 // ProjectWatcher subscribes to a project's change-event stream over the server's
@@ -107,7 +107,7 @@ func (a *App) UpdatePresence(projectID, itemName, blockID string) {
 	}
 }
 
-func (w *ProjectWatcher) run(ctx context.Context, client *apiclient.BowrainClient, wsSlug, projectID string) {
+func (w *ProjectWatcher) run(ctx context.Context, client *editorclient.EditorClient, wsSlug, projectID string) {
 	const maxBackoff = 30 * time.Second
 	backoff := time.Second
 
@@ -142,7 +142,7 @@ func (w *ProjectWatcher) run(ctx context.Context, client *apiclient.BowrainClien
 // handleEvent maps a relayed change event to the frontend event the matching
 // view listens for. It mirrors the server's busEventToProjectEvent routing but
 // over the flattened SSE ChangeEvent shape.
-func (w *ProjectWatcher) handleEvent(ev apiclient.EditorChangeEvent) {
+func (w *ProjectWatcher) handleEvent(ev editorclient.EditorChangeEvent) {
 	// emit() is safe when both the Wails app and the event sink are absent, and
 	// the recording wbridge relies on the sink even without a Wails runtime, so
 	// don't bail early here — let emit fan out to whichever sinks exist.

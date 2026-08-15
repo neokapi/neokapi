@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -30,42 +29,35 @@ const StreamHeader = "X-Bowrain-Stream"
 // It supports two auth modes:
 //   - ClaimToken: unclaimed project, flat routes /api/v1/projects/:id/sync/*
 //   - JWT + workspace: workspace project, routes /api/v1/:ws/:id/sync/:ref/*
+//
+// It is bound to one project for its whole life: the project id and workspace
+// are constructor arguments, not per-call ones.
 type BowrainClient struct {
-	baseURL    string
-	projectID  string
-	workspace  string // workspace slug; empty for unclaimed (ClaimToken) projects
-	authToken  string // JWT bearer token for workspace projects
-	claimToken string // ClaimToken for unclaimed projects
-	stream     string // active stream name; empty or "main" means default
-	httpClient *http.Client
+	*Transport
 
-	refreshToken   string                             // opaque refresh token for auto-refresh
-	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
+	projectID string
+	workspace string // workspace slug; empty for unclaimed (ClaimToken) projects
+	stream    string // active stream name; empty or "main" means default
 
 	compressor *compression.Pool // optional zstd compressor for chunk upload
 }
 
-// defaultClientTimeout is the read/connect timeout applied to all sync operations.
-const defaultClientTimeout = 120 * time.Second
-
 // NewWorkspaceBowrainClient creates a client that uses workspace-scoped routes with auth.
 func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string) *BowrainClient {
 	return &BowrainClient{
-		baseURL:    strings.TrimRight(serverURL, "/"),
-		projectID:  projectID,
-		workspace:  workspace,
-		authToken:  authToken,
-		httpClient: &http.Client{Timeout: defaultClientTimeout},
+		Transport: NewTransport(serverURL, authToken),
+		projectID: projectID,
+		workspace: workspace,
 	}
 }
 
 // NewClaimTokenClient creates a client that uses claim token auth for anonymous projects.
 func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient {
+	t := NewTransport(serverURL, "")
+	t.claimToken = claimToken
 	return &BowrainClient{
-		baseURL:    strings.TrimRight(serverURL, "/"),
-		projectID:  projectID,
-		claimToken: claimToken,
-		httpClient: &http.Client{Timeout: defaultClientTimeout},
+		Transport: t,
+		projectID: projectID,
 	}
 }
 
@@ -74,10 +66,8 @@ func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient
 // project has been claimed but the local config doesn't store the workspace slug.
 func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClient {
 	return &BowrainClient{
-		baseURL:    strings.TrimRight(serverURL, "/"),
-		projectID:  projectID,
-		authToken:  authToken,
-		httpClient: &http.Client{Timeout: defaultClientTimeout},
+		Transport: NewTransport(serverURL, authToken),
+		projectID: projectID,
 	}
 }
 
@@ -128,107 +118,6 @@ func (c *BowrainClient) Stream() string {
 		return "main"
 	}
 	return c.stream
-}
-
-// applyAuth adds authorization headers.
-func (c *BowrainClient) applyAuth(req *http.Request) {
-	if c.authToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.authToken)
-	} else if c.claimToken != "" {
-		req.Header.Set("Authorization", "ClaimToken "+c.claimToken)
-	}
-}
-
-// SetRefreshToken configures auto-refresh with the given refresh token.
-// The onRefresh callback is called after a successful token refresh so the
-// caller can persist the new tokens.
-func (c *BowrainClient) SetRefreshToken(token string, onRefresh func(newAccess, newRefresh string)) {
-	c.refreshToken = token
-	c.onTokenRefresh = onRefresh
-}
-
-// doRequest executes an HTTP request and automatically retries once with a
-// refreshed access token when the server returns 401 Unauthorized.
-// For requests with a body (POST/PUT), the body is buffered so it can be
-// replayed on retry after a token refresh.
-func (c *BowrainClient) doRequest(req *http.Request) (*http.Response, error) {
-	// Buffer the request body so we can replay it after a token refresh.
-	var bodyBytes []byte
-	if req.Body != nil && req.Body != http.NoBody {
-		var err error
-		bodyBytes, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("buffer request body: %w", err)
-		}
-		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-
-	c.applyAuth(req)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Auto-refresh on 401 if we have a refresh token.
-	if resp.StatusCode == http.StatusUnauthorized && c.refreshToken != "" && c.authToken != "" {
-		resp.Body.Close()
-
-		if refreshErr := c.doRefresh(req.Context()); refreshErr != nil {
-			return nil, fmt.Errorf("token refresh failed: %w", refreshErr)
-		}
-
-		// Retry the original request with the new token and replayed body.
-		var body io.Reader
-		if bodyBytes != nil {
-			body = bytes.NewReader(bodyBytes)
-		}
-		retryReq, err := http.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), body)
-		if err != nil {
-			return nil, err
-		}
-		maps.Copy(retryReq.Header, req.Header)
-		c.applyAuth(retryReq)
-		return c.httpClient.Do(retryReq)
-	}
-
-	return resp, nil
-}
-
-// doRefresh calls the /api/v1/auth/refresh endpoint to obtain a new access
-// token and a rotated refresh token.
-func (c *BowrainClient) doRefresh(ctx context.Context) error {
-	body, _ := json.Marshal(map[string]string{"refresh_token": c.refreshToken})
-	refreshURL := c.baseURL + "/api/v1/auth/refresh"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, refreshURL, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("refresh failed with HTTP %d", resp.StatusCode)
-	}
-
-	var tokenResp struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return err
-	}
-
-	c.authToken = tokenResp.AccessToken
-	c.refreshToken = tokenResp.RefreshToken
-	if c.onTokenRefresh != nil {
-		c.onTokenRefresh(tokenResp.AccessToken, tokenResp.RefreshToken)
-	}
-	return nil
 }
 
 // SyncPushRequest is the request body for pushing blocks.
@@ -356,7 +245,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 	}
 	req.Header.Set("Accept-Encoding", "zstd, gzip")
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("pull request: %w", err)
 	}
@@ -404,7 +293,7 @@ func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushSta
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("push status request: %w", err)
 	}
@@ -440,7 +329,7 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]SyncB
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get blocks request: %w", err)
 	}
@@ -475,7 +364,7 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get project metadata: %w", err)
 	}
@@ -864,7 +753,7 @@ func (c *BowrainClient) ListStreams(ctx context.Context, includeArchived bool) (
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list streams: %w", err)
 	}
@@ -896,7 +785,7 @@ func (c *BowrainClient) CreateStream(ctx context.Context, csReq CreateStreamRequ
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("create stream: %w", err)
 	}
@@ -926,7 +815,7 @@ func (c *BowrainClient) MergeStream(ctx context.Context, streamName string, dryR
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("merge stream: %w", err)
 	}
@@ -953,7 +842,7 @@ func (c *BowrainClient) DiffStream(ctx context.Context, streamName string) (*Dif
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("diff stream: %w", err)
 	}
@@ -980,7 +869,7 @@ func (c *BowrainClient) ArchiveStream(ctx context.Context, streamName string) er
 		return fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("archive stream: %w", err)
 	}
@@ -1058,7 +947,7 @@ func (c *BowrainClient) GetAssetUploadURL(ctx context.Context, blobKey, contentT
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload-url request: %w", err)
 	}
@@ -1090,7 +979,7 @@ func (c *BowrainClient) PushAsset(ctx context.Context, asset AssetInput) (*Asset
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("push asset request: %w", err)
 	}
@@ -1125,7 +1014,7 @@ func (c *BowrainClient) ListAssets(ctx context.Context, itemName string) ([]Asse
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list assets request: %w", err)
 	}
@@ -1167,7 +1056,7 @@ func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) (
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list variants request: %w", err)
 	}

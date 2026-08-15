@@ -9,6 +9,7 @@ import (
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +42,7 @@ func itemOpServer(t *testing.T, routes map[string]func(w http.ResponseWriter, r 
 	app.connState = StateConnected
 	app.serverURL = srv.URL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(srv.URL, "tok-xyz")
+	app.remoteHTTP = editorclient.New(srv.URL, "tok-xyz")
 	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
 	return app, &hits
@@ -59,7 +60,7 @@ func hitsContain(hits []string, method, suffix string) bool {
 func TestAddItemsOnlineUploadsToServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /items/main": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1", Name: "Proj"})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorProject{ID: "p1", Name: "Proj"})
 		},
 	})
 
@@ -106,7 +107,7 @@ func TestAddItemsOfflineEnqueues(t *testing.T) {
 func TestRemoveItemOnlineHitsServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"DELETE /items/main": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1", Name: "Proj"})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorProject{ID: "p1", Name: "Proj"})
 		},
 	})
 
@@ -147,7 +148,7 @@ func TestRemoveItemOfflineEnqueues(t *testing.T) {
 func TestPseudoTranslateItemOnlineHitsServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /actions/main/pseudo-translate": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{TotalBlocks: 3, TranslatedBlocks: 3, WordCount: 9})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorTranslationStats{TotalBlocks: 3, TranslatedBlocks: 3, WordCount: 9})
 		},
 	})
 
@@ -196,7 +197,7 @@ func TestPseudoTranslateItemOfflineEnqueues(t *testing.T) {
 func TestMemoryTranslateItemOnlineHitsServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /actions/main/tm-translate": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{TotalBlocks: 2, TranslatedBlocks: 1, WordCount: 4})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorTranslationStats{TotalBlocks: 2, TranslatedBlocks: 1, WordCount: 4})
 		},
 	})
 
@@ -209,7 +210,7 @@ func TestMemoryTranslateItemOnlineHitsServer(t *testing.T) {
 func TestTermEnforceItemOnlineHitsServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /actions/main/term-enforce": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode([]apiclient.EditorTermEnforceResult{{
+			_ = json.NewEncoder(w).Encode([]editorclient.EditorTermEnforceResult{{
 				BlockID: "b1", SourceTerm: "software", ConceptID: "c1",
 				Expected: []string{"logiciel"}, SourceText: "software",
 				TargetText: "programme", SourceLocale: "en", TargetLocale: "fr",
@@ -230,16 +231,16 @@ func TestTermEnforceItemOnlineHitsServer(t *testing.T) {
 func TestReplayItemActions(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /items/main": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorProject{ID: "p1"})
 		},
 		"DELETE /items/main": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorProject{ID: "p1"})
 		},
 		"POST /actions/main/pseudo-translate": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorTranslationStats{})
 		},
 		"POST /actions/main/tm-translate": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{})
+			_ = json.NewEncoder(w).Encode(editorclient.EditorTranslationStats{})
 		},
 	})
 
@@ -304,7 +305,7 @@ func TestTransportFailureStillGoesOffline(t *testing.T) {
 	app.connState = StateConnected
 	app.serverURL = srv.URL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(srv.URL, "tok-xyz")
+	app.remoteHTTP = editorclient.New(srv.URL, "tok-xyz")
 	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
 	srv.Close() // connection refused from here on

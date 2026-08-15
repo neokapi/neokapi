@@ -3,7 +3,7 @@ package backend
 import (
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ func TestHandleBlockChangeEvent(t *testing.T) {
 	watcher := &ProjectWatcher{app: app}
 
 	// Should not panic even without Wails app.
-	watcher.handleEvent(apiclient.EditorChangeEvent{
+	watcher.handleEvent(editorclient.EditorChangeEvent{
 		Type:       "editor.block.updated",
 		BlockID:    "b1",
 		ItemName:   "file.html",
@@ -32,7 +32,7 @@ func TestHandlePresenceChangeEvent(t *testing.T) {
 	watcher := &ProjectWatcher{app: app}
 
 	// Should not panic even without Wails app.
-	watcher.handleEvent(apiclient.EditorChangeEvent{
+	watcher.handleEvent(editorclient.EditorChangeEvent{
 		Type:     "editor.presence.joined",
 		UserID:   "u1",
 		UserName: "Alice",
@@ -46,7 +46,7 @@ func TestHandlePresenceChangeEventNoUser(t *testing.T) {
 	watcher := &ProjectWatcher{app: app}
 
 	// Should not panic with an unpopulated user.
-	watcher.handleEvent(apiclient.EditorChangeEvent{Type: "editor.presence.left"})
+	watcher.handleEvent(editorclient.EditorChangeEvent{Type: "editor.presence.left"})
 }
 
 func TestStartStopWatching(t *testing.T) {
@@ -104,14 +104,14 @@ func TestPresenceChangedEvent(t *testing.T) {
 func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 	tests := []struct {
 		name      string
-		event     apiclient.EditorChangeEvent
+		event     editorclient.EditorChangeEvent
 		wantName  string
 		wantType  string
 		assertExt func(t *testing.T, ce ChangeEvent)
 	}{
 		{
 			name:     "project change",
-			event:    apiclient.EditorChangeEvent{Type: "project.updated", ChangeType: "renamed", Actor: "alice"},
+			event:    editorclient.EditorChangeEvent{Type: "project.updated", ChangeType: "renamed", Actor: "alice"},
 			wantName: "project-changed",
 			wantType: "project.updated",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -121,7 +121,7 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 		},
 		{
 			name:     "item change → project-changed",
-			event:    apiclient.EditorChangeEvent{Type: "item.created", ItemName: "about.json", Stream: "main"},
+			event:    editorclient.EditorChangeEvent{Type: "item.created", ItemName: "about.json", Stream: "main"},
 			wantName: "project-changed",
 			wantType: "item.created",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -130,37 +130,37 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 		},
 		{
 			name:     "connector sync",
-			event:    apiclient.EditorChangeEvent{Type: "connector.sync.completed", Actor: "system"},
+			event:    editorclient.EditorChangeEvent{Type: "connector.sync.completed", Actor: "system"},
 			wantName: "connector-sync",
 			wantType: "connector.sync.completed",
 		},
 		{
 			name:     "flow event",
-			event:    apiclient.EditorChangeEvent{Type: "flow.completed"},
+			event:    editorclient.EditorChangeEvent{Type: "flow.completed"},
 			wantName: "flow-changed",
 			wantType: "flow.completed",
 		},
 		{
 			name:     "membership change",
-			event:    apiclient.EditorChangeEvent{Type: "task.assigned", Actor: "alice"},
+			event:    editorclient.EditorChangeEvent{Type: "task.assigned", Actor: "alice"},
 			wantName: "membership-changed",
 			wantType: "task.assigned",
 		},
 		{
 			name:     "brand voice",
-			event:    apiclient.EditorChangeEvent{Type: "brand.profile.updated"},
+			event:    editorclient.EditorChangeEvent{Type: "brand.profile.updated"},
 			wantName: "brand-voice-changed",
 			wantType: "brand.profile.updated",
 		},
 		{
 			name:     "terms",
-			event:    apiclient.EditorChangeEvent{Type: "concept.updated"},
+			event:    editorclient.EditorChangeEvent{Type: "concept.updated"},
 			wantName: "terms-changed",
 			wantType: "concept.updated",
 		},
 		{
 			name:     "stream",
-			event:    apiclient.EditorChangeEvent{Type: "stream.merged", Stream: "feature-x"},
+			event:    editorclient.EditorChangeEvent{Type: "stream.merged", Stream: "feature-x"},
 			wantName: "stream-changed",
 			wantType: "stream.merged",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -202,7 +202,7 @@ func TestHandleBlockChangeEmitsBlocksChanged(t *testing.T) {
 	})
 	watcher := &ProjectWatcher{app: app}
 
-	watcher.handleEvent(apiclient.EditorChangeEvent{
+	watcher.handleEvent(editorclient.EditorChangeEvent{
 		Type: "editor.block.updated", BlockID: "b1", ItemName: "home.json", ChangeType: "updated",
 	})
 
@@ -223,7 +223,7 @@ func TestHandlePresenceEmitsPresenceChanged(t *testing.T) {
 	})
 	watcher := &ProjectWatcher{app: app}
 
-	watcher.handleEvent(apiclient.EditorChangeEvent{
+	watcher.handleEvent(editorclient.EditorChangeEvent{
 		Type: "editor.presence.moved", UserID: "u1", UserName: "Alice",
 		AvatarURL: "https://x/a.png", ItemName: "home.json", BlockID: "b1",
 	})

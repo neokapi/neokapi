@@ -3,12 +3,13 @@ package backend
 import (
 	"context"
 	"fmt"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"maps"
 	"os/exec"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -53,7 +54,7 @@ func (a *App) GetPendingReview(projectID string, locales []string, limit, offset
 		for _, e := range page.Entries {
 			view := PendingReviewEntryView{BlockID: e.BlockID, ItemName: e.ItemName, Locale: e.Locale}
 			if e.Block != nil {
-				infos := editorBlocksToInfos([]apiclient.EditorBlock{*e.Block})
+				infos := editorBlocksToInfos([]editorclient.EditorBlock{*e.Block})
 				if len(infos) == 1 {
 					view.Block = &infos[0]
 				}
@@ -177,8 +178,8 @@ type EditorBlockFilter struct {
 	Offset       int    `json:"offset,omitempty"`
 }
 
-func (f EditorBlockFilter) remote(itemName string) apiclient.EditorBlockQuery {
-	return apiclient.EditorBlockQuery{
+func (f EditorBlockFilter) remote(itemName string) editorclient.EditorBlockQuery {
+	return editorclient.EditorBlockQuery{
 		ItemName:     itemName,
 		Locale:       f.Locale,
 		Status:       f.Status,
@@ -252,7 +253,7 @@ func (a *App) GetBlock(projectID, blockID string) (*BlockInfo, error) {
 		client, ws := a.editorRemote()
 		remote, err := client.GetEditorBlock(context.Background(), ws, projectID, blockID)
 		if err == nil {
-			infos := editorBlocksToInfos([]apiclient.EditorBlock{*remote})
+			infos := editorBlocksToInfos([]editorclient.EditorBlock{*remote})
 			if len(infos) == 1 {
 				return &infos[0], nil
 			}
@@ -419,7 +420,7 @@ type BulkReviewView struct {
 func (a *App) BulkReviewBlocks(projectID string, req BulkReviewArgs) (*BulkReviewView, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
-		resp, err := client.BulkReviewBlocks(context.Background(), ws, projectID, apiclient.EditorBulkReviewRequest{
+		resp, err := client.BulkReviewBlocks(context.Background(), ws, projectID, editorclient.EditorBulkReviewRequest{
 			BlockIDs:     req.BlockIDs,
 			TargetLocale: req.TargetLocale,
 			Approve:      req.Approve,
@@ -501,7 +502,7 @@ type BulkApplyMemoryView struct {
 func (a *App) BulkApplyMemory(projectID string, req BulkApplyMemoryArgs) (*BulkApplyMemoryView, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
-		body := apiclient.EditorBulkApplyMemoryRequest{
+		body := editorclient.EditorBulkApplyMemoryRequest{
 			BlockIDs:     req.BlockIDs,
 			TargetLocale: req.TargetLocale,
 		}

@@ -484,7 +484,7 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +508,7 @@ func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*Pus
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +547,7 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/octet-stream")
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +584,7 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}

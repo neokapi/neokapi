@@ -1,4 +1,4 @@
-package client
+package editorclient
 
 import (
 	"context"
@@ -28,7 +28,7 @@ type editorRecord struct {
 func editorServer(t *testing.T, routes map[string]struct {
 	status int
 	body   string
-}) (*BowrainClient, *editorRecord) {
+}) (*EditorClient, *editorRecord) {
 	t.Helper()
 	got := &editorRecord{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func editorServer(t *testing.T, routes map[string]struct {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	return NewEditorClient(srv.URL, "tok"), got
+	return New(srv.URL, "tok"), got
 }
 
 type route = struct {

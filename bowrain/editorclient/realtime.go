@@ -1,4 +1,4 @@
-package client
+package editorclient
 
 import (
 	"bufio"
@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/neokapi/neokapi/bowrain/core/client"
 )
 
 // This file adds the real-time editor surface — block review, presence
@@ -48,14 +50,14 @@ type EditorChangeEvent struct {
 // reviewed is true.
 //
 // PUT /api/v1/:ws/:id/blocks/main/:bid/review
-func (c *BowrainClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
+func (c *EditorClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
 	body := struct {
 		TargetLocale string `json:"target_locale"`
 		ItemName     string `json:"item_name,omitempty"`
 		Reviewed     bool   `json:"reviewed"`
 		Status       string `json:"status,omitempty"`
 	}{TargetLocale: targetLocale, ItemName: itemName, Reviewed: reviewed, Status: status}
-	return c.editorDo(ctx, http.MethodPut, blockPath(ws, projectID, blockID, "/review"), nil, body, nil)
+	return c.DoJSON(ctx, http.MethodPut, blockPath(ws, projectID, blockID, "/review"), nil, body, nil)
 }
 
 // ReportPresence records the caller's editing focus in a project. The server
@@ -63,13 +65,13 @@ func (c *BowrainClient) ReviewBlock(ctx context.Context, ws, projectID, itemName
 // /:ws/events SSE stream. Best-effort: a server without an event bus returns 204.
 //
 // POST /api/v1/:ws/:id/presence
-func (c *BowrainClient) ReportPresence(ctx context.Context, ws, projectID, itemName, blockID string) error {
+func (c *EditorClient) ReportPresence(ctx context.Context, ws, projectID, itemName, blockID string) error {
 	path := fmt.Sprintf("/api/v1/%s/%s/presence", url.PathEscape(ws), url.PathEscape(projectID))
 	body := struct {
 		ItemName string `json:"item_name,omitempty"`
 		BlockID  string `json:"block_id,omitempty"`
 	}{ItemName: itemName, BlockID: blockID}
-	return c.editorDo(ctx, http.MethodPost, path, nil, body, nil)
+	return c.DoJSON(ctx, http.MethodPost, path, nil, body, nil)
 }
 
 // StreamProjectEvents opens one SSE connection to the project's change-event
@@ -81,14 +83,14 @@ func (c *BowrainClient) ReportPresence(ctx context.Context, ws, projectID, itemN
 // caller can reconnect.
 //
 // GET /api/v1/:ws/events?project=:id
-func (c *BowrainClient) StreamProjectEvents(ctx context.Context, ws, projectID string, onEvent func(EditorChangeEvent)) error {
-	u := fmt.Sprintf("%s/api/v1/%s/events?project=%s", c.baseURL, url.PathEscape(ws), url.QueryEscape(projectID))
+func (c *EditorClient) StreamProjectEvents(ctx context.Context, ws, projectID string, onEvent func(EditorChangeEvent)) error {
+	u := fmt.Sprintf("%s/api/v1/%s/events?project=%s", c.BaseURL(), url.PathEscape(ws), url.QueryEscape(projectID))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Accept", "text/event-stream")
-	c.applyAuth(req)
+	c.ApplyAuth(req)
 
 	streamClient := &http.Client{} // no timeout: SSE is long-lived, ctx cancels it
 	resp, err := streamClient.Do(req)
@@ -101,7 +103,7 @@ func (c *BowrainClient) StreamProjectEvents(ctx context.Context, ws, projectID s
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return NewStatusError("subscribe project events", resp.StatusCode, respBody)
+		return client.NewStatusError("subscribe project events", resp.StatusCode, respBody)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
