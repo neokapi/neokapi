@@ -35,6 +35,21 @@ export interface ContextProfileCollection {
   owner: string;
 }
 
+/**
+ * A profile's standing: what the stored voice checks say about the content
+ * governed here.
+ *
+ * Scoped by the VOICE, not by the point — a stored score records the voice it
+ * resolved through, and that is the narrowest coordinate the check itself
+ * carries. Two points sharing one voice therefore share this number.
+ */
+export interface ContextProfileChecks {
+  score: number;
+  scored_blocks: number;
+  findings: number;
+  last_checked_at?: string;
+}
+
 export interface ContextProfile {
   /** URL id: "default", `axis~value` pairs joined by ".", or `voice~<id>`. */
   slug: string;
@@ -55,6 +70,9 @@ export interface ContextProfile {
   collections: ContextProfileCollection[];
   /** Change-sets in review carrying a voice rule for this profile's voice. */
   pending_changes: number;
+  /** The stored checks that resolved through this profile's voice. Absent when
+   *  nothing here has been checked. */
+  checks?: ContextProfileChecks;
 }
 
 /** The vocabulary every profile shares. */

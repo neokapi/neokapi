@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,111 @@ func TestChannelAliasProposalsRaisedOnPush(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Len(t, body.Proposals, 1)
 	assert.Equal(t, "website", body.Proposals[0].ProposedChannel)
+}
+
+// Judging settles the row and leaves both recipes alone: a dismissal survives
+// the next push's re-sighting, which is the whole point of recording it.
+func TestJudgeChannelAliasProposalEndpoint(t *testing.T) {
+	srv, token := newTestServer(t)
+	ctx := t.Context()
+	e := srv.GetEcho()
+
+	seedChannelProject(t, srv, "app", "test-ws", "site", "web")
+	arriving := seedChannelProject(t, srv, "docs", "test-ws", "docs", "website")
+	srv.raiseChannelAliasProposals(ctx, arriving, "main")
+
+	judge := func(status string) *httptest.ResponseRecorder {
+		body := `{"profile":"acme","proposed_channel":"website","existing_channel":"web","status":"` +
+			status + `"}`
+		req := httptest.NewRequest(http.MethodPost,
+			"/api/v1/test/context/channel-proposals/judge", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := judge(platstore.ChannelAliasDismissed)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var judged platstore.ChannelAliasProposal
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &judged))
+	assert.Equal(t, platstore.ChannelAliasDismissed, judged.Status)
+	assert.Equal(t, "test-user", judged.JudgedBy)
+	assert.NotEmpty(t, judged.JudgedAt)
+
+	// The same fragmentation is observed again on the next push.
+	srv.raiseChannelAliasProposals(ctx, arriving, "main")
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/test/context/channel-proposals?status=proposed", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var open channelProposalsResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &open))
+	assert.Empty(t, open.Proposals, "a re-sighting must not resurrect a dismissal")
+
+	// Neither project's slug moved: the workspace judges equivalence, never
+	// resolution.
+	cols, err := srv.ContentStore.ListCollections(ctx, arriving.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, cols, 1)
+	assert.Equal(t, "website", cols[0].Context["channel"])
+}
+
+// A verdict outside accepted|dismissed, and a pair nobody proposed, are both
+// refused rather than written.
+func TestJudgeChannelAliasProposalRefusals(t *testing.T) {
+	srv, token := newTestServer(t)
+	ctx := t.Context()
+	e := srv.GetEcho()
+
+	seedChannelProject(t, srv, "app", "test-ws", "site", "web")
+	arriving := seedChannelProject(t, srv, "docs", "test-ws", "docs", "website")
+	srv.raiseChannelAliasProposals(ctx, arriving, "main")
+
+	tests := []struct {
+		name string
+		body string
+		want int
+	}{
+		{
+			"a verdict that is not a judgement",
+			`{"profile":"acme","proposed_channel":"website","existing_channel":"web","status":"maybe"}`,
+			http.StatusBadRequest,
+		},
+		{
+			"a proposal without its key",
+			`{"profile":"acme","status":"accepted"}`,
+			http.StatusBadRequest,
+		},
+		{
+			"a pair the workspace never observed",
+			`{"profile":"acme","proposed_channel":"invented","existing_channel":"web","status":"accepted"}`,
+			http.StatusNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost,
+				"/api/v1/test/context/channel-proposals/judge", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+token)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+			assert.Equal(t, tt.want, rec.Code, rec.Body.String())
+		})
+	}
+
+	aliases, ok := srv.ContentStore.(platstore.ChannelAliasStore)
+	require.True(t, ok)
+	proposals, err := aliases.ListChannelAliasProposals(ctx, "test-ws", "")
+	require.NoError(t, err)
+	require.Len(t, proposals, 1)
+	assert.Equal(t, platstore.ChannelAliasProposed, proposals[0].Status)
 }
 
 // A project pushing vocabulary nobody else shares proposes nothing.

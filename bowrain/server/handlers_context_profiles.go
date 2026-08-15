@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -43,6 +44,9 @@ const unboundProfilePrefix = "voice~"
 // maxPendingChangeSetsScanned bounds the op reads behind the pending-changes
 // badge.
 const maxPendingChangeSetsScanned = 100
+
+// maxProjectsScanned bounds the score reads behind the check-standing summary.
+const maxProjectsScanned = 100
 
 // ContextProfileVoice is the voice governing a profile: the hub profile the
 // point's collections bind, plus the size of what it enforces.
@@ -102,6 +106,9 @@ type ContextProfile struct {
 	// this profile's voice. Concept edits are workspace-wide and carry no
 	// point, so they are not counted here.
 	PendingChanges int `json:"pending_changes"`
+	// Checks is the standing of the stored voice checks that resolved through
+	// this profile's voice. Nil when nothing here has been checked.
+	Checks *ContextProfileChecks `json:"checks,omitempty"`
 
 	// voiceID is the bound profile id read off the collections, resolved into
 	// Voice before the response is written.
@@ -113,6 +120,21 @@ type ContextProfile struct {
 // base is one number and a profile's own vocabulary lives on its voice.
 type ContextProfileTerms struct {
 	ConceptCount int `json:"concept_count"`
+}
+
+// ContextProfileChecks is a profile's standing: what the stored voice checks say
+// about the content governed here.
+//
+// Scoped by the VOICE, not by the point. A stored score records the voice
+// profile it resolved through, and that is the narrowest coordinate the check
+// itself carries — so two points sharing one voice share this number, and the
+// card says so rather than implying a precision the data does not have.
+type ContextProfileChecks struct {
+	Score        int `json:"score"`
+	ScoredBlocks int `json:"scored_blocks"`
+	// Findings is the total the scored blocks raised across every dimension.
+	Findings      int        `json:"findings"`
+	LastCheckedAt *time.Time `json:"last_checked_at,omitempty"`
 }
 
 // ContextProfileScan is the workspace's most recent brand scan.
@@ -176,6 +198,7 @@ func (s *Server) HandleListContextProfiles(c echo.Context) error {
 	}
 	resp.Profiles = append(resp.Profiles, unboundVoiceProfiles(voices, points.boundVoiceIDs)...)
 	s.countPendingVoiceChanges(ctx, wsID, resp.Profiles)
+	s.attachCheckStanding(ctx, projects, wsID, resp.Profiles)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -447,6 +470,75 @@ func (s *Server) countPendingVoiceChanges(ctx context.Context, wsID string, prof
 		if profiles[i].Voice != nil {
 			profiles[i].PendingChanges = perVoice[profiles[i].Voice.ID]
 		}
+	}
+}
+
+// attachCheckStanding fills Checks from the stored voice checks, grouped by the
+// voice each score resolved through.
+//
+// The scores are read per project, as the workspace rollup reads them, and the
+// fan-out is bounded by maxProjectsScanned: past the cap the standing
+// under-reports rather than turning a page into an unbounded set of queries.
+// Every read is best-effort — an unreadable project leaves the rest standing.
+func (s *Server) attachCheckStanding(
+	ctx context.Context, projects []*store.Project, wsID string, profiles []ContextProfile,
+) {
+	if s.BrandStore == nil {
+		return
+	}
+	type acc struct {
+		total, blocks, findings int
+		last                    time.Time
+	}
+	byVoice := map[string]*acc{}
+	scanned := 0
+	for _, p := range projects {
+		if p == nil || p.WorkspaceID != wsID || p.Archived {
+			continue
+		}
+		if scanned >= maxProjectsScanned {
+			break
+		}
+		scanned++
+		scores, err := s.BrandStore.GetScores(ctx, p.ID, "")
+		if err != nil {
+			continue
+		}
+		for _, sc := range scores {
+			if sc == nil || sc.ProfileID == "" {
+				continue
+			}
+			a := byVoice[sc.ProfileID]
+			if a == nil {
+				a = &acc{}
+				byVoice[sc.ProfileID] = a
+			}
+			a.total += sc.Score
+			a.blocks++
+			a.findings += len(sc.Findings)
+			if sc.CheckedAt.After(a.last) {
+				a.last = sc.CheckedAt
+			}
+		}
+	}
+	for i := range profiles {
+		if profiles[i].Voice == nil {
+			continue
+		}
+		a := byVoice[profiles[i].Voice.ID]
+		if a == nil || a.blocks == 0 {
+			continue
+		}
+		standing := &ContextProfileChecks{
+			Score:        int(math.Round(float64(a.total) / float64(a.blocks))),
+			ScoredBlocks: a.blocks,
+			Findings:     a.findings,
+		}
+		if !a.last.IsZero() {
+			checked := a.last
+			standing.LastCheckedAt = &checked
+		}
+		profiles[i].Checks = standing
 	}
 }
 

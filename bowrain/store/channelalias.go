@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -57,10 +58,34 @@ func (s *PostgresStore) UpsertChannelAliasProposals(ctx context.Context, proposa
 	return changed, nil
 }
 
+// JudgeChannelAliasProposal implements platstore.ChannelAliasStore.
+//
+// The write settles the row and nothing else: no project's slug moves, because
+// a recipe resolves its own coordinates offline and must resolve them the same
+// way whether or not it has ever been connected. What the judgement changes is
+// what the workspace says about the two spellings, and whether the next push's
+// re-sighting will surface the pair again.
+func (s *PostgresStore) JudgeChannelAliasProposal(ctx context.Context, j platstore.ChannelAliasJudgement) (bool, error) {
+	tag, err := s.db.ExecContext(ctx,
+		`UPDATE channel_alias_proposals
+		    SET status = $5, judged_by = $6, judged_at = NOW()
+		  WHERE workspace_id = $1 AND profile = $2
+		    AND proposed_channel = $3 AND existing_channel = $4`,
+		j.WorkspaceID, j.Profile, j.ProposedChannel, j.ExistingChannel, j.Status, j.JudgedBy)
+	if err != nil {
+		return false, fmt.Errorf("judge channel alias proposal: %w", err)
+	}
+	n, err := tag.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("judge channel alias proposal: %w", err)
+	}
+	return n > 0, nil
+}
+
 // ListChannelAliasProposals implements platstore.ChannelAliasStore.
 func (s *PostgresStore) ListChannelAliasProposals(ctx context.Context, workspaceID, status string) ([]platstore.ChannelAliasProposal, error) {
 	query := `SELECT profile, proposed_channel, existing_channel, evidence, project_id, collection,
-		         status, created_at, updated_at
+		         status, judged_by, judged_at, created_at, updated_at
 		  FROM channel_alias_proposals WHERE workspace_id = $1`
 	args := []any{workspaceID}
 	if status != "" {
@@ -79,9 +104,13 @@ func (s *PostgresStore) ListChannelAliasProposals(ctx context.Context, workspace
 	for rows.Next() {
 		p := platstore.ChannelAliasProposal{WorkspaceID: workspaceID}
 		var created, updated time.Time
+		var judged sql.NullTime
 		if err := rows.Scan(&p.Profile, &p.ProposedChannel, &p.ExistingChannel, &p.Evidence,
-			&p.ProjectID, &p.Collection, &p.Status, &created, &updated); err != nil {
+			&p.ProjectID, &p.Collection, &p.Status, &p.JudgedBy, &judged, &created, &updated); err != nil {
 			return nil, fmt.Errorf("scan channel alias proposal: %w", err)
+		}
+		if judged.Valid {
+			p.JudgedAt = judged.Time.UTC().Format(time.RFC3339)
 		}
 		p.CreatedAt = created.UTC().Format(time.RFC3339)
 		p.UpdatedAt = updated.UTC().Format(time.RFC3339)

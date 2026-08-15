@@ -72,10 +72,13 @@ func TestChannelAliasProposalKeepsItsJudgement(t *testing.T) {
 	require.NoError(t, err)
 	// The upsert never carries a status onto an existing row, so the dismissal
 	// has to be written the way a reviewer writes it.
-	_, err = s.db.ExecContext(ctx,
-		`UPDATE channel_alias_proposals SET status=$1 WHERE workspace_id=$2 AND proposed_channel=$3`,
-		platstore.ChannelAliasDismissed, "ws1", "website")
+	found, err := s.JudgeChannelAliasProposal(ctx, platstore.ChannelAliasJudgement{
+		WorkspaceID: "ws1", Profile: "acme",
+		ProposedChannel: "website", ExistingChannel: "web",
+		Status: platstore.ChannelAliasDismissed, JudgedBy: "u1",
+	})
 	require.NoError(t, err)
+	assert.True(t, found)
 
 	// Re-observing the same fragmentation refreshes where it was seen, not the
 	// judgement.
@@ -90,8 +93,57 @@ func TestChannelAliasProposalKeepsItsJudgement(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, platstore.ChannelAliasDismissed, got[0].Status)
 	assert.Equal(t, "p2", got[0].ProjectID)
+	assert.Equal(t, "u1", got[0].JudgedBy)
+	assert.NotEmpty(t, got[0].JudgedAt, "the judgement keeps its own instant")
 
 	open, err := s.ListChannelAliasProposals(ctx, "ws1", platstore.ChannelAliasProposed)
 	require.NoError(t, err)
 	assert.Empty(t, open)
+}
+
+// Judging names one row by its full key: another workspace's identically spelled
+// pair, and a pair nobody proposed, are both left alone.
+func TestJudgeChannelAliasProposalIsKeyed(t *testing.T) {
+	s := newAliasStore(t)
+	ctx := t.Context()
+
+	_, err := s.UpsertChannelAliasProposals(ctx, []platstore.ChannelAliasProposal{
+		{
+			WorkspaceID: "ws1", Profile: "acme",
+			ProposedChannel: "website", ExistingChannel: "web",
+			Evidence: coresync.EvidencePrefix, ProjectID: "p1",
+		},
+		{
+			WorkspaceID: "ws2", Profile: "acme",
+			ProposedChannel: "website", ExistingChannel: "web",
+			Evidence: coresync.EvidencePrefix, ProjectID: "p9",
+		},
+	})
+	require.NoError(t, err)
+
+	found, err := s.JudgeChannelAliasProposal(ctx, platstore.ChannelAliasJudgement{
+		WorkspaceID: "ws1", Profile: "acme",
+		ProposedChannel: "website", ExistingChannel: "web",
+		Status: platstore.ChannelAliasAccepted, JudgedBy: "u1",
+	})
+	require.NoError(t, err)
+	assert.True(t, found)
+
+	missing, err := s.JudgeChannelAliasProposal(ctx, platstore.ChannelAliasJudgement{
+		WorkspaceID: "ws1", Profile: "acme",
+		ProposedChannel: "never-proposed", ExistingChannel: "web",
+		Status: platstore.ChannelAliasDismissed, JudgedBy: "u1",
+	})
+	require.NoError(t, err)
+	assert.False(t, missing, "a stale page cannot invent a proposal")
+
+	mine, err := s.ListChannelAliasProposals(ctx, "ws1", "")
+	require.NoError(t, err)
+	require.Len(t, mine, 1)
+	assert.Equal(t, platstore.ChannelAliasAccepted, mine[0].Status)
+
+	theirs, err := s.ListChannelAliasProposals(ctx, "ws2", "")
+	require.NoError(t, err)
+	require.Len(t, theirs, 1)
+	assert.Equal(t, platstore.ChannelAliasProposed, theirs[0].Status)
 }

@@ -30,12 +30,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	19  blocks access ladder renamed (open|restricted|published)
 //	20  the second consolidated baseline (folded 1-19)
 //	21  the audit log keyed on the bus event it records
+//	22  channel alias proposals
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 22 adds the channel-alias proposal table, where
-// the workspace records that two projects' slugs look like one channel without
-// resolving either.
+// bumping its version. Version 23 records who settled a channel-alias proposal
+// and when, on the table version 22 introduced — where the workspace records
+// that two projects' slugs look like one channel without resolving either.
 //
 // Versions 3 and 4 were already retired before the first consolidation — they
 // ran on live databases and were then folded into the v1 baseline. They are
@@ -54,13 +55,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // statement serve an empty database and a database that already ran 15-19
 // alike.
 //
-// Baseline is version 22 — above every number issued, so an existing database
+// Baseline is version 23 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 23.
+// repaired. Retired numbers are never reused; the next migration is version 24.
 var Migrations = []storage.Migration{
 	{
-		Version:     22,
-		Description: "content store baseline (folds 1-21) + channel alias proposals",
+		Version:     23,
+		Description: "content store baseline (folds 1-22) + channel alias judgements",
 		SQL: `
 			-- Projects
 			CREATE TABLE IF NOT EXISTS projects (
@@ -1111,12 +1112,20 @@ var Migrations = []storage.Migration{
 				project_id       TEXT NOT NULL DEFAULT '',
 				collection       TEXT NOT NULL DEFAULT '',
 				status           TEXT NOT NULL DEFAULT 'proposed',
+				judged_by        TEXT NOT NULL DEFAULT '',
+				judged_at        TIMESTAMPTZ,
 				created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (workspace_id, profile, proposed_channel, existing_channel)
 			);
 			CREATE INDEX IF NOT EXISTS idx_channel_alias_proposals_ws
 				ON channel_alias_proposals(workspace_id, status);
+			-- ---- folded from version 22: the judgement's own instant ----
+			-- updated_at moves on every re-sighting of the same fragmentation,
+			-- so it cannot say when a reviewer settled the row. These two say
+			-- who settled it and when, and nothing but a judgement writes them.
+			ALTER TABLE channel_alias_proposals ADD COLUMN IF NOT EXISTS judged_by TEXT NOT NULL DEFAULT '';
+			ALTER TABLE channel_alias_proposals ADD COLUMN IF NOT EXISTS judged_at TIMESTAMPTZ;
 
 			-- ---- folded from version 17: stream scope for convergence runs ----
 			-- convergence_runs.stream, declared in that table's CREATE above. A

@@ -1,6 +1,7 @@
 import { Button, Skeleton } from "@neokapi/ui-primitives";
 import { BrandHub } from "../shell/BrandHub";
 import { EmptyState } from "../shell/atoms";
+import { ChannelProposalsPanel } from "../proposals";
 import { ProfileCard } from "./ProfileCard";
 import { useContextProfiles } from "./useContextProfiles";
 import { Layers, Sparkles } from "../../components/icons";
@@ -54,9 +55,16 @@ export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) 
       <div className="space-y-8">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {points.map((profile) => (
-            <ProfileCard key={profile.slug} profile={profile} onSelect={onOpenProfile} />
+            <ProfileCard
+              key={profile.slug}
+              profile={profile}
+              conceptCount={data?.terms.concept_count}
+              onSelect={onOpenProfile}
+            />
           ))}
         </div>
+
+        <ChannelProposalsPanel />
 
         {declaredPoints.length === 0 && (
           <EmptyState
@@ -77,7 +85,12 @@ export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) 
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {unbound.map((profile) => (
-                <ProfileCard key={profile.slug} profile={profile} onSelect={onOpenProfile} />
+                <ProfileCard
+                  key={profile.slug}
+                  profile={profile}
+                  conceptCount={data?.terms.concept_count}
+                  onSelect={onOpenProfile}
+                />
               ))}
             </div>
           </section>

@@ -1785,6 +1785,14 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       scan_scope: "workspace",
     }),
 
+    // --- Channel-slug equivalence -------------------------------------------
+    listChannelProposals: async () => ({ proposals: [] }),
+    judgeChannelProposal: async (_ws: string, judgement) => ({
+      ...judgement,
+      judged_at: MOCK_NOW,
+      updated_at: MOCK_NOW,
+    }),
+
     // --- Convergence --------------------------------------------------------
     estimateConvergence: async () => ({
       source: { gate: "none", total: 0, ready: 0, held: 0 },

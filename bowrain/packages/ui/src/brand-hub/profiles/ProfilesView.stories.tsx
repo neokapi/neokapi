@@ -3,6 +3,7 @@ import { fn } from "storybook/test";
 import { ProfilesView } from "./ProfilesView";
 import {
   emptyProfiles,
+  fragmentedChannels,
   populatedProfiles,
   withProfiles,
 } from "../../stories/contextProfileFixtures";
@@ -35,4 +36,12 @@ export const OnlyTheDefault: Story = { decorators: [withProfiles(emptyProfiles)]
 export const WithoutHostedScan: Story = {
   args: { onScanBrand: undefined },
   decorators: [withProfiles(populatedProfiles)],
+};
+
+/**
+ * Two projects spell one channel two ways. The workspace says so and judges the
+ * pair; neither recipe's slug moves.
+ */
+export const WithChannelNamesToReconcile: Story = {
+  decorators: [withProfiles(populatedProfiles, fragmentedChannels)],
 };

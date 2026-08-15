@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -135,6 +136,64 @@ func TestVoiceProfileIDsInOps(t *testing.T) {
 
 	got := voiceProfileIDsInOps(ops)
 	assert.Equal(t, map[string]bool{"v1": true, "v2": true}, got)
+}
+
+// Check standing is scoped by the voice the score resolved through, so a
+// profile bound to no voice, and a voice nothing has checked, both report none.
+func TestAttachCheckStanding(t *testing.T) {
+	srv := setupBrandLoopServer(t)
+	ctx := t.Context()
+
+	project := &store.Project{
+		ID: "proj-standing", Name: "Web", WorkspaceID: "test-ws",
+		DefaultSourceLanguage: "en",
+	}
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, project))
+	// A project in another workspace is not this workspace's standing.
+	other := &store.Project{
+		ID: "proj-elsewhere", Name: "Other", WorkspaceID: "other-ws",
+		DefaultSourceLanguage: "en",
+	}
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, other))
+
+	checked := time.Now().UTC().Truncate(time.Second)
+	scores := []*coreprofile.StoredScore{
+		{
+			ID: "s1", ProjectID: project.ID, Stream: "main", BlockID: "b1",
+			ProfileID: "v-app", Score: 80, CheckedAt: checked.Add(-time.Hour),
+			Findings: []coreprofile.VoiceFinding{{Category: string(coreprofile.DimensionTone)}},
+		},
+		{
+			ID: "s2", ProjectID: project.ID, Stream: "main", BlockID: "b2",
+			ProfileID: "v-app", Score: 90, CheckedAt: checked,
+		},
+	}
+	for _, sc := range scores {
+		require.NoError(t, srv.BrandStore.StoreScore(ctx, sc))
+	}
+	require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+		ID: "s3", ProjectID: other.ID, Stream: "main", BlockID: "b3",
+		ProfileID: "v-app", Score: 10, CheckedAt: checked,
+	}))
+
+	profiles := []ContextProfile{
+		{Slug: "default", Voice: &ContextProfileVoice{ID: "v-app"}},
+		{Slug: "channel~print", Voice: &ContextProfileVoice{ID: "v-print"}},
+		{Slug: "channel~docs"},
+	}
+	all, err := srv.Services.Project.ListProjects(ctx)
+	require.NoError(t, err)
+	srv.attachCheckStanding(ctx, all, "test-ws", profiles)
+
+	require.NotNil(t, profiles[0].Checks)
+	assert.Equal(t, 85, profiles[0].Checks.Score)
+	assert.Equal(t, 2, profiles[0].Checks.ScoredBlocks)
+	assert.Equal(t, 1, profiles[0].Checks.Findings)
+	require.NotNil(t, profiles[0].Checks.LastCheckedAt)
+	assert.WithinDuration(t, checked, *profiles[0].Checks.LastCheckedAt, time.Second)
+
+	assert.Nil(t, profiles[1].Checks, "a voice nothing has checked has no standing")
+	assert.Nil(t, profiles[2].Checks, "a point with no voice resolves no check")
 }
 
 // The endpoint is a read over the real stores, so it runs against the

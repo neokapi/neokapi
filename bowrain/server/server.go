@@ -1633,8 +1633,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/profiles", s.HandleListContextProfiles)
 
 	// Channel-slug equivalence the workspace observed between projects and
-	// proposes without resolving: /:ws/context/channel-proposals
+	// proposes without resolving: /:ws/context/channel-proposals. The judge
+	// write settles a proposal — accepted or dismissed — and still rewrites no
+	// project's slug.
 	g.GET("/context/channel-proposals", s.HandleListChannelAliasProposals)
+	g.POST("/context/channel-proposals/judge", s.HandleJudgeChannelAliasProposal)
 
 	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
 	g.GET("/brand-profiles", s.HandleListBrandProfiles)
