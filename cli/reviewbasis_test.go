@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -97,12 +98,14 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 	require.Len(t, after.Review, 1, "the stale unit is back in the review queue")
 	assert.Equal(t, "Apricot", after.Review[0].Source)
 
-	// The plan no longer reports the project converged.
+	// The plan no longer reports the project converged, and it prices the
+	// re-draft the run will do rather than naming drift it quotes nothing for.
 	stalePlan := plan(t)
 	require.Len(t, stalePlan.Scopes, 1)
 	assert.Equal(t, 1, stalePlan.Totals.Stale)
 	assert.Zero(t, stalePlan.Totals.MissingTarget, "every unit still HAS a target — that was never the question")
-	assert.Zero(t, stalePlan.Totals.TokenEstimate, "a pairing to settle is not AI work to price")
+	assert.Equal(t, 1, stalePlan.Totals.AIRemaining, "the rewritten source is work, and work is priced")
+	assert.Positive(t, stalePlan.Totals.TokenEstimate)
 
 	// The picker manifest withholds the locale.
 	assert.False(t, host.BuildShipManifest(after.Locales)["nb"].Shippable)
@@ -125,6 +128,182 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 	assert.True(t, restored.Locales[0].Shippable)
 	assert.Empty(t, restored.Review)
 	assert.Len(t, commitAndReadUnits(t, root), 2, "no new decision was needed")
+}
+
+// The re-draft. Reporting a stale unit and withholding it is only half a loop:
+// the other half is producing a translation of the source the project has NOW.
+// A catalog entry keeps its key across a source rewrite, so its old translation
+// stays sitting beside the new sentence — and the loop read that adjacency back
+// out of the committed record as an exact content-memory answer for the new
+// wording, recycled it over itself, and reported the drift it had just
+// confirmed. These tests hold both directions shut: a rewritten source is
+// re-drafted, a restored one is not.
+
+// runReviewUp drives the whole verb — `kapi up` through the exported embedded
+// entry point — over the fixture, on the offline demo provider so the AI step
+// runs hermetically.
+func runReviewUp(t *testing.T, proj string) *host.ConvergeOutput {
+	t.Helper()
+	a := demoProviderApp(t)
+	defer a.Shutdown()
+	out, err := a.RunUp(context.Background(), proj, "en", UpOptions{UntilGate: true, MaxPasses: 3})
+	require.NoError(t, err, "target-language drift is never a run failure")
+	require.NotNil(t, out)
+	return out
+}
+
+// nbTargets reads the materialized nb catalog.
+func nbTargets(t *testing.T, root string) map[string]string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, "nb.json"))
+	require.NoError(t, err)
+	var out map[string]string
+	require.NoError(t, json.Unmarshal(data, &out))
+	return out
+}
+
+// TestReviewBasis_StaleUnitIsRedrafted is the whole-verb regression for the
+// defect: approve, rewrite the source, and `kapi up` must produce a translation
+// of the new wording — priced, reported, and NOT carrying the old approval —
+// with the unit shippable again only once a person reviews the new draft.
+func TestReviewBasis_StaleUnitIsRedrafted(t *testing.T) {
+	root := writeReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+	writeReviewedCorrection(t, root, "Apple", "")
+	writeReviewedCorrection(t, root, "Banana", "")
+
+	// A converged run first: it absorbs the committed catalog, so the memory
+	// holds the reviewed wording and a second run recycles rather than redrafts.
+	// Nothing is stale, so nothing is re-drafted and both approvals survive.
+	first := runReviewUp(t, proj)
+	assert.Zero(t, first.RedraftedUnits())
+	assert.Equal(t, map[string]string{"a": "Eple", "b": "Banan"}, nbTargets(t, root),
+		"a converged pass must not overwrite the wording it recycled from the record")
+
+	// The source sentence is rewritten. Its key survives, so the old translation
+	// is still sitting beside it in the catalog.
+	rewriteSource(t, root, sourceEdited)
+
+	a := &App{}
+	defer a.Shutdown()
+	priced, err := a.UpPlan(context.Background(), proj, "en")
+	require.NoError(t, err)
+	assert.Equal(t, 1, priced.Totals.Stale)
+	assert.Equal(t, 1, priced.Totals.AIRemaining, "the re-draft is quoted before the tokens burn")
+
+	out := runReviewUp(t, proj)
+	assert.Equal(t, 1, out.RedraftedUnits(), "the loop owes the rewritten source a translation")
+
+	after := nbTargets(t, root)
+	assert.NotEqual(t, "Eple", after["a"], "the stale target is superseded by a draft of the new source")
+	assert.NotEmpty(t, after["a"])
+	assert.Equal(t, "Banan", after["b"],
+		"the unit whose source did not move keeps the wording its reviewer approved")
+
+	// Producing is not deciding. The unit is back at the presence baseline,
+	// un-approved, held out of shipping, and in the queue with the draft a
+	// reviewer has to judge.
+	require.Len(t, out.Locales, 1)
+	assert.Equal(t, 1, out.Locales[0].Stale)
+	assert.False(t, out.Locales[0].Shippable)
+	assert.False(t, out.Converged)
+
+	b := &App{}
+	defer b.Shutdown()
+	rep, rerr := b.ProjectConvergence(context.Background(), proj, "en")
+	require.NoError(t, rerr)
+	require.Len(t, rep.Review, 1)
+	assert.Equal(t, "Apricot", rep.Review[0].Source)
+	assert.Equal(t, after["a"], rep.Review[0].Target, "the queue shows the draft that is up for review")
+
+	unit, uerr := b.ReviewUnit(context.Background(), proj, "en", host.ReviewUnitRef{
+		File: rep.Review[0].File, Key: rep.Review[0].Key, Locale: "nb",
+	})
+	require.NoError(t, uerr)
+	assert.Empty(t, unit.ReviewState, "a re-draft never inherits the approval the old pairing carried")
+
+	// Review the new draft: the decision records the source it blessed this
+	// time, and the locale ships.
+	c := &App{}
+	defer c.Shutdown()
+	changed, aerr := c.ApproveReviewUnit(context.Background(), proj, "en", "nb",
+		rep.Review[0].File, rep.Review[0].Key, "reviewed")
+	require.NoError(t, aerr)
+	require.True(t, changed)
+
+	settled := runReviewUp(t, proj)
+	assert.Zero(t, settled.StaleUnits(), "the decision now blesses the source the project has")
+	assert.Zero(t, settled.RedraftedUnits(), "and there is nothing left to re-draft")
+	assert.True(t, settled.Converged)
+	assert.Equal(t, after["a"], nbTargets(t, root)["a"], "the approved draft is what ships")
+}
+
+// TestReviewBasis_RestoredSourceManufacturesNoWork is the other direction, and
+// the control that stops the fix above from becoming "re-translate on any
+// doubt": a source restored to the wording its decision blessed converges on the
+// decision already on record. No pass, no provider call, no re-draft.
+func TestReviewBasis_RestoredSourceManufacturesNoWork(t *testing.T) {
+	root := writeReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+	writeReviewedCorrection(t, root, "Apple", "")
+	writeReviewedCorrection(t, root, "Banana", "")
+	runReviewUp(t, proj)
+
+	rewriteSource(t, root, sourceEdited)
+	rewriteSource(t, root, sourceOriginal)
+
+	out := runReviewUp(t, proj)
+	assert.Zero(t, out.StaleUnits(), "the basis matches again")
+	assert.Zero(t, out.RedraftedUnits(), "so no work was manufactured")
+	assert.True(t, out.Converged)
+	assert.Equal(t, map[string]string{"a": "Eple", "b": "Banan"}, nbTargets(t, root),
+		"the approved wording is untouched")
+
+	units := commitAndReadUnits(t, root)
+	require.Len(t, units, 2)
+	for _, u := range units {
+		assert.Equal(t, "approved", u.Decision.ReviewState, "nobody re-reviewed anything")
+	}
+}
+
+// TestReviewBasis_UngatedStaleScopeStillRunsAPass: a stale unit tallies at
+// `draft`, which is the top of the ungated rung test — so the scope read as
+// complete and the loop skipped it entirely. An ungated project is exactly the
+// one whose only account of the drift is the loop's own, and it must still work
+// on it.
+func TestReviewBasis_UngatedStaleScopeStillRunsAPass(t *testing.T) {
+	root := writeUngatedReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+	writeReviewedCorrection(t, root, "Apple", "")
+	runReviewUp(t, proj)
+
+	rewriteSource(t, root, sourceEdited)
+
+	out := runReviewUp(t, proj)
+	assert.Equal(t, 1, out.RedraftedUnits(), "no declared bar is not a reason to leave the drift alone")
+	assert.NotEqual(t, "Eple", nbTargets(t, root)["a"])
+}
+
+// TestReviewBasis_RedraftIsStableAcrossRuns: a stale unit stays stale until a
+// person reviews the draft, so every `kapi up` in between fans out over it
+// again. Those runs must reproduce the draft, not churn it — the committed
+// catalog is what a reviewer reads in a diff, and a unit that rewrote itself on
+// every run would make that diff unreadable and the review impossible to finish.
+func TestReviewBasis_RedraftIsStableAcrossRuns(t *testing.T) {
+	root := writeReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+	writeReviewedCorrection(t, root, "Apple", "")
+	writeReviewedCorrection(t, root, "Banana", "")
+	runReviewUp(t, proj)
+	rewriteSource(t, root, sourceEdited)
+	runReviewUp(t, proj)
+	drafted := nbTargets(t, root)
+
+	for range 2 {
+		out := runReviewUp(t, proj)
+		assert.Equal(t, 1, out.StaleUnits(), "still stale: nobody has reviewed the draft")
+		assert.Equal(t, drafted, nbTargets(t, root), "and the catalog does not move under them")
+	}
 }
 
 // TestReviewBasis_ShipGateWithholdsStale: `kapi check --ship` fails on a stale

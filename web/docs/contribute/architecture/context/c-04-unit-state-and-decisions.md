@@ -182,6 +182,31 @@ threshold on quantity, and no threshold makes a translation of a rewritten
 sentence shippable. An ungated project is precisely the one with nothing else to
 catch it.
 
+**Stale is work, not only a report.** The convergence fan-out treats a
+basis-stale unit exactly as it treats one with no translation at all: it is in
+the pending set on any scope (gated or not — the `draft` tally would otherwise
+read an ungated scope as complete), it is priced in `kapi up --plan` on the same
+recycle-versus-AI split, and the pass produces a translation of the source the
+project has now. What the loop cannot do is decide, so the re-draft never
+restores the withdrawn approval: the unit returns at its presence baseline, in
+the review worklist, and the scope stays withheld until someone reviews the new
+pairing. A loop that refuses to ship drift it will not work on has no way to
+heal.
+
+Producing over the unit requires one thing of the record absorber
+(`host/recordabsorb.go`), which is where the halt actually was. It pairs each
+committed target with the source *beside* it, and a unit whose key survives a
+source rewrite keeps its old translation in that position — so the pair it
+learned was an exact content-memory answer for wording nobody had translated,
+and the next pass recycled the stale target back over itself. A pairing the
+record's own basis contradicts is therefore not absorbed against the source now
+beside it. It is absorbed against the source it *does* translate, recovered from
+the block store by its own basis hash (the absorber runs before the pass
+re-extracts, so that wording is still there), and when it is unrecoverable the
+pair is not written at all. The refusal is scoped to the decision it belongs to:
+once the target has moved on too, the record describes neither half of what is
+on disk and the pair is absorbed like any undecided one.
+
 **A missing basis is unknown, not stale.** A record written before the basis was
 tracked says nothing about the source it blessed, and reading that silence as
 drift would demote every decision every existing project holds. Such a unit keeps

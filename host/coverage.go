@@ -147,6 +147,20 @@ type reviewedEntry struct {
 	by string
 }
 
+// blessesTarget reports whether the decision's target half still holds: the
+// translation on disk is the one it judged. An unset hash on either side is
+// treated as still holding — the same "no content to compare" convention
+// state.UnitState.Stale reads an absent hash by.
+//
+// It is the discriminator between the two ways a decision stops applying, which
+// a reader of the record has to tell apart: a decision whose target half still
+// holds but whose source moved is a blessing sitting beside a sentence it never
+// judged, while one whose target has moved too says nothing at all about what is
+// on disk.
+func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool {
+	return e.targetHash == "" || targetHash(b.TargetText(locale)) == e.targetHash
+}
+
 // basisVerdict grades a recorded decision against the source in front of the
 // reader — the derived half of the basis: a decision is a fact and is never
 // rewritten, so what a source edit changes is not the record but whether it

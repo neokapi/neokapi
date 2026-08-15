@@ -53,9 +53,10 @@ type SeedContextResult struct {
 	Record RecordAbsorbResult `json:"record,omitzero"`
 }
 
-// Compiled reports whether the pass wrote anything into the store.
+// Compiled reports whether the pass has anything to say: what it wrote into the
+// store, or a pairing it declined because the record's own basis contradicts it.
 func (r SeedContextResult) Compiled() bool {
-	return r.TermsFiles > 0 || r.MemoryFiles > 0 || r.Record.Absorbed()
+	return r.TermsFiles > 0 || r.MemoryFiles > 0 || r.Record.Absorbed() || r.Record.Superseded > 0
 }
 
 // formatSeedLine renders a seeding pass as the one line a run prints before the
@@ -84,7 +85,10 @@ func formatSeedLine(r SeedContextResult) string {
 // formatRecordLine renders what the committed translations taught the store, or
 // "" when they taught it nothing.
 func formatRecordLine(r RecordAbsorbResult) string {
-	if !r.Absorbed() {
+	// A pass that wrote nothing but declined a pairing the record contradicts
+	// still has something to say: that decline is why the unit beside it is
+	// about to be re-drafted rather than confirmed.
+	if !r.Absorbed() && r.Superseded == 0 {
 		return ""
 	}
 	line := fmt.Sprintf("absorbed: %d pair(s) from %d committed target document(s) — %d learned, %d reconciled",
@@ -94,6 +98,9 @@ func formatRecordLine(r RecordAbsorbResult) string {
 	}
 	if r.Refused > 0 {
 		line += fmt.Sprintf("; %d pair(s) refused for dropped inline codes", r.Refused)
+	}
+	if r.Superseded > 0 {
+		line += fmt.Sprintf("; %d pair(s) whose source was rewritten since the translation was decided", r.Superseded)
 	}
 	return line
 }

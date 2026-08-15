@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -21,14 +22,21 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.MissingTarget == 0 && t.Stale == 0 {
 		return "plan: every unit has a committed target for the current source — verifying gates"
 	}
-	if t.MissingTarget == 0 {
-		return fmt.Sprintf("plan: %d unit(s) stale — their source changed since the translation was decided", t.Stale)
+	// The two kinds of work the run will do, then what it costs. A stale unit is
+	// named separately from a missing one because the reader is being told
+	// something extra about it — a person had decided it, and this run is going
+	// to spend a provider call replacing that decision's subject — but the
+	// leverage and token figures cover both, because the run does not treat them
+	// differently.
+	var work []string
+	if t.MissingTarget > 0 {
+		work = append(work, fmt.Sprintf("%d unit(s) missing", t.MissingTarget))
 	}
-	line := fmt.Sprintf("plan: %d unit(s) missing · %d exact-content memory · %d AI · ≈%s tokens",
-		t.MissingTarget, t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if t.Stale > 0 {
-		line += fmt.Sprintf(" · %d stale", t.Stale)
+		work = append(work, fmt.Sprintf("re-drafting %d stale unit(s) — their source changed since the translation was decided", t.Stale))
 	}
+	line := fmt.Sprintf("plan: %s · %d exact-content memory · %d AI · ≈%s tokens",
+		strings.Join(work, " · "), t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if plan.Provider != "" {
 		if plan.Subscription {
 			line += fmt.Sprintf(" · %s (your subscription)", plan.Provider)
