@@ -115,10 +115,25 @@ jobs:
       # approvals reached the tree and nothing carried them home.
       #
       # Recording and publishing stay separate acts, so this is not something
-      # `up` does on its own. Nothing staged is a no-op and exits 0.
+      # `up` does on its own. Nothing staged is a no-op and exits 0, so the
+      # exit code says nothing about whether the return leg carried anything;
+      # what it printed does, and the pull request's note reports it.
       - name: Commit the decisions the run brought home
+        id: commit
         if: ${{ !inputs.plan }}
-        run: kapi commit
+        run: |
+          set -euo pipefail
+          # RUNNER_TEMP, not the workspace: the gate below classifies everything
+          # the run left in the tree and refuses a file the loop does not own.
+          log="$RUNNER_TEMP/kapi-commit.log"
+          kapi commit | tee "$log"
+          if grep -q '^Nothing staged' "$log"; then
+            # shellcheck disable=SC2016  # backticks are markdown for the note
+            note='`kapi commit` staged nothing: the committed record under `.kapi/state/` was already up to date.'
+          else
+            note="\`kapi commit\` wrote the decisions it brought home into \`.kapi/state/\` ($(head -n 1 "$log"))."
+          fi
+          echo "note=$note" >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
       # catalog is not what a product loads: the SPAs and the landing page load
@@ -149,6 +164,7 @@ jobs:
       # the tree itself rather than the action's account of it. A clean tree
       # (a `plan` dispatch, or a run with nothing to catch up) passes.
       - name: Refuse what the committed context cannot explain
+        id: gate
         run: ./scripts/check-sync-backed.sh
 
       # The action reports; delivery is this workflow's own step, and it is a
@@ -165,15 +181,19 @@ jobs:
       # Runs whatever the action reported, for the gate's reason: the return leg
       # can move .kapi/ on a run that produced no derived change at all, and
       # has-changes was computed before it ran.
+      #
+      # The note reports what this run produced rather than what a run of this
+      # shape does: the return leg's own account of whether it staged anything,
+      # and the gate's count of what it classified. A reviewer reads the note as
+      # the summary of the run, so a sentence it cannot support is a sentence
+      # that misreads the diff for them.
       - name: Open a pull request with what the loop brought home
         if: ${{ !inputs.plan }}
         env:
           GH_TOKEN: ${{ github.token }}
-          AUTO_PR_NOTE: >-
-            `kapi up` converged this repository's content on bowrain.cloud and
-            `kapi commit` wrote the decisions it brought home into
-            `.kapi/state/`. The backing gate passed: every derived artifact in
-            this diff is explained by a change under `.kapi/`.
+          COMMIT_NOTE: ${{ steps.commit.outputs.note }}
+          DERIVED: ${{ steps.gate.outputs.derived }}
+          BACKING: ${{ steps.gate.outputs.backing }}
         run: |
           # Globbing off: the derived set carries git pathspec magic
           # (`:(glob)…`), which the shell must not expand against the tree.
@@ -191,6 +211,8 @@ jobs:
             echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
             exit 1
           fi
+          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${COMMIT_NOTE} The backing gate classified ${DERIVED:-0} derived change(s), backed by ${BACKING:-0} change(s) under \`.kapi/\`."
+          export AUTO_PR_NOTE
           # shellcheck disable=SC2086  # the derived set is a list of pathspecs
           ./scripts/auto-pr.sh bot/dogfood-sync \
             "chore(l10n): converged content from bowrain" -- \

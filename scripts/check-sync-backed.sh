@@ -89,6 +89,15 @@ summary() {
   printf '%s\n' "$@" >>"$GITHUB_STEP_SUMMARY"
 }
 
+# outputs publishes the classification as step outputs when running in Actions,
+# so the step that delivers the run can report what the run produced rather than
+# what a delivery is shaped like. Counts only: the paths are in the log and the
+# job summary, and the pull request carries the diff itself.
+outputs() {
+  [ -n "${GITHUB_OUTPUT:-}" ] || return 0
+  printf '%s\n' "$@" >>"$GITHUB_OUTPUT"
+}
+
 # ── the gate ─────────────────────────────────────────────────────────────────
 #
 # $1 is the repository to inspect; $2 the whitespace-separated derived pathspecs.
@@ -149,6 +158,7 @@ gate() {
   fi
 
   if [ "${#refused_unbacked[@]}" -eq 0 ] && [ "${#refused_foreign[@]}" -eq 0 ]; then
+    outputs "derived=${#derived_entries[@]}" "backing=${#backing_entries[@]}"
     if [ "${#derived_entries[@]}" -eq 0 ] && [ "${#backing_entries[@]}" -eq 0 ]; then
       echo "check-sync-backed: the run left nothing to commit"
       summary "### Sync backing gate" "" "The run left nothing to commit."
@@ -293,6 +303,14 @@ self_test() {
   # shellcheck disable=SC2064  # expand $tmp now, not at trap time
   trap "cd '$start'; rm -rf '$tmp'" EXIT
 
+  # The self-test runs the gate against scratch repositories inside a real job.
+  # Its Actions side effects belong to those runs, not to the job hosting it, so
+  # the step summary and the step outputs are redirected to the scratch dir —
+  # the last case reads the redirected file to prove the counts are published.
+  local outfile="$tmp/step-output"
+  export GITHUB_STEP_SUMMARY="$tmp/step-summary"
+  export GITHUB_OUTPUT="$outfile"
+
   local repo="$tmp/repo"
   mkdir -p "$repo"
   planted_repo "$repo"
@@ -349,6 +367,24 @@ self_test() {
     printf '%s\n' "$out" | sed 's/^/    /'
     SELFTEST_STATUS=1
   fi
+  git -C "$repo" checkout -q -- .
+
+  # What the delivery step tells a reviewer the run produced comes from here,
+  # so a run that classified two derived changes behind one context change must
+  # say so in its outputs and not merely in its log.
+  : >"$outfile"
+  printf '{"greeting":"Hallo"}\n' >"$repo/core/i18n/catalogs/nb.json"
+  printf 'narration: hei\n' >"$repo/harness/demos/demo-a/demo.nb.yaml"
+  printf '{"concepts":[{"id":"a"}]}\n' >"$repo/.kapi/terms.json"
+  expect "two derived changes behind one context change commit" "$repo" 0
+  if grep -qx 'derived=2' "$outfile" && grep -qx 'backing=1' "$outfile"; then
+    echo "✓ self-test: the counts are published as step outputs"
+  else
+    echo "✖ self-test: the step outputs do not carry the counts:"
+    sed 's/^/    /' "$outfile"
+    SELFTEST_STATUS=1
+  fi
+  rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
   git -C "$repo" checkout -q -- .
 
   # The gate arms itself in this repository: the derived set comes from the
