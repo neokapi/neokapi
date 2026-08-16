@@ -39,8 +39,10 @@ import (
 
 // ContextPointRequest is one by-location question.
 type ContextPointRequest struct {
-	// Path is the location to answer for: absolute, or relative to the working
-	// directory. Empty with a Profile set is the by-name form.
+	// Path is the location to answer for: absolute, or relative — to the working
+	// directory when that sits inside the project, and to the project root
+	// otherwise. A location outside the project is refused rather than answered.
+	// Empty with a Profile set is the by-name form.
 	Path string
 	// Profile names a governance profile to answer for instead of a location —
 	// the ad-hoc form, for a caller with no file in hand. A name the recipe does
@@ -138,8 +140,14 @@ type ContextPointSources struct {
 	Governance *project.ResolvedGovernance
 	// Path is the request's location made project-relative and slash-separated;
 	// a location outside the project keeps the form the caller wrote, so the
-	// answer can still name what was asked. Empty for the by-name form.
+	// refusal can still name what was asked. Empty for the by-name form.
 	Path string
+	// PathErr is set when the location could not be placed in the project's
+	// coordinate space at all. It is the one assembly failure that is not
+	// degraded to a note: every other gap leaves a real point with part of its
+	// materials missing, while this leaves no point, and the only answer
+	// available without one is a different location's.
+	PathErr error
 	// Collection is the content collection claiming Path, empty when none does.
 	Collection string
 	// Voice is the profile in force at the point, already composed with the
@@ -233,20 +241,21 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	}
 
 	// The location as the recipe's globs are matched against. A location outside
-	// the project matches nothing, so it keeps the raw form for the answer to
-	// name and resolves the project's default point.
+	// the project matches nothing, and answering it from the project's default
+	// point would state a governance the caller never asked about — in the same
+	// confident wording a real point gets — so it is refused instead.
 	var rel string
 	if req.Path != "" {
 		matched, inside := projectRelative(root, req.Path)
 		if !inside {
-			src.Notes = append(src.Notes,
-				req.Path+" sits outside this project, so the project's default point governs the answer")
+			src.Path = req.Path
+			src.PathErr = fmt.Errorf(
+				"%s is not inside this project (%s), so there is no point to answer for — name a location inside it, either absolute or relative to the project root",
+				req.Path, root)
+			return src, noop
 		}
 		rel = matched
 		src.Path, src.Collection = matched, proj.CollectionForPath(matched)
-		if src.Path == "" {
-			src.Path = req.Path
-		}
 	}
 
 	rc, rerr := ResolveContextGovernance(proj, req, rel, src.At)
@@ -339,17 +348,42 @@ func displaySource(root, src string) string {
 
 // projectRelative renders a location as the project-relative, slash-separated
 // path the recipe's globs are matched against. It reports false for a location
-// outside the project, whose caller says so rather than matching it against
+// outside the project, whose caller refuses it rather than matching it against
 // globs it can never satisfy.
 func projectRelative(root, path string) (string, bool) {
 	abs := path
 	if !filepath.IsAbs(abs) {
-		if cwd, err := os.Getwd(); err == nil {
-			abs = filepath.Join(cwd, path)
-		}
+		abs = filepath.Join(relativeBase(root), path)
 	}
+	return underRoot(root, abs)
+}
+
+// relativeBase is the directory a relative location is read against: the
+// working directory when that directory is inside the project, and the project
+// root otherwise.
+//
+// The caller that binds a project by `-p` or KAPI_PROJECT is precisely the one
+// with no working directory in the tree — an agent runner, a CI step, an editor
+// extension. Reading its path against cwd lands outside the project every time,
+// where nothing can match, and it is also the caller least able to notice.
+// Against the root, the path means what the recipe means by it, which is the
+// same reading the `context://` resources document.
+func relativeBase(root string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return root
+	}
+	if _, inside := underRoot(root, cwd); inside {
+		return cwd
+	}
+	return root
+}
+
+// underRoot reports whether an absolute location sits at or under root, and
+// renders it project-relative and slash-separated when it does.
+func underRoot(root, abs string) (string, bool) {
 	rel, err := filepath.Rel(root, abs)
-	if err != nil || strings.HasPrefix(rel, "..") {
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", false
 	}
 	return filepath.ToSlash(rel), true
@@ -364,6 +398,13 @@ func projectRelative(root, path string) (string, bool) {
 func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPointRequest) (*ContextAnswer, error) {
 	if req.Path == "" && req.Profile == "" {
 		return nil, errors.New("context: name a location or a profile")
+	}
+	// A location that resolved to no point is refused rather than answered.
+	// Falling through to the project's default point would hand back another
+	// location's voice, terms and guidance in the wording a resolved point gets,
+	// and the caller has nothing in the answer to tell the two apart.
+	if src.PathErr != nil {
+		return nil, src.PathErr
 	}
 	limit := req.Limit
 	if limit <= 0 {
