@@ -16,7 +16,8 @@
     "serve": "vpx docusaurus serve",
     "write-translations": "vpx docusaurus write-translations",
     "write-heading-ids": "vpx docusaurus write-heading-ids",
-    "typecheck": "vp check --no-fmt --no-lint"
+    "typecheck": "vp check --no-fmt --no-lint",
+    "test": "vp test"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",

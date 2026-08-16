@@ -112,6 +112,14 @@ jobs:
           vp check --no-fmt
           vp test -- --run
 
+      # The docs site's own unit tests: the helpers the reference-page generator
+      # shares with the runtime grids, whose output is committed MDX. A page is
+      # generated, so a defect in one of them is a defect on every page of a
+      # kind at once.
+      - name: Docs site unit tests
+        working-directory: web
+        run: vp test -- --run
+
       # @neokapi/engine (the publishable wasm-engine wrapper the playground
       # builds on) also has its CI home here: its facade unit tests run against
       # a mocked global surface, and the publish build proves dist/ assembles.
