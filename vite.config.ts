@@ -19,11 +19,29 @@ import { defineConfig } from "vite-plus";
 // a root run matches the per-package surface instead of rewriting the tree.
 const OUT_OF_SURFACE = [
   "core/**", // Go framework module — corpus/spec/structure YAML + JSON fixtures & format-ops data
+  "host/**", // Go module data (command help catalogs)
+  "cli/**", // Go module data (the shipped kapi skill pack, parity + contract fixtures)
+  "kapi/**", // Go module data (binary fixtures, e2e goldens)
   "memory/**", // Go module data (tmx mappings)
   "terms/**", // Go module data
   "providers/**", // Go module data
   "plugins/**", // Go plugin modules — manifests/testdata
   "examples/**", // example plugin manifests
+  // Go test goldens, wherever they live. A golden is compared byte for byte
+  // against what the Go test produces, so a second writer with its own opinion
+  // about quoting and spacing makes the suite fail on a formatter run — and the
+  // formatter wins silently, because it runs first in the pre-commit contract.
+  "**/testdata/**",
+  // Sample kapi projects. Their bytes are the input to extraction — HTML
+  // whitespace lands inside blocks, and two Go tests read samples/northsea as
+  // the fixture for what an authored recipe looks like. Reformatting them
+  // changes what kapi reads out of them.
+  "samples/**",
+  // The dogfood recipe. kapi owns this file: `kapi apply` writes it back
+  // through core/yamledit, which preserves the document's own commentary and
+  // alignment. Two writers with different opinions about a trailing comment's
+  // column produce a diff on every contributor's pre-commit run.
+  "kapi.yaml",
   "harness/**", // demo-recording tooling (its own build/format toolchain)
   "scripts/**", // Node tooling + codegen scripts
   "specs/**", // spec catalog data

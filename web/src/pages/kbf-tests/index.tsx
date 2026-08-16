@@ -22,13 +22,13 @@ export default function KbfTestsPage(): React.ReactElement {
         maxWidthClassName="max-w-[1100px]"
         lede={
           <>
-            The <Link to="/reference/serialization/content-bundle">Kapi Bundle Format</Link> has two reference
-            implementations: the canonical Go engine (<code>core/kbf</code>) and a TypeScript mirror
-            (<code>@neokapi/kapi-format</code>). The spec promises they are kept byte-for-byte
-            equivalent. This page makes that promise <em>executable</em>: it runs the conformance
-            suite in your browser against both engines — the Go one compiled to WebAssembly, the
-            TypeScript one natively — and checks that, for every operation both implement, they
-            agree.
+            The <Link to="/reference/serialization/content-bundle">Kapi Bundle Format</Link> has two
+            reference implementations: the canonical Go engine (<code>core/kbf</code>) and a
+            TypeScript mirror (<code>@neokapi/kapi-format</code>). The spec promises they are kept
+            byte-for-byte equivalent. This page makes that promise <em>executable</em>: it runs the
+            conformance suite in your browser against both engines — the Go one compiled to
+            WebAssembly, the TypeScript one natively — and checks that, for every operation both
+            implement, they agree.
           </>
         }
         heroExtra={

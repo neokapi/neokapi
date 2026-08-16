@@ -177,6 +177,8 @@ func doubleSpaceSpans(text string) [][2]int {
 // immediately-repeated word in a hygiene flattening, so a caller can highlight
 // exactly the redundant token. It is the single scanner behind both the verdict
 // ([DoubledWord]) and the ranges ([HygieneOverlay]).
+//
+// Only a token that holds a word repeats reportably — see [isWordToken].
 func doubledWordSpans(text, exceptions string) [][2]int {
 	words := hygieneWords(text)
 	if len(words) < 2 {
@@ -196,11 +198,27 @@ func doubledWordSpans(text, exceptions string) [][2]int {
 		}
 		prev := strings.ToLower(words[i-1].text)
 		curr := strings.ToLower(words[i].text)
-		if prev == curr && !excSet.Contains(curr) {
+		if prev == curr && !excSet.Contains(curr) && isWordToken(curr) {
 			out = append(out, [2]int{words[i].start, words[i].end})
 		}
 	}
 	return out
+}
+
+// isWordToken reports whether a hygiene token holds a word: a letter or a digit
+// somewhere in it. Tokenization is by whitespace, so a token need not be a word
+// at all — a shade glyph standing for a pseudo-translation wrapper
+// (`▒ ▒ Utility ▒ ▒`), a row of dashes, a repeated bullet — and those repeat
+// exactly the way a word does. A repetition of them is the notation the author
+// meant to show, not the redundant word this rule is about; reporting it makes
+// the writer choose between a correct example and a clean gate.
+func isWordToken(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // wordSpan is one token of a hygiene flattening and its byte range in the text:

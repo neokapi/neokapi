@@ -24,9 +24,13 @@ content engineer, not a prospect.
 
 - **Marketing superlatives and hype:** powerful, seamless, effortless, blazing,
   production-proven, game-changing, cutting-edge, revolutionary, supercharge,
-  unleash, magic, "just point and go", "translate at scale", "everything you
+  unleash, "just point and go", "translate at scale", "everything you
   need". If a sentence still means the same thing with the adjective removed,
   remove it.
+- **"magic" as a claim about the product:** "it just works, like magic", "pure
+  magic", "magical", "where the magic happens". State the mechanism instead.
+  The word also has a technical sense — magic bytes, a magic number, the magic
+  string on a document root — which names a file signature and stays.
 - **Emoji** in documentation and committed prose.
 - **Inconsistent casing.** Use sentence case for headings and UI titles
   ("AI-native translation", not "AI-Native Translation").

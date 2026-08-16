@@ -225,7 +225,8 @@ function findings(): Findings {
     for (const r of e.runs.filter(scored)) {
       const l = lift(overall(r));
       if (l != null) {
-        if (!bestLift || l > bestLift.lift) bestLift = { model: label(r), target: e.target, lift: l };
+        if (!bestLift || l > bestLift.lift)
+          bestLift = { model: label(r), target: e.target, lift: l };
         if (l <= 0) deadWeight.push({ model: label(r), target: e.target, lift: l });
       }
       for (const d of r.dimensions ?? []) {
@@ -382,7 +383,14 @@ function LiftChart({ runs }: { runs: Run[] }): ReactElement | null {
             />
           )}
           {r.bare != null && (
-            <circle cx={x(r.bare)} cy={r.y} r={4.5} fill="var(--ifm-background-color)" stroke={r.color} strokeWidth={2}>
+            <circle
+              cx={x(r.bare)}
+              cy={r.y}
+              r={4.5}
+              fill="var(--ifm-background-color)"
+              stroke={r.color}
+              strokeWidth={2}
+            >
               <title>
                 {r.model} · {r.dim} · bare {r.bare.toFixed(1)}%
               </title>
@@ -434,8 +442,7 @@ function Legend({ runs }: { runs: Run[] }): ReactElement {
  *  behavior. */
 function judgeValidationFor(j: JudgeRecord): JudgeValidation | undefined {
   return validations.find(
-    (v) =>
-      v.provider === j.provider && v.model === j.model && v.rubric_digest === j.rubric_digest,
+    (v) => v.provider === j.provider && v.model === j.model && v.rubric_digest === j.rubric_digest,
   );
 }
 function judgePublishable(v: JudgeValidation | undefined): boolean {
@@ -456,7 +463,9 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
     <section>
       <h2>
         Target {e.target}{" "}
-        <span style={{ fontWeight: 400, fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}>
+        <span
+          style={{ fontWeight: 400, fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}
+        >
           measured {e.date} · {e.corpus} · corpus <code>{e.digest}</code>
         </span>
       </h2>
@@ -490,7 +499,10 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
                   const d = r.dimensions?.find((x) => x.dimension === dim);
                   const l = d ? lift(d) : null;
                   return (
-                    <td key={dim} style={{ ...cell, color: l != null && l < 0 ? "#d65a5a" : undefined }}>
+                    <td
+                      key={dim}
+                      style={{ ...cell, color: l != null && l < 0 ? "#d65a5a" : undefined }}
+                    >
                       {l != null ? pp(l) : "—"}
                     </td>
                   );
@@ -509,14 +521,20 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
 
       <h3 style={{ marginTop: 24 }}>Per-trap breakdown</h3>
       <p style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}>
-        Adherence with context, by the kind of trap the fixture set. A model can hold the terms
-        and still translate the product name; this is where that shows.
+        Adherence with context, by the kind of trap the fixture set. A model can hold the terms and
+        still translate the product name; this is where that shows.
       </p>
       {plotted.map((r) => (
         <div key={label(r)} style={{ marginBottom: 20 }}>
           <h4 style={{ marginBottom: 4 }}>
             {label(r)}{" "}
-            <span style={{ fontWeight: 400, fontSize: "0.82rem", color: "var(--ifm-color-emphasis-600)" }}>
+            <span
+              style={{
+                fontWeight: 400,
+                fontSize: "0.82rem",
+                color: "var(--ifm-color-emphasis-600)",
+              }}
+            >
               {r.provider} · {r.repeat}× per variant
             </span>
           </h4>
@@ -551,12 +569,21 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
               })}
             </tbody>
           </table>
-          {(r.bare?.missing || r.bare?.untranslated || r.steered?.missing || r.steered?.untranslated) ? (
-            <p style={{ fontSize: "0.82rem", color: "var(--ifm-color-emphasis-700)", margin: "6px 0 0" }}>
-              Excluded from adherence: bare {r.bare?.missing ?? 0} missing / {r.bare?.untranslated ?? 0}{" "}
-              echoed, steered {r.steered?.missing ?? 0} missing / {r.steered?.untranslated ?? 0} echoed.
-              An echoed segment would trivially &ldquo;pass&rdquo; every do-not-translate check, so it is
-              counted here instead.
+          {r.bare?.missing ||
+          r.bare?.untranslated ||
+          r.steered?.missing ||
+          r.steered?.untranslated ? (
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--ifm-color-emphasis-700)",
+                margin: "6px 0 0",
+              }}
+            >
+              Excluded from adherence: bare {r.bare?.missing ?? 0} missing /{" "}
+              {r.bare?.untranslated ?? 0} echoed, steered {r.steered?.missing ?? 0} missing /{" "}
+              {r.steered?.untranslated ?? 0} echoed. An echoed segment would trivially
+              &ldquo;pass&rdquo; every do-not-translate check, so it is counted here instead.
             </p>
           ) : null}
         </div>
@@ -568,8 +595,8 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
             .filter((r) => r.unmeasured)
             .map((r) => label(r))
             .join(", ")}
-          : the provider throttled the requests, so nothing was measured. Scored as a hole, not as 0%
-          adherence.
+          : the provider throttled the requests, so nothing was measured. Scored as a hole, not as
+          0% adherence.
         </p>
       )}
       {e.runs.some((r) => r.error && !r.unmeasured) && (
@@ -589,14 +616,17 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
             const v = judgeValidationFor(j);
             if (!judgePublishable(v)) {
               return (
-                <p key={label(r)} style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}>
+                <p
+                  key={label(r)}
+                  style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}
+                >
                   <strong>{label(r)}</strong>: judged by {j.provider}:{j.model}, but the scores are{" "}
                   <strong>not published</strong> —{" "}
                   {v
                     ? `measured judge–human agreement (kappa ${v.kappa.toFixed(2)} over ${v.items} verdicts) is below the bar (kappa ≥ ${MIN_JUDGE_KAPPA} over ≥ ${MIN_JUDGE_ITEMS})`
                     : "this judge's agreement with human labels has not been measured for this rubric"}
-                  . Publishing an unvalidated judge&rsquo;s scores would report the judge&rsquo;s opinion
-                  as the model&rsquo;s behavior.
+                  . Publishing an unvalidated judge&rsquo;s scores would report the judge&rsquo;s
+                  opinion as the model&rsquo;s behavior.
                 </p>
               );
             }
@@ -613,11 +643,13 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
                   </>
                 )}{" "}
                 <span style={{ color: "var(--ifm-color-emphasis-600)" }}>
-                  (judge {j.provider}:{j.model}, agreement kappa {v!.kappa.toFixed(2)} over {v!.items}{" "}
-                  verdicts{v!.targets?.length ? `, human-validated on ${v!.targets.join(", ")}` : ""}
+                  (judge {j.provider}:{j.model}, agreement kappa {v!.kappa.toFixed(2)} over{" "}
+                  {v!.items} verdicts
+                  {v!.targets?.length ? `, human-validated on ${v!.targets.join(", ")}` : ""}
                   {v!.targets?.length && !v!.targets.includes(r.target)
                     ? ` — trusted, not validated, on ${r.target}`
-                    : ""})
+                    : ""}
+                  )
                 </span>
               </p>
             );
@@ -698,9 +730,9 @@ export default function ContextEval(): ReactElement {
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Context eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
-          kapi steers model output by injecting context: a terms store that mandates renderings, a brand
-          voice guide, an instruction. This page measures whether each model actually follows that
-          context — not whether it translates well, which is a different question. The sibling{" "}
+          kapi steers model output by injecting context: a terms store that mandates renderings, a
+          brand voice guide, an instruction. This page measures whether each model actually follows
+          that context — not whether it translates well, which is a different question. The sibling{" "}
           <Link to="/batch-eval">batch eval</Link> measures structural integrity and cost; this one
           measures obedience.
         </p>
@@ -714,8 +746,8 @@ export default function ContextEval(): ReactElement {
           (term-check, dnt-check, voice-vocab-check, pattern-check). Two numbers fall out per
           dimension: <strong>absolute adherence</strong> (did the steered output satisfy the
           requirement) and <strong>lift</strong> (steered minus bare — how much the context moved
-          the model). Lift is the decision-relevant one: a model with high absolute adherence but
-          no lift already &ldquo;knew&rdquo; it, and our context earns no credit. A model with high
+          the model). Lift is the decision-relevant one: a model with high absolute adherence but no
+          lift already &ldquo;knew&rdquo; it, and our context earns no credit. A model with high
           lift is genuinely <em>steerable</em>, which is what context injection is buying.
         </p>
         <p>
@@ -723,10 +755,10 @@ export default function ContextEval(): ReactElement {
           natural rendering differs from the mandate, a product name that reads like a common noun,
           casual English tempting an informal register, a source that ends in the exclamation mark
           the instruction forbids. There are distractors (a lowercase &ldquo;compass&rdquo; that is
-          a real compass and must be translated) and declared-winner conflicts (the terms store pins a
-          compound containing a forbidden word — the pin wins, and the scorer knows it). Results are
-          reported <strong>per dimension</strong> — terminology, voice, instruction — never as one
-          collapsed score: a model can be excellent at terminology and poor at voice, and the
+          a real compass and must be translated) and declared-winner conflicts (the terms store pins
+          a compound containing a forbidden word — the pin wins, and the scorer knows it). Results
+          are reported <strong>per dimension</strong> — terminology, voice, instruction — never as
+          one collapsed score: a model can be excellent at terminology and poor at voice, and the
           collapsed number would hide the thing you would act on.
         </p>
         <p>
@@ -749,7 +781,8 @@ export default function ContextEval(): ReactElement {
             <p>
               {f.bestLift && (
                 <>
-                  The most steerable model measured is <strong>{f.bestLift.model}</strong> ({f.bestLift.target}
+                  The most steerable model measured is <strong>{f.bestLift.model}</strong> (
+                  {f.bestLift.target}
                   ), which the context moved by <strong>{pp(f.bestLift.lift)}</strong> overall.{" "}
                 </>
               )}
@@ -766,7 +799,10 @@ export default function ContextEval(): ReactElement {
                   weight at this corpus, a cost with no measured return.
                 </>
               ) : (
-                <>Every measured model shows positive lift — the context earns its tokens everywhere.</>
+                <>
+                  Every measured model shows positive lift — the context earns its tokens
+                  everywhere.
+                </>
               )}
               {f.weakestDim && (
                 <>

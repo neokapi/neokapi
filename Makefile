@@ -275,6 +275,18 @@ check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is trac
 check-gofmt: ## Guard: every tracked .go file is gofmt-clean (gofmt -l -s); `make fmt` fixes
 	@./scripts/check-gofmt.sh
 
+# Not in `lint`: this one needs the pnpm workspace installed, so it runs in the
+# frontend CI job (which always runs on a pull request and has already done
+# `vp install`) rather than in the toolchain-free repo-guards job.
+#
+# The contract it protects is `vp check --fix` before committing frontend work.
+# A tree that is not already a fixed point of its own formatter makes that
+# contract rewrite files the contributor never touched, and the reviewer's job
+# becomes separating the two. Nothing else notices: the drift is committed
+# state, so every other check is green with it in place.
+check-fmt-fixed-point: ## Guard: the tree is already a fixed point of `vp fmt` (needs `vp install`)
+	@vp fmt . --check
+
 workspace-paths: ## Print the resolved locations outside this repo (see docs/internals/workspace-paths.md)
 	@echo "NEOKAPI_WORKSPACE_DIR = $(NEOKAPI_WORKSPACE_DIR)"
 	@echo "NEOKAPI_CHECKOUTS_DIR = $(NEOKAPI_CHECKOUTS_DIR)"
@@ -519,6 +531,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# Guard against vite-plus / vite-alias version drift before any vp check runs,
 	# so the failure is an actionable one-liner rather than a puzzling TS2321.
 	bash scripts/audit-vite-alias.sh
+	# The tree must already be formatted the way `vp check --fix` formats it —
+	# see check-fmt-fixed-point. ~0.4s over the whole workspace.
+	$(MAKE) --no-print-directory check-fmt-fixed-point
 	# bowrain/packages/ui and bowrain/apps/web consume @neokapi/{ui,flow-editor},
 	# which import `@neokapi/i18n-react/runtime` (a built ./dist subpath export).
 	# Build neokapi-i18n first so that subpath resolves (mirrors ci-kapi-desktop-frontend).

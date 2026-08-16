@@ -120,17 +120,13 @@ function KineticStack({
         // The receded (passed) verbs shrink to light gray; the active verb is
         // large + dark; upcoming verbs are dim placeholders. SHIP, once active,
         // resolves large + green.
-        const state = isShip && shipActive ? "ship" : isActive ? "active" : passed ? "passed" : "upcoming";
+        const state =
+          isShip && shipActive ? "ship" : isActive ? "active" : passed ? "passed" : "upcoming";
 
         if (isShip && shipActive && climaxLangs) {
           // Phase 2: SHIP resolves as stacked language forms.
           return (
-            <motion.div
-              key={verb}
-              className={styles.shipLangGroup}
-              layout
-              transition={SOFT_SPRING}
-            >
+            <motion.div key={verb} className={styles.shipLangGroup} layout transition={SOFT_SPRING}>
               {climaxLangs.map((lang, k) => (
                 <motion.span
                   key={lang}
@@ -162,12 +158,7 @@ function KineticStack({
             layout
             transition={SOFT_SPRING}
           >
-            <motion.span
-              className={styles.verb}
-              data-state={state}
-              layout
-              transition={SPRING}
-            >
+            <motion.span className={styles.verb} data-state={state} layout transition={SPRING}>
               {verb}
               <AnimatePresence>
                 {isShip && shipActive && (
@@ -472,10 +463,9 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
         aria-label="Open the interactive Kapi showcase"
       >
         <span className={styles.srOnly}>
-          A brand guide, shaped and checked: its voice, terms, and tone are
-          defined, body content is written, each rule passes review, and it ships
-          on brand — then goes multilingual (de, ja, fr) and ships in every
-          language.
+          A brand guide, shaped and checked: its voice, terms, and tone are defined, body content is
+          written, each rule passes review, and it ships on brand — then goes multilingual (de, ja,
+          fr) and ships in every language.
         </span>
         <StaticFrame />
         <div className={styles.ctaRow}>
@@ -521,12 +511,11 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
       aria-label="Open the interactive Kapi showcase — verbs act on a live brand guide that ships on brand, in every language"
     >
       <span className={styles.srOnly}>
-        A self-playing loop. First, one language: Shape, Write, Check, Ship. A
-        brand guide's voice, terms, and tone are defined, body content is
-        written, each rule passes review, and it ships on brand. Then going
-        multilingual: Read, Prep, Recycle, Translate, Check — the guide gains a
-        de, ja, fr switcher, a rule localizes, and Ship resolves in every
-        language. The loop repeats.
+        A self-playing loop. First, one language: Shape, Write, Check, Ship. A brand guide's voice,
+        terms, and tone are defined, body content is written, each rule passes review, and it ships
+        on brand. Then going multilingual: Read, Prep, Recycle, Translate, Check — the guide gains a
+        de, ja, fr switcher, a rule localizes, and Ship resolves in every language. The loop
+        repeats.
       </span>
 
       <MotionConfig reducedMotion="user">
@@ -543,11 +532,7 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <KineticStack
-                    verbs={CONTENT_VERBS}
-                    active={activeVerb}
-                    climaxLabel="on brand"
-                  />
+                  <KineticStack verbs={CONTENT_VERBS} active={activeVerb} climaxLabel="on brand" />
                 </motion.div>
               ) : (
                 <motion.div

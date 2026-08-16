@@ -24,7 +24,11 @@ const THRESHOLDS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5];
  * `visible` is the height of the intersection, `sectionHeight` the section's own
  * height and `viewportHeight` the visible height of the page.
  */
-export function isOnScreen(visible: number, sectionHeight: number, viewportHeight: number): boolean {
+export function isOnScreen(
+  visible: number,
+  sectionHeight: number,
+  viewportHeight: number,
+): boolean {
   if (visible <= 0) return false;
   return visible >= VISIBLE_FRACTION * Math.min(sectionHeight, viewportHeight);
 }

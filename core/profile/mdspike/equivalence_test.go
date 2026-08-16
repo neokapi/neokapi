@@ -77,7 +77,7 @@ func TestMarkdownFormValidates(t *testing.T) {
 
 // TestHouseRulesAreDuplicatedToday documents the defect the inheritance answers,
 // from the committed files rather than from assertion: the two profiles carry
-// the same four prohibitions verbatim, and one of the four has already drifted
+// the same five prohibitions verbatim, and one of the five has already drifted
 // in description while the regex stayed in step.
 //
 // A drifted description is not cosmetic. RenderVoiceGuide sends the description,
@@ -108,8 +108,8 @@ func TestHouseRulesAreDuplicatedToday(t *testing.T) {
 		}
 	}
 
-	require.Len(t, shared, 4, "the two committed profiles share four prohibitions verbatim")
-	assert.Len(t, drifted, 1, "and one of the four has already drifted in description")
+	require.Len(t, shared, 5, "the two committed profiles share five prohibitions verbatim")
+	assert.Len(t, drifted, 1, "and one of the five has already drifted in description")
 	for _, regex := range drifted {
 		t.Logf("drifted prohibition %s:\n  voice.yaml:                  %q\n  profiles/bowrain/voice.yaml: %q", regex, a[regex], b[regex])
 	}
@@ -143,27 +143,27 @@ func TestCommittedProfileSurvivesAWriteBack(t *testing.T) {
 }
 
 // TestInheritanceDeclaresHouseRulesOnce shows the resolved profile carrying the
-// four inherited prohibitions plus the one the child declares, in that order,
+// five inherited prohibitions plus the one the child declares, in that order,
 // with the child's file holding only its own rule.
 func TestInheritanceDeclaresHouseRulesOnce(t *testing.T) {
 	house := loadMarkdown(t, "house.md", mdspike.Options{})
 	child := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
 
-	require.Len(t, house.Style.ProhibitedPatterns, 4)
-	require.Len(t, child.Style.ProhibitedPatterns, 5)
+	require.Len(t, house.Style.ProhibitedPatterns, 5)
+	require.Len(t, child.Style.ProhibitedPatterns, 6)
 
 	for i, pat := range house.Style.ProhibitedPatterns {
 		assert.Equal(t, pat, child.Style.ProhibitedPatterns[i], "inherited rule %d keeps its position", i)
 	}
 	assert.Equal(t,
 		`\b(enterprise-grade|best-in-class|world-class|trusted by)\b`,
-		child.Style.ProhibitedPatterns[4].Regex,
+		child.Style.ProhibitedPatterns[5].Regex,
 		"the child's own rule comes last")
 
 	// The house forbidden terms are inherited whole and the child adds one.
-	require.Len(t, house.Vocabulary.ForbiddenTerms, 3)
-	require.Len(t, child.Vocabulary.ForbiddenTerms, 4)
-	assert.Equal(t, "solution", child.Vocabulary.ForbiddenTerms[3].Term)
+	require.Len(t, house.Vocabulary.ForbiddenTerms, 2)
+	require.Len(t, child.Vocabulary.ForbiddenTerms, 3)
+	assert.Equal(t, "solution", child.Vocabulary.ForbiddenTerms[2].Term)
 
 	// Style enums the house sets and the child does not restate survive.
 	assert.True(t, child.Style.ActiveVoice)
@@ -181,16 +181,16 @@ func TestRestatingAnInheritedRuleDoesNotDoubleIt(t *testing.T) {
 	p, err := mdspike.LoadFS(context.Background(), fsys, "restates-house-rule.md", mdspike.Options{})
 	require.NoError(t, err)
 
-	// Four house rules, none duplicated, and the restated one carries the
+	// Five house rules, none duplicated, and the restated one carries the
 	// child's severity rather than the house's.
-	require.Len(t, p.Style.ProhibitedPatterns, 4)
+	require.Len(t, p.Style.ProhibitedPatterns, 5)
 	for _, pat := range p.Style.ProhibitedPatterns {
 		if strings.Contains(pat.Regex, "powerful") {
 			assert.Equal(t, "critical", pat.Severity, "the child tightened the inherited severity")
 		}
 	}
 
-	require.Len(t, p.Vocabulary.ForbiddenTerms, 3)
+	require.Len(t, p.Vocabulary.ForbiddenTerms, 2)
 	var simply profile.TermRule
 	for _, tr := range p.Vocabulary.ForbiddenTerms {
 		if tr.Term == "simply" {

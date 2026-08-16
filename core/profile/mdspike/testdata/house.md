@@ -18,6 +18,9 @@ style:
     - regex: '(^|[^\w.-])\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
       description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
       severity: critical
+    - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
+      description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
+      severity: major
 vocabulary:
   forbidden_terms:
     - term: simply
@@ -26,9 +29,6 @@ vocabulary:
     - term: easily
       replacement: ""
       severity: minor
-    - term: magic
-      replacement: ""
-      severity: major
 ---
 
 # neokapi house rules
