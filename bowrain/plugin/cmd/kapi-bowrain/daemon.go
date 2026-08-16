@@ -38,6 +38,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
@@ -427,7 +429,7 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 // correctly, as "this push makes no claim about the declared context". The
 // result was a push that carried every block and reconciled no collections.
 func declareContext(ctx context.Context, entry *projectEntry, dryRun bool) error {
-	pushCtx, _, err := commands.BuildPushContext(ctx, entry.project, dryRun)
+	pushCtx, _, err := transfer.BuildPushContext(ctx, app, entry.project, dryRun)
 	if err != nil {
 		return fmt.Errorf("resolve declared context: %w", err)
 	}

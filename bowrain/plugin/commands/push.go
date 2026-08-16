@@ -1,15 +1,14 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/project"
-	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
 
@@ -45,98 +44,6 @@ the structure without the governance.`,
 	RunE: runPush,
 }
 
-// PushResult holds the structured result of a push operation.
-type PushResult struct {
-	BlocksPushed   int
-	BlocksUploaded int
-	WordCount      int
-	FilesScanned   int
-	PushID         string
-	DryRun         bool
-	UpToDate       bool
-
-	// AssetsPushed/AssetsFailed/AssetErrors carry the media half of the push.
-	// The failures are carried, not folded into the success count, because an
-	// asset that never arrived is content the reader will not see.
-	AssetsPushed int
-	AssetsFailed int
-	AssetErrors  []string
-
-	// Ingest is what the server did with the upload: applied, queued, or
-	// unknown. A failed ingest never reaches here — it is an error from the
-	// connector's Push, which also leaves the sync cache unwritten.
-	Ingest string
-
-	// Brand reports what the governance carried in the push amounted to. Nil
-	// when the project binds no voice.
-	Brand *PushBrandResult
-
-	// UndeclaredCollections names recipe-owned collections the server holds
-	// that this push no longer declares. Reported, never deleted.
-	UndeclaredCollections []string
-}
-
-// doPush executes the core push logic and returns structured results.
-//
-// The context content type is built and attached here rather than at each call
-// site, so `kapi push` and both `kapi up` venues carry the project's declared
-// structure and governance by construction — there is no push path that moves
-// content while leaving the collections it belongs to behind.
-func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*PushResult, *bconn.BowrainSourceConnector, error) {
-	proj, err := project.FindProject("")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Apply --stream flag override (takes priority over config/auto-detect).
-	if pushStream != "" {
-		conn.SetStream(pushStream)
-	}
-
-	pushCtx, brand, err := BuildPushContext(ctx, proj, opts.DryRun)
-	if err != nil {
-		conn.Close()
-		return nil, nil, err
-	}
-	conn.SetPushContext(pushCtx)
-
-	result, err := conn.Push(ctx, connector.PushOptions{
-		Paths:  args,
-		Force:  opts.Force,
-		DryRun: opts.DryRun,
-	})
-	if err != nil {
-		conn.Close()
-		return nil, nil, err
-	}
-
-	pr := &PushResult{
-		BlocksPushed:          result.BlocksPushed,
-		BlocksUploaded:        result.BlocksUploaded,
-		WordCount:             result.WordCount,
-		FilesScanned:          result.FilesScanned,
-		PushID:                result.PushID,
-		Brand:                 brand,
-		UndeclaredCollections: result.UndeclaredCollections,
-		AssetsPushed:          result.AssetsPushed,
-		AssetsFailed:          result.AssetsFailed,
-		AssetErrors:           result.AssetErrors,
-		Ingest:                result.Ingest,
-	}
-	if opts.DryRun {
-		pr.DryRun = true
-	} else if result.BlocksPushed == 0 {
-		pr.UpToDate = true
-	}
-
-	return pr, conn, nil
-}
-
 func runPush(cmd *cobra.Command, args []string) error {
 	// Run pre-push automations.
 	if proj := findProjectForAutomations(); proj != nil {
@@ -145,10 +52,12 @@ func runPush(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{
+	pr, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{
+		Paths:  args,
 		Force:  pushForce,
 		DryRun: pushDryRun,
-	}, args)
+		Stream: pushStream,
+	})
 	if err != nil {
 		return err
 	}

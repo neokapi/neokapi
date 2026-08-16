@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -84,7 +85,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 			"context hash and the server reads that as 'makes no claim'")
 
 	// And the context it declares is the recipe's, not an empty fold.
-	pushCtx, _, err := commands.BuildPushContext(t.Context(), proj, false)
+	pushCtx, _, err := transfer.BuildPushContext(t.Context(), app, proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Len(t, pushCtx.Entries, 2, "one entry per named collection")

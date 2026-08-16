@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	clivenue "github.com/neokapi/neokapi/cli/venue"
+
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
@@ -62,7 +64,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	serverURL := resolveServerURLOrDefault(connectServer)
+	serverURL := clivenue.ResolveServerURLOrDefault(connectServer)
 
 	if recipe.Defaults.SourceLanguage == "" {
 		recipe.Defaults.SourceLanguage = "en"

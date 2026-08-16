@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/convergence"
-	"github.com/neokapi/neokapi/core/venue/connector"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/spf13/cobra"
@@ -107,13 +108,13 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
+	pr, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{})
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
 	// The declared context — collections, coordinates, brand voice — travelled
-	// with the push itself; doPush reports what its governance amounted to.
+	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
 		cres, cerr := conceptPush(cmd.Context(), proj, false)
@@ -202,13 +203,13 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := doPush(ctx, connector.PushOptions{}, nil)
+	pr, conn, err := transfer.Push(ctx, app, transfer.PushOptions{})
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
 	// The declared context — collections, coordinates, brand voice — travelled
-	// with the push itself; doPush reports what its governance amounted to.
+	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
 		cres, cerr := conceptPush(ctx, proj, false)
@@ -298,7 +299,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pulling results...")
 	}
-	if _, err := doPull(ctx, conn, nil, false, false); err != nil {
+	if _, err := transfer.Pull(ctx, app, conn, nil, false, false); err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
 	if proj, perr := project.FindProject(""); perr == nil {
@@ -355,7 +356,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 // stream is the caller's NDJSON document, so this record shares the run's
 // sticky-error accounting; a nil stream gets one of its own (the local-venue
 // push, which happens after the local run has closed its stream).
-func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *PushBrandResult, jsonOut bool) error {
+func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *transfer.PushBrandResult, jsonOut bool) error {
 	if res == nil {
 		return nil
 	}

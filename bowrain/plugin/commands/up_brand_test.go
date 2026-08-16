@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
@@ -34,22 +36,22 @@ func brandReportCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 	tests := []struct {
 		name string
-		res  *PushBrandResult
+		res  *transfer.PushBrandResult
 		want string
 	}{
 		{
 			name: "carried with the push",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "carried"},
+			res:  &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"},
 			want: "Brand profile: \"Acme Voice\" carried to the workspace brand hub\n",
 		},
 		{
 			name: "a dry run says what it would carry",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "would-push"},
+			res:  &transfer.PushBrandResult{Name: "Acme Voice", Action: "would-push"},
 			want: "Would push brand profile \"Acme Voice\" to the workspace brand hub\n",
 		},
 		{
 			name: "--no-brand degrades to a skipped note",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"},
+			res:  &transfer.PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"},
 			want: "Brand profile: \"Acme Voice\" not pushed (--no-brand)\n",
 		},
 	}
@@ -67,7 +69,7 @@ func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 // NDJSON line with the same field names `kapi push --json` uses.
 func TestReportBrandPush_JSONLine(t *testing.T) {
 	cmd, stdout, stderr := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 
 	assert.Empty(t, stderr.String(), "JSON mode writes nothing to stderr")
 	var line map[string]any
@@ -83,7 +85,7 @@ func TestReportBrandPush_JSONLine(t *testing.T) {
 // push still surfaces its reason on the NDJSON line.
 func TestReportBrandPush_JSONSkippedCarriesReason(t *testing.T) {
 	cmd, stdout, _ := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"}, true))
 
 	var line map[string]any
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &line))
@@ -113,12 +115,12 @@ func TestReportBrandPush_QuietSuppressesTextNotJSON(t *testing.T) {
 	t.Cleanup(func() { app = prev })
 
 	cmd, stdout, stderr := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, false))
+	require.NoError(t, reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, false))
 	assert.Empty(t, stderr.String(), "quiet suppresses the text footer")
 	assert.Empty(t, stdout.String())
 
 	cmd, stdout, _ = brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 	assert.NotEmpty(t, stdout.String(), "the NDJSON line is structured output, not chatter")
 }
 
@@ -149,7 +151,7 @@ func TestReportBrandPush_ReportsTruncation(t *testing.T) {
 	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/out.ndjson", Err: syscall.ENOSPC}}
 	cmd.SetOut(w)
 
-	err := reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true)
+	err := reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, true)
 	require.Error(t, err, "a record the consumer never received must not be reported as sent")
 	assert.ErrorIs(t, err, syscall.ENOSPC)
 }
@@ -161,7 +163,7 @@ func TestReportBrandPush_ClosedConsumerIsQuiet(t *testing.T) {
 	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/dev/stdout", Err: syscall.EPIPE}}
 	cmd.SetOut(w)
 
-	assert.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true),
+	assert.NoError(t, reportBrandPush(cmd, nil, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, true),
 		"`kapi up --json | head` must not fail the push")
 }
 
@@ -175,7 +177,7 @@ func TestReportBrandPush_SharesTheRunStream(t *testing.T) {
 	cmd.SetOut(w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.Error(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
+	require.Error(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 	require.Error(t, stream.Report("kapi up --json"),
 		"the shared stream remembers the loss, so the run's own check reports it too")
 }

@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -48,7 +50,7 @@ func TestServerUpJSONDocument_ReportsTruncationOnce(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 6) // the 4th write fails; the rest are lost
 
 	err := cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1})
@@ -66,7 +68,7 @@ func TestServerUpJSONDocument_ClosedConsumerExitsCleanly(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 6)
 
 	require.NoError(t, cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1}),
@@ -82,7 +84,7 @@ func TestServerUpJSONDocument_CompleteStreamIsUnchanged(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 2)
 	require.NoError(t, cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1}))
 

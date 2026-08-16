@@ -4,6 +4,10 @@ import (
 	"errors"
 	"strings"
 
+	clivenue "github.com/neokapi/neokapi/cli/venue"
+
+	"github.com/neokapi/neokapi/host/venue/config"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/host/venue/client"
@@ -77,13 +81,13 @@ var workspaceCreateCmd = &cobra.Command{
 
 // workspaceAuth resolves the server URL and bearer token, requiring login.
 func workspaceAuth() (serverURL, token string, err error) {
-	stored, err := loadAuth()
+	stored, err := config.LoadAuth()
 	if err != nil || stored == nil {
 		return "", "", errors.New("not authenticated — run: kapi auth login")
 	}
 	// resolveServerURLFrom already prefers the stored login's server; the
 	// hosted default only applies when nothing is configured anywhere.
-	serverURL = resolveServerURLOrDefault(workspaceServerURL)
+	serverURL = clivenue.ResolveServerURLOrDefault(workspaceServerURL)
 	return serverURL, stored.AccessToken, nil
 }
 

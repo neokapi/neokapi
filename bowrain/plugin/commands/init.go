@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	clivenue "github.com/neokapi/neokapi/cli/venue"
+
 	"github.com/charmbracelet/huh"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
@@ -107,7 +109,7 @@ func existingRecipePath(dir string) (string, error) {
 // resolveServerURL resolves the server URL using the init --server flag as the
 // explicit override, then falling back to the shared resolution chain.
 func resolveServerURL() string {
-	return resolveServerURLFrom(initServerURL)
+	return clivenue.ResolveServerURLFrom(initServerURL)
 }
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
@@ -179,8 +181,8 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 
 	// If --project is specified, use it directly (requires auth).
 	if initProjectID != "" {
-		serverURL := resolveServerURLOrDefault(initServerURL)
-		auth, err := loadAuth()
+		serverURL := clivenue.ResolveServerURLOrDefault(initServerURL)
+		auth, err := config.LoadAuth()
 		if err != nil {
 			return nil, errors.New("not authenticated with server (run: kapi auth login)")
 		}
@@ -195,7 +197,7 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 
 	// Anonymous mode: --anonymous or --email.
 	if initAnonymous || initEmail != "" {
-		serverURL := resolveServerURLOrDefault(initServerURL)
+		serverURL := clivenue.ResolveServerURLOrDefault(initServerURL)
 		projectName := initProjectName
 		if projectName == "" {
 			projectName = filepath.Base(cwd)
@@ -205,7 +207,7 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 
 	// Default non-interactive: use auth if available, otherwise set server URL if provided.
 	serverURL := resolveServerURL()
-	auth, err := loadAuth()
+	auth, err := config.LoadAuth()
 	if err != nil {
 		// No auth available — set server URL in the recipe if provided, so
 		// the project is pre-configured for later auth + push.
@@ -229,8 +231,8 @@ func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, err
 	// Check if already logged in. The wizard's server-touching choices
 	// (sign in, email claim, anonymous) target the hosted service unless a
 	// server is configured; "Local only" ignores it.
-	stored, authErr := loadAuth()
-	serverURL := resolveServerURLOrDefault(initServerURL)
+	stored, authErr := config.LoadAuth()
+	serverURL := clivenue.ResolveServerURLOrDefault(initServerURL)
 
 	if authErr == nil && stored.ServerURL != "" {
 		// Already logged in — select workspace first, then project details.
