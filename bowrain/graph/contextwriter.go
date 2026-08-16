@@ -241,6 +241,7 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 	seenBlocks := map[string]bool{}
 	for _, r := range records {
 		u := contextgraph.UnitState{
+			Document:    r.ItemName,
 			Unit:        r.Unit,
 			Variant:     r.Variant,
 			Status:      r.Status,

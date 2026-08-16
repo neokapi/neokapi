@@ -121,7 +121,7 @@ Node labels:
 | --- | --- | --- |
 | `block` | a unit of source content, keyed by its content key | instance |
 | `collection` | a content collection, keyed by its label | instance |
-| `unit_state` | one unit's state in one locale variant | instance |
+| `unit_state` | one unit's state in one document, in one locale variant | instance |
 | `concept` | a terminology concept | vocabulary |
 | `coordinate` | a point in the context space — a `(profile, channel)` pair | vocabulary |
 
@@ -182,9 +182,13 @@ there will not be one: projects relate by co-occurrence through the vocabulary
 they share.
 
 Within a scope, identity is **durable** — a block is its content key
-([F-03](../foundations/f-03-identity.md)), a unit state is its unit and variant —
-not a reader's positional id, so a re-parse that renumbers a document rewrites
-the same rows rather than orphaning them.
+([F-03](../foundations/f-03-identity.md)), a unit state is its document, unit and
+variant — not a reader's positional id, so a re-parse that renumbers a document
+rewrites the same rows rather than orphaning them. The document is part of a unit
+state's identity for the reason [C-04](c-04-unit-state-and-decisions.md) gives:
+a unit id is unique inside its document and nowhere wider, so without it two
+pages of one collection are one node and the decision written last answers for
+both.
 
 Changing a scope value changes the id, so **a rename is a deterministic
 re-key**. That is safe because a writer clears the scope it is about to write in

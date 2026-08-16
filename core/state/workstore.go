@@ -111,14 +111,7 @@ func (m *memWork) persist() error {
 	for _, mu := range m.units {
 		f.Units = append(f.Units, mu)
 	}
-	sort.Slice(f.Units, func(i, j int) bool {
-		if f.Units[i].Unit.Unit != f.Units[j].Unit.Unit {
-			return f.Units[i].Unit.Unit < f.Units[j].Unit.Unit
-		}
-		ki, _ := f.Units[i].Unit.Variant.MarshalText()
-		kj, _ := f.Units[j].Unit.Variant.MarshalText()
-		return string(ki) < string(kj)
-	})
+	sort.Slice(f.Units, func(i, j int) bool { return unitLess(f.Units[i].Unit, f.Units[j].Unit) })
 	if len(m.docs) > 0 {
 		f.Docs = m.docs
 	}
@@ -164,6 +157,37 @@ CREATE TABLE IF NOT EXISTS document (
     key  TEXT NOT NULL PRIMARY KEY,
     path TEXT NOT NULL
 );`,
+}, {
+	Version:     3,
+	Description: "unit identity carries its document",
+	// The document belongs in the key. A unit id is unique inside its document
+	// and nowhere wider, so (unit, variant) made two documents that share an id
+	// one row, and the second decision recorded overwrote the first.
+	//
+	// It rebuilds rather than resets: the old table holds at most one row per
+	// (unit, variant) and every row already carries the scope it belongs to, so
+	// copying across is lossless and by construction cannot collide. A reset
+	// would be cheap for everything the committed record reproduces and would
+	// throw away the one thing it does not — a decision staged and not yet
+	// committed, whose only copy is here.
+	SQL: `
+CREATE TABLE unit_state_scoped (
+    scope        TEXT NOT NULL DEFAULT '',
+    unit         TEXT NOT NULL,
+    variant      TEXT NOT NULL,
+    content_hash TEXT NOT NULL DEFAULT '',
+    context_hash TEXT NOT NULL DEFAULT '',
+    payload      TEXT NOT NULL,
+    staged       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (scope, unit, variant)
+);
+INSERT INTO unit_state_scoped (scope, unit, variant, content_hash, context_hash, payload, staged)
+    SELECT scope, unit, variant, content_hash, context_hash, payload, staged FROM unit_state;
+DROP TABLE unit_state;
+ALTER TABLE unit_state_scoped RENAME TO unit_state;
+CREATE INDEX IF NOT EXISTS unit_state_content ON unit_state(content_hash);
+CREATE INDEX IF NOT EXISTS unit_state_context ON unit_state(scope, context_hash);
+CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged = 1;`,
 }}
 
 // The store runs its statements on ctx: a WorkStore is a
@@ -299,8 +323,8 @@ func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
 	variant, _ := k.Variant.MarshalText()
 	var payload string
 	err := w.db.QueryRowContext(ctx,
-		`SELECT payload FROM unit_state WHERE unit = ? AND variant = ?`,
-		k.Unit, string(variant)).Scan(&payload)
+		`SELECT payload FROM unit_state WHERE scope = ? AND unit = ? AND variant = ?`,
+		k.Scope, k.Unit, string(variant)).Scan(&payload)
 	if err != nil {
 		return UnitState{}, false
 	}
@@ -331,13 +355,13 @@ func (w *WorkStore) put(ctx context.Context, u UnitState, staged bool) error {
 		flag = 1
 	}
 	_, err = w.db.ExecContext(ctx, `
-INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
+INSERT INTO unit_state (scope, unit, variant, content_hash, context_hash, payload, staged)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(unit, variant) DO UPDATE SET
-    scope = excluded.scope, content_hash = excluded.content_hash,
+ON CONFLICT(scope, unit, variant) DO UPDATE SET
+    content_hash = excluded.content_hash,
     context_hash = excluded.context_hash, payload = excluded.payload,
     staged = MAX(unit_state.staged, excluded.staged)`,
-		u.Unit, string(variant), u.Scope, u.ContentHash, u.ContextHash, string(payload), flag)
+		u.Scope, u.Unit, string(variant), u.ContentHash, u.ContextHash, string(payload), flag)
 	if err != nil {
 		return fmt.Errorf("state: put unit: %w", err)
 	}
@@ -354,7 +378,9 @@ func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 		return w.mem.persist()
 	}
 	variant, _ := k.Variant.MarshalText()
-	_, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE unit = ? AND variant = ?`, k.Unit, string(variant))
+	_, err := w.db.ExecContext(ctx,
+		`DELETE FROM unit_state WHERE scope = ? AND unit = ? AND variant = ?`,
+		k.Scope, k.Unit, string(variant))
 	if err != nil {
 		return fmt.Errorf("state: delete unit: %w", err)
 	}
@@ -371,7 +397,7 @@ func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
 		sortUnits(out)
 		return out, nil
 	}
-	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY unit, variant`)
+	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY scope, unit, variant`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list units: %w", err)
 	}
@@ -398,7 +424,7 @@ func (w *WorkStore) Staged(ctx context.Context) ([]UnitState, error) {
 		return out, nil
 	}
 	rows, err := w.db.QueryContext(ctx,
-		`SELECT payload FROM unit_state WHERE staged = 1 ORDER BY unit, variant`)
+		`SELECT payload FROM unit_state WHERE staged = 1 ORDER BY scope, unit, variant`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list staged: %w", err)
 	}
@@ -551,15 +577,23 @@ func shardOf(u UnitState) string {
 	return "unscoped"
 }
 
-// sortUnits orders by (unit, variant) so a shard's bytes depend only on its
-// contents — a stable diff, not an accident of map iteration.
+// sortUnits orders by the identity key — (scope, unit, variant) — so a shard's
+// bytes depend only on its contents, a stable diff rather than an accident of
+// map iteration.
 func sortUnits(units []UnitState) {
-	sort.Slice(units, func(i, j int) bool {
-		if units[i].Unit != units[j].Unit {
-			return units[i].Unit < units[j].Unit
-		}
-		ki, _ := units[i].Variant.MarshalText()
-		kj, _ := units[j].Variant.MarshalText()
-		return string(ki) < string(kj)
-	})
+	sort.Slice(units, func(i, j int) bool { return unitLess(units[i], units[j]) })
+}
+
+// unitLess is the one ordering over unit records: the identity key, field by
+// field.
+func unitLess(a, b UnitState) bool {
+	if a.Scope != b.Scope {
+		return a.Scope < b.Scope
+	}
+	if a.Unit != b.Unit {
+		return a.Unit < b.Unit
+	}
+	ka, _ := a.Variant.MarshalText()
+	kb, _ := b.Variant.MarshalText()
+	return string(ka) < string(kb)
 }

@@ -44,6 +44,10 @@ type identicalTargetRule struct {
 	resolve  func(locale string) map[string]bool
 	byLocale map[string]map[string]bool
 	reviewed reviewedIndex
+	// root is the project root the rule resolves a unit's source path against,
+	// so it asks the index for the decision made in THAT document — the same
+	// identity the decision was recorded under.
+	root string
 }
 
 // newIdenticalTargetRule builds the rule from the project's terms and its
@@ -57,6 +61,7 @@ func (a *App) newIdenticalTargetRule(ctx context.Context, cmd Command, proj *pro
 	r := &identicalTargetRule{
 		byLocale: map[string]map[string]bool{},
 		resolve:  func(locale string) map[string]bool { return a.doNotTranslateTerms(cmd, locale) },
+		root:     root,
 	}
 	if !projectStoreExists(root) {
 		return r, nil
@@ -74,22 +79,22 @@ func (a *App) newIdenticalTargetRule(ctx context.Context, cmd Command, proj *pro
 }
 
 // settles reports whether the project's own record answers the identity for this
-// block in this locale.
-func (r *identicalTargetRule) settles(b *model.Block, locale string) bool {
+// block, in this locale, in the document sourcePath names.
+func (r *identicalTargetRule) settles(sourcePath string, b *model.Block, locale string) bool {
 	if r == nil {
 		return false
 	}
 	if r.doNotTranslate(locale)[b.SourceText()] {
 		return true
 	}
-	e, _, applies := r.reviewed.grade(b, locale)
+	e, _, applies := r.reviewed.grade(DecisionScope(r.root, sourcePath), b, locale)
 	return approvesTarget(e, applies)
 }
 
 // suppresses reports whether a QA finding is answered by the project's record,
 // and so is not a defect to report or to gate on.
-func (r *identicalTargetRule) suppresses(f check.Finding, b *model.Block, locale string) bool {
-	return f.Category == qaCategoryTargetSameAsSource && r.settles(b, locale)
+func (r *identicalTargetRule) suppresses(f check.Finding, sourcePath string, b *model.Block, locale string) bool {
+	return f.Category == qaCategoryTargetSameAsSource && r.settles(sourcePath, b, locale)
 }
 
 // doNotTranslate returns the locale's do-not-translate source texts, resolving

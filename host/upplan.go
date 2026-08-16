@@ -227,7 +227,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// An absent store yields an empty index: no decisions, so nothing is stale,
 	// and no artifact has been absorbed, so the corpus has not finished being
 	// taught and a produced unit is not judged by it.
-	basis := upPlanBasis{memory: a.MemoryBackend}
+	basis := upPlanBasis{memory: a.MemoryBackend, root: root}
 	layout, lerr := project.LayoutFor(projectPath)
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
@@ -314,6 +314,9 @@ type upPlanBasis struct {
 	reviewed reviewedIndex
 	// settled keys absolute target paths; see App.recordSettlement.
 	settled map[string]bool
+	// root is the project root a unit's source path is resolved against to name
+	// the document its decision was recorded in (DecisionScope).
+	root string
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units.
@@ -352,6 +355,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		// on disk, which decides whether the corpus's silence about its units is
 		// final (see App.recordSettlement).
 		settled := basis.settled[u.TargetPath]
+		scope := DecisionScope(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -367,7 +371,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// this very target with its source. Asking now would price a provider
 			// call for every translation the run is about to recycle — so it is
 			// reported as unread rather than guessed at either way.
-			if produced && !settled && basis.reviewed.basisFor(b, u.Locale) != basisStale {
+			if produced && !settled && basis.reviewed.basisFor(scope, b, u.Locale) != basisStale {
 				s.UnreadTargets++
 				continue
 			}
@@ -379,7 +383,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			switch {
 			case !produced:
 				s.MissingTarget++
-			case basis.reviewed.basisFor(b, u.Locale) == basisStale:
+			case basis.reviewed.basisFor(scope, b, u.Locale) == basisStale:
 				// A unit whose decision blessed wording that has since been
 				// rewritten is drift the plan owes the reader, and reporting only
 				// presence is what let an edited sentence read as converged while

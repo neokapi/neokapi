@@ -109,8 +109,9 @@ func TestResolveIdentity_EditClearsTheDecision(t *testing.T) {
 	require.NoError(t, err)
 	unitKey := v1[0].Blocks[0].Unit
 
-	// Approve it.
-	key := state.Key{Unit: unitKey, Variant: model.VariantKey{}}
+	// Approve it. The document is half of the record's identity, so the key
+	// names it alongside the unit.
+	key := state.Key{Scope: v1[0].Scope, Unit: unitKey, Variant: model.VariantKey{}}
 	u, _ := st.Get(t.Context(), key)
 	u.Decision = state.Decision{ReviewState: "approved", By: "someone"}
 	u.TargetHash = "hash-of-the-approved-translation"

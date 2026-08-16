@@ -66,6 +66,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			continue // nothing translated for this locale yet
 		}
 		loc := model.LocaleID(u.Locale)
+		scope := DecisionScope(root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -77,7 +78,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			if unitState(b, u.Locale) != string(model.TargetStatusTranslated) {
 				continue
 			}
-			if reviewed.decided(b, u.Locale) {
+			if reviewed.decided(scope, b, u.Locale) {
 				continue
 			}
 			item := ReviewItem{
@@ -91,7 +92,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			// Surface a fresh AI pre-review annotation (score + model) so the
 			// queue can show it — read from the state store, never a provider
 			// call.
-			if rev, ok := reviewed.aiReviewFor(b, u.Locale); ok {
+			if rev, ok := reviewed.aiReviewFor(scope, b, u.Locale); ok {
 				score := rev.score
 				item.AIScore = &score
 				item.AIModel = rev.model

@@ -147,8 +147,20 @@ the process. The tiers are *staged* and *committed*, not *in transit* and
 
 ### Unit state is unit-keyed and bound to the pairing it blessed
 
-State is keyed by the **unit** — `(unit identity, variant)`, where the variant is
-the locale plus any further qualification — not by content.
+State is keyed by the **unit** — `(document, unit identity, variant)`, where the
+variant is the locale plus any further qualification — not by content.
+
+The document is identity, not a label beside it. A unit id is unique inside its
+document and nowhere wider: a reader names blocks by what the format gives it,
+and for prose those names follow position, so every page of a documentation
+collection carries an `h`, a `p` and an `fm_title`. Keyed on less, one page's
+decision is the collection's decision — the reviewer's approvals are accepted,
+reported applied, and all but the last document's discarded, and the pages that
+lost theirs then read as stale against a source nobody edited. The document is
+the source file's path relative to the project root (`host.DecisionScope`), which
+is the identity namespace the unit key lives in and the name the connector gives
+the item, so a decision travels the sync protocol scoped to the item it was made
+in.
 
 A decision is not about a translation; it is about a **pairing**: this rendering,
 *of this source*. Each record therefore carries both halves, computed by the one

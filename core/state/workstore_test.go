@@ -91,7 +91,7 @@ func TestWorkStore_RebuildsFromTheCommittedRecord(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = reopened.Close() })
 
-	got, ok := reopened.Get(t.Context(), state.Key{Unit: "u1", Variant: model.VariantKey{Locale: "nb"}})
+	got, ok := reopened.Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u1", Variant: model.VariantKey{Locale: "nb"}})
 	require.True(t, ok, "a committed decision survives losing the working store")
 	assert.Equal(t, "approved", got.Decision.ReviewState)
 
@@ -111,6 +111,62 @@ func TestWorkStore_PriorsAreScopedToTheDocument(t *testing.T) {
 	require.Len(t, priors, 1)
 	assert.Equal(t, "u1", priors[0].Unit)
 	assert.Equal(t, model.ComputeContentHash("Alpha"), priors[0].ContentHash)
+}
+
+// A unit id is unique inside its document and nowhere wider: every markdown page
+// in a collection carries an `h`, a `p`, a `fm_title`. A store keyed on less than
+// (document, unit, variant) lets the second document's decision overwrite the
+// first's, and the record then holds one decision where two were made.
+func TestWorkStore_SameUnitIDInTwoDocuments(t *testing.T) {
+	w, committed := openWork(t)
+
+	intro := unit("p", "d-intro", "Alpha")
+	intro.Decision.Note = "intro"
+	guide := unit("p", "d-guide", "Bravo")
+	guide.Decision.Note = "guide"
+	require.NoError(t, w.Put(t.Context(), intro))
+	require.NoError(t, w.Put(t.Context(), guide))
+
+	n, err := w.Pending(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 2, n, "one decision per document, not per id")
+
+	all, err := w.All(t.Context())
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+	notes := map[string]string{}
+	for _, u := range all {
+		notes[u.Scope] = u.Decision.Note
+	}
+	assert.Equal(t, map[string]string{"d-intro": "intro", "d-guide": "guide"}, notes,
+		"each document keeps the decision made in it")
+
+	require.NoError(t, w.Commit(t.Context()))
+	onDisk, err := state.ReadCommitted(committed)
+	require.NoError(t, err)
+	assert.Len(t, onDisk, 2, "both documents' decisions reach the committed record")
+}
+
+// A unit is addressed, read and deleted by the same identity, so one document's
+// namesake cannot be reached — or removed — through another's.
+func TestWorkStore_UnitsAreAddressedByDocument(t *testing.T) {
+	w, _ := openWork(t)
+	intro := unit("p", "d-intro", "Alpha")
+	intro.Decision.Note = "intro"
+	require.NoError(t, w.Put(t.Context(), intro))
+	require.NoError(t, w.Put(t.Context(), unit("p", "d-guide", "Bravo")))
+
+	got, ok := w.Get(t.Context(), state.Key{Scope: "d-intro", Unit: "p", Variant: model.VariantKey{Locale: "nb"}})
+	require.True(t, ok, "the intro's decision is addressable by its own document")
+	assert.Equal(t, "intro", got.Decision.Note)
+	assert.Equal(t, model.ComputeContentHash("Alpha"), got.ContentHash,
+		"and still carries the source it was decided against")
+
+	require.NoError(t, w.Delete(t.Context(), state.Key{Scope: "d-intro", Unit: "p", Variant: model.VariantKey{Locale: "nb"}}))
+	left, err := w.All(t.Context())
+	require.NoError(t, err)
+	require.Len(t, left, 1, "one document's unit is deleted, not every unit of that id")
+	assert.Equal(t, "d-guide", left[0].Scope)
 }
 
 // One file per document, so editing the docs does not rewrite the shard holding
@@ -155,7 +211,7 @@ func TestWorkStore_PrunesEmptiedShards(t *testing.T) {
 	require.NoError(t, w.Commit(t.Context()))
 	require.Len(t, shardNames(t, committed), 2)
 
-	require.NoError(t, w.Delete(t.Context(), state.Key{Unit: "u2", Variant: model.VariantKey{Locale: "nb"}}))
+	require.NoError(t, w.Delete(t.Context(), state.Key{Scope: "d-guide", Unit: "u2", Variant: model.VariantKey{Locale: "nb"}}))
 	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
 	require.NoError(t, w.Commit(t.Context()))
 

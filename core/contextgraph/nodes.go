@@ -63,8 +63,13 @@ func CoordinateNode(s Scope, profile, channel string) graph.Node {
 	return graph.Node{ID: CoordinateNodeID(s, profile, channel), Label: NodeCoordinate, Properties: props}
 }
 
-// UnitState describes one unit's workflow state in one locale variant.
+// UnitState describes one unit's workflow state in one document, in one locale
+// variant.
 type UnitState struct {
+	// Document is the document the unit belongs to — the other half of its
+	// identity, because a block's structural key is unique inside its document
+	// and nowhere wider.
+	Document string
 	// Unit is the unit identity — the block's structural key, as the state
 	// record and the deliverable both address it.
 	Unit string
@@ -86,12 +91,13 @@ type UnitState struct {
 func UnitStateNode(s Scope, u UnitState) graph.Node {
 	props := s.Properties()
 	props[PropUnit] = u.Unit
+	putIf(props, PropDocument, u.Document)
 	putIf(props, PropVariant, u.Variant)
 	putIf(props, PropStatus, u.Status)
 	putIf(props, PropReviewState, u.ReviewState)
 	putIf(props, PropTargetHash, u.TargetHash)
 	putIf(props, PropContentHash, u.ContentHash)
-	return graph.Node{ID: UnitStateNodeID(s, u.Unit, u.Variant), Label: NodeUnitState, Properties: props}
+	return graph.Node{ID: UnitStateNodeID(s, u.Document, u.Unit, u.Variant), Label: NodeUnitState, Properties: props}
 }
 
 // UsesTerm describes one block-uses-concept relationship.
@@ -181,12 +187,13 @@ func GovernedByEdge(s Scope, collection, profile, channel string, validity *grap
 func BlessesEdge(s Scope, u UnitState, contentKey string) graph.Edge {
 	props := s.Properties()
 	props[PropUnit] = u.Unit
+	putIf(props, PropDocument, u.Document)
 	putIf(props, PropVariant, u.Variant)
 	putIf(props, PropTargetHash, u.TargetHash)
 	putIf(props, PropContentHash, u.ContentHash)
 	putIf(props, PropStatus, u.Status)
 	putIf(props, PropReviewState, u.ReviewState)
-	source := UnitStateNodeID(s, u.Unit, u.Variant)
+	source := UnitStateNodeID(s, u.Document, u.Unit, u.Variant)
 	target := BlockNodeID(s, contentKey)
 	return graph.Edge{
 		ID:         EdgeID(EdgeBlesses, source, target),

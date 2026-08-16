@@ -268,11 +268,21 @@ func CollectionNodeID(s Scope, label string) string {
 	return NodeID{Label: NodeCollection, Scope: s, Local: label}.String()
 }
 
-// UnitStateNodeID is the graph id of one unit's state in one locale variant.
-// The variant is part of the identity because a unit has one state per variant,
-// and a variant-less key would collapse them.
-func UnitStateNodeID(s Scope, unit, variant string) string {
-	return NodeID{Label: NodeUnitState, Scope: s, Local: unit + "@" + variant}.String()
+// UnitStateNodeID is the graph id of one unit's state, in one document, in one
+// locale variant.
+//
+// All three are identity. The variant, because a unit has one state per variant
+// and a variant-less key would collapse them. The document, because a unit id is
+// unique inside its document and nowhere wider — every page of a prose
+// collection carries an `h` and a `p`, so without it two pages are one node and
+// the decision recorded last answers for both.
+//
+// The document and the unit are escaped before they are joined, so the
+// separators are the only unescaped ones in the composition and no two
+// (document, unit, variant) triples can render the same id.
+func UnitStateNodeID(s Scope, document, unit, variant string) string {
+	local := escapeField(document) + "/" + escapeField(unit) + "@" + variant
+	return NodeID{Label: NodeUnitState, Scope: s, Local: local}.String()
 }
 
 // ConceptNodeID is the graph id of a concept. It drops the instance dimensions:

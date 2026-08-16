@@ -125,7 +125,7 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 	all, err := db.Work().All(t.Context())
 	require.NoError(t, err)
 	require.Len(t, all, 2)
-	_, ok := db.Work().Get(t.Context(), state.Key{Unit: "u-committed", Variant: model.Variant("nb")})
+	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-committed", Variant: model.Variant("nb")})
 	assert.True(t, ok)
 
 	assertPredecessorsGone(t, layout)
@@ -241,7 +241,7 @@ func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 
 	// And it is a record, not just a file: the working store seeded from it,
 	// which is why the fold has to precede the open.
-	_, ok := db.Work().Get(t.Context(), state.Key{Unit: "u-flat", Variant: model.Variant("nb")})
+	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-flat", Variant: model.Variant("nb")})
 	assert.True(t, ok, "the moved record seeded the working set on this same open")
 }
 
@@ -463,7 +463,7 @@ func TestFold_LiftsContextUmbrella(t *testing.T) {
 	shards, err := os.ReadDir(layout.UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, shards, 1)
-	_, ok := db.Work().Get(t.Context(), state.Key{Unit: "u-umbrella", Variant: model.Variant("nb")})
+	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-umbrella", Variant: model.Variant("nb")})
 	assert.True(t, ok, "the lifted record seeded the working set on this same open")
 
 	assert.NoDirExists(t, umbrella, "an emptied umbrella goes")

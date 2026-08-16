@@ -197,12 +197,12 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			// The decision's document is the SOURCE path: it is the identity
-			// namespace the unit key lives in — the connector names server
-			// items by it, so it is what lets the decision travel scoped to
-			// the right item. The review queue's display path is the target
-			// file, which no other party names anything by.
-			return a.recordDecisionState(ctx, proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc,
+			// The decision's document is the SOURCE path (DecisionScope): the
+			// identity namespace the unit key lives in, and the half of the
+			// decision's identity that tells one page's `p` from another's.
+			// The review queue's display path is the target file, which no
+			// other party names anything by.
+			return a.recordDecisionState(ctx, proj, root, DecisionScope(root, u.SourcePath), blockKey(b), loc,
 				decidedContent{source: b.SourceText(), target: target}, status, decision, note, by)
 		}
 	}
@@ -219,8 +219,8 @@ type decidedContent struct {
 }
 
 // recordDecisionState records a unit's review decision in the project state store
-// — the authoritative carrier of workflow state — keyed by unit identity + locale,
-// and bound to BOTH halves of what it blessed: the content hash of the translation
+// — the authoritative carrier of workflow state — keyed by (document, unit,
+// locale), and bound to BOTH halves of what it blessed: the content hash of the translation
 // it judges (targetHash) and the basis, the content hash of the source it judged it
 // against (contentHash). A later edit to either drops the decision (stale), derived
 // on read. The decision is transient until Export persists it to the committed state
@@ -233,7 +233,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return false, err
 	}
-	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
+	k := state.Key{Scope: file, Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(content.target)
 	ch := state.SourceHash(content.source)
 	prev, hadPrev := st.Get(ctx, k)
@@ -250,12 +250,13 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		ContentHash: ch,
 		Decision:    state.Decision{ReviewState: decision, By: by, At: now, Note: note},
 		Updated:     now,
-		// The document the unit was decided in. Until the reconcile resolver
-		// is wired into the review path, the display path IS the document key;
-		// when resolved keys land, the working store's document map translates
-		// key → path and this field keeps meaning "which document". It is what
-		// lets a decision travel the sync protocol scoped to the item whose
-		// identity namespace the unit key lives in.
+		// The document the unit was decided in — half of the record's identity,
+		// and what lets a decision travel the sync protocol scoped to the item
+		// whose identity namespace the unit key lives in. Until the reconcile
+		// resolver is wired into the review path, the source path IS the
+		// document key; when resolved keys land, the working store's document
+		// map translates key → path and this field keeps meaning "which
+		// document".
 		Scope: file,
 	}
 	if hadPrev {
@@ -328,6 +329,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		if missing {
 			continue
 		}
+		scope := DecisionScope(root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -340,10 +342,11 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			if rev.At == "" {
 				rev.At = nowRFC3339()
 			}
-			k := state.Key{Unit: blockKey(b), Variant: model.Variant(loc)}
+			k := state.Key{Scope: scope, Unit: blockKey(b), Variant: model.Variant(loc)}
 			us, _ := st.Get(ctx, k)
 			us.Unit = blockKey(b)
 			us.Variant = model.Variant(loc)
+			us.Scope = scope
 			r := rev
 			us.AIReview = &r
 			us.Updated = rev.At
@@ -445,7 +448,8 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 			if serr != nil {
 				return nil, serr
 			}
-			if us, found := st.Get(ctx, state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
+			k := state.Key{Scope: DecisionScope(root, u.SourcePath), Unit: ref.Key, Variant: model.Variant(loc)}
+			if us, found := st.Get(ctx, k); found {
 				th := targetHash(info.Target)
 				ch := state.SourceHash(info.Source)
 				info.Stale = us.SourceStale(ch)
@@ -468,6 +472,23 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 		}
 	}
 	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+}
+
+// DecisionScope is the document a unit's decisions belong to: its SOURCE file,
+// relative to the project root, in slash form.
+//
+// It is half of a decision's identity, not a label beside it. A reader names
+// blocks by what the format gives it, and for prose those names follow position
+// — so every page of a docs collection carries an `h`, a `p` and an `fm_title`,
+// and a decision recorded against the id alone belongs to whichever page was
+// processed last. The source path rather than the target's is what the unit key
+// lives in and what the connector names items by, so it is also what lets a
+// decision travel scoped to the right item.
+//
+// One definition, because every party that records a decision and every party
+// that reads one back has to name the same document the same way.
+func DecisionScope(root, sourcePath string) string {
+	return filepath.ToSlash(relToRoot(root, sourcePath))
 }
 
 // relToRoot renders a unit path relative to the project root when possible —

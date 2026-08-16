@@ -115,7 +115,7 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 			skipped++
 			continue
 		}
-		k := state.Key{Unit: d.Unit, Variant: variant}
+		k := state.Key{Scope: d.ItemName, Unit: d.Unit, Variant: variant}
 		if prev, ok := st.Get(ctx, k); ok {
 			if prev.Updated != "" && d.Updated != "" && d.Updated <= prev.Updated {
 				continue // local record is as new or newer — leave it
