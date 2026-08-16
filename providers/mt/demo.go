@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/icu"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -163,11 +164,33 @@ func demoBaseLang(loc model.LocaleID) string {
 	return s
 }
 
-// wordSplit splits text into alternating word / non-word tokens so punctuation,
-// whitespace, and HTML tags are preserved exactly.
+// wordSplit splits the text between brace placeholders into alternating word /
+// non-word tokens so punctuation, whitespace, and HTML tags are preserved
+// exactly.
 var wordSplit = regexp.MustCompile(`<[^>]*>|[\p{L}\p{N}]+|[^<\p{L}\p{N}]+`)
 
 var wordRe = regexp.MustCompile(`^[\p{L}\p{N}]+$`)
+
+// splitTokens splits source into the tokens demoTranslate walks: every balanced
+// brace group is one opaque token, and the text around those groups is split by
+// wordSplit.
+//
+// A brace group is program syntax, not prose — `{name}` is interpolation the
+// host program fills in, and `{count, plural, one {# berth} other {# berths}}`
+// is an ICU picker whose argument name, keyword and category keywords the
+// program reads. Marking a word inside either produces a string the program
+// cannot format, and a demo engine has no more business writing there than a
+// real one does.
+func splitTokens(source string) []string {
+	var out []string
+	last := 0
+	for _, sp := range icu.Spans(source) {
+		out = append(out, wordSplit.FindAllString(source[last:sp.Start], -1)...)
+		out = append(out, source[sp.Start:sp.End])
+		last = sp.End
+	}
+	return append(out, wordSplit.FindAllString(source[last:], -1)...)
+}
 
 // demoTranslate deterministically maps source text into a marked demo
 // translation for the target locale. The whole string is wrapped so no reader
@@ -178,7 +201,7 @@ func demoTranslate(source string, target model.LocaleID) string {
 	lex := demoLexicon[lang]
 
 	var b strings.Builder
-	for _, tok := range wordSplit.FindAllString(source, -1) {
+	for _, tok := range splitTokens(source) {
 		if !wordRe.MatchString(tok) {
 			b.WriteString(tok)
 			continue

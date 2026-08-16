@@ -95,3 +95,51 @@ func TestDemoMTToolConfig(t *testing.T) {
 	c.Reset()
 	assert.True(t, c.TargetLocale.IsEmpty())
 }
+
+// The MT demo marks words the way the AI demo does, so it owes the same
+// guarantee: a placeholder is program syntax, and nothing inside one — a simple
+// argument or a whole ICU picker — is the demo's to translate.
+func TestDemoMTProvider_PreservesPlaceholders(t *testing.T) {
+	p := newTestDemo()
+
+	for _, tc := range []struct{ name, src, want string }{
+		{name: "simple argument", src: "The {vessel} is alongside.", want: "{vessel}"},
+		{name: "double brace", src: "Welcome back, {{name}}.", want: "{{name}}"},
+		{
+			name: "plural",
+			src:  "{count, plural, one {# berth} other {# berths}} at this terminal.",
+			want: "{count, plural, one {# berth} other {# berths}}",
+		},
+		{
+			name: "select",
+			src:  "{gender, select, male {He} female {She} other {They}} is alongside.",
+			want: "{gender, select, male {He} female {She} other {They}}",
+		},
+		{
+			name: "a prose apostrophe does not swallow the placeholder",
+			src:  "Don't move {vessel} yet.",
+			want: "{vessel}",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := p.Translate(context.Background(), TranslateRequest{Source: tc.src, TargetLocale: "de"})
+			require.NoError(t, err)
+			assert.Containsf(t, resp.Translation, tc.want, "placeholder mangled: %q → %q", tc.src, resp.Translation)
+		})
+	}
+}
+
+// An unbalanced brace matches no placeholder form and must still reach the
+// output rather than being dropped on the floor.
+func TestDemoMTProvider_KeepsStrayBraces(t *testing.T) {
+	p := newTestDemo()
+
+	for _, tc := range []struct{ src, want string }{
+		{"An unmatched { brace", "{"},
+		{"A } stray close", "}"},
+	} {
+		resp, err := p.Translate(context.Background(), TranslateRequest{Source: tc.src, TargetLocale: "de"})
+		require.NoError(t, err)
+		assert.Containsf(t, resp.Translation, tc.want, "%q → %q dropped a character", tc.src, resp.Translation)
+	}
+}

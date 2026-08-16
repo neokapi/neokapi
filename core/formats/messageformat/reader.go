@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/icu"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -325,10 +326,10 @@ func (r *Reader) createBlockWithRuns(id, name string, seg segment, nodes []node)
 	spanID := 0
 
 	for _, n := range nodes {
-		switch n.typ {
-		case nodeText:
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: n.text}})
-		case nodeHash:
+		switch n.Type {
+		case icu.NodeText:
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: n.Text}})
+		case icu.NodeHash:
 			spanID++
 			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
 				Type: "icu:number",
@@ -336,13 +337,13 @@ func (r *Reader) createBlockWithRuns(id, name string, seg segment, nodes []node)
 				Data: "#",
 				Disp: "#",
 			}})
-		case nodeArg:
+		case icu.NodeArg:
 			spanID++
 			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
 				Type: "icu:argument",
 				ID:   fmt.Sprintf("p%d", spanID),
-				Data: n.text,
-				Disp: n.text,
+				Data: n.Text,
+				Disp: n.Text,
 			}})
 		}
 	}
@@ -374,15 +375,15 @@ func findBranchNodes(nodes []node, path string) []node {
 	}
 
 	for _, n := range nodes {
-		if (n.typ == nodePlural || n.typ == nodeSelect || n.typ == nodeSelectOrd) && n.argName == argName {
+		if n.Type.Picker() && n.ArgName == argName {
 			// Find the branch
 			keyword, subRest, hasMore := strings.Cut(rest, ".")
-			for _, br := range n.branches {
-				if br.keyword == keyword {
+			for _, br := range n.Branches {
+				if br.Keyword == keyword {
 					if !hasMore {
-						return br.body
+						return br.Body
 					}
-					return findBranchNodes(br.body, subRest)
+					return findBranchNodes(br.Body, subRest)
 				}
 			}
 		}

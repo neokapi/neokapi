@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
+	"github.com/neokapi/neokapi/core/icu"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -222,27 +223,50 @@ func demoBaseLang(loc model.LocaleID) string {
 	return s
 }
 
-// wordSplit splits text into tokens: whole tags (<...>), whole placeholders
-// ({0}, {{name}}, %s, [[DNT_0]]-style double-bracket sentinels), runs of
+// wordSplit splits the text between brace placeholders into tokens: whole tags
+// (<...>), whole printf conversions (%s), the double-bracket `[[…]]` sentinels
+// the AI translate tool masks do-not-translate spans with, runs of
 // letters/digits (words), and everything else (punctuation/whitespace). Only
 // words are transformed; every other token is emitted verbatim, so inline
-// markup and placeholders survive intact.
+// markup survives intact.
 //
 // Placeholders must be matched as single tokens, not left to the word class:
-// `%d` would otherwise split into `%` and the word `d`, and `{0}` into braces
-// around the word `0`, and the demo would cheerfully accent the inside of a
-// placeholder — producing output that fails kapi's own placeholder check. The
-// same holds for the double-bracketed `[[…]]` sentinels the AI translate tool
-// masks do-not-translate spans with: accenting the inside of a sentinel would
-// break the tool's verbatim restore, so the demo must pass them through like
-// any real model does. Alternation is leftmost-first, so the tag, placeholder,
-// and sentinel forms are tried before the word and catch-all classes; the
-// trailing single-character alternative guarantees every rune is emitted,
-// since `{`, `%`, `[`, and `]` are excluded from the catch-all class (a greedy
-// catch-all would otherwise swallow the `[[` opener from the preceding
-// whitespace and split the sentinel) and would otherwise be dropped when they
-// appear outside a placeholder.
-var wordSplit = regexp.MustCompile(`<[^>]*>|\{\{[^{}]*\}\}|\{[^{}]*\}|\[\[[^\[\]]*\]\]|%[a-zA-Z]|[\p{L}\p{N}]+|[^<{}%\[\]\p{L}\p{N}]+|[^\p{L}\p{N}]`)
+// `%d` would otherwise split into `%` and the word `d`, and the demo would
+// cheerfully accent the inside of a placeholder — producing output that fails
+// kapi's own placeholder check. The same holds for the sentinels: accenting the
+// inside of one would break the tool's verbatim restore, so the demo must pass
+// them through like any real model does. Alternation is leftmost-first, so the
+// tag, conversion and sentinel forms are tried before the word and catch-all
+// classes; the trailing single-character alternative guarantees every rune is
+// emitted, since `{`, `%`, `[`, and `]` are excluded from the catch-all class
+// (a greedy catch-all would otherwise swallow the `[[` opener from the
+// preceding whitespace and split the sentinel) and would otherwise be dropped
+// when they appear outside a placeholder.
+//
+// Braces are splitTokens' business, not this expression's: a brace placeholder
+// can contain brace placeholders, which no RE2 pattern can express.
+var wordSplit = regexp.MustCompile(`<[^>]*>|\[\[[^\[\]]*\]\]|%[a-zA-Z]|[\p{L}\p{N}]+|[^<{}%\[\]\p{L}\p{N}]+|[^\p{L}\p{N}]`)
+
+// splitTokens splits source into the tokens demoTranslate walks: every balanced
+// brace group is one opaque token, and the text around those groups is split by
+// wordSplit.
+//
+// A brace group is opaque whatever it holds. `{0}` and `{{name}}` are
+// interpolation the host program fills in, and `{count, plural, one {# berth}
+// other {# berths}}` is an ICU picker whose argument name, keyword and category
+// keywords are program syntax — marking a word inside either produces a string
+// the program cannot format. What a real model is handed for these spans is a
+// mask; what the demo does with them is nothing at all.
+func splitTokens(source string) []string {
+	var out []string
+	last := 0
+	for _, sp := range icu.Spans(source) {
+		out = append(out, wordSplit.FindAllString(source[last:sp.Start], -1)...)
+		out = append(out, source[sp.Start:sp.End])
+		last = sp.End
+	}
+	return append(out, wordSplit.FindAllString(source[last:], -1)...)
+}
 
 // isWord reports whether tok is a run of letters/digits (vs punctuation/space).
 var wordRe = regexp.MustCompile(`^[\p{L}\p{N}]+$`)
@@ -257,7 +281,7 @@ func demoTranslate(source string, target model.LocaleID) string {
 	lex := demoLexicon[lang]
 
 	var b strings.Builder
-	for _, tok := range wordSplit.FindAllString(source, -1) {
+	for _, tok := range splitTokens(source) {
 		if !wordRe.MatchString(tok) {
 			b.WriteString(tok) // preserve punctuation / whitespace / markup verbatim
 			continue

@@ -200,3 +200,56 @@ func TestDemoProvider_NoticeOnce(t *testing.T) {
 func TestDemoProvider_ImplementsStreaming(t *testing.T) {
 	var _ StreamingLLMProvider = newTestDemo()
 }
+
+// An ICU plural or select is a brace pair that contains brace pairs. Its
+// argument name, keyword and category keywords are program syntax, and a demo
+// that accents them writes a message no ICU formatter accepts — into the
+// catalog a sample's own page reads. Everything from an opening brace to its
+// match passes through untouched.
+func TestDemoProvider_PreservesICUMessages(t *testing.T) {
+	p := newTestDemo()
+
+	for _, tc := range []struct{ name, src, want string }{
+		{
+			name: "plural",
+			src:  "{count, plural, one {# berth} other {# berths}} at this terminal.",
+			want: "{count, plural, one {# berth} other {# berths}}",
+		},
+		{
+			name: "select",
+			src:  "{gender, select, male {He} female {She} other {They}} is alongside.",
+			want: "{gender, select, male {He} female {She} other {They}}",
+		},
+		{
+			name: "selectordinal",
+			src:  "The {n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} berth is free.",
+			want: "{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}",
+		},
+		{
+			name: "plural nested in select",
+			src:  "{g, select, male {{n, plural, one {# berth} other {# berths}}} other {none}} today.",
+			want: "{g, select, male {{n, plural, one {# berth} other {# berths}}} other {none}}",
+		},
+		{
+			name: "offset and exact-value branches",
+			src:  "{count, plural, offset:1 =0 {Nobody} one {# other} other {# others}} aboard.",
+			want: "{count, plural, offset:1 =0 {Nobody} one {# other} other {# others}}",
+		},
+		{
+			name: "quoted literal braces stay literal",
+			src:  "Write '{'name'}' to interpolate {name}.",
+			want: "{name}",
+		},
+		{
+			name: "a prose apostrophe does not swallow the placeholder",
+			src:  "Don't move {vessel} yet.",
+			want: "{vessel}",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := p.Translate(context.Background(), TranslateRequest{Source: tc.src, TargetLocale: "nl"})
+			require.NoError(t, err)
+			assert.Containsf(t, resp.Translation, tc.want, "ICU syntax mangled: %q → %q", tc.src, resp.Translation)
+		})
+	}
+}
