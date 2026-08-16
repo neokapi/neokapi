@@ -52,9 +52,10 @@ full dependency direction.
 ### Binary and module layout
 
 `kapi` is a Go binary at `kapi/cmd/kapi/`, in the `kapi` module. It depends on
-the framework, `host`, and `cli`, and on no vendor-plugin code at all: plugins
-are discovered at runtime through the manifest model and dispatched as
-subprocesses ([E-05](../engine/e-05-plugin-system.md)).
+the framework, `host`, and `cli`, and on no plugin's code: a plugin is
+discovered at runtime through the manifest model and dispatched as a subprocess
+([E-05](../engine/e-05-plugin-system.md)), so the binary's dependency set is the
+three modules above and nothing a plugin brings.
 
 ```
 kapi/
