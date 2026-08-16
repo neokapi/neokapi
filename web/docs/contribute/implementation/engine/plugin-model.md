@@ -233,7 +233,7 @@ import _ "example.com/gitlab-plugin"
 
 ## Packaging and the license boundary
 
-A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no vendor-plugin code, while a plugin binary (e.g. `kapi-gitlab`) carries that plugin's packages under its own license. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and plugins are something you install into it.
+A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no plugin's code, while a plugin binary (e.g. `kapi-gitlab`) carries that plugin's packages under its own license. The independence runs both ways — a plugin may be licensed more restrictively than `kapi` without affecting it, and a plugin that is *not* is still a separate binary reached the same way. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and plugins are something you install into it.
 
 See [E-05: Plugin System](../../architecture/engine/e-05-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugin install <name>`, Homebrew), and the A/B/C transport modes.
 

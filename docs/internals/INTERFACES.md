@@ -926,7 +926,7 @@ func (c *AppConfig) Load() error {
 
 Plugins are out-of-process binaries, not in-process Go interfaces. A plugin
 ships as its own binary plus a `manifest.json` and is installed into a plugin
-directory; `kapi` itself links no vendor-plugin code. There is no go-plugin
+directory; `kapi` itself links no plugin's code. There is no go-plugin
 handshake, no `MagicCookieKey`, and no in-process `DataFormatReaderPlugin` /
 `DataFormatWriterPlugin` / `ToolPlugin` gRPC services — those belonged to a
 retired layer. Two documents own the plugin contract:

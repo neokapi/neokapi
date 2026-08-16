@@ -8,10 +8,11 @@ keywords: [plugin system, manifest.json, gRPC, daemon, Mode A B C, Okapi bridge,
 # Plugin System
 
 neokapi plugins are **manifest-driven, signed, out-of-process executables**. The
-default `kapi` binary is Apache-2.0 and links zero vendor-plugin code; everything
-beyond the open-source core — cloud sync, the Okapi filter bridge, third-party
-formats — ships as a separate binary that kapi discovers on disk and dispatches
-to at runtime.
+default `kapi` binary is Apache-2.0 and links no plugin's code: a plugin is
+discovered on disk through its manifest and dispatched as a subprocess, so what
+it depends on and what licence it carries stay its own. Everything beyond the
+core — cloud sync, the Okapi filter bridge, third-party formats — ships that
+way.
 
 This page is the developer-facing overview. [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system)
 holds the full design rationale; the [Plugin model note](/contribute/implementation/engine/plugin-model)

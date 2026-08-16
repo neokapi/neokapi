@@ -48,10 +48,11 @@ Non-obvious constraints:
   exception**, and the plugin binary's closure stays inside `bowrain/plugin/`.
   Do not add an import exception. A type both sides need belongs below the line
   (`core/venue`, `host/venue/…`), never on an allowlist above it.
-- **`kapi` contains zero vendor-plugin code.** Plugins (bowrain, okapi-bridge,
-  sat, …) are discovered at runtime via the unified manifest model and
-  dispatched as subprocesses. `bowrain/plugin/*` is blank-imported into
-  `kapi-bowrain`, not into `kapi`. See
+- **`kapi` links no plugin's code.** Plugins (bowrain, okapi-bridge, sat, …) are
+  discovered at runtime via the unified manifest model and dispatched as
+  subprocesses. `bowrain/plugin/*` is blank-imported into `kapi-bowrain`, not
+  into `kapi`. The mechanism is the guarantee: what a plugin depends on and what
+  licence it carries stay in its own binary, whoever wrote it. See
   [Note: Plugin model](web/docs/contribute/implementation/engine/plugin-model.md).
 
 ## Build

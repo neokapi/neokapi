@@ -28,7 +28,9 @@ Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi plugin
 install` verifies SHA-256 plus the Sigstore JSON bundle against a
 registry-pinned certificate identity before unpacking. First-party and
 third-party plugins all use the same model. The default `kapi` binary is
-Apache-2.0 and ships zero vendor-plugin code.
+Apache-2.0 and contains no plugin's code — a plugin is a separate executable,
+reached through its manifest and run as a subprocess, so no plugin's licence or
+dependency set reaches the binary.
 
 The contract is **versioned** and **independently verifiable**: the protocol is
 specified in [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1), and
