@@ -528,3 +528,57 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	require.Len(t, updated.Personas["jordan"].Avoided, 1)
 	assert.Equal(t, "leverage", updated.Personas["jordan"].Avoided[0].Term)
 }
+
+// TestProfileMinScoreRoundTrip holds the profile's own on-brand bar across
+// every path a profile takes through this store. A column the store does not
+// select comes back as a zero rather than failing the scan, so a write that
+// reads back at the default bar is silent — only a round-trip sees it, and the
+// bar is what the ship gate and bulk approve-passing act on.
+func TestProfileMinScoreRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	p := testProfile()
+	p.MinScore = 90
+	require.NoError(t, store.CreateProfile(ctx, p))
+
+	got, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	assert.Equal(t, 90, got.MinScore, "the authored bar survives the write")
+	assert.Equal(t, 90, got.ComplianceBar(), "and is the bar the gate applies")
+
+	// A list read reaches the same rows through the same select.
+	listed, err := store.ListProfiles(ctx, "ws1")
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.Equal(t, 90, listed[0].MinScore)
+
+	// An edit moves the bar rather than dropping it.
+	got.MinScore = 55
+	require.NoError(t, store.UpdateProfile(ctx, got))
+	updated, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	assert.Equal(t, 55, updated.MinScore)
+	assert.Equal(t, 55, updated.ComplianceBar())
+
+	// An archived version carries the bar it was archived at, so a rollback
+	// restores the profile that was reviewed rather than one at the default.
+	versions, err := store.ListProfileVersions(ctx, "p1")
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	assert.Equal(t, 90, versions[0].Snapshot.MinScore)
+}
+
+// TestProfileMinScoreUnsetAnswersTheDefault: a profile that authors no bar is
+// the ordinary case, and it must still answer the default rather than zero.
+func TestProfileMinScoreUnsetAnswersTheDefault(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	require.NoError(t, store.CreateProfile(ctx, testProfile()))
+
+	got, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	assert.Zero(t, got.MinScore)
+	assert.Equal(t, coreprofile.DefaultMinScore, got.ComplianceBar())
+}

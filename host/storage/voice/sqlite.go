@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/locale"
@@ -115,6 +117,73 @@ var migrations = []storage.Migration{
 		ALTER TABLE brand_profiles ADD COLUMN personas TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
+	{
+		Version:     3,
+		Description: "the profile's own on-brand bar",
+		// min_score is the score a block must reach to count as on-brand: 0
+		// means the default (core/profile.DefaultMinScore), which is what every
+		// profile in an existing database answered while the column was absent.
+		// The ship gate and bulk approve-passing read it through
+		// VoiceProfile.ComplianceBar.
+		SQL: `
+		ALTER TABLE brand_profiles ADD COLUMN min_score INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
+}
+
+// profileColumns is the one column list every profile statement is spelled
+// from, in the order a profile row is written and read back. Spelled once
+// because a column present in the table and missing from a statement is
+// invisible: the row still scans and the field just comes back zero. That is
+// exactly how min_score reached the model, the validator and the wire while
+// this store dropped it on every write.
+const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples, ` +
+	`locales, channels, personas, autonomy, min_score, version, created_at, updated_at, created_by`
+
+// profileFixedColumns are the facts an edit never rewrites — identity and
+// creation. Everything else in profileColumns is editable, so a column added to
+// the list reaches the UPDATE by default rather than by being remembered in a
+// second list.
+var profileFixedColumns = []string{"id", "workspace_id", "created_at", "created_by"}
+
+var (
+	// profileValues is one placeholder per column in profileColumns, so an
+	// INSERT cannot go out of step with the list it inserts into: a column added
+	// without its value is an argument-count error rather than a silent zero.
+	profileValues = strings.TrimPrefix(strings.Repeat(", ?", len(columnNames(profileColumns))), ", ")
+	// profileAssignments renders the editable columns as an UPDATE SET list, for
+	// the same reason and in the same order.
+	profileAssignments = assignmentList(editableColumns())
+)
+
+// columnNames splits a comma-separated column list into its trimmed names.
+func columnNames(list string) []string {
+	names := strings.Split(list, ",")
+	for i, n := range names {
+		names[i] = strings.TrimSpace(n)
+	}
+	return names
+}
+
+// editableColumns is profileColumns without the fixed ones, in profileColumns
+// order.
+func editableColumns() []string {
+	var out []string
+	for _, name := range columnNames(profileColumns) {
+		if !slices.Contains(profileFixedColumns, name) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// assignmentList renders column names as an UPDATE SET clause.
+func assignmentList(names []string) string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = n + " = ?"
+	}
+	return strings.Join(out, ", ")
 }
 
 // NewSQLiteStore creates a new SQLite-backed voice profile store.
@@ -148,11 +217,12 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO brand_profiles (`+profileColumns+`)
+		 VALUES (`+profileValues+`)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy), profile.Version,
+		string(locales), string(channels), string(personas), string(autonomy),
+		profile.MinScore, profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
 		profile.CreatedBy)
 	if err != nil {
@@ -168,11 +238,12 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
+		`SELECT `+profileColumns+`
 		 FROM brand_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.Scope, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &p.Version,
+			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
+			&p.MinScore, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile not found: %s", id)
@@ -246,11 +317,12 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE brand_profiles SET name = ?, description = ?, tone = ?, style = ?, vocabulary = ?, examples = ?, locales = ?, channels = ?, personas = ?, autonomy = ?, version = ?, updated_at = ?
+		`UPDATE brand_profiles SET `+profileAssignments+`
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(personas), string(autonomy), profile.Version,
+		string(locales), string(channels), string(personas), string(autonomy),
+		profile.MinScore, profile.Version,
 		profile.UpdatedAt.Format(time.RFC3339), profile.ID)
 	if err != nil {
 		return fmt.Errorf("update profile: %w", err)
