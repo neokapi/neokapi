@@ -205,8 +205,12 @@ Staleness is one reason a produced unit is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the
 content memory, not by a target file: the pipeline reads the source documents,
 `recycle` fills what the corpus answers, and `translate` drafts the remainder. So
-`kapi up --plan` asks the corpus about every unit it counts, and a produced unit
-the record does not pair with its source — a rewrite, an identical pair no
+`kapi up --plan` asks the corpus about every unit it counts — including on a
+checkout whose store does not exist yet, where the committed content-memory
+bundles are compiled into a corpus that lives only for that call, so a dry run
+prices the recycling a run would do without creating the state a dry run must
+not. A produced unit the record
+does not pair with its source — a rewrite, an identical pair no
 approval stands behind, a pair refused for asymmetric inline codes — is reported
 as **unanswered** and priced. It is deliberately not folded into `stale`: stale
 means a decision's basis moved, which also drives the review worklist and

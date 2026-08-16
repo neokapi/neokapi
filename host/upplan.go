@@ -191,10 +191,10 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	return output.Print(cmd, plan)
 }
 
-// computeProjectPlan resolves the project's units, opens the project content
-// memory as a read-only leverage source (only an existing store — a plan must
-// not create files), and derives the dry-run work plan. Shared by `kapi up --plan` and
-// the exported UpPlan the desktop binds to.
+// computeProjectPlan resolves the project's units, binds the content memory a
+// run would recycle from as a read-only leverage source, and derives the dry-run
+// work plan. Shared by `kapi up --plan` and the exported UpPlan the desktop
+// binds to.
 func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject, projectPath string) (UpPlanOutput, error) {
 	root := filepath.Dir(projectPath)
 	units, err := a.UnitsFromProject(proj, root, "")
@@ -210,10 +210,11 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// authoritative. A wrong number here costs real money.
 	//
 	// The os.Stat guard below draws the distinction this family needs and it is
-	// load-bearing, not decoration: a plan must not create the project store, so
-	// an ABSENT store is the legitimate no-leverage case and stays silent. Past
-	// the stat the store exists, so a failure to open it can only mean it exists
-	// and cannot be read — exactly the case that must not read as "no memory".
+	// load-bearing, not decoration: past the stat the store exists, so a failure
+	// to open it can only mean it exists and cannot be read — exactly the case
+	// that must not read as "no memory". An ABSENT store is a different fact: it
+	// says nothing about the corpus, only that nothing has projected it yet, and
+	// the branch below reads the committed bundles instead.
 	//
 	// It stats the store rather than opening it and asking, because opening
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan
@@ -249,6 +250,23 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 			basis.reviewed = idx
 		}
 		basis.settled = a.recordSettlement(ctx, db, proj, projectPath, layout.Root)
+	} else if basis.memory == nil {
+		// No store on disk — a fresh checkout, which is exactly the leg a
+		// pull-request CI job runs. The corpus a run recycles from is still
+		// there: the committed bundles under `.kapi/memory/`, which the run
+		// seeds into the store before it converges. Reading only the store here
+		// priced from scratch the work git already carries reviewed wording for.
+		//
+		// So the bundles are compiled into a corpus that exists only for this
+		// call and is discarded with it. The plan reads what the run will read,
+		// and the checkout is left as git wrote it — the promise the stat above
+		// exists to keep.
+		mem, release, merr := a.CommittedMemoryView(ctx, proj, layout)
+		if merr != nil {
+			return UpPlanOutput{}, merr
+		}
+		defer release()
+		basis.memory = mem
 	}
 
 	plan, err := a.computeUpPlan(ctx, basis, proj, units)

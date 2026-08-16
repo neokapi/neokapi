@@ -2,8 +2,10 @@ package host
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -140,6 +142,63 @@ func TestUpPlan_DoesNotCreateTheStore(t *testing.T) {
 
 	assert.NoFileExists(t, project.LayoutAt(filepath.Dir(recipe)).StorePath(),
 		"a dry run created a project store")
+}
+
+// TestUpPlan_ColdCheckoutPricesTheCommittedCorpus: the leverage a plan reports
+// is the number a reviewer approves spend against, and on a fresh checkout the
+// corpus the run will recycle from is the one git carries, not the one the
+// store holds — the store does not exist yet. A plan that read only the store
+// reported no recycling at all and priced every unit as AI work, on precisely
+// the leg (a pull-request CI job) that never runs anything before it.
+func TestUpPlan_ColdCheckoutPricesTheCommittedCorpus(t *testing.T) {
+	a, _, recipe := newSelfSeedProject(t)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+
+	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, plan.Totals.MissingTarget)
+	assert.Equal(t, 1, plan.Totals.MemoryExact, "the committed bundle answers the only unit")
+	assert.Equal(t, 0, plan.Totals.AIRemaining, "so nothing is left for a provider")
+	assert.Zero(t, plan.Totals.TokenEstimate, "and there are no tokens to quote")
+	assert.NoFileExists(t, project.LayoutAt(filepath.Dir(recipe)).StorePath(),
+		"the committed corpus was read without creating a project store")
+}
+
+// TestUpPlan_ColdCheckoutLeavesNoTraceOfTheCorpusItRead: the scratch corpus the
+// cold plan assembles is discarded with the call. Nothing under `.kapi/` moves,
+// so the next command finds the checkout exactly as git left it.
+func TestUpPlan_ColdCheckoutLeavesNoTraceOfTheCorpusItRead(t *testing.T) {
+	a, cmd, recipe := newSelfSeedProject(t)
+	root := filepath.Dir(recipe)
+	before := stateTree(t, project.LayoutAt(root).StateDir)
+
+	require.NoError(t, cmd.Flags().Set("plan", "true"))
+	require.NoError(t, a.ExecuteUp(cmd, recipe))
+
+	assert.Equal(t, before, stateTree(t, project.LayoutAt(root).StateDir))
+}
+
+// stateTree lists the project's `.kapi/` tree as project-relative paths, so a
+// test can assert that a dry run moved nothing in it.
+func stateTree(t *testing.T, dir string) []string {
+	t.Helper()
+	var out []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, rerr := filepath.Rel(dir, path)
+		if rerr != nil {
+			return rerr
+		}
+		out = append(out, filepath.ToSlash(rel))
+		return nil
+	})
+	require.NoError(t, err)
+	sort.Strings(out)
+	return out
 }
 
 // TestUpPlan_SeedsAnExistingStore: once a store is there, the plan seeds it, so
