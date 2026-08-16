@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 	"testing"
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"

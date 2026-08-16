@@ -780,7 +780,17 @@ check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + A
 	    echo "$$bad" | sed 's/^/    /'; exit 1; \
 	  fi; \
 	done
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free"
+	@bad=$$(cd bowrain/plugin && GOWORK=off $(GO) list -deps ./cmd/kapi-bowrain 2>/dev/null \
+	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
+	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/plugin(/|$$)' || true); \
+	  if [ -n "$$bad" ]; then \
+	    echo "ERROR: the kapi-bowrain binary is declared Apache-2.0 (bowrain/plugin/LICENSE) but links AGPL:"; \
+	    echo "$$bad" | sed 's/^/    /'; \
+	    echo "  Its manifest, the plugin registry and the Homebrew formula all declare Apache-2.0."; \
+	    echo "  Either move what it needs below the line, or the declaration is false on three public surfaces."; \
+	    exit 1; \
+	  fi
+	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean"
 
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #

@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands"
-	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/source"
 )
 
 // A push arrives by two routes and both must declare the recipe's context:
@@ -74,7 +74,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 
 	entry := &projectEntry{
 		project:   proj,
-		connector: connector.NewLocalConnector(app, proj, app.FormatReg),
+		connector: source.NewLocalConnector(app, proj, app.FormatReg),
 	}
 
 	require.NoError(t, declareContext(t.Context(), entry, false))

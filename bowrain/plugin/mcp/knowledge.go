@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/source"
 )
 
 // This file adds MCP tools that read the workspace brand knowledge graph
 // (Bowrain AD-021) so an AI assistant can consult governed concepts, a
 // concept's timeline, and change-set status/blast-radius. Each handler resolves
 // the project + workspace-scoped client exactly like the sync MCP tools, via
-// connector.NewKnowledgeClient.
+// source.NewKnowledgeClient.
 
 // knowledgeClient discovers the kapi project and builds a workspace-scoped
 // Bowrain client for the knowledge-graph MCP tools.
@@ -25,7 +25,7 @@ func knowledgeClient() (*apiclient.BowrainClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return connector.NewKnowledgeClient(proj)
+	return source.NewKnowledgeClient(proj)
 }
 
 // --- concept_search ---

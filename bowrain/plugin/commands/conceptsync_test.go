@@ -12,7 +12,6 @@ import (
 	"sync"
 	"testing"
 
-	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/graph"
@@ -24,6 +23,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
+	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

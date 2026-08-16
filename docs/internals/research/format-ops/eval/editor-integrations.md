@@ -78,7 +78,7 @@ This is in-*Bowrain*-editor, not in-native-editor, but it is the platform's embe
 - Optional interface: `core/format/preview.go:12` `PreviewBuilder { BuildPreview([]*model.Part) string }`.
 - **Implementations: exactly 3 of ~49 native formats** — `core/formats/html/preview.go:14`, `core/formats/markdown/preview.go:14`, `core/formats/mdx/preview.go:16` (delegating to `editor.BuildHTMLPreview` / `BuildMarkdownPreview` in `core/editor/preview_html.go` / `preview_markdown.go`).
 - The kat-block iframe protocol lives here too: `PreviewBoilerplateStart/End` + `previewScript` (`preview.go:18-60`), sandbox note "innerHTML only for trusted, server-generated preview HTML… iframe is sandboxed".
-- Consumers (grep `core/editor` --include=\*.go): `bowrain/server/{editor,handlers_preview}.go`, `bowrain/apps/bowrain/backend/{preview,project}.go`, `bowrain/plugin/connector/source.go` (`editor.ParseItem` at :1019 builds the Part stream for push), `apps/kapi-desktop/backend/inspect.go`, `kapi/cmd/kapi-wasm-cli/{lab,lab_annotate}.go` (WASM lab).
+- Consumers (grep `core/editor` --include=\*.go): `bowrain/server/{editor,handlers_preview}.go`, `bowrain/apps/bowrain/backend/{preview,project}.go`, `host/venue/source/source.go` (`editor.ParseItem` at :1019 builds the Part stream for push), `apps/kapi-desktop/backend/inspect.go`, `kapi/cmd/kapi-wasm-cli/{lab,lab_annotate}.go` (WASM lab).
 
 ---
 
