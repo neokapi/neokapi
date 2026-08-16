@@ -3,6 +3,8 @@ package commands
 import (
 	"errors"
 
+	"github.com/neokapi/neokapi/host/venue/config"
+
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
@@ -28,7 +30,7 @@ var authTokenCreateCmd = &cobra.Command{
 The token is displayed once — save it immediately.
 Requires a .bowrain/ project with a configured workspace.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, err := loadAuth()
+		stored, err := config.LoadAuth()
 		if err != nil {
 			return errors.New("not authenticated — run: kapi auth login")
 		}
@@ -60,7 +62,7 @@ var authTokenListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List API tokens",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, err := loadAuth()
+		stored, err := config.LoadAuth()
 		if err != nil {
 			return errors.New("not authenticated — run: kapi auth login")
 		}
@@ -99,7 +101,7 @@ var authTokenDeleteCmd = &cobra.Command{
 	Short: "Delete an API token",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, err := loadAuth()
+		stored, err := config.LoadAuth()
 		if err != nil {
 			return errors.New("not authenticated — run: kapi auth login")
 		}

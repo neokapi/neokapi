@@ -1,4 +1,4 @@
-package commands
+package transfer
 
 import (
 	"encoding/json"
@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/host"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,11 +19,9 @@ import (
 // newGovernedProject scaffolds a project whose context space binds one voice to
 // two collections and leaves a third ungoverned, plus a bare entry that declares
 // no collection at all.
-func newGovernedProject(t *testing.T) *bproject.Project {
+func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 	t.Helper()
-	prev := app
-	app = &cli.App{}
-	t.Cleanup(func() { app = prev })
+	app := &host.App{}
 
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "acme-voice.yaml"), []byte(
@@ -64,7 +62,7 @@ func newGovernedProject(t *testing.T) *bproject.Project {
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
-	return proj
+	return app, proj
 }
 
 func entriesByName(entries []*pb.SyncContextEntry) map[string]*pb.SyncContextEntry {
@@ -80,9 +78,9 @@ func entriesByName(entries []*pb.SyncContextEntry) map[string]*pb.SyncContextEnt
 // the framework reads for itself resolved, and the bare entry left out because
 // it declares no collection to reconcile.
 func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
-	proj := newGovernedProject(t)
+	app, proj := newGovernedProject(t)
 
-	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false)
+	pushCtx, brand, err := BuildPushContext(t.Context(), app, proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	require.Len(t, pushCtx.Entries, 3, "the bare entry declares no collection")
@@ -114,11 +112,11 @@ func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 // channel, which would collapse the variants into whichever collection happened
 // to be resolved last.
 func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
-	proj := newGovernedProject(t)
+	app, proj := newGovernedProject(t)
 	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "acme-voice.yaml"), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
 
-	pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
 	require.NoError(t, err)
 
 	byName := entriesByName(pushCtx.Entries)
@@ -139,9 +137,9 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 // the governance it would carry: everything is resolved, nothing is claimed to
 // have happened.
 func TestBuildPushContext_DryRunResolvesWithoutSending(t *testing.T) {
-	proj := newGovernedProject(t)
+	app, proj := newGovernedProject(t)
 
-	pushCtx, brand, err := BuildPushContext(t.Context(), proj, true)
+	pushCtx, brand, err := BuildPushContext(t.Context(), app, proj, true)
 	require.NoError(t, err)
 	require.Len(t, pushCtx.Entries, 3)
 	require.NotNil(t, brand)
@@ -153,9 +151,7 @@ func TestBuildPushContext_DryRunResolvesWithoutSending(t *testing.T) {
 // the empty fold, not nothing — otherwise a recipe that just dropped its last
 // collection could never be told the server still holds it.
 func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
-	prev := app
-	app = &cli.App{}
-	t.Cleanup(func() { app = prev })
+	app := &host.App{}
 
 	proj, err := bproject.InitProject(t.TempDir(), &bproject.Recipe{
 		KapiProject: coreproj.KapiProject{
@@ -165,7 +161,7 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Empty(t, pushCtx.Entries)
@@ -200,12 +196,12 @@ func TestBuildPushContext_ExpiredProfileCarriesNoCoordinates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			proj := newGovernedProject(t)
+			app, proj := newGovernedProject(t)
 			prof := proj.Recipe.Profiles["kapi"]
 			prof.ValidTo = tt.validTo
 			proj.Recipe.Profiles["kapi"] = prof
 
-			pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
+			pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
 			require.NoError(t, err)
 
 			docs := entriesByName(pushCtx.Entries)["docs"]

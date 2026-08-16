@@ -1,4 +1,4 @@
-package commands
+package transfer
 
 import (
 	"context"
@@ -56,7 +56,7 @@ type PushBrandResult struct {
 // Returns (nil, nil, nil) when the project is not connected to a server: there
 // is no context to reconcile against, and this is not an error — the same
 // silent skip the terminology push makes.
-func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
+func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
 	if app == nil || proj == nil || proj.Recipe == nil {
 		return nil, nil, nil
 	}

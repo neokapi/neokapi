@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/core/venue/connector"
+	"github.com/neokapi/neokapi/host/venue/transfer"
+
 	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
@@ -97,12 +98,12 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 
 	case "pull":
 		fmt.Fprintln(cmd.OutOrStdout(), "  Pulling translations...")
-		_, err := doPull(cmd.Context(), nil, nil, false, false)
+		_, err := transfer.Pull(cmd.Context(), app, nil, nil, false, false)
 		return err
 
 	case "push":
 		fmt.Fprintln(cmd.OutOrStdout(), "  Pushing content...")
-		_, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
+		_, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{})
 		if conn != nil {
 			conn.Close()
 		}

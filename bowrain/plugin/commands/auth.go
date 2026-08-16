@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	clivenue "github.com/neokapi/neokapi/cli/venue"
+
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
@@ -18,7 +19,6 @@ import (
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/neokapi/neokapi/host/venue/project"
-	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/spf13/cobra"
 )
 
@@ -42,68 +42,34 @@ Server URL is resolved from (first match wins):
   4. The hosted service (https://app.bowrain.cloud) — self-hosted deployments
      set BOWRAIN_SERVER_URL or pass --server`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := performLogin(cmd, resolveServerURLOrDefault(authServerURL))
+		_, err := performLogin(cmd, clivenue.ResolveServerURLOrDefault(authServerURL))
 		return err
 	},
 }
 
-// performLogin runs the device authorization flow for the given server URL.
-// On success, stores the credentials and returns the stored auth info.
+// performLogin runs the device grant and reports the result in this command
+// tree's output format. The grant itself is host/venue/auth's — what a
+// successful login should print is the caller's call, and `init` folds it into
+// the project it is scaffolding rather than announcing it separately.
 func performLogin(cmd *cobra.Command, serverURL string) (*config.StoredAuth, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	client := &venueauth.DeviceFlowClient{
-		DeviceAuthURL: serverURL + "/api/v1/auth/device/start",
-		TokenURL:      serverURL + "/api/v1/auth/device/poll",
-		ClientID:      "kapi-cli",
-	}
-
-	fmt.Fprintln(os.Stderr, "Starting device authorization flow...")
-	resp, err := client.StartDeviceAuth(ctx)
+	stored, err := venueauth.PerformLogin(cmd.Context(), serverURL, cmd.ErrOrStderr())
 	if err != nil {
-		return nil, fmt.Errorf("device auth start failed: %w", err)
+		return nil, err
 	}
-
-	fmt.Fprintf(os.Stderr, "\nOpen the following URL in your browser:\n\n  %s\n\n", resp.VerificationURI)
-	fmt.Fprintf(os.Stderr, "Enter code: %s\n\n", resp.UserCode)
-	fmt.Fprintln(os.Stderr, "Waiting for authorization...")
-
-	token, err := client.PollForToken(ctx, resp.DeviceCode, resp.Interval)
-	if err != nil {
-		return nil, fmt.Errorf("authorization failed: %w", err)
-	}
-
-	stored := config.StoredAuth{
-		ServerURL:    serverURL,
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		Expiry:       time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
-	}
-
-	// Fetch user info from /auth/me using the new token.
-	if user, err := apiclient.FetchUser(ctx, serverURL, token.AccessToken); err == nil {
-		stored.User = config.StoredUser{ID: user.ID, Email: user.Email, Name: user.Name}
-	}
-
-	if err := saveAuth(stored); err != nil {
-		return nil, fmt.Errorf("save token: %w", err)
-	}
-
 	if err := output.Print(cmd, output.AuthLoginOutput{
 		Server: serverURL,
 		User:   stored.User.Email,
 	}); err != nil {
 		return nil, err
 	}
-	return &stored, nil
+	return stored, nil
 }
 
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Log out",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, loadErr := loadAuth()
+		stored, loadErr := config.LoadAuth()
 		serverURL := ""
 		if loadErr == nil && stored != nil {
 			serverURL = stored.ServerURL
@@ -119,7 +85,7 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show login status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, err := loadAuth()
+		stored, err := config.LoadAuth()
 		if err != nil {
 			out := output.AuthStatusOutput{LoggedIn: false}
 			return output.Print(cmd, out)
@@ -164,7 +130,7 @@ If no token is given, it is read from the project's sync cache
 (<project>/.kapi/work/cache/sync-cache.json).
 Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stored, err := loadAuth()
+		stored, err := config.LoadAuth()
 		if err != nil {
 			return errors.New("not authenticated — run: kapi auth login")
 		}
@@ -245,46 +211,3 @@ func init() {
 	authCmd.AddCommand(authClaimCmd)
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(authCmd) })
 }
-
-// resolveServerURLFrom resolves the server URL from an explicit override,
-// then global config (env + file), then auth state. Returns "" when nothing
-// is configured — callers that contact a server fall back to the hosted
-// default via resolveServerURLOrDefault; callers that merely record a server
-// (init writing a recipe) treat "" as "leave the recipe serverless".
-func resolveServerURLFrom(explicit string) string {
-	if explicit != "" {
-		return config.NormalizeServerURL(explicit)
-	}
-	// Check bowrain config (includes BOWRAIN_SERVER_URL env via Viper BindEnv).
-	cfg := newBowrainAppConfig()
-	_ = cfg.Load()
-	if u := cfg.GetString("server.url"); u != "" {
-		// The configured server URL is a compound project URL —
-		// <server>/<workspace>/<project-id> — so reduce it to the origin before
-		// anything appends an API path. Normalizing alone keeps the path, and
-		// POSTing to /<workspace>/<project>/api/v1/... lands outside the CDN's
-		// /api/* behaviour, which rejects the method before it reaches the
-		// server. That is how device login failed with a CloudFront 403.
-		return config.NormalizeServerURL(schema.ParseProjectURL(u).ServerURL)
-	}
-	// Fall back to auth state — the server this machine last logged into.
-	if stored, err := loadAuth(); err == nil && stored.ServerURL != "" {
-		return config.NormalizeServerURL(stored.ServerURL)
-	}
-	return ""
-}
-
-// resolveServerURLOrDefault is resolveServerURLFrom with the hosted instance
-// (config.DefaultServerURL) as the final fallback. Use it for commands that
-// contact a server; self-hosted deployments override via --server or
-// BOWRAIN_SERVER_URL.
-func resolveServerURLOrDefault(explicit string) string {
-	if u := resolveServerURLFrom(explicit); u != "" {
-		return u
-	}
-	return config.DefaultServerURL
-}
-
-func saveAuth(a config.StoredAuth) error { return config.SaveAuth(a) }
-
-func loadAuth() (*config.StoredAuth, error) { return config.LoadAuth() }

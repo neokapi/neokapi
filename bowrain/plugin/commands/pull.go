@@ -1,13 +1,12 @@
 package commands
 
 import (
-	"context"
 	"fmt"
+
+	"github.com/neokapi/neokapi/host/venue/transfer"
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
@@ -39,74 +38,6 @@ does not apply them: for a collection this recipe declares, kapi.yaml is the
 authority, so a divergence is reported and resolved in git rather than pulled
 down over the local governance.`,
 	RunE: runPull,
-}
-
-// PullResult holds the structured result of a pull operation.
-type PullResult struct {
-	BlocksPulled    int
-	DecisionsStaged int
-	LocalesCount    int
-	FilesWritten    int
-	ItemsRetired    int
-	DryRun          bool
-	UpToDate        bool
-
-	// CollectionsObserved and GovernanceDiverged carry the context content
-	// type's pull half: how many collections the server reported, and which
-	// recipe-owned ones it governs differently, with the differing part named.
-	// Observed, never applied.
-	CollectionsObserved  int
-	GovernanceDiverged   []string
-	GovernanceDivergence []string
-}
-
-// doPull executes the core pull logic and returns structured results.
-// If conn is provided, it is used; otherwise a new connector is created.
-func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
-	if conn == nil {
-		proj, err := project.FindProject("")
-		if err != nil {
-			return nil, err
-		}
-		var connErr error
-		conn, connErr = bconn.NewSourceConnector(app, proj, app.FormatReg)
-		if connErr != nil {
-			return nil, connErr
-		}
-		defer conn.Close()
-	}
-
-	modelLocales := make([]model.LocaleID, len(locales))
-	for i, l := range locales {
-		modelLocales[i] = model.LocaleID(l)
-	}
-
-	result, err := conn.Pull(ctx, connector.PullOptions{
-		Locales: modelLocales,
-		Force:   force,
-		DryRun:  dryRun,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	pr := &PullResult{
-		BlocksPulled:         result.BlocksPulled,
-		DecisionsStaged:      result.DecisionsStaged,
-		LocalesCount:         result.LocalesCount,
-		FilesWritten:         result.FilesWritten,
-		ItemsRetired:         result.ItemsRetired,
-		CollectionsObserved:  result.CollectionsObserved,
-		GovernanceDiverged:   result.GovernanceDiverged,
-		GovernanceDivergence: result.GovernanceDivergence,
-	}
-	if dryRun {
-		pr.DryRun = true
-	} else if result.BlocksPulled == 0 && result.DecisionsStaged == 0 {
-		pr.UpToDate = true
-	}
-
-	return pr, nil
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
@@ -155,7 +86,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return output.Print(cmd, out)
 	}
 
-	result, err := doPull(cmd.Context(), conn, pullLocales, pullForce, pullDryRun)
+	result, err := transfer.Pull(cmd.Context(), app, conn, pullLocales, pullForce, pullDryRun)
 	if err != nil {
 		return err
 	}
