@@ -390,14 +390,14 @@
       "source": "terminology",
       "terms": [
         {
-          "text": "term list",
-          "locale": "en",
-          "status": "preferred"
-        },
-        {
           "text": "glossary",
           "locale": "en",
           "status": "deprecated"
+        },
+        {
+          "text": "term list",
+          "locale": "en",
+          "status": "preferred"
         },
         {
           "text": "ordliste",
@@ -473,9 +473,9 @@
       "source": "terminology",
       "terms": [
         {
-          "text": "terms store",
+          "text": "termbase",
           "locale": "en",
-          "status": "preferred"
+          "status": "deprecated"
         },
         {
           "text": "terms",
@@ -483,9 +483,9 @@
           "status": "admitted"
         },
         {
-          "text": "termbase",
+          "text": "terms store",
           "locale": "en",
-          "status": "deprecated"
+          "status": "preferred"
         },
         {
           "text": "termbase",
