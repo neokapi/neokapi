@@ -13,6 +13,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 )
 
@@ -215,6 +217,61 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	}
 	res.Record = record
 	return res, nil
+}
+
+// CommittedMemoryView compiles the project's committed content-memory bundles
+// into a corpus that never reaches the filesystem — a SQLite database opened at
+// ":memory:", released by the returned func — and returns it as a read-only
+// leverage source.
+//
+// It is the read-only half of SeedProjectContext, for the caller that needs the
+// corpus git carries but must not create the store that normally holds it.
+// `kapi up --plan` on a fresh checkout is that caller, and it is the whole
+// reason this exists: the plan's leverage figure is what a reviewer approves
+// spend against, a run seeds these bundles before it converges, and a plan that
+// skipped them quoted the cost of translating from scratch a body of work the
+// project already holds reviewed wording for.
+//
+// The importers are the ones the seeding pass uses, so what the plan reads and
+// what the run recycles from are compiled the same way. No digest stamps are
+// written and no search indexes are rebuilt: nothing outlives the call, and the
+// exact-hash leverage the plan counts is keyed at write time.
+//
+// A project with no committed bundles yields a nil corpus and a release that
+// does nothing — the no-leverage case, which is what it genuinely is.
+func (a *App) CommittedMemoryView(ctx context.Context, proj *project.KapiProject, layout project.Layout) (memory.ContentMemory, func(), error) {
+	noop := func() {}
+	sources, err := committedContextSources(proj, layout)
+	if err != nil {
+		return nil, noop, err
+	}
+	var bundles []contextSource
+	for _, src := range sources {
+		if src.kind == sourceKindMemory {
+			bundles = append(bundles, src)
+		}
+	}
+	if len(bundles) == 0 {
+		return nil, noop, nil
+	}
+
+	tm, err := memory.NewSQLiteStore(":memory:")
+	if err != nil {
+		if errors.Is(err, storage.ErrNoSQLite) {
+			// A build with no file-backed SQLite driver (the browser build) can
+			// hold no corpus, which is the same answer as having none.
+			return nil, noop, nil
+		}
+		return nil, noop, fmt.Errorf("open scratch content memory: %w", err)
+	}
+	release := func() { _ = tm.Close() }
+	for _, src := range bundles {
+		if _, cerr := ImportKMBFile(ctx, tm, src.path); cerr != nil {
+			release()
+			return nil, noop, fmt.Errorf("compile content memory %s: %w", src.rel, cerr)
+		}
+	}
+	return tm, release, nil
 }
 
 // stampContextSource records a source's current digest as compiled, for a
