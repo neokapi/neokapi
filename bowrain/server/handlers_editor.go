@@ -23,30 +23,6 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// HandleCreateEditorProject creates a new translation project in the ContentStore.
-func (s *Server) HandleCreateEditorProject(c echo.Context) error {
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	var req struct {
-		Name                  string   `json:"name"`
-		DefaultSourceLanguage string   `json:"default_source_language"`
-		TargetLanguages       []string `json:"target_languages"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, wsID, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	return c.JSON(http.StatusCreated, info)
-}
-
 // HandleGetEditorProject returns an editor project. The default response is the
 // full detail view, with every item embedded.
 //
