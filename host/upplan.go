@@ -210,10 +210,11 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// authoritative. A wrong number here costs real money.
 	//
 	// The os.Stat guard below draws the distinction this family needs and it is
-	// load-bearing, not decoration: a plan must not create the project store, so
-	// an ABSENT store is the legitimate no-leverage case and stays silent. Past
-	// the stat the store exists, so a failure to open it can only mean it exists
-	// and cannot be read — exactly the case that must not read as "no memory".
+	// load-bearing, not decoration: past the stat the store exists, so a failure
+	// to open it can only mean it exists and cannot be read — exactly the case
+	// that must not read as "no memory". An ABSENT store is a different fact: it
+	// says nothing about the corpus, only that nothing has projected it yet, and
+	// the branch below reads the committed bundles instead.
 	//
 	// It stats the store rather than opening it and asking, because opening
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan

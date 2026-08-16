@@ -181,6 +181,17 @@ func TestContextPath_NoAddressShowsHelp(t *testing.T) {
 // wording. It leaves the working directory alone — these tests choose it.
 func writeTwoVoiceProject(t *testing.T) string {
 	t.Helper()
+	// Every root the run could otherwise inherit is pinned to a throwaway dir,
+	// so a profile in the developer's own voice store can never answer here.
+	// KAPI_NO_PROJECT is deliberately NOT set: discovery from cwd is half of
+	// what these tests compare, and every one of them stands in a temp
+	// directory, where an upward walk reaches no recipe of ours.
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
+
 	root := t.TempDir()
 	write := func(rel, body string) {
 		p := filepath.Join(root, filepath.FromSlash(rel))
