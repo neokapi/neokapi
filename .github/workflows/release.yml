@@ -445,33 +445,14 @@ jobs:
 
       # Channel is tag-driven; beta is a superset fast ring that also carries
       # finals, so beta users never fall behind stable. See
-      # docs/internals/auto-update.md, "Release channels".
-      #   prerelease tag (vX.Y.Z-rcN) → beta only.
-      #   final tag      (vX.Y.Z)     → BOTH stable and beta.
-      # Outputs:
-      #   channel       legacy single channel (beta | stable) — for messages.
-      #   channels      per-channel artifacts to publish (formulae, casks):
-      #                 "beta" for a prerelease, "stable beta" for a final.
-      #   reg_channel   the registry channel value: "beta" for a prerelease,
-      #                 "" (universal — matches every query) for a final.
+      # docs/internals/auto-update.md, "Release channels", and
+      # scripts/release-channel.sh for the outputs and the tag shapes both
+      # release tracks feed it.
       - name: Resolve release channel
         id: channel
         env:
           REF_NAME: ${{ needs.setup.outputs.tag }}
-        run: |
-          set -euo pipefail
-          case "$REF_NAME" in
-            *-*)
-              echo "channel=beta" >> "$GITHUB_OUTPUT"
-              echo "channels=beta" >> "$GITHUB_OUTPUT"
-              echo "reg_channel=beta" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "channel=stable" >> "$GITHUB_OUTPUT"
-              echo "channels=stable beta" >> "$GITHUB_OUTPUT"
-              echo "reg_channel=" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+        run: bash scripts/release-channel.sh "$REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Generate brew formulae
         env:
@@ -1240,22 +1221,22 @@ jobs:
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
+      # Checked out for one file: the cask channel is the same decision the
+      # release job makes, so it is read from the same script rather than
+      # restated here.
+      - uses: actions/checkout@v7
+
       - name: Extract version
         id: version
         run: echo "VERSION=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      # Final tag → both kapi and kapi@beta casks; prerelease tag → the @beta
+      # cask only. `channel` and `reg_channel` come along unread.
       - name: Resolve cask channel
         id: ch
         env:
           REF_NAME: ${{ needs.setup.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # Final tag → both kapi and kapi@beta casks; prerelease tag → the
-          # @beta cask only.
-          case "$REF_NAME" in
-            *-*) echo "channels=beta" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "channels=stable beta" >> "$GITHUB_OUTPUT" ;;
-          esac
+        run: bash scripts/release-channel.sh "$REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Download DMG
         env:

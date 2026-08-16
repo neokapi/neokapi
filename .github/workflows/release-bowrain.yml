@@ -311,24 +311,13 @@ jobs:
       # Channel is tag-driven (see release.yml for the rationale):
       #   prerelease tag (bowrain-vX.Y.Z-rcN) → beta only.
       #   final tag      (bowrain-vX.Y.Z)     → BOTH stable and beta.
+      # The script strips the bowrain-v prefix before asking whether the
+      # version is a prerelease; the prefix's own hyphen is not the question.
       - name: Resolve release channel
         id: channel
         env:
           REF_NAME: ${{ needs.setup.outputs.tag }}
-        run: |
-          set -euo pipefail
-          case "$REF_NAME" in
-            *-*)
-              echo "channel=beta" >> "$GITHUB_OUTPUT"
-              echo "channels=beta" >> "$GITHUB_OUTPUT"
-              echo "reg_channel=beta" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "channel=stable" >> "$GITHUB_OUTPUT"
-              echo "channels=stable beta" >> "$GITHUB_OUTPUT"
-              echo "reg_channel=" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
+        run: bash scripts/release-channel.sh "$REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Generate brew formula
         env:
@@ -1096,22 +1085,22 @@ jobs:
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
+      # Checked out for one file: the cask channel is the same decision the
+      # release job makes, so it is read from the same script rather than
+      # restated here.
+      - uses: actions/checkout@v7
+
       - name: Extract version
         id: version
         run: echo "VERSION=${REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
+      # Final tag → both bowrain and bowrain@beta casks; prerelease tag → the
+      # @beta cask only. `channel` and `reg_channel` come along unread.
       - name: Resolve cask channel
         id: ch
         env:
           REF_NAME: ${{ needs.setup.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # Final tag → both bowrain and bowrain@beta casks; prerelease tag → the
-          # @beta cask only.
-          case "$REF_NAME" in
-            *-*) echo "channels=beta" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "channels=stable beta" >> "$GITHUB_OUTPUT" ;;
-          esac
+        run: bash scripts/release-channel.sh "$REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Download DMG
         env:

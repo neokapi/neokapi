@@ -45,6 +45,7 @@ import {
   formatSlug,
   toolSlug,
 } from "../src/components/reference/slugs.ts";
+import { referenceTitle } from "../src/components/reference/titles.ts";
 
 const commands = commandsJson as unknown as CommandDataset;
 const formats = formatsJson as unknown as ReferenceDataset;
@@ -145,7 +146,7 @@ function formatPage(entry: ReferenceEntry): PageSpec {
       `The ${entry.displayName} data format in neokapi.`,
   );
   const exts = entry.extensions?.length ? ` (${entry.extensions.join(", ")})` : "";
-  const title = `${entry.displayName} format`;
+  const title = referenceTitle(entry.displayName, "format");
 
   const fm = frontmatter({
     id: slug,
@@ -163,7 +164,7 @@ function formatPage(entry: ReferenceEntry): PageSpec {
     "",
     `import FormatReferencePage from "@site/src/components/reference/pages/FormatReferencePage";`,
     "",
-    `# ${entry.displayName} format${exts}`,
+    `# ${title}${exts}`,
     "",
     `<FormatReferencePage id={${JSON.stringify(entry.id)}} />`,
     "",
@@ -181,7 +182,7 @@ function toolPage(entry: ReferenceEntry, builtins: ReadonlySet<string>): PageSpe
       firstLine(entry.doc?.overview) ||
       `The ${entry.displayName} processing tool in neokapi.`,
   );
-  const title = `${entry.displayName} tool`;
+  const title = referenceTitle(entry.displayName, "tool");
 
   const fm = frontmatter({
     id: slug,
@@ -199,7 +200,7 @@ function toolPage(entry: ReferenceEntry, builtins: ReadonlySet<string>): PageSpe
     "",
     `import ToolReferencePage from "@site/src/components/reference/pages/ToolReferencePage";`,
     "",
-    `# ${entry.displayName} tool`,
+    `# ${title}`,
     "",
     `<ToolReferencePage id={${JSON.stringify(entry.id)}} source={${JSON.stringify(entry.source)}} />`,
     "",
