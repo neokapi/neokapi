@@ -25,8 +25,8 @@ export function CTA() {
           <span className="prism-text">one context graph</span>.
         </h2>
         <p className="mt-4 text-muted-foreground">
-          Start with one project and one language pair. The free plan needs no card — and the loop
-          starts learning from your first correction.
+          Start with one project and the content you already publish. The free plan needs no card —
+          and the loop starts learning from your first correction.
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

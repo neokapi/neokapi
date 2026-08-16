@@ -8,7 +8,7 @@
 
 neokapi is a format-aware content engine in Go: parse any format — JSON, Markdown, HTML, config, office formats — into one unified content model, edit the content inside it, check it, and write it back byte-for-byte. The same engine resolves the context that applies to a piece of content — the terms, voice and rules that hold there — and makes that content work in every language.
 
-The engine carries the [Okapi Framework](https://okapiframework.org/) heritage forward — channel-based concurrent processing and pluggable tools — in an AI-native design. Multilingual content is the flagship application: extraction, translation, content memory and a terms store, XLIFF/PO interchange, and an Okapi-parity fidelity story. The same engine also serves on-brand source content, AI ingestion, and programmatic editing.
+The engine carries the [Okapi Framework](https://okapiframework.org/) heritage forward — channel-based concurrent processing and pluggable tools — in an AI-native design. It governs source content first: the terms, voice and rules that hold at a point in the project, resolved where a piece of content sits and enforced as checks you can run, alongside AI ingestion and programmatic editing over the same model. Multilingual content is the flagship extension of those coordinates: extraction, translation, content memory and a terms store, XLIFF/PO interchange, and an Okapi-parity fidelity story.
 
 The bowrain platform — the same context graph held across every project, built on neokapi — lives under [`bowrain/`](bowrain/) with its own [README](bowrain/README.md).
 
