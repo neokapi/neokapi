@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/icu"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -61,7 +62,7 @@ func runsFromValue(value string) []model.Run {
 		case '{':
 			// Start of an ICU construct. Find its matching close brace,
 			// honouring nested braces and quoting.
-			end, ok := matchBrace(value, i)
+			end, ok := icu.MatchBrace(value, i)
 			if !ok {
 				// Unbalanced brace — treat the rest as literal text so the value
 				// still round-trips exactly.
@@ -102,107 +103,15 @@ func valueFromRuns(runs []model.Run) string {
 	return model.RenderRunsWithData(runs)
 }
 
-// matchBrace returns the index of the '}' that closes the '{' at start,
-// honouring nested braces and ICU single-quote escaping. ok is false when no
-// matching brace is found.
-func matchBrace(s string, start int) (int, bool) {
-	depth := 0
-	i := start
-	n := len(s)
-	for i < n {
-		ch := s[i]
-		switch ch {
-		case '\'':
-			// Skip a quoted span without counting any braces inside it.
-			skipQuoted(s, &i)
-			continue
-		case '{':
-			depth++
-			i++
-		case '}':
-			depth--
-			if depth == 0 {
-				return i, true
-			}
-			i++
-		default:
-			_, size := utf8.DecodeRuneInString(s[i:])
-			i += size
-		}
-	}
-	return 0, false
-}
-
-// appendQuoted consumes an ICU-quoted span starting at the single quote at
-// s[*i] and appends its raw bytes (including the surrounding quotes) to dst,
-// advancing *i past the span. ICU quoting rules:
-//
-//   - a doubled quote is a literal apostrophe;
-//   - a quote followed by other characters opens a quoted literal run that
-//     ends at the next lone quote (a doubled quote inside is an escaped
-//     apostrophe and does not end the run);
-//   - a lone quote at end of string is a literal apostrophe.
-//
-// The bytes are copied verbatim (quotes included) so the message value
-// round-trips exactly; we only need to ensure braces inside a quote do not
-// affect construct scanning.
+// appendQuoted consumes the ICU apostrophe span starting at s[*i] and appends
+// its raw bytes (apostrophes included) to dst, advancing *i past the span. The
+// bytes are copied verbatim so the message value round-trips exactly; the only
+// thing that matters here is that braces inside a quoted span do not affect
+// construct scanning. The span's extent is ICU's own (core/icu.SkipQuoted).
 func appendQuoted(dst []byte, s string, i *int) []byte {
-	n := len(s)
-	// Copy the opening quote.
-	dst = append(dst, '\'')
-	*i++ // past opening quote
-	if *i >= n {
-		return dst // lone trailing quote
-	}
-	if s[*i] == '\'' {
-		// A doubled quote is an escaped apostrophe; copy it and return.
-		dst = append(dst, '\'')
-		*i++
-		return dst
-	}
-	// Quoted literal run: copy until the next lone single quote.
-	for *i < n {
-		if s[*i] == '\'' {
-			dst = append(dst, '\'')
-			*i++
-			if *i < n && s[*i] == '\'' {
-				dst = append(dst, '\'')
-				*i++
-				continue
-			}
-			return dst
-		}
-		r, size := utf8.DecodeRuneInString(s[*i:])
-		dst = appendRune(dst, r)
-		*i += size
-	}
-	return dst
-}
-
-// skipQuoted advances *i past an ICU-quoted span starting at s[*i], applying
-// the same quoting rules as appendQuoted but discarding the bytes.
-func skipQuoted(s string, i *int) {
-	n := len(s)
-	*i++ // past opening quote
-	if *i >= n {
-		return
-	}
-	if s[*i] == '\'' {
-		*i++
-		return
-	}
-	for *i < n {
-		if s[*i] == '\'' {
-			*i++
-			if *i < n && s[*i] == '\'' {
-				*i++
-				continue
-			}
-			return
-		}
-		_, size := utf8.DecodeRuneInString(s[*i:])
-		*i += size
-	}
+	start := *i
+	icu.SkipQuoted(s, i)
+	return append(dst, s[start:*i]...)
 }
 
 func appendRune(dst []byte, r rune) []byte {

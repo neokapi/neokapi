@@ -1148,12 +1148,12 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 		}
 
 		cfg := coretools.NewQACheckConfig(model.LocaleID(u.Locale))
-		// Add default placeholder patterns so the QA gate flags dropped
-		// placeholders even in plain-text formats where the reader does not
-		// extract them as inline codes (e.g. {name}, {{var}}, %s, $t). The
-		// inline-code difference check still runs for formats that do extract
-		// codes; the pattern check is additive.
-		cfg.Patterns = append(cfg.Patterns, defaultPlaceholderPatterns()...)
+		// Check placeholder integrity so the QA gate flags dropped placeholders
+		// even in plain-text formats where the reader does not extract them as
+		// inline codes (e.g. {name}, {{var}}, %s, ${x}). The inline-code
+		// difference check still runs for formats that do extract codes; the
+		// placeholder check is additive.
+		cfg.CheckPlaceholders = true
 		qa := coretools.NewQACheckTool(cfg)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, qa, b); cerr != nil {
@@ -1224,6 +1224,7 @@ func verifySeverity(s check.Severity) string {
 var qaFailingCategories = map[string]bool{
 	"empty-target":                  true,
 	"pattern-mismatch":              true,
+	"placeholder":                   true,
 	"missing-code":                  true,
 	"extra-code":                    true,
 	"code-order":                    true,
@@ -1253,34 +1254,17 @@ func qaFindingSuggestion(f check.Finding) string {
 		return "translate the source content for this entry"
 	case "pattern-mismatch", "missing-code", "non-deletable-span-missing":
 		return "keep every placeholder/tag from the source in the target"
+	case "placeholder":
+		if f.Severity == check.SeverityMajor {
+			return "remove placeholders/tags that are not present in the source"
+		}
+		return "keep every placeholder/tag from the source in the target"
 	case "extra-code", "non-cloneable-span-duplicated":
 		return "remove placeholders/tags that are not present in the source"
 	case "target-same-as-source":
 		return "translate the target — it is identical to the source"
 	}
 	return ""
-}
-
-// defaultPlaceholderPatterns returns QA patterns that flag dropped placeholders
-// in plain-text formats. Each pattern requires every placeholder occurrence in
-// the source to appear verbatim in the target.
-func defaultPlaceholderPatterns() []coretools.QAPattern {
-	specs := []struct{ src, desc string }{
-		{`\{\{[^}]+\}\}`, "Mustache/Handlebars placeholder ({{...}}) dropped in target"},
-		{`\{[^{}]+\}`, "Brace placeholder ({...}) dropped in target"},
-		{`%(?:\d+\$)?[sdfv@]`, "printf placeholder (%s, %d, ...) dropped in target"},
-		{`\$\{[^}]+\}`, "Template literal placeholder (${...}) dropped in target"},
-	}
-	patterns := make([]coretools.QAPattern, 0, len(specs))
-	for _, s := range specs {
-		patterns = append(patterns, coretools.QAPattern{
-			Enabled:     true,
-			Source:      s.src,
-			Target:      "<same>",
-			Description: s.desc,
-		})
-	}
-	return patterns
 }
 
 // --- shared block helpers ---------------------------------------------------

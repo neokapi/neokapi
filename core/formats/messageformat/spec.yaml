@@ -480,6 +480,15 @@ features:
       characters are NOT interpreted as picker syntax. Both forms
       decode in the extracted source text — the writer re-encodes them
       on the way out so round-trip is preserved.
+
+      An apostrophe opens a quoted passage only when the character
+      immediately after it is one ICU treats as syntax — `{`, `}`, `#`
+      or `|`. Everywhere else an apostrophe is the apostrophe of
+      ordinary prose and stands for itself, so "Don't move {vessel}"
+      leaves `{vessel}` an argument rather than swallowing it into a
+      literal that runs to the end of the message. This is ICU's own
+      DOUBLE_OPTIONAL mode, which upstream Okapi inherits by parsing
+      through `com.ibm.icu.text.MessagePattern`.
     examples:
       - name: doubled_apostrophe
         input_xml: "It''s a test"
@@ -497,10 +506,22 @@ features:
         first_block_text: "Use { and } for placeholders"
         origin: "authored: `'{'` / `'}'` quoted braces decode to literal braces, not picker syntax"
       - name: quoted_text_passage
-        input_xml: "Text with 'quoted' content"
+        input_xml: "He said, '{quote, select, yes {Yes} no {No}}'"
         block_count: 1
-        first_block_text: "Text with quoted content"
-        origin: "authored: `'quoted'` passage decodes by stripping the surrounding apostrophes"
+        first_block_text: "He said, {quote, select, yes {Yes} no {No}}"
+        origin: "okapi: MessageFormatParserTest#testSkipSyntaxQuotedText — an apostrophe before `{` quotes the picker into literal text"
+      - name: prose_apostrophe
+        input_xml: "Don't move that vessel"
+        block_count: 1
+        first_block_text: "Don't move that vessel"
+        origin: "authored: an apostrophe before an ordinary letter stands for itself and opens no quoted passage"
+      - name: prose_apostrophe_in_plural_branch
+        input_xml: "{count, plural, one {Don't move # vessel} other {Don't move # vessels}}"
+        block_count: 2
+        block_texts:
+          - "Don't move  vessel"
+          - "Don't move  vessels"
+        origin: "authored: a prose apostrophe inside a branch body neither ends the branch nor swallows the rest of the picker"
       - name: mixed_quoting_in_plural
         input_xml: "{count, plural, one {It''s # item} other {It''s # items}}"
         block_count: 2

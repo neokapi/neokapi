@@ -121,7 +121,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 		}
 
 		qaCfg := coretools.NewQACheckConfig(model.LocaleID(u.Locale))
-		qaCfg.Patterns = append(qaCfg.Patterns, defaultPlaceholderPatterns()...)
+		qaCfg.CheckPlaceholders = true
 		qa := coretools.NewQACheckTool(qaCfg)
 
 		for _, b := range blocks {

@@ -52,6 +52,12 @@ type QACheckConfig struct {
 	// --- Pattern checks ---
 	CheckPatterns bool        `json:"checkPatterns,omitempty" schema:"title=Check Patterns,description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
 	Patterns      []QAPattern `json:"patterns,omitempty"      schema:"-"`
+	// CheckPlaceholders verifies interpolation placeholders the same way the
+	// placeholder-check tool does — including reading an ICU plural or select as
+	// the message it is, which no regex pattern can express. It is off by
+	// default and switched on by the callers that gate on integrity, the way
+	// Patterns is.
+	CheckPlaceholders bool `json:"checkPlaceholders,omitempty" schema:"-"`
 
 	// --- Character checks ---
 	CheckCorruptedCharacters bool   `json:"checkCorruptedCharacters,omitempty" schema:"title=Check Corrupted Characters,description=Check for patterns indicating encoding corruption (mojibake, replacement chars, stray control chars),default=true,group=characters"`
@@ -591,6 +597,11 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 	// Check: pattern verification.
 	if conf.CheckPatterns && len(h.patterns) > 0 {
 		findings = append(findings, h.checkPatterns(sourceText, targetText)...)
+	}
+
+	// Check: placeholder integrity.
+	if conf.CheckPlaceholders {
+		findings = append(findings, placeholderFindings(conf.TargetLocale, sourceText, targetText)...)
 	}
 
 	// Check: inline code differences.

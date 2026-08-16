@@ -3,20 +3,11 @@ package tools
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"sort"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
-
-// placeholderToken matches the common interpolation/placeholder styles seen in
-// localization content, longest/most-specific forms first so "{{x}}" wins over
-// "{x}". Covered: {{name}}, ${name}, %(name)s (Python), %1$s (positional),
-// %s/%d/%@ (printf/ObjC), {name}/{0} (ICU/.NET), <0>…</0> (numbered tags).
-var placeholderToken = regexp.MustCompile(
-	`\{\{[^{}]+\}\}|\$\{[^{}]+\}|%\([^)]+\)[a-zA-Z]|%\d+\$[a-zA-Z]|%[sdifeEgGxXobpqv@%]|\{[^{}]+\}|</?[0-9]+>`)
 
 // PlaceholderCheckConfig configures the placeholder/tag integrity checker.
 type PlaceholderCheckConfig struct {
@@ -92,12 +83,11 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 
 		source := v.SourceText()
 		target := v.TargetText(conf.TargetLocale)
-		srcCounts := placeholderCounts(source)
+		missing, extra := comparePlaceholders(source, target, conf.FlagExtra)
 		codeDiff := model.DiffRunCodes(v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
-		if len(srcCounts) == 0 && codeDiff.Balanced() && !conf.FlagExtra {
+		if len(missing) == 0 && len(extra) == 0 && codeDiff.Balanced() {
 			return nil
 		}
-		tgtCounts := placeholderCounts(target)
 
 		var findings []check.Finding
 		for _, code := range codeDiff.MissingCodes() {
@@ -119,49 +109,26 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 				})
 			}
 		}
-		for _, tok := range sortedKeys(srcCounts) {
-			if tgtCounts[tok] < srcCounts[tok] {
-				findings = append(findings, check.Finding{
-					Category:     "placeholder",
-					Severity:     check.SeverityCritical,
-					Message:      fmt.Sprintf("Placeholder %s is missing from the %s target (source %d×, target %d×)", tok, conf.TargetLocale, srcCounts[tok], tgtCounts[tok]),
-					Suggestion:   fmt.Sprintf("Keep %s in the target", tok),
-					OriginalText: tok,
-				})
-			}
+		for _, d := range missing {
+			findings = append(findings, check.Finding{
+				Category:     "placeholder",
+				Severity:     check.SeverityCritical,
+				Message:      d.missingMessage(conf.TargetLocale),
+				Suggestion:   fmt.Sprintf("Keep %s in the target", d.Token),
+				OriginalText: d.Token,
+			})
 		}
-		if conf.FlagExtra {
-			for _, tok := range sortedKeys(tgtCounts) {
-				if srcCounts[tok] == 0 {
-					findings = append(findings, check.Finding{
-						Category:     "placeholder",
-						Severity:     check.SeverityMajor,
-						Message:      fmt.Sprintf("Placeholder %s appears in the %s target but not the source", tok, conf.TargetLocale),
-						OriginalText: tok,
-					})
-				}
-			}
+		for _, d := range extra {
+			findings = append(findings, check.Finding{
+				Category:     "placeholder",
+				Severity:     check.SeverityMajor,
+				Message:      d.extraMessage(conf.TargetLocale),
+				OriginalText: d.Token,
+			})
 		}
 
 		check.Annotate(v, "placeholder-check", findings)
 		return nil
 	}
 	return t
-}
-
-func placeholderCounts(s string) map[string]int {
-	counts := map[string]int{}
-	for _, m := range placeholderToken.FindAllString(s, -1) {
-		counts[m]++
-	}
-	return counts
-}
-
-func sortedKeys(m map[string]int) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
