@@ -41,6 +41,21 @@ style:
     - regex: '(^|[^\w.-])\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
       description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
       severity: critical
+    # "magic" carries two registers. The marketing one is a claim about the
+    # product ("it just works, like magic"); the technical one names a file
+    # signature ("magic bytes", "magic number", "magic string"). RE2 has neither
+    # lookahead nor lookbehind, so the exclusion cannot be written as
+    # `\bmagic\b(?!\s+(bytes|number))` — the marketing register is written
+    # positively instead. The copular and simile branches require the word to
+    # close its clause (punctuation, or the end of the block), which is what
+    # keeps "works like magic bytes" out; the trailing class excludes the hyphen
+    # so "magic-byte sniffing" stays out too. "magical" and "magic happens" have
+    # no technical sense and need no such guard. A novel phrasing can slip
+    # through — the trade is deliberate, because a rule whose every hit is a
+    # false positive teaches the reader to stop reading the findings.
+    - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
+      description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
+      severity: major
     - regex: '\bsegmented into blocks\b'
       description: Extraction — not segmentation — produces blocks; segmentation is an opt-in overlay within a block
       severity: major
@@ -69,9 +84,6 @@ vocabulary:
     - term: easily
       replacement: ""
       severity: minor
-    - term: magic
-      replacement: ""
-      severity: major
 examples:
   - before: "kapi delivers powerful, seamless format support for everything you need."
     after: "kapi reads and writes localization, document, and data formats."
