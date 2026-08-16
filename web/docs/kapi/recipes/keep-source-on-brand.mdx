@@ -6,17 +6,26 @@ hide_table_of_contents: true
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
-import { PendingMedia } from "@neokapi/docs-shared";
+import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Keep your source content on brand
 
 **Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails — so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
-<PendingMedia kind="video" scene="web/walkthroughs/kapi-keep-source-on-brand.scene.yaml">
-  Authoring a voice profile, running the check on a source page, reading
-  the score and located findings, and rewriting the off-brand blocks until the
-  gate passes.
-</PendingMedia>
+The video below walks the whole path on one repository, in one language. A
+drafted context graph — recipe, voice profile, vocabulary — is reviewed and
+committed; `kapi check --strict` runs as a gate over operator documentation,
+interface strings and a marketing page; the failures are corrected three ways in
+the source and once as a vocabulary decision the graph keeps, so the next check
+enforces what the last one passed. No server, no model, no second language.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/monolingual-governance-light.webm",
+    dark: "/video/kapi/monolingual-governance-dark.webm",
+  }}
+  maxWidth="900px"
+/>
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>

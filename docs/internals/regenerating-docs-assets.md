@@ -40,7 +40,7 @@ in env.
 | kapi terminal scenes (`/video/kapi/01-*.webm`) | kapi docs recipes/quickstart | `make kapi-scenes` (VHS) | `web/static/video/kapi/` |
 | kapi Claude explainers (`claude-app-i18n`, `claude-translate-document`) | `kapi/get-started/use-with-claude.mdx` | harness demos `02`,`03` (live Claude) | `web/static/video/kapi/` |
 | kapi shell explainers (`kapi-checks-guardrail`, `toolbox-explainer`) | checks / toolbox pages | harness demos `05`,`09` (scripted shell) | `web/static/video/kapi/` |
-| kapi monolingual journey (`monolingual-governance`) | the monolingual governance page | harness demo `s0-northsea-governance` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
+| kapi monolingual journey (`monolingual-governance`) | `kapi/recipes/keep-source-on-brand.mdx` | harness demo `s0-northsea-governance` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
 | kapi multilingual ship states (`multilingual-ship-states`) | the multilingual/ship-state page | harness demo `s1-compass-multilingual` (scripted shell, seeded from `samples/compass`) | `web/static/video/kapi/` |
 | kapi docs-site convergence (`docs-site-convergence`) | the CI / convergence page | harness demo `s2-tidewatch-docs` (scripted shell, seeded from `samples/tidewatch-docs`) | `web/static/video/kapi/` |
 | Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx` | harness desktop demos (×6) | `web/static/video/kapi/` |

@@ -18,7 +18,7 @@ function HomepageHeader() {
         <div className={styles.heroIntro}>
           <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            Contextually consistent content, in every language.
+            Contextually consistent content, in any format.
           </Heading>
           <p className={styles.heroSubtitle}>
             kapi holds your project&rsquo;s context &mdash; its terms, its voice, the rules it goes
