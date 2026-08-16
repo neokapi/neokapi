@@ -94,6 +94,7 @@ the version rides the single-document serialization of the same records.
 
 | Field | Type | Notes |
 | --- | --- | --- |
+| `scope` | string | The document the unit belongs to, and the shard it is written into. Part of the record's identity: a unit id is unique inside its document and nowhere wider. |
 | `unit` | string | Unit identity — the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
 | `status` | string | Target ladder position: draft → translated → reviewed → signed-off. |

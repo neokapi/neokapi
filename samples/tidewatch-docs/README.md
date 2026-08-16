@@ -141,9 +141,9 @@ kapi check --strict                       # PASS — the source is what a PR is 
 | 1 | Onboarded through the discovery path — the graph arrives as reviewable files | **MET** — recipe, voice profile and vocabulary carried forward from the monolingual sample rather than re-authored |
 | 2 | Governance bound at the point day one; review workflow on | **MET** — `profiles.northsea` binds voice and channel; the review round-trip runs offline through `apply` + `commit` |
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET** — `plan: 96 unit(s) missing · 15 exact-content memory · 81 AI · ≈2k tokens`, then per-locale `(content memory 23 · AI 37)`. No credential spent |
-| 4 | Governed review exercised, with a decision that changes an outcome | **MET** — 36 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending |
+| 4 | Governed review exercised, with a decision that changes an outcome | **MET** — 60 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending |
 | 5 | Delivery proven — the CI leg | **PARTIAL** — the workflow is authored against the published actions and every kapi command in it is verified locally; it is not executed, because a sample workflow inside `samples/` is not a repository workflow and running it would mean a public sample repository, which this stream does not create |
-| 6 | Recorded as a harness walkthrough | **PARTIAL** — `harness/demos/s2-tidewatch-docs/` is authored and capture-verified; render and CDN publish are blocked on [#1913](https://github.com/neokapi/neokapi/issues/1913) |
+| 6 | Recorded as a harness walkthrough | **PARTIAL** — `harness/demos/s2-tidewatch-docs/` is authored and capture-verified; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET** — one fictional company, in-repo under `samples/` |
 
 ## Known gaps this sample exercises
@@ -152,9 +152,19 @@ Running the journey is how these were found.
 
 | Gap | Issue |
 | --- | --- |
-| A collection's reader config reaches the loop but not the coverage path, so the pipeline line reads `60/48 units` and coverage is computed over a different denominator than the run produced against | [#1933](https://github.com/neokapi/neokapi/issues/1933) |
+| The render and CDN publish of the walkthrough, in Norwegian | [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 
-Fixed while this sample was being built: **a source edit never reaching its
+Fixed while this sample was being built: **a review decision recorded without
+its file** — a docs collection repeats its block ids by construction, so every
+page carries an `h` and a `p`, and a record keyed on the id alone kept one
+approval per id and discarded the rest without a word; the pages that lost
+theirs then read as stale against a source nobody had edited, and re-reviewing
+them lost the same decisions again
+([#2030](https://github.com/neokapi/neokapi/issues/2030)); a collection's reader
+config reaching the loop but not the coverage path, so the pipeline line read
+`60/48 units` and coverage was computed over a different denominator than the
+run produced against
+([#1933](https://github.com/neokapi/neokapi/issues/1933)); **a source edit never reaching its
 translation** — rewrite an English sentence and the Norwegian kept the old
 wording, still counted `translated`, still carrying its approval, still
 `✓ shippable`, because a review decision bound only to the target hash and the
