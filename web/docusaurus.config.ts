@@ -572,27 +572,87 @@ const config: Config = {
           // note has since left this site are grouped separately further down.
           // The bare /contribute/notes-internal covers the directory-index form.
           { from: "/contribute/notes-internal", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/cdn-assets", to: "/contribute/implementation/repo/cdn-assets" },
-          { from: "/contribute/notes-internal/cli-conventions", to: "/contribute/implementation/surfaces/cli-conventions" },
-          { from: "/contribute/notes-internal/content-fidelity", to: "/contribute/implementation/engine/content-fidelity" },
-          { from: "/contribute/notes-internal/content-parity", to: "/contribute/implementation/foundations/content-parity" },
-          { from: "/contribute/notes-internal/flow-steps-format", to: "/contribute/implementation/engine/flow-steps-format" },
-          { from: "/contribute/notes-internal/implementing-formats", to: "/contribute/implementation/engine/implementing-formats" },
+          {
+            from: "/contribute/notes-internal/cdn-assets",
+            to: "/contribute/implementation/repo/cdn-assets",
+          },
+          {
+            from: "/contribute/notes-internal/cli-conventions",
+            to: "/contribute/implementation/surfaces/cli-conventions",
+          },
+          {
+            from: "/contribute/notes-internal/content-fidelity",
+            to: "/contribute/implementation/engine/content-fidelity",
+          },
+          {
+            from: "/contribute/notes-internal/content-parity",
+            to: "/contribute/implementation/foundations/content-parity",
+          },
+          {
+            from: "/contribute/notes-internal/flow-steps-format",
+            to: "/contribute/implementation/engine/flow-steps-format",
+          },
+          {
+            from: "/contribute/notes-internal/implementing-formats",
+            to: "/contribute/implementation/engine/implementing-formats",
+          },
           { from: "/contribute/notes-internal/index", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/kapi-project-file", to: "/contribute/implementation/context/kapi-project-file" },
-          { from: "/contribute/notes-internal/markdown-in-ui", to: "/contribute/implementation/repo/markdown-in-ui" },
-          { from: "/contribute/notes-internal/mcp-tools-reference", to: "/contribute/implementation/surfaces/mcp-tools-reference" },
-          { from: "/contribute/notes-internal/memory-matching-algorithm", to: "/contribute/implementation/context/memory-matching-algorithm" },
-          { from: "/contribute/notes-internal/multimodal-content", to: "/contribute/implementation/multilingual/multimodal-content" },
-          { from: "/contribute/notes-internal/omml-math", to: "/contribute/implementation/multilingual/omml-math" },
-          { from: "/contribute/notes-internal/plugin-model", to: "/contribute/implementation/engine/plugin-model" },
-          { from: "/contribute/notes-internal/plugin-protocol-v1", to: "/contribute/implementation/engine/plugin-protocol-v1" },
-          { from: "/contribute/notes-internal/session-tool-authoring", to: "/contribute/implementation/engine/session-tool-authoring" },
-          { from: "/contribute/notes-internal/skeleton-store", to: "/contribute/implementation/engine/skeleton-store" },
-          { from: "/contribute/notes-internal/streaming-tree-formats", to: "/contribute/implementation/engine/streaming-tree-formats" },
-          { from: "/contribute/notes-internal/terminology-data-model", to: "/contribute/implementation/context/terminology-data-model" },
-          { from: "/contribute/notes-internal/tool-data-model-redesign", to: "/contribute/implementation/engine/tool-data-model-redesign" },
-          { from: "/contribute/notes-internal/wasm-engine-abi", to: "/contribute/implementation/surfaces/wasm-engine-abi" },
+          {
+            from: "/contribute/notes-internal/kapi-project-file",
+            to: "/contribute/implementation/context/kapi-project-file",
+          },
+          {
+            from: "/contribute/notes-internal/markdown-in-ui",
+            to: "/contribute/implementation/repo/markdown-in-ui",
+          },
+          {
+            from: "/contribute/notes-internal/mcp-tools-reference",
+            to: "/contribute/implementation/surfaces/mcp-tools-reference",
+          },
+          {
+            from: "/contribute/notes-internal/memory-matching-algorithm",
+            to: "/contribute/implementation/context/memory-matching-algorithm",
+          },
+          {
+            from: "/contribute/notes-internal/multimodal-content",
+            to: "/contribute/implementation/multilingual/multimodal-content",
+          },
+          {
+            from: "/contribute/notes-internal/omml-math",
+            to: "/contribute/implementation/multilingual/omml-math",
+          },
+          {
+            from: "/contribute/notes-internal/plugin-model",
+            to: "/contribute/implementation/engine/plugin-model",
+          },
+          {
+            from: "/contribute/notes-internal/plugin-protocol-v1",
+            to: "/contribute/implementation/engine/plugin-protocol-v1",
+          },
+          {
+            from: "/contribute/notes-internal/session-tool-authoring",
+            to: "/contribute/implementation/engine/session-tool-authoring",
+          },
+          {
+            from: "/contribute/notes-internal/skeleton-store",
+            to: "/contribute/implementation/engine/skeleton-store",
+          },
+          {
+            from: "/contribute/notes-internal/streaming-tree-formats",
+            to: "/contribute/implementation/engine/streaming-tree-formats",
+          },
+          {
+            from: "/contribute/notes-internal/terminology-data-model",
+            to: "/contribute/implementation/context/terminology-data-model",
+          },
+          {
+            from: "/contribute/notes-internal/tool-data-model-redesign",
+            to: "/contribute/implementation/engine/tool-data-model-redesign",
+          },
+          {
+            from: "/contribute/notes-internal/wasm-engine-abi",
+            to: "/contribute/implementation/surfaces/wasm-engine-abi",
+          },
           // Four notes documented the hosted platform rather than the framework
           // — its product-analytics taxonomy, the nightly convergence of this
           // repo's own content against it, a review of the loop documentation
@@ -601,14 +661,38 @@ const config: Config = {
           // routes were indexed (and two of them also had a notes-internal
           // predecessor route), so every one lands on the implementation index
           // rather than 404ing.
-          { from: "/contribute/implementation/analytics-events", to: "/contribute/implementation/index" },
-          { from: "/contribute/implementation/dogfood-sync", to: "/contribute/implementation/index" },
-          { from: "/contribute/implementation/loop-docs-review", to: "/contribute/implementation/index" },
-          { from: "/contribute/implementation/positioning", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/analytics-events", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/dogfood-sync", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/loop-docs-review", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/positioning", to: "/contribute/implementation/index" },
+          {
+            from: "/contribute/implementation/analytics-events",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/implementation/dogfood-sync",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/implementation/loop-docs-review",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/implementation/positioning",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/notes-internal/analytics-events",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/notes-internal/dogfood-sync",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/notes-internal/loop-docs-review",
+            to: "/contribute/implementation/index",
+          },
+          {
+            from: "/contribute/notes-internal/positioning",
+            to: "/contribute/implementation/index",
+          },
           // Workspace paths was contributor machine setup (NEOKAPI_* variables
           // and the absolute-path guard), not product documentation, so it was
           // unpublished and now lives in the repository at
