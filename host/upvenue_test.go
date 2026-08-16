@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -363,4 +364,110 @@ func TestParseUpResultStream(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "remote", out.Flow)
 	})
+
+	// The proposal is made in the push phase and reported on its own line, long
+	// before the result is known. Folding it onto the result is what carries the
+	// review link past the venue boundary — to the host's own summary, to the
+	// `up` MCP tool, and to a CI job summary built from either.
+	t.Run("a proposed change-set is folded onto the result with its review link", func(t *testing.T) {
+		out, err := parseUpResultStream([]byte(
+			`{"type":"changeset","concepts_proposed":57,"changeset_id":"EMezX9AS",` +
+				`"changeset_url":"https://bowrain.cloud/acme/context/changes/EMezX9AS"}` + "\n" +
+				`{"type":"result","flow":"remote","converged":true}` + "\n"))
+		require.NoError(t, err)
+		assert.Equal(t, 57, out.ConceptsProposed)
+		assert.Equal(t, "EMezX9AS", out.ChangesetID)
+		assert.Equal(t, "https://bowrain.cloud/acme/context/changes/EMezX9AS", out.ChangesetURL)
+	})
+
+	// A venue that cannot name a review surface still names the change-set. The
+	// id is the handle every other surface takes, so it travels on its own
+	// rather than being withheld for want of a link.
+	t.Run("a proposal with no review link keeps its id", func(t *testing.T) {
+		out, err := parseUpResultStream([]byte(
+			`{"type":"changeset","concepts_proposed":3,"changeset_id":"EMezX9AS"}` + "\n" +
+				`{"type":"result","flow":"remote"}` + "\n"))
+		require.NoError(t, err)
+		assert.Equal(t, "EMezX9AS", out.ChangesetID)
+		assert.Empty(t, out.ChangesetURL)
+	})
+
+	t.Run("a run that proposed nothing carries no change-set", func(t *testing.T) {
+		out, err := parseUpResultStream([]byte(`{"type":"result","flow":"remote"}` + "\n"))
+		require.NoError(t, err)
+		assert.Zero(t, out.ConceptsProposed)
+		assert.Empty(t, out.ChangesetID)
+		assert.Empty(t, out.ChangesetURL)
+	})
+}
+
+// TestConvergeOutputReportsWhereToReviewAProposal covers the text summary a
+// person reads at the end of `kapi up`.
+//
+// The run said "proposed 57 governed terminology edit(s) in change-set
+// EMezX9AS" and stopped there, which names something the reader has no way to
+// reach: finding the review surface meant grepping the frontend's route table.
+func TestConvergeOutputReportsWhereToReviewAProposal(t *testing.T) {
+	tests := []struct {
+		name       string
+		out        ConvergeOutput
+		wantsLink  bool
+		wantsCount bool
+	}{
+		{
+			name: "a proposal with a review link prints it",
+			out: ConvergeOutput{
+				Flow: "converge", Passes: 1, Converged: true,
+				ConceptsProposed: 57,
+				ChangesetID:      "EMezX9AS",
+				ChangesetURL:     "https://bowrain.cloud/acme/context/changes/EMezX9AS",
+			},
+			wantsLink: true, wantsCount: true,
+		},
+		{
+			name: "a proposal with no review link degrades to the id alone",
+			out: ConvergeOutput{
+				Flow: "converge", Passes: 1, Converged: true,
+				ConceptsProposed: 57,
+				ChangesetID:      "EMezX9AS",
+			},
+			wantsLink: false, wantsCount: true,
+		},
+		{
+			name: "a monolingual run reports its proposal too",
+			out: ConvergeOutput{
+				Flow: "converge", Passes: 1, Monolingual: true,
+				ConceptsProposed: 2,
+				ChangesetID:      "EMezX9AS",
+				ChangesetURL:     "https://bowrain.cloud/acme/context/changes/EMezX9AS",
+			},
+			wantsLink: true, wantsCount: true,
+		},
+		{
+			name:      "a run that proposed nothing says nothing",
+			out:       ConvergeOutput{Flow: "converge", Passes: 1, Converged: true},
+			wantsLink: false, wantsCount: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			require.NoError(t, tc.out.FormatText(&buf))
+			got := buf.String()
+
+			if tc.wantsCount {
+				assert.Contains(t, got, "change-set EMezX9AS",
+					"a proposed change-set must be named in the summary")
+			} else {
+				assert.NotContains(t, got, "change-set")
+			}
+			if tc.wantsLink {
+				assert.Contains(t, got, "Review it at https://bowrain.cloud/acme/context/changes/EMezX9AS",
+					"the review link is the whole point: an id with no link is a surface the reader has to go and find")
+			} else {
+				assert.NotContains(t, got, "Review it at")
+			}
+		})
+	}
 }

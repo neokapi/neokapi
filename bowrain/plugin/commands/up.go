@@ -121,7 +121,9 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 		if cerr != nil {
 			return cerr
 		}
-		reportConceptPush(cmd, cres)
+		if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
+			return err
+		}
 	}
 	syncConvergePolicy(cmd.Context(), conn.Client(), server)
 	if !app.Quiet {
@@ -142,9 +144,33 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 // change-set waiting on a reviewer, and the run reported block counts and a
 // convergence summary with no mention of it. The proposal was real; only the
 // telling was missing.
-func reportConceptPush(cmd *cobra.Command, res *PushConceptsResult) {
-	if res == nil || app.Quiet {
-		return
+//
+// Under --json the same proposal travels as one discriminated NDJSON record
+// alongside brand_profile's, carrying the review link as a field. That record is
+// the whole of what a non-terminal consumer can see: a CI job summary is built
+// from the run's structured output, not from its stderr, so a proposal that
+// exists only as a stderr sentence is invisible to the surface most likely to
+// be read by the person who has to review it.
+func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *PushConceptsResult, jsonOut bool) error {
+	if res == nil {
+		return nil
+	}
+	if jsonOut {
+		if res.ConceptsProposed == 0 {
+			return nil
+		}
+		if stream == nil {
+			stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		}
+		return stream.Encode(struct {
+			Type      string `json:"type"`
+			Proposed  int    `json:"concepts_proposed"`
+			ID        string `json:"changeset_id,omitempty"`
+			ReviewURL string `json:"changeset_url,omitempty"`
+		}{Type: "changeset", Proposed: res.ConceptsProposed, ID: res.ChangesetID, ReviewURL: res.ChangesetURL})
+	}
+	if app != nil && app.Quiet {
+		return nil
 	}
 	w := cmd.ErrOrStderr()
 	if res.ConceptsApplied > 0 || res.RelationsApplied > 0 {
@@ -158,6 +184,7 @@ func reportConceptPush(cmd *cobra.Command, res *PushConceptsResult) {
 			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
 		}
 	}
+	return nil
 }
 
 // runServerUp is the server-venue up: push local changes, start (or join) a
@@ -216,7 +243,9 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		if cerr != nil {
 			return cerr
 		}
-		reportConceptPush(cmd, cres)
+		if err := reportConceptPush(cmd, jsonStream, cres, jsonOut); err != nil {
+			return err
+		}
 	}
 	client := conn.Client()
 	if client == nil {

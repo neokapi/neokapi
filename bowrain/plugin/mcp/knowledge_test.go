@@ -256,3 +256,68 @@ func TestHandleConceptSearchRequiresWorkspace(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "workspace")
 }
+
+// TestExperimentStatusCarriesTheReviewLink covers what an assistant hands back
+// to the person who has to act on a change-set.
+//
+// The tool reported an id and nothing else, so the human reading the answer had
+// no way to open the change-set: the review surface had to be found by grepping
+// the frontend's routes. Both branches of the tool — the list and the single
+// change-set detail — carry the deep link now.
+func TestExperimentStatusCarriesTheReviewLink(t *testing.T) {
+	srv := knowledgeTestServer(t)
+	setupKnowledgeProject(t, srv)
+	want := srv.URL + "/" + testWorkspace + "/context/changes/x-1"
+
+	t.Run("the list", func(t *testing.T) {
+		_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{})
+		require.NoError(t, err)
+		require.Len(t, out.Experiments, 1)
+		assert.Equal(t, want, out.Experiments[0].ReviewURL)
+	})
+
+	t.Run("one change-set's detail", func(t *testing.T) {
+		_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+		require.NoError(t, err)
+		require.NotNil(t, out.Experiment)
+		assert.Equal(t, want, out.Experiment.ReviewURL)
+	})
+}
+
+// TestChangesetReviewURLDegradesWithoutAServerBase pins the omission contract:
+// a project the link cannot be built for reports the id alone.
+//
+// A URL missing its host or its workspace segment resolves to a page that does
+// not exist, and an assistant would hand that link on as if it worked — which
+// reads to the reviewer as a proposal that went nowhere rather than as a hub
+// the project is not connected to.
+func TestChangesetReviewURLDegradesWithoutAServerBase(t *testing.T) {
+	tests := []struct {
+		name string
+		proj *bproject.Project
+	}{
+		{name: "no project", proj: nil},
+		{name: "no recipe", proj: &bproject.Project{}},
+		{name: "no server block", proj: &bproject.Project{Recipe: &bproject.Recipe{}}},
+		{
+			name: "a server URL with no workspace segment",
+			proj: &bproject.Project{Recipe: &bproject.Recipe{
+				Server: &bproject.ServerSpec{URL: "https://bowrain.cloud"},
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Empty(t, changesetReviewURL(tc.proj, "x-1"))
+		})
+	}
+
+	t.Run("an empty change-set id has nothing to link to", func(t *testing.T) {
+		proj := &bproject.Project{Recipe: &bproject.Recipe{
+			Server: &bproject.ServerSpec{URL: "https://bowrain.cloud/acme/proj-123"},
+		}}
+		assert.Empty(t, changesetReviewURL(proj, ""))
+		assert.Equal(t, "https://bowrain.cloud/acme/context/changes/x-1", changesetReviewURL(proj, "x-1"))
+	})
+}
