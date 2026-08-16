@@ -174,8 +174,22 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 // document. Every other line is a progress event; the record is discriminated
 // by its type and carries the ConvergeOutput flat, so the same line decodes
 // into the result a local run returns.
+//
+// The `changeset` record is the one other line this reader keeps. A venue that
+// governs terminology emits it separately from the result — the proposal is
+// made in the run's push phase, long before the result is known — and it is
+// folded onto the result here so an embedded caller receives one object
+// describing the whole run. Dropped, it would leave every consumer downstream
+// of the venue (the host's own summary, the `up` MCP tool, a CI job summary
+// built from either) reporting a converged run and never mentioning that a
+// governed edit is sitting on a reviewer.
 func parseUpResultStream(raw []byte) (*ConvergeOutput, error) {
 	var found *ConvergeOutput
+	var proposed struct {
+		ConceptsProposed int    `json:"concepts_proposed"`
+		ChangesetID      string `json:"changeset_id"`
+		ChangesetURL     string `json:"changeset_url"`
+	}
 	for line := range strings.SplitSeq(string(raw), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -187,17 +201,26 @@ func parseUpResultStream(raw []byte) (*ConvergeOutput, error) {
 		if err := json.Unmarshal([]byte(line), &kind); err != nil {
 			continue // a plugin line that is not part of the document
 		}
-		if kind.Type != "result" {
-			continue
+		switch kind.Type {
+		case "changeset":
+			// Best-effort: a malformed proposal record must not fail a run whose
+			// content half succeeded.
+			_ = json.Unmarshal([]byte(line), &proposed)
+		case "result":
+			var out ConvergeOutput
+			if err := json.Unmarshal([]byte(line), &out); err != nil {
+				return nil, fmt.Errorf("decode the run's result record: %w", err)
+			}
+			found = &out
 		}
-		var out ConvergeOutput
-		if err := json.Unmarshal([]byte(line), &out); err != nil {
-			return nil, fmt.Errorf("decode the run's result record: %w", err)
-		}
-		found = &out
 	}
 	if found == nil {
 		return nil, errors.New("the run produced no result record")
+	}
+	if proposed.ConceptsProposed > 0 {
+		found.ConceptsProposed = proposed.ConceptsProposed
+		found.ChangesetID = proposed.ChangesetID
+		found.ChangesetURL = proposed.ChangesetURL
 	}
 	return found, nil
 }

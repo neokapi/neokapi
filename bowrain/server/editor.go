@@ -534,41 +534,6 @@ func projectParam(c echo.Context) string {
 // ContentStore-backed editor operations
 // ---------------------------------------------------------------------------
 
-// editorCreateProject creates a new project in the ContentStore.
-func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, sourceLang string, targetLangs []string) (*ProjectInfoResponse, error) {
-	if name == "" {
-		return nil, errors.New("project name is required")
-	}
-	if sourceLang == "" {
-		return nil, errors.New("source language is required")
-	}
-	if len(targetLangs) == 0 {
-		return nil, errors.New("at least one target language is required")
-	}
-
-	locales := make([]model.LocaleID, len(targetLangs))
-	for i, l := range targetLangs {
-		locales[i] = model.LocaleID(l)
-	}
-
-	p := &store.Project{
-		Name:                  name,
-		DefaultSourceLanguage: model.LocaleID(sourceLang),
-		TargetLanguages:       locales,
-		WorkspaceID:           ws,
-		Properties:            map[string]string{},
-	}
-	if err := cs.CreateProject(ctx, p); err != nil {
-		return nil, fmt.Errorf("create project: %w", err)
-	}
-
-	// Create the default collection and main stream for the new project.
-	_ = EnsureDefaultCollection(ctx, cs, p.ID)
-	_ = EnsureMainStream(ctx, cs, p.ID)
-
-	return projectToInfoResponse(p), nil
-}
-
 // maxItemNameLen bounds an item name. Real names are repository-relative paths;
 // anything approaching this is not one.
 const maxItemNameLen = 1024

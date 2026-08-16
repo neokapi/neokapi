@@ -932,7 +932,15 @@ func observedTermsRef(proj *bproject.Project) string {
 // sub-nav calls the surface Changes. This is the one link the CLI hands a
 // reviewer, so a spelling the app does not serve reads to them as a push that
 // did nothing.
+// An empty return is the contract every caller reads as "report the id alone".
+// A partially-built URL would be worse than none: missing its host or its
+// workspace segment it resolves to a page that does not exist, which reads to a
+// reviewer as a proposal that went nowhere rather than as a hub the project is
+// not connected to.
 func changesetURL(proj *bproject.Project, changesetID string) string {
+	if proj == nil || proj.Recipe == nil || changesetID == "" {
+		return ""
+	}
 	server := proj.Recipe.Server.ServerURL()
 	workspace := proj.Recipe.Server.Workspace()
 	if server == "" || workspace == "" {

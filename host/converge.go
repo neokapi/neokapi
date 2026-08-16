@@ -121,6 +121,19 @@ type ConvergeOutput struct {
 	// run, whose whole output is otherwise source-side.
 	ExtractedFiles  int `json:"extractedFiles,omitempty"`
 	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
+	// ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
+	// the run proposed rather than applied: edits that take effect only once a
+	// reviewer accepts them. They are venue-supplied — a run at a venue that
+	// governs terminology fills them in — and all three are zero for a run that
+	// proposed nothing.
+	//
+	// ChangesetURL is a deep link to the review surface, and is empty whenever
+	// the venue could not name one. An id with no link is still worth reporting:
+	// it is the handle every other surface takes, so a reader who cannot click
+	// through can still ask for the change-set by name.
+	ConceptsProposed int    `json:"conceptsProposed,omitempty"`
+	ChangesetID      string `json:"changesetId,omitempty"`
+	ChangesetURL     string `json:"changesetUrl,omitempty"`
 }
 
 // StaleUnits totals the units held out of shipping because their source moved
@@ -207,7 +220,27 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
 	}
+	o.formatProposedChangeset(w)
 	return nil
+}
+
+// formatProposedChangeset reports governed terminology the run proposed rather
+// than applied, and says where to review it.
+//
+// The link is the point. A run that ends "proposed 57 governed terminology
+// edit(s) in change-set EMezX9AS" names something the reader has no way to
+// reach: the id is a handle for a surface they have to go and find. Where the
+// venue named a review URL, print it; where it did not, the id alone is still
+// the honest report, and better than a link built from a guess at the host.
+func (o ConvergeOutput) formatProposedChangeset(w io.Writer) {
+	if o.ConceptsProposed == 0 {
+		return
+	}
+	fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed.\n",
+		o.ConceptsProposed, o.ChangesetID)
+	if o.ChangesetURL != "" {
+		fmt.Fprintf(w, "Review it at %s\n", o.ChangesetURL)
+	}
 }
 
 // formatMonolingual renders a run over a project with no target locale. The
@@ -223,6 +256,7 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 		fmt.Fprintln(w, "The project store already matched the working tree.")
 	}
 	fmt.Fprintln(w, "Up to date: the committed context and the occurrence graph match the sources.")
+	o.formatProposedChangeset(w)
 	return nil
 }
 

@@ -20,12 +20,41 @@ import (
 
 // knowledgeClient discovers the kapi project and builds a workspace-scoped
 // Bowrain client for the knowledge-graph MCP tools.
-func knowledgeClient() (*apiclient.BowrainClient, error) {
+//
+// The project travels back alongside the client because a tool's result is read
+// by an assistant reporting to a person, and a change-set id on its own gives
+// that person nothing to open. The recipe's server and workspace are what turn
+// the id into a review link, and they live on the project, not the client.
+func knowledgeClient() (*project.Project, *apiclient.BowrainClient, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return source.NewKnowledgeClient(proj)
+	client, err := source.NewKnowledgeClient(proj)
+	if err != nil {
+		return nil, nil, err
+	}
+	return proj, client, nil
+}
+
+// changesetReviewURL is the deep link to a change-set's review surface in the
+// web hub: <server>/<workspace>/context/changes/<id>, the one route the app
+// serves for it.
+//
+// Empty when the recipe names no server or no workspace. A surface that cannot
+// build the link reports the id alone rather than a link assembled from a
+// guessed host: a wrong link is worse than none, because it reads as a page
+// that has gone missing rather than as a hub the caller has not connected to.
+func changesetReviewURL(proj *project.Project, changesetID string) string {
+	if proj == nil || proj.Recipe == nil || proj.Recipe.Server == nil || changesetID == "" {
+		return ""
+	}
+	server := strings.TrimRight(proj.Recipe.Server.ServerURL(), "/")
+	workspace := proj.Recipe.Server.Workspace()
+	if server == "" || workspace == "" {
+		return ""
+	}
+	return server + "/" + workspace + "/context/changes/" + changesetID
 }
 
 // --- concept_search ---
@@ -57,7 +86,7 @@ type MCPConceptSearchOutput struct {
 }
 
 func handleConceptSearch(ctx context.Context, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
-	client, err := knowledgeClient()
+	_, client, err := knowledgeClient()
 	if err != nil {
 		return nil, MCPConceptSearchOutput{}, err
 	}
@@ -112,7 +141,7 @@ func handleConceptStory(ctx context.Context, input MCPConceptStoryInput) (*mcp.C
 		return nil, MCPConceptStoryOutput{}, errors.New("concept_id is required")
 	}
 
-	client, err := knowledgeClient()
+	_, client, err := knowledgeClient()
 	if err != nil {
 		return nil, MCPConceptStoryOutput{}, err
 	}
@@ -148,6 +177,10 @@ type MCPExperimentEntry struct {
 	Status    string `json:"status"`
 	Governed  bool   `json:"governed,omitempty"`
 	CreatedBy string `json:"created_by,omitempty"`
+	// ReviewURL is the deep link to this change-set's review surface. Omitted
+	// when the recipe names no server or workspace to build one from, so a
+	// consumer never receives a link that resolves nowhere.
+	ReviewURL string `json:"review_url,omitempty"`
 }
 
 type MCPBlastRadius struct {
@@ -191,7 +224,7 @@ type MCPExperimentStatusOutput struct {
 }
 
 func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
-	client, err := knowledgeClient()
+	proj, client, err := knowledgeClient()
 	if err != nil {
 		return nil, MCPExperimentStatusOutput{}, err
 	}
@@ -209,6 +242,7 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 				Status:    detail.Status,
 				Governed:  detail.Governed,
 				CreatedBy: detail.CreatedBy,
+				ReviewURL: changesetReviewURL(proj, detail.ID),
 			},
 		}
 		// Blast radius is a best-effort summary alongside the detail — the
@@ -265,6 +299,7 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 			Name:      cs.Name,
 			Status:    cs.Status,
 			CreatedBy: cs.CreatedBy,
+			ReviewURL: changesetReviewURL(proj, cs.ID),
 		})
 	}
 	return nil, out, nil
