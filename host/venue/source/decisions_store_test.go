@@ -52,7 +52,7 @@ func TestStagePulledDecisions_WritesThroughTheAppsHandle(t *testing.T) {
 	// reached one store rather than two.
 	st, err := a.OpenProjectState(t.Context(), c.project.Root)
 	require.NoError(t, err)
-	us, found := st.Get(t.Context(), state.Key{Unit: "greeting", Variant: model.Variant("fr")})
+	us, found := st.Get(t.Context(), state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")})
 	require.True(t, found)
 	assert.Equal(t, "approved", us.Decision.ReviewState)
 	assert.Equal(t, "locales/en.json", us.Scope)

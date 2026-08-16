@@ -98,11 +98,12 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		}
 
 		scope := stalenessScope{unit: u}
+		document := DecisionScope(root, u.SourcePath)
 		for _, b := range bl {
 			if !b.Translatable {
 				continue
 			}
-			origin, ok := produced[reviewUnitKey(blockKey(b), u.Locale)]
+			origin, ok := produced[reviewUnitKey(document, blockKey(b), u.Locale)]
 			if !ok {
 				// Nothing was produced here. Whether that is a gap is the ship
 				// gate's question, and answering it twice in two vocabularies
@@ -151,8 +152,8 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	return gate, true, nil
 }
 
-// producedTargets indexes the state store by unit and locale, keeping only the
-// records that describe a target something actually produced.
+// producedTargets indexes the state store by document, unit and locale, keeping
+// only the records that describe a target something actually produced.
 //
 // A unit with neither a target hash nor an origin is a unit the project knows
 // about and has not translated. It has no provenance to be stale, and counting
@@ -163,7 +164,7 @@ func producedTargets(recorded []state.UnitState) map[string]model.Origin {
 		if u.TargetHash == "" && u.Origin == (model.Origin{}) {
 			continue
 		}
-		out[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = u.Origin
+		out[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = u.Origin
 	}
 	return out
 }

@@ -111,7 +111,7 @@ func ResolveIdentity(ctx context.Context, st *state.WorkStore, byPath map[string
 // stays reachable through the content memory, which is where recycling belongs.
 func stageIdentity(ctx context.Context, st *state.WorkStore, scope string, r reconcile.Result) error {
 	id := reconcile.Identify(scope, r.Block)
-	key := state.Key{Unit: r.Key, Variant: model.VariantKey{}}
+	key := state.Key{Scope: scope, Unit: r.Key, Variant: model.VariantKey{}}
 
 	u, _ := st.Get(ctx, key)
 	u.Unit = r.Key

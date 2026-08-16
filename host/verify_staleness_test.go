@@ -127,6 +127,7 @@ func (f *stalenessFixture) record(t *testing.T, fingerprint string) {
 		require.NoError(t, st.Put(ctx, state.UnitState{
 			Unit:       key,
 			Variant:    model.Variant(model.LocaleID(f.units[0].Locale)),
+			Scope:      DecisionScope(f.root, f.units[0].SourcePath),
 			Status:     model.TargetStatusTranslated,
 			TargetHash: "h-" + key,
 			Origin: model.Origin{
@@ -265,16 +266,16 @@ func TestStalenessGate_JoinsTheShipGateSet(t *testing.T) {
 // report every untranslated string in the project as unstamped.
 func TestProducedTargets_IgnoresWhatWasNeverProduced(t *testing.T) {
 	recorded := []state.UnitState{
-		{Unit: "a", Variant: model.Variant("fr")},
-		{Unit: "b", Variant: model.Variant("fr"), TargetHash: "h"},
-		{Unit: "c", Variant: model.Variant("fr"), Origin: model.Origin{Kind: model.OriginHuman}},
+		{Scope: "docs/index.md", Unit: "a", Variant: model.Variant("fr")},
+		{Scope: "docs/index.md", Unit: "b", Variant: model.Variant("fr"), TargetHash: "h"},
+		{Scope: "docs/index.md", Unit: "c", Variant: model.Variant("fr"), Origin: model.Origin{Kind: model.OriginHuman}},
 	}
 	produced := producedTargets(recorded)
 
 	assert.Len(t, produced, 2)
-	assert.NotContains(t, produced, reviewUnitKey("a", "fr"))
-	assert.Contains(t, produced, reviewUnitKey("b", "fr"))
-	assert.Contains(t, produced, reviewUnitKey("c", "fr"))
+	assert.NotContains(t, produced, reviewUnitKey("docs/index.md", "a", "fr"))
+	assert.Contains(t, produced, reviewUnitKey("docs/index.md", "b", "fr"))
+	assert.Contains(t, produced, reviewUnitKey("docs/index.md", "c", "fr"))
 }
 
 // TestMovedComponent_AttributesTheDivergence: the fingerprint folds voice and

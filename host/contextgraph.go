@@ -258,6 +258,7 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 			return nil, fmt.Errorf("render variant of unit %q: %w", u.Unit, err)
 		}
 		gu := contextgraph.UnitState{
+			Document:    u.Scope,
 			Unit:        u.Unit,
 			Variant:     string(variant),
 			Status:      string(u.Status),

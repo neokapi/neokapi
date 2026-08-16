@@ -1160,7 +1160,7 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 				return gate, fmt.Errorf("qa gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 			}
 			for _, f := range check.Findings(tool.NewBlockViewWithContext(ctx, b)) {
-				if identical.suppresses(f, b, u.Locale) {
+				if identical.suppresses(f, u.SourcePath, b, u.Locale) {
 					continue
 				}
 				failing := qaFindingFails(f)

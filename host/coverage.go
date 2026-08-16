@@ -117,8 +117,9 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.Sour
 	return held, len(states), nil
 }
 
-// reviewedIndex maps each unit (block identity + locale) to its committed review
-// decision, loaded from the project state store (core/state). A unit reads at its
+// reviewedIndex maps each unit (document + block identity + locale) to its
+// committed review decision, loaded from the project state store (core/state).
+// A unit reads at its
 // decided rung — reviewed/signed-off for an approval, draft for a rejection —
 // only while the recorded decision still judges the CURRENT translation: the
 // decision carries the targetHash it applied to, so an edit since the decision
@@ -185,7 +186,15 @@ type aiReviewEntry struct {
 	targetHash string
 }
 
-func reviewUnitKey(unit, locale string) string { return unit + "\x00" + locale }
+// reviewUnitKey is the index's identity: the document a decision was made in,
+// the unit it was made about, and the locale it was made for. The document
+// belongs in it because a unit id is unique inside its document and nowhere
+// wider — without it, one page's decision answered for every page in the
+// collection that happened to carry the same id, and every one of them but the
+// last read as stale against a source nobody had touched.
+func reviewUnitKey(scope, unit, locale string) string {
+	return scope + "\x00" + unit + "\x00" + locale
+}
 
 // grade looks a block's recorded decision up once and reports everything a
 // reader needs from it: the entry, how its basis stands against the CURRENT
@@ -197,11 +206,11 @@ func reviewUnitKey(unit, locale string) string { return unit + "\x00" + locale }
 // mean different things to a caller: a moved translation puts the unit back at
 // its presence baseline, a moved source says the target no longer translates
 // anything the project has.
-func (r reviewedIndex) grade(b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
+func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
 	if r.byUnit == nil {
 		return reviewedEntry{}, basisNone, false
 	}
-	e, ok := r.byUnit[reviewUnitKey(blockKey(b), locale)]
+	e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
 	if !ok {
 		return reviewedEntry{}, basisNone, false
 	}
@@ -221,8 +230,8 @@ func (r reviewedIndex) grade(b *model.Block, locale string) (e reviewedEntry, ba
 
 // entryFor returns a block's applicable review entry for the locale, or
 // ok=false when none applies.
-func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, bool) {
-	e, _, applies := r.grade(b, locale)
+func (r reviewedIndex) entryFor(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
+	e, _, applies := r.grade(scope, b, locale)
 	if !applies {
 		return reviewedEntry{}, false
 	}
@@ -231,15 +240,15 @@ func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, b
 
 // basisFor grades the decision recorded for (block, locale) against the block's
 // current source.
-func (r reviewedIndex) basisFor(b *model.Block, locale string) basisVerdict {
-	_, basis, _ := r.grade(b, locale)
+func (r reviewedIndex) basisFor(scope string, b *model.Block, locale string) basisVerdict {
+	_, basis, _ := r.grade(scope, b, locale)
 	return basis
 }
 
 // statusFor returns a block's recorded review state for the locale, or ok=false
 // when none applies (no decision, or a stale one).
-func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetStatus, bool) {
-	e, ok := r.entryFor(b, locale)
+func (r reviewedIndex) statusFor(scope string, b *model.Block, locale string) (model.TargetStatus, bool) {
+	e, ok := r.entryFor(scope, b, locale)
 	return e.status, ok
 }
 
@@ -247,8 +256,8 @@ func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetSta
 // locale — approved, signed-off, or rejected. The review queue drops decided
 // units: an approved unit is done, a rejected one is back in the work queue,
 // and a unit whose pairing has moved is back in the queue too.
-func (r reviewedIndex) decided(b *model.Block, locale string) bool {
-	_, ok := r.statusFor(b, locale)
+func (r reviewedIndex) decided(scope string, b *model.Block, locale string) bool {
+	_, ok := r.statusFor(scope, b, locale)
 	return ok
 }
 
@@ -275,11 +284,11 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 // A unit with no target at all grades basisNone whatever the store holds: there
 // is no pairing for a decision to have blessed, so there is nothing a source
 // edit could invalidate, and reading one would promote an untranslated unit.
-func (r reviewedIndex) apply(base string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict) {
+func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) (st string, aiDecided bool, basis basisVerdict) {
 	if base == "" {
 		return base, false, basisNone
 	}
-	e, basis, applies := r.grade(b, locale)
+	e, basis, applies := r.grade(scope, b, locale)
 	if applies && base == string(model.TargetStatusTranslated) {
 		return string(e.status), state.IsAIDecision(e.by), basis
 	}
@@ -288,11 +297,11 @@ func (r reviewedIndex) apply(base string, b *model.Block, locale string) (st str
 
 // aiReviewFor returns a block's fresh AI pre-review annotation for the locale,
 // or ok=false when none was recorded or the translation changed since.
-func (r reviewedIndex) aiReviewFor(b *model.Block, locale string) (aiReviewEntry, bool) {
+func (r reviewedIndex) aiReviewFor(scope string, b *model.Block, locale string) (aiReviewEntry, bool) {
 	if r.aiReviews == nil {
 		return aiReviewEntry{}, false
 	}
-	e, ok := r.aiReviews[reviewUnitKey(blockKey(b), locale)]
+	e, ok := r.aiReviews[reviewUnitKey(scope, blockKey(b), locale)]
 	if !ok {
 		return aiReviewEntry{}, false
 	}
@@ -325,13 +334,13 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	for _, u := range all {
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
-			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
+			idx.byUnit[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = reviewedEntry{
 				status: u.Status, targetHash: u.TargetHash,
 				contentHash: u.ContentHash, by: u.Decision.By,
 			}
 		}
 		if u.AIReview != nil {
-			idx.aiReviews[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = aiReviewEntry{
+			idx.aiReviews[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = aiReviewEntry{
 				score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash,
 			}
 		}
@@ -378,6 +387,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 
 	for _, u := range units {
 		s := convergence.Scope{Collection: u.Collection, Locale: u.Locale}
+		scope := DecisionScope(root, u.SourcePath)
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if !errors.Is(berr, errTargetUnreadable) {
@@ -415,7 +425,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 			if !b.Translatable {
 				continue
 			}
-			st, aiDecided, basis := reviewed.apply(unitState(b, u.Locale), b, u.Locale)
+			st, aiDecided, basis := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
 			// Check-findings exclusion wins over any decision: a unit failing
 			// the project's bound checks demotes to draft regardless of who
 			// approved it.

@@ -343,7 +343,7 @@ VALUES (?, 'nb', 'd-intro', '', '', ?, 1)`, "x2", `{"unit":"x2","variant":"nb"}`
 		_, found, err := db.Memory().GetEntry(ctx, "x2")
 		require.NoError(t, err)
 		assert.False(t, found, "the rolled-back entry is not in the content memory")
-		_, ok := db.Work().Get(ctx, state.Key{Unit: "x2", Variant: model.Variant("nb")})
+		_, ok := db.Work().Get(ctx, state.Key{Scope: "d-intro", Unit: "x2", Variant: model.Variant("nb")})
 		assert.False(t, ok, "nor is the decision in the working set")
 	})
 }

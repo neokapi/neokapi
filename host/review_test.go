@@ -38,6 +38,84 @@ ship_gate: { translated: 100, reviewed: 50 }
 	return root
 }
 
+// writeMultiFileReviewProject writes a collection of two files whose block ids
+// collide — the ordinary shape of a prose collection, where every page carries
+// its own title and its own opening paragraph, so the ids are unique inside a
+// file and repeat across the collection. Both files are fully translated into
+// nb; nothing is reviewed yet.
+func writeMultiFileReviewProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: rev-multi
+defaults:
+  source_language: en
+  target_languages: [nb]
+collections:
+  - name: docs
+    content:
+      - path: docs/*.json
+        target: "i18n/{lang}/{path}.json"
+ship_gate: { translated: 100, reviewed: 100 }
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	write := func(dir, name, body string) {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, dir), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(root, dir, name), []byte(body), 0o644))
+	}
+	write("docs", "berths.json", `{"title":"Berths","intro":"Declare a berth."}`)
+	write("docs", "alerts.json", `{"title":"Alerts","intro":"An alert opens."}`)
+	write(filepath.Join("i18n", "nb"), "berths.json", `{"title":"Kaiplasser","intro":"Meld en kaiplass."}`)
+	write(filepath.Join("i18n", "nb"), "alerts.json", `{"title":"Varsler","intro":"Et varsel åpnes."}`)
+	return root
+}
+
+// TestReview_MultiFileCollectionCommitsEveryDecision drives the review round
+// trip over a collection whose two files share their block ids.
+//
+// A decision belongs to a (document, unit, locale), and a unit id is unique only
+// inside its document. Recorded against less, the second file's approval
+// overwrites the first's: `apply` reports every decision applied, the record
+// keeps one per id, and the file that lost its decision then reads as stale
+// against a source nobody edited — a locale that goes backwards for having been
+// reviewed, and cannot be recovered by reviewing it again.
+func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
+	root := writeMultiFileReviewProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	recipe := filepath.Join(root, "kapi.yaml")
+	rep, err := a.ProjectConvergence(t.Context(), recipe, "en")
+	require.NoError(t, err)
+	require.Len(t, rep.Review, 4, "two files × two units await review")
+
+	files, ids := map[string]bool{}, map[string]bool{}
+	for _, it := range rep.Review {
+		files[it.File] = true
+		ids[it.Key] = true
+	}
+	require.Len(t, files, 2, "the queue spans both files")
+	require.Len(t, ids, 2, "and both files carry the same two ids — the shape that collides")
+
+	for _, it := range rep.Review {
+		changed, aerr := a.ApproveReviewUnit(t.Context(), recipe, "en", it.Locale, it.File, it.Key, "reviewed")
+		require.NoError(t, aerr, "%s:%s", it.File, it.Key)
+		assert.True(t, changed, "%s:%s reported no change", it.File, it.Key)
+	}
+
+	assertCommittedUnits(t, root, 4, "every approval reaches the committed record")
+
+	nb, ok := locale(runStatusJSON(t), "nb")
+	require.True(t, ok)
+	assert.Equal(t, 100, nb.Pct["translated"], "reviewing does not un-translate anything")
+	assert.Equal(t, 100, nb.Pct["reviewed"], "all four decisions count")
+	assert.Zero(t, nb.Stale, "no source changed, so nothing is stale")
+	assert.True(t, nb.Shippable, "reviewed:100 is met")
+
+	assert.Empty(t, reviewQueue(t).Pending, "nothing is left awaiting review")
+}
+
 // writeReviewedCorrection approves the unit whose source matches srcText (for nb)
 // through the real state-store approval path — ApproveReviewUnit records the
 // decision in the project state store, the authoritative carrier of review state.

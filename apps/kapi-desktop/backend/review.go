@@ -253,7 +253,8 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// engine's handle, not a second opener — and closing it is not ours to do.
 	root := filepath.Dir(op.Path)
 	if st, serr := a.hostEngine().OpenProjectState(ctx, root); serr == nil {
-		if us, found := st.Get(ctx, state.Key{Unit: key, Variant: model.Variant(loc)}); found {
+		scope := host.DecisionScope(root, rf.Path)
+		if us, found := st.Get(ctx, state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}); found {
 			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
 			if !us.Stale(th) {
 				if us.Status != "" {

@@ -83,7 +83,8 @@ type UnitState struct {
 	// an approval outliving the sentence it approved.
 	//
 	// Scope is the document's resolved key, never its path, so renaming a file
-	// does not disturb the units inside it.
+	// does not disturb the units inside it. It is also half of the record's
+	// identity — see Key.
 	Scope       string `json:"scope,omitempty"`
 	ContentHash string `json:"contentHash,omitempty"`
 	ContextHash string `json:"contextHash,omitempty"`
@@ -147,13 +148,21 @@ func (r *AIReview) Fresh(targetHash string) bool {
 }
 
 // Key uniquely identifies a UnitState within a project.
+//
+// Scope is part of the identity, not a payload beside it. A unit id is unique
+// inside its document and nowhere wider — a reader names blocks by what the
+// format gives it, so every markdown page in a collection carries an `h`, a `p`
+// and an `fm_title`. Keyed on (unit, variant) alone, the second page's decision
+// overwrote the first's: a reviewer's approvals were accepted, reported applied,
+// and all but one document's silently discarded.
 type Key struct {
+	Scope   string
 	Unit    string
 	Variant model.VariantKey
 }
 
 // Key returns the unit's identity key.
-func (s UnitState) Key() Key { return Key{Unit: s.Unit, Variant: s.Variant} }
+func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant: s.Variant} }
 
 // Stale reports whether this state was recorded against a different translation
 // than targetHash — i.e. the translation changed since the decision, so the

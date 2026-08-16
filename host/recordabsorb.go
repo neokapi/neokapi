@@ -203,7 +203,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		}
 		res.Documents++
 		for _, b := range blocks {
-			e, basis, applies := reviewed.grade(b, string(u.locale))
+			e, basis, applies := reviewed.grade(u.sourceRel, b, string(u.locale))
 			srcRuns, tgtRuns, keep := recordRuns(b, u.locale, approvesTarget(e, applies))
 			if !keep {
 				continue
