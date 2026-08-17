@@ -30,6 +30,9 @@ const WEB_APP_INIT = {
   capture_performance: { web_vitals: true },
   // Real PostHog UI host (api_host may be the first-party proxy).
   ui_host: "https://eu.posthog.com",
+  // The identifier stays on this host rather than the registrable domain the
+  // cookieless landing and documentation sites share.
+  cross_subdomain_cookie: false,
 };
 
 describe("posthog integration", () => {
@@ -94,6 +97,17 @@ describe("posthog integration", () => {
     const { identifyUser } = await import("../posthog");
     identifyUser("user-1", { email: "test@example.com" });
     expect(vi.mocked(posthog.init)).toHaveBeenCalledWith("phc_test_key", WEB_APP_INIT);
+  });
+
+  it("keeps the identifier on this host, off the domain the cookieless sites share", async () => {
+    vi.stubEnv("VITE_POSTHOG_KEY", "phc_test_key");
+    const posthog = (await import("posthog-js")).default;
+    const { identifyUser } = await import("../posthog");
+    identifyUser("user-1");
+    const [, config] = vi.mocked(posthog.init).mock.calls[0] as [string, Record<string, unknown>];
+    // PostHog defaults this to true, which puts the cookie on `.bowrain.cloud` —
+    // the domain the landing and documentation sites publish as cookieless.
+    expect(config.cross_subdomain_cookie).toBe(false);
   });
 
   it("registers the surface + environment super-properties on init", async () => {
