@@ -139,7 +139,6 @@ var (
 	CollectionRelativePath       = host.CollectionRelativePath
 	ContentTracks                = host.ContentTracks
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
-	DemoteFailing                = host.DemoteFailing
 	DescriptionWidth             = host.DescriptionWidth
 	DiagnosePlugin               = host.DiagnosePlugin
 	DisplayName                  = host.DisplayName

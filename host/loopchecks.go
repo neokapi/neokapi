@@ -7,23 +7,22 @@ import (
 	"slices"
 
 	"github.com/neokapi/neokapi/core/check"
-	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
-// CheckExclusions is the coverage-exclusion set fed by check findings (#1078
-// C2/G4): the units that are produced but failing guardrails. A unit in the set
-// does not count toward the `translated` rung when ComputeShipCoverage
-// evaluates ship gates — it reads at `draft` (produced, not shippable) until
-// the finding is fixed, so a locale cannot clear its gate on the back of
+// CheckExclusions is the check-findings set (#1078 C2/G4): the units that are
+// produced but failing guardrails. A unit in the set keeps the rung it holds
+// when ComputeShipCoverage tallies it, and is recorded as a failing check on
+// its scope — which withholds that scope's ship and verified verdicts until the
+// finding is fixed, so a locale cannot clear its gate on the back of
 // translations that fail the project's bound checks.
 type CheckExclusions struct {
 	// failing keys are ExclusionKey(sourcePath, blockKey, locale).
 	Failing map[string]bool
-	// byLocale counts the failing units per locale, for reporting.
+	// ByLocale counts the failing units per locale.
 	ByLocale map[string]int
 }
 
@@ -37,14 +36,6 @@ func (e *CheckExclusions) excluded(sourcePath string, b *model.Block, locale str
 		return false
 	}
 	return e.Failing[ExclusionKey(sourcePath, blockKey(b), locale)]
-}
-
-// failingForLocale returns the count of failing units for a locale (0 when nil).
-func (e *CheckExclusions) failingForLocale(locale string) int {
-	if e == nil {
-		return 0
-	}
-	return e.ByLocale[locale]
 }
 
 // totalFailing returns the count of failing units across every locale (0 when nil).
@@ -64,12 +55,13 @@ func (e *CheckExclusions) totalFailing() int {
 // checkset (placeholder/tag integrity, plus the default placeholder patterns)
 // always, and the terminology check when the project binds a terms store. A unit
 // whose findings fail the ship predicate (any critical/major finding, or an
-// integrity category like pattern-mismatch) enters the exclusion set.
+// integrity category like pattern-mismatch) enters the set.
 //
-// Cost: checks only run over units whose target exists and is readable — a
-// missing target is already below every rung, so there is nothing to demote —
-// and they are annotate-only over blocks the coverage pass reads anyway (the
-// parse cache absorbs the re-read).
+// Cost: checks only run over units whose target exists and is readable — an
+// untranslated unit has nothing to check — and they are annotate-only over
+// blocks the coverage pass reads anyway (the parse cache absorbs the re-read).
+// That bound is what lets every verdict-publishing surface afford to run them,
+// which is what keeps their answers the same (#2024).
 func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 
@@ -105,7 +97,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 			return nil, berr
 		}
 		if missing {
-			continue // untranslated — below every rung already, nothing to demote
+			continue // untranslated — there is no translation to check
 		}
 
 		glossary, gerr := glossaryFor(u.Locale)
@@ -164,24 +156,4 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 		}
 	}
 	return excl, nil
-}
-
-// DemoteFailing maps a unit state through the exclusion: a state at or above
-// `translated` reads as `draft` — produced, but failing guardrails, so it does
-// not climb the ladder past the produced rung. States below `translated` pass
-// through unchanged.
-func DemoteFailing(state string) string {
-	ladder := gate.TargetLadder()
-	rank := func(s string) int {
-		for i, l := range ladder {
-			if l == s {
-				return i
-			}
-		}
-		return -1
-	}
-	if rank(state) >= rank(string(model.TargetStatusTranslated)) {
-		return string(model.TargetStatusDraft)
-	}
-	return state
 }

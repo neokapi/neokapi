@@ -68,11 +68,21 @@ func (a *App) beginConvergeDrafts(projectPath, root string) (func(), error) {
 	}
 	a.convergeDraftDir = dir
 	a.convergeDraftRoot = root
-	return func() {
-		a.convergeDraftDir = ""
-		a.convergeDraftRoot = ""
+	return a.endConvergeDrafts, nil
+}
+
+// endConvergeDrafts closes the draft tree: nothing is graded against a draft
+// after it, and the tree is gone. Safe to call more than once, which is what
+// lets the run end the drafts as soon as delivery is done — so the standing it
+// reports is read off the delivered tree — while the caller's defer still holds
+// the guarantee on every error path.
+func (a *App) endConvergeDrafts() {
+	dir := a.convergeDraftDir
+	a.convergeDraftDir = ""
+	a.convergeDraftRoot = ""
+	if dir != "" {
 		_ = os.RemoveAll(dir)
-	}, nil
+	}
 }
 
 // draftPathFor maps a resolved target path into one locale's draft subtree. It
@@ -94,6 +104,13 @@ func (a *App) draftPathFor(locale, targetPath string) (string, bool) {
 // otherwise the delivered file. Coverage asks it, so a pass grades its own
 // output while a locale with nothing drafted yet is still graded on what was
 // last delivered.
+//
+// This is the LOOP's subject, and only the loop's: it answers "did this pass
+// move the locale", which is what decides whether another pass runs and whether
+// the locale is delivered. It is not the subject of what the run reports —
+// a parked locale's draft is discarded, so a closing table derived from it
+// describes a tree that no longer exists and that `kapi status`, run a second
+// later, contradicts. The run ends the drafts before it reports (#2024).
 func (a *App) draftedTargetPath(locale, targetPath string) string {
 	drafted, ok := a.draftPathFor(locale, targetPath)
 	if !ok {

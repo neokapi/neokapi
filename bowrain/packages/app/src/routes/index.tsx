@@ -38,7 +38,6 @@ import {
   type IntendedPlan,
 } from "./intended-plan";
 import { stashAcquisitionSource } from "./acquisition";
-import { AnalyticsEvents } from "../analytics-events";
 import type { PlatformAdapter } from "../platform";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
@@ -71,11 +70,16 @@ export interface RouterContext {
   queryClient: QueryClient;
   api: ApiAdapter;
   /**
-   * The host's analytics seam, for the events a route fires before anything
-   * renders. Components reach analytics through `useAnalytics()`, but the
-   * unauthenticated entry never mounts a component — it redirects out of the
-   * router — so its one event has to come from `beforeLoad`. Optional: a shell
-   * that wires no analytics (desktop) leaves it undefined.
+   * The host's analytics seam, reached from `beforeLoad` so the signed-in user
+   * is announced the moment the bootstrap says there is one — ahead of the
+   * `$pageview` that same route resolution goes on to fire. Components reach
+   * analytics through `useAnalytics()` instead; a route needs the seam directly
+   * only because it runs before anything mounts. Optional: a shell that wires
+   * no analytics (desktop) leaves it undefined.
+   *
+   * On the web host `identify` is also what starts analytics at all, so no
+   * route may reach for `capture` on a path where the visitor has no session —
+   * there is nothing running to capture into, by design (#1940).
    */
   analytics?: PlatformAdapter["analytics"];
 }
@@ -161,18 +165,21 @@ const indexRoute = createRoute({
     const user = await userPromise;
 
     if (!user) {
-      // The conversion step, marked on the way out. Beacon transport, because
-      // the navigation below discards anything the default transport is still
-      // batching.
-      analytics?.capture?.(
-        AnalyticsEvents.signupRedirectStarted,
-        { has_plan: Boolean(search.plan), plan: search.plan },
-        { transport: "beacon" },
-      );
+      // A visitor with no session leaves for the identity provider unmeasured
+      // and unmarked. Analytics do not exist yet on this path — starting them
+      // to record the hop would write a year-long identifier on the domain the
+      // landing and documentation sites publish as cookieless, for someone who
+      // has not signed in (#1940).
       window.location.href = "/api/v1/auth/login";
       await new Promise(() => {}); // Prevent render while redirecting
       throw new Error("unreachable");
     }
+
+    // A session exists — the first point at which it does. Announcing the user
+    // here is what starts analytics on the web host, and it happens before this
+    // resolution fires its own `$pageview`, so the opening event of the session
+    // is not the one spent starting up.
+    analytics?.identify?.({ id: user.id, email: user.email, name: user.name });
 
     const workspaces = await workspacesPromise;
 
@@ -297,7 +304,7 @@ const confirmEmailRoute = createRoute({
 const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "$workspace",
-  beforeLoad: async ({ context: { queryClient, api }, params }) => {
+  beforeLoad: async ({ context: { queryClient, api, analytics }, params }) => {
     // Start every bootstrap fetch in parallel — config is only consumed after
     // the others are needed, so awaiting it first would serialize three
     // round-trips into a waterfall. Standalone mode ignores the user/workspace
@@ -350,6 +357,16 @@ const workspaceRoute = createRoute({
       if (!fetchedUser.onboarded_at && (!fetchedWorkspaces || fetchedWorkspaces.length === 0)) {
         throw redirect({ to: "/welcome", search: { return_to: undefined }, replace: true });
       }
+
+      // The session is established. On the web host this is what starts
+      // analytics; a direct hit on a workspace URL reaches here without ever
+      // passing through the index route, so the announcement has to live on
+      // both entries.
+      analytics?.identify?.({
+        id: fetchedUser.id,
+        email: fetchedUser.email,
+        name: fetchedUser.name,
+      });
 
       user = fetchedUser;
       workspaces = fetchedWorkspaces;

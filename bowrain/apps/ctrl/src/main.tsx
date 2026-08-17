@@ -4,9 +4,12 @@ import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
 import { loadTranslations } from "@neokapi/i18n-react/runtime";
 import { router } from "./routes";
-import { initAnalytics, capturePageview } from "./analytics";
+import { capturePageview } from "./analytics";
 
-initAnalytics();
+// Nothing starts analytics here: the router's `requireAuth` does, once an admin
+// session is confirmed. Until then `capturePageview` is inert, so an anonymous
+// visit writes no identifier and sends no request.
+//
 // One pageview per navigation (initial load included), carrying the matched
 // route pattern rather than the concrete URL.
 router.subscribe("onResolved", () => {

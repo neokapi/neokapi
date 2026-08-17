@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -17,6 +18,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// planFixture is convergeFixture with the flow a plan is normally read for:
+// recycle, then draft the remainder through a provider — the shape of the
+// built-in default. The plan prices the work the CONFIGURED flow would do, so a
+// fixture whose flow neither recycles nor calls out has no leverage to report
+// and no bill to quote; those cases have their own tests below (#1866).
+func planFixture(t *testing.T, targets []model.LocaleID, shipGate gate.Gate) (recipe, root string) {
+	t.Helper()
+	recipe, root = convergeFixture(t, targets, shipGate)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = "converge"
+	proj.Flows["converge"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate", Config: map[string]any{"provider": "demo", "skipMatched": true}},
+	}}
+	require.NoError(t, project.Save(recipe, proj))
+	return recipe, root
+}
 
 // seedPlanMemory writes a project content memory with one exact entry for the fixture's
 // "Hello, world." source (a.json), leaving b.json's "Goodbye." uncovered.
@@ -52,7 +72,7 @@ func seedPlanEntry(t *testing.T, root, id, source, target string) {
 // chars/4 token estimate — and writes nothing.
 func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	seedPlanMemory(t, root)
 
 	out, err := runUp(t, a, recipe, "--plan", "--json")
@@ -88,7 +108,7 @@ func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 // store it never wrote.
 func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	storePath := project.LayoutAt(root).StorePath()
 	require.NoFileExists(t, storePath, "the fixture starts with no store")
@@ -105,11 +125,39 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
 }
 
+// TestUpPlan_FreshCheckoutReportsCommittedMemoryLeverage: a clone with no
+// project store still plans against the corpus git carries. The committed
+// `.kapi/memory/` bundles are compiled through the same importers into a
+// content memory that exists only for the call, so the plan reads what the run
+// will read and the checkout is left as git wrote it — the shape of CI's leg
+// and a new contributor's, and the one where the estimate is most consulted
+// (#1866).
+func TestUpPlan_FreshCheckoutReportsCommittedMemoryLeverage(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := compassCopy(t)
+
+	storePath := project.LayoutAt(root).StorePath()
+	require.NoFileExists(t, storePath, "the sample is committed without a store")
+
+	// Nothing has a target yet: the sample's catalogs start short of the source.
+	require.NoError(t, os.RemoveAll(filepath.Join(root, "site", "locales", "nb.json")))
+
+	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
+	require.NoError(t, err, outJSON)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+
+	assert.Positive(t, plan.Totals.MemoryExact,
+		"the committed bundles answer units git already carries reviewed wording for: %s", outJSON)
+	assert.NoFileExists(t, storePath, "and reading them materialized no store")
+	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
+}
+
 // TestUpPlan_TextTable: the human rendering is a table with a totals row and
 // the estimation note.
 func TestUpPlan_TextTable(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--plan")
 	require.NoError(t, err, out)
@@ -128,7 +176,7 @@ func TestUpPlan_TextTable(t *testing.T) {
 // learned, by a command that only reports.
 func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	// Materialize the store via a real up first.
 	out, err := runUp(t, a, recipe)
@@ -167,7 +215,7 @@ func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 // cannot recycle is drafted however finished the target file looks.
 func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	seedPlanMemory(t, root)
 	seedPlanEntry(t, root, "seed-2", "Goodbye.", "Farvel.")
 	out, err := runUp(t, a, recipe)
@@ -185,7 +233,7 @@ func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 // happen anyway — the under-pricing #1974 names.
 func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 
@@ -194,6 +242,81 @@ func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork(t *testing.T) {
 	require.NoError(t, err, out2)
 	assert.Contains(t, out2, "unanswered")
 	assert.Contains(t, out2, "the pass drafts them")
+}
+
+// TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce: the plan reads the
+// flow it is planning. A recipe whose flow is exact-match content-memory reuse
+// and nothing else has no step that could produce a unit the corpus does not
+// answer, so those units are reported as out of reach rather than quoted as AI
+// work — and the run that follows makes no provider calls and spends nothing,
+// which the plan now says (#1866).
+func TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = "recycle-only"
+	proj.Flows["recycle-only"] = &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "recycle"}}}
+	require.NoError(t, project.Save(recipe, proj))
+	// One of the two fixture units has an answer; the other never will.
+	seedPlanMemory(t, root)
+
+	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
+	require.NoError(t, err, outJSON)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+	assert.Equal(t, 1, plan.Totals.MemoryExact, `"Hello, world." is leverage this flow does apply`)
+	assert.Zero(t, plan.Totals.AIRemaining, "and nothing here is drafted")
+	assert.Equal(t, 1, plan.Totals.OutOfReach, `"Goodbye." is beyond what this flow can do`)
+	assert.Zero(t, plan.Totals.TokenEstimate, "so there is nothing to price")
+	assert.False(t, plan.FlowDrafts)
+	assert.False(t, plan.FlowCallsProvider)
+	assert.Empty(t, plan.Provider, "naming a provider for a run that never calls one is the quote itself")
+
+	out, err := runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "out of reach")
+	assert.Contains(t, out, "calls no provider — this run spends nothing")
+	assert.NotContains(t, out, "AI provider:")
+}
+
+// TestUpPlan_LocalDraftingFlowIsNotAProviderBill: a flow that drafts without
+// reaching a provider (pseudo-translation) produces the units and bills
+// nothing. They are work, not out of reach — and they carry no token estimate.
+func TestUpPlan_LocalDraftingFlowIsNotAProviderBill(t *testing.T) {
+	a := processOnlyApp(t)
+	// convergeFixture's own flow is a single pseudo-translate step.
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+
+	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
+	require.NoError(t, err, outJSON)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+	assert.Equal(t, 2, plan.Totals.AIRemaining, "the flow produces both units")
+	assert.Zero(t, plan.Totals.OutOfReach)
+	assert.Zero(t, plan.Totals.TokenEstimate, "without a provider there is no bill to estimate")
+	assert.True(t, plan.FlowDrafts)
+	assert.False(t, plan.FlowCallsProvider)
+
+	out, err := runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "produces its drafts locally — no provider is called and nothing is spent")
+}
+
+// TestUpPlan_UnresolvableFlowIsAnError: a recipe naming a flow it does not
+// define cannot run, so it cannot be planned either — the plan fails with the
+// message the run gives rather than quoting figures for a run that never starts.
+func TestUpPlan_UnresolvableFlowIsAnError(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = "no-such-flow"
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, err := runUp(t, a, recipe, "--plan")
+	require.Error(t, err, out)
+	assert.Contains(t, err.Error(), "no-such-flow")
 }
 
 // TestEstimateTokens: the chars/4 heuristic rounds up and zeroes on empty.
@@ -211,7 +334,7 @@ func TestUpPlan_SubscriptionProviderNote(t *testing.T) {
 	a := processOnlyApp(t)
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "claude-code")
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--plan")
 	require.NoError(t, err, out)
@@ -236,7 +359,7 @@ func TestUpPlan_MeteredProviderKeepsNote(t *testing.T) {
 	a := processOnlyApp(t)
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "anthropic")
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
 	require.NoError(t, err, outJSON)

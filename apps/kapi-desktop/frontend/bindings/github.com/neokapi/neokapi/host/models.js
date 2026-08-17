@@ -847,15 +847,23 @@ export class ConvergeLocaleResult {
         }
         if (!("shippable" in $$source)) {
             /**
-             * every gated scope for this locale clears its gate
+             * every scope for this locale clears its ship gate
              * @member
              * @type {boolean}
              */
             this["shippable"] = false;
         }
+        if (!("verified" in $$source)) {
+            /**
+             * every scope for this locale clears its verified gate
+             * @member
+             * @type {boolean}
+             */
+            this["verified"] = false;
+        }
         if (/** @type {any} */(false)) {
             /**
-             * still short of its gate after the loop (needs human)
+             * the loop left work here (needs human)
              * @member
              * @type {boolean | undefined}
              */
@@ -871,9 +879,11 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * FailingChecks counts units that are produced but fail the project's
-             * bound checks (#1078 G4) — they read at `draft`, not `translated`, for
-             * gating, so they hold the locale below its gate until fixed.
+             * FailingChecks counts units that are produced but fail the project's bound
+             * checks (#1078 G4). They count at their true rung in Pct — the unit is
+             * translated — and hold the locale out of Shippable until fixed. It counts
+             * UNITS, which is not what `kapi check` counts: one unit can carry several
+             * findings, and `kapi check` lists findings.
              * @member
              * @type {number | undefined}
              */
@@ -923,10 +933,10 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
-            $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
+            $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -1212,6 +1222,28 @@ export class UpPlanOutput {
              */
             this["flow"] = undefined;
         }
+        if (!("flowDrafts" in $$source)) {
+            /**
+             * FlowDrafts reports whether the flow contains any step that produces a
+             * target other than by content-memory recycling. False means the flow
+             * recycles and nothing else, so every unit the corpus does not answer is
+             * out of reach of this run.
+             * @member
+             * @type {boolean}
+             */
+            this["flowDrafts"] = false;
+        }
+        if (!("flowCallsProvider" in $$source)) {
+            /**
+             * FlowCallsProvider reports whether producing a target under this flow
+             * reaches an AI or machine-translation provider. False means the run makes
+             * no provider calls and spends nothing, whatever a default provider is
+             * configured to.
+             * @member
+             * @type {boolean}
+             */
+            this["flowCallsProvider"] = false;
+        }
         if (!("scopes" in $$source)) {
             /**
              * @member
@@ -1273,14 +1305,14 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType18;
-        const $$createField2_0 = $$createType17;
+        const $$createField3_0 = $$createType18;
+        const $$createField4_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
-            $$parsedSource["scopes"] = $$createField1_0($$parsedSource["scopes"]);
+            $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
         }
         if ("totals" in $$parsedSource) {
-            $$parsedSource["totals"] = $$createField2_0($$parsedSource["totals"]);
+            $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }
@@ -1293,10 +1325,11 @@ export class UpPlanOutput {
  * translation with a rough token estimate.
  * 
  * The three work axes partition the scope's work, so MissingTarget + Stale +
- * Unanswered always equals MemoryExact + AIRemaining: every unit the plan counts
- * is either recycled or drafted. A unit that is none of the three is not work —
- * it holds a target, no decision of its has moved, and the corpus answers its
- * source, so the pass fills it from the project's own record at no cost.
+ * Unanswered always equals MemoryExact + AIRemaining + OutOfReach: every unit
+ * the plan counts is recycled, drafted, or beyond what the configured flow can
+ * do. A unit that is none of the three is not work — it holds a target, no
+ * decision of its has moved, and the corpus answers its source, so the pass
+ * fills it from the project's own record at no cost.
  */
 export class UpPlanScope {
     /**
@@ -1378,6 +1411,21 @@ export class UpPlanScope {
              * @type {number | undefined}
              */
             this["unanswered"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * OutOfReach is the count of counted units the configured flow has no step
+             * that could produce: the corpus does not answer them and the flow drafts
+             * nothing, so a run would leave them exactly as they are.
+             * 
+             * They are neither leverage nor AI work, and pricing them was the whole
+             * defect: a recipe whose flow is exact-match content-memory reuse and
+             * nothing else was quoted a provider bill for every unit the memory missed,
+             * then made zero provider calls (#1866).
+             * @member
+             * @type {number | undefined}
+             */
+            this["outOfReach"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**

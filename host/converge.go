@@ -48,12 +48,15 @@ type ConvergeOptions struct {
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
 type ConvergeLocaleResult struct {
 	Locale    string         `json:"locale"`
-	Shippable bool           `json:"shippable"`        // every gated scope for this locale clears its gate
-	Parked    bool           `json:"parked,omitempty"` // still short of its gate after the loop (needs human)
+	Shippable bool           `json:"shippable"`        // every scope for this locale clears its ship gate
+	Verified  bool           `json:"verified"`         // every scope for this locale clears its verified gate
+	Parked    bool           `json:"parked,omitempty"` // the loop left work here (needs human)
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
-	// FailingChecks counts units that are produced but fail the project's
-	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
-	// gating, so they hold the locale below its gate until fixed.
+	// FailingChecks counts units that are produced but fail the project's bound
+	// checks (#1078 G4). They count at their true rung in Pct — the unit is
+	// translated — and hold the locale out of Shippable until fixed. It counts
+	// UNITS, which is not what `kapi check` counts: one unit can carry several
+	// findings, and `kapi check` lists findings.
 	FailingChecks int `json:"failingChecks,omitempty"`
 	// Stale counts units whose translation was decided against source wording
 	// that has since changed. They hold the locale out of Shippable whether or
@@ -177,9 +180,12 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		case lc.Shippable:
 			state = s.Success.Render("✓ shippable")
 		}
+		// Units, named as units. `kapi check` counts finding rows over the same
+		// tree and one unit can carry several, so two numbers that were both
+		// labelled "check(s)" read as a contradiction between the commands.
 		checks := s.Dim("")
 		if lc.FailingChecks > 0 {
-			checks = s.Error.Render(fmt.Sprintf("%d failing check(s)", lc.FailingChecks))
+			checks = s.Error.Render(fmt.Sprintf("%d unit(s) failing checks", lc.FailingChecks))
 		}
 		t.Row(lc.Locale,
 			fmt.Sprintf("%d%%", lc.Pct["draft"]),
@@ -589,7 +595,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			return err
 		}
 		d := res.Final.Detail.(derivedState)
-		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales, d.excl,
+		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
 			sourceGate, blockedOnSource, totalSource, facts, opts, emitter.Emit)
 	})
 }
@@ -806,6 +812,14 @@ func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.
 				needs = true
 				break
 			}
+			// A unit failing the project's bound checks is work on any scope,
+			// gated or not, for the same reason: it counts at its true rung, so
+			// the ungated rung test below reads the scope as complete while the
+			// content carries a defect the run reported.
+			if c.FailingChecks > 0 {
+				needs = true
+				break
+			}
 			if c.Gated && !c.Shippable {
 				needs = true
 				break
@@ -845,8 +859,8 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its target files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
-	out := buildConvergeOutput(flowName, passes, cov, locales, excl, facts.redraftable)
+func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
+	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Monolingual = facts.monolingual
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
@@ -915,6 +929,42 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		if out.MaterializedFiles > 0 {
 			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles})
 		}
+
+		// Delivery is done, so the drafts stop being anybody's subject and the
+		// standing is re-read off the tree the run leaves behind.
+		//
+		// Everything above is graded against the drafts, correctly: whether a
+		// pass moved a locale, and so whether it is delivered, is a question
+		// about what the pass produced. What the run REPORTS is a different
+		// question — it is what a reader will find, and for a parked locale that
+		// is the file already on disk, because its draft was discarded. Reporting
+		// the draft's figures put `kapi up` and `kapi status` at odds over one
+		// locale with no command between them, which is the whole defect (#2024):
+		// a locale whose committed catalog is 97% reviewed and carries a failing
+		// check was reported at 3% reviewed and clean, off a tree nobody could
+		// open.
+		//
+		// The verdict does not move by re-reading: a locale is pending — and so
+		// parked — because of staleness, a failing check, or a gate it has not
+		// cleared, and each of those holds on the delivered file too. What moves
+		// is that the numbers become true.
+		a.endConvergeDrafts()
+		cov, _, rerr := a.deriveCoverage(ctx, cmd, proj, filepath.Dir(projectPath), !opts.noChecks)
+		if rerr != nil {
+			return fmt.Errorf("re-derive the delivered standing: %w", rerr)
+		}
+		report := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
+		// How many files each locale got is the run's own fact, not the tree's.
+		materialized := make(map[string]int, len(out.Locales))
+		for _, lc := range out.Locales {
+			materialized[lc.Locale] = lc.Materialized
+		}
+		for i := range report.Locales {
+			report.Locales[i].Materialized = materialized[report.Locales[i].Locale]
+		}
+		out.Locales = report.Locales
+		out.ParkedScopes = report.ParkedScopes
+		out.Converged = report.Converged
 	}
 
 	// Everything this run wrote is the store's own output. Stamping it as
@@ -942,7 +992,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 
 // buildConvergeOutput rolls the per-scope coverage up into the per-locale
 // convergence result.
-func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, redraftable map[string]int) ConvergeOutput {
+// The per-locale figures are read out of the coverage rows and nowhere else —
+// the percentages, the failing-check counts and the verdict all come from the
+// same rollup `kapi status` and `kapi status --ship` read, so the three surfaces
+// cannot disagree about one locale (#2024).
+func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, redraftable map[string]int) ConvergeOutput {
 	out := ConvergeOutput{Flow: flowName, Passes: passes, Converged: true}
 	pendingSet := map[string]bool{}
 	for _, loc := range localesNeedingPass(cov, locales) {
@@ -950,44 +1004,54 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 	}
 	for _, loc := range locales {
 		l := string(loc)
-		res := ConvergeLocaleResult{Locale: l, Shippable: true, Pct: map[string]int{},
-			FailingChecks: excl.failingForLocale(l), Redrafted: redraftable[l]}
+		res := ConvergeLocaleResult{Locale: l, Shippable: true, Verified: true,
+			Pct: map[string]int{}, Redrafted: redraftable[l]}
 		gatedSomewhere := false
+		scoped := false
 		for _, c := range cov {
 			if c.Locale != l {
 				continue
 			}
+			scoped = true
 			for k, v := range c.Pct {
 				if v > res.Pct[k] {
 					res.Pct[k] = v
 				}
 			}
 			res.Stale += c.Stale
+			res.FailingChecks += c.FailingChecks
+			// The verdict is the rollup's, unconditionally: a scope that does not
+			// ship does not ship, gate or no gate, and reading it only for gated
+			// scopes is how a locale held back by stale or failing units still
+			// reported itself shippable.
+			if !c.Shippable {
+				res.Shippable = false
+			}
+			if !c.Verified {
+				res.Verified = false
+			}
 			if c.Gated {
 				gatedSomewhere = true
-				if !c.Shippable {
-					res.Shippable = false
-				}
 			}
 		}
-		// Stale content withholds the locale on its own. A project with no ship
-		// gate declared no coverage bar; it did not thereby agree to ship a
-		// translation of a sentence it has rewritten.
-		if res.Stale > 0 {
-			res.Shippable = false
-			out.Converged = false
+		// A locale with no coverage row at all has nothing to verify.
+		if !scoped {
+			res.Verified = false
 		}
-		if gatedSomewhere && !res.Shippable {
-			res.Parked = pendingSet[l]
+		if !res.Shippable {
 			out.Converged = false
+			// Parked is "the loop left work here": short of a gate, or held by a
+			// fact — stale wording, a failing guardrail — the loop cannot settle
+			// on its own. An ungated locale with neither is simply not gated.
+			res.Parked = pendingSet[l] && (gatedSomewhere || res.Stale > 0 || res.FailingChecks > 0)
 		}
 		out.Locales = append(out.Locales, res)
 	}
 	// Per-scope parked detail: every (collection, locale) scope that does not
 	// ship, in the coverage's stable order — short of its gate, or holding stale
-	// pairings a review surface should be pointed at.
+	// pairings or failing checks a review surface should be pointed at.
 	for _, c := range cov {
-		if !c.Shippable && (c.Gated || c.Stale > 0) {
+		if !c.Shippable && (c.Gated || c.Stale > 0 || c.FailingChecks > 0) {
 			out.ParkedScopes = append(out.ParkedScopes, ParkedScope{Locale: c.Locale, Collection: c.Collection})
 		}
 	}

@@ -298,8 +298,11 @@ kapi up --materialize  # also write the translated files for the shippable local
 Each pass re-derives coverage from the working tree, runs the flow only for the
 locales still short of their gate, then runs the project's bound checks over what
 was produced — a unit with failing findings (dropped placeholders, terminology
-violations) counts as *drafted*, not *translated*, so it cannot lift its locale
-over the gate until fixed. The loop stops when every gated scope is shippable, a
+violations) still counts as *translated*, because it is, and the finding holds
+its locale out of shipping until it is fixed. The percentages describe the
+content; the verdict is what a guardrail withholds, and `kapi status` and
+`kapi status --ship` run the same checks and reach the same verdict. The loop
+stops when every gated scope is shippable, a
 pass makes no progress, or the pass cap (default 5, `--passes N`) is reached.
 Whatever cannot be advanced unaided **parks**: it is reported as awaiting a human
 and the command still exits zero. `up` never blocks the author, and it never
@@ -319,10 +322,14 @@ apply; `--plan` alone is the full dry-run table). It then renders progress as th
 loop runs: one line per locale, repainted in place on a terminal, a line per
 event on a plain stream.
 
-The plan asks what the pass asks. A pass reads the source documents, fills from
-the content memory, and drafts the remainder — so a unit costs a provider call
-when the corpus has no answer for its source, whatever a target file happens to
-hold. Missing units, **stale** ones (a decision's source moved) and
+The plan asks what the pass asks, of the flow the pass would run. A pass reads
+the source documents, fills from the content memory where the flow recycles, and
+drafts the remainder where the flow drafts — so a unit costs a provider call
+when the corpus has no answer for its source *and* the configured flow reaches a
+provider, whatever a target file happens to hold. A flow that recycles and
+nothing else leaves the units the corpus cannot answer **out of reach**: they are
+reported and not priced, because that run will not touch them and will call
+nobody. Missing units, **stale** ones (a decision's source moved) and
 **unanswered** ones (a target the record does not pair with its source) are named
 apart, because they mean different things to you, and priced together, because
 the run does not treat them differently.
@@ -401,8 +408,8 @@ no translation at all — and the plan quotes that work before any tokens burn:
 
 ```bash
 kapi up --plan
-# scope  missing  stale  unanswered  content memory exact  AI work  ~tokens
-# de           0      1           0                     0        1        9
+# scope  missing  stale  unanswered  content memory exact  drafted by flow  out of reach  ~tokens
+# de           0      1           0                     0                1             0        9
 #
 # 1 unit(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return

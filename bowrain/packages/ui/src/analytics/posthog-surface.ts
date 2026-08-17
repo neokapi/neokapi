@@ -34,6 +34,13 @@ export interface PostHogSurfaceOptions {
  * Initialize a PostHog surface with `{ surface, environment }` registered as
  * super-properties. Key-gated: returns false without initializing when no key
  * is configured. The caller owns the init-once guard.
+ *
+ * The key is the only gate this helper applies, and it is not the only gate a
+ * surface needs. This call is what writes the year-long `ph_*` identifier — on
+ * the registrable domain, shared with the landing and documentation sites,
+ * which publish it as cookieless — so a surface behind a login calls it once a
+ * session is confirmed and never on load, and a public one passes
+ * `persistence: "memory"` (#1940).
  */
 export function initPostHogSurface(client: PostHogClient, opts: PostHogSurfaceOptions): boolean {
   if (!opts.key) return false;

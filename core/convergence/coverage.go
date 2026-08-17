@@ -27,10 +27,11 @@ type Scope struct {
 
 // scopeTally is one scope's accumulated distribution.
 type scopeTally struct {
-	cov          gate.Coverage
-	aiReviewed   int
-	stale        int
-	basisUnknown int
+	cov           gate.Coverage
+	aiReviewed    int
+	stale         int
+	failingChecks int
+	basisUnknown  int
 }
 
 // CoverageTally accumulates unit states per (collection, locale) scope. Feed
@@ -87,6 +88,18 @@ func (t *CoverageTally) AddStale(s Scope) {
 // this only makes the assumption behind that rung countable.
 func (t *CoverageTally) NoteUnknownBasis(s Scope) { t.tally(s).basisUnknown++ }
 
+// NoteFailingCheck records that a unit fails the project's bound checks,
+// without tallying it: the unit is counted at its true rung by the accompanying
+// Add, and this withholds the scope's verdict.
+//
+// The unit IS translated — someone may even have reviewed it — so a percentage
+// that said otherwise would be a false statement about the content, and the
+// same percentage would then differ between a surface that runs the checks and
+// one that does not. What a failing check withholds is the verdict, exactly as
+// staleness does: a gate is a bar on quantity, and content that fails a
+// guardrail is not a shortfall of quantity.
+func (t *CoverageTally) NoteFailingCheck(s Scope) { t.tally(s).failingChecks++ }
+
 // Coverage returns the accumulated distribution for one scope, with ok=false
 // when the scope was never tallied.
 func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
@@ -133,7 +146,8 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		lc := LocaleCoverage{
 			Locale: s.Locale, Collection: s.Collection, Total: cov.Total,
 			Pct: map[string]int{}, AIReviewed: st.aiReviewed,
-			Stale: st.stale, BasisUnknown: st.basisUnknown,
+			Stale: st.stale, FailingChecks: st.failingChecks,
+			BasisUnknown: st.basisUnknown,
 		}
 		for _, rung := range ladder {
 			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
@@ -155,11 +169,18 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		if vg, ok := verified.Resolve(s.Collection, s.Locale); ok {
 			lc.Verified = gate.Evaluate(vg, cov, ladder).Pass
 		}
-		// Stale content is withheld whether or not a bar was declared. An ungated
-		// scope reads as shippable because nobody asked for a coverage threshold;
-		// nobody asked for wording whose source has been rewritten either, and a
-		// project with no gates is exactly the one with nothing else to catch it.
-		if lc.Stale > 0 {
+		// Stale content and content failing the project's bound checks are
+		// withheld whether or not a bar was declared. An ungated scope reads as
+		// shippable because nobody asked for a coverage threshold; nobody asked
+		// for wording whose source has been rewritten, or for a translation that
+		// drops a placeholder, either — and a project with no gates is exactly the
+		// one with nothing else to catch it.
+		//
+		// This is the one place the verdict is decided, so every surface reading a
+		// LocaleCoverage gets the same answer to "does this ship" — which is the
+		// whole point of the withholding living here rather than in a percentage
+		// one caller demotes and another does not.
+		if lc.Stale > 0 || lc.FailingChecks > 0 {
 			lc.Shippable = false
 			lc.Verified = false
 		}

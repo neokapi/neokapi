@@ -172,8 +172,12 @@ func TestGetConvergePlan_ReportsPendingWorkAndDrift(t *testing.T) {
 	require.NotNil(t, plan)
 	assert.True(t, plan.StoreMissing, "no block store yet")
 	assert.Equal(t, 4, plan.Plan.Totals.MissingTarget, "2 units × 2 locales")
-	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "no content memory → all AI work")
-	assert.Positive(t, plan.Plan.Totals.TokenEstimate)
+	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "no content memory → the flow drafts every unit")
+	// This project's flow is a single pseudo-translate step: it produces every
+	// unit and reaches no provider, so there is no bill to quote. The plan
+	// prices the flow it is planning (#1866).
+	assert.False(t, plan.Plan.FlowCallsProvider)
+	assert.Zero(t, plan.Plan.Totals.TokenEstimate, "a local drafting flow spends nothing")
 	assert.NotEmpty(t, plan.Plan.Note, "the token heuristic is disclosed")
 	require.Len(t, plan.Plan.Scopes, 2)
 	for _, s := range plan.Plan.Scopes {

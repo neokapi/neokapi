@@ -12,20 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDemoteFailing: a failing unit reads at draft from translated and above;
-// states below translated pass through.
-func TestDemoteFailing(t *testing.T) {
-	assert.Equal(t, "draft", DemoteFailing("translated"))
-	assert.Equal(t, "draft", DemoteFailing("reviewed"))
-	assert.Equal(t, "draft", DemoteFailing("signed-off"))
-	assert.Equal(t, "draft", DemoteFailing("draft"), "draft demotes to itself (rank below translated is untouched)")
-	assert.Empty(t, DemoteFailing(""))
-}
-
 // TestUp_ChecksInLoop_FailingPlaceholderParks: a produced unit that drops a
-// printf placeholder fails the loop's QA check, reads at draft rather than
-// translated, and keeps the locale below its translated:100 gate — parked, with
-// the failing count surfaced. Fixing the source lets the next up converge.
+// printf placeholder fails the loop's QA check and holds the locale out of
+// shipping — parked, with the failing count surfaced. The unit still counts as
+// translated: the finding withholds the verdict, not the percentage. Fixing the
+// source lets the next up converge.
 func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -38,13 +29,20 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "failing checks park the locale — never a build failure")
 	assert.Contains(t, out, "parked (needs human)", out)
-	assert.Contains(t, out, "1 failing check(s)", out)
+	assert.Contains(t, out, "1 unit(s) failing checks", out)
 	assert.Contains(t, out, "Not yet up to date", out)
 
-	// The pass DID produce the target file — the unit is produced but failing
-	// guardrails, so it is held at draft, not counted as translated.
+	// The pass DID produce the target file — the unit is produced and failing
+	// guardrails, which are two facts, not one.
 	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	require.NoError(t, statErr)
+
+	// The one answer, from the surface a delivery step reads: it agrees with the
+	// table above rather than offering the locale the run just parked (#2024).
+	status, err := runCLI(t, NewStatusCmd(a), "--project", recipe)
+	require.NoError(t, err, status)
+	assert.Contains(t, status, "blocked: checks", status)
+	assert.Contains(t, status, "1 unit(s) fail the project's bound checks", status)
 
 	// Fix the source (no placeholder): the guardrail passes and up converges.
 	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello friend, welcome."}`), 0o644))
@@ -52,7 +50,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	out2, err := runUp(t, a2, recipe)
 	require.NoError(t, err, out2)
 	assert.Contains(t, out2, "Up to date: every gated scope is shippable", out2)
-	assert.NotContains(t, out2, "failing check(s)", out2)
+	assert.NotContains(t, out2, "failing checks", out2)
 }
 
 // TestUp_NoChecksOptsOut: --no-checks skips the loop checks, so the same
@@ -66,13 +64,17 @@ func TestUp_NoChecksOptsOut(t *testing.T) {
 	out, err := runUp(t, a, recipe, "--no-checks")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Up to date", out)
-	assert.NotContains(t, out, "failing check(s)", out)
+	assert.NotContains(t, out, "failing checks", out)
 }
 
-// TestComputeShipCoverage_ExclusionDemotes: the exclusion set demotes a
-// translated unit to draft for gating — the unit still counts as produced
-// (draft) but not toward the translated rung.
-func TestComputeShipCoverage_ExclusionDemotes(t *testing.T) {
+// TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages: a unit
+// in the check-findings set keeps the rung it holds — it IS translated — and
+// the finding is what takes the scope out of shippable and verified.
+//
+// The two halves are one property. Demoting the percentage instead put the
+// number under a caller's control: a surface that ran the checks published 95%
+// while one that did not published 100%, for one locale, over one tree (#2024).
+func TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
@@ -92,9 +94,9 @@ func TestComputeShipCoverage_ExclusionDemotes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cov, 1)
 	assert.Equal(t, 100, cov[0].Pct["translated"], "baseline: everything translated")
+	assert.True(t, cov[0].Shippable, "baseline: the gate is met")
 
-	// Exclude the `greeting` unit of a.json: translated drops below 100, the
-	// unit still counts as draft (produced).
+	// Fail the `greeting` unit of a.json.
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 	for _, u := range units {
 		if filepath.Base(u.SourcePath) == "a.json" {
@@ -105,7 +107,9 @@ func TestComputeShipCoverage_ExclusionDemotes(t *testing.T) {
 	cov2, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
 	require.NoError(t, err)
 	require.Len(t, cov2, 1)
-	assert.Less(t, cov2[0].Pct["translated"], 100, "excluded unit must not count as translated")
-	assert.Equal(t, 100, cov2[0].Pct["draft"], "excluded unit still counts as produced (draft)")
-	assert.False(t, cov2[0].Shippable, "the translated:100 gate is no longer met")
+	assert.Equal(t, 100, cov2[0].Pct["translated"],
+		"the unit is translated — a percentage that said otherwise would be a false statement about the content")
+	assert.Equal(t, 1, cov2[0].FailingChecks, "the finding is reported on its own axis")
+	assert.False(t, cov2[0].Shippable, "and it is what withholds the verdict")
+	assert.False(t, cov2[0].Verified)
 }

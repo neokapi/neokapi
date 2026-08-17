@@ -35,6 +35,10 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}"],
+  },
   lint: {
     ignorePatterns: ["dist/**", "public/translations/**", "i18n/**", "i18n-qps/**", "i18n-nb/**"],
     options: {

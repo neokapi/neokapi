@@ -322,11 +322,9 @@ export function WorkspaceLayout() {
     strict: false,
   }) as WorkspaceRouteContext;
 
-  useEffect(() => {
-    if (user && user.id !== "local") {
-      platform.analytics?.identify({ id: user.id, email: user.email, name: user.name });
-    }
-  }, [user, platform]);
+  // The signed-in user is announced from the route's `beforeLoad`, not here:
+  // that runs before the first `$pageview` of the session, and on the web host
+  // it is also what starts analytics at all (#1940).
 
   // Workspace group analytics (epic 018): scope subsequent events to the
   // active workspace so funnels can be cut per workspace. Standalone mode has

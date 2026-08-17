@@ -372,7 +372,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			return verifyOutput{}, err
 		}
 		if proj.HasShipGates() {
-			shipGate, err := a.verifyShip(CmdContext(cmd), proj, root, shipUnits)
+			shipGate, err := a.verifyShip(cmd, proj, root, shipUnits)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -430,8 +430,18 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, u
 // verifyShip evaluates the project's ship gates over per-locale coverage. A
 // locale that does not clear its gate produces one finding per unmet threshold
 // and fails the gate. It is the enforcing counterpart of `kapi status`.
-func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
-	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, nil)
+//
+// It runs the project's bound checks first, so the ship gate answers the same
+// guardrail question the QA gate in this very command answers: one invocation
+// reporting `qa FAIL` beside `ship PASS` over one tree is a contradiction
+// needing no second command to see (#2024).
+func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
+	ctx := CmdContext(cmd)
+	excl, err := a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
+	if err != nil {
+		return verifyGateResult{}, err
+	}
+	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
 	if err != nil {
 		return verifyGateResult{}, err
 	}
@@ -440,6 +450,21 @@ func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root st
 		scope := lc.Locale
 		if lc.Collection != "" {
 			scope = lc.Locale + "/" + lc.Collection
+		}
+		// A failing guardrail fails the gate whether or not the scope declared
+		// one, for the reason the stale finding below gives: a coverage
+		// threshold is a bar on how much is done, and this says some of what is
+		// done is wrong.
+		if lc.FailingChecks > 0 {
+			g.Pass = false
+			g.Findings = append(g.Findings, verifyFinding{
+				Gate:     gateShip,
+				Locale:   lc.Locale,
+				Severity: "error",
+				Message: fmt.Sprintf("%s: %d unit(s) fail the project's bound checks",
+					scope, lc.FailingChecks),
+				Suggestion: "fix the findings the qa gate lists for this locale, then re-run",
+			})
 		}
 		// Stale pairings fail the gate whether or not the scope declared one.
 		// A coverage threshold is a bar on how much is done; this is a statement

@@ -7,16 +7,20 @@ import { createRoot } from "react-dom/client";
 import { BowrainApp, webPlatform } from "@neokapi/bowrain-app";
 import { ErrorNotice } from "@neokapi/ui";
 import { api } from "./api";
-import { initPostHog, identifyUser, resetPostHog, captureEvent, groupIdentify } from "./posthog";
+import { identifyUser, resetPostHog, captureEvent, groupIdentify } from "./posthog";
 import { initSentry, Sentry } from "./sentry";
 
 initSentry();
-initPostHog();
 
 // Web host: analytics flow through the platform seam so the shared app never
 // imports posthog-js directly. `capture` carries the product events (SPA
 // $pageview, feature_entered, and the form/action events fired by the shared
 // components); `group` scopes the session to the active workspace.
+//
+// Nothing starts PostHog here. `identify` does, on the first authenticated
+// session — until then the app holds no identifier, records nothing and sends
+// nothing, so an anonymous visit and the bounce to the identity provider leave
+// this origin exactly as they found it.
 const platform = webPlatform({
   analytics: {
     identify: (user) => identifyUser(user.id, { email: user.email, name: user.name }),

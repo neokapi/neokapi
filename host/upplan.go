@@ -7,11 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
@@ -24,10 +27,11 @@ import (
 // translation with a rough token estimate.
 //
 // The three work axes partition the scope's work, so MissingTarget + Stale +
-// Unanswered always equals MemoryExact + AIRemaining: every unit the plan counts
-// is either recycled or drafted. A unit that is none of the three is not work —
-// it holds a target, no decision of its has moved, and the corpus answers its
-// source, so the pass fills it from the project's own record at no cost.
+// Unanswered always equals MemoryExact + AIRemaining + OutOfReach: every unit
+// the plan counts is recycled, drafted, or beyond what the configured flow can
+// do. A unit that is none of the three is not work — it holds a target, no
+// decision of its has moved, and the corpus answers its source, so the pass
+// fills it from the project's own record at no cost.
 type UpPlanScope struct {
 	Locale     string `json:"locale,omitempty"`
 	Collection string `json:"collection,omitempty"`
@@ -62,6 +66,15 @@ type UpPlanScope struct {
 	// would put the plan and the run summary at odds, since the summary's re-draft
 	// count is the decision-based coverage tally.
 	Unanswered int `json:"unanswered,omitempty"`
+	// OutOfReach is the count of counted units the configured flow has no step
+	// that could produce: the corpus does not answer them and the flow drafts
+	// nothing, so a run would leave them exactly as they are.
+	//
+	// They are neither leverage nor AI work, and pricing them was the whole
+	// defect: a recipe whose flow is exact-match content-memory reuse and
+	// nothing else was quoted a provider bill for every unit the memory missed,
+	// then made zero provider calls (#1866).
+	OutOfReach int `json:"outOfReach,omitempty"`
 	// UnreadTargets is the count of produced units the plan declines to judge:
 	// their committed translation has not been read into the project store yet,
 	// so the corpus is unfinished and its silence about them means "not asked",
@@ -82,9 +95,19 @@ type UpPlanScope struct {
 // plan per (collection, locale), with totals. No provider calls are made and
 // nothing is written.
 type UpPlanOutput struct {
-	Flow   string        `json:"flow,omitempty"`
-	Scopes []UpPlanScope `json:"scopes"`
-	Totals UpPlanScope   `json:"totals"`
+	Flow string `json:"flow,omitempty"`
+	// FlowDrafts reports whether the flow contains any step that produces a
+	// target other than by content-memory recycling. False means the flow
+	// recycles and nothing else, so every unit the corpus does not answer is
+	// out of reach of this run.
+	FlowDrafts bool `json:"flowDrafts"`
+	// FlowCallsProvider reports whether producing a target under this flow
+	// reaches an AI or machine-translation provider. False means the run makes
+	// no provider calls and spends nothing, whatever a default provider is
+	// configured to.
+	FlowCallsProvider bool          `json:"flowCallsProvider"`
+	Scopes            []UpPlanScope `json:"scopes"`
+	Totals            UpPlanScope   `json:"totals"`
 	// Provider is the AI provider a converge run would use (the shared
 	// ai.provider default), when one is configured.
 	Provider string `json:"provider,omitempty"`
@@ -125,16 +148,18 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
-		Headers("scope", "missing", "stale", "unanswered", "content memory exact", "AI work", "~tokens")
+		Headers("scope", "missing", "stale", "unanswered", "content memory exact",
+			"drafted by flow", "out of reach", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
-		t.Rowf(scope, s.MissingTarget, s.Stale, s.Unanswered, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
+		t.Rowf(scope, s.MissingTarget, s.Stale, s.Unanswered, s.MemoryExact,
+			s.AIRemaining, s.OutOfReach, s.TokenEstimate)
 	}
 	t.Rowf("total", o.Totals.MissingTarget, o.Totals.Stale, o.Totals.Unanswered,
-		o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+		o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.OutOfReach, o.Totals.TokenEstimate)
 	t.Render()
 	if o.Totals.Stale > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
@@ -149,6 +174,23 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	if o.Totals.UnreadTargets > 0 {
 		fmt.Fprintf(w, "\n  %d produced unit(s) are not priced: the project store has not read their committed "+
 			"translations yet, and a run reads them before it drafts anything.\n", o.Totals.UnreadTargets)
+	}
+	if o.Totals.OutOfReach > 0 {
+		fmt.Fprintf(w, "\n  %d unit(s) out of reach of flow %q: it has no step that would produce them, "+
+			"so this run leaves them as they are. They are not priced — add a drafting step, or "+
+			"converge them at a venue whose flow has one.\n", o.Totals.OutOfReach, o.Flow)
+	}
+	// The flow decides whether there is a bill at all, so it is read before the
+	// configured default: naming a provider for a flow that never calls one is
+	// how a run with no credentials was quoted 487k tokens (#1866).
+	if !o.FlowCallsProvider {
+		if o.Totals.AIRemaining > 0 {
+			fmt.Fprintf(w, "\n  Flow %q produces its drafts locally — no provider is called and nothing is spent.\n", o.Flow)
+		} else {
+			fmt.Fprintf(w, "\n  Flow %q calls no provider — this run spends nothing.\n", o.Flow)
+		}
+		fmt.Fprintf(w, "\n%s\n", o.Note)
+		return nil
 	}
 	// Always name the provider a run would resolve. A plan exists to answer
 	// "what will this do", and which provider does the work is part of that —
@@ -282,7 +324,13 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 // resolve (the shared ai.provider app default). When that provider bills a
 // personal subscription (claude-code), the plan swaps the metered-cost framing
 // for "runs on your Claude subscription" in both text and JSON.
+//
+// A flow that reaches no provider is left unannotated: which provider the app
+// would resolve is not a fact about a run that will never call one.
 func (a *App) applyPlanProvider(plan *UpPlanOutput) {
+	if !plan.FlowCallsProvider {
+		return
+	}
 	def := config.ResolveAIDefault(a.Config)
 	if !def.Configured() {
 		return
@@ -324,6 +372,88 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 	return &plan, nil
 }
 
+// upPlanFlow is what the plan needs to know about the flow a run would actually
+// execute: which of the ways a unit can be produced this flow contains, and
+// whether any of them costs a provider call.
+//
+// It is read out of the tool registry rather than matched on tool names, so a
+// plugin's producer is classified by what it declares — a step that produces a
+// target and reads the content memory is leverage, one that produces a target
+// and calls out is spend — and a flow assembled from tools this binary has
+// never heard of is planned as honestly as the built-in one.
+type upPlanFlow struct {
+	// Label is how the run reports the flow.
+	Label string
+	// Recycles is true when a step fills a target from the content memory.
+	Recycles bool
+	// Drafts is true when a step produces a target some other way — an AI or
+	// machine-translation provider, or a local transform.
+	Drafts bool
+	// CallsProvider is true when one of those drafting steps reaches a provider,
+	// which is the only case a token estimate prices. A flow that drafts
+	// locally (pseudo-translation, say) does the work and bills nothing.
+	CallsProvider bool
+}
+
+// resolveUpPlanFlow resolves the flow `kapi up` would run for the project and
+// reads its production capabilities off the tool registry. It resolves the flow
+// exactly as RunDefaultFlowConverge does, including its errors: a plan that
+// quotes figures for a run that cannot start is the same fault as a plan that
+// quotes figures the run would not produce.
+func (a *App) resolveUpPlanFlow(proj *project.KapiProject) (upPlanFlow, error) {
+	out := upPlanFlow{Label: proj.Defaults.Flow}
+	spec := proj.Flow(proj.Defaults.Flow)
+	if proj.Defaults.Flow == "" {
+		// No defaults.flow: the run synthesizes the built-in default (#1078 G6).
+		out.Label = BuiltinDefaultFlowLabel
+		spec = DefaultConvergeFlowSpec()
+	} else if spec == nil {
+		if BuiltinComposedFlowNames()[proj.Defaults.Flow] {
+			return out, fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", proj.Defaults.Flow)
+		}
+		return out, fmt.Errorf("default flow %q not found in the project's `flows:`", proj.Defaults.Flow)
+	}
+
+	for _, step := range spec.Steps {
+		s := a.ToolReg.Schema(registry.ToolID(step.Tool))
+		if !toolProducesTarget(s) {
+			continue
+		}
+		if ToolRequires(s, schema.RequiresMemory) {
+			out.Recycles = true
+			continue
+		}
+		out.Drafts = true
+		if toolCallsProvider(s) {
+			out.CallsProvider = true
+		}
+	}
+	return out, nil
+}
+
+// toolProducesTarget reports whether the tool writes target-side content — the
+// question that decides whether a step can close a pending unit at all.
+func toolProducesTarget(s *schema.ComponentSchema) bool {
+	if s == nil || s.ToolMeta == nil {
+		return false
+	}
+	for _, p := range s.ToolMeta.Produces {
+		if p.Type == schema.PortTarget && p.Side == model.SideTarget {
+			return true
+		}
+	}
+	return false
+}
+
+// toolCallsProvider reports whether running the tool reaches an external
+// provider — the side effect a token estimate is an estimate of.
+func toolCallsProvider(s *schema.ComponentSchema) bool {
+	if s == nil || s.ToolMeta == nil {
+		return false
+	}
+	return slices.Contains(s.ToolMeta.SideEffects, schema.SideEffectAPICall)
+}
+
 // upPlanBasis is what a plan is derived against besides the units themselves:
 // the corpus a run would recycle from, the decisions it would read, and the
 // target artifacts the record absorber has already had its say about.
@@ -337,8 +467,14 @@ type upPlanBasis struct {
 	root string
 }
 
-// computeUpPlan derives the per-scope work plan from the verify units.
+// computeUpPlan derives the per-scope work plan from the verify units, against
+// the flow a run would execute: what that flow can produce is what the plan
+// counts as work, and what it cannot is reported rather than priced.
 func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
+	fl, ferr := a.resolveUpPlanFlow(proj)
+	if ferr != nil {
+		return UpPlanOutput{}, ferr
+	}
 	type scopeKey struct{ Locale, Collection string }
 	scopes := map[scopeKey]*UpPlanScope{}
 	scopeFor := func(k scopeKey) *UpPlanScope {
@@ -393,10 +529,12 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 				s.UnreadTargets++
 				continue
 			}
-			// The pass is driven by the corpus, not by the target files: `recycle`
-			// fills what the content memory answers exactly and `translate` drafts
-			// the remainder (skipMatched). So this is the question that decides
-			// what a unit costs, and it is put to every unit the plan counts.
+			// The pass is driven by the corpus, not by the target files: a recycle
+			// step fills what the content memory answers exactly and a drafting
+			// step produces the remainder (skipMatched). So this is the question
+			// that decides what a unit costs, and it is put to every unit the plan
+			// counts. It is a fact about the corpus alone — what the configured
+			// flow does with the answer is decided below.
 			answered := planMemoryExactHit(ctx, basis.memory, b, source, target)
 			switch {
 			case !produced:
@@ -421,22 +559,34 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 				// work.
 				s.Unanswered++
 			}
-			if answered {
+			// Leverage is only leverage for a flow that recycles. A flow with no
+			// recycle step reaches the corpus's answer in no way at all, so
+			// counting the hit would credit this run with work another flow
+			// would do.
+			if answered && fl.Recycles {
 				s.MemoryExact++
 				continue
 			}
+			// Nothing in this flow can produce the unit: it has no step that
+			// writes a target other than by recycling, and recycling is not on
+			// offer here. A run would leave the unit as it is, so it is reported
+			// as out of reach rather than quoted.
+			if !fl.Drafts {
+				s.OutOfReach++
+				continue
+			}
 			s.AIRemaining++
-			s.TokenEstimate += EstimateTokens(b.SourceText())
+			// Only a provider call costs tokens. A flow that drafts locally
+			// produces the same units and bills nothing, and quoting it a token
+			// figure would invite approval of a spend that cannot happen.
+			if fl.CallsProvider {
+				s.TokenEstimate += EstimateTokens(b.SourceText())
+			}
 		}
 	}
 
-	// A recipe with no defaults.flow converges through the built-in default
-	// (#1078 G6) — label the plan the same way the run reports it.
-	flowLabel := proj.Defaults.Flow
-	if flowLabel == "" {
-		flowLabel = BuiltinDefaultFlowLabel
-	}
-	out := UpPlanOutput{Flow: flowLabel, Note: upPlanNote}
+	out := UpPlanOutput{Flow: fl.Label, FlowDrafts: fl.Drafts,
+		FlowCallsProvider: fl.CallsProvider, Note: upPlanNote}
 	for _, s := range scopes {
 		// Unread targets are totalled from every scope, priced or not: a scope
 		// with no work to show still owes the reader the reason it has nothing
@@ -451,6 +601,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		out.Totals.Unanswered += s.Unanswered
 		out.Totals.MemoryExact += s.MemoryExact
 		out.Totals.AIRemaining += s.AIRemaining
+		out.Totals.OutOfReach += s.OutOfReach
 		out.Totals.TokenEstimate += s.TokenEstimate
 	}
 	sort.Slice(out.Scopes, func(i, j int) bool {

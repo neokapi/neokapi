@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { fetchAdminSession, ADMIN_SESSION_QUERY_KEY } from "../auth";
+import { startAnalytics } from "../analytics";
 import { RootLayout } from "./root-layout";
 import { AuthCallbackRoute } from "./auth-callback";
 import { DashboardRoute } from "./dashboard";
@@ -91,6 +92,9 @@ async function requireAuth({ context }: { context: RouterContext }) {
   if (!session) {
     throw redirect({ to: "/auth/callback", search: { action: "login" } });
   }
+  // A confirmed session is the gate analytics start behind, and this runs
+  // before the navigation resolves, so the pageview it produces is captured.
+  startAnalytics();
 }
 
 const dashboardRoute = createRoute({
