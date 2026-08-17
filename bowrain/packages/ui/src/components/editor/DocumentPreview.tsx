@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
 import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
 import { useEditorApi } from "../../hooks/useEditorApi";
+import { useLocales } from "../../hooks/useLocales";
 import { useStream } from "../../context/StreamContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import type { BlockInfo, SpanInfo } from "../../types/api";
@@ -11,6 +12,7 @@ import { getTargetText } from "./blockStatus";
 import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
 import { blocksToContentTree } from "../../preview/toContentTree";
 import { cn } from "@neokapi/ui-primitives";
+import { Languages } from "../icons";
 
 /** How many blocks one page of the preview's document fetch carries. */
 const PREVIEW_PAGE_SIZE = 500;
@@ -281,6 +283,8 @@ export function DocumentPreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { renderDocumentPreview } = useEditorApi();
 
+  const { getDisplayName } = useLocales();
+
   // The document's blocks, plus the surface's edited copies on top.
   const { data: documentBlocks } = useDocumentBlocks(projectId, itemName, targetLocale);
   const contentBlocks = useMemo(() => {
@@ -296,6 +300,22 @@ export function DocumentPreview({
   const isControlled = previewContentMode !== undefined;
   const showTarget = isControlled ? previewContentMode === "target" : internalMode === "target";
   const showPseudo = isControlled && previewContentMode === "pseudo";
+
+  // How much of the document the chosen locale actually covers. Counted over
+  // the translatable blocks only: a block with nothing to translate is not
+  // outstanding work, and counting it would report a document that can never
+  // reach the whole.
+  const coverage = useMemo(() => {
+    let total = 0;
+    let translated = 0;
+    for (const block of contentBlocks) {
+      if (block.translatable === false) continue;
+      total++;
+      if (getTargetText(block, targetLocale).trim()) translated++;
+    }
+    return { total, translated };
+  }, [contentBlocks, targetLocale]);
+  const localeName = getDisplayName(targetLocale);
 
   // Use refs for callback props to avoid re-running effects when they change
   const onBlockSelectRef = useRef(onBlockSelect);
@@ -435,10 +455,27 @@ export function DocumentPreview({
 
   return (
     <div
-      className="relative w-full h-full"
+      className="relative flex h-full w-full flex-col gap-2"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Reading a locale the document has not been translated into shows the
+          source — a document is still a document with its translation
+          outstanding. What it must not do is show the source *silently*, under
+          the locale's own name: that reads as a translation that happens to
+          match, or as a switch that did nothing. */}
+      {showTarget && coverage.total > 0 && coverage.translated < coverage.total && (
+        <div
+          className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground"
+          data-testid="preview-coverage"
+        >
+          <Languages className="h-3.5 w-3.5 shrink-0" />
+          {coverage.translated === 0
+            ? `Nothing is translated into ${localeName} yet — reading the source.`
+            : `${coverage.translated} of ${coverage.total} blocks are translated into ${localeName}; the rest read as the source.`}
+        </div>
+      )}
+
       {/* The split: a reader-generated preview is the document as its own format
           renders it, and only an iframe can show that faithfully. The server's
           fallback is a listing of the blocks — the content model already says

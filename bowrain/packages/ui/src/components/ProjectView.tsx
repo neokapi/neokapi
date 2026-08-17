@@ -15,6 +15,7 @@ import { useLocales } from "../hooks/useLocales";
 import { useStream } from "../context/StreamContext";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionRail } from "./CollectionRail";
+import { commonItemBase, relativeItemName } from "./collections/itemBase";
 import { ProjectTypeBadge } from "./ProjectTypeBadge";
 import { FormattedFileName } from "./FormattedFileName";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -175,6 +176,12 @@ export function ProjectView({
   // Hard render cap: very large collections (thousands of files) should not
   // mount thousands of table rows. The cap is surfaced honestly via ListCapRow.
   const visibleItems = useMemo(() => items.slice(0, MAX_ITEM_ROWS), [items]);
+
+  // What every item in this collection shares — its `base:` and whatever lies
+  // below it — stated once above the list instead of on every row. Computed
+  // over the whole collection, not the rendered page, so it does not move when
+  // the cap bites.
+  const itemBase = useMemo(() => commonItemBase(items.map((i) => i.name)), [items]);
 
   // A row reads the file; an editor is entered deliberately. Without a preview
   // binding the row keeps its older behaviour and opens the editor directly.
@@ -390,6 +397,18 @@ export function ProjectView({
                     ? ` in ${activeCollection.name}`
                     : " in project"}
                 </p>
+                {/* What every row shares, said once. The rows then carry only
+                    what tells them apart; each keeps its full name on hover. */}
+                {itemBase && (
+                  <p
+                    className="mt-0.5 break-all font-mono text-[12px] text-muted-foreground/70"
+                    title={itemBase}
+                    translate="no"
+                    data-testid="item-base"
+                  >
+                    {itemBase}
+                  </p>
+                )}
               </div>
 
               {/* Upload button — only for uploaded collections */}
@@ -506,10 +525,14 @@ export function ProjectView({
                         <td className={`${isMobile ? "px-2" : "px-4"} py-2.5 text-sm`}>
                           <button
                             onClick={() => openItem(f.name)}
+                            title={f.name}
                             className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5 text-left break-all"
                             data-testid={`open-file-${f.name}`}
                           >
-                            <FormattedFileName name={f.name} format={f.format} />
+                            <FormattedFileName
+                              name={relativeItemName(f.name, itemBase)}
+                              format={f.format}
+                            />
                           </button>
                         </td>
                         {!isMobile && (
