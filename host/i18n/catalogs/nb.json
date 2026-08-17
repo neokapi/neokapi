@@ -3,7 +3,6 @@
     "commands": {
       "kapi": {
         "add": {
-          "long": "Legg til filmønstre i dette prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Format oppdages automatisk\nfra filendelsen med mindre --format er angitt.\n\n  kapi add \"src\/**\/*.html\"\n  kapi add \"locales\/*.json\" --format json\n  kapi add \"src\/**\/*.html\" \"content\/**\/*.md\"",
           "short": "Legg til filmønstre i prosjektets innhold"
         },
         "apply": {

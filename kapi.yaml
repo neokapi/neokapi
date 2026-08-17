@@ -259,16 +259,25 @@ collections:
           name: yaml
         target: "{dir}/demo.{lang}.yaml"
 flows:
-  # Exact-match content-memory leverage only (no AI, no checks): the
-  # deterministic pass `defaults.flow` binds, run over the whole recipe.
-  # Named tm-recycle so it does not shadow the built-in `recycle`/`translate`
-  # flows (built-ins win in `kapi run`).
+  # Exact-match content-memory leverage plus the one check that is about
+  # correctness rather than coverage: the deterministic pass `defaults.flow`
+  # binds, run over the whole recipe. Named tm-recycle so it does not shadow the
+  # built-in `recycle`/`translate` flows (built-ins win in `kapi run`).
+  #
+  # placeholder-check is bound here because a target that dropped an
+  # interpolation placeholder is not a partial translation, it is a wrong one: a
+  # reader gets the sentence with the count, the name or the link missing from
+  # it. `recycle` already refuses to fill from a match whose target dropped an
+  # inline code, and this is the same predicate applied to what a pass produced,
+  # whatever venue produced it. It reports; the return-leg gate
+  # (scripts/check-sync-backed.sh) is what refuses.
   tm-recycle:
     steps:
       - tool: recycle
         config:
           fillTarget: true
           fillTargetThreshold: 100
+      - tool: placeholder-check
   # content memory-driven translation: reviewed translations live in the project content memory
   # (seeded from .kapi/memory/*.memory.json); exact matches fill the target, terminology
   # compliance is checked against the project terms.
@@ -278,6 +287,7 @@ flows:
         config:
           fillTarget: true
           fillTargetThreshold: 100
+      - tool: placeholder-check
       - tool: term-check
   # AI translation for new/changed strings: content memory first, then translate for
   # the misses (voice profile + terms are bound project-wide), then checks.
