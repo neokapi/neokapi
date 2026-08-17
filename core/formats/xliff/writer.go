@@ -517,7 +517,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			if sourceBodyIsCurrent(sa, block) {
-				return renderNativeWithRunsOpts(sa.Content, nil, opts)
+				return renderNativeVerbatimOpts(sa.Content, opts)
 			}
 			// Edited: substitute the block's runs into the captured IR, so
 			// inline-code attributes and their order survive the edit. The

@@ -42,10 +42,13 @@ func (o renderOpts) escapeText(s string) string {
 // (pseudo-translate, AI-translate) propagate while inline-code
 // attributes survive.
 //
-// If runs has fewer TextRuns than the native IR has Text nodes, the
-// remaining native text is emitted verbatim (covers the case where
-// a tool collapsed multiple TextRuns into one). If runs has more
-// TextRuns, the surplus is appended at the end.
+// The runs are the content; the IR is only its shape. Where the two
+// disagree on how much text there is, the runs win: a text node the runs
+// no longer reach emits nothing, and runs the IR has no node for are
+// appended. Upstream okapi renders a `<target>` from its TextFragment
+// alone (XLIFFSkeletonWriter.getSegmentedOutput → XLIFFContent), with no
+// stored body to fall back on, so this is the same content decision made
+// while keeping the inline-code fidelity a stored body buys.
 func renderNativeWithRuns(nc *NativeContent, runs []model.Run) string {
 	return renderNativeWithRunsOpts(nc, runs, renderOpts{})
 }
@@ -54,14 +57,55 @@ func renderNativeWithRunsOpts(nc *NativeContent, runs []model.Run, opts renderOp
 	if nc == nil {
 		return ""
 	}
-	texts := extractTextRuns(runs)
 	var b strings.Builder
-	idx := 0
-	emitInlinesOpts(&b, nc.Inlines, texts, &idx, true, opts)
-	for ; idx < len(texts); idx++ {
-		b.WriteString(opts.escapeText(texts[idx]))
-	}
+	cur := &runCursor{texts: extractTextRuns(runs)}
+	emitInlinesOpts(&b, nc.Inlines, cur, true, opts)
+	cur.flushSurplus(&b, opts)
 	return b.String()
+}
+
+// renderNativeVerbatimOpts re-emits a captured body exactly as it was read,
+// with no run substitution. The caller must have established that the model
+// still reads the way the capture does (sourceBodyIsCurrent); otherwise the
+// captured bytes are a stale copy of content something has since edited.
+func renderNativeVerbatimOpts(nc *NativeContent, opts renderOpts) string {
+	if nc == nil {
+		return ""
+	}
+	var b strings.Builder
+	emitInlinesOpts(&b, nc.Inlines, nil, true, opts)
+	return b.String()
+}
+
+// runCursor walks the model's text runs as the IR's translatable text nodes
+// are emitted, one run per node in order. A nil *runCursor means the IR's own
+// text is authoritative and no substitution happens at all.
+type runCursor struct {
+	texts []string
+	idx   int
+}
+
+// next returns the text for the next translatable IR text node, and false when
+// the runs are spent — which is a deletion, not an oversight: a tool that drops
+// a trailing text run leaves the IR with a node the content no longer fills.
+func (c *runCursor) next() (string, bool) {
+	if c.idx >= len(c.texts) {
+		return "", false
+	}
+	s := c.texts[c.idx]
+	c.idx++
+	return s, true
+}
+
+// flushSurplus emits the runs the IR had no node for, so text a tool appended
+// past the end of the captured shape still reaches the file.
+func (c *runCursor) flushSurplus(b *strings.Builder, opts renderOpts) {
+	if c == nil {
+		return
+	}
+	for ; c.idx < len(c.texts); c.idx++ {
+		b.WriteString(opts.escapeText(c.texts[c.idx]))
+	}
 }
 
 // extractTextRuns flattens a Run slice into the ordered text payloads.
@@ -104,31 +148,39 @@ func sourceBodyIsCurrent(sa *SourceBodyNativeAnnotation, block *model.Block) boo
 	return model.RunsText(block.Source) == sa.SourceAsRead
 }
 
-// emitInlinesOpts walks an inline tree and emits XML, with a
-// `translatable` flag governing whether bare text nodes consume from
-// the runs slice (true) or fall back to the native IR's verbatim text
-// (false). The flag flips false when descending into bpt/ept/ph/it
-// inner content (which is opaque native code, not translatable text)
-// and back to true when descending into a <sub> sub-flow (which IS
-// translatable — that's the whole point of <sub>).
+// emitInlinesOpts walks an inline tree and emits XML. Two things decide where a
+// text node's bytes come from:
+//
+//   - `cur`, the model's run cursor. Nil means the IR's own text is
+//     authoritative — a verbatim re-emission, or a skeleton fragment (the
+//     whitespace between mrks) that no run corresponds to.
+//   - `translatable`, which is false inside bpt/ept/ph/it inner content (opaque
+//     native code, never translatable text) and true again inside a <sub>
+//     sub-flow — that is the whole point of <sub>.
+//
+// With a cursor over translatable text, the runs are the content: a node the
+// cursor cannot fill emits nothing, because the tool that shortened the runs
+// deleted that text. Emitting the IR's copy instead is how a trimmed trailing
+// space, and a pair of runs a tool collapsed into one, came back into the file.
 //
 // `opts` carries optional text-emission behaviors threaded down from
 // the writer's OkapiCompatConfig (e.g. non-ASCII entity escaping).
-func emitInlinesOpts(b *strings.Builder, inls []Inline, texts []string, idx *int, translatable bool, opts renderOpts) {
+func emitInlinesOpts(b *strings.Builder, inls []Inline, cur *runCursor, translatable bool, opts renderOpts) {
 	for _, in := range inls {
 		switch {
 		case in.Text != nil:
-			if translatable && *idx < len(texts) {
-				b.WriteString(opts.escapeText(texts[*idx]))
-				*idx++
-			} else {
+			if cur == nil || !translatable {
 				b.WriteString(opts.escapeText(in.Text.Content))
+				continue
+			}
+			if text, ok := cur.next(); ok {
+				b.WriteString(opts.escapeText(text))
 			}
 		case in.G != nil:
 			b.WriteString("<g")
 			writeAttrs(b, in.G.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.G.Children, texts, idx, translatable, opts)
+			emitInlinesOpts(b, in.G.Children, cur, translatable, opts)
 			b.WriteString("</g>")
 		case in.X != nil:
 			b.WriteString("<x")
@@ -146,31 +198,31 @@ func emitInlinesOpts(b *strings.Builder, inls []Inline, texts []string, idx *int
 			b.WriteString("<bpt")
 			writeAttrs(b, in.Bpt.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.Bpt.Inner, texts, idx, false, opts)
+			emitInlinesOpts(b, in.Bpt.Inner, cur, false, opts)
 			b.WriteString("</bpt>")
 		case in.Ept != nil:
 			b.WriteString("<ept")
 			writeAttrs(b, in.Ept.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.Ept.Inner, texts, idx, false, opts)
+			emitInlinesOpts(b, in.Ept.Inner, cur, false, opts)
 			b.WriteString("</ept>")
 		case in.Ph != nil:
 			b.WriteString("<ph")
 			writeAttrs(b, in.Ph.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.Ph.Inner, texts, idx, false, opts)
+			emitInlinesOpts(b, in.Ph.Inner, cur, false, opts)
 			b.WriteString("</ph>")
 		case in.It != nil:
 			b.WriteString("<it")
 			writeAttrs(b, in.It.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.It.Inner, texts, idx, false, opts)
+			emitInlinesOpts(b, in.It.Inner, cur, false, opts)
 			b.WriteString("</it>")
 		case in.Mrk != nil:
 			b.WriteString("<mrk")
 			writeAttrs(b, in.Mrk.Attrs)
 			b.WriteString(">")
-			emitInlinesOpts(b, in.Mrk.Children, texts, idx, translatable, opts)
+			emitInlinesOpts(b, in.Mrk.Children, cur, translatable, opts)
 			b.WriteString("</mrk>")
 		case in.Sub != nil:
 			b.WriteString("<sub")
@@ -180,7 +232,7 @@ func emitInlinesOpts(b *strings.Builder, inls []Inline, texts []string, idx *int
 			// inline code. Even though the parent ph/bpt/it set
 			// translatable=false, sub re-enables substitution for its
 			// own children — that's the whole point of <sub>.
-			emitInlinesOpts(b, in.Sub.Children, texts, idx, true, opts)
+			emitInlinesOpts(b, in.Sub.Children, cur, true, opts)
 			b.WriteString("</sub>")
 		}
 	}
@@ -251,14 +303,14 @@ func renderBodyWithSegmentsOpts(nc *NativeContent, segs []segView, opts renderOp
 		if len(segs) > 0 {
 			segRuns = segs[0].Runs
 		}
-		texts := extractTextRuns(segRuns)
-		idx := 0
+		cur := &runCursor{texts: extractTextRuns(segRuns)}
 		for _, in := range nc.Inlines {
 			if in.Mrk != nil && mrkAttrIsSeg(in.Mrk) {
-				emitInlinesOpts(&b, in.Mrk.Children, texts, &idx, true, opts)
+				emitInlinesOpts(&b, in.Mrk.Children, cur, true, opts)
 			}
 			// drop other inlines (whitespace between mrks, etc.)
 		}
+		cur.flushSurplus(&b, opts)
 		return b.String()
 	}
 	var b strings.Builder
@@ -272,18 +324,19 @@ func renderBodyWithSegmentsOpts(nc *NativeContent, segs []segView, opts renderOp
 			if mrkIdx < len(segs) {
 				segRuns = segs[mrkIdx].Runs
 			}
-			texts := extractTextRuns(segRuns)
-			idx := 0
-			emitInlinesOpts(&b, in.Mrk.Children, texts, &idx, true, opts)
+			cur := &runCursor{texts: extractTextRuns(segRuns)}
+			emitInlinesOpts(&b, in.Mrk.Children, cur, true, opts)
+			// Text a tool added past the segment's captured shape belongs inside
+			// the segment's own mrk, not after the last one.
+			cur.flushSurplus(&b, opts)
 			b.WriteString("</mrk>")
 			mrkIdx++
 			continue
 		}
 		// Static skeleton content between or around mrks (often just
-		// whitespace). Emit verbatim from native, no run substitution.
-		dummyTexts := []string(nil)
-		dummyIdx := 0
-		emitInlinesOpts(&b, []Inline{in}, dummyTexts, &dummyIdx, true, opts)
+		// whitespace). It belongs to no segment, so no run governs it and the
+		// IR's own bytes are emitted.
+		emitInlinesOpts(&b, []Inline{in}, nil, true, opts)
 	}
 	return b.String()
 }

@@ -37,13 +37,83 @@ func TestParseNativeContent_BptEpt(t *testing.T) {
 	}
 }
 
-func TestRenderNativeWithRuns_Roundtrip(t *testing.T) {
+func TestRenderNativeVerbatim_Roundtrip(t *testing.T) {
 	src := `The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`
 	nc := parseNativeContent(src)
-	got := renderNativeWithRuns(nc, nil)
+	got := renderNativeVerbatimOpts(parseNativeContent(src), renderOpts{})
 	want := `The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`
 	if got != want {
 		t.Errorf("\ngot  %q\nwant %q", got, want)
+	}
+	// The same IR driven by the runs it was read as round-trips identically —
+	// the two renderers agree whenever the model still says what the IR does.
+	if got := renderNativeWithRuns(nc, nativeToRuns(nc)); got != want {
+		t.Errorf("\nrun-driven got  %q\nwant %q", got, want)
+	}
+}
+
+// #1477. The runs are the target's content and the IR is only its shape, so a
+// text run a tool deleted must not come back from the IR. This is the shape
+// `whitespace-correct --trim-trailing` produces on a target whose last run is a
+// whitespace-only text node behind an inline code: the run is dropped outright,
+// and the IR still has a node for it.
+func TestRenderNativeWithRuns_DeletedRunsDoNotReturn(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		ir   string
+		runs []model.Run
+		want string
+	}{
+		{
+			name: "trailing text run deleted behind an inline code",
+			ir:   `Lagre  <g id="2">nå</g>   `,
+			runs: []model.Run{
+				{Text: &model.TextRun{Text: "Lagre  "}},
+				{PcOpen: &model.PcOpenRun{ID: "2"}},
+				{Text: &model.TextRun{Text: "nå"}},
+				{PcClose: &model.PcCloseRun{ID: "2"}},
+			},
+			want: `Lagre  <g id="2">nå</g>`,
+		},
+		{
+			name: "two text runs collapsed into one",
+			ir:   `Lagre  <g id="2">nå</g> straks`,
+			runs: []model.Run{
+				{Text: &model.TextRun{Text: "Lagre nå straks"}},
+			},
+			want: `Lagre nå straks<g id="2"></g>`,
+		},
+		{
+			name: "every run deleted leaves the codes and no text",
+			ir:   `  <g id="2"> </g>  `,
+			runs: nil,
+			want: `<g id="2"></g>`,
+		},
+		{
+			name: "a run added past the IR's shape still reaches the file",
+			ir:   `Lagre <g id="2">nå</g>`,
+			runs: []model.Run{
+				{Text: &model.TextRun{Text: "Lagre "}},
+				{PcOpen: &model.PcOpenRun{ID: "2"}},
+				{Text: &model.TextRun{Text: "nå"}},
+				{PcClose: &model.PcCloseRun{ID: "2"}},
+				{Text: &model.TextRun{Text: " straks"}},
+			},
+			want: `Lagre <g id="2">nå</g> straks`,
+		},
+		{
+			name: "opaque code content is never governed by the runs",
+			ir:   `<bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept>`,
+			runs: []model.Run{{Text: &model.TextRun{Text: "rev"}}},
+			want: `<bpt id="1" ctype="bold">&lt;b></bpt>rev<ept id="1">&lt;/b></ept>`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderNativeWithRuns(parseNativeContent(tc.ir), tc.runs)
+			if got != tc.want {
+				t.Errorf("\ngot  %q\nwant %q", got, tc.want)
+			}
+		})
 	}
 }
 
