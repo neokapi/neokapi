@@ -222,9 +222,12 @@ type ProjectUse struct {
 // dropped there (a project that uses a concept on one stream uses it) and kept
 // on each use, which names a place.
 //
-// at selects the instant the answer is resolved at, so a term whose window has
-// closed drops out of the project's answer. The zero instant is the as-declared
-// view: every use, window unapplied.
+// at is the point the answer is resolved at — an instant, and the validity tags
+// that go with it — so a term whose window has not opened, or whose market this
+// is not, drops out of the project's answer. That is what makes "is it
+// discouraged" answerable as "is it discouraged HERE": the standing is a
+// property of the concept at a coordinate, never of the word. The zero instant
+// is the as-declared view: every use, window unapplied.
 func UsesByProject(ctx context.Context, r EdgeReader, filter Scope, conceptID string, at graph.Scope) ([]ProjectUse, error) {
 	if r == nil {
 		return nil, errors.New("contextgraph: no graph store")

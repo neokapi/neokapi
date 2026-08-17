@@ -109,6 +109,8 @@ import type {
   ConceptStory,
   ConceptRelation,
   ConceptUsage,
+  ConceptProjects,
+  ConceptProjectsQuery,
   AddConceptRelationRequest,
   RelationScope,
   Observation,
@@ -1847,6 +1849,22 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage> {
     return Backend.GetConceptBlastRadius(workspaceSlug, conceptId) as Promise<ConceptUsage>;
+  }
+  async getConceptProjects(
+    workspaceSlug: string,
+    conceptId: string,
+    query: ConceptProjectsQuery = {},
+  ): Promise<ConceptProjects> {
+    const params = new URLSearchParams();
+    if (query.project) params.set("project", query.project);
+    if (query.at) params.set("at", query.at);
+    if (query.market) params.set("market", query.market);
+    if (query.limit) params.set("limit", String(query.limit));
+    return Backend.GetConceptProjects(
+      workspaceSlug,
+      conceptId,
+      params.toString(),
+    ) as Promise<ConceptProjects>;
   }
   async listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]> {
     return Backend.ListObservations(workspaceSlug, conceptId) as Promise<Observation[]>;

@@ -143,10 +143,10 @@ type ConceptProjectsResponse struct {
 //
 // ?project= narrows the answer to one project without changing which query
 // answers it: the dimensions are fields on the nodes, so pinning one is a
-// filter on the same traversal. ?at= resolves the answer at an instant and
-// ?market= at a validity tag, so a term whose window has closed drops out; both
-// default to now, because "which projects use this" is asked in the present
-// tense.
+// filter on the same traversal. ?at= is the instant the answer is resolved at
+// and ?market= the validity tag, so a term whose window has closed or whose
+// market this is not drops out. The instant defaults to now, because "which
+// projects use this" is asked in the present tense.
 func (s *Server) HandleConceptProjects(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -190,7 +190,14 @@ func (s *Server) HandleConceptProjects(c echo.Context) error {
 		Projects:  []ConceptProjectUseResponse{},
 		Uses:      []ConceptUseResponse{},
 	}
-	concept, _, _ := s.conceptFor(ctx, c.Param("ws"), conceptID)
+	// The graph says how the concept STANDS in a project; the terms store says
+	// what to reach for instead. A terms store that cannot be read costs the
+	// second half and says so, rather than costing the answer.
+	concept, _, conceptErr := s.conceptFor(ctx, c.Param("ws"), conceptID)
+	if conceptErr != nil {
+		res.Notes = append(res.Notes,
+			"the workspace vocabulary could not be read, so this answer says how the concept stands without saying what to use instead")
+	}
 
 	var uses []contextgraph.ConceptUse
 	for _, p := range rollup {
