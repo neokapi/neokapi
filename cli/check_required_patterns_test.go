@@ -87,6 +87,24 @@ func TestCheck_RequiredPatternIsEnforcedOverTheDocument(t *testing.T) {
 	assert.Contains(t, joined(carriesMsgs), "Prohibited pattern: Marketing superlative")
 }
 
+// The ship gate is the pre-release bar over the same profile, so it applies the
+// same rules over the same reading: the document-scope half beside the per-block
+// half, and each file read as the recipe declares it.
+func TestCheckShip_RequiredPatternReachesTheVoiceGate(t *testing.T) {
+	root, _, missing := requiredPatternProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	cmd := NewCheckCmd(a)
+	require.NoError(t, cmd.Flags().Set("ship", "true"))
+	require.NoError(t, cmd.Flags().Set("no-fail", "true"))
+
+	out, err := captureStdout(t, func() error { return a.RunCheck(cmd, []string{missing}) })
+	require.NoError(t, err)
+	assert.Contains(t, out, "Required pattern absent: Every landing page carries the call to action",
+		"the ship gate applies every rule the profile counts: %s", out)
+}
+
 // A required pattern holds over the whole file, so text in any block satisfies
 // it — the rule must not be re-judged per block, which would flag every
 // paragraph that does not repeat the notice.

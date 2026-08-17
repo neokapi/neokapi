@@ -595,6 +595,15 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		return nil, err
 	}
 
+	// What each file IS to this project — the format it declares and the reader
+	// config it declares for it, resolved the way the file checkset resolves it.
+	// A gate that reads a document differently from the loop is not gating the
+	// loop: it scores blocks the convergence never extracts.
+	formats, err := a.newCheckFormats(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	governed := false
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
@@ -610,7 +619,8 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			return nil, terr
 		}
 		governed = true
-		blocks, rerr := a.readBlocks(ctx, f, a.SourceLang)
+		fmtName, fmtCfg := formats.forFile(a, f)
+		blocks, rerr := a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLang)
 		if rerr != nil {
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
 		}
@@ -633,6 +643,15 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			}
 			allFindings = append(allFindings, findings...)
 		}
+		// The profile's document-scope rules — its required patterns — are judged
+		// once over the file and reported against it with no block, the way the
+		// file checkset reports them. They score beside the per-block findings:
+		// a rule the profile counts is a rule the ship gate applies.
+		docFindings := coreprofile.DocumentFindings(profile, documentText(blocks))
+		for _, fd := range docFindings {
+			gate.Findings = append(gate.Findings, voiceFindingToVerify(display, "", fd))
+		}
+		allFindings = append(allFindings, docFindings...)
 	}
 
 	if !governed {
