@@ -120,7 +120,7 @@ path (`cli/toolrun.go`) follows the same type-assert shape but uses a
 
 ## Sub-skeleton: translatable spans inside an opaque payload
 
-Some translatable text is embedded *inside* a payload the reader otherwise
+Some extractable content is embedded *inside* a payload the reader otherwise
 captures opaquely and replays verbatim — the natural-language prose (`<m:nor/>`
 runs: "where", "otherwise", units) inside a Word equation's OMML, which is
 captured as one opaque sentinel run for a byte-exact DOCX round-trip

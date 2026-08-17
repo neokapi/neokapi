@@ -2,7 +2,7 @@
 id: a-02-parity
 sidebar_position: 2
 title: "A-02: Parity with the Okapi Framework"
-description: "A build-tagged harness runs every Go port head-to-head against the Okapi Framework reference — through the bridge plugin and, where available, the tikal CLI — on a canonical projection that compares translatable text and code structure rather than byte-level markup."
+description: "A build-tagged harness runs every Go port head-to-head against the Okapi Framework reference — through the bridge plugin and, where available, the tikal CLI — on a canonical projection that compares extracted text and code structure rather than byte-level markup."
 keywords: [parity, Okapi Framework, format fidelity, test harness, canonical projection, tikal, conformance, architecture decision, neokapi]
 ---
 
@@ -145,7 +145,7 @@ Inline-code data is intentionally hidden from the default comparison. Different
 implementations represent paired codes differently: the reference serializes them
 as display markers, the Go HTML reader emits the raw markup. Both are valid,
 neither is wrong, and comparing them byte-for-byte would mask the meaningful bar,
-which is "same translatable text plus same code structure". For tests that *do*
+which is "same extracted text plus same code structure". For tests that *do*
 want byte-level fidelity, a byte comparator is available, typically used against a
 writer's round-trip output.
 

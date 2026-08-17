@@ -111,8 +111,8 @@ generated `/reference/formats` page and to schema-driven config UIs, with
 
 There is no `format.DataFormatConfig` method for surfacing — it is an optional
 capability discovered structurally. Any consumer that needs to force the toggle
-type-asserts the anonymous interface, so a config that lacks the setter is simply
-left at its own default:
+type-asserts the anonymous interface, so a config that lacks the setter is left
+at its own default:
 
 ```go
 // cli/parity/spec/runner.go (runNative)

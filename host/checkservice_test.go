@@ -22,20 +22,20 @@ func TestReadBlocksForCheck(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte(`{"a":"Hello","b":"World"}`), 0o644))
 
 	// Auto-detect by extension.
-	blocks, err := app.ReadBlocksForCheck(context.Background(), path, "", "en")
+	blocks, err := app.ReadBlocksForCheck(context.Background(), path, "", nil, "en")
 	require.NoError(t, err)
 	require.Len(t, blocks, 2)
 
 	// Explicit format override wins over the extension.
 	txt := filepath.Join(dir, "data.unknownext")
 	require.NoError(t, os.WriteFile(txt, []byte(`{"a":"Hello"}`), 0o644))
-	blocks, err = app.ReadBlocksForCheck(context.Background(), txt, "json", "en")
+	blocks, err = app.ReadBlocksForCheck(context.Background(), txt, "json", nil, "en")
 	require.NoError(t, err)
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Hello", blocks[0].SourceText())
 
 	// A nil context is seeded (format readers select on ctx.Done()).
-	blocks, err = app.ReadBlocksForCheck(nil, path, "", "en") //nolint:staticcheck // nil ctx is part of the contract
+	blocks, err = app.ReadBlocksForCheck(nil, path, "", nil, "en") //nolint:staticcheck // nil ctx is part of the contract
 	require.NoError(t, err)
 	require.Len(t, blocks, 2)
 }
@@ -57,10 +57,10 @@ func TestReadBlocksForCheck_UsesDocumentCache(t *testing.T) {
 	err := app.WithDocumentCache(root, func() error {
 		require.NotNil(t, app.docCache, "the document cache should be open inside the session")
 		// First read records the document; second read replays it.
-		b1, err := app.ReadBlocksForCheck(context.Background(), path, "", "en")
+		b1, err := app.ReadBlocksForCheck(context.Background(), path, "", nil, "en")
 		require.NoError(t, err)
 		require.Len(t, b1, 1)
-		b2, err := app.ReadBlocksForCheck(context.Background(), path, "", "en")
+		b2, err := app.ReadBlocksForCheck(context.Background(), path, "", nil, "en")
 		require.NoError(t, err)
 		require.Len(t, b2, 1)
 		assert.Equal(t, b1[0].SourceText(), b2[0].SourceText())
@@ -166,9 +166,9 @@ Et avsnitt under den andre overskriften.
 	app.InitRegistries()
 	ctx := context.Background()
 
-	srcBlocks, err := app.ReadBlocksForCheck(ctx, srcPath, "", "en")
+	srcBlocks, err := app.ReadBlocksForCheck(ctx, srcPath, "", nil, "en")
 	require.NoError(t, err)
-	tgtBlocks, err := app.ReadBlocksForCheck(ctx, tgtPath, "", "en")
+	tgtBlocks, err := app.ReadBlocksForCheck(ctx, tgtPath, "", nil, "en")
 	require.NoError(t, err)
 	require.NotEqual(t, len(srcBlocks), len(tgtBlocks),
 		"the counts must differ, or the positional fallback would carry the test")

@@ -110,15 +110,19 @@ func (a *App) findReviewSource(op *openProject, locale, file string) (project.Re
 // for the locale, and returns the blocks keyed by their stable unit key — the
 // same source-block+target-overlay pairing RunChecks measures.
 func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale string) (map[string]*model.Block, error) {
-	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
+	pctx := project.NewProjectContext(op.Project, op.Path)
+	sourceLang := string(pctx.SourceLocale)
+	// Source and target are two renderings of one item, so both are read under
+	// the format and reader config the recipe declares for it.
+	fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
+	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
 		return nil, err
 	}
 	if _, serr := os.Stat(tgtPath); serr != nil {
 		return nil, fmt.Errorf("target file %q not found: %w", tgtPath, serr)
 	}
-	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
+	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +422,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, tgtPath, err := a.findReviewSource(op, locale, file)
+	rf, tgtPath, err := a.findReviewSource(op, locale, file)
 	if err != nil {
 		return err
 	}
@@ -428,7 +432,13 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLang := string(pctx.SourceLocale)
-	fmtName := pctx.DetectFormat(a.formatReg, tgtPath)
+	// A target is the translated rendering of its source item, so the rewrite
+	// reads and writes it under the format the recipe binds that item to rather
+	// than the one its extension suggests.
+	fmtName := rf.Format
+	if fmtName == "" {
+		fmtName = pctx.DetectFormat(a.formatReg, tgtPath)
+	}
 	if fmtName == "" {
 		return fmt.Errorf("could not detect a format for %q", filepath.Base(tgtPath))
 	}
@@ -448,7 +458,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 		b.SetSourceText(text)
 		applied = true
 	}
-	if err := a.rewriteFile(ctx, tgtPath, fmtName, sourceLang, transform); err != nil {
+	if err := a.rewriteFile(ctx, tgtPath, fmtName, sourceLang, pctx, rf.Item, transform); err != nil {
 		return err
 	}
 	if applyErr != nil {

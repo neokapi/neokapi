@@ -503,6 +503,14 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				}
 			}
 		}
+		// The profile's required patterns hold over the document, not over any
+		// one block in it (profile.DocumentFindings): the page carries the
+		// notice, not every paragraph of it. They are reported against the file,
+		// with no block, because an absence sits nowhere in particular.
+		docLoc := check.Location{File: DisplayName(file)}
+		for _, f := range profile.DocumentFindings(opts.profile, documentText(blocks)) {
+			diags = append(diags, check.DiagnosticFrom(f, "voice", docLoc))
+		}
 	}
 
 	// Voice/style similarity (opt-in, --voice): drives the kapi-check plugin.
@@ -526,6 +534,25 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	}
 
 	return diags, nil
+}
+
+// documentText joins a file's translatable blocks into the one text a
+// document-scope rule reads. Blocks are separated by a newline so a rule
+// spanning a paragraph boundary cannot match across two blocks that the file
+// keeps apart, and non-translatable content is left out for the same reason the
+// block-scope checkers skip it: a code fence is not part of the page's prose.
+func documentText(blocks []*model.Block) string {
+	var b strings.Builder
+	for _, blk := range blocks {
+		if blk == nil || !blk.Translatable {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(model.RunsText(blk.SourceRuns()))
+	}
+	return b.String()
 }
 
 // collectBilingualDiagnostics runs the target-gated localization checks

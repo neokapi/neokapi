@@ -118,7 +118,7 @@ then surfaced depends on where it sits in the paragraph:
 
 | Position | Surfaced as | Carrier |
 | --- | --- | --- |
-| **Inline** — alongside translatable text in a paragraph | a placeholder run (type `struct:opaque-para-child`, subtype `openxml:oMath`) | `Ph.Data` (raw OMML) + `Ph.Equiv` (delimited LaTeX) + `Ph.Disp` (bare LaTeX) |
+| **Inline** — alongside the paragraph's own text | a placeholder run (type `struct:opaque-para-child`, subtype `openxml:oMath`) | `Ph.Data` (raw OMML) + `Ph.Equiv` (delimited LaTeX) + `Ph.Disp` (bare LaTeX) |
 | **Standalone** — an equation-only paragraph | a detached non-translatable formula block | a placeholder run carrying the same data, equiv and disp |
 
 The conversion produces two renderings from the captured markup: `Equiv` is

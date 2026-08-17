@@ -113,7 +113,7 @@ The fragment has no tag of its own, so its descriptor is the literal `fragment` 
 
 ### Unknown components
 
-Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but neokapi-i18n can't know which one. By default, an unmapped React component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
+Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but neokapi-i18n can't know which one. By default, an unmapped React component with direct text content is extracted anyway, with a warning that suggests how to stabilise the hash:
 
 ```tsx
 <TabsTrigger value="general">General</TabsTrigger>

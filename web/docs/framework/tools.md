@@ -110,7 +110,7 @@ capability-typed handlers and the view it receives decides what it may write
 properties; `Produce` writes the target; `Transform` is a read-only edit
 producer — it returns an edit plan, and a framework-owned applier performs the
 source rewrite, rebasing surviving overlays and vaulting any secrets. The
-forbidden writes simply aren't on the view, so a quality check can't
+forbidden writes are not on the view, so a quality check can't
 accidentally mutate the source, and a transformer holds no source setter.
 
 The case-transform tool is a representative example. It can rewrite the source,
@@ -163,7 +163,7 @@ start, a block, a layer end — flowing through a two-tool chain look like this:
 />
 
 Each tool runs in its own goroutine, connected by buffered channels. A tool that
-does not handle layer markers simply relays them, so structural context survives
+does not handle layer markers relays them, so structural context survives
 the whole chain even though only some stages act on it. Ordering is preserved:
 the segmentation tool's output for a block reaches the translation tool before
 the next block does. The mechanics of that concurrency — goroutines, buffered

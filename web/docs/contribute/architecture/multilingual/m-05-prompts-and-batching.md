@@ -349,7 +349,7 @@ points at different weights over time. Re-run the sweep when the models move.
   bounding a batch. Whether that is worth wanting is an open question rather than
   an obvious yes: the gain from batching flattens out well before the ceiling is
   reached, so the honest reading is that the ceiling is not currently costing
-  anything — it is simply the wall an oversized batch hits.
+  anything — it is the wall an oversized batch hits, and nothing reaches it.
 - **The measurement is single-target.** German runs long, which stresses the
   output budget, and that was the point. Whether a language that expands further,
   or one that tokenizes badly, moves the curve is unmeasured; the harness takes a

@@ -149,7 +149,7 @@ reaches, so 64 gives headroom for million-string corpora.
 
 Because `componentMap` and `rules` feed the hash, the extract CLI and the build
 plugin **must** be configured identically. A desync is silent — both sides run
-without error and simply compute different keys, so every affected string falls
+without error and compute different keys, so every affected string falls
 back to source. Projects should keep one configuration file that both sides read.
 
 ### One template builder, two consumers

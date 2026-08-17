@@ -125,8 +125,8 @@ Every engine is **path-based**. The host passes a filesystem path, never bytes,
 so a large image or audio track lives only in the engine's process. The
 framework seams — an OCR engine interface with an optional layout interface
 type-asserted on top, and a transcription engine interface — are name-keyed
-registries shaped exactly like the segment registry, so a capability is simply
-absent when its plugin is not installed and a browser build can register a
+registries shaped exactly like the segment registry, so a capability is absent
+when its plugin is not installed and a browser build can register a
 WebAssembly-backed engine under the same name.
 
 ### What the extractors record

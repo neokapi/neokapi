@@ -398,7 +398,7 @@ details.
 ### Reader Side: Coalescing Buffer Pattern
 
 Do NOT write one skeleton entry per token. Use a `bytes.Buffer` to accumulate
-non-translatable text between block references, then flush before each ref:
+the skeleton text between block references, then flush before each ref:
 
 ```go
 // skelText appends text to the coalescing buffer.

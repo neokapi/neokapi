@@ -176,7 +176,7 @@ non-empty components of its scope tuple as properties as well as in its id, so
 slicing a view by project or stream is a filter rather than a traversal. An empty
 dimension is written as an *absent* key rather than an empty string, because a
 property filter compares against a value and absence is not the empty string —
-locally that means the scope properties are simply not there, which is correct: a
+locally that means the scope properties are not there, which is correct: a
 project on its own has no workspace to name. There is no project→project edge and
 there will not be one: projects relate by co-occurrence through the vocabulary
 they share.

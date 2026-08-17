@@ -232,7 +232,7 @@ the content: *does X's overlay exist, anchored to the current block hashes?*
 That is what makes cached resume correct and idempotent. Re-running is a no-op
 where the overlay is present; a changed source re-hashes its block so only the
 affected work recomputes; and crash safety is automatic, since a crash that did
-not commit an overlay simply leaves it absent and the next run redoes it, with
+not commit an overlay leaves it absent and the next run redoes it, with
 nothing to reconcile.
 
 An authoritative progress journal is deliberately **avoided**. It would be a
@@ -311,7 +311,7 @@ whose logical path would escape the project root is refused rather than written.
 ## A packaged recipe may only name places inside the project it lands in
 
 The format asked the *packer* to strip what travels badly, which a hostile
-packer simply will not do. So the sweep runs again on **ingest**, at the single
+packer will not do. So the sweep runs again on **ingest**, at the single
 point every package this binary opens comes through. It removes exec-class steps
 and formats, the per-tool config that would arm them, side-effecting extension
 blocks at every scope they can be registered at, and any path-valued field that

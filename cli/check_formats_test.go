@@ -159,3 +159,23 @@ func TestCheck_NamedFileSurvivesAnUnexpandablePattern(t *testing.T) {
 	require.Error(t, bareErr)
 	assert.Contains(t, bareErr.Error(), "cannot be expanded")
 }
+
+// TestCheckShip_ReadsProjectDeclaredFormat: the ship gate is the same bar over
+// the same content, so it reads each file the way the loop does. Under the
+// extension's default format the mdx `import` line is a paragraph and the
+// prohibited pattern in its module specifier fails the pre-release gate — on a
+// block the convergence never extracts.
+func TestCheckShip_ReadsProjectDeclaredFormat(t *testing.T) {
+	root := writeFormatBoundProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	cmd := NewCheckCmd(a)
+	require.NoError(t, cmd.Flags().Set("ship", "true"))
+	require.NoError(t, cmd.Flags().Set("no-fail", "true"))
+
+	out, err := captureStdout(t, func() error { return a.RunCheck(cmd, nil) })
+	require.NoError(t, err)
+	assert.NotContains(t, out, "Prohibited pattern: Marketing superlative",
+		"neither the mdx import line nor the excluded `command:` key is prose to this gate: %s", out)
+}

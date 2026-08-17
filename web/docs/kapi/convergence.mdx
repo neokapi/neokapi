@@ -22,7 +22,7 @@ language caught up to it: reuse what you've translated before, AI-translate the
 rest, check everything produced. Settling the source first is deliberate: every
 defect in the source would otherwise multiply across each target language. What
 a machine cannot decide **parks** for a person; the loop never blocks the
-author. A monolingual project simply stops after the first half.
+author. A monolingual project stops after the first half.
 
 The recipe declares what *caught up* means — the languages the project
 targets, the flow that produces them, the gates that decide *shippable*. Every
@@ -379,7 +379,7 @@ kapi status
 ```
 
 Edit one source string. Nothing flags the change and no state is written — the
-next derivation simply reads the working tree and compares each decision against
+next derivation reads the working tree and compares each decision against
 the source it blessed. The edited unit's basis no longer matches, so it reads as
 *stale*: it holds a target, so it sits at *draft*, but that target translates a
 sentence the project no longer has, and the approval bound to the old pairing
@@ -429,7 +429,7 @@ That holds **in every language**, not only where someone had reviewed the unit.
 A rewrite is a fact about the source, so every locale's translation of the old
 sentence is a translation of a sentence the project no longer has. Each is kept
 under its own wording and each is drafted again — the languages with a decision
-say so on the `stale` axis above, and the rest simply come back as pending work.
+say so on the `stale` axis above, and the rest come back as pending work.
 A translation edited in the same commit as its source is the exception it should
 be: that pairing was authored, not left behind, so it is kept as it stands.
 

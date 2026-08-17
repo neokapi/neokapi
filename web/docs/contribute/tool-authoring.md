@@ -17,7 +17,7 @@ what it may write (E-03): `Annotate(BlockView)` reads source and target and
 writes only overlays, annotations, and properties; `Produce(VariantView)`
 writes the target; `Transform(BlockView)` returns an edit plan that the
 framework applier uses to rewrite the source. The wrong writes
-are simply not on the view — an annotator has no target setter to call, and a
+are not on the view — an annotator has no target setter to call, and a
 transformer holds no source setter at all. Other
 Part types (Data, Media, Layer, Group) use the untyped `Handle*Fn` fields. Parts
 you don't handle pass through unchanged; a handler returns an `error` (and may

@@ -15,14 +15,20 @@ import (
 // Kapi Desktop) so it cannot drift into a parallel reimplementation.
 
 // ReadBlocksForCheck reads a file's translatable blocks through its format
-// reader, with formatName overriding detection (empty = detect by extension)
-// and sourceLang as the source locale. It is the check pipeline's read leg:
-// when the project document cache is open (WithDocumentCache), unchanged
-// files replay from the cache instead of re-parsing, exactly like the CLI's
-// verify/status path.
-func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName, sourceLang string) ([]*model.Block, error) {
+// reader, with formatName overriding detection (empty = detect by extension),
+// formatConfig configuring that reader (nil = reader defaults) and sourceLang as
+// the source locale. It is the check pipeline's read leg: when the project
+// document cache is open (WithDocumentCache), unchanged files replay from the
+// cache instead of re-parsing, exactly like the CLI's verify/status path.
+//
+// A gate must read a file the way the loop does, so both halves of the recipe's
+// binding travel here: the format the item declares, and the config
+// project.ProjectContext.FormatConfigFor merges for it. Reading under the
+// extension's default format, or under reader defaults, judges content the
+// project does not declare as content.
+func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName string, formatConfig map[string]any, sourceLang string) ([]*model.Block, error) {
 	ctx = ctxOrBackground(ctx)
-	return a.readBlocksAs(ctx, path, formatName, nil, sourceLang)
+	return a.readBlocksAs(ctx, path, formatName, formatConfig, sourceLang)
 }
 
 // WithDocumentCache opens the project document cache for the project rooted

@@ -125,7 +125,7 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 | `terms` | the authoritative terms (`.terms.json`) |
 | `history` | an advisory provenance chain (`--log`) |
 
-Deliberately **not** carried: `.kapi/work/cache/` (regenerable — parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is simply absent from the archive.
+Deliberately **not** carried: `.kapi/work/cache/` (regenerable — parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is absent from the archive.
 
 ```bash
 kapi info                        # this project: what a snapshot would capture

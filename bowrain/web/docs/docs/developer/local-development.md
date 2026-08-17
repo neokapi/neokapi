@@ -80,7 +80,7 @@ make stack-up-shared     # = docker compose -f compose.yaml -f compose.override.
 ```
 
 Because this is the same project as mode A, you can leave the deps + Traefik
-running and simply add or drop the app overlay to switch between a host-run and a
+running and add or drop the app overlay to switch between a host-run and a
 containerized server. `make stack-shared-down` tears it down.
 
 ## Mode B (standalone) — zero-setup self-contained stack

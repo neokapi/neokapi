@@ -122,7 +122,7 @@ the conformance suite checks each one by name.
 
 Capability names must not collide **between plugins**: kapi drops the
 conflicting entry from its dispatch table and reports the conflict, so an
-ambiguous capability simply does not dispatch until one plugin is removed. A
+ambiguous capability does not dispatch until one plugin is removed. A
 collision with a *built-in* is resolved in the plugin's favour — installing a
 plugin for a format is an explicit signal to prefer it.
 

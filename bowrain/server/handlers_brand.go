@@ -537,13 +537,18 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 
-	// Run the profile's whole deterministic gate (profile.Findings): whole-word,
-	// Unicode-aware vocabulary matching (so "use" never matches inside "user")
-	// with concept_id propagation, plus the prohibited style patterns — identical
-	// to the streaming pipeline tool and the MCP tool. A single text run anchors
-	// each finding's position to the checked text.
+	// Run the profile's whole deterministic gate: whole-word, Unicode-aware
+	// vocabulary matching (so "use" never matches inside "user") with concept_id
+	// propagation, plus the prohibited style patterns (profile.Findings) —
+	// identical to the streaming pipeline tool and the MCP tool. A single text run
+	// anchors each finding's position to the checked text.
+	//
+	// The request carries a whole text rather than one block of one, so the
+	// document-scope rules apply too (profile.DocumentFindings): the required
+	// patterns this endpoint's own profile card counts as rules.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
 	findings := coreprofile.Findings(profile, req.Text, runs)
+	findings = append(findings, coreprofile.DocumentFindings(profile, req.Text)...)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 

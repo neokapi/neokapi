@@ -406,7 +406,7 @@ func (s *Server) contextProfileVoices(ctx context.Context, wsID string) map[stri
 			PreferredTerms:   len(p.Vocabulary.PreferredTerms),
 			ForbiddenTerms:   len(p.Vocabulary.ForbiddenTerms),
 			CompetitorTerms:  len(p.Vocabulary.CompetitorTerms),
-			PatternRules:     len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns),
+			PatternRules:     coreprofile.PatternRuleCount(p),
 			LocaleOverrides:  len(p.Locales),
 			ChannelOverrides: len(p.Channels),
 		}

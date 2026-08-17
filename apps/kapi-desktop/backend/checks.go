@@ -121,7 +121,14 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				continue
 			}
 
-			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, sourceLang)
+			// Both halves of the recipe's binding: the format the item declares
+			// and the reader config the project declares for it. Under reader
+			// defaults the panel judges content the project excludes — a demo
+			// script's `command:` lines where the recipe's keyPathPatterns select
+			// only its prose.
+			fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
+
+			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 			if rerr != nil {
 				// Surface the read failure as a finding rather than aborting the
 				// whole run: one unreadable file should not hide the rest.
@@ -180,11 +187,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				}
 				// Read source blocks fresh per language — OverlayTargets mutates
 				// them (a cached file replays cheaply).
-				passBlocks, perr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, sourceLang)
+				passBlocks, perr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 				if perr != nil {
 					continue
 				}
-				targetBlocks, terr := capp.ReadBlocksForCheck(ctx, tgtPath, "", sourceLang)
+				// The target is the translated rendering of this source file, so
+				// it carries the source's reader binding.
+				targetBlocks, terr := capp.ReadBlocksForCheck(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 				if terr != nil {
 					continue
 				}
@@ -270,11 +279,12 @@ func (a *App) checksCLI() *host.App {
 // readBlocksForChecks reads a file's translatable blocks through the shared
 // CLI check pipeline (host.App.ReadBlocksForCheck) — the adapter the review and
 // inspect paths use for one-shot reads outside a checks run. fmtName may be
-// empty to auto-detect by extension.
-func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
+// empty to auto-detect by extension; fmtCfg carries the recipe's reader config
+// for the item, nil for reader defaults.
+func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName string, fmtCfg map[string]any, sourceLang string) ([]*model.Block, error) {
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
-	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, sourceLang)
+	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, fmtCfg, sourceLang)
 }
 
 // resolveProjectVoiceProfile resolves the voice profile bound to the
@@ -327,7 +337,19 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLang := string(pctx.SourceLocale)
 
-	fmtName := pctx.DetectFormat(a.formatReg, filePath)
+	// The format the recipe declares for this item, not the one its extension
+	// suggests. This rewrites the user's file: reading a `.md` item the recipe
+	// binds to mdx with the markdown reader turns an `import { … }` line into a
+	// paragraph, and writing that back is how a fix corrupts a page. Detection is
+	// the fallback for a file the project does not declare as content.
+	fmtName := ""
+	item := (*project.ContentItem)(nil)
+	if rf := a.resolvedFileFor(pctx, filePath); rf != nil {
+		fmtName, item = rf.Format, rf.Item
+	}
+	if fmtName == "" {
+		fmtName = pctx.DetectFormat(a.formatReg, filePath)
+	}
 	if fmtName == "" {
 		return fmt.Errorf("could not detect a format for %q", filepath.Base(filePath))
 	}
@@ -365,7 +387,7 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 		applied = true
 	}
 
-	if err := a.rewriteFile(ctx, filePath, fmtName, sourceLang, transform); err != nil {
+	if err := a.rewriteFile(ctx, filePath, fmtName, sourceLang, pctx, item, transform); err != nil {
 		return err
 	}
 	if applyErr != nil {
@@ -381,7 +403,7 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 // every block (in stream order), then writes the parts back through the format
 // writer atomically (temp file + rename). Non-block parts pass through
 // unchanged.
-func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang string, transform func(*model.Block)) error {
+func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang string, pctx *project.ProjectContext, item *project.ContentItem, transform func(*model.Block)) error {
 	reader, err := a.formatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return fmt.Errorf("no reader for %q: %w", fmtName, err)
@@ -393,6 +415,18 @@ func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang str
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
 	}
 	defer writer.Close()
+
+	// Both halves of the round-trip carry the recipe's configuration for this
+	// item: a rewrite that reads under one configuration and writes under
+	// another renumbers the document it is replacing.
+	if pctx != nil {
+		if cerr := pctx.ConfigureReaderFor(reader, fmtName, item); cerr != nil {
+			return fmt.Errorf("configure reader for %s: %w", filepath.Base(filePath), cerr)
+		}
+		if cerr := pctx.ConfigureWriterFor(writer, fmtName, item); cerr != nil {
+			return fmt.Errorf("configure writer for %s: %w", filepath.Base(filePath), cerr)
+		}
+	}
 
 	// Wire skeleton store when both sides support it so the writer reproduces
 	// the original structure (whitespace, key order, untouched values). A store

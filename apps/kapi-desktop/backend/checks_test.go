@@ -172,7 +172,7 @@ func setupMarkupBlock(t *testing.T, app *App) markupFixture {
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
 	// Read the block to learn its ID and confirm it is multi-run.
-	blocks, err := app.readBlocksForChecks(context.Background(), path, "", "en")
+	blocks, err := app.readBlocksForChecks(context.Background(), path, "", nil, "en")
 	require.NoError(t, err)
 	require.NotEmpty(t, blocks)
 	var multi *model.Block

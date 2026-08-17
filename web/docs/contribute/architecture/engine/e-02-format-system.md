@@ -249,7 +249,7 @@ its writer's `SkeletonRef` rendering is factored into a shared helper so the
 buffered and streaming skeleton paths are byte-identical.
 
 A format that must materialise its whole input to parse it — a packaged
-zip-backed format, a DOM-building markup reader — simply does not declare the
+zip-backed format, a DOM-building markup reader — does not declare the
 capability, and a uniform fallback keeps its output byte-identical. The container
 path drives one archive entry through `FileRunner.RunStream` (bytes in, bytes
 out, no temp file); a streaming-capable inner format is not even buffered whole

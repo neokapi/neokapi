@@ -108,7 +108,7 @@ internal segment structure. A bilingual format (XLIFF, TMX) additionally
 populates stand-off [segmentation and alignment overlays](/framework/content-model):
 the file's existing segment boundaries and source↔target pairings are recorded as
 overlays over the runs rather than baked into structure, so they survive a
-round-trip when present and are simply absent when a format doesn't define them.
+round-trip when present and are absent when a format doesn't define them.
 Tools and writers read those overlays; a format that emits none works at
 whole-block granularity.
 

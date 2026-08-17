@@ -321,7 +321,7 @@ automations:
 | `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`)                             |
 | `enabled` | Optional boolean (defaults to `true`)                                                      |
 
-For lightweight pre/post hooks that simply call existing flows, prefer the top-level `hooks:` map.
+For lightweight pre/post hooks that do nothing but call existing flows, prefer the top-level `hooks:` map.
 
 ## Project Discovery
 
