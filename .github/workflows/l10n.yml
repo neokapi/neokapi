@@ -145,6 +145,13 @@ jobs:
       # Standing, never gating. Coverage and placeholder parity over the tier
       # the loop owns; low numbers are pending work by design, so this step
       # reports and cannot fail the job.
+      #
+      # The soundness reading rides along, because it is the one number here a
+      # human should act on: coverage below a bar is pending work, and an
+      # artifact that translated a machine identifier or dropped a placeholder is
+      # a defect already committed. It gates on the return leg
+      # (scripts/check-sync-backed.sh), never on a pull request — a source change
+      # must not fail because a target has not caught up with it.
       - name: Target-language standing (informational — never gates)
         if: always()
         run: |
@@ -152,4 +159,5 @@ jobs:
             echo "## Multilingual standing"
             echo ""
             make -s l10n-report || true
+            make -s l10n-content-check || true
           } >> "$GITHUB_STEP_SUMMARY"
