@@ -20,27 +20,27 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.7.1",
+    "@hookform/resolvers": "^5.8.0",
     "@neokapi/contract-types": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
-    "@xyflow/react": "^12.11.2",
-    "lucide-react": "^1.30.0",
-    "react-hook-form": "^7.84.0",
+    "@xyflow/react": "^12.11.3",
+    "lucide-react": "^1.31.0",
+    "react-hook-form": "^7.85.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.7",
-    "@testing-library/jest-dom": "^7.0.0",
+    "@storybook/react-vite": "^10.5.8",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.7",
+    "storybook": "^10.5.8",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.8",
+    "vite-plus": "^0.2.9",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

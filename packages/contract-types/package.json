@@ -60,7 +60,7 @@
     "test": "vp test"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   },
   "engines": {
