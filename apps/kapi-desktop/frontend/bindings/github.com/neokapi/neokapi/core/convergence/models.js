@@ -417,6 +417,22 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
+             * FailingChecks counts produced units that fail the project's bound
+             * target-side checks (placeholder and tag integrity, terminology). They
+             * count at their true rung in Pct — the unit is translated, and a percentage
+             * that denied it would be false — and they hold the scope out of Shippable
+             * and Verified however the percentages read, whether or not a gate applies.
+             * 
+             * It is populated only when the caller supplies the check findings; a
+             * surface that does not run the checks reports 0 and would therefore call a
+             * failing scope shippable. Every surface that publishes a verdict runs them.
+             * @member
+             * @type {number | undefined}
+             */
+            this["failingChecks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * BasisUnknown counts units holding a decision recorded before its basis
              * was tracked. Such a decision says nothing about the source it blessed, so
              * it keeps its rung and the scope ships — the count is what makes that

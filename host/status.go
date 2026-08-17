@@ -223,14 +223,22 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 // assumption invisible. It is counted, named, and it clears itself — the next
 // decision on the unit records a basis.
 func (o StatusOutput) writeBasisLines(w io.Writer) {
-	stale, unknown := 0, 0
+	stale, unknown, failing := 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
 		unknown += lc.BasisUnknown
+		failing += lc.FailingChecks
 	}
 	if stale > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
 			"They do not ship — re-review them with `kapi status --review`.\n", stale)
+	}
+	// Named as units, because `kapi check` counts findings over the same tree and
+	// one unit can carry several. The percentages above are unaffected: these
+	// units are translated, and some are reviewed.
+	if failing > 0 {
+		fmt.Fprintf(w, "\n%d unit(s) fail the project's bound checks. They do not ship until the "+
+			"findings are fixed — `kapi check --ship` lists them.\n", failing)
 	}
 	if unknown > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
@@ -493,6 +501,11 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	if lc.Stale > 0 {
 		return s.Warn.Render("blocked: stale")
 	}
+	// A failing guardrail is read the same way, and for the same reason: the
+	// content is there, it is just wrong, which no coverage threshold expresses.
+	if lc.FailingChecks > 0 {
+		return s.Warn.Render("blocked: checks")
+	}
 	if !lc.Gated {
 		return s.Dim("—")
 	}
@@ -569,7 +582,17 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			return output.Print(cmd, reviewQueueOutput{Project: proj.Name, Pending: items})
 		}
 
-		cov, err := a.ComputeShipCoverage(cmd.Context(), proj, root, units, nil)
+		// The project's bound checks run here for the same reason `kapi up` runs
+		// them: this command publishes a ship verdict, and a verdict reached
+		// without asking the guardrails is the one that told a delivery step to
+		// ship a catalog `kapi up` had parked. The findings withhold the verdict
+		// only — the percentages below are the units' true rungs either way — so
+		// running them changes what `ship` says and nothing else (#2024).
+		excl, err := a.computeLoopCheckExclusions(cmd.Context(), cmd, proj, root, units)
+		if err != nil {
+			return fmt.Errorf("run project checks: %w", err)
+		}
+		cov, err := a.ComputeShipCoverage(cmd.Context(), proj, root, units, excl)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}

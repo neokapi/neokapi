@@ -4,6 +4,13 @@
 // Autocapture stays off — pulse emits route-pattern pageviews only, and events
 // never carry PII beyond ids. The {surface, environment} taxonomy is registered
 // by the shared initPostHogSurface helper.
+//
+// Pulse is a public surface: its dashboards are readable without a session, so
+// there is no authentication to start analytics behind. It therefore takes the
+// other posture the parent domain publishes — the cookieless one the landing
+// and documentation sites carry: memory-only persistence, so a visit writes no
+// identifier to `.bowrain.cloud` (the domain those sites share), and Do Not
+// Track is honoured (#1940).
 import posthog from "posthog-js";
 import { initPostHogSurface } from "@neokapi/ui";
 
@@ -20,6 +27,12 @@ export function initAnalytics() {
     key: POSTHOG_KEY,
     host: POSTHOG_HOST,
     init: {
+      // Cookieless: state lives in memory for the tab's lifetime only, so
+      // nothing is written to cookies or localStorage.
+      persistence: "memory",
+      respect_dnt: true,
+      disable_session_recording: true,
+      disable_surveys: true,
       // Pageviews are fired explicitly on router resolution with the matched
       // route pattern (see main.tsx), not on document load.
       capture_pageview: false,

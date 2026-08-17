@@ -5,9 +5,27 @@ const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 const POSTHOG_HOST = (import.meta.env.VITE_POSTHOG_HOST as string) || "https://eu.i.posthog.com";
 
 let initialized = false;
+let identified: string | undefined;
 
-export function initPostHog() {
-  if (initialized) return;
+/**
+ * Start analytics for an authenticated session. Idempotent; returns whether
+ * analytics are running.
+ *
+ * Authentication is the gate, and `posthog.init` is the whole of what is being
+ * gated: it is the call that writes the year-long `ph_*` identifier — on the
+ * registrable domain, `.bowrain.cloud`, which the landing and documentation
+ * sites share and publish as cookieless — arms autocapture, and starts session
+ * replay. So an anonymous visitor reaches PostHog in no way at all: no cookie
+ * on any domain, no recording, and not one request, including on the leg where
+ * the app bounces a visitor with no session to the identity provider.
+ *
+ * `identifyUser` is the only caller, because a user id is exactly the evidence
+ * that a session exists. Every other entry point below is inert until it has
+ * run, so a call fired before the session is known is dropped rather than
+ * queued — a dropped event is the price of the guarantee.
+ */
+function startAuthenticatedSession(): boolean {
+  if (initialized) return true;
   // initPostHogSurface registers the mandatory {surface, environment} taxonomy
   // and key-gates init (keyless builds stay silent).
   initialized = initPostHogSurface(posthog, {
@@ -42,10 +60,22 @@ export function initPostHog() {
       ui_host: "https://eu.posthog.com",
     },
   });
+  return initialized;
 }
 
+/**
+ * Bind analytics to the signed-in user, starting them on the first call.
+ *
+ * The shared app calls this from the router's `beforeLoad`, the moment the
+ * current-user fetch comes back with a session — ahead of the first `$pageview`
+ * that resolution goes on to fire, so the opening event of a session is not the
+ * one lost to starting up. Repeat calls for the same id are dropped: route
+ * loads re-run, and PostHog only needs telling once.
+ */
 export function identifyUser(id: string, properties?: Record<string, unknown>) {
-  if (!POSTHOG_KEY) return;
+  if (!startAuthenticatedSession()) return;
+  if (identified === id) return;
+  identified = id;
   posthog.identify(id, properties);
 }
 
@@ -62,7 +92,7 @@ export function captureEvent(
   properties?: Record<string, unknown>,
   options?: { transport?: "beacon" },
 ) {
-  if (!POSTHOG_KEY) return;
+  if (!initialized) return;
   if (options?.transport === "beacon") {
     posthog.capture(event, properties, { transport: "sendBeacon" });
     return;
@@ -72,12 +102,13 @@ export function captureEvent(
 
 /** Associate the session with a PostHog group (platform seam `analytics.group`). */
 export function groupIdentify(type: string, key: string, properties?: Record<string, unknown>) {
-  if (!POSTHOG_KEY) return;
+  if (!initialized) return;
   posthog.group(type, key, properties);
 }
 
 export function resetPostHog() {
-  if (!POSTHOG_KEY) return;
+  if (!initialized) return;
+  identified = undefined;
   posthog.reset();
 }
 

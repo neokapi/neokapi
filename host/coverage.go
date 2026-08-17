@@ -365,10 +365,17 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 // reviewed in the display percentages, but a gate's reviewed/signed-off
 // threshold only admits them under `by: any` (core/gate approver classes).
 //
-// `excl` (optional, nil = off) is the check-findings exclusion set (#1078 G4):
-// a unit in it is produced but failing the project's bound checks, so its state
-// demotes to `draft` — it does not count toward the `translated` rung (nor can
-// an AI decision promote it) when the gate is evaluated.
+// `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in
+// it is produced but failing the project's bound checks. It is counted at its
+// true rung — the unit is translated, and may be reviewed — and recorded as a
+// failing check, which withholds the scope's ship and verified verdicts. Both
+// halves matter: the percentage is a fact about the content and must read the
+// same on every surface, while the verdict is what a failing guardrail is
+// entitled to withhold.
+//
+// A caller that passes nil gets honest percentages and a verdict that has not
+// been asked the guardrail question, so every surface that publishes a verdict
+// supplies it (#2024).
 func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
@@ -426,12 +433,15 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 				continue
 			}
 			st, aiDecided, basis := reviewed.apply(unitState(b, u.Locale), scope, b, u.Locale)
-			// Check-findings exclusion wins over any decision: a unit failing
-			// the project's bound checks demotes to draft regardless of who
-			// approved it.
+			// A unit failing the project's bound checks is recorded as such and
+			// then tallied at the rung it actually holds. The finding withholds
+			// the scope's verdict (convergence.RollupGates) rather than rewriting
+			// what the unit is: a reviewed translation that drops a placeholder is
+			// a reviewed translation with a defect, and reporting it as a draft
+			// erased a person's decision from the display on the one surface that
+			// ran the checks.
 			if excl.excluded(u.SourcePath, b, u.Locale) {
-				tally.Add(s, DemoteFailing(st))
-				continue
+				tally.NoteFailingCheck(s)
 			}
 			// The basis: a decision blessed a specific source, and if that
 			// source has been rewritten the translation under it renders a

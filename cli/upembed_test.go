@@ -89,7 +89,7 @@ func TestRunUp_ParksUnreachableGate(t *testing.T) {
 // as `kapi up --plan`, self-contained from the recipe path.
 func TestUpPlan_Embedded(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": {Pct: 100}})
+	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": {Pct: 100}})
 
 	plan, err := a.UpPlan(context.Background(), recipe, "")
 	require.NoError(t, err)

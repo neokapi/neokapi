@@ -9,7 +9,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vite-plus/test";
 import { QueryClient } from "@tanstack/react-query";
 import type { ApiAdapter, User, Workspace } from "@neokapi/ui";
 import { createBowrainRouter } from "./index";
-import { AnalyticsEvents } from "../analytics-events";
 import type { PlatformAdapter } from "../platform";
 import { readIntendedPlan, stashIntendedPlan, type IntendedPlan } from "./intended-plan";
 
@@ -42,6 +41,7 @@ interface Bootstrap {
   mode?: "server" | "standalone";
   user: User | null;
   captured?: CapturedEvent[];
+  identified?: { id: string; email?: string; name?: string }[];
   /**
    * "never" reproduces `fetchJSON`'s unrecoverable-401 branch, which calls
    * `onSessionExpired` and then returns a promise that blocks forever while the
@@ -64,15 +64,18 @@ function fakeApi(b: Bootstrap): ApiAdapter {
 
 function indexBeforeLoad(b: Bootstrap) {
   const api = fakeApi(b);
-  const analytics = b.captured
-    ? ({
-        capture: (
-          event: string,
-          props?: Record<string, unknown>,
-          options?: { transport?: "beacon" },
-        ) => b.captured!.push({ event, props, options }),
-      } as unknown as PlatformAdapter["analytics"])
-    : undefined;
+  const analytics =
+    b.captured || b.identified
+      ? ({
+          capture: (
+            event: string,
+            props?: Record<string, unknown>,
+            options?: { transport?: "beacon" },
+          ) => b.captured?.push({ event, props, options }),
+          identify: (user: { id: string; email?: string; name?: string }) =>
+            b.identified?.push(user),
+        } as unknown as PlatformAdapter["analytics"])
+      : undefined;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const route = createBowrainRouter({ queryClient, api, analytics }).routesById["/"] as unknown as {
     options: { beforeLoad: (opts: unknown) => Promise<unknown> };
@@ -188,42 +191,47 @@ describe("index route: the intended plan survives the identity-provider hop", ()
     expect(readIntendedPlan()).toEqual({ plan: "team", seats: 2 });
   });
 
-  // No route renders for a visitor with no session, so the app's own $pageview
-  // never fires and the hop to the identity provider — the most expensive step
-  // in the funnel — is the one step with no data.
-  it("marks the conversion step before leaving for the identity provider", async () => {
+  // The pre-auth leg is silent by design (#1940). On the web host `identify` is
+  // what starts PostHog at all, so anything the anonymous branch announced
+  // would be paid for with the year-long identifier that start writes — on
+  // `.bowrain.cloud`, the domain the landing and documentation sites publish as
+  // cookieless — for a visitor who has not signed in.
+  it("announces nothing on the way to the identity provider", async () => {
     const captured: CapturedEvent[] = [];
-    const run = indexBeforeLoad({ user: null, workspaces: "never", captured });
+    const identified: { id: string }[] = [];
+    const run = indexBeforeLoad({ user: null, workspaces: "never", captured, identified });
     void run({ plan: "pro" }).catch(() => {});
 
     await drain();
 
-    expect(captured).toHaveLength(1);
-    expect(captured[0].event).toBe(AnalyticsEvents.signupRedirectStarted);
-    expect(captured[0].props).toEqual({ has_plan: true, plan: "pro" });
-    // The navigation below discards a batched payload, so this one goes out
-    // through the transport that survives the unload.
-    expect(captured[0].options).toEqual({ transport: "beacon" });
+    expect(captured).toEqual([]);
+    expect(identified).toEqual([]);
     expect(window.location.href).toBe("/api/v1/auth/login");
   });
 
-  it("marks the conversion step for a visitor who chose no plan", async () => {
+  it("announces nothing for an anonymous visitor who chose no plan either", async () => {
     const captured: CapturedEvent[] = [];
-    const run = indexBeforeLoad({ user: null, workspaces: "never", captured });
+    const identified: { id: string }[] = [];
+    const run = indexBeforeLoad({ user: null, workspaces: "never", captured, identified });
     void run({}).catch(() => {});
 
     await drain();
 
-    expect(captured).toHaveLength(1);
-    expect(captured[0].props).toEqual({ has_plan: false, plan: undefined });
+    expect(captured).toEqual([]);
+    expect(identified).toEqual([]);
   });
 
-  it("emits nothing for a visitor who already has a session", async () => {
+  // The other half of the same rule: a session exists, so this is the moment
+  // analytics may start — and it is reached before the route resolves, so the
+  // session's first $pageview is captured rather than spent starting up.
+  it("announces the signed-in user before the route resolves", async () => {
     const captured: CapturedEvent[] = [];
-    const run = indexBeforeLoad({ user: ONBOARDED, captured });
+    const identified: { id: string; email?: string; name?: string }[] = [];
+    const run = indexBeforeLoad({ user: ONBOARDED, captured, identified });
     await thrownBy(run({}));
 
-    expect(captured).toEqual([]);
+    expect(identified).toEqual([{ id: "u-1", email: "buyer@example.com", name: "Buyer" }]);
+    expect(captured, "no event of its own — the router fires the pageview").toEqual([]);
   });
 
   it("writes nothing when no plan was asked for", async () => {

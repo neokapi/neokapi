@@ -555,7 +555,12 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	cd bowrain/apps/web && vp build
 	cd bowrain/apps/bowrain/frontend && vp check
 	cd bowrain/apps/ctrl && vp check
+	# ctrl and pulse each sit on a subdomain of the domain the landing and docs
+	# sites publish as cookieless, and each starts PostHog from its own module —
+	# so each carries its own gate, and a job has to run it (#1940).
+	cd bowrain/apps/ctrl && vp test
 	cd bowrain/apps/pulse && vp check
+	cd bowrain/apps/pulse && vp test
 	cd bowrain/apps/keycloak-theme && vp check
 	cd bowrain/emails && vp check
 	# Non-blocking Storybook coverage report (informational; does not fail the job).

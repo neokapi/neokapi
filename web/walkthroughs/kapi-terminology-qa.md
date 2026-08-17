@@ -35,5 +35,5 @@ the output.
 ## Closing
 
 In a project, `kapi up` runs this check for you: terminology is a bound
-check, and a unit with findings counts as drafted, not translated, until it
+check, and a unit with findings holds its locale out of shipping until it
 is fixed.

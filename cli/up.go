@@ -50,8 +50,9 @@ the locales still short of their gate, and stops when everything ships, a pass
 makes no progress (the remainder parks — it needs a human), or the pass cap is
 reached. After each pass the project's bound checks run over what was
 produced: a unit with failing findings (dropped placeholders, terminology
-violations) counts as drafted, not translated, so it cannot lift its locale
-over the gate until fixed. --no-checks opts out.
+violations) still counts as translated — it is — and holds its locale out of
+shipping until the finding is fixed. 'kapi status' runs the same checks and
+reports the same verdict. --no-checks opts out.
 
 The materialize policy decides whether the run owns delivery of the
 target-language files. Under 'defaults.materialize: on-converge' (or the

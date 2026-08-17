@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -46,9 +47,27 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
 
+	// The tool builders speak cobra (flag lookups, project discovery); this
+	// embedded read drives the bound checks through a synthetic command bound to
+	// THIS recipe, so terms resolution binds to this project rather than walking
+	// up from the process cwd.
+	cmd := NewEnvCommand(ctx, "project-convergence")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	AddProjectFlag(cmd)
+	if err := cmd.Flags().Set(projectFlagName, projectPath); err != nil {
+		return nil, err
+	}
+
 	var report *ConvergenceReport
 	cacheErr := a.withParseCache(root, func() error {
-		cov, err := a.ComputeShipCoverage(ctx, proj, root, units, nil)
+		// This report carries a ship verdict to the desktop, so it asks the
+		// guardrail question every verdict-publishing surface asks (#2024).
+		excl, err := a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
+		if err != nil {
+			return fmt.Errorf("run project checks: %w", err)
+		}
+		cov, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}

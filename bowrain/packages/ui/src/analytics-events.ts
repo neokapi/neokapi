@@ -66,18 +66,6 @@ export const AnalyticsEvents = {
    */
   convergenceRunStarted: "convergence_run_started",
   /**
-   * An anonymous visitor reached the app and is being sent to the identity
-   * provider ({has_plan, plan?}) — the conversion step of the front door.
-   *
-   * It is fired from the index route's unauthenticated branch, on its way out,
-   * because nothing else marks it: no route renders for a visitor who has no
-   * session, so the app's own $pageview never fires and a click that dies at
-   * the login screen is otherwise indistinguishable from a click that never
-   * happened. Pairs with the landing's `signup_cta_clicked` to make the hop
-   * between the two origins countable.
-   */
-  signupRedirectStarted: "signup_redirect_started",
-  /**
    * The GitHub App setup page loaded from a GitHub redirect
    * (`setup_action` present) but WITHOUT an installation id
    * ({setup_action}) — the post-install/update handoff lost the id, so
