@@ -195,6 +195,7 @@ import type {
   ChannelAliasProposalsResponse,
   ChannelProposalStatus,
 } from "../types/channel-proposals";
+import type { ConceptProjects, ConceptProjectsQuery } from "../types/context-graph";
 
 /**
  * ApiAdapter abstracts the communication layer so that the same
@@ -1410,6 +1411,17 @@ export interface ApiAdapter {
     relationId: string,
   ): Promise<void>;
   getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage>;
+  /**
+   * Which projects use a concept, from the workspace context graph — two hops
+   * out of one vocabulary node rather than a scan over every stored block.
+   * getConceptBlastRadius stays for the change-set preview it was built for:
+   * that one asks what a draft WOULD do and must read the text to answer.
+   */
+  getConceptProjects(
+    workspaceSlug: string,
+    conceptId: string,
+    query?: ConceptProjectsQuery,
+  ): Promise<ConceptProjects>;
   listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]>;
   addObservation(
     workspaceSlug: string,

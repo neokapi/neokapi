@@ -1067,6 +1067,16 @@ export type {
   ChannelProposalStatus,
 } from "./types/channel-proposals";
 
+// The workspace context graph's read surface — the shape of
+// GET /:ws/context/concepts/:cid/projects.
+export type {
+  ConceptProjects,
+  ConceptProjectsQuery,
+  ConceptProjectUse,
+  ConceptTermUse,
+  ConceptUseRow,
+} from "./types/context-graph";
+
 // Bravo (@bravo agent) — assistant-ui powered components
 export {
   BravoSidebar,

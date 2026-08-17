@@ -134,6 +134,46 @@ function fakeApi(over: Partial<ApiAdapter> = {}): ApiAdapter {
       translatable_blocks: 2,
       total_source_words: 6,
     }),
+    getConceptProjects: vi.fn().mockResolvedValue({
+      concept_id: "c-signin",
+      source: "graph",
+      at: "2026-08-16T00:00:00Z",
+      blocks: 12,
+      occurrences: 49,
+      uses_total: 2,
+      projects: [
+        {
+          project_id: "p-site",
+          project_name: "Northsea site",
+          blocks: 10,
+          occurrences: 42,
+          collections: ["Docs"],
+          terms: [{ term: "log in", term_locale: "en-US", blocks: 10, occurrences: 42 }],
+        },
+        {
+          project_id: "p-app",
+          project_name: "Northsea app",
+          blocks: 2,
+          occurrences: 7,
+          collections: [],
+          terms: [{ term: "sign in", term_locale: "en-US", blocks: 2, occurrences: 7 }],
+        },
+      ],
+      uses: [
+        {
+          project_id: "p-site",
+          project_name: "Northsea site",
+          stream: "main",
+          collection: "Docs",
+          document: "docs/help/billing.md",
+          block_id: "b1",
+          locale: "en-US",
+          term: "log in",
+          occurrences: 2,
+          text: "Log in to see your invoices.",
+        },
+      ],
+    }),
     getConceptBlastRadius: vi.fn().mockResolvedValue({
       concept_id: "c-signin",
       total_blocks: 100,
@@ -264,25 +304,77 @@ describe("createRestContextSource", () => {
     expect(answer.coverage.map((row) => row.locale)).toEqual(["de-DE"]);
   });
 
-  it("answers which projects use a concept, at workspace reach", async () => {
-    const source = createRestContextSource(fakeApi(), WS);
+  it("answers which projects use a concept from the graph, not a content scan", async () => {
+    const api = fakeApi();
+    const source = createRestContextSource(api, WS);
     const answer = await source.relates!(
       { kind: "concept", id: "c-signin", label: "sign in" },
       { scope: { workspace: WS } },
     );
+    expect(api.getConceptProjects).toHaveBeenCalled();
+    expect(api.getConceptBlastRadius).not.toHaveBeenCalled();
     expect(answer.reach).toBe("workspace");
     expect(answer.projects.map((p) => p.project_name)).toEqual(["Northsea site", "Northsea app"]);
     expect(answer.occurrences_total).toBe(49);
     expect(answer.occurrences[0].project).toBe("Northsea site");
+    expect(answer.occurrences[0].snippet).toBe("Log in to see your invoices.");
   });
 
-  it("narrows the projects list when the tuple names one", async () => {
-    const source = createRestContextSource(fakeApi(), WS);
+  it("narrows the projects list by asking the same query with the project pinned", async () => {
+    const api = fakeApi({
+      getConceptProjects: vi.fn().mockResolvedValue({
+        concept_id: "c-signin",
+        source: "graph",
+        at: "2026-08-16T00:00:00Z",
+        blocks: 2,
+        occurrences: 7,
+        uses_total: 0,
+        projects: [
+          { project_id: "p-app", project_name: "Northsea app", blocks: 2, occurrences: 7 },
+        ],
+        uses: [],
+      }),
+    });
+    const source = createRestContextSource(api, WS);
     const answer = await source.relates!(
       { kind: "concept", id: "c-signin" },
       { scope: { workspace: WS, project: "p-app" } },
     );
+    expect(api.getConceptProjects).toHaveBeenCalledWith(
+      WS,
+      "c-signin",
+      expect.objectContaining({ project: "p-app" }),
+    );
     expect(answer.projects.map((p) => p.project)).toEqual(["p-app"]);
+  });
+
+  it("says a floor is a floor when the answer came back partial", async () => {
+    const api = fakeApi({
+      getConceptProjects: vi.fn().mockResolvedValue({
+        concept_id: "c-signin",
+        source: "scan",
+        at: "2026-08-16T00:00:00Z",
+        blocks: 1,
+        occurrences: 1,
+        uses_total: 0,
+        projects: [
+          { project_id: "p-site", project_name: "Northsea site", blocks: 1, occurrences: 1 },
+        ],
+        uses: [],
+        partial: true,
+        partial_reason:
+          "the scan reached this report's time budget before it had covered the workspace",
+        notes: ["no push has recorded this concept in the workspace graph yet"],
+      }),
+    });
+    const source = createRestContextSource(api, WS);
+    const answer = await source.relates!(
+      { kind: "concept", id: "c-signin" },
+      { scope: { workspace: WS } },
+    );
+    expect(answer.projects).toHaveLength(1);
+    expect(answer.notes.join(" ")).toContain("floor");
+    expect(answer.notes.join(" ")).toContain("not reached");
   });
 
   it("groups search results by kind and never merges them", async () => {

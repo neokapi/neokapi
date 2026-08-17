@@ -1177,7 +1177,7 @@ func conceptHasStatus(cp terms.Concept, status model.TermStatus) bool {
 // the named market.
 func conceptHasMarket(cp terms.Concept, market string) bool {
 	for _, t := range cp.Terms {
-		if t.Validity != nil && t.Validity.Tags["market"] == market {
+		if t.Validity != nil && t.Validity.Tags[validityMarketTag] == market {
 			return true
 		}
 	}

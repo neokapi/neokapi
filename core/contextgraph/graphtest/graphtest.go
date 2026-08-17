@@ -153,6 +153,44 @@ func RunQueryShapes(t *testing.T, store Store) {
 			"the local surface asks the workspace query with its one dimension pinned")
 	})
 
+	t.Run("how much of the concept sits in each project", func(t *testing.T) {
+		got, err := contextgraph.UsesByProject(ctx, store, ScopeWorkspace, ConceptShared, graph.Scope{})
+		require.NoError(t, err)
+		require.Len(t, got, 2, "both projects, each with its own numbers")
+
+		byProject := map[string]contextgraph.ProjectUse{}
+		for _, p := range got {
+			byProject[p.Scope.Project] = p
+		}
+
+		a := byProject[ProjectA]
+		assert.Equal(t, 2, a.Blocks, "two blocks in project A use the concept")
+		assert.Equal(t, 3, a.Occurrences, "one block uses it twice, the other once")
+		assert.Equal(t, []string{"docs"}, a.Collections)
+		require.Len(t, a.Terms, 1)
+		assert.Equal(t, "content memory", a.Terms[0].Term)
+		assert.Equal(t, 3, a.Terms[0].Occurrences)
+		assert.Equal(t, 2, a.Terms[0].Blocks, "a term used twice in one block is one block")
+		require.Len(t, a.Uses, 2)
+		assert.Equal(t, Stream, a.Uses[0].Scope.Stream, "a use names the stream it sits on")
+
+		b := byProject[ProjectB]
+		assert.Equal(t, 1, b.Blocks)
+		assert.Equal(t, 1, b.Occurrences)
+		assert.Equal(t, []string{"web"}, b.Collections)
+
+		// The rollup drops the stream for the same reason ProjectsUsingConcept
+		// does: a project that uses a concept on one stream uses it.
+		assert.Empty(t, a.Scope.Stream)
+
+		// Pinning the project narrows the rollup rather than needing a second
+		// query, exactly as it narrows the projects list.
+		pinned, err := contextgraph.UsesByProject(ctx, store, ScopeB, ConceptShared, graph.Scope{})
+		require.NoError(t, err)
+		require.Len(t, pinned, 1)
+		assert.Equal(t, ProjectB, pinned[0].Scope.Project)
+	})
+
 	t.Run("term to blocks to collection", func(t *testing.T) {
 		wide, err := contextgraph.Uses(ctx, store, ScopeWorkspace, ConceptShared)
 		require.NoError(t, err)
