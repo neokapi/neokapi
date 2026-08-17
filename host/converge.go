@@ -400,11 +400,26 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	savedTarget := a.TargetLang
 	defer func() { a.TargetLang = savedTarget }()
 
-	// Convergence materializes the localized target files (not just block-store
-	// overlays) so its file-derived coverage sees each pass's output — uniformly
-	// across single- and multi-file projects.
+	// Convergence writes real localized files (not just block-store overlays) so
+	// its file-derived coverage sees each pass's output — uniformly across
+	// single- and multi-file projects.
 	a.convergeWriteFiles = true
 	defer func() { a.convergeWriteFiles = false }()
+
+	// Under a policy that gates delivery, those files are DRAFTS: the pass
+	// writes them into the run's own tree and the policy-gated materialize in
+	// finishConverge is the only write that reaches a collection's `target:`
+	// path. Otherwise the promise `on-converge` makes — a locale short of its
+	// ship gate does not get its files — holds for a second, redundant write
+	// while the unreviewed draft is already sitting where a site build globs
+	// (#1936). See host/convergedrafts.go.
+	if deliveryIsGated(proj, opts) {
+		endDrafts, derr := a.beginConvergeDrafts(projectPath, projectDir)
+		if derr != nil {
+			return derr
+		}
+		defer endDrafts()
+	}
 
 	if maxPasses < 1 {
 		maxPasses = 1
@@ -866,18 +881,33 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// prevent. This mirrors the server, which skips its post-run work when the run
 	// stalled on source_not_ready (convergence_orchestrator.go). Materialize only
 	// once the source is settled and real targets exist.
-	if (opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge) &&
-		out.StallReason != convergence.StallSourceNotReady {
+	if deliveryIsGated(proj, opts) && out.StallReason != convergence.StallSourceNotReady {
 		for i := range out.Locales {
 			lc := &out.Locales[i]
 			if !lc.Shippable {
-				continue // parked / pending locales do not materialize
+				// Parked and pending locales are not delivered. Under this
+				// policy that is the whole of delivery — the pass wrote into the
+				// run's draft tree — so the locale's files are genuinely absent
+				// rather than present and unblessed.
+				continue
+			}
+			// The locale cleared its gate, so its drafts become its delivery.
+			// This moves the run's own output, which is the record that exists
+			// for every flow; the store-backed write below adds whatever
+			// overlays the run also committed, and is a no-op for a flow that
+			// committed none.
+			delivered, derr := a.deliverDrafts(model.LocaleID(lc.Locale))
+			if derr != nil {
+				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.
 			n, merr := a.materializeFromProjectStore(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
+			}
+			if n < delivered {
+				n = delivered
 			}
 			lc.Materialized = n
 			out.MaterializedFiles += n

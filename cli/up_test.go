@@ -293,14 +293,26 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 
 // TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)
 // does not materialize — its content isn't at the bar yet.
+//
+// The assertion that matters is the second one. Reading the run's own report
+// only asks whether the gate was consulted; #1936 is that it was consulted after
+// the pass had already written the files, so the report said withheld while the
+// unreviewed draft sat in the tree a site build globs. What a consumer sees is
+// the filesystem, so that is what this asks.
 func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": gate.Threshold{Pct: 100}})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "parked (needs human)", out)
 	assert.NotContains(t, out, "Materialized", "a parked locale must not materialize")
+
+	for _, f := range []string{"a.json", "b.json"} {
+		_, serr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
+		assert.True(t, os.IsNotExist(serr),
+			"%s: the gate says withheld, so nothing that reads target files may find one", f)
+	}
 }
 
 // TestRun_BareRunErrors: `kapi run` takes a flow name only — the bare form

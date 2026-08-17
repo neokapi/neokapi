@@ -845,6 +845,11 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 			if relErr != nil {
 				rel = targetPath
 			}
+			// Inside a convergence run the pass's own output is a draft, not a
+			// delivery: grade the draft where one exists, the delivered file
+			// where none does (host/convergedrafts.go). DisplayPath keeps naming
+			// the destination, which is what a reader is being told about.
+			targetPath = a.draftedTargetPath(string(loc), targetPath)
 			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, targetPath)
 			units = append(units, VerifyUnit{
 				SourcePath:   rf.Path,
