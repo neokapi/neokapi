@@ -1053,6 +1053,37 @@ export class ConvergeOutput {
              */
             this["extractedBlocks"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
+             * the run proposed rather than applied: edits that take effect only once a
+             * reviewer accepts them. They are venue-supplied — a run at a venue that
+             * governs terminology fills them in — and all three are zero for a run that
+             * proposed nothing.
+             * 
+             * ChangesetURL is a deep link to the review surface, and is empty whenever
+             * the venue could not name one. An id with no link is still worth reporting:
+             * it is the handle every other surface takes, so a reader who cannot click
+             * through can still ask for the change-set by name.
+             * @member
+             * @type {number | undefined}
+             */
+            this["conceptsProposed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["changesetId"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["changesetUrl"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
