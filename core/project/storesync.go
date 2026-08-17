@@ -204,12 +204,12 @@ func ExtractToBlockStore(
 			})
 			continue
 		}
-		// Per-format project defaults, applied the same way a run configures
-		// the reader — block numbering must match the CLI's.
-		var cfg map[string]any
-		if fd, ok := pctx.FormatDefaults[rf.Format]; ok {
-			cfg = fd.Config
-		}
+		// The format configuration the recipe declares for THIS item — its own
+		// format.config over the project defaults — applied the same way a run
+		// configures the reader, because block numbering must match the CLI's
+		// and an item's extraction rules decide which leaves become blocks at
+		// all.
+		cfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 		blocks, _, rerr := ReadSourceBlocks(ctx, reg, rf.Format, rf.Path, pctx.SourceLocale, "", cfg)
 		if rerr != nil {
 			stats.Skipped = append(stats.Skipped, ExtractSkip{Path: rf.Relative, Reason: rerr.Error()})

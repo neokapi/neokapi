@@ -340,11 +340,16 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 				Encoding:     pctx.Encoding,
 				Store:        store,
 				DetectFormat: func(string) registry.FormatID { return registry.FormatID(srcFormat) },
+				// The recipe's configuration for THIS item, on both halves of the
+				// round-trip. Materializing re-reads the source to rebuild its
+				// skeleton, so a reader configured any other way splits the
+				// document into a different set of blocks than extraction did and
+				// the stored targets land on the wrong ones.
 				ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
-					return pctx.ConfigureReader(reader, string(detectedFmt))
+					return pctx.ConfigureReaderFor(reader, string(detectedFmt), f.Item)
 				},
 				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
-					return pctx.ConfigureWriter(writer, string(fmtName))
+					return pctx.ConfigureWriterFor(writer, string(fmtName), f.Item)
 				},
 			})
 			// Address the stored overlays by the same source-file-namespaced key
@@ -363,7 +368,7 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
 			if absorber != nil {
-				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, absorber, f.Relative); aerr != nil {
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
 					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project content memory: %v (the target file was written)\n",
 						f.Relative, locale, aerr)
 				}
@@ -407,8 +412,12 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, local
 // absorbStoreTargets reads the source blocks, applies the stored
 // `targets/<locale>` overlays, and writes accepted source+target pairs into
 // the project content memory with kapi-merge provenance. Returns (new, updated) counts.
-func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, absorber *memoryAbsorber, sourceRel string) (int, int, error) {
-	blocks, _, err := project.ReadSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, absorber *memoryAbsorber, sourceRel string, formatCfg map[string]any) (int, int, error) {
+	// The recipe's configuration for this item, not an unconfigured read: the
+	// overlays are addressed by the file-local block id, so a read that splits
+	// the document differently pairs each block's source text with another
+	// block's translation and writes that into the content memory.
+	blocks, _, err := project.ReadSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, formatCfg)
 	if err != nil {
 		return 0, 0, err
 	}

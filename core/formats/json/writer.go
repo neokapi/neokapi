@@ -55,6 +55,13 @@ func (w *Writer) Config() *Config {
 	return w.cfg
 }
 
+// WriterConfig implements format.WriterConfigurable, exposing the writer's
+// serialization knobs — escapeForwardSlashes, indentation, key ordering — to
+// the recipe. The type is the reader's own Config, so the whole of a
+// `defaults.formats.json.config` block applies to both halves of the pair and
+// an extraction key on the writer is simply inert.
+func (w *Writer) WriterConfig() format.DataFormatConfig { return w.cfg }
+
 // SetSubfilterResolver sets the resolver for creating sub-format writers.
 func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	w.resolver = resolver
