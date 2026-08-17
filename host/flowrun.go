@@ -391,6 +391,10 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			if oerr != nil {
 				return oerr
 			}
+			// The recipe's word on this file: the item whose glob claims it names
+			// both the format and the format.config the run must read it under,
+			// exactly as every other derivation over the project resolves them.
+			item := a.projectItemFor(inputPath)
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,
@@ -398,13 +402,16 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				Store:        projStore,
 				ProjectRoot:  pctx.ProjectDir,
 				DetectFormat: func(path string) registry.FormatID {
+					if declared := itemFormatName(item); declared != "" {
+						return registry.FormatID(declared)
+					}
 					return registry.FormatID(pctx.DetectFormat(a.FormatReg, path))
 				},
 				ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
-					return pctx.ConfigureReader(reader, string(fmtName))
+					return pctx.ConfigureReaderFor(reader, string(fmtName), item)
 				},
 				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
-					return pctx.ConfigureWriter(writer, string(fmtName))
+					return pctx.ConfigureWriterFor(writer, string(fmtName), item)
 				},
 			})
 			if err := runner.RunFile(ctx, opts.FlowName, tools, inputPath, outputPath, lang); err != nil {

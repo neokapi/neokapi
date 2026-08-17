@@ -1,8 +1,8 @@
 id: bowrain-web-governance
 title: Delt terminologi og minne
 subtitle: "Én styrt kilde for stemme, termer og oversettelser for et team."
-tagline: server-side plattformkompanjongen til kapi
-kind: brukstilfelle
+tagline: the server-side platform companion to kapi
+kind: use-case
 publishAs: bowrain-web-governance
 terminal: desktop
 target: web
@@ -11,29 +11,29 @@ needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true
 aspects:
-  - Delt innholdsminne
-  - Terminologi som konsepter
-  - Flerspråklige termer
-  - Forvaltet på tvers av et team
+  - Shared content memory
+  - Terminology as concepts
+  - Multi-locale terms
+  - Stewarded across a team
 
 narration:
-  - id: tittel
+  - id: title
     kind: title
     text: >-
       Bowrain — der et teams terminologi og innholdsminne lever, delt og forvaltet.
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
       Med kapi er termene og innholdsminnet lokale filer som én bygger eier. Bowrain holder dem på serveren, delt av alle.
-  - id: åpen-minne
+  - id: open-memory
     kind: desktop
     beat: open-memory
     caption: Arbeidsområdets inneholdsminne.
     text: >-
       Innholdsminnet beholder alle godkjente oversettelser, tilgjengelig for hvert prosjekt og hver oversetter i arbeidsområdet.
   - id: tm-list
-    kind: skrivebord
+    kind: desktop
     beat: tm-list
     caption: "Én oversettelsesminne, gjenbrukt på tvers av prosjekter."
     text: >-
@@ -58,7 +58,7 @@ narration:
       Hvert konsept viser hva teamet kaller det på alle lokal, med en status som markerer ordlyden teamet har blitt enige om.
   - id: concept-detail
     kind: desktop
-    beat: konsept-detalj
+    beat: concept-detail
     caption: "Ett konsept, én sannhet, alle språk."
     text: >-
       Åpne et konsept, og hele historien er her — termene på alle språk og deres godkjente status. Én sannhet, delt av alle redaktører, alle AI-kall og hver kjøring av løkken.

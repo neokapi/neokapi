@@ -1438,6 +1438,46 @@ func (c *BowrainSourceConnector) projectContext() *coreproj.ProjectContext {
 	return coreproj.NewProjectContext(&c.project.Recipe.KapiProject, recipePath)
 }
 
+// itemFor returns the recipe content item whose glob claims absPath, in the
+// recipe's own first-match order — the same walk detectFormat uses. nil when
+// nothing claims it.
+func (c *BowrainSourceConnector) itemFor(absPath string) *coreproj.ContentItem {
+	relPath, err := c.project.RelativePath(absPath)
+	if err != nil {
+		return nil
+	}
+	relPath = filepath.ToSlash(relPath)
+	recipe := c.project.Recipe
+	for _, it := range recipe.IterateContent() {
+		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
+		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
+		if matched, merr := doublestar.Match(pattern, relPath); merr == nil && matched {
+			item := it.Item.ContentItem
+			return &item
+		}
+	}
+	return nil
+}
+
+// configureReaderFor applies the recipe's format configuration for the item that
+// claims absPath — the project's format defaults overlaid by the item's own
+// format.config.
+//
+// A push that skipped this extracts every leaf of a document the recipe
+// described as partly structural: the scene ids and kinds of a narration script,
+// the identifiers and slugs of a CMS export. The server has no second chance to
+// tell content from identity, so it translates what it is given and the venue
+// writes the result back over the source's structure.
+func (c *BowrainSourceConnector) configureReaderFor(reader format.DataFormatReader, formatName, absPath string) error {
+	return c.projectContext().ConfigureReaderFor(reader, formatName, c.itemFor(absPath))
+}
+
+// configureWriterFor is configureReaderFor's other half: the recipe's encoding
+// and serialization keys for the item that claims absPath.
+func (c *BowrainSourceConnector) configureWriterFor(writer format.DataFormatWriter, formatName, absPath string) error {
+	return c.projectContext().ConfigureWriterFor(writer, formatName, c.itemFor(absPath))
+}
+
 // buildItemMeta generates editor metadata (BlockIndex + PreviewHTML) for each
 // unique item that has changed blocks. It re-parses the source files using
 // editor.ParseItem to build the full Part stream needed for metadata generation.
@@ -1521,6 +1561,12 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 		return nil, nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
 	defer reader.Close()
+
+	// What the recipe says this file is, before anything the push wants: the
+	// extraction rules decide which of its leaves are content at all.
+	if err := c.configureReaderFor(reader, formatName, filePath); err != nil {
+		return nil, nil, fmt.Errorf("apply the recipe's format config for %s: %w", formatName, err)
+	}
 
 	// Enable media extraction if the format supports it.
 	if cfg := reader.Config(); cfg != nil {
@@ -1662,6 +1708,17 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	writer, err := c.formatReg.NewWriter(writerFormat)
 	if err != nil {
 		return fmt.Errorf("create writer for %s: %w", writerFormat, err)
+	}
+
+	// The recipe's configuration, on both halves. The read here re-derives the
+	// blocks a pulled translation is matched against, so a reader configured any
+	// other way offers the pull leaves the recipe never declared translatable
+	// and the write puts a translation on the document's structure.
+	if err := c.configureReaderFor(reader, formatName, sourcePath); err != nil {
+		return fmt.Errorf("apply the recipe's format config for %s: %w", formatName, err)
+	}
+	if err := c.configureWriterFor(writer, string(writerFormat), sourcePath); err != nil {
+		return fmt.Errorf("apply the recipe's writer config for %s: %w", writerFormat, err)
 	}
 
 	// A skeleton store lets a SAME-format writer reconstruct non-translatable

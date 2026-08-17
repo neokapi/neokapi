@@ -3,24 +3,26 @@ title: Oversett en landingsside til fransk
 subtitle: En enkel forespørsel — oversett denne siden — og kapi-ferdigheten tar seg av resten og holder HTML-en intakt.
 kind: zero-to-hero
 aspects:
-  - KI-oversettelse
-  - HTML-rundtur
-  - formatbevisst
+  - AI translation
+  - HTML round-trip
+  - format-aware
 needsAi: true
 model: sonnet
 captureTimeoutSec: 300
 
 prompt: >
-  Vi lanserer Lumen Notes i Frankrike neste uke. Kan du oversette landingssiden vår, index.html, til fransk? Lagre den franske versjonen som index.fr.html.
+  We're launching Lumen Notes in France next week. Can you translate our landing page,
+  index.html, into French? Save the French version as index.fr.html.
+
 artifacts:
   - id: before
-    caption: "index.html — den engelske siden"
+    caption: "index.html — the English page"
     source: html
     path: index.html
     width: 1280
     height: 900
   - id: after
-    caption: "index.fr.html — samme side, tekst på fransk"
+    caption: "index.fr.html — the same page, text in French"
     source: html
     path: index.fr.html
     width: 1280

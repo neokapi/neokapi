@@ -1,7 +1,7 @@
 id: bowrain-desktop-automations
 title: Automatiseringer og kjøringer
 subtitle: Regler kjører løkken på serveren; kjøringer viser hver runde som tar prosjektet à jour.
-tagline: serversidens plattformkompanjong til kapi
+tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-automations
 terminal: desktop
@@ -10,10 +10,10 @@ brand: bowrain
 needsAi: false
 oneshot: true
 aspects:
-  - Automatiseringsregler
-  - "Løkken, kjørt på serveren"
-  - Kjøringshistorikk per runde
-  - Parkert arbeid venter til gjennomgang
+  - Automation rules
+  - The loop, run on the server
+  - Run history per pass
+  - Parked work waits in review
 
 narration:
   - id: title
@@ -25,13 +25,13 @@ narration:
     beat: intro
     text: >-
       Skrivebordsappen åpner det samme delte arbeidsområdet som nettleseren gjør. Åpne et prosjekt, og sidepanelet viser prosjektflatene — dashbord, automatiseringer, kjøringer og tilkoblinger.
-  - id: automatiseringer
+  - id: automations
     kind: desktop
-    beat: automatiseringer
+    beat: automations
     caption: Regler som kjører løkken ved hver push.
     text: >-
       Automatiseringer er prosjektets faste regler. Når innhold pushes, aktiveres reglene og serveren kjører løkken — ingen trenger å huske på å oversette noe.
-  - id: kjøringer
+  - id: runs
     kind: desktop
     beat: runs
     caption: Hver kjøring er én runde med å ta igjen.

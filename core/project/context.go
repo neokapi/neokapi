@@ -257,68 +257,37 @@ type Configurable interface {
 	Config() format.DataFormatConfig
 }
 
-// ConfigureReader applies project format defaults (config overrides) to any
-// Configurable component (typically a DataFormatReader). If no project
-// defaults exist for the format, or the component has no config, this is a no-op.
+// ConfigureReader applies the project's format defaults to any Configurable
+// component (typically a DataFormatReader). It is ConfigureReaderFor with no
+// content item — the right call only where no item is in scope, such as an
+// ad-hoc file the recipe does not claim.
 func (ctx *ProjectContext) ConfigureReader(reader Configurable, formatName string) error {
-	if ctx.FormatDefaults == nil {
-		return nil
-	}
-	fd, ok := ctx.FormatDefaults[formatName]
-	if !ok {
-		return nil
-	}
-	cfg := reader.Config()
-	if cfg == nil {
-		return nil
-	}
-	// Apply config overrides. The reserved "output" key carries the shared
-	// writer output options (BOM/newline/charset) — split it off so the
-	// reader's typed config never sees it as an unknown key.
-	if len(fd.Config) > 0 {
-		_, rest, err := format.SplitOutputConfig(fd.Config)
-		if err != nil {
-			return err
-		}
-		if len(rest) > 0 {
-			if err := cfg.ApplyMap(rest); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return ctx.ConfigureReaderFor(reader, formatName, nil)
 }
 
-// ConfigureWriter applies project defaults to a format writer: the project
-// encoding, plus the shared byte-level output options (output.bom,
-// output.newline, output.encoding) declared under
-// defaults.formats[formatName].config. Format-specific writer keys are not
-// applied here (writers don't expose a Config() interface); only the reserved
-// "output" options, which every writer embedding format.BaseFormatWriter
-// understands.
+// ConfigureReaderFor applies the format configuration the recipe declares for
+// one content item — the project defaults for the format overlaid by the item's
+// own `format.config` — onto a reader. A nil item takes the defaults alone.
+func (ctx *ProjectContext) ConfigureReaderFor(reader Configurable, formatName string, item *ContentItem) error {
+	return ApplyReaderConfig(reader, ctx.FormatConfigFor(formatName, item))
+}
+
+// ConfigureWriter applies the project's format defaults to a writer. It is
+// ConfigureWriterFor with no content item.
 func (ctx *ProjectContext) ConfigureWriter(writer format.DataFormatWriter, formatName string) error {
+	return ctx.ConfigureWriterFor(writer, formatName, nil)
+}
+
+// ConfigureWriterFor applies to a writer the project encoding plus the format
+// configuration the recipe declares for one content item: the shared byte-level
+// output options (output.bom, output.newline, output.encoding) for every
+// writer, and the format-specific serialization keys for a writer that exposes
+// its typed config (format.WriterConfigurable).
+func (ctx *ProjectContext) ConfigureWriterFor(writer format.DataFormatWriter, formatName string, item *ContentItem) error {
 	if ctx.Encoding != "" {
 		writer.SetEncoding(ctx.Encoding)
 	}
-	if ctx.FormatDefaults == nil {
-		return nil
-	}
-	fd, ok := ctx.FormatDefaults[formatName]
-	if !ok || len(fd.Config) == 0 {
-		return nil
-	}
-	opts, _, err := format.SplitOutputConfig(fd.Config)
-	if err != nil {
-		return err
-	}
-	if opts.IsZero() {
-		return nil
-	}
-	oc, ok := writer.(format.OutputConfigurable)
-	if !ok {
-		return nil
-	}
-	return oc.SetOutputOptions(opts)
+	return ApplyWriterConfig(writer, ctx.FormatConfigFor(formatName, item))
 }
 
 // --- Plugin scoping ---

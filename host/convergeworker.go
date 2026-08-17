@@ -67,6 +67,8 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		execTrustGranted:    a.execTrustGranted,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
+		convergeDraftDir:    a.convergeDraftDir,
+		convergeDraftRoot:   a.convergeDraftRoot,
 		docCache:            a.docCache,
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
@@ -153,9 +155,14 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert — it is carried rather than reset so
 	// the clone stays a faithful copy.
-	"MCPSurface":          fieldShared,
-	"ProjectBindings":     fieldShared,
-	"convergeWriteFiles":  fieldShared,
+	"MCPSurface":         fieldShared,
+	"ProjectBindings":    fieldShared,
+	"convergeWriteFiles": fieldShared,
+	// One draft tree for the whole run: the locales of a pass draft side by
+	// side and finishConverge delivers from the store, so a per-worker tree
+	// would be a per-locale answer to a question the run asks once.
+	"convergeDraftDir":    fieldShared,
+	"convergeDraftRoot":   fieldShared,
 	"docCache":            fieldShared,
 	"translator":          fieldShared,
 	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker

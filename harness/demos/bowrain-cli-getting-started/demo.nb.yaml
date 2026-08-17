@@ -1,35 +1,35 @@
-id: bowrain-cli-kom-i-gang
+id: bowrain-cli-getting-started
 title: Koble til et prosjekt og oppdater det
 subtitle: "kapi init kobler de lokale filene dine til en Bowrain-server; push og pull flytter innhold som git, og kapi up kjører løkken på serveren."
-tagline: "filene dine forblir dine — serveren legger til teamet, minnet og styringen."
+tagline: your files stay yours — the server adds the team, the memory, and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started
 # A scripted plain-shell demo (no Claude): the bowrain CLI runs for real against
 # a live server (seeded by `make harness-seed`), so the commands and their output
 # are recorded exactly as a developer would see them.
-terminal: skall
+terminal: shell
 brand: bowrain
 cwd: ~/bowmart/help-center
 needsAi: false
 captureTimeoutSec: 180
 aspects:
   - kapi init · push · up
-  - "filene dine, teamets server"
-  - push/pull som git
-  - "løkken, kjørt på serveren"
+  - your files, the team's server
+  - push/pull like git
+  - the loop, run on the server
 
 script:
-  - comment: "BowMarts hjelpesenter-tekst — engelsk, lagret i repositoriet ditt."
+  - comment: BowMart's help-center copy — English, sitting in your repo.
   - command: cat src/locales/en.json
-  - comment: Koble dette prosjektet til Bowrain-serveren din.
+  - comment: Connect this project to your Bowrain server.
   - command: kapi init --name help-center --source en --targets fr,de --server $BOWRAIN_SERVER_URL -y
-  - comment: Spor filene du vil ha oversatt.
+  - comment: Track the files you want translated.
   - command: kapi add "src/locales/*.json"
-  - comment: "Skyv kilden opp — ren transport, som git push."
+  - comment: Push the source up — pure transport, like git push.
   - command: kapi push
-  - comment: "Sjekk status — dekning og hva som venter, som git status."
+  - comment: Check standing — coverage and what's pending, like git status.
   - command: kapi status
-  - comment: Oppdater prosjektet — kapi up kjører løkken på serveren og henter resultatene tilbake.
+  - comment: Catch the project up — kapi up runs the loop on the server and pulls the results back.
   - command: kapi up
 
 narration:

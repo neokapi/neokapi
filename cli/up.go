@@ -53,10 +53,13 @@ produced: a unit with failing findings (dropped placeholders, terminology
 violations) counts as drafted, not translated, so it cannot lift its locale
 over the gate until fixed. --no-checks opts out.
 
-When the loop ends, the materialize policy decides whether target-language files
-are written from the project store: 'defaults.materialize: on-converge' (or
-the --materialize flag) writes them for every locale whose gated scopes are
-all shippable; the default ('manual') leaves that to 'kapi merge'.
+The materialize policy decides whether the run owns delivery of the
+target-language files. Under 'defaults.materialize: on-converge' (or the
+--materialize flag) it does, and the ship gate holds it back: each pass drafts
+into a run-local tree, and only a locale whose gated scopes are all shippable
+has its files written where the recipe points — a parked locale's files are
+absent, not merely unblessed. The default ('manual') leaves delivery to
+'kapi merge' and claims no gate.
 
 Venue: in a server-connected project (a recipe with a bowrain: block, with the
 bowrain plugin installed) the loop runs on the Bowrain server by default — on

@@ -1,20 +1,20 @@
 id: bowrain-web-collaboration
 title: Sanntidssamarbeid
 subtitle: "To personer, ett dokument, direkte."
-tagline: serverside-plattformfølgesvennen til kapi
+tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-collaboration
-terminal: skrivebord
+terminal: desktop
 target: web
 brand: bowrain
 needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true
 aspects:
-  - Ett delt arbeidsområde
-  - Live-tilstedeværelse i editoren
-  - "To personer, én fil"
-  - Styrt av rolle
+  - One shared workspace
+  - Live presence in the editor
+  - Two people, one file
+  - Governed by role
 
 # Recorded with TWO genuine authenticated users: the camera is the first user
 # (Alice); a second, off-camera session (Bob) joins the same Translate file, so

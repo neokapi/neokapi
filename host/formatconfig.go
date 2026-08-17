@@ -72,22 +72,7 @@ func mergedFormatConfig(proj *project.KapiProject, formatName string, item *proj
 	if proj == nil {
 		return nil
 	}
-	var merged map[string]any
-	add := func(cfg map[string]any) {
-		for k, v := range cfg {
-			if merged == nil {
-				merged = map[string]any{}
-			}
-			merged[k] = v
-		}
-	}
-	if fd, ok := proj.Defaults.Formats[formatName]; ok {
-		add(fd.Config)
-	}
-	if item != nil && item.Format != nil {
-		add(item.Format.Config)
-	}
-	return merged
+	return project.MergeFormatConfig(proj.Defaults.Formats, formatName, item)
 }
 
 // formatConfigForSource resolves the merged format config for a source file
@@ -116,40 +101,13 @@ func formatConfigForSource(proj *project.KapiProject, formatName, relSource stri
 // skipped. It needs only the config facet of a reader, so it takes
 // format.Configurable rather than the full DataFormatReader.
 func applyFormatConfig(reader format.Configurable, cfg map[string]any) error {
-	if len(cfg) == 0 {
-		return nil
-	}
-	_, rest, err := format.SplitOutputConfig(cfg)
-	if err != nil {
-		return err
-	}
-	if len(rest) == 0 {
-		return nil
-	}
-	c := reader.Config()
-	if c == nil {
-		return nil
-	}
-	return c.ApplyMap(rest)
+	return project.ApplyReaderConfig(reader, cfg)
 }
 
-// applyWriterOutputConfig applies the reserved output.* options (output.bom,
-// output.newline, output.encoding) from a merged config map onto a writer.
-// Writers that don't embed format.BaseFormatWriter are skipped.
+// applyWriterOutputConfig applies a merged config map onto a writer: the
+// reserved output.* options (output.bom, output.newline, output.encoding) that
+// every writer embedding format.BaseFormatWriter understands, plus the
+// format-specific serialization keys for a writer exposing its typed config.
 func applyWriterOutputConfig(writer format.DataFormatWriter, cfg map[string]any) error {
-	if len(cfg) == 0 {
-		return nil
-	}
-	opts, _, err := format.SplitOutputConfig(cfg)
-	if err != nil {
-		return err
-	}
-	if opts.IsZero() {
-		return nil
-	}
-	oc, ok := writer.(format.OutputConfigurable)
-	if !ok {
-		return nil
-	}
-	return oc.SetOutputOptions(opts)
+	return project.ApplyWriterConfig(writer, cfg)
 }

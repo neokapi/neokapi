@@ -146,6 +146,27 @@ type App struct {
 	// has one content file or many.
 	convergeWriteFiles bool
 
+	// convergeDraftDir is where a convergence pass writes those files: a
+	// run-local tree under `.kapi/work/`, never the collection's own `target:`
+	// path.
+	//
+	// A pass's output is a draft. Coverage is derived from files, so the pass
+	// has to write them somewhere a reader can measure — but writing them at the
+	// destination puts an unreviewed draft where every static-site build,
+	// bundler and publishing connector reads, before any gate has been
+	// consulted. Materializing from the project block store (finishConverge, and
+	// `kapi merge`) is then the only write that reaches the destination, and it
+	// is the write the ship gate governs.
+	//
+	// Empty outside a convergence run, which leaves every other flow run writing
+	// where the recipe says.
+	convergeDraftDir string
+
+	// convergeDraftRoot is the project root the draft tree mirrors paths
+	// against, so a target outside the project — which no recipe gate reaches —
+	// is written where it was resolved rather than folded into the tree.
+	convergeDraftRoot string
+
 	// docCache is the project's streaming document cache, opened by a project-level
 	// command (withParseCache) so repeated reads of unchanged files — across
 	// `status` re-runs, `verify`, every `run --until-gate` pass, and the flow

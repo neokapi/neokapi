@@ -1,7 +1,7 @@
 id: bowrain-cli-auth-and-workspaces
 title: "Logg inn, finn arbeidsområdene dine, test lokalt"
 subtitle: kapi auth og workspace viser hvem og hvor du er koblet til; pseudo-translate sjekker layout før du sender til ekte oversettelse.
-tagline: bowrain-pluginen håndterer serveren; kapi håndterer filene.
+tagline: the bowrain plugin handles the server; kapi handles the files.
 kind: use-case
 publishAs: bowrain-cli-auth-and-workspaces
 terminal: shell
@@ -11,18 +11,18 @@ needsAi: false
 captureTimeoutSec: 180
 aspects:
   - kapi auth · workspace
-  - server + konto på ett blikk
-  - mange arbeidsområder
-  - pseudo-oversett for å teste
+  - server + account at a glance
+  - many workspaces
+  - pseudo-translate to test
 
 script:
-  - comment: Hvilken server og konto er denne utsjekken koblet til?
+  - comment: Which server and account is this checkout connected to?
   - command: kapi auth status
-  - comment: List opp arbeidsområdene du kan skyve prosjekter til.
+  - comment: List the workspaces you can push projects to.
   - command: kapi workspace list
-  - comment: "Før du sender til ekte oversettelse, bruk pseudo-oversettelse for å teste layout."
+  - comment: Before sending for real translation, pseudo-translate to test layout.
   - command: kapi pseudo-translate src/locales/en.json
-  - comment: "Polstret, aksentuert kopi (qps) — avslører avkortings- og layoutfeil tidlig."
+  - comment: Padded, accented copy (qps) — surfaces truncation and layout bugs early.
   - command: cat src/locales/qps.json
 
 narration:

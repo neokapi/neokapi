@@ -1,7 +1,7 @@
 id: bowrain-web-correction-loop
 title: Sjekker som lærer av korreksjoner
 subtitle: Hver korreksjon blir en versjonert sjekk.
-tagline: korreksjonslæringssløyfen på bowrain
+tagline: the correction-learning loop on bowrain
 kind: use-case
 publishAs: bowrain-web-correction-loop
 terminal: desktop
@@ -11,10 +11,10 @@ needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true
 aspects:
-  - Gjentatte rettelser blir kandidater
-  - Gjennomgå og fremhev til en versjonert regel
-  - Rekkevidde før det lander
-  - "Etterlevelse, overvåket for avvik"
+  - Repeated corrections become candidates
+  - Review and promote to a versioned rule
+  - Blast radius before it lands
+  - Compliance, monitored for drift
 
 narration:
   - id: title
@@ -26,27 +26,27 @@ narration:
     beat: intro
     text: >-
       Med kapi alene er sjekker lokale — et sjekksett bundet til én prosjektoppskrift, versjonert med det repositoriet. Bowrain versjonerer dem for organisasjonen: koreksjonene et team gjentatte ganger gjør, blir sjekker som gjennomgås, fremmes og håndheves overalt der organisasjonen genererer innhold.
-  - id: kandidater
+  - id: candidates
     kind: desktop
-    beat: kandidater
+    beat: candidates
     caption: "Kandidatregler, hentet fra virkelige rettelser."
     text: >-
       Her er kandidatene. Hver enkelt er en formulering teamet gjentatte ganger korrigerte — det merkefremmed ordet, hva de endret det til, og hvor mange korreksjoner tilbake det er.
   - id: evaluate
     kind: desktop
-    beat: evaluer
+    beat: evaluate
     caption: "Nedslagsfeltet, før regelen trer i kraft."
     text: >-
       Før du fremhever, forhåndsvis nedslagsfeltet — hvor mye eksisterende innhold regelen ville flagge på nytt på tvers av et prosjekt, slik at en endring aldri er en overraskelse.
-  - id: forfrem
+  - id: promote
     kind: desktop
-    beat: forfrem
+    beat: promote
     caption: "Forfrem — korreksjonen blir en håndhevet, versjonert sjekk."
     text: >-
       Fremhev den, og korreksjonen blir en deterministisk kontroll, versjonert og håndhevet på hver fremtidig generering, for alle og alle AI-verktøy.
-  - id: avgjort
+  - id: settled
     kind: desktop
-    beat: avgjort
+    beat: settled
     caption: Én feil mindre som kan gjenta seg.
     text: >-
       Kandidaten er fjernet fra køen — nå en regel. Etterlevelse overvåkes for avvik, så hvis det skjer, vet teamet om det.

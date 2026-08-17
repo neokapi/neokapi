@@ -1,7 +1,7 @@
 id: kapi-desktop-explorer
 title: Bla gjennom termer og innholdsminne
 subtitle: En visuell omvisning i terminologi og innholdsminne i Kapi Desktop.
-tagline: den visuelle følgesvennen til kapi-kommandolinjen
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-explorer
 terminal: desktop
@@ -10,11 +10,11 @@ needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Termer
-  - Innholdsminne
-  - Flerspråklige termer
-  - Innebygd formatering
-  - Enhetsplassholdere
+  - Terms
+  - Content memory
+  - Multi-locale terms
+  - Inline formatting
+  - Entity placeholders
 
 # A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
 # screencast.{json,webm}) inside the macOS window frame. Each narration scene of

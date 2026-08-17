@@ -233,7 +233,7 @@ func TestAbsorbStoreTargets_StoreReadFailureFails(t *testing.T) {
 
 	_, _, err := absorbStoreTargets(context.Background(), a.FormatReg, "json", src,
 		model.LocaleID("en"), model.LocaleID("fr"),
-		brokenOverlayStore{readErr: errors.New("database disk image is malformed")}, nil, "en.json")
+		brokenOverlayStore{readErr: errors.New("database disk image is malformed")}, nil, "en.json", nil)
 	require.Error(t, err, "a store read failure must not read as 'no translation stored'")
 	assert.Contains(t, err.Error(), "malformed")
 	assert.Contains(t, err.Error(), "targets/fr", "the message names the overlay kind")
@@ -251,7 +251,7 @@ func TestAbsorbStoreTargets_NotFoundIsAbsenceNotFailure(t *testing.T) {
 
 	n, u, err := absorbStoreTargets(context.Background(), a.FormatReg, "json", src,
 		model.LocaleID("en"), model.LocaleID("fr"),
-		brokenOverlayStore{readErr: blockstore.ErrNotFound}, nil, "en.json")
+		brokenOverlayStore{readErr: blockstore.ErrNotFound}, nil, "en.json", nil)
 	require.NoError(t, err, "no overlay for a block is ordinary pending work")
 	assert.Zero(t, n)
 	assert.Zero(t, u)

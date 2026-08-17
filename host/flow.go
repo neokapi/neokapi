@@ -341,13 +341,19 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// explicit -o (or no project) keeps the file-writing path below.
 	processOnly := a.ProjectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles
 
-	// Build reader configuration callback: applies preset config + project defaults.
+	// The recipe's word on this file: the project's format defaults overlaid by
+	// the claiming item's own format.config, which is where the extraction rules
+	// that separate content from identifiers are declared.
+	item := a.projectItemFor(inputPath)
+
+	// Build reader configuration callback: applies preset config + the recipe's
+	// configuration for this item.
 	configureReader := func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 		if err := applyFormatConfig(reader, mergedConfig); err != nil {
 			return fmt.Errorf("apply format config: %w", err)
 		}
 		if a.ProjectContext != nil {
-			if err := a.ProjectContext.ConfigureReader(reader, string(detectedFmt)); err != nil {
+			if err := a.ProjectContext.ConfigureReaderFor(reader, string(detectedFmt), item); err != nil {
 				return fmt.Errorf("apply project format config: %w", err)
 			}
 		}
@@ -355,14 +361,15 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 
 	// Build writer configuration callback: applies the shared output options
-	// (output.bom / output.newline / output.encoding) from preset config +
-	// project defaults.
+	// (output.bom / output.newline / output.encoding) plus the format's own
+	// serialization keys, from preset config + the recipe's configuration for
+	// this item.
 	configureWriter := func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
 		if err := applyWriterOutputConfig(writer, mergedConfig); err != nil {
 			return fmt.Errorf("apply writer output config: %w", err)
 		}
 		if a.ProjectContext != nil {
-			if err := a.ProjectContext.ConfigureWriter(writer, string(fmtName)); err != nil {
+			if err := a.ProjectContext.ConfigureWriterFor(writer, string(fmtName), item); err != nil {
 				return fmt.Errorf("apply project writer config: %w", err)
 			}
 		}
@@ -376,6 +383,21 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	if a.ProjectContext != nil {
 		projRoot = a.ProjectContext.ProjectDir
 	}
+	// The format the run reads this file with: the --format flag, else the one
+	// the recipe's matching item declares, else registry detection. Declared
+	// beats detected because every other derivation over this project — the
+	// block store, coverage, checks, extract — resolves it that way, and a run
+	// that detects differently numbers the document's blocks differently from
+	// the store it writes into.
+	declaredFormat := fmtName
+	if declaredFormat == "" {
+		declaredFormat = itemFormatName(item)
+	}
+	var detectFormat func(string) registry.FormatID
+	if declaredFormat != "" {
+		detectFormat = func(string) registry.FormatID { return registry.FormatID(declaredFormat) }
+	}
+
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
 		SourceLocale:    model.LocaleID(a.SourceLang),
@@ -383,6 +405,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		Recorder:        recorder,
 		Store:           projStore,
 		ProjectRoot:     projRoot,
+		DetectFormat:    detectFormat,
 		ConfigureReader: configureReader,
 		ConfigureWriter: configureWriter,
 		PartCache:       runnerCache,
@@ -727,7 +750,16 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 // read → process → write pipeline. Plugin-backed formats are routed
 // through their daemon transparently by the registered factories.
 func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
+	// The recipe's word on this file: the item whose glob claims it names the
+	// format to read it with and carries the format.config that says which of
+	// its leaves are content. Both are needed here, and the item is resolved
+	// once for both.
+	item := a.projectItemFor(inputPath)
+
 	fmtName := a.FormatFlag
+	if fmtName == "" {
+		fmtName = itemFormatName(item)
+	}
 	if fmtName == "" {
 		// Use project-scoped detection when running in project mode.
 		if a.ProjectContext != nil {
@@ -758,9 +790,12 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 		return "", nil, fmt.Errorf("apply format config: %w", err)
 	}
 
-	// Apply project format defaults.
+	// The project's format defaults overlaid by the claiming item's own
+	// format.config. Both halves, or the run reads the document under a
+	// configuration the recipe never described and extracts identifiers and
+	// slugs as prose.
 	if a.ProjectContext != nil {
-		if err := a.ProjectContext.ConfigureReader(reader, fmtName); err != nil {
+		if err := a.ProjectContext.ConfigureReaderFor(reader, fmtName, item); err != nil {
 			return "", nil, fmt.Errorf("apply project format config: %w", err)
 		}
 	}
@@ -768,14 +803,14 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 	// All formats use the standard read → process → write pipeline.
 	// Plugin-backed formats are routed through their Mode-C daemon
 	// transparently by the registered factories.
-	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, outputBase, registryName, reader, mergedConfig, recorder)
+	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, outputBase, registryName, reader, mergedConfig, item, recorder)
 	return fmtName, nodes, err
 }
 
 // processFlowFileNative uses the standard read → process → write pipeline.
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
-func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
+func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, item *project.ContentItem, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	// A project run hands back the pass's assembled chain — ONE slice, shared by
 	// every file in the batch, which runs its files concurrently. So the wrapping
 	// below builds this file's own slice rather than writing into that one: an
@@ -877,7 +912,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		return traceNodes, fmt.Errorf("apply writer output config: %w", err)
 	}
 	if a.ProjectContext != nil {
-		if err := a.ProjectContext.ConfigureWriter(writer, writerFormatName); err != nil {
+		if err := a.ProjectContext.ConfigureWriterFor(writer, writerFormatName, item); err != nil {
 			return traceNodes, fmt.Errorf("apply project writer config: %w", err)
 		}
 	}
@@ -918,6 +953,10 @@ func (a *App) resolveOutputPath(inputPath, outputTemplate string) (string, error
 func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (string, error) {
 	if outputTemplate == "" {
 		if out, ok := a.projectItemTargetPath(inputPath, a.TargetLang); ok {
+			// A convergence pass under a gating policy drafts into the run's own
+			// tree; delivery to this destination happens once, at the end, for
+			// the locales that cleared their gate (host/convergedrafts.go).
+			out, _ = a.draftPathFor(a.TargetLang, out)
 			ensureParentDir(out)
 			return out, nil
 		}
@@ -970,6 +1009,49 @@ func (a *App) collectionTracking(outPath string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// itemFormatName is the format a content item declares, or "" when it declares
+// none (or declares `$auto`, the explicit ask for detection). It is the same
+// "explicit > auto-detected" precedence ProjectContext.ResolveContent applies,
+// which is what keeps a run's reader the reader every other derivation used: a
+// path that detects instead splits the document into a different set of blocks,
+// and the file-local block ids that address the store then name different
+// content on the two sides of one convergence.
+func itemFormatName(item *project.ContentItem) string {
+	if item == nil || item.Format == nil {
+		return ""
+	}
+	return project.ResolveFormat(item.Format.Name)
+}
+
+// projectItemFor returns the recipe content item whose glob claims inputPath —
+// the item whose `format.config` says which leaves of that file are content and
+// how the writer serializes them. The walk is the recipe's own first-match
+// order, the same one target resolution uses, so a file cannot be read under one
+// item's rules and written under another's. nil when no recipe is in scope, the
+// input lies outside the project root, or no item claims it.
+//
+// An item with no `target:` still governs its own reading, so — unlike
+// projectItemTargetPath — a missing target is not a reason to skip it.
+func (a *App) projectItemFor(inputPath string) *project.ContentItem {
+	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
+		return nil
+	}
+	relSlash, ok := projectRelPath(a.ProjectContext.ProjectDir, inputPath)
+	if !ok {
+		return nil
+	}
+	for _, coll := range a.ProjectContext.Project.Collections {
+		for _, item := range coll.EffectiveItems() {
+			if item.Path == "" || !project.MatchGlob(item.Path, relSlash) {
+				continue
+			}
+			matched := item
+			return &matched
+		}
+	}
+	return nil
 }
 
 // projectItemTargetPath resolves inputPath to its output path via the matched

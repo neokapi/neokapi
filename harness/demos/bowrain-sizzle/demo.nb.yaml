@@ -1,20 +1,20 @@
 id: bowrain-sizzle
 title: "Bowrain — teamplattformen for flerspråklig innhold"
 subtitle: "Styring, samarbeid og kvalitet — montert"
-tagline: "En reel av bowrain-plattformens viktigste funksjoner"
+tagline: "A reel of the bowrain platform's key features"
 # Not a captured demo: a montage composition (Sizzle.tsx) that sequences the
 # existing bowrain feature screencasts. terminal:desktop satisfies manifest
 # validation (no Claude prompt/script). brand+target route the published webm to
 # the bowrain-web docs video dir, which the landing hero reads.
-terminal: skrivebord
+terminal: desktop
 target: web
 brand: bowrain
 publishAs: bowrain-sizzle
 aspects:
-  - Delt editor
-  - Samarbeid i sanntid
-  - Terminologi
-  - Gjennomgang
-  - Kvalitetskontroller
+  - Shared editor
+  - Real-time collaboration
+  - Terminology
+  - Review
+  - Quality checks
 narration: []
 artifacts: []

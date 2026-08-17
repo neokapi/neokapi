@@ -1,8 +1,8 @@
 id: s0-northsea-governance
 title: Styr innholdet du allerede har
 subtitle: "Ett repository, ett språk, tre flater — oppdaget, kontrollert, korrigert og konvergert, uten server og uten modell."
-tagline: "kontroller for prosa, slik tester fungerer for kode."
-kind: brukstilfelle
+tagline: checks for prose, the way tests work for code.
+kind: use-case
 publishAs: monolingual-governance
 # A scripted plain-shell demo: every command is deterministic, so it runs for
 # real and its output is recorded exactly. Nothing here reaches a network.
@@ -20,10 +20,10 @@ fixturesFrom: samples/northsea
 project: true
 captureTimeoutSec: 180
 aspects:
-  - ett språk
-  - tre flater
-  - frakoblede porter
-  - "beslutninger, ikke redigeringer"
+  - one language
+  - three surfaces
+  - offline gates
+  - decisions, not edits
 
 # The sample ships the context graph as the assistant drafted it — untracked,
 # next to content that is already committed. That is the state a review starts
@@ -37,70 +37,70 @@ setup:
 
 script:
   # --- 1. Discover: the graph arrives as files you review -------------------
-  - comment: "Et bedriftsrepository. Operatørdokumentasjon, grensesnittstrenger, én markedsføringsside. Ett språk."
+  - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
   - command: ls
-  - comment: "En assistent leste alle tre overflatene og foreslo en kontekstgraf. Det er filer i repoet – usporing, venter på deg."
+  - comment: An assistant read all three surfaces and proposed a context graph. It is files, in the repo — untracked, waiting for you.
   - command: git status --short
-  - comment: "Oppskriften knytter hver flate til et punkt — produktet, og deretter kanalen det leveres på."
+  - comment: The recipe binds each surface to a point — the product, then the channel it ships on.
   - command: cat kapi.yaml
-  - comment: Merkevarestemme-profilen den utarbeidet er skjemavalid.
+  - comment: The voice profile it drafted is schema-valid.
   - command: kapi voice validate .kapi/voice.yaml
-  - comment: "Du korrigerte et utkast i stedet for å skrive ett. Committ det, og grafen er versjonert, sammenlignbar, gjennomgått kilde."
+  - comment: You corrected a draft instead of writing one. Commit it, and the graph is versioned, diffable, reviewed source.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
-  - comment: "Ett verb forener den committede grafen og kildene. Ingen målspråk, ingen leverandør, ingenting å spørre om."
+  - comment: One verb reconciles the committed graph and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
 
   # --- 2. Ask where you are ------------------------------------------------
-  - comment: "Det første spørsmålet en agent stiller. Hvor er jeg, og hva styrer her?"
+  - comment: The first question an agent asks. Where am I, and what governs here?
   - command: kapi context docs/berths.md | head -6
-  - comment: "Det samme spørsmålet, tre kataloger unna — et annet poeng, et annet register."
+  - comment: The same question, three directories away — a different point, a different register.
   - command: kapi context landing/index.html | head -6
-  - comment: "Det andre spørsmålet. Hva kaller vi dette, og hvorfor?"
+  - comment: The second question. What do we call this, and why?
   - command: kapi context search mooring
 
   # --- 3. Checks are tests for prose ---------------------------------------
-  - comment: Kjør nå portene slik du kjører tester.
+  - comment: Now run the gates the way you run tests.
   # The gate must fail here: one major finding is the substance of this beat.
   - command: kapi check --strict
     expectExit: 3
-  - comment: "Den samme kjøringen, i formen CI leser."
+  - comment: The same run, in the shape CI reads.
   - command: kapi check --json --no-fail > findings.json
 
   # --- 4. Corrections teach the graph --------------------------------------
-  - comment: "Tre av disse er formuleringer kilden fikk feil, så korriger kilden."
+  - comment: Three of those are wording the source got wrong, so correct the source.
   - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
   - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
   - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
-  - comment: "Korrekturleseren oppdager også et ord grafen aldri har fått vite om — «dock», der Northsea sier berth. Det er en beslutning, ikke en redigering."
+  - comment: The reviewer also spots a word the graph has never been told about — "dock", where Northsea says berth. That is a decision, not an edit.
   - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
   - command: kapi apply decisions.jsonl
-  - comment: Grafen lærte. Den neste kontrollen finner det den forrige slapp gjennom.
+  - comment: The graph learned. The next check finds what the last one passed.
   # And again here: a decision that changed nothing would be no decision at all.
   - command: kapi check --strict
     expectExit: 3
   - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
 
   # --- 5. Converge ---------------------------------------------------------
-  - comment: "Konverger, og les hvor du står."
+  - comment: Converge, and read where you stand.
   - command: kapi up
   - command: kapi status
-  - comment: "Grønt. Det som gjenstår er endringsloggen og API-referansen som beholder et navn vokabularet har pensjonert — rådgivende, aldri blokkerende."
+  - comment: Green. What is left is the changelog keeping a name the vocabulary retired — advisory, never blocking.
   - command: kapi check --strict
 
 artifacts:
   - id: landing
-    caption: "landing/index.html — flaten landing-kanalen styrer"
+    caption: "landing/index.html — the surface the landing channel governs"
     source: html
     path: landing/index.html
     width: 1200
     height: 900
   - id: findings
-    caption: "kapi check --json — regel, punkt og erstatning, per funn"
+    caption: "kapi check --json — rule, point and replacement, per finding"
     source: report
     report: json
     path: findings.json
     reportTitle: "kapi check --json"
-    reportSub: "hva CI leser ved hver pull request"
+    reportSub: "what CI reads on every pull request"
     width: 1200
     height: 900
 
@@ -109,7 +109,7 @@ narration:
     kind: title
     text: >
       Det meste av innholdsarbeid er ikke oversettelse. Det er et team, et repository og ett språk — og spørsmålet om det som nettopp ble skrevet fortsatt høres ut som selskapet. Dette er den reisen, fra start til slutt, uten server og uten modell noe sted i den.
-  - id: oppdag
+  - id: discover
     kind: terminal
     text: >
       Northsea selger programvare til havneoperatører. Repositoriet inneholder operatørdokumentasjon, tekststrengene i appen og en markedsføringsside. En assistent leste alle tre og foreslo en kontekstgraf — en oppskrift, en stemme­profil, et vokabular. Den ankommer som usporede filer, så det første som skjer med den, er gjennomgang.
@@ -149,13 +149,13 @@ narration:
     artifact: findings
     text: >
       Den samme kjøringen i maskinformat. Hvert funn bærer sin regel, filen og blokken det befinner seg i, og erstatningen — som er det en pull request-kontroll og en assistent begge leser.
-  - id: korriger
+  - id: correct
     kind: terminal
     text: >
       Tre av disse er rett og slett feil ordbruk, så kilden rettes. Den fjerde er annerledes. En gjennomleser legger merke til ordet dock på landingssiden — Northsea sier berth — og grafen har aldri blitt fortalt det. Det er en beslutning, ikke en redigering, så det skrives ned som nettopp det: én enkelt oppføring, i det vokabularet hele prosjektet leser.
     caption: "en korreksjon grafen beholder"
 
-  - id: lært
+  - id: learned
     kind: terminal
     text: >
       Kjør kontrollen på nytt og den finner det forrige kjøring godkjente. Én beslutning nådde både posten og porten. Fiks den siste, konverger, og prosjektet er grønt — med ett språk, ingen server og ingen legitimasjon. Det som gjenstår er endringsloggen og API-referansen som beholder et navn vokabularet har pensjonert, som porten rapporterer og aldri blokkerer.

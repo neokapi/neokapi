@@ -1,8 +1,8 @@
 id: 05-ai-checks-guardrail
 title: Sjekk AI-output slik du tester kode
 subtitle: En AI oversatte appen til tysk. kapi check leser oversettelsen mot kilden og rapporterer nøyaktig hva som ville gå galt i produksjon.
-tagline: "do-not-translate, plassholere og terminologi — deterministiske sjekker som stopper en dårlig oversettelse før den sendes ut."
-kind: brukstilfelle
+tagline: do-not-translate, placeholders and terminology — deterministic checks that gate a bad translation before it ships.
+kind: use-case
 publishAs: kapi-checks-guardrail
 # A scripted plain-shell demo (no Claude): the checks are deterministic, so the
 # commands run for real and their output is recorded exactly.
@@ -12,22 +12,22 @@ cwd: ~/checkout
 needsAi: false
 captureTimeoutSec: 120
 aspects:
-  - sjekker som tester
+  - checks as tests
   - do-not-translate
-  - plassholder-integritet
-  - port i CI
+  - placeholder integrity
+  - gate in CI
 
 # --no-fail keeps the demo's exit code clean while still printing the FAIL
 # verdict and the findings; with the gate on (no --no-fail) the same check exits
 # non-zero and blocks a merge.
 script:
-  - comment: En AI oversatte app.json til tysk. Er det trygt å sende ut?
+  - comment: An AI translated app.json into German. Is it safe to ship?
   - command: cat app.de.json
-  - comment: Sjekk oversettelsen mot kilden — som å kjøre tester.
+  - comment: Check the translation against the source — like running tests.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
-  - comment: To reelle feil — en manglende plassholder og et oversatt produktnavn. Bruk rettelsene.
+  - comment: Two real breakages — a dropped placeholder and a translated product name. Apply the fixes.
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
-  - comment: Kjør den samme sjekken igjen.
+  - comment: Run the same check again.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
 
 narration:
