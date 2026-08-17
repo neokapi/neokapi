@@ -206,7 +206,7 @@ or pinned — retirement is signalled in two places:
 - **A compiled-in tombstone** (`cli/pluginhost/tombstones.go`) is the
   offline-authoritative source. It records the plugin name, the kapi version that
   retired it, the reason, and the replacement. Its mere presence in a build is the
-  version gate: an older kapi simply has no entry. This is what makes retirement
+  version gate: an older kapi has no entry. This is what makes retirement
   trustworthy with no network and with the binary still installed.
 - **A registry `deprecated` field** on the plugin entry is the faster,
   reversible, network-side signal. It lets the registry refuse new installs and

@@ -107,7 +107,7 @@ draws on the one-time 200K trial credits every workspace receives at creation.
 The Pro monthly allowance starts with a paid subscription.
 
 The trial is card-free and has no Stripe subscription behind it, so nothing
-charges you when it ends — the workspace simply moves to the Free plan, which
+charges you when it ends — the workspace moves to the Free plan, which
 is free forever, keeps whatever trial credits remain, and retains full access
 to the translation editor. To stay on Pro (or move to Team), subscribe before
 or after the trial ends.

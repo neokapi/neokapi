@@ -437,7 +437,7 @@ them into structure:
   [M-02: Segmentation](../multilingual/m-02-segmentation.md).
 - **It is reversible by construction.** Desegmentation is "drop the overlay."
   There is no inverse operation to get wrong and no inter-segment material to
-  lose: the gaps between segment spans are simply runs that no span covers.
+  lose: the gaps between segment spans are runs that no span covers.
 - **It is uniform.** Terms, entities, and findings are the same kind of overlay,
   anchored the same run-aware way, rather than each re-detecting boundaries at
   render time.

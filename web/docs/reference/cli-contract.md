@@ -217,6 +217,6 @@ Three properties of a built-in tool's registration are asserted over the populat
 - **A bilingual tool's target locale comes from the run.** `--target-lang` outranks any locale written into a step's config, so one flow serves every locale it is run for. A factory that pins a locale leaves the tool processing content the run never asked for, and reporting success.
 - **A CLI-visible tool that rewrites content declares `writesOutput`.** `kapi exec` grows `-o` / `--output-dir` only for tools that do; without it an exec run rewrites the content in memory, exits 0, and writes nothing.
 
-Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` — never expressed by omitting a config factory, which would make a tool that was simply forgotten indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.
+Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` — never expressed by omitting a config factory, which would make a forgotten tool indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.
 
 Step config keys are the config struct's JSON names, which are **camelCase** (`normalizeSpaces`, `flagExtra`, `textUnitIDs`). Application is a `json.Unmarshal`, so an unrecognized key — a snake_case spelling, or a field the tool does not have — is silently ignored.

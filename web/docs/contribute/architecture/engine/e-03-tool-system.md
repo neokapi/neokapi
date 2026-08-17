@@ -331,7 +331,7 @@ const (
 
 Most side-effect declarations are informational metadata for the flow editor and
 the documentation. They are not enforced at runtime — a tool declaring a memory
-write still runs normally with no content memory configured; it simply skips the
+write still runs normally with no content memory configured; it skips the
 write. This keeps the tool interface simple while giving the UI enough
 information to warn meaningfully. The one exception is `RemoteSourceEgress`: the
 transformer placement pass keys a hard build error off it, and a tool whose

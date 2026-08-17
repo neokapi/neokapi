@@ -23,9 +23,9 @@ from a registry that mirrors the model-provider registries
 ([E-07](../engine/e-07-model-providers.md)). The framework ships rule and
 Unicode-baseline engines; the AI tools contribute a chunker; a plugin
 contributes an ML segmenter declared in its manifest and driven over the plugin
-daemon transport. An engine that is not linked into a given binary is simply
-absent, and selecting it reports an actionable error rather than failing a
-build.
+daemon transport. An engine that is not linked into a given binary is absent
+from the registry, and selecting it reports an actionable error rather than
+failing a build.
 
 ## A segment is an overlay
 

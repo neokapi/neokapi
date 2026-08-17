@@ -88,7 +88,7 @@ its own validator, `term-check`. The full set is in the
 
 Where rule-based checks catch the mechanical errors, running `qa` with an LLM
 `--provider` uses that [LLM provider](/framework/translation) to assess
-qualities a rule cannot easily express — fluency, accuracy against the source,
+qualities a rule expresses poorly — fluency, accuracy against the source,
 and terminology appropriateness — and attaches its assessment to each block. It
 is the natural companion to `translate`: the built-in `translate-qa` flow runs
 translation and then this review in one pass.

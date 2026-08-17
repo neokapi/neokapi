@@ -100,7 +100,7 @@ neokapi-i18n compile i18n --out public/translations --review
 
 ## Reviewers without a checkout
 
-Review talks to an endpoint, and the local one — reading and writing the `.kbf.json` files in your repository — is simply the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
+Review talks to an endpoint, and the local one — reading and writing the `.kbf.json` files in your repository — is the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
 
 ```ts
 initKapiReview({ endpoint: "https://staging.example.com/review" });

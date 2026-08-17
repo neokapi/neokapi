@@ -136,7 +136,7 @@ Presence is table-level. A `store.db` whose terms tables are empty behaves
 exactly as though there were no terms store at all: on a fresh checkout the
 terminology gate reads the committed `.terms.json` directly, `kapi up --plan`
 never creates state, and `kapi pack` carries only the parts that hold
-something. Nothing is conjured into existence by the file simply being there.
+something. The file's presence conjures nothing into existence.
 
 In the browser, the same model runs without SQLite: the memory and terms
 backends are in-memory, blocks are keyed by path in memory, and the working set

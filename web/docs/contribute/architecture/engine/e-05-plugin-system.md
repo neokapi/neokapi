@@ -284,8 +284,8 @@ to a plugin, no installed plugin routes it, and the recipe declares that plugin'
 key, kapi explains the situation and offers the install — prompting on a
 terminal, installing under `--yes`, then running the verb the user typed. In CI,
 behind a pipe, or under `--quiet` it prints both install routes (`kapi plugin
-install <name>` and the Homebrew formula) and exits `ExitUsage`. A verb that is
-simply mistyped keeps cobra's error and its suggestions.
+install <name>` and the Homebrew formula) and exits `ExitUsage`. A mistyped verb
+that no plugin claims keeps cobra's error and its suggestions.
 
 Deciding this needs one thing kapi cannot read from a manifest it does not have:
 which verbs the plugin provides. A compiled-in `host.PluginHint` table carries

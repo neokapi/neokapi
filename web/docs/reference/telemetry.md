@@ -48,7 +48,7 @@ machine the first time telemetry is eligible to run, stored under the
 user config directory (`~/.config/kapi` on Linux,
 `~/Library/Application Support/kapi` on macOS). `kapi config path` prints the
 resolved location. It encodes nothing — not the hostname, not the username, not
-any hardware identifier — and deleting it simply causes a new random one to be
+any hardware identifier — and deleting it causes a new random one to be
 generated.
 
 `kapi telemetry status` prints the current state, the reason when disabled,
