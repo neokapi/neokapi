@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // EdgeReader and NodeFinder are the read surface these queries traverse — narrow
@@ -169,6 +170,8 @@ type ConceptUse struct {
 	Locale      string `json:"locale,omitempty"`
 	Term        string `json:"term,omitempty"`
 	TermLocale  string `json:"term_locale,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
 	Occurrences int    `json:"occurrences"`
 }
 
@@ -178,8 +181,12 @@ type ConceptUse struct {
 // the whole of "how does the concept stand here": a project using the preferred
 // term and a project using the deprecated one both use the concept.
 type TermUse struct {
-	Term        string `json:"term"`
-	TermLocale  string `json:"term_locale,omitempty"`
+	Term       string `json:"term"`
+	TermLocale string `json:"term_locale,omitempty"`
+	// Status is the term's lifecycle status as the edge recorded it, resolved
+	// under the window the answer was asked at.
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
 	Blocks      int    `json:"blocks"`
 	Occurrences int    `json:"occurrences"`
 }
@@ -191,10 +198,17 @@ type TermUse struct {
 // words, off the same two hops — the counts a reader wants are already on the
 // edges that walk crosses, so asking for them costs nothing extra.
 type ProjectUse struct {
-	Scope       Scope        `json:"scope"`
-	Blocks      int          `json:"blocks"`
-	Occurrences int          `json:"occurrences"`
-	Collections []string     `json:"collections,omitempty"`
+	Scope       Scope    `json:"scope"`
+	Blocks      int      `json:"blocks"`
+	Occurrences int      `json:"occurrences"`
+	Collections []string `json:"collections,omitempty"`
+	// Status and Discouraged are how the concept stands HERE: a project that
+	// reached for a discouraged spelling is discouraged in this project, whatever
+	// the workspace list says about the concept in general. Where the project
+	// used several spellings, the discouraged one decides — a rule a writer is
+	// breaking outranks a word they may keep using.
+	Status      string       `json:"status,omitempty"`
+	Discouraged bool         `json:"discouraged,omitempty"`
 	Terms       []TermUse    `json:"terms,omitempty"`
 	Uses        []ConceptUse `json:"uses,omitempty"`
 }
@@ -284,11 +298,18 @@ func (a *projectUseAggregator) add(block NodeID, e *graph.Edge) {
 	}
 
 	term := e.Properties[PropTerm]
+	status := e.Properties[PropTermStatus]
+	discouraged := model.TermStatus(status).Discouraged()
 	if term != "" {
 		key := term + "\x00" + e.Properties[PropTermLocale]
 		tu, seen := a.terms[project][key]
 		if !seen {
-			tu = &TermUse{Term: term, TermLocale: e.Properties[PropTermLocale]}
+			tu = &TermUse{
+				Term:        term,
+				TermLocale:  e.Properties[PropTermLocale],
+				Status:      status,
+				Discouraged: discouraged,
+			}
 			a.terms[project][key] = tu
 			a.termBlocks[project][key] = map[string]bool{}
 		}
@@ -308,6 +329,8 @@ func (a *projectUseAggregator) add(block NodeID, e *graph.Edge) {
 		Locale:      e.Properties[PropLocale],
 		Term:        term,
 		TermLocale:  e.Properties[PropTermLocale],
+		Status:      status,
+		Discouraged: discouraged,
 		Occurrences: count,
 	})
 }
@@ -330,10 +353,39 @@ func (a *projectUseAggregator) rollup() []ProjectUse {
 		})
 		sort.Strings(row.Collections)
 		sort.Slice(row.Uses, func(i, j int) bool { return lessUse(row.Uses[i], row.Uses[j]) })
+		row.Status, row.Discouraged = standing(row.Terms)
 		out = append(out, *row)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Scope.Key() < out[j].Scope.Key() })
 	return out
+}
+
+// standing reduces the terms one project used to how the concept stands there.
+//
+// A discouraged spelling decides, because that is the finding a writer has to
+// act on: a project using both "sign in" and "log in" is a project still saying
+// "log in". Where nothing is discouraged and every spelling agrees, that shared
+// status is the standing; where they disagree, the project has no single
+// standing and says so by leaving it empty rather than picking one.
+func standing(uses []TermUse) (status string, discouraged bool) {
+	for _, u := range uses {
+		if u.Discouraged {
+			return u.Status, true
+		}
+	}
+	for _, u := range uses {
+		if u.Status == "" {
+			continue
+		}
+		if status == "" {
+			status = u.Status
+			continue
+		}
+		if status != u.Status {
+			return "", false
+		}
+	}
+	return status, false
 }
 
 func lessUse(a, b ConceptUse) bool {

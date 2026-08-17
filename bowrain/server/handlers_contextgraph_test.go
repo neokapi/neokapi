@@ -17,6 +17,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	fwterms "github.com/neokapi/neokapi/terms"
@@ -234,6 +235,118 @@ func TestConceptProjectsDegradesToAPartial(t *testing.T) {
 	assert.Equal(t, "scan", got.Source)
 	assert.True(t, got.Partial, "the answer says it is a floor")
 	assert.NotEmpty(t, got.PartialReason)
+}
+
+// TestConceptProjectsSaysHowTheConceptStandsHere is the other half of the
+// cross-project question: naming the projects is not an answer on its own, and
+// the pane has to be able to say the concept is discouraged in one of them.
+//
+// The same concept, the same block, two instants: before the deprecation the
+// project is using an ordinary word, after it the project is breaking a rule.
+// A workspace-global status could not tell those apart, which is exactly what
+// made "is it discouraged here" unanswerable at this reach.
+func TestConceptProjectsSaysHowTheConceptStandsHere(t *testing.T) {
+	h := newContextGraphHarness(t)
+	ctx := t.Context()
+
+	deprecatedFrom := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, h.terms.AddConcept(ctx, fwterms.Concept{
+		ID: "c-signin", Domain: "product",
+		Terms: []fwterms.Term{
+			{Text: "sign in", Locale: "en", Status: model.TermPreferred},
+			{
+				Text: "log in", Locale: "en", Status: model.TermDeprecated,
+				Validity: &coreg.Validity{ValidFrom: &deprecatedFrom},
+			},
+		},
+	}))
+
+	proj := h.seedProject(t, ctx, "docs-site", "docs",
+		"Sign in to continue. You can also log in from the app, or log in on the web.")
+	h.materialize(t, ctx, proj)
+
+	early := h.ask(t, "/?at=2026-01-01T00:00:00Z", "c-signin")
+	require.Len(t, early.Projects, 1)
+	assert.False(t, early.Projects[0].Discouraged,
+		"before the window opens the deprecated spelling is not in force here")
+	assert.Equal(t, string(model.TermPreferred), early.Projects[0].Status)
+	assert.Empty(t, early.Projects[0].Replacement)
+	require.Len(t, early.Projects[0].Terms, 1)
+	assert.Equal(t, "sign in", early.Projects[0].Terms[0].Term)
+
+	late := h.ask(t, "/?at=2026-07-01T00:00:00Z", "c-signin")
+	require.Len(t, late.Projects, 1)
+	assert.True(t, late.Projects[0].Discouraged,
+		"after it opens the same block is a block still saying the discouraged word")
+	assert.Equal(t, string(model.TermDeprecated), late.Projects[0].Status)
+	assert.Equal(t, "sign in", late.Projects[0].Replacement,
+		"the answer says what to reach for instead")
+
+	byTerm := map[string]ConceptTermUseResponse{}
+	for _, term := range late.Projects[0].Terms {
+		byTerm[term.Term] = term
+	}
+	require.Len(t, byTerm, 2, "two spellings of one concept are two uses, not one")
+	assert.True(t, byTerm["log in"].Discouraged)
+	assert.Equal(t, 2, byTerm["log in"].Occurrences)
+	assert.False(t, byTerm["sign in"].Discouraged)
+
+	discouragedUses := 0
+	for _, use := range late.Uses {
+		if use.Discouraged {
+			discouragedUses++
+		}
+	}
+	assert.Positive(t, discouragedUses, "a use names the standing of the term it used")
+}
+
+// TestListConceptsResolvesTheWindowAtAnInstant pins the governance half: the
+// concept list answered the same however the reader stood, because it never
+// applied a term's own validity. With ?at= it answers at a point.
+func TestListConceptsResolvesTheWindowAtAnInstant(t *testing.T) {
+	h := newKGHarness(t)
+	ctx := t.Context()
+	deprecatedFrom := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, h.tb(t).AddConcept(ctx, fwterms.Concept{
+		ID: "c-signin",
+		Terms: []fwterms.Term{
+			{Text: "sign in", Locale: "en", Status: model.TermPreferred},
+			{
+				Text: "log in", Locale: "en", Status: model.TermDeprecated,
+				Validity: &coreg.Validity{ValidFrom: &deprecatedFrom},
+			},
+		},
+	}))
+
+	list := func(target string) TermSearchResponse {
+		t.Helper()
+		c, rec := h.req(http.MethodGet, target, "", platauth.PermViewContent)
+		require.NoError(t, h.srv.HandleListConcepts(c))
+		require.Equal(t, http.StatusOK, rec.Code)
+		var got TermSearchResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+		return got
+	}
+
+	declared := list("/concepts")
+	require.Len(t, declared.Concepts, 1)
+	assert.Len(t, declared.Concepts[0].Terms, 2, "with no instant the answer is as declared")
+
+	early := list("/concepts?at=2026-01-01T00:00:00Z")
+	require.Len(t, early.Concepts, 1)
+	require.Len(t, early.Concepts[0].Terms, 1, "a term whose window has not opened is not in force")
+	assert.Equal(t, "sign in", early.Concepts[0].Terms[0].Text)
+
+	late := list("/concepts?at=2026-07-01T00:00:00Z")
+	require.Len(t, late.Concepts, 1)
+	assert.Len(t, late.Concepts[0].Terms, 2)
+
+	bad := func() *httptest.ResponseRecorder {
+		c, rec := h.req(http.MethodGet, "/concepts?at=whenever", "", platauth.PermViewContent)
+		require.NoError(t, h.srv.HandleListConcepts(c))
+		return rec
+	}()
+	assert.Equal(t, http.StatusBadRequest, bad.Code, "an instant that cannot be read is refused")
 }
 
 // TestConceptProjectsRejectsAnUnreadableInstant keeps the temporal parameter

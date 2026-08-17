@@ -12,6 +12,19 @@ const (
 	TermForbidden  TermStatus = "forbidden"  // never use this term
 )
 
+// Discouraged answers "may I use this word?" from a term's status, so a caller
+// does not need the status vocabulary to act on the result. It is the one
+// definition: a surface that decided for itself which statuses count would
+// eventually disagree with the gate that enforces them.
+func (s TermStatus) Discouraged() bool {
+	switch s {
+	case TermForbidden, TermDeprecated:
+		return true
+	default:
+		return false
+	}
+}
+
 // MatchStrategy indicates how a term was matched during lookup.
 type MatchStrategy string
 

@@ -508,7 +508,7 @@ func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 				Status:      string(t.Status),
 				Definition:  c.Definition,
 				Domain:      c.Domain,
-				Discouraged: isDiscouraged(t.Status),
+				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
 				hit.Replacement = preferredTerm(c, t.Locale)

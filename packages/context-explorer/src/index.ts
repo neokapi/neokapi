@@ -68,6 +68,7 @@ export type {
   OccurrenceRow,
   PrecedentHit,
   ProfileWindow,
+  ProjectTermUse,
   ProjectUse,
   RelationSubject,
   RelationsAnswer,

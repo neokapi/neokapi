@@ -150,9 +150,13 @@ export function createRestContextSource(api: ApiAdapter, workspaceSlug: string):
     capabilities: WORKSPACE_CAPABILITIES,
 
     async governs(q: ScopedQuery): Promise<GovernanceAnswer> {
+      // The vocabulary is asked for AT AN INSTANT. Without one the workspace
+      // answers as-declared — every term it holds — which says whether a word is
+      // discouraged in general, not whether it is discouraged now.
+      const at = new Date().toISOString();
       const [profiles, concepts] = await Promise.all([
         api.listContextProfiles(workspaceSlug),
-        api.listConcepts(workspaceSlug, { limit: limitOf(q) }),
+        api.listConcepts(workspaceSlug, { limit: limitOf(q), at }),
       ]);
       const profile = profileFor(profiles.profiles, q.scope);
       const notes: string[] = [];
@@ -298,6 +302,19 @@ export function createRestContextSource(api: ApiAdapter, workspaceSlug: string):
           blocks: p.blocks,
           occurrences: p.occurrences,
           collections: p.collections,
+          // How the concept stands in this project, resolved under the window
+          // the answer was asked at — not a workspace-global flag that reads
+          // the same wherever the reader is standing.
+          status: p.status,
+          discouraged: p.discouraged,
+          replacement: p.replacement,
+          terms: (p.terms ?? []).map((term) => ({
+            term: term.term,
+            locale: term.term_locale,
+            status: term.status,
+            discouraged: term.discouraged,
+            occurrences: term.occurrences,
+          })),
         })),
         // Blessings are the unit ledger's, which the review session owns.
         blessings: [],

@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextgraph"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // The read surface over the workspace context graph.
@@ -71,17 +72,28 @@ func (s *Server) scanBudget() time.Duration {
 type ConceptTermUseResponse struct {
 	Term        string `json:"term"`
 	TermLocale  string `json:"term_locale,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
 	Blocks      int    `json:"blocks"`
 	Occurrences int    `json:"occurrences"`
 }
 
-// ConceptProjectUseResponse is one project's share of a concept's use.
+// ConceptProjectUseResponse is one project's share of a concept's use, and how
+// the concept stands there.
 type ConceptProjectUseResponse struct {
-	ProjectID   string                   `json:"project_id"`
-	ProjectName string                   `json:"project_name,omitempty"`
-	Blocks      int                      `json:"blocks"`
-	Occurrences int                      `json:"occurrences"`
-	Collections []string                 `json:"collections,omitempty"`
+	ProjectID   string   `json:"project_id"`
+	ProjectName string   `json:"project_name,omitempty"`
+	Blocks      int      `json:"blocks"`
+	Occurrences int      `json:"occurrences"`
+	Collections []string `json:"collections,omitempty"`
+	// Status is the standing the project's own usage gives the concept, and
+	// Discouraged whether that standing is one a writer must act on.
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
+	// Replacement is what to say instead, when the project reached for a
+	// discouraged spelling: the concept's preferred term, resolved at the same
+	// instant, so a replacement whose own window has not opened is not offered.
+	Replacement string                   `json:"replacement,omitempty"`
 	Terms       []ConceptTermUseResponse `json:"terms,omitempty"`
 }
 
@@ -96,6 +108,8 @@ type ConceptUseResponse struct {
 	BlockID     string `json:"block_id,omitempty"`
 	Locale      string `json:"locale,omitempty"`
 	Term        string `json:"term,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
 	Occurrences int    `json:"occurrences"`
 	Text        string `json:"text,omitempty"`
 }
@@ -176,6 +190,8 @@ func (s *Server) HandleConceptProjects(c echo.Context) error {
 		Projects:  []ConceptProjectUseResponse{},
 		Uses:      []ConceptUseResponse{},
 	}
+	concept, _, _ := s.conceptFor(ctx, c.Param("ws"), conceptID)
+
 	var uses []contextgraph.ConceptUse
 	for _, p := range rollup {
 		// A project the workspace no longer holds leaves its subgraph behind
@@ -191,6 +207,9 @@ func (s *Server) HandleConceptProjects(c echo.Context) error {
 			Blocks:      p.Blocks,
 			Occurrences: p.Occurrences,
 			Collections: p.Collections,
+			Status:      p.Status,
+			Discouraged: p.Discouraged,
+			Replacement: replacementFor(concept, p, at),
 			Terms:       conceptTermUses(p.Terms),
 		})
 		res.Blocks += p.Blocks
@@ -321,6 +340,8 @@ func (s *Server) conceptUseRows(
 			BlockID:     u.BlockID,
 			Locale:      u.Locale,
 			Term:        u.Term,
+			Status:      u.Status,
+			Discouraged: u.Discouraged,
 			Occurrences: u.Occurrences,
 			Text:        s.blockWording(ctx, u),
 		})
@@ -379,22 +400,36 @@ func (s *Server) workspaceProjectNames(ctx context.Context, wsID string) (map[st
 	return names, nil
 }
 
-// conceptAnswerScope reads the instant and the validity tags the answer is
-// resolved at. Both default to now: a reader asking which projects use a
-// concept is asking about today unless they say otherwise.
+// conceptAnswerScope reads the point this answer is resolved at. The instant
+// defaults to now: a reader asking which projects use a concept is asking about
+// today unless they say otherwise.
 func conceptAnswerScope(c echo.Context) (coreg.Scope, error) {
-	at := coreg.Now()
-	if raw := strings.TrimSpace(c.QueryParam("at")); raw != "" {
+	at, err := validityScopeAt(c.QueryParam("at"), c.QueryParam("market"))
+	if err != nil {
+		return coreg.Scope{}, err
+	}
+	if at.At.IsZero() {
+		at.At = time.Now().UTC()
+	}
+	return at, nil
+}
+
+// validityScopeAt reads an instant and a market into the evaluation point a
+// validity window is matched against. An absent instant leaves the zero point,
+// which is the as-declared view: every window unapplied.
+func validityScopeAt(rawAt, market string) (coreg.Scope, error) {
+	var out coreg.Scope
+	if raw := strings.TrimSpace(rawAt); raw != "" {
 		parsed, err := time.Parse(time.RFC3339, raw)
 		if err != nil {
 			return coreg.Scope{}, errors.New("at must be an RFC 3339 instant")
 		}
-		at.At = parsed.UTC()
+		out.At = parsed.UTC()
 	}
-	if market := strings.TrimSpace(c.QueryParam("market")); market != "" {
-		at.Tags = map[string]string{validityMarketTag: market}
+	if m := strings.TrimSpace(market); m != "" {
+		out.Tags = map[string]string{validityMarketTag: m}
 	}
-	return at, nil
+	return out, nil
 }
 
 // validityMarketTag is the validity-tag key a market scopes a term by — the
@@ -407,9 +442,67 @@ func conceptTermUses(in []contextgraph.TermUse) []ConceptTermUseResponse {
 		out = append(out, ConceptTermUseResponse{
 			Term:        t.Term,
 			TermLocale:  t.TermLocale,
+			Status:      t.Status,
+			Discouraged: t.Discouraged,
 			Blocks:      t.Blocks,
 			Occurrences: t.Occurrences,
 		})
 	}
 	return out
+}
+
+// conceptFor reads the concept the answer is about from the workspace
+// terminology. The graph says how the concept STANDS in a project; the terms
+// store is what says what to reach for instead, so the two are read together
+// rather than one being asked to hold the other's job.
+func (s *Server) conceptFor(ctx context.Context, wsSlug, conceptID string) (terms.Concept, bool, error) {
+	if s.wsStores == nil {
+		return terms.Concept{}, false, nil
+	}
+	tb, err := s.wsStores.getTerms(wsSlug)
+	if err != nil {
+		return terms.Concept{}, false, err
+	}
+	return tb.GetConcept(ctx, conceptID)
+}
+
+// replacementFor answers "then what should it say" for a project that reached
+// for a discouraged spelling: the concept's preferred term in the language the
+// discouraged one was recorded in, resolved at the same instant.
+func replacementFor(c terms.Concept, p contextgraph.ProjectUse, at coreg.Scope) string {
+	if !p.Discouraged {
+		return ""
+	}
+	locale := model.LocaleID("")
+	for _, t := range p.Terms {
+		if t.Discouraged {
+			locale = model.LocaleID(t.TermLocale)
+			break
+		}
+	}
+	return preferredTermAt(c, locale, at)
+}
+
+// preferredTermAt is the concept's preferred spelling in force at an instant.
+//
+// It resolves the window as well as the status, because a preferred term whose
+// own window has not opened is not yet the answer to "say this instead", and
+// offering it would tell a writer to make a change that is itself out of force.
+func preferredTermAt(c terms.Concept, locale model.LocaleID, at coreg.Scope) string {
+	fallback := ""
+	for _, t := range c.Terms {
+		if locale != "" && t.Locale != locale {
+			continue
+		}
+		if !at.At.IsZero() && !t.Validity.Matches(at) {
+			continue
+		}
+		if t.Status == model.TermPreferred {
+			return t.Text
+		}
+		if fallback == "" && !t.Status.Discouraged() {
+			fallback = t.Text
+		}
+	}
+	return fallback
 }

@@ -77,7 +77,13 @@ func TestBulkUpsertIsIdempotent(t *testing.T) {
 
 	assert.Equal(t, first.CreatedAt, second.CreatedAt, "a re-projected node keeps when the graph first knew it")
 
+	want := 0
+	for _, n := range nodes {
+		if n.Label == contextgraph.NodeBlock {
+			want++
+		}
+	}
 	blocks, err := store.FindNodes(ctx, contextgraph.NodeBlock, nil)
 	require.NoError(t, err)
-	assert.Len(t, blocks, 3, "a second pass replaces rows rather than adding them")
+	assert.Len(t, blocks, want, "a second pass replaces rows rather than adding them")
 }

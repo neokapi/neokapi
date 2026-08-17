@@ -123,6 +123,11 @@ const (
 	PropConceptID  = "concept_id"
 	PropTerm       = "term"
 	PropTermLocale = "term_locale"
+	// PropTermStatus is the lifecycle status of the term the edge names — the
+	// half of "is it discouraged HERE" the graph can hold. The other half is the
+	// window, which rides as the edge's validity, so the same edge answers
+	// differently at two instants without being rewritten.
+	PropTermStatus = "term_status"
 	PropLocale     = "locale"
 	PropCount      = "count"
 

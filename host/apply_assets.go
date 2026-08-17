@@ -313,7 +313,7 @@ func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, bool
 	// end up declaring the same word twice. A term the entry itself declares
 	// preferred is not retired in favour of anything, so its replacement, if it
 	// named one, stays in the note rather than contradicting it.
-	if d.Replacement != "" && retiredStatus(d.Status) && indexOfTerm(concepts, d.Replacement, d.Locale) < 0 {
+	if d.Replacement != "" && d.Status.Discouraged() && indexOfTerm(concepts, d.Replacement, d.Locale) < 0 {
 		c.Terms = append(c.Terms, terms.Term{
 			Text:   d.Replacement,
 			Locale: d.Locale,
@@ -326,12 +326,6 @@ func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, bool
 		c.UpdatedAt = now
 	}
 	return concepts, changed
-}
-
-// retiredStatus reports whether a term with this status is one the vocabulary
-// gate reports and therefore one a replacement answers for.
-func retiredStatus(s model.TermStatus) bool {
-	return s == model.TermDeprecated || s == model.TermForbidden
 }
 
 // indexOfTerm returns the index of the concept declaring text in locale, or -1.

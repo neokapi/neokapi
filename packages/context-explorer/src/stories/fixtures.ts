@@ -140,12 +140,21 @@ const relationsAcrossWorkspace: RelationsAnswer = {
     },
   ],
   projects: [
+    // One project says the preferred word, the other still says the
+    // discouraged one — which is why the row carries a standing rather than the
+    // workspace carrying one flag for the concept.
     {
       project: "site",
       project_name: "Northsea site",
       stream: "main",
       occurrences: 42,
       collections: ["docs"],
+      status: "deprecated",
+      discouraged: true,
+      replacement: "sign in",
+      terms: [
+        { term: "log in", locale: "en", status: "deprecated", discouraged: true, occurrences: 42 },
+      ],
     },
     {
       project: "app",
@@ -153,6 +162,9 @@ const relationsAcrossWorkspace: RelationsAnswer = {
       stream: "main",
       occurrences: 7,
       collections: ["strings"],
+      status: "preferred",
+      discouraged: false,
+      terms: [{ term: "sign in", locale: "en", status: "preferred", occurrences: 7 }],
     },
   ],
 };

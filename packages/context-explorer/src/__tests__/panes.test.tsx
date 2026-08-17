@@ -205,6 +205,23 @@ describe("RelatesPane", () => {
     expect(screen.getAllByTestId("relates-project")).toHaveLength(2);
   });
 
+  // Naming a project is half an answer. The reader is deciding whether to act,
+  // and "which projects use this" without "and how it stands there" leaves them
+  // to guess — which is the guess a workspace-global flag was making for them.
+  it("says how the concept stands in each project it names", async () => {
+    mountFree(<RelatesPane subject={subject} />);
+    await waitFor(() => expect(screen.getByTestId("relates-projects")).toBeInTheDocument());
+
+    const rows = screen.getAllByTestId("relates-project");
+    expect(rows[0]).toHaveAttribute("data-discouraged", "true");
+    expect(rows[0]).toHaveTextContent("deprecated");
+    expect(rows[0]).toHaveTextContent("say sign in");
+    expect(rows[0]).toHaveTextContent("log in");
+
+    expect(rows[1]).not.toHaveAttribute("data-discouraged", "true");
+    expect(rows[1]).toHaveTextContent("preferred");
+  });
+
   it("marks a decision whose basis no longer matches", async () => {
     mountPinned(<RelatesPane subject={subject} />);
     await waitFor(() => expect(screen.getByTestId("relates-blessings")).toBeInTheDocument());

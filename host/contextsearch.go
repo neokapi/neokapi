@@ -716,7 +716,7 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 				Status:      string(t.Status),
 				Definition:  c.Definition,
 				Domain:      c.Domain,
-				Discouraged: isDiscouraged(t.Status),
+				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
 				hit.Replacement = preferredTerm(c, t.Locale)
@@ -746,17 +746,6 @@ func preferredTerm(c terms.Concept, locale model.LocaleID) string {
 		}
 	}
 	return ""
-}
-
-// isDiscouraged answers "may I use this word?" from a term's status, so a
-// caller does not need the status vocabulary to act on the result.
-func isDiscouraged(s model.TermStatus) bool {
-	switch s {
-	case model.TermForbidden, model.TermDeprecated:
-		return true
-	default:
-		return false
-	}
 }
 
 // precedentHits projects memory entries into approved wording. Each entry is

@@ -101,14 +101,31 @@ export function RelatesPane({ subject, limit, onOpenOccurrence, className }: Rel
                 {data.projects.map((p) => (
                   <li
                     key={`${p.project}:${p.stream ?? ""}`}
-                    className="flex items-center gap-2 py-1.5"
+                    className="flex flex-wrap items-center gap-2 py-1.5"
                     data-testid="relates-project"
+                    data-discouraged={p.discouraged}
                   >
                     <span className="font-medium">{p.project_name ?? p.project}</span>
                     {p.stream && (
                       <code className="font-mono text-[11px] text-muted-foreground">
                         @{p.stream}
                       </code>
+                    )}
+                    {/* How the concept stands HERE. The status is the project's
+                        own usage, not the workspace's opinion of the word. */}
+                    {p.status && (
+                      <Badge
+                        variant={p.discouraged ? "destructive" : "outline"}
+                        className="font-normal"
+                        data-testid="relates-project-status"
+                      >
+                        {p.discouraged && p.replacement
+                          ? t("{status} · say {replacement}", {
+                              status: p.status,
+                              replacement: p.replacement,
+                            })
+                          : p.status}
+                      </Badge>
                     )}
                     {p.collections && p.collections.length > 0 && (
                       <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
@@ -118,6 +135,20 @@ export function RelatesPane({ subject, limit, onOpenOccurrence, className }: Rel
                     {p.occurrences !== undefined && (
                       <span className="ml-auto text-xs tabular-nums text-muted-foreground">
                         {t("{count} uses", { count: p.occurrences })}
+                      </span>
+                    )}
+                    {p.terms && p.terms.length > 0 && (
+                      <span className="w-full text-xs text-muted-foreground">
+                        {p.terms
+                          .map((term) =>
+                            term.discouraged
+                              ? t("{term} ({status})", {
+                                  term: term.term,
+                                  status: term.status ?? "",
+                                })
+                              : term.term,
+                          )
+                          .join(", ")}
                       </span>
                     )}
                   </li>

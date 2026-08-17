@@ -148,7 +148,19 @@ function fakeApi(over: Partial<ApiAdapter> = {}): ApiAdapter {
           blocks: 10,
           occurrences: 42,
           collections: ["Docs"],
-          terms: [{ term: "log in", term_locale: "en-US", blocks: 10, occurrences: 42 }],
+          status: "deprecated",
+          discouraged: true,
+          replacement: "sign in",
+          terms: [
+            {
+              term: "log in",
+              term_locale: "en-US",
+              status: "deprecated",
+              discouraged: true,
+              blocks: 10,
+              occurrences: 42,
+            },
+          ],
         },
         {
           project_id: "p-app",
@@ -156,7 +168,17 @@ function fakeApi(over: Partial<ApiAdapter> = {}): ApiAdapter {
           blocks: 2,
           occurrences: 7,
           collections: [],
-          terms: [{ term: "sign in", term_locale: "en-US", blocks: 2, occurrences: 7 }],
+          status: "preferred",
+          discouraged: false,
+          terms: [
+            {
+              term: "sign in",
+              term_locale: "en-US",
+              status: "preferred",
+              blocks: 2,
+              occurrences: 7,
+            },
+          ],
         },
       ],
       uses: [
@@ -346,6 +368,31 @@ describe("createRestContextSource", () => {
       expect.objectContaining({ project: "p-app" }),
     );
     expect(answer.projects.map((p) => p.project)).toEqual(["p-app"]);
+  });
+
+  it("carries how the concept stands in each project it names", async () => {
+    const source = createRestContextSource(fakeApi(), WS);
+    const answer = await source.relates!(
+      { kind: "concept", id: "c-signin", label: "sign in" },
+      { scope: { workspace: WS } },
+    );
+    const byProject = Object.fromEntries(answer.projects.map((p) => [p.project, p]));
+    expect(byProject["p-site"].discouraged).toBe(true);
+    expect(byProject["p-site"].status).toBe("deprecated");
+    expect(byProject["p-site"].replacement).toBe("sign in");
+    expect(byProject["p-site"].terms?.[0].term).toBe("log in");
+    expect(byProject["p-app"].discouraged).toBe(false);
+    expect(byProject["p-app"].status).toBe("preferred");
+  });
+
+  it("asks the workspace vocabulary at an instant, not as declared", async () => {
+    const api = fakeApi();
+    const source = createRestContextSource(api, WS);
+    await source.governs({ scope: { workspace: WS } });
+    expect(api.listConcepts).toHaveBeenCalledWith(
+      WS,
+      expect.objectContaining({ at: expect.any(String) }),
+    );
   });
 
   it("says a floor is a floor when the answer came back partial", async () => {

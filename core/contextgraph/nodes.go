@@ -108,6 +108,14 @@ type UsesTerm struct {
 	// necessarily how the matched text spells it: matching folds case.
 	Term       string
 	TermLocale string
+	// Status is the term's lifecycle status. A concept holds several spellings
+	// and a project reaches for one of them, so which term was used — and how
+	// that term stands — is what makes "is this discouraged here" answerable
+	// from the graph rather than only from a coordinate-blind concept list.
+	Status string
+	// Validity is the term's own window, carried so the answer resolves at an
+	// instant: a term deprecated from a date is not discouraged before it.
+	Validity *graph.Validity
 	// Locale is the language of the text the term was found in — empty for the
 	// block's own source text.
 	Locale     string
@@ -119,14 +127,18 @@ type UsesTerm struct {
 	Count int
 }
 
-// UsesTermEdge builds the block→concept edge. Locale is part of the identity —
-// an English term standing in a Norwegian target is a different finding from the
-// same term in the source — but the match position is not: repeated uses of one
-// term in one block fold onto one counted edge.
+// UsesTermEdge builds the block→concept edge. The term and the locale are both
+// identity — an English term standing in a Norwegian target is a different
+// finding from the same term in the source, and a block reaching for the
+// deprecated spelling of a concept is a different finding from one reaching for
+// the preferred spelling, which is exactly the difference a status answers. The
+// match position is not identity: repeated uses of one term in one block fold
+// onto one counted edge.
 func UsesTermEdge(s Scope, u UsesTerm) graph.Edge {
 	props := s.Properties()
 	putIf(props, PropTerm, u.Term)
 	putIf(props, PropTermLocale, u.TermLocale)
+	putIf(props, PropTermStatus, u.Status)
 	putIf(props, PropLocale, u.Locale)
 	putIf(props, PropCollection, u.Collection)
 	putIf(props, PropDocument, u.Document)
@@ -135,11 +147,12 @@ func UsesTermEdge(s Scope, u UsesTerm) graph.Edge {
 	source := BlockNodeID(s, u.ContentKey)
 	target := ConceptNodeID(s, u.ConceptID)
 	return graph.Edge{
-		ID:         EdgeID(EdgeUsesTerm, source, target, u.Locale),
+		ID:         EdgeID(EdgeUsesTerm, source, target, u.Locale, u.Term),
 		Source:     source,
 		Target:     target,
 		Label:      EdgeUsesTerm,
 		Properties: props,
+		Validity:   u.Validity,
 	}
 }
 

@@ -13,17 +13,30 @@
 export interface ConceptTermUse {
   term: string;
   term_locale?: string;
+  /** The term's lifecycle status, resolved under the window asked at. */
+  status?: string;
+  discouraged?: boolean;
   blocks: number;
   occurrences: number;
 }
 
-/** One project's share of a concept's use. */
+/**
+ * One project's share of a concept's use, and how the concept stands there.
+ *
+ * A concept holds several spellings and a project reaches for one of them, so
+ * "is it discouraged here" is answered by which spelling this project used —
+ * not by a workspace-global flag that reads the same wherever the reader is.
+ */
 export interface ConceptProjectUse {
   project_id: string;
   project_name?: string;
   blocks: number;
   occurrences: number;
   collections?: string[];
+  status?: string;
+  discouraged?: boolean;
+  /** What to say instead, when the project reached for a discouraged spelling. */
+  replacement?: string;
   terms?: ConceptTermUse[];
 }
 
@@ -37,6 +50,8 @@ export interface ConceptUseRow {
   block_id?: string;
   locale?: string;
   term?: string;
+  status?: string;
+  discouraged?: boolean;
   occurrences: number;
   text?: string;
 }

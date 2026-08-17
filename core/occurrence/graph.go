@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextgraph"
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // The context graph's first materialized relationship: which blocks use which
@@ -22,17 +23,33 @@ import (
 // which locale's text matched, at which position — is edge data, not node
 // identity, because the same content used in two places is one block.
 
+// Standing is how a term stands: the status it carries and the window it
+// carries it in.
+//
+// It is deliberately not a field on Occurrence. A use is a fact about the text
+// — the word is there, at these offsets — while the standing is the terms
+// store's ruling about the word, which can change without a character of
+// content moving. The graph carries both because "which projects use this" and
+// "and should they" are one question at workspace reach, and BuildGraph joins
+// them at the one place it has both to hand.
+type Standing struct {
+	Status   string
+	Validity *graph.Validity
+}
+
 // Edge is the graph relationship this occurrence contributes to: the block uses
-// the concept, in the occurrence's locale, within the given scope. Its id drops
-// the match position, so every use of one term in one block folds onto one
-// relationship — BuildGraph counts them into the edge's `count` property rather
-// than emitting an edge per position.
-func (o Occurrence) Edge(scope contextgraph.Scope) graph.Edge {
+// the concept, in this term, in the occurrence's locale, within the given scope.
+// Its id drops the match position, so every use of one term in one block folds
+// onto one relationship — BuildGraph counts them into the edge's `count`
+// property rather than emitting an edge per position.
+func (o Occurrence) Edge(scope contextgraph.Scope, standing Standing) graph.Edge {
 	return contextgraph.UsesTermEdge(scope, contextgraph.UsesTerm{
 		ContentKey: o.BlockHash,
 		ConceptID:  o.ConceptID,
 		Term:       o.Term,
 		TermLocale: o.TermLocale,
+		Status:     standing.Status,
+		Validity:   standing.Validity,
 		Locale:     o.Locale,
 		Collection: o.Collection,
 		Document:   o.Document,
@@ -81,8 +98,9 @@ func BuildGraph(ctx context.Context, src Sources, scope contextgraph.Scope) (*Gr
 			termHint = c.Terms[0].Text
 		}
 		agg.concept(c.ID, termHint)
+		standings := standingsOf(c)
 		for _, occ := range res.Occurrences {
-			agg.occurrence(occ)
+			agg.occurrence(occ, standings[termKey(occ.Term, occ.TermLocale)])
 		}
 	}
 	return agg.delta(), nil
@@ -112,7 +130,23 @@ func (g *graphAggregator) concept(id, termHint string) {
 	g.nodes[n.ID] = n
 }
 
-func (g *graphAggregator) occurrence(o Occurrence) {
+// standingsOf indexes a concept's terms by the (text, locale) pair an
+// occurrence names them with, so the edge for a use carries the ruling on the
+// exact spelling that was used rather than the concept's first one.
+func standingsOf(c terms.Concept) map[string]Standing {
+	out := make(map[string]Standing, len(c.Terms))
+	for _, t := range c.Terms {
+		out[termKey(t.Text, string(t.Locale))] = Standing{
+			Status:   string(t.Status),
+			Validity: t.Validity,
+		}
+	}
+	return out
+}
+
+func termKey(text, locale string) string { return text + "\x00" + locale }
+
+func (g *graphAggregator) occurrence(o Occurrence, standing Standing) {
 	blockID := contextgraph.BlockNodeID(g.scope, o.BlockHash)
 	if _, ok := g.nodes[blockID]; !ok {
 		g.nodes[blockID] = contextgraph.BlockNode(g.scope, contextgraph.Block{
@@ -124,7 +158,7 @@ func (g *graphAggregator) occurrence(o Occurrence) {
 	}
 	// The concept node already exists from BuildGraph's concept() call.
 
-	e := o.Edge(g.scope)
+	e := o.Edge(g.scope, standing)
 	g.usesCount[e.ID]++
 	if _, ok := g.usesEdges[e.ID]; !ok {
 		g.usesEdges[e.ID] = &e
