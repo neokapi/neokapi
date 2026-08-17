@@ -150,9 +150,13 @@ export function createRestContextSource(api: ApiAdapter, workspaceSlug: string):
     capabilities: WORKSPACE_CAPABILITIES,
 
     async governs(q: ScopedQuery): Promise<GovernanceAnswer> {
+      // The vocabulary is asked for AT AN INSTANT. Without one the workspace
+      // answers as-declared — every term it holds — which says whether a word is
+      // discouraged in general, not whether it is discouraged now.
+      const at = new Date().toISOString();
       const [profiles, concepts] = await Promise.all([
         api.listContextProfiles(workspaceSlug),
-        api.listConcepts(workspaceSlug, { limit: limitOf(q) }),
+        api.listConcepts(workspaceSlug, { limit: limitOf(q), at }),
       ]);
       const profile = profileFor(profiles.profiles, q.scope);
       const notes: string[] = [];
@@ -257,44 +261,64 @@ export function createRestContextSource(api: ApiAdapter, workspaceSlug: string):
           notes: ["the workspace answers relations for a concept"],
         };
       }
-      const usage = await api.getConceptBlastRadius(workspaceSlug, subject.id);
-      const projects = usage.projects ?? [];
-      const scoped = q.scope.project
-        ? projects.filter(
-            (p) => p.project_id === q.scope.project || p.project_name === q.scope.project,
-          )
-        : projects;
-      const projectName = new Map(projects.map((p) => [p.project_id, p.project_name]));
+      // Two hops through the workspace's own vocabulary node: the concept's
+      // uses, grouped by the project each use sits in. Projects relate by
+      // co-occurrence, never by an edge between them — and the graph the push
+      // wrote already holds those edges, so the question is a traversal rather
+      // than a scan over every block the workspace stores.
+      const usage = await api.getConceptProjects(workspaceSlug, subject.id, {
+        project: q.scope.project,
+        limit: limitOf(q),
+      });
+
+      const notes = [...(usage.notes ?? [])];
+      if (usage.partial) {
+        notes.push(
+          usage.partial_reason
+            ? `these numbers are a floor: ${usage.partial_reason}, so a project missing here was not reached`
+            : "these numbers are a floor, so a project missing here was not reached",
+        );
+      }
 
       return {
         subject,
-        // Two hops through the workspace's own vocabulary node: the concept's
-        // uses, grouped by the project each use sits in. Projects relate by
-        // co-occurrence, never by an edge between them.
         reach: "workspace",
-        occurrences: (usage.samples ?? []).map((sample) => ({
+        occurrences: (usage.uses ?? []).map((use) => ({
           concept_id: usage.concept_id,
-          term: subject.label ?? subject.id,
-          locale: sample.locale,
-          project: projectName.get(sample.project_id) ?? sample.project_id,
-          stream: sample.stream,
-          collection: sample.collection_name,
-          document: sample.item_name,
-          block_id: sample.block_id,
-          matched: subject.label ?? subject.id,
-          snippet: sample.text,
+          term: use.term ?? subject.label ?? subject.id,
+          locale: use.locale ?? "",
+          project: use.project_name ?? use.project_id,
+          stream: use.stream,
+          collection: use.collection,
+          document: use.document,
+          block_id: use.block_id,
+          matched: use.term ?? subject.label ?? subject.id,
+          snippet: use.text ?? "",
         })),
         occurrences_total: usage.occurrences,
-        projects: scoped.map((p) => ({
+        projects: (usage.projects ?? []).map((p) => ({
           project: p.project_id,
           project_name: p.project_name,
           blocks: p.blocks,
           occurrences: p.occurrences,
-          collections: p.collections.map((c) => c.collection_name),
+          collections: p.collections,
+          // How the concept stands in this project, resolved under the window
+          // the answer was asked at — not a workspace-global flag that reads
+          // the same wherever the reader is standing.
+          status: p.status,
+          discouraged: p.discouraged,
+          replacement: p.replacement,
+          terms: (p.terms ?? []).map((term) => ({
+            term: term.term,
+            locale: term.term_locale,
+            status: term.status,
+            discouraged: term.discouraged,
+            occurrences: term.occurrences,
+          })),
         })),
         // Blessings are the unit ledger's, which the review session owns.
         blessings: [],
-        notes: [],
+        notes,
       };
     },
 

@@ -833,6 +833,14 @@ export interface ListConceptsParams {
   offset?: number;
   limit?: number;
   /**
+   * The instant the answer is resolved at (RFC 3339). A term whose own validity
+   * window does not cover it drops out, and a concept left with no term in
+   * force drops with it. Absent leaves the as-declared view — every term the
+   * workspace holds — which answers "is this word discouraged" rather than "is
+   * it discouraged here".
+   */
+  at?: string;
+  /**
    * The one ordering the list accepts: most recently updated first. Absent
    * leaves the server's relevance ordering in force; any other value is a 400.
    */

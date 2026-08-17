@@ -30,6 +30,13 @@ func conceptPath(ws, conceptID string) string {
 	return conceptsPath(ws) + "/" + url.PathEscape(conceptID)
 }
 
+// contextConceptPath addresses a concept on the workspace context graph's read
+// surface, which is a different surface from the concept CRUD one: it answers
+// from the projection the push writes rather than from the terms store.
+func contextConceptPath(ws, conceptID string) string {
+	return "/api/v1/" + url.PathEscape(ws) + "/context/concepts/" + url.PathEscape(conceptID)
+}
+
 func marketsPath(ws string) string {
 	return "/api/v1/" + url.PathEscape(ws) + "/markets"
 }
@@ -210,6 +217,18 @@ func (a *App) DeleteConceptRelation(workspaceSlug, conceptID, relationID string)
 // GetConceptBlastRadius returns the where-used footprint of a concept.
 func (a *App) GetConceptBlastRadius(workspaceSlug, conceptID string) (json.RawMessage, error) {
 	return a.govRaw(http.MethodGet, conceptPath(workspaceSlug, conceptID)+"/blast-radius", nil)
+}
+
+// GetConceptProjects returns which projects use a concept, from the workspace
+// context graph — two hops out of one vocabulary node rather than a scan over
+// every stored block. query is the already-encoded narrowing (project, at,
+// market, limit), empty for the whole workspace at now.
+func (a *App) GetConceptProjects(workspaceSlug, conceptID, query string) (json.RawMessage, error) {
+	path := contextConceptPath(workspaceSlug, conceptID) + "/projects"
+	if query != "" {
+		path += "?" + query
+	}
+	return a.govRaw(http.MethodGet, path, nil)
 }
 
 // --- Observations ---

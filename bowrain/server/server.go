@@ -195,6 +195,11 @@ type Server struct {
 	// graphSyncer keeps the graph in sync with content events. Nil when graph is not configured.
 	graphSyncer *platgraph.GraphSyncer
 
+	// conceptScanBudget bounds the content walk the context-graph read falls
+	// back to when the graph holds no record of a concept. Zero uses
+	// defaultConceptScanBudget.
+	conceptScanBudget time.Duration
+
 	// AuditLogger persists all events to the audit_log table. Nil when not configured.
 	AuditLogger *event.AuditLogger
 
@@ -1639,6 +1644,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// project's slug.
 	g.GET("/context/channel-proposals", s.HandleListChannelAliasProposals)
 	g.POST("/context/channel-proposals/judge", s.HandleJudgeChannelAliasProposal)
+
+	// The read surface over the workspace context graph the push writes.
+	s.registerContextGraphRoutes(g)
 
 	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
 	g.GET("/brand-profiles", s.HandleListBrandProfiles)

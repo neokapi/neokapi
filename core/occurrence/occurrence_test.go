@@ -319,22 +319,34 @@ func TestOccurrenceEdge(t *testing.T) {
 		BlockHash: "k1_abc", BlockID: "guide.intro", Document: "docs/guide.md",
 		Collection: "docs", Locale: "", Start: 4, End: 18,
 	}
-	e := o.Edge(testScope)
+	e := o.Edge(testScope, Standing{Status: string(model.TermApproved)})
 	assert.Equal(t, "uses_term", e.Label)
 	assert.Equal(t, "block:/fixture/:k1_abc", e.Source, "edges key on the block's durable identity, qualified by scope")
 	assert.Equal(t, "concept://:c-memory", e.Target, "the concept is workspace vocabulary, not a project instance")
 	assert.Equal(t, "docs/guide.md", e.Properties["document"])
 	assert.Equal(t, "fixture", e.Properties["project"], "the scope tuple rides as properties too")
-	assert.Equal(t, o.Edge(testScope).ID, e.ID, "the id is deterministic")
+	assert.Equal(t, string(model.TermApproved), e.Properties["term_status"],
+		"the edge records how the term it names stands")
+	assert.Equal(t, o.Edge(testScope, Standing{}).ID, e.ID,
+		"the id is deterministic, and a ruling about the word does not re-key the use of it")
 
 	// The match position is not part of the identity: two uses of one term in one
 	// block are one relationship, counted, not two edges.
 	other := o
 	other.Start = 40
-	assert.Equal(t, e.ID, other.Edge(testScope).ID, "position does not split the relationship")
+	assert.Equal(t, e.ID, other.Edge(testScope, Standing{}).ID, "position does not split the relationship")
 
 	// Locale is: the same term in a different locale's text is a different edge.
 	nb := o
 	nb.Locale = "nb"
-	assert.NotEqual(t, e.ID, nb.Edge(testScope).ID, "locale is part of the relationship identity")
+	assert.NotEqual(t, e.ID, nb.Edge(testScope, Standing{}).ID, "locale is part of the relationship identity")
+
+	// So is the term. A block reaching for the deprecated spelling of a concept
+	// is a different finding from one reaching for the preferred spelling, and
+	// folding them onto one edge would leave the graph with a status it had to
+	// pick between.
+	sibling := o
+	sibling.Term = "content cache"
+	assert.NotEqual(t, e.ID, sibling.Edge(testScope, Standing{}).ID,
+		"two spellings of one concept in one block are two relationships")
 }

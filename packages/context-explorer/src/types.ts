@@ -179,7 +179,24 @@ export interface OccurrenceRow {
   stream?: string;
 }
 
-/** A project's share of a concept's use. */
+/** One of a concept's terms as one project uses it, and how it stands there. */
+export interface ProjectTermUse {
+  term: string;
+  locale?: string;
+  status?: string;
+  discouraged?: boolean;
+  occurrences?: number;
+}
+
+/**
+ * A project's share of a concept's use.
+ *
+ * Naming the projects is only half the answer. "Is it discouraged here" is a
+ * question about the concept AT A COORDINATE — the same word can be admitted on
+ * one surface and discouraged on another — so a project's row carries how the
+ * concept stands in that project rather than borrowing a workspace-global flag
+ * that is the same wherever the reader is standing.
+ */
 export interface ProjectUse {
   project: string;
   project_name?: string;
@@ -187,6 +204,14 @@ export interface ProjectUse {
   blocks?: number;
   occurrences?: number;
   collections?: string[];
+  /** The lifecycle status the project's own usage gives the concept. */
+  status?: string;
+  /** True when the project reached for a spelling a writer must stop using. */
+  discouraged?: boolean;
+  /** What to say instead, when it is discouraged here. */
+  replacement?: string;
+  /** The spellings this project reached for. */
+  terms?: ProjectTermUse[];
 }
 
 /** A decision that blessed a unit, and the source it cited. */

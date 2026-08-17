@@ -60,6 +60,57 @@ func TestEvaluateChangeSet_BudgetExhaustedReportsPartial(t *testing.T) {
 	assert.Equal(t, 50, full.AffectedBlocks)
 }
 
+// TestConceptUsage_BudgetExhaustedReportsPartial pins the same contract for the
+// where-used report. A pane asking "which projects use this concept" on a
+// workspace too large to finish scanning must degrade to a floor that says it is
+// one, never to an error: a question about the whole workspace is exactly the
+// question a large workspace cannot afford to refuse.
+func TestConceptUsage_BudgetExhaustedReportsPartial(t *testing.T) {
+	ctx := context.Background()
+
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, concept("c1", term("foobar", "en-US", model.TermAdmitted))))
+
+	bs := newFakeBlockSource()
+	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
+	var blocks []*venue.StoredBlock
+	for i := range 50 {
+		blocks = append(blocks, srcBlock(fmt.Sprintf("b%d", i), "guide.md", "en-US", "Please use foobar here"))
+	}
+	bs.addBlocks("proj1", "main", blocks...)
+
+	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+
+	usage, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{Budget: time.Nanosecond})
+	require.NoError(t, err, "an exhausted budget is a partial answer, not a failure")
+	require.NotNil(t, usage)
+	assert.True(t, usage.Partial, "the report must say it is a floor")
+	assert.NotEmpty(t, usage.PartialReason)
+	assert.Less(t, usage.TotalBlocks, 50, "the walk stopped early")
+
+	full, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{})
+	require.NoError(t, err)
+	assert.False(t, full.Partial, "a walk that finished never claims to be a floor")
+	assert.Equal(t, 50, full.Blocks)
+}
+
+// TestConceptUsage_CancelledContextIsAnError pins the other half: a caller that
+// has gone away stops the walk, and is never handed a floor it did not ask for.
+func TestConceptUsage_CancelledContextIsAnError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	bs := newFakeBlockSource()
+	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
+	bs.addBlocks("proj1", "main", srcBlock("b1", "guide.md", "en-US", "Anything at all"))
+
+	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	cancel()
+
+	usage, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, usage)
+}
+
 // TestEvaluateChangeSet_CancelledContextIsAnError pins the other half: a caller
 // that has gone away stops the walk, and is never told the workspace is clean.
 func TestEvaluateChangeSet_CancelledContextIsAnError(t *testing.T) {

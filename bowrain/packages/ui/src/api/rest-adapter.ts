@@ -207,6 +207,7 @@ import type {
   ChannelAliasProposalsResponse,
   ChannelProposalStatus,
 } from "../types/channel-proposals";
+import type { ConceptProjects, ConceptProjectsQuery } from "../types/context-graph";
 
 /**
  * Encode a value for use as a single URL path segment, preserving the colon.
@@ -3519,6 +3520,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (params?.source) q.set("source", params.source);
     if (params?.stream) q.set("stream", params.stream);
     if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.at) q.set("at", params.at);
     if (params?.sort) q.set("sort", params.sort);
     if (params?.offset !== undefined) q.set("offset", String(params.offset));
     if (params?.limit !== undefined) q.set("limit", String(params.limit));
@@ -3587,6 +3589,24 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage> {
     return this.fetchJSON(`${this.conceptEp(workspaceSlug, conceptId)}/blast-radius`);
+  }
+
+  async getConceptProjects(
+    workspaceSlug: string,
+    conceptId: string,
+    query: ConceptProjectsQuery = {},
+  ): Promise<ConceptProjects> {
+    const params = new URLSearchParams();
+    if (query.project) params.set("project", query.project);
+    if (query.at) params.set("at", query.at);
+    if (query.market) params.set("market", query.market);
+    if (query.limit) params.set("limit", String(query.limit));
+    const search = params.toString();
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/context/concepts/${encodeConceptSegment(conceptId)}/projects${
+        search ? `?${search}` : ""
+      }`,
+    );
   }
 
   async listObservations(workspaceSlug: string, conceptId: string): Promise<Observation[]> {

@@ -143,6 +143,26 @@ describe("RestApiAdapter — brand knowledge graph routes", () => {
     expect(lastRequest().url).toBe(`${BASE}/api/v1/acme/concepts/c1/blast-radius`);
   });
 
+  it("getConceptProjects reads the context graph, not the content scan", async () => {
+    await adapter.getConceptProjects("acme", "c1");
+    expect(lastRequest().url).toBe(`${BASE}/api/v1/acme/context/concepts/c1/projects`);
+  });
+
+  it("getConceptProjects carries the narrowing the caller asked for", async () => {
+    await adapter.getConceptProjects("acme", "c1", {
+      project: "p-app",
+      at: "2026-08-16T00:00:00Z",
+      market: "nordics",
+      limit: 10,
+    });
+    const { url } = lastRequest();
+    expect(url).toContain("/api/v1/acme/context/concepts/c1/projects?");
+    expect(url).toContain("project=p-app");
+    expect(url).toContain("market=nordics");
+    expect(url).toContain("limit=10");
+    expect(url).toContain("at=2026-08-16T00%3A00%3A00Z");
+  });
+
   it("addObservation POSTs to /observations", async () => {
     await adapter.addObservation("acme", "c1", {
       kind: "competitor",

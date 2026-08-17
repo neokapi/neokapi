@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextgraph"
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -83,13 +84,18 @@ func TestBuildGraphShape(t *testing.T) {
 
 			// h2 uses "content memory" twice (source), folded onto one counted edge.
 			var h2 *graph.Edge
+			want := contextgraph.UsesTermEdge(testScope, contextgraph.UsesTerm{
+				ContentKey: "h2", ConceptID: "c-memory", Term: "content memory",
+			}).ID
 			for i := range delta.Edges {
-				if delta.Edges[i].ID == contextgraph.UsesTermEdge(testScope, contextgraph.UsesTerm{ContentKey: "h2", ConceptID: "c-memory"}).ID {
+				if delta.Edges[i].ID == want {
 					h2 = &delta.Edges[i]
 				}
 			}
 			require.NotNil(t, h2, "the twice-using block has exactly one uses_term edge")
 			assert.Equal(t, "2", h2.Properties["count"], "repeat uses are counted, not multiplied into edges")
+			assert.Equal(t, string(model.TermApproved), h2.Properties[contextgraph.PropTermStatus],
+				"the edge records how the term it names stands")
 
 			// An unused concept contributes a node but no uses_term edge.
 			for _, e := range delta.Edges {

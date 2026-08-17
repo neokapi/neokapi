@@ -129,7 +129,7 @@ Edge labels:
 
 | Label | Relates | Carries |
 | --- | --- | --- |
-| `uses_term` | block → concept | the locale, the document, a use count |
+| `uses_term` | block → concept | the term used, its status, the locale, the document, a use count — and the term's own validity window |
 | `in_collection` | block → collection | membership |
 | `governed_by` | collection → coordinate | the governing profile's validity window |
 | `blesses` | unit state → block | the pairing the decision was written against: the target hash, and the source basis |
@@ -140,10 +140,21 @@ projection: each pass clears what it is entitled to and rebuilds it, so a delete
 of the store loses nothing the recipe, the terms, the blocks and the committed
 state cannot rebuild. Occurrence edges come from a term search over the block
 cache (`core/occurrence`), where repeated uses of one term in one block fold into
-a `count` property rather than into separate edges, and the locale is an edge
-discriminator; `governed_by` comes from resolving each named collection's
-governance; `blesses` joins the unit-state working set against the block cache,
-so a record whose block no longer exists keeps its node and loses its edge.
+a `count` property rather than into separate edges, and the term and the locale
+are the edge discriminators; `governed_by` comes from resolving each named
+collection's governance; `blesses` joins the unit-state working set against the
+block cache, so a record whose block no longer exists keeps its node and loses
+its edge.
+
+The term is a discriminator because a concept holds several spellings and a
+project reaches for one of them: a block still saying the deprecated word is a
+different finding from one saying the preferred word, and folding both onto one
+edge would leave the graph with a status to choose between. So the edge records
+the status of the term it names, and carries that term's own window — which is
+what makes *is this discouraged* answerable as *is it discouraged here*. The
+standing is a property of the concept at a coordinate, never of the word: the
+same block answers differently before and after a deprecation date, and inside
+the market a deprecation reaches versus outside it.
 
 The `governed_by` edge is where governance stops being re-derived. It carries the
 same half-open validity window the recipe declares
@@ -230,6 +241,7 @@ by convention:
 | --- | --- |
 | `Uses` | term → blocks → collection, by traversal |
 | `ProjectsUsingConcept` | which projects use this concept |
+| `UsesByProject` | how much of it sits in each, in which words, and how it stands there at this point |
 | `CollectionsAtCoordinate` | what is governed at this point, at this instant |
 | `BlessingsOfBlock` | which decision covers this unit, at which basis |
 | `BlocksWithContentKey` | who else holds this same wording |

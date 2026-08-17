@@ -234,6 +234,19 @@ type ConceptUsage struct {
 	Words       int            `json:"words"`        // source words of rows that contain the concept
 	Projects    []ProjectUsage `json:"projects"`
 	Samples     []BlockSample  `json:"samples"`
+
+	// Partial reports that the walk stopped before it had seen the whole
+	// workspace, so every count above is a floor and not a total.
+	//
+	// A where-used report is read as "these are the places this concept is
+	// used", and on a workspace too large to finish scanning that sentence is
+	// false in the one direction that matters: a project the walk never reached
+	// is ABSENT from Projects entirely, not listed with a low number. Saying so
+	// is what makes a floor usable — refusing to answer at all is not an answer,
+	// and answering silently short is worse than either.
+	Partial bool `json:"partial,omitempty"`
+	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
+	PartialReason string `json:"partial_reason,omitempty"`
 }
 
 // ProjectUsage is the per-project slice of a ConceptUsage.
@@ -635,13 +648,19 @@ func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string
 		})
 		return nil
 	})
-	if walkErr != nil {
-		// Concept usage has no partial shape to report into, so an exhausted
-		// budget is an error here rather than a silent floor.
+	if walkErr != nil && !errors.Is(walkErr, errBudgetExhausted) {
 		return nil, walkErr
 	}
 
-	return t.toUsage(conceptID), nil
+	usage := t.toUsage(conceptID)
+	if errors.Is(walkErr, errBudgetExhausted) {
+		usage.Partial = true
+		// The reason names the cause only; each consumer states the consequence
+		// in its own voice, so a reason that spelled it out too would read twice
+		// wherever it is embedded.
+		usage.PartialReason = "the scan reached this report's time budget before it had covered the workspace"
+	}
+	return usage, nil
 }
 
 // ---------------------------------------------------------------------------

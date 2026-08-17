@@ -645,6 +645,20 @@ export function GetConceptBlastRadius(workspaceSlug, conceptID) {
 }
 
 /**
+ * GetConceptProjects returns which projects use a concept, from the workspace
+ * context graph — two hops out of one vocabulary node rather than a scan over
+ * every stored block. query is the already-encoded narrowing (project, at,
+ * market, limit), empty for the whole workspace at now.
+ * @param {string} workspaceSlug
+ * @param {string} conceptID
+ * @param {string} query
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetConceptProjects(workspaceSlug, conceptID, query) {
+    return $Call.ByID(4138382154, workspaceSlug, conceptID, query);
+}
+
+/**
  * GetConceptStory returns a concept's merged chronological timeline.
  * @param {string} workspaceSlug
  * @param {string} conceptID

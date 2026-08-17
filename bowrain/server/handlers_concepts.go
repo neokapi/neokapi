@@ -155,6 +155,13 @@ const conceptSortUpdatedAt = "updated_at"
 // status, domain, market, locale, and source. The locale query param scopes the
 // text search to a source locale; stream inheritance is honored when a non-main
 // stream is given; sort=updated_at pages the workspace newest-changed first.
+//
+// ?at= resolves the page at an instant: a term whose own validity window does
+// not cover it drops out, and a concept left with no term in force drops with
+// it. Without it the answer is the as-declared view — every term the workspace
+// holds, window unapplied — which is a real question, but it is not "what
+// governs here now", and a reader who asked the second must not be handed the
+// first. ?market= narrows the same resolution to one validity tag.
 func (s *Server) HandleListConcepts(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -224,6 +231,17 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 			}
 		}
 		concepts = filtered
+	}
+
+	// The window is resolved last, over the page the facets left, because it is
+	// not a facet: it decides which of a concept's terms are in force at the
+	// point asked about rather than which concepts match a search.
+	if raw := strings.TrimSpace(c.QueryParam("at")); raw != "" {
+		at, atErr := validityScopeAt(raw, marketFilter)
+		if atErr != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: atErr.Error()})
+		}
+		concepts = conceptsInForce(concepts, at)
 	}
 
 	infos := make([]ConceptInfoResponse, len(concepts))
@@ -1163,6 +1181,32 @@ func conceptMatchesFacets(cp terms.Concept, status model.TermStatus, domain, mar
 	return true
 }
 
+// conceptsInForce keeps the terms whose own window covers the point, and drops
+// the concepts left with none.
+//
+// It is the workspace's spelling of what a project resolves locally: a term is
+// bound at a coordinate, not at a workspace, so a list that never applied the
+// window answered "is this word discouraged" when the question asked was "is it
+// discouraged HERE" — and those have different answers whenever a term carries
+// one.
+func conceptsInForce(in []terms.Concept, at graph.Scope) []terms.Concept {
+	out := make([]terms.Concept, 0, len(in))
+	for _, cp := range in {
+		kept := make([]terms.Term, 0, len(cp.Terms))
+		for _, t := range cp.Terms {
+			if t.Validity.Matches(at) {
+				kept = append(kept, t)
+			}
+		}
+		if len(kept) == 0 {
+			continue
+		}
+		cp.Terms = kept
+		out = append(out, cp)
+	}
+	return out
+}
+
 // conceptHasStatus reports whether any of a concept's terms carries the status.
 func conceptHasStatus(cp terms.Concept, status model.TermStatus) bool {
 	for _, t := range cp.Terms {
@@ -1177,7 +1221,7 @@ func conceptHasStatus(cp terms.Concept, status model.TermStatus) bool {
 // the named market.
 func conceptHasMarket(cp terms.Concept, market string) bool {
 	for _, t := range cp.Terms {
-		if t.Validity != nil && t.Validity.Tags["market"] == market {
+		if t.Validity != nil && t.Validity.Tags[validityMarketTag] == market {
 			return true
 		}
 	}

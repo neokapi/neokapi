@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // EdgeReader and NodeFinder are the read surface these queries traverse — narrow
@@ -151,6 +153,268 @@ func ProjectsUsingConcept(ctx context.Context, r EdgeReader, filter Scope, conce
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key() < out[j].Key() })
 	return out, nil
+}
+
+// ConceptUse is one recorded use of a concept: one block's text, in one
+// language, naming the term that was used and how often.
+//
+// It is what the uses_term edge holds, read back. The graph records the
+// relationship, not the passage — a reader who wants the words asks the content
+// store for the block this names.
+type ConceptUse struct {
+	Scope       Scope  `json:"scope"`
+	ContentKey  string `json:"content_key"`
+	Collection  string `json:"collection,omitempty"`
+	Document    string `json:"document,omitempty"`
+	BlockID     string `json:"block_id,omitempty"`
+	Locale      string `json:"locale,omitempty"`
+	Term        string `json:"term,omitempty"`
+	TermLocale  string `json:"term_locale,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
+	Occurrences int    `json:"occurrences"`
+}
+
+// TermUse is one of a concept's terms as one project actually uses it.
+//
+// A concept holds several spellings, and which of them a project reaches for is
+// the whole of "how does the concept stand here": a project using the preferred
+// term and a project using the deprecated one both use the concept.
+type TermUse struct {
+	Term       string `json:"term"`
+	TermLocale string `json:"term_locale,omitempty"`
+	// Status is the term's lifecycle status as the edge recorded it, resolved
+	// under the window the answer was asked at.
+	Status      string `json:"status,omitempty"`
+	Discouraged bool   `json:"discouraged,omitempty"`
+	Blocks      int    `json:"blocks"`
+	Occurrences int    `json:"occurrences"`
+}
+
+// ProjectUse is one project's share of a concept's use: how much of it sits
+// there, in which collections, and which of the concept's terms were used.
+//
+// ProjectsUsingConcept answers WHICH projects; this answers how much and which
+// words, off the same two hops — the counts a reader wants are already on the
+// edges that walk crosses, so asking for them costs nothing extra.
+type ProjectUse struct {
+	Scope       Scope    `json:"scope"`
+	Blocks      int      `json:"blocks"`
+	Occurrences int      `json:"occurrences"`
+	Collections []string `json:"collections,omitempty"`
+	// Status and Discouraged are how the concept stands HERE: a project that
+	// reached for a discouraged spelling is discouraged in this project, whatever
+	// the workspace list says about the concept in general. Where the project
+	// used several spellings, the discouraged one decides — a rule a writer is
+	// breaking outranks a word they may keep using.
+	Status      string       `json:"status,omitempty"`
+	Discouraged bool         `json:"discouraged,omitempty"`
+	Terms       []TermUse    `json:"terms,omitempty"`
+	Uses        []ConceptUse `json:"uses,omitempty"`
+}
+
+// UsesByProject answers the workspace question with its numbers attached: which
+// projects use this concept, how much, where, and in which words.
+//
+// It is ProjectsUsingConcept's traversal — in over the workspace-scoped concept
+// node's uses_term edges — reading each edge rather than only the project it
+// arrived from. The stream is dropped from the rollup for the same reason it is
+// dropped there (a project that uses a concept on one stream uses it) and kept
+// on each use, which names a place.
+//
+// at is the point the answer is resolved at — an instant, and the validity tags
+// that go with it — so a term whose window has not opened, or whose market this
+// is not, drops out of the project's answer. That is what makes "is it
+// discouraged" answerable as "is it discouraged HERE": the standing is a
+// property of the concept at a coordinate, never of the word. The zero instant
+// is the as-declared view: every use, window unapplied.
+func UsesByProject(ctx context.Context, r EdgeReader, filter Scope, conceptID string, at graph.Scope) ([]ProjectUse, error) {
+	if r == nil {
+		return nil, errors.New("contextgraph: no graph store")
+	}
+	conceptNode := ConceptNodeID(filter, conceptID)
+	usesEdges, err := r.EdgesOf(ctx, conceptNode, graph.Incoming, EdgeUsesTerm)
+	if err != nil {
+		return nil, fmt.Errorf("contextgraph: uses_term edges of %q: %w", conceptID, err)
+	}
+
+	agg := newProjectUseAggregator()
+	for _, e := range usesEdges {
+		parsed, ok := ParseNodeID(e.Source)
+		if !ok || parsed.Label != NodeBlock || !filter.Contains(parsed.Scope) {
+			continue
+		}
+		if !at.At.IsZero() && !e.Validity.Matches(at) {
+			continue
+		}
+		agg.add(parsed, e)
+	}
+	return agg.rollup(), nil
+}
+
+// projectUseAggregator folds uses_term edges into one row per project.
+type projectUseAggregator struct {
+	order   []Scope
+	byScope map[Scope]*ProjectUse
+	blocks  map[Scope]map[string]bool
+	colls   map[Scope]map[string]bool
+	terms   map[Scope]map[string]*TermUse
+	// termBlocks counts distinct blocks per term, which is not the number of
+	// uses: one block using a term four times is one block.
+	termBlocks map[Scope]map[string]map[string]bool
+}
+
+func newProjectUseAggregator() *projectUseAggregator {
+	return &projectUseAggregator{
+		byScope:    map[Scope]*ProjectUse{},
+		blocks:     map[Scope]map[string]bool{},
+		colls:      map[Scope]map[string]bool{},
+		terms:      map[Scope]map[string]*TermUse{},
+		termBlocks: map[Scope]map[string]map[string]bool{},
+	}
+}
+
+func (a *projectUseAggregator) add(block NodeID, e *graph.Edge) {
+	project := Scope{Workspace: block.Scope.Workspace, Project: block.Scope.Project}
+	row, ok := a.byScope[project]
+	if !ok {
+		row = &ProjectUse{Scope: project}
+		a.byScope[project] = row
+		a.order = append(a.order, project)
+		a.blocks[project] = map[string]bool{}
+		a.colls[project] = map[string]bool{}
+		a.terms[project] = map[string]*TermUse{}
+		a.termBlocks[project] = map[string]map[string]bool{}
+	}
+
+	count := edgeCount(e)
+	row.Occurrences += count
+	if !a.blocks[project][block.Local] {
+		a.blocks[project][block.Local] = true
+		row.Blocks++
+	}
+
+	collection := e.Properties[PropCollection]
+	if collection != "" && !a.colls[project][collection] {
+		a.colls[project][collection] = true
+		row.Collections = append(row.Collections, collection)
+	}
+
+	term := e.Properties[PropTerm]
+	status := e.Properties[PropTermStatus]
+	discouraged := model.TermStatus(status).Discouraged()
+	if term != "" {
+		key := term + "\x00" + e.Properties[PropTermLocale]
+		tu, seen := a.terms[project][key]
+		if !seen {
+			tu = &TermUse{
+				Term:        term,
+				TermLocale:  e.Properties[PropTermLocale],
+				Status:      status,
+				Discouraged: discouraged,
+			}
+			a.terms[project][key] = tu
+			a.termBlocks[project][key] = map[string]bool{}
+		}
+		tu.Occurrences += count
+		if !a.termBlocks[project][key][block.Local] {
+			a.termBlocks[project][key][block.Local] = true
+			tu.Blocks++
+		}
+	}
+
+	row.Uses = append(row.Uses, ConceptUse{
+		Scope:       block.Scope,
+		ContentKey:  block.Local,
+		Collection:  collection,
+		Document:    e.Properties[PropDocument],
+		BlockID:     e.Properties[PropBlockID],
+		Locale:      e.Properties[PropLocale],
+		Term:        term,
+		TermLocale:  e.Properties[PropTermLocale],
+		Status:      status,
+		Discouraged: discouraged,
+		Occurrences: count,
+	})
+}
+
+// rollup renders the aggregate in a stable order: an answer a reader compares
+// against yesterday's has to come back the same way twice.
+func (a *projectUseAggregator) rollup() []ProjectUse {
+	out := make([]ProjectUse, 0, len(a.order))
+	for _, project := range a.order {
+		row := a.byScope[project]
+		row.Terms = make([]TermUse, 0, len(a.terms[project]))
+		for _, tu := range a.terms[project] {
+			row.Terms = append(row.Terms, *tu)
+		}
+		sort.Slice(row.Terms, func(i, j int) bool {
+			if row.Terms[i].Term != row.Terms[j].Term {
+				return row.Terms[i].Term < row.Terms[j].Term
+			}
+			return row.Terms[i].TermLocale < row.Terms[j].TermLocale
+		})
+		sort.Strings(row.Collections)
+		sort.Slice(row.Uses, func(i, j int) bool { return lessUse(row.Uses[i], row.Uses[j]) })
+		row.Status, row.Discouraged = standing(row.Terms)
+		out = append(out, *row)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Scope.Key() < out[j].Scope.Key() })
+	return out
+}
+
+// standing reduces the terms one project used to how the concept stands there.
+//
+// A discouraged spelling decides, because that is the finding a writer has to
+// act on: a project using both "sign in" and "log in" is a project still saying
+// "log in". Where nothing is discouraged and every spelling agrees, that shared
+// status is the standing; where they disagree, the project has no single
+// standing and says so by leaving it empty rather than picking one.
+func standing(uses []TermUse) (status string, discouraged bool) {
+	for _, u := range uses {
+		if u.Discouraged {
+			return u.Status, true
+		}
+	}
+	for _, u := range uses {
+		if u.Status == "" {
+			continue
+		}
+		if status == "" {
+			status = u.Status
+			continue
+		}
+		if status != u.Status {
+			return "", false
+		}
+	}
+	return status, false
+}
+
+func lessUse(a, b ConceptUse) bool {
+	if a.Document != b.Document {
+		return a.Document < b.Document
+	}
+	if a.BlockID != b.BlockID {
+		return a.BlockID < b.BlockID
+	}
+	if a.ContentKey != b.ContentKey {
+		return a.ContentKey < b.ContentKey
+	}
+	if a.Locale != b.Locale {
+		return a.Locale < b.Locale
+	}
+	return a.Term < b.Term
+}
+
+// edgeCount reads an edge's occurrence count. An edge exists because there was
+// a use, so an absent or unreadable count is one rather than none.
+func edgeCount(e *graph.Edge) int {
+	n, err := strconv.Atoi(e.Properties[PropCount])
+	if err != nil || n < 1 {
+		return 1
+	}
+	return n
 }
 
 // Placement is one collection at one coordinate.

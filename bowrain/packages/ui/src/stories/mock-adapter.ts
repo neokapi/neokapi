@@ -1843,6 +1843,16 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       projects: [],
       samples: [],
     }),
+    getConceptProjects: async (_ws, conceptId) => ({
+      concept_id: conceptId,
+      source: "graph",
+      at: MOCK_NOW,
+      projects: [],
+      uses: [],
+      blocks: 0,
+      occurrences: 0,
+      uses_total: 0,
+    }),
     listObservations: async () => [],
     addObservation: async (_ws, conceptId, req) => ({
       id: "o-new",
