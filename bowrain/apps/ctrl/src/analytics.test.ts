@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import { describe, it, expect, vi, beforeAll, beforeEach } from "vite-plus/test";
 
 vi.mock("posthog-js", () => ({
   default: {
@@ -10,6 +10,15 @@ vi.mock("posthog-js", () => ({
 }));
 
 describe("ctrl analytics", () => {
+  // The first dynamic import in the file pays a one-time cold cost — the vite
+  // transform of the module graph plus test-environment setup — that the log
+  // attributes ~5s to on a cold cache. Charged against a single test's default
+  // 5s budget it flakes the first case on slower CI runners, so we absorb it
+  // here in a hook with generous headroom; every test then imports warm.
+  beforeAll(async () => {
+    await import("./analytics");
+  }, 30000);
+
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
