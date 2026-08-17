@@ -304,6 +304,12 @@ export interface CollectionInfo {
   origin?: CollectionOrigin;
   /** Whether the UI may mutate this collection's source (upload/add/delete). */
   editable?: boolean;
+  /**
+   * The collection's point in context space: axis → value, as the recipe
+   * declares it (`product`, `channel`). Absent for a collection that sits at no
+   * declared point.
+   */
+  coordinates?: Record<string, string>;
   item_count: number;
   created_at: string;
   updated_at: string;

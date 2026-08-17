@@ -32,10 +32,21 @@ type CollectionResponse struct {
 	// uploads/edits/deletes are allowed). Editable is the derived gate the UI
 	// reads to hide/disable source-mutation affordances. Both fold in the
 	// project-level source-connector signal (see annotateProjectOrigin).
-	Origin    string `json:"origin"`
-	Editable  bool   `json:"editable"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	Origin   string `json:"origin"`
+	Editable bool   `json:"editable"`
+	// Coordinates is the point this collection's content occupies in the
+	// project's context space — axis → value, as the recipe declares it
+	// (`product`, `channel`). Named as the dashboard rollups and the context
+	// profiles name it, because it is the same coordinate.
+	//
+	// A client reads it to group collections the way the project is actually
+	// shaped: a flat list of names spells the coordinate out ("bowrain-app",
+	// "neokapi-docs") and then loses it, so two products with six surfaces each
+	// read as twelve unrelated tabs. Empty for a collection that sits at no
+	// declared point.
+	Coordinates map[string]string `json:"coordinates,omitempty"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
 }
 
 // CreateCollectionRequest is the request body for creating a collection.
@@ -65,6 +76,7 @@ func collectionToResponse(c *store.Collection) CollectionResponse {
 		ConnectorSecretKeys: secretKeys,
 		Origin:              origin,
 		Editable:            origin == collectionOriginManaged,
+		Coordinates:         cloneCoordinates(c.Context),
 		CreatedAt:           c.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:           c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}

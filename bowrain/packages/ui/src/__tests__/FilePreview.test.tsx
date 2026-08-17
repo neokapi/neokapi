@@ -335,6 +335,106 @@ describe("ProjectView — the row reads the file, the row's own action does not"
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("reads the collection from the binding, so the URL decides which is open", async () => {
+    const adapter = createMockAdapter();
+    const onSelect = vi.fn();
+    const withCollections: ProjectInfo = {
+      ...project,
+      items: [
+        { name: "a.json", format: "json", block_count: 1, word_count: 1, collection_id: "c1" },
+        { name: "b.json", format: "json", block_count: 1, word_count: 1, collection_id: "c2" },
+      ],
+      collections: [
+        {
+          id: "c1",
+          project_id: project.id,
+          name: "bowrain-app",
+          kind: "connected",
+          item_label: "file",
+          is_default: false,
+          item_count: 1,
+          coordinates: { product: "bowrain", channel: "app" },
+          created_at: "",
+          updated_at: "",
+        },
+        {
+          id: "c2",
+          project_id: project.id,
+          name: "neokapi-cli",
+          kind: "connected",
+          item_label: "file",
+          is_default: false,
+          item_count: 1,
+          coordinates: { product: "neokapi", channel: "cli" },
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+    };
+
+    render(
+      wrap(
+        <ProjectView
+          project={withCollections}
+          onBack={vi.fn()}
+          onOpenFile={vi.fn()}
+          onUploadFiles={vi.fn()}
+          onRemoveFile={vi.fn()}
+          collection={{ id: "c2", onSelect }}
+        />,
+        adapter,
+      ),
+    );
+
+    // The bound collection is the one being read — not the first one.
+    expect(screen.getByTestId("file-row-b.json")).toBeInTheDocument();
+    expect(screen.queryByTestId("file-row-a.json")).toBeNull();
+
+    // Selecting reports outward rather than being kept here, so the consumer
+    // can put it in the URL.
+    await userEvent.click(screen.getByTestId("collection-c1"));
+    expect(onSelect).toHaveBeenCalledWith("c1");
+  });
+
+  it("falls back to the first collection when the bound one is not in the project", () => {
+    const adapter = createMockAdapter();
+    const withCollections: ProjectInfo = {
+      ...project,
+      items: [
+        { name: "a.json", format: "json", block_count: 1, word_count: 1, collection_id: "c1" },
+      ],
+      collections: [
+        {
+          id: "c1",
+          project_id: project.id,
+          name: "Uploads",
+          kind: "uploaded",
+          item_label: "file",
+          is_default: false,
+          item_count: 1,
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+    };
+
+    render(
+      wrap(
+        <ProjectView
+          project={withCollections}
+          onBack={vi.fn()}
+          onOpenFile={vi.fn()}
+          onUploadFiles={vi.fn()}
+          onRemoveFile={vi.fn()}
+          collection={{ id: "gone", onSelect: vi.fn() }}
+        />,
+        adapter,
+      ),
+    );
+
+    expect(screen.getByTestId("file-row-a.json")).toBeInTheDocument();
+  });
+
   it("keeps opening the editor directly when no preview is bound", async () => {
     const adapter = createMockAdapter();
     const onOpenFile = vi.fn();

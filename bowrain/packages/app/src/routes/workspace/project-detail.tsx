@@ -55,15 +55,19 @@ export function ProjectDetailRoute() {
     projectDetailQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  // Which item's preview is open. A search param rather than component state,
-  // so the reading survives a reload and Back dismisses it.
-  const search = useSearch({ strict: false }) as { preview?: string };
-  const setPreview = (itemName: string | undefined) =>
+  // Which collection is being read, and which item's preview is open. Search
+  // params rather than component state, so the reading survives a reload, can
+  // be linked to, and Back returns to the one before. Each setter carries the
+  // other parameter forward — closing a preview must not also throw the reader
+  // back to the first collection.
+  const search = useSearch({ strict: false }) as { preview?: string; collection?: string };
+  const setSourceSearch = (next: { preview?: string; collection?: string }) =>
     void navigate({
       to: "/$workspace/p/$projectId/s/$stream/source",
       params: { workspace: workspace ?? ws, projectId: project.id, stream: activeStream },
-      search: { preview: itemName },
+      search: (prev: Record<string, unknown>) => ({ ...prev, ...next }),
     });
+  const setPreview = (itemName: string | undefined) => setSourceSearch({ preview: itemName });
 
   // The three item surfaces share a shape: the item name travels as the splat.
   const openItemIn =
@@ -404,6 +408,10 @@ export function ProjectDetailRoute() {
           onOpenTranslate: openItemIn("/$workspace/p/$projectId/s/$stream/translate/$"),
           onOpenReview: openItemIn("/$workspace/p/$projectId/s/$stream/review/$"),
           onOpenPreProcess: openItemIn("/$workspace/p/$projectId/s/$stream/pre-process/$"),
+        }}
+        collection={{
+          id: search.collection ?? null,
+          onSelect: (id) => setSourceSearch({ collection: id }),
         }}
         onUploadFiles={handleUploadFiles}
         onRemoveFile={handleRemoveFile}
