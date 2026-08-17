@@ -117,22 +117,24 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 	// gates; the resulting verdict is therefore meaningless and is not emitted.
 	gate := check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1}
 	report := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags, gate)
-	return flow.CollectorResult{Name: "findings", Data: execFindingsReport{
+	return flow.CollectorResult{Name: "findings", Data: findingsReport{
 		Target:   report.Target,
 		Summary:  report.Summary,
 		Findings: report.Findings,
 	}}, nil
 }
 
-// execFindingsReport is what an exec run of a check tool reports: the findings
-// and their roll-up, field-for-field as the kapi.check/v1 Report carries them,
-// so `.findings[]` and `.summary` read the same for either command.
+// findingsReport is what a run that is not the gate reports: the findings and
+// their roll-up, field-for-field as the kapi.check/v1 Report carries them, so
+// `.findings[]` and `.summary` read the same whichever command produced them.
+// `kapi exec <check>` emits it on its own; `kapi run <flow>` nests it under the
+// run's own output so one run stays one document.
 //
-// Deliberately without `pass` and `gate`. exec holds the content to no bar, and
-// a `"pass": true` next to a critical finding is precisely the reassurance this
-// whole class of defect hands out. The verdict belongs to `kapi check`, which
-// owns the gate and the exit code.
-type execFindingsReport struct {
+// Deliberately without `pass` and `gate`. Neither verb holds the content to a
+// bar, and a `"pass": true` next to a critical finding is precisely the
+// reassurance this whole class of defect hands out. The verdict belongs to
+// `kapi check`, which owns the gate and the exit code.
+type findingsReport struct {
 	Target   check.Target       `json:"target"`
 	Summary  check.Summary      `json:"summary"`
 	Findings []check.Diagnostic `json:"findings"`
@@ -140,9 +142,16 @@ type execFindingsReport struct {
 
 // FormatTable renders the findings the way `kapi check` renders them, minus the
 // PASS/FAIL verdict.
-func (r execFindingsReport) FormatTable(w io.Writer) {
+func (r findingsReport) FormatTable(w io.Writer) {
 	renderFindingsTable(w, r.Findings)
 	if r.Summary.Findings > 0 {
 		writeFindingsCounts(w, r.Summary)
 	}
+}
+
+// FormatText is the same rendering under the interface output.Print asks for,
+// so a report nested in another command's output renders with it.
+func (r findingsReport) FormatText(w io.Writer) error {
+	r.FormatTable(w)
+	return nil
 }

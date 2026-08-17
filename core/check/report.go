@@ -95,7 +95,15 @@ func RuleID(checkFamily, category string) string {
 // DiagnosticFrom maps a producer-agnostic Finding into a Diagnostic, given the
 // check family that produced it and the block location. The run-range and
 // snippet are carried through only when the checker populated them.
+//
+// An empty checkFamily means the caller does not know the family and is reading
+// findings the checkers left behind — the finding's own Check stamp answers
+// instead. A caller that passes a family keeps it: `kapi check` groups findings
+// into families of its own naming, and its rule ids are a stable contract.
 func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
+	if checkFamily == "" {
+		checkFamily = f.Check
+	}
 	d := Diagnostic{
 		Rule:       RuleID(checkFamily, f.Category),
 		Check:      checkFamily,

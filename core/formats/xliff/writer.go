@@ -517,7 +517,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			if sourceBodyIsCurrent(sa, block) {
-				return renderNativeWithRunsOpts(sa.Content, nil, opts)
+				return renderNativeVerbatimOpts(sa.Content, opts)
 			}
 			// Edited: substitute the block's runs into the captured IR, so
 			// inline-code attributes and their order survive the edit. The
@@ -530,6 +530,18 @@ func (w *Writer) sourceText(block *model.Block) string {
 		}
 	}
 	return concatSegments(sourceSegViews(block))
+}
+
+// transUnitID is the `@id` a block is written under: the one the document
+// spelled, which differs from the block's own ID exactly when the reader had to
+// separate units that called themselves the same thing. A block's ID is an
+// identity for the store; `@id` is what the document says, and the two are the
+// same for every conforming document.
+func transUnitID(block *model.Block) string {
+	if original, ok := block.Properties[TransUnitIDProperty]; ok && original != "" {
+		return original
+	}
+	return block.ID
 }
 
 // renderXliffRuns serializes a Run sequence into xliff 1.2 inline
@@ -795,7 +807,7 @@ func (w *Writer) flush() (retErr error) {
 			return err
 		}
 
-		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(block.ID))
+		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(transUnitID(block)))
 		if !block.Translatable {
 			fmt.Fprintf(ew, ` translate="no"`)
 		}

@@ -171,6 +171,63 @@ func TestOverlayKey_TwoFilesSharingABlockIDDoNotCollide(t *testing.T) {
 	assert.Len(t, keys, 2, "two files each holding a block called tu1 must hold two overlays")
 }
 
+// dupIDXLIFF is a menu whose three units all call themselves `id="1"`. XLIFF 1.2
+// requires `trans-unit/@id` to be unique within a `<file>`; documents in the wild
+// (the Okapi PAS conformance corpus among them) repeat it anyway, and a
+// non-conformant input must not silently corrupt the output.
+const dupIDXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+ <file source-language="en" target-language="qps" datatype="plaintext" original="menu">
+  <body>
+   <trans-unit id="1"><source>File</source></trans-unit>
+   <trans-unit id="1"><source>Edit</source></trans-unit>
+   <trans-unit id="1"><source>Help</source></trans-unit>
+  </body>
+ </file>
+</xliff>`
+
+// TestOverlayKey_UnitsSharingAnIDInOneFileDoNotCollide is #609. The overlay cache
+// consults a stored target before running the translator, so two units the key
+// cannot tell apart are two units with one target: every menu item came out
+// "File". The store keyed a block on (file, id), which is an identity only while
+// the id is unique — so the source text is in the key, and both scopes use the
+// same rule. Outside a project there is no file namespace, which is exactly where
+// nothing but the source text is left to separate them.
+func TestOverlayKey_UnitsSharingAnIDInOneFileDoNotCollide(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		projectRoot bool
+	}{
+		{name: "in project scope", projectRoot: true},
+		{name: "ad-hoc, no project root", projectRoot: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, _, store, reg := overlayKeyFixture(t)
+			src := filepath.Join(root, "src", "menu.xlf")
+			require.NoError(t, os.WriteFile(src, []byte(dupIDXLIFF), 0o644))
+
+			cfg := flow.FileRunnerConfig{FormatReg: reg, SourceLocale: "en", Store: store}
+			if tc.projectRoot {
+				cfg.ProjectRoot = root
+			}
+			runner := flow.NewFileRunner(cfg)
+			out := filepath.Join(root, "out", "menu.xlf")
+			require.NoError(t, runner.RunFile(context.Background(), "pseudo-translate",
+				pseudoTools(t, "qps"), src, out, "qps"))
+
+			written, err := os.ReadFile(out)
+			require.NoError(t, err)
+			for _, want := range []string{"Ƒîļé", "Éđîţ", "Ĥéļþ"} {
+				assert.Contains(t, string(written), want,
+					"each unit must carry the pseudo-translation of its own source")
+			}
+
+			assert.Len(t, overlayKeys(t, store, "qps"), 3,
+				"three units are three overlays, whatever they call themselves")
+		})
+	}
+}
+
 // TestOverlayKey_OutsideTheProjectKeepsItsOwnNamespace states the constraint on
 // the write path: an input the project root cannot name still writes its file, and
 // still gets a namespace of its own rather than sharing the bare id space. The

@@ -80,6 +80,14 @@ type Finding struct {
 	Position model.RunRange `json:"position"`
 	// OriginalText is the offending snippet, when available.
 	OriginalText string `json:"original_text,omitempty"`
+	// Check names the checker that produced this finding, stamped by Annotate.
+	// Several checkers accumulate into one annotation and only the last one to
+	// find something is named on it, so a reader that has nothing but the
+	// annotation — a flow run, where the steps are whatever the recipe declared
+	// — needs each finding to say who found it. A caller that already knows the
+	// family it is mapping (kapi check groups findings into families of its own)
+	// passes that family and this is not consulted.
+	Check string `json:"check,omitempty"`
 	// Metadata carries checker-specific detail (model name, confidence, the
 	// matched rule id) without widening the struct per checker.
 	Metadata map[string]string `json:"metadata,omitempty"`
