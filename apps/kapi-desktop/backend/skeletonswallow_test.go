@@ -65,7 +65,7 @@ func TestRewriteFile_PreservesEverythingItDidNotEdit(t *testing.T) {
 		b.SetSourceText(strings.Replace(text, "utilize", "use", 1))
 		edited = true
 	}
-	require.NoError(t, app.rewriteFile(context.Background(), path, "markdown", "en", transform))
+	require.NoError(t, app.rewriteFile(context.Background(), path, "markdown", "en", nil, nil, transform))
 	require.True(t, edited, "fixture assumption: the block was found")
 
 	got, err := os.ReadFile(path)
@@ -94,7 +94,7 @@ func TestRewriteFile_FailsWhenTheSkeletonStoreCannotBeCreated(t *testing.T) {
 
 	breakTempDir(t)
 
-	err := app.rewriteFile(context.Background(), path, "markdown", "en", func(*model.Block) {})
+	err := app.rewriteFile(context.Background(), path, "markdown", "en", nil, nil, func(*model.Block) {})
 	require.Error(t, err, "a rewrite that cannot preserve the file must fail, not reformat it")
 	assert.Contains(t, err.Error(), "notes.md", "the error must name the file")
 	assert.Contains(t, err.Error(), "formatting", "and say what would have been lost")

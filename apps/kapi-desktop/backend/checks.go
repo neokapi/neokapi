@@ -126,7 +126,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// defaults the panel judges content the project excludes — a demo
 			// script's `command:` lines where the recipe's keyPathPatterns select
 			// only its prose.
-			fmtCfg := host.FormatConfigForItem(op.Project, rf.Format, rf.Item)
+			fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 
 			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 			if rerr != nil {
@@ -343,8 +343,9 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 	// paragraph, and writing that back is how a fix corrupts a page. Detection is
 	// the fallback for a file the project does not declare as content.
 	fmtName := ""
+	item := (*project.ContentItem)(nil)
 	if rf := a.resolvedFileFor(pctx, filePath); rf != nil {
-		fmtName = rf.Format
+		fmtName, item = rf.Format, rf.Item
 	}
 	if fmtName == "" {
 		fmtName = pctx.DetectFormat(a.formatReg, filePath)
@@ -386,7 +387,7 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 		applied = true
 	}
 
-	if err := a.rewriteFile(ctx, filePath, fmtName, sourceLang, transform); err != nil {
+	if err := a.rewriteFile(ctx, filePath, fmtName, sourceLang, pctx, item, transform); err != nil {
 		return err
 	}
 	if applyErr != nil {
@@ -402,7 +403,7 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 // every block (in stream order), then writes the parts back through the format
 // writer atomically (temp file + rename). Non-block parts pass through
 // unchanged.
-func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang string, transform func(*model.Block)) error {
+func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang string, pctx *project.ProjectContext, item *project.ContentItem, transform func(*model.Block)) error {
 	reader, err := a.formatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return fmt.Errorf("no reader for %q: %w", fmtName, err)
@@ -414,6 +415,18 @@ func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang str
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
 	}
 	defer writer.Close()
+
+	// Both halves of the round-trip carry the recipe's configuration for this
+	// item: a rewrite that reads under one configuration and writes under
+	// another renumbers the document it is replacing.
+	if pctx != nil {
+		if cerr := pctx.ConfigureReaderFor(reader, fmtName, item); cerr != nil {
+			return fmt.Errorf("configure reader for %s: %w", filepath.Base(filePath), cerr)
+		}
+		if cerr := pctx.ConfigureWriterFor(writer, fmtName, item); cerr != nil {
+			return fmt.Errorf("configure writer for %s: %w", filepath.Base(filePath), cerr)
+		}
+	}
 
 	// Wire skeleton store when both sides support it so the writer reproduces
 	// the original structure (whitespace, key order, untouched values). A store

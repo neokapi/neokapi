@@ -7,7 +7,6 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 )
 
 // This file is the exported, cobra-free surface of the bilingual check
@@ -23,23 +22,13 @@ import (
 // cache instead of re-parsing, exactly like the CLI's verify/status path.
 //
 // A gate must read a file the way the loop does, so both halves of the recipe's
-// binding travel here: pass the format the item declares and the config
-// [FormatConfigForItem] merges for it. Reading under the extension's default
-// format, or under reader defaults, judges content the project does not declare
-// as content.
+// binding travel here: the format the item declares, and the config
+// project.ProjectContext.FormatConfigFor merges for it. Reading under the
+// extension's default format, or under reader defaults, judges content the
+// project does not declare as content.
 func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName string, formatConfig map[string]any, sourceLang string) ([]*model.Block, error) {
 	ctx = ctxOrBackground(ctx)
 	return a.readBlocksAs(ctx, path, formatName, formatConfig, sourceLang)
-}
-
-// FormatConfigForItem is the reader/writer config a project declares for one
-// resolved content item: the project's `defaults.formats[<format>].config`
-// overlaid by the item's own `format.config`, item winning per key. It is the
-// one merge — `kapi check`, the flow run, extract and merge all read this —
-// exposed so an embedding surface configures a reader from the recipe rather
-// than settling for reader defaults.
-func FormatConfigForItem(proj *project.KapiProject, formatName string, item *project.ContentItem) map[string]any {
-	return mergedFormatConfig(proj, formatName, item)
 }
 
 // WithDocumentCache opens the project document cache for the project rooted

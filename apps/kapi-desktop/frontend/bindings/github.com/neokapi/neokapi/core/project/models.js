@@ -327,11 +327,15 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Materialize governs when the convergence loop (`kapi up`) writes the
-             * localized target files from the project block store (#1078 C2/C3).
-             * "manual" (the default) leaves materialization to an explicit
-             * `kapi merge` (or `up --materialize`); "on-converge" writes the files
-             * after the loop for every locale whose gated scopes are all shippable.
+             * Materialize governs whether the convergence loop (`kapi up`) owns
+             * delivery of the localized target files (#1078 C2/C3).
+             * 
+             * "on-converge" makes the run responsible for them, under the ship gate:
+             * its passes draft into a run-local tree and only a locale whose gated
+             * scopes are all shippable has its files written to the collection's
+             * `target:` path. "manual" (the default) leaves delivery to an explicit
+             * `kapi merge` (or `up --materialize`) and claims no gate — its passes
+             * write where the recipe points as they produce each unit.
              * @member
              * @type {string | undefined}
              */

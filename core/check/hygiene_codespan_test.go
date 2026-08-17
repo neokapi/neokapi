@@ -63,9 +63,9 @@ func TestContentLint_ACodeSpanIsNotProse(t *testing.T) {
 			wantNot: []string{"doubled-word", "double-spaces"},
 		},
 		{
-			name:    "prose outside the span is still judged",
-			runs:    []model.Run{codeSpanOpen("1"), hygTx("kapi up"), codeSpanClose("1"), hygTx(" runs  the the loop")},
-			want:    []string{"double-spaces", "doubled-word"},
+			name: "prose outside the span is still judged",
+			runs: []model.Run{codeSpanOpen("1"), hygTx("kapi up"), codeSpanClose("1"), hygTx(" runs  the the loop")},
+			want: []string{"double-spaces", "doubled-word"},
 		},
 		{
 			name:    "a code span does not glue the words either side of it together",
@@ -73,9 +73,9 @@ func TestContentLint_ACodeSpanIsNotProse(t *testing.T) {
 			wantNot: []string{"doubled-word"},
 		},
 		{
-			name:    "a bold pair still holds prose",
-			runs:    []model.Run{hygPcOpen("1"), hygTx("the the"), hygPcClose("1")},
-			want:    []string{"doubled-word"},
+			name: "a bold pair still holds prose",
+			runs: []model.Run{hygPcOpen("1"), hygTx("the the"), hygPcClose("1")},
+			want: []string{"doubled-word"},
 		},
 		{
 			name:    "a block that is only a code span is content, not empty",
@@ -83,9 +83,9 @@ func TestContentLint_ACodeSpanIsNotProse(t *testing.T) {
 			wantNot: []string{"empty", "leading-whitespace", "trailing-whitespace"},
 		},
 		{
-			name:    "whitespace outside the span is still the content's edge",
-			runs:    []model.Run{hygTx(" "), codeSpanOpen("1"), hygTx("x"), codeSpanClose("1")},
-			want:    []string{"leading-whitespace"},
+			name: "whitespace outside the span is still the content's edge",
+			runs: []model.Run{hygTx(" "), codeSpanOpen("1"), hygTx("x"), codeSpanClose("1")},
+			want: []string{"leading-whitespace"},
 		},
 	}
 
