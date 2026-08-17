@@ -103,6 +103,28 @@
   }
 }
 
+/* ── Inline code chip ─────────────────────────────────────────────────────── */
+/* A placeholder or paired-code marker inside a line. Colors come from the span's
+   vocabulary type (set inline), so the chip reads the same here as in the
+   editor's cell renderers; the metrics match those pills exactly. */
+.inlineCode {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 1px;
+  padding: 0 0.25rem;
+  border: 1px solid;
+  border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1rem;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* ── Overlay highlight ───────────────────────────────────────────────────── */
 .overlay {
   border-radius: 4px;

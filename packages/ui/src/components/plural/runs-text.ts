@@ -17,30 +17,34 @@
  * source's type / subType / data / equiv intact.
  */
 
-import type { Placeholder, Run } from "@neokapi/kapi-format";
+import {
+  projectRunsText,
+  type ModelRunSpec,
+  type Placeholder,
+  type Run,
+} from "@neokapi/kapi-format";
 
 /**
  * Render a Run[] as plain text with `{equiv}` tokens.
  * Non-text runs contribute exactly one token; their order is
  * preserved so a textarea edit can reintroduce them.
  */
+const TRANSLATOR_TEXT: ModelRunSpec<string> = {
+  text: (r) => r.text,
+  ph: (r) => `{${r.ph.equiv || r.ph.id}}`,
+  pcOpen: (r) => `{=${r.pcOpen.equiv || r.pcOpen.id}}`,
+  pcClose: (r) => `{/=${r.pcClose.equiv || r.pcClose.id}}`,
+  sub: (r) => `[${r.sub.equiv || r.sub.id}]`,
+  // A plural inside a flat target isn't representable in the textarea; the
+  // token holds its place so the translator sees that something is there, and
+  // callers switch to per-form editing.
+  plural: (r) => `{${r.plural.pivot}, plural, ...}`,
+  select: (r) => `{${r.select.pivot}, select, ...}`,
+  fallback: (kind) => `{${kind}}`,
+};
+
 export function runsToText(runs: readonly Run[]): string {
-  let out = "";
-  for (const r of runs) {
-    if ("text" in r) out += r.text;
-    else if ("ph" in r) out += `{${r.ph.equiv || r.ph.id}}`;
-    else if ("pcOpen" in r) out += `{=${r.pcOpen.equiv || r.pcOpen.id}}`;
-    else if ("pcClose" in r) out += `{/=${r.pcClose.equiv || r.pcClose.id}}`;
-    else if ("sub" in r) out += `[${r.sub.equiv || r.sub.id}]`;
-    else if ("plural" in r) {
-      // Plural inside a flat target isn't representable in the
-      // textarea; callers should switch to per-form editing.
-      out += `{${r.plural.pivot}, plural, ...}`;
-    } else if ("select" in r) {
-      out += `{${r.select.pivot}, select, ...}`;
-    }
-  }
-  return out;
+  return projectRunsText(runs, TRANSLATOR_TEXT);
 }
 
 /**

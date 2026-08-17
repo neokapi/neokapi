@@ -17,6 +17,7 @@
  */
 
 import type { Block, Run } from "./block.ts";
+import { projectRuns, projectRunsText, type ModelRunSpec } from "./run-projection.ts";
 import type { VocabularyEntry } from "./vocabulary.ts";
 import { JSX_VOCABULARY, expandTemplate } from "./vocabulary.ts";
 
@@ -35,40 +36,43 @@ export function createVocabulary(entries: VocabularyEntry[]): VocabularyLookup {
  * plural / select forms, which hold their own Run[] sub-sequences.
  */
 export function renderRuns(runs: Run[], vocab: VocabularyLookup): string {
-  let out = "";
-  for (const run of runs) {
-    if ("text" in run) {
-      out += escapeHtml(run.text);
-    } else if ("ph" in run) {
-      out += renderEntry(vocab, run.ph.type, "placeholder", {
-        id: run.ph.id,
-        subType: run.ph.subType ?? "",
-        data: run.ph.data,
-        equiv: run.ph.equiv,
-      });
-    } else if ("pcOpen" in run) {
-      out += renderEntry(vocab, run.pcOpen.type, "open", {
-        id: run.pcOpen.id,
-        subType: run.pcOpen.subType ?? "",
-        data: run.pcOpen.data,
-        equiv: run.pcOpen.equiv,
-      });
-    } else if ("pcClose" in run) {
-      out += renderEntry(vocab, run.pcClose.type, "close", {
-        id: run.pcClose.id,
-        subType: run.pcClose.subType ?? "",
-        data: run.pcClose.data,
-        equiv: run.pcClose.equiv ?? "",
-      });
-    } else if ("sub" in run) {
-      out += `<span class="neokapi-sub" data-ref="${escapeHtml(run.sub.ref)}">${escapeHtml(run.sub.equiv)}</span>`;
-    } else if ("plural" in run) {
-      out += renderPluralRun(run.plural, vocab);
-    } else if ("select" in run) {
-      out += renderSelectRun(run.select, vocab);
-    }
-  }
-  return out;
+  return projectRunsText(runs, htmlSpec(vocab));
+}
+
+/** The HTML reading of a run sequence, declared kind by kind. */
+function htmlSpec(vocab: VocabularyLookup): ModelRunSpec<string> {
+  return {
+    text: (r) => escapeHtml(r.text),
+    ph: (r) =>
+      renderEntry(vocab, r.ph.type, "placeholder", {
+        id: r.ph.id,
+        subType: r.ph.subType ?? "",
+        data: r.ph.data,
+        equiv: r.ph.equiv,
+      }),
+    pcOpen: (r) =>
+      renderEntry(vocab, r.pcOpen.type, "open", {
+        id: r.pcOpen.id,
+        subType: r.pcOpen.subType ?? "",
+        data: r.pcOpen.data,
+        equiv: r.pcOpen.equiv,
+      }),
+    pcClose: (r) =>
+      renderEntry(vocab, r.pcClose.type, "close", {
+        id: r.pcClose.id,
+        subType: r.pcClose.subType ?? "",
+        data: r.pcClose.data,
+        equiv: r.pcClose.equiv ?? "",
+      }),
+    sub: (r) =>
+      `<span class="neokapi-sub" data-ref="${escapeHtml(r.sub.ref)}">${escapeHtml(r.sub.equiv)}</span>`,
+    plural: (r) => renderPluralRun(r.plural, vocab),
+    select: (r) => renderSelectRun(r.select, vocab),
+    // A kind this build cannot render still occupies its place in the output,
+    // as an empty element naming it — a preview that quietly omits content is
+    // indistinguishable from content that was never there.
+    fallback: (kind) => `<span class="neokapi-unknown" data-kind="${escapeHtml(kind)}"></span>`,
+  };
 }
 
 // CLDR plural-form order, mirroring core/kbf.pluralOrder, so the Go and
@@ -217,33 +221,48 @@ export function validateTargetAgainstSource(
 }
 
 /**
+ * The references a run sequence carries, as placeholder preservation counts
+ * them: the `equiv` of ph / pcOpen / sub runs and the `pivot` of a plural or
+ * select. Every branch is visited, not one — a reference in the `few` form
+ * counts as much as one in `other`.
+ *
+ * Declared rather than walked, because a kind of run that carried a reference
+ * and was forgotten here would not fail: the preservation check would simply
+ * stop covering it, and a translation could drop that placeholder unnoticed.
+ */
+const REFERENCES: ModelRunSpec<string> = {
+  text: { dropped: "a text run carries no reference" },
+  ph: (r) => r.ph.equiv,
+  pcOpen: (r) => r.pcOpen.equiv,
+  // The closing half repeats its opening's reference; counting it twice would
+  // make a mismatched pair look balanced.
+  pcClose: { dropped: "counted once, on the opening half of the pair" },
+  sub: (r) => r.sub.equiv,
+  plural: {
+    expand: (r) => [
+      r.plural.pivot,
+      ...Object.values(r.plural.forms).flatMap((form) => projectRuns(form ?? [], REFERENCES)),
+    ],
+  },
+  select: {
+    expand: (r) => [
+      r.select.pivot,
+      ...Object.values(r.select.cases).flatMap((c) => projectRuns(c ?? [], REFERENCES)),
+    ],
+  },
+  // Filtered out by the caller: a kind this build cannot read carries no
+  // reference it could compare, and the reporter has already said so.
+  fallback: () => "",
+};
+
+/**
  * Walk a run sequence (including nested plural / select forms)
  * and collect every reference that counts toward placeholder
  * preservation: `equiv` of ph / pcOpen / sub runs, plus the
  * `pivot` of any plural / select construct encountered.
  */
 function collectRunEquivs(runs: Run[]): Set<string> {
-  const names = new Set<string>();
-  const visit = (rs: Run[]) => {
-    for (const run of rs) {
-      if ("ph" in run) names.add(run.ph.equiv);
-      else if ("pcOpen" in run) names.add(run.pcOpen.equiv);
-      else if ("sub" in run) names.add(run.sub.equiv);
-      else if ("plural" in run) {
-        names.add(run.plural.pivot);
-        for (const formRuns of Object.values(run.plural.forms)) {
-          if (formRuns) visit(formRuns);
-        }
-      } else if ("select" in run) {
-        names.add(run.select.pivot);
-        for (const caseRuns of Object.values(run.select.cases)) {
-          visit(caseRuns);
-        }
-      }
-    }
-  };
-  visit(runs);
-  return names;
+  return new Set(projectRuns(runs, REFERENCES).filter(Boolean));
 }
 
 export interface ValidationError {

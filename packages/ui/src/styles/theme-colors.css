@@ -71,6 +71,22 @@
   --chart-4: oklch(0.78 0.13 85);
   --chart-5: oklch(0.65 0.15 15);
 
+  /* ── Entity marks — typed spans marked in source text ──── */
+  /* One hue of the prism ramp per entity type, as a faint tint plus a 2px
+     rule: the text under a mark is being read, not highlighted. */
+  --entity-person-bg: oklch(0.62 0.14 250 / 0.16);
+  --entity-person-border: oklch(0.62 0.14 250);
+  --entity-org-bg: oklch(0.6 0.14 300 / 0.16);
+  --entity-org-border: oklch(0.6 0.14 300);
+  --entity-location-bg: oklch(0.68 0.12 150 / 0.18);
+  --entity-location-border: oklch(0.68 0.12 150);
+  --entity-date-bg: oklch(0.78 0.12 85 / 0.22);
+  --entity-date-border: oklch(0.78 0.12 85);
+  --entity-product-bg: oklch(0.65 0.13 15 / 0.16);
+  --entity-product-border: oklch(0.65 0.13 15);
+  --entity-default-bg: oklch(0.55 0.015 245 / 0.14);
+  --entity-default-border: oklch(0.55 0.015 245);
+
   /* ── Sidebar ───────────────────────────────────────────── */
   --sidebar: oklch(0.965 0.006 240);
   --sidebar-foreground: oklch(0.24 0.02 255);
@@ -137,6 +153,22 @@
   --chart-3: oklch(0.68 0.13 295);
   --chart-4: oklch(0.82 0.12 85);
   --chart-5: oklch(0.7 0.13 15);
+
+  /* ── Entity marks ──────────────────────────────────────── */
+  /* The dark ramp's hues, tinted a touch stronger so a mark reads on the
+     card rather than dissolving into it. */
+  --entity-person-bg: oklch(0.7 0.13 250 / 0.2);
+  --entity-person-border: oklch(0.7 0.13 250);
+  --entity-org-bg: oklch(0.68 0.13 300 / 0.2);
+  --entity-org-border: oklch(0.68 0.13 300);
+  --entity-location-bg: oklch(0.74 0.12 150 / 0.2);
+  --entity-location-border: oklch(0.74 0.12 150);
+  --entity-date-bg: oklch(0.82 0.12 85 / 0.22);
+  --entity-date-border: oklch(0.82 0.12 85);
+  --entity-product-bg: oklch(0.7 0.13 15 / 0.2);
+  --entity-product-border: oklch(0.7 0.13 15);
+  --entity-default-bg: oklch(0.68 0.015 245 / 0.18);
+  --entity-default-border: oklch(0.68 0.015 245);
 
   /* ── Sidebar ───────────────────────────────────────────── */
   --sidebar: oklch(0.175 0.015 255);

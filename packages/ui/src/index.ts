@@ -26,6 +26,10 @@ export {
   type TextDirection,
 } from "./lib/text-direction";
 
+// Positions reported by the engine are UTF-8 byte offsets; a renderer slicing
+// strings needs them as code-point offsets first.
+export { byteToCharOffset, utf8Length } from "./lib/offsets";
+
 // Form layout primitives
 export {
   FormItem,

@@ -115,6 +115,48 @@ export const FailingChecks: Story = {
   },
 };
 
+/**
+ * A block carrying inline codes — a variable inside a bold pair, as an email
+ * catalog holds it. Both cells are the same primitive, so the placeholder reads
+ * as the same chip on either side and the two texts differ only where the
+ * translation does.
+ */
+export const InlineCodes: Story = {
+  args: {
+    entry: entry({
+      block: block({
+        source: "Your credits reset on . Upgrade any time.",
+        source_coded: "Your credits reset on \uE001\uE003\uE002. Upgrade any time.",
+        source_spans: [
+          { span_type: "opening", type: "fmt:bold", id: "1", data: "<strong>" },
+          {
+            span_type: "placeholder",
+            type: "code:variable",
+            id: "2",
+            data: "{{.ResetDate}}",
+            equiv_text: "{{.ResetDate}}",
+          },
+          { span_type: "closing", type: "fmt:bold", id: "1", data: "</strong>" },
+        ],
+        has_spans: true,
+        entities: [],
+        targets: {
+          "fr-FR": {
+            text: "Vos crédits sont réinitialisés le . Améliorez à tout moment.",
+            status: "translated",
+          },
+        },
+        targets_coded: {
+          "fr-FR": "Vos crédits sont réinitialisés le \uE001\uE003\uE002. Améliorez à tout moment.",
+        },
+      }),
+      termCompliance: "compliant",
+      voiceScore: 90,
+      voiceBar: 80,
+    }),
+  },
+};
+
 /** With a bound brand profile, the source lane + "make a rule" affordance appear. */
 export const WithBrandProfile: Story = {
   args: {

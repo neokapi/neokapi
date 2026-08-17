@@ -3,6 +3,7 @@ export * from "./vocabulary.ts";
 export * from "./preview.ts";
 export * from "./annotation.ts";
 export * from "./kbf.ts";
+export * from "./run-projection.ts";
 export * from "./runs.ts";
 export * from "./runs-validate.ts";
 export * from "./target-plural.ts";

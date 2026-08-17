@@ -75,6 +75,10 @@ run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
 
 run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 
+# Ungated: a hand-rolled run walk is written wherever someone needs "just the
+# text", and it fails by showing less content rather than by failing. ~1s.
+run_check "Run projections are declared" ./scripts/check-run-projection.sh
+
 # Ungated because the gate it proves runs only in the nightly convergence:
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
 run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test

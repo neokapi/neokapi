@@ -10,7 +10,11 @@ import type { KapiRuntime } from "@neokapi/kapi-playground";
 import type { LabRuntimeAssets } from "@neokapi/kapi-lab";
 import { FileSource } from "@neokapi/kapi-lab";
 import type { FileSourceValue } from "@neokapi/kapi-lab";
-import type { ContentTree, ContentNode, Run } from "@neokapi/ui-primitives/preview";
+// The segmentation overlay covers the same reading the engine positions over:
+// `runsPlainText` is that domain (model.RunsText), so a boundary drawn here
+// lands where the engine put it.
+import { runsPlainText } from "@neokapi/ui-primitives/preview";
+import type { ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
 import { loadICU4X } from "../../lib/icu4x";
 import { installIntlSegmenter } from "../../lib/intlSegmenter";
 
@@ -190,17 +194,6 @@ function fmtBytes(n?: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
   if (n >= 1e6) return `${Math.round(n / 1e6)} MB`;
   return `${Math.round(n / 1e3)} KB`;
-}
-
-// runsText flattens a Block's run sequence to plain text — concatenating the
-// text runs and skipping inline codes — matching what the segmentation overlay
-// covers. (Plain-text samples have no codes; richer files lose only the inline
-// placeholders, which segmentation does not split on.)
-function runsText(runs?: Run[]): string {
-  if (!runs) return "";
-  let s = "";
-  for (const r of runs) if (typeof r.text === "string") s += r.text;
-  return s;
 }
 
 // flattenBlocks walks a ContentTree depth-first and returns its Block nodes in
@@ -502,7 +495,7 @@ export default function SegmentationLabInner({
     const res = await rt.inspect(path);
     if (!res.ok || !res.tree) throw new Error(res.error ?? "could not read the input");
     const blocks = flattenBlocks(res.tree as ContentTree)
-      .map((b) => ({ id: b.id, name: b.name, text: runsText(b.source) }))
+      .map((b) => ({ id: b.id, name: b.name, text: runsPlainText(b.source) }))
       .filter((b) => b.text.trim().length > 0);
     if (blocks.length === 0) throw new Error("the input has no extractable text");
     return { path, blocks };

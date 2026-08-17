@@ -29,6 +29,8 @@
 // renderer can switch source↔target, highlight annotations, and animate
 // transitions without re-walking the tree.
 
+import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
+import type { SpanInfo } from "../../types/span";
 import type { AnnotationView, ContentNode, ContentTree, OverlayView, Run } from "./types";
 
 // ── Render model ─────────────────────────────────────────────────────────────
@@ -48,6 +50,10 @@ export interface RenderLine {
   text: string;
   /** Per-locale target text, keyed by variant locale (e.g. "fr-FR"). */
   targets?: Record<string, string>;
+  /** Source-side inline codes, positioned in `text` (see {@link runsCodes}). */
+  codes?: InlineCode[];
+  /** Per-locale inline codes, positioned in the matching `targets` entry. */
+  targetCodes?: Record<string, InlineCode[]>;
   /** The block's source locale, so the renderer can set `dir`/`lang` on it. */
   sourceLocale?: string;
   /** Render role, used for typography (heading vs body vs bullet vs key vs code). */
@@ -140,12 +146,140 @@ export interface RenderDoc {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Concatenate a run sequence's literal text (ignoring inline markup runs). */
+/**
+ * A run as the document reads it: a piece of literal text, or a code standing
+ * where something that is not text sits.
+ *
+ * The line's text and the line's inline codes are two views of this one
+ * sequence, which is what keeps their offsets aligned — a text projection and a
+ * code projection written separately drift the moment one of them learns a new
+ * kind of run and the other does not.
+ */
+type DocumentPiece = { readonly text: string } | { readonly code: SpanInfo };
+
+/**
+ * The document reading, declared kind by kind. Nothing may be answered by
+ * omission: leave a kind out and this does not compile, and a kind the model
+ * gains later breaks every projection until each has said what it does.
+ *
+ * A plural reads as one form — the same branch `runsPlainText` measures, so a
+ * position over this text means what the engine means by it — behind a chip
+ * saying so, because a reader must not mistake one form for the whole.
+ */
+const DOCUMENT_PIECES: RunSpec<Run, DocumentPiece> = {
+  text: (r) => ({ text: r.text ?? "" }),
+  ph: (r) => ({ code: codeSpan(r) ?? unknownCode("ph") }),
+  pcOpen: (r) => ({ code: codeSpan(r) ?? unknownCode("pcOpen") }),
+  pcClose: (r) => ({ code: codeSpan(r) ?? unknownCode("pcClose") }),
+  sub: (r) => ({ code: codeSpan(r) ?? unknownCode("sub") }),
+  plural: {
+    expand: (r) => [
+      { code: branchCode("plural", r.plural?.pivot) },
+      ...projectRuns(otherBranch(r.plural?.forms ?? {}), DOCUMENT_PIECES),
+    ],
+  },
+  select: {
+    expand: (r) => [
+      { code: branchCode("select", r.select?.pivot) },
+      ...projectRuns(otherBranch(r.select?.cases ?? {}), DOCUMENT_PIECES),
+    ],
+  },
+  // A run this build cannot read still occupies its place in the document, as a
+  // chip naming what it was. The alternative is the silence this whole
+  // declaration exists to prevent.
+  fallback: (kind) => ({ code: unknownCode(kind) }),
+};
+
+/** A chip standing for a run kind the reading has no better rendering for. */
+function unknownCode(kind: string): SpanInfo {
+  return { span_type: "placeholder", type: kind, id: kind, data: `⟨${kind}⟩` };
+}
+
+/** A chip marking that what follows is one branch of a plural / select. */
+function branchCode(kind: "plural" | "select", pivot: string | undefined): SpanInfo {
+  const on = pivot ?? "";
+  return {
+    span_type: "placeholder",
+    type: kind,
+    id: on || kind,
+    data: `{${on}, ${kind}}`,
+    equiv_text: on,
+  };
+}
+
+function documentPieces(runs: Run[] | undefined): DocumentPiece[] {
+  return projectRuns(runs, DOCUMENT_PIECES);
+}
+
+/** Concatenate a run sequence's literal text (its inline codes ride alongside). */
 export function runsText(runs: Run[] | undefined): string {
-  if (!runs) return "";
   let out = "";
-  for (const r of runs) {
-    if (typeof r.text === "string") out += r.text;
+  for (const piece of documentPieces(runs)) {
+    if ("text" in piece) out += piece.text;
+  }
+  return out;
+}
+
+/**
+ * One inline code — a placeholder or half a paired code — located in the text
+ * `runsText` produces for the same run sequence.
+ *
+ * Inline codes carry no literal text, so flattening a run sequence leaves them
+ * with nowhere to land: a variable, a `<br/>`, a link's opening tag would simply
+ * vanish from the reading. Positioning them alongside the text keeps them
+ * renderable without putting substitute characters into the string every other
+ * consumer (overlay anchoring, word diff, subtitle cues) reads as prose.
+ */
+export interface InlineCode {
+  /** Character offset into the flattened text where the code sits. */
+  offset: number;
+  /** The code as a span, the shape the vocabulary registry keys chips on. */
+  span: SpanInfo;
+}
+
+/**
+ * The span one inline-code run projects to, or null for a run that carries no
+ * code (text, plural, select).
+ *
+ * Mirrors the run → SpanInfo mapping in `runsCodedBridge.runsToCoded`, over the
+ * preview kit's loose local `Run` (see the divergence note in ./types) rather
+ * than the strict generated union.
+ */
+function codeSpan(run: Run): SpanInfo | null {
+  const code = run.ph ?? run.pcOpen ?? run.pcClose;
+  if (code) {
+    return {
+      span_type: run.ph ? "placeholder" : run.pcOpen ? "opening" : "closing",
+      type: code.type ?? "",
+      sub_type: code.subType,
+      id: code.id,
+      data: code.data ?? "",
+      equiv_text: code.equiv,
+      display_text: code.disp,
+    };
+  }
+  // A subblock reference is opaque to a reading of this document — its content
+  // lives in the block it points at — so it reads as a placeholder for it.
+  if (run.sub) {
+    const equiv = run.sub.equiv ?? run.sub.ref;
+    return {
+      span_type: "placeholder",
+      type: "sub",
+      id: run.sub.id,
+      data: `[${equiv}]`,
+      equiv_text: equiv,
+    };
+  }
+  return null;
+}
+
+/** The inline codes of a run sequence, positioned in its `runsText`. */
+export function runsCodes(runs: Run[] | undefined): InlineCode[] {
+  const out: InlineCode[] = [];
+  let offset = 0;
+  for (const piece of documentPieces(runs)) {
+    if ("text" in piece) offset += piece.text.length;
+    else out.push({ offset, span: piece.code });
   }
   return out;
 }
@@ -160,9 +294,22 @@ function targetTexts(node: ContentNode): Record<string, string> | undefined {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** Per-locale inline codes for a block, parallel to {@link targetTexts}. */
+function targetCodes(node: ContentNode): Record<string, InlineCode[]> | undefined {
+  if (!node.targets) return undefined;
+  const out: Record<string, InlineCode[]> = {};
+  for (const [loc, runs] of Object.entries(node.targets)) {
+    const codes = runsCodes(runs);
+    if (codes.length > 0) out[loc] = codes;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Build a RenderLine from a block, carrying its targets/overlays/annotations. */
 function lineFromBlock(node: ContentNode, role?: RenderLine["role"]): RenderLine {
   const targets = targetTexts(node);
+  const codes = runsCodes(node.source);
+  const tCodes = targetCodes(node);
   // Code wins over the caller's positional role: a fenced block is code
   // wherever it appears, including as the first paragraph of a document (which
   // `docRole` would otherwise typeset as the title).
@@ -172,6 +319,8 @@ function lineFromBlock(node: ContentNode, role?: RenderLine["role"]): RenderLine
     id: node.id,
     text: runsText(node.source),
     ...(targets ? { targets } : {}),
+    ...(codes.length > 0 ? { codes } : {}),
+    ...(tCodes ? { targetCodes: tCodes } : {}),
     ...(node.sourceLocale ? { sourceLocale: node.sourceLocale } : {}),
     ...(resolvedRole ? { role: resolvedRole } : {}),
     // Code is preformatted whether or not the engine set the flag: a code block

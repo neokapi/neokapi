@@ -20,6 +20,8 @@
 // offset here is a CODE POINT offset (Go's rune), and `runRangeForBytes` takes
 // the UTF-8 byte offsets a Go producer reports.
 
+import { otherBranch, projectRuns, projectRunsText, type RunSpec } from "@neokapi/kapi-format";
+import { byteToCharOffset } from "../../lib/offsets";
 import type { Run, RunRange } from "./types";
 
 /** Code-point length of a string (Go's utf8.RuneCountInString). */
@@ -29,22 +31,30 @@ function codePointLength(s: string): number {
   return n;
 }
 
-/** UTF-8 byte length of one code point. */
-function utf8Length(ch: string): number {
-  const cp = ch.codePointAt(0) ?? 0;
-  if (cp < 0x80) return 1;
-  if (cp < 0x800) return 2;
-  if (cp < 0x10000) return 3;
-  return 4;
-}
+/**
+ * The offset domain: the string an overlay range indexes into.
+ *
+ * This projection is not a reading, it is a coordinate system, and it is
+ * pinned to `model.RunsText` on the Go side — an inline code has zero width
+ * *there*, so it must have zero width here, or every position computed by the
+ * engine lands somewhere else. That is why the codes are `dropped` with a
+ * reason and not merely absent: the next person to widen this projection has to
+ * read what they would break.
+ */
+const ZERO_WIDTH = { dropped: "zero text width in model.RunsText, the domain this mirrors" };
 
-/** The branch a plural/select run contributes to the flat text. */
-function otherBranch(branches: Record<string, Run[]>): Run[] {
-  const other = branches.other;
-  if (other) return other;
-  for (const key of Object.keys(branches)) return branches[key];
-  return [];
-}
+const OFFSET_DOMAIN: RunSpec<Run, string> = {
+  text: (r) => r.text ?? "",
+  ph: ZERO_WIDTH,
+  pcOpen: ZERO_WIDTH,
+  pcClose: ZERO_WIDTH,
+  sub: ZERO_WIDTH,
+  plural: { expand: (r) => projectRuns(otherBranch(r.plural?.forms ?? {}), OFFSET_DOMAIN) },
+  select: { expand: (r) => projectRuns(otherBranch(r.select?.cases ?? {}), OFFSET_DOMAIN) },
+  // Widthless, like every other non-text run in this domain: a marker here
+  // would shift every position after it. The reporter still says it was met.
+  fallback: () => "",
+};
 
 /**
  * The text-only flattening of a run sequence — the string overlay offsets index
@@ -52,30 +62,21 @@ function otherBranch(branches: Record<string, Run[]>): Run[] {
  * contribute their "other" branch.
  *
  * This is deliberately distinct from `runsText` in renderDoc, which is the
- * render projection and stops at text runs.
+ * document reading: the same characters, but codes carried alongside as chips
+ * rather than dropped.
  */
 export function runsPlainText(runs: Run[] | undefined): string {
-  if (!runs) return "";
-  let out = "";
-  for (const run of runs) {
-    if (typeof run.text === "string") out += run.text;
-    else if (run.plural) out += runsPlainText(otherBranch(run.plural.forms));
-    else if (run.select) out += runsPlainText(otherBranch(run.select.cases));
-  }
-  return out;
+  return projectRunsText(runs, OFFSET_DOMAIN);
 }
 
 /** The code-point width one run contributes to the flat text. */
 function runFlatLength(run: Run): number {
-  if (typeof run.text === "string") return codePointLength(run.text);
-  if (run.plural) return runsFlatLength(otherBranch(run.plural.forms));
-  if (run.select) return runsFlatLength(otherBranch(run.select.cases));
-  return 0;
+  return runsFlatLength([run]);
 }
 
 function runsFlatLength(runs: Run[]): number {
   let n = 0;
-  for (const run of runs) n += runFlatLength(run);
+  for (const part of projectRuns(runs, OFFSET_DOMAIN)) n += codePointLength(part);
   return n;
 }
 
@@ -102,19 +103,6 @@ export function runRangeForChars(runs: Run[] | undefined, start: number, end: nu
   const [startRun, startOffset] = runPosition(seq, start);
   const [endRun, endOffset] = runPosition(seq, end);
   return { startRun, startOffset, endRun, endOffset };
-}
-
-/** Code-point offset of a UTF-8 byte offset into `text`. */
-function byteToCharOffset(text: string, byteOffset: number): number {
-  if (byteOffset <= 0) return 0;
-  let bytes = 0;
-  let chars = 0;
-  for (const ch of text) {
-    if (bytes >= byteOffset) return chars;
-    bytes += utf8Length(ch);
-    chars++;
-  }
-  return chars;
 }
 
 /**

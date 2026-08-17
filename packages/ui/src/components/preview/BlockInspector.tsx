@@ -5,6 +5,7 @@ import { directionAttrs } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
+import { runsPlainText } from "./runRange";
 import RunSequence from "./RunSequence";
 import type { AnnotationView, ContentNode, OverlayView, Run, TargetMeta } from "./types";
 
@@ -33,13 +34,10 @@ const OVERLAY_CLASS: Record<string, string> = {
   alignment: "bg-blue-600 text-white",
 };
 
-function runsText(runs: Run[] | undefined): string {
-  if (!runs) return "";
-  return runs.map((r) => (r.text !== undefined ? r.text : "")).join("");
-}
-
 function wordCount(runs: Run[] | undefined): number {
-  const t = runsText(runs).trim();
+  // The words a reader would count: `runsPlainText` is the same reading the
+  // engine measures positions over, so a plural counts one form, not none.
+  const t = runsPlainText(runs).trim();
   return t ? t.split(/\s+/).length : 0;
 }
 
@@ -85,7 +83,7 @@ export default function BlockInspector({
         {node.type && <span className="text-[0.7rem] text-muted-foreground">{node.type}</span>}
         {!open && (
           <span className="truncate text-muted-foreground">
-            {runsText(node.source) || "(structure)"}
+            {runsPlainText(node.source) || "(structure)"}
           </span>
         )}
         <span className="ml-auto flex items-center gap-1.5">

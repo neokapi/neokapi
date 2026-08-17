@@ -1,24 +1,7 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo, EntityInfo } from "../../types/api";
 import { parseCodedSegments, TagChipComponent, buildPairs } from "@neokapi/ui-primitives";
-
-/** Color config per entity type — mirrors HighlightedSource. */
-const entityColors: Record<string, { bg: string; border: string }> = {
-  "entity:person": { bg: "var(--entity-person-bg)", border: "var(--entity-person-border)" },
-  "entity:organization": { bg: "var(--entity-org-bg)", border: "var(--entity-org-border)" },
-  "entity:location": { bg: "var(--entity-location-bg)", border: "var(--entity-location-border)" },
-  "entity:date": { bg: "var(--entity-date-bg)", border: "var(--entity-date-border)" },
-  "entity:product": { bg: "var(--entity-product-bg)", border: "var(--entity-product-border)" },
-};
-
-function getEntityColors(entityType: string) {
-  return (
-    entityColors[entityType] ?? {
-      bg: "var(--entity-default-bg)",
-      border: "var(--entity-default-border)",
-    }
-  );
-}
+import { entityMarks, markEntities } from "./entityMarks";
 
 interface SourceCellDisplayProps {
   codedText: string;
@@ -31,76 +14,32 @@ interface SourceCellDisplayProps {
  * Entity ranges are defined on the plain source text; we track running plaintext offset
  * to apply entity styling to text segments in the coded view.
  */
-export function SourceCellDisplay({ codedText, spans, entities = [] }: SourceCellDisplayProps) {
-  const segments = parseCodedSegments(codedText, spans);
+export function SourceCellDisplay({ codedText, spans, entities }: SourceCellDisplayProps) {
+  const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
   const pairs = useMemo(() => buildPairs(spans), [spans]);
   const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
 
-  // Build a set of sorted entity ranges for quick lookup.
-  const sortedEntities = useMemo(
+  // Entity positions are stated over the plain text — the text segments
+  // concatenated, the inline codes contributing nothing.
+  const marks = useMemo(
     () =>
-      [...entities]
-        .filter((e) => e.start >= 0 && e.end > e.start)
-        .sort((a, b) => a.start - b.start),
-    [entities],
+      entityMarks(
+        segments.reduce((text, seg) => (seg.type === "text" ? text + seg.value : text), ""),
+        entities,
+      ),
+    [segments, entities],
   );
 
   let tagIndex = 0;
-  let plainOffset = 0; // Running offset in the plain source text.
+  let plainOffset = 0; // Running code-point offset in the plain source text.
 
   return (
     <span>
       {segments.map((seg, i) => {
         if (seg.type === "text") {
-          const segStart = plainOffset;
-          const segEnd = segStart + seg.value.length;
-          plainOffset = segEnd;
-
-          // Check if any entity overlaps this text segment.
-          if (sortedEntities.length === 0) {
-            return <span key={i}>{seg.value}</span>;
-          }
-
-          // Split text by entity ranges.
-          const parts: React.ReactNode[] = [];
-          let cursor = segStart;
-
-          for (const e of sortedEntities) {
-            if (e.start >= segEnd || e.end <= segStart) continue;
-            const overlapStart = Math.max(e.start, segStart);
-            const overlapEnd = Math.min(e.end, segEnd);
-
-            // Pre-entity text.
-            if (overlapStart > cursor) {
-              parts.push(
-                <span key={`t-${cursor}`}>
-                  {seg.value.slice(cursor - segStart, overlapStart - segStart)}
-                </span>,
-              );
-            }
-
-            // Entity-highlighted text.
-            const colors = getEntityColors(e.type);
-            parts.push(
-              <span
-                key={`e-${overlapStart}`}
-                className="rounded-sm px-px"
-                style={{ backgroundColor: colors.bg, borderBottom: `2px solid ${colors.border}` }}
-                title={`${e.type.replace("entity:", "")}${e.dnt ? " (DNT)" : ""}`}
-              >
-                {seg.value.slice(overlapStart - segStart, overlapEnd - segStart)}
-              </span>,
-            );
-
-            cursor = overlapEnd;
-          }
-
-          // Trailing text.
-          if (cursor < segEnd) {
-            parts.push(<span key={`t-${cursor}`}>{seg.value.slice(cursor - segStart)}</span>);
-          }
-
-          return parts.length > 0 ? <span key={i}>{parts}</span> : <span key={i}>{seg.value}</span>;
+          const offset = plainOffset;
+          plainOffset += Array.from(seg.value).length;
+          return <span key={i}>{markEntities(seg.value, offset, marks)}</span>;
         }
 
         // Tag segment — no entity styling, just tag chips.

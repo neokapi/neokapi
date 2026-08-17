@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { SpanInfo } from "../../types/api";
+import type { EntityInfo, SpanInfo } from "../../types/api";
 import {
   getDefaultRegistry,
   parseCodedSegments,
@@ -7,10 +7,17 @@ import {
   tagColors,
   type TagColorScheme,
 } from "@neokapi/ui-primitives";
+import { entityMarks, markEntities } from "./entityMarks";
 
 interface FormattedSourceDisplayProps {
   codedText: string;
   spans: SpanInfo[];
+  /**
+   * Entity annotations to underline, positioned over the plain text. Optional:
+   * a target cell has none, and a source cell shows them only where the surface
+   * has loaded them.
+   */
+  entities?: EntityInfo[];
 }
 
 /** Map HTML open tags from the vocabulary to CSS styles for preview rendering. */
@@ -68,12 +75,30 @@ interface StackEntry {
  * Placeholders (br, img) appear as small inline pills — matching
  * the TagChipComponent placeholder style.
  */
-export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisplayProps) {
-  const segments = parseCodedSegments(codedText, spans);
+export function FormattedSourceDisplay({
+  codedText,
+  spans,
+  entities,
+}: FormattedSourceDisplayProps) {
+  const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
+
+  // Entity positions are stated over the plain text — the text segments
+  // concatenated, with the inline codes contributing nothing — so they are
+  // resolved once here and applied as each text segment is emitted.
+  const marks = useMemo(
+    () =>
+      entityMarks(
+        segments.reduce((text, seg) => (seg.type === "text" ? text + seg.value : text), ""),
+        entities,
+      ),
+    [segments, entities],
+  );
 
   const rendered = useMemo(() => {
     const elements: React.ReactNode[] = [];
     const stack: StackEntry[] = [];
+    // Running code-point offset into the plain text, for the entity marks.
+    let plainOffset = 0;
 
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
@@ -109,9 +134,12 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
         const tooltip =
           stack.length > 0 ? semanticTooltip(stack[stack.length - 1].span) : undefined;
 
+        const offset = plainOffset;
+        plainOffset += Array.from(seg.value).length;
+
         elements.push(
           <span key={i} style={mergedStyle} title={tooltip}>
-            {seg.value}
+            {markEntities(seg.value, offset, marks)}
           </span>,
         );
       } else {
@@ -159,6 +187,8 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
                 color: colors.text,
               }}
               title={semanticTooltip(span)}
+              data-inline-code={span.span_type}
+              dir="ltr"
             >
               {label}
             </span>,
@@ -168,7 +198,7 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
     }
 
     return elements;
-  }, [segments]);
+  }, [segments, marks]);
 
   return <span>{rendered}</span>;
 }

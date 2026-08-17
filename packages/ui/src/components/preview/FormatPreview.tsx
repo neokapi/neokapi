@@ -2,7 +2,9 @@ import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
 import { directionAttrs, type TextDirection } from "../../lib/text-direction";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { semanticLabel, semanticTooltip, tagColors } from "../editor/tagSemantics";
 import type {
+  InlineCode,
   RenderCell,
   RenderDoc,
   RenderLine,
@@ -359,7 +361,11 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   // A block with no translation yet reads as its source rather than as a hole
   // in the document — a partially translated document is still a document, and
   // it is the block's status, not a gap, that says the target is outstanding.
-  const fullText = isSource ? line.text : line.targets?.[ctx.side] || line.text;
+  const target = isSource ? undefined : line.targets?.[ctx.side];
+  const fullText = target || line.text;
+  // The codes belong to whichever side's text is being read, so a target that
+  // fell back to its source shows the source's codes rather than none.
+  const codes = (target ? line.targetCodes?.[ctx.side] : line.codes) ?? [];
 
   // Remember the previously-rendered text so a slot roll can start from it.
   const prevFullText = React.useRef(fullText);
@@ -383,8 +389,9 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
 
   const segments = useMemo<TextSegment[]>(() => segmentText(visible, spans), [visible, spans]);
 
-  // before/after diff only when there are no overlays (overlays own the styling).
-  const prev = spans.length === 0 ? ctx.beforeIndex?.get(line.id) : undefined;
+  // before/after diff only when there are no overlays (overlays own the styling)
+  // and no codes (which split the text into pieces the word diff can't align).
+  const prev = spans.length === 0 && codes.length === 0 ? ctx.beforeIndex?.get(line.id) : undefined;
 
   // A redacted line is never rolled — slot-text would briefly expose the cleartext
   // as it rolls. It falls through to the overlay path, which paints a censor bar.
@@ -405,6 +412,8 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   const attrs = lineDirAttrs(line, ctx);
 
   // Slot roll: render the line via slot-text, starting from the previous value.
+  // It rolls one string, so a line's inline codes are not shown while it rolls —
+  // the stages that opt into slot carry no annotations either.
   // (Reduced motion and redacted lines fall through to the instant text path.)
   if (ctx.transition === "slot" && !ctx.reducedMotion && !hasRedaction) {
     const roll = (
@@ -434,13 +443,84 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
         memoryLine && styles.memoryHit,
       )}
     >
-      {segments.map((seg, i) =>
-        seg.overlay ? (
-          <OverlayMark key={i} segment={seg} />
-        ) : (
-          <DiffText key={i} text={seg.text} prev={prev} />
-        ),
-      )}
+      {inlineNodes(segments, codes, visible.length, prev)}
+    </span>
+  );
+}
+
+/**
+ * Weave a line's inline codes back into its overlay segments, in reading order.
+ *
+ * The two segmentations are independent — overlays cover ranges of text, codes
+ * sit *between* characters — so a code inside an overlay splits that segment
+ * into two marks around the chip rather than dropping either. `limit` is how far
+ * the text has been revealed (the typewriter's visible prefix), so a code
+ * appears only once its position has been reached.
+ */
+function inlineNodes(
+  segments: TextSegment[],
+  codes: InlineCode[],
+  limit: number,
+  prev: string | undefined,
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let ci = 0;
+  let pos = 0;
+
+  const emitCodesAt = (offset: number) => {
+    while (ci < codes.length && codes[ci].offset <= offset) {
+      nodes.push(<InlineCodeChip key={`c${ci}`} code={codes[ci]} />);
+      ci++;
+    }
+  };
+  const emitText = (seg: TextSegment, text: string) => {
+    if (!text) return;
+    const key = `t${nodes.length}`;
+    nodes.push(
+      seg.overlay ? (
+        <OverlayMark key={key} segment={{ text, overlay: seg.overlay }} />
+      ) : (
+        <DiffText key={key} text={text} prev={prev} />
+      ),
+    );
+  };
+
+  for (const seg of segments) {
+    const start = pos;
+    const end = pos + seg.text.length;
+    let cursor = start;
+    while (ci < codes.length && codes[ci].offset < end) {
+      const at = Math.max(codes[ci].offset, start);
+      emitText(seg, seg.text.slice(cursor - start, at - start));
+      cursor = at;
+      emitCodesAt(at);
+    }
+    emitText(seg, seg.text.slice(cursor - start));
+    pos = end;
+  }
+  // Codes trailing the last character (e.g. a closing tag at the end of a line).
+  emitCodesAt(limit);
+  return nodes;
+}
+
+/**
+ * One inline code as a chip: the vocabulary's short label in its type color,
+ * with the original markup on the tooltip. Deliberately the same pill the
+ * editor's cell renderers draw, so a placeholder reads identically wherever it
+ * is shown — a source that quietly lost its `{{name}}` reads as a translation
+ * that invented one.
+ */
+function InlineCodeChip({ code }: { code: InlineCode }): React.ReactElement {
+  const colors = tagColors(code.span);
+  return (
+    <span
+      className={styles.inlineCode}
+      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+      title={semanticTooltip(code.span)}
+      data-inline-code={code.span.span_type}
+      dir="ltr"
+    >
+      {semanticLabel(code.span)}
     </span>
   );
 }
