@@ -155,6 +155,15 @@ export interface BrandVoiceFinding {
   /** Run-anchored span over the checked runs. */
   position?: RunRange;
   original_text?: string;
+  /**
+   * The checker that produced this finding, stamped when it was recorded.
+   * Several checkers accumulate into one annotation and only the last of them
+   * is named on it, so a consumer holding findings alone — a flow run's report,
+   * where the steps are whatever the recipe declared — reads this to attribute
+   * each one. Optional: a finding recorded before the stamp existed carries
+   * none, and a single-checker surface already knows the answer.
+   */
+  check?: string;
   /** Checker-specific detail: the matched rule id, a replacement, a concept id. */
   metadata?: Record<string, string>;
 }

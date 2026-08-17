@@ -39,7 +39,15 @@ func Annotate(v tool.BlockView, source string, findings []Finding, opts ...Score
 
 	combined := make([]Finding, 0, len(existing)+len(findings))
 	combined = append(combined, existing...)
-	combined = append(combined, findings...)
+	for _, f := range findings {
+		// Stamp the producer on the finding itself. The annotation names only
+		// the last checker to contribute, so without this a reader of the
+		// accumulated set cannot attribute the earlier ones.
+		if f.Check == "" {
+			f.Check = source
+		}
+		combined = append(combined, f)
+	}
 
 	score := CalculateScore(combined, opts...)
 	v.Annotate(AnnotationKey, &FindingsAnnotation{

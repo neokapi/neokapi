@@ -240,6 +240,11 @@ func builtinComposedFlows() []output.FlowInfo {
 }
 
 func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPath string) error {
+	// A check step in the chain needs somewhere to report, and the chain is
+	// built below — so the collector is armed first and read at the run's own
+	// output.
+	defer a.beginFlowFindings()()
+
 	// Resolve format with optional preset syntax (e.g., "okf_html:strict").
 	fmtName := a.FormatFlag
 	var mergedConfig map[string]any
@@ -428,7 +433,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			DurationMs: time.Since(runStart).Milliseconds(), FilesProcessed: 1,
 		})
 		if !a.Quiet {
-			return output.Print(cmd, output.FlowRunOutput{
+			return a.printFlowRun(cmd, output.FlowRunOutput{
 				FlowName:    flowName,
 				InputPath:   inputPath,
 				ProcessOnly: true,
@@ -466,7 +471,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		}
 		if !a.Quiet {
 			out := output.FlowRunOutput{FlowName: flowName, InputPath: inputPath, OutputPath: outputPath}
-			if err := output.Print(cmd, out); err != nil {
+			if err := a.printFlowRun(cmd, out); err != nil {
 				return err
 			}
 		}
@@ -506,7 +511,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			InputPath:  inputPath,
 			OutputPath: outputPath,
 		}
-		if err := output.Print(cmd, out); err != nil {
+		if err := a.printFlowRun(cmd, out); err != nil {
 			return err
 		}
 	}
@@ -573,6 +578,10 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 }
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
+	// One collector for the batch: the report covers the files this run's own
+	// output line covers.
+	defer a.beginFlowFindings()()
+
 	// Mirror a directory-style -o against the batch's common input root (not
 	// each file's own dir), so nested inputs keep their relative structure —
 	// the same base the exec tool runner uses.
@@ -729,7 +738,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	})
 
 	if !a.Quiet {
-		if err := output.Print(cmd, output.FlowRunOutput{
+		if err := a.printFlowRun(cmd, output.FlowRunOutput{
 			FlowName:       flowName,
 			FilesProcessed: processed,
 		}); err != nil {
@@ -1165,7 +1174,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 
 	// If project flow tools are set (via runProjectSteps), use them directly.
 	if a.projectFlowTools != nil {
-		return a.projectFlowTools, noop, nil
+		return a.tapFindings(a.projectFlowTools, inputPath), noop, nil
 	}
 
 	// Look up the flow definition from the built-in registry.
@@ -1296,7 +1305,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 		}
 	}
 
-	return builtTools, cleanup, nil
+	return a.tapFindings(builtTools, inputPath), cleanup, nil
 }
 
 // BuildFlowTools assembles the tool chain for a built-in flow for one

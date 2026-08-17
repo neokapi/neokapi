@@ -87,7 +87,7 @@ func TestFindingsCollectorReportsWhatTheCheckFound(t *testing.T) {
 
 	res, err := c.Result()
 	require.NoError(t, err)
-	report, ok := res.Data.(execFindingsReport)
+	report, ok := res.Data.(findingsReport)
 	require.True(t, ok)
 
 	require.Len(t, report.Findings, 1)
@@ -118,7 +118,7 @@ func TestFindingsCollectorSaysSoWhenThereAreNone(t *testing.T) {
 
 	res, err := c.Result()
 	require.NoError(t, err)
-	report := res.Data.(execFindingsReport)
+	report := res.Data.(findingsReport)
 	assert.Empty(t, report.Findings)
 
 	var buf bytes.Buffer

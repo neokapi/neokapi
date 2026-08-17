@@ -180,6 +180,11 @@ type App struct {
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool
 
+	// flowFindings is armed for the span of one reported flow run so the check
+	// steps of the flow have somewhere to report what they found. Non-nil only
+	// between beginFlowFindings and the run's own output.
+	flowFindings *flowFindings
+
 	// convergeProgressTap, when non-nil, is appended by runProjectStepsOver as
 	// a trailing read-only step so a convergence run can count units live.
 	// Set only on per-locale converge worker Apps (convergeWorker); nil
