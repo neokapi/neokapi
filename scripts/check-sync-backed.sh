@@ -128,6 +128,10 @@ content_defects() {
     echo "check-sync-backed: cannot read derived content — ${CONTENT_READER} is missing" >&2
     return 2
   fi
+  if ! command -v node >/dev/null 2>&1; then
+    echo "check-sync-backed: cannot read derived content — node is not on PATH" >&2
+    return 2
+  fi
 
   local only=()
   local p
