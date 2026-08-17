@@ -113,6 +113,22 @@ Both checks resolve their profile eagerly, when it is supplied programmatically,
 or lazily through a resolver against a context hierarchy, so a host can defer
 profile selection to runtime.
 
+### Pattern scope
+
+A style pattern's scope follows what it asserts. A prohibited pattern says "this
+text must not contain X", which every block answers on its own, so
+`profile.Findings` matches it per block beside the vocabulary rules. A required
+pattern says "this text must contain X" — the call to action, the trademark line,
+the safety notice — and that is a claim about the document: no paragraph of a
+page carries it, the page does. `profile.DocumentFindings` therefore evaluates
+the required patterns once over a file's content and reports one finding per
+unsatisfied rule against the file, with no block, because an absence sits nowhere
+in particular. A streaming tool sees one block at a time and so evaluates the
+block-scope half only.
+
+`profile.PatternRuleCount` is the number any surface reports as a profile's
+pattern-rule total, so what a profile card counts is what the gates apply.
+
 ### One resolution chain
 
 `profile.ResolveProfileFromContext` is the only place a profile's precedence is

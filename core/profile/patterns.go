@@ -127,7 +127,7 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 	return findings
 }
 
-// Findings is the profile's whole deterministic gate over text: forbidden and
+// Findings is the profile's deterministic gate at BLOCK scope: forbidden and
 // competitor vocabulary plus prohibited style patterns, mapped onto voice
 // findings in that order. runs anchors the findings' positions; pass nil for
 // plain text.
@@ -135,7 +135,98 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // Every surface that reports what a profile says about a piece of text calls
 // this rather than assembling the two matchers itself, so no surface can enforce
 // one half of a profile and present it as the whole.
+//
+// The required patterns are not here, and the omission is the rule's semantics
+// rather than a gap: see [DocumentFindings].
 func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
 	findings := HitsToFindings(MatchVocabulary(p, text), text, runs)
 	return append(findings, PatternHitsToFindings(MatchPatterns(p, text), text, runs)...)
+}
+
+// DocumentFindings is the profile's deterministic gate at DOCUMENT scope: the
+// required style patterns, over a whole document's text.
+//
+// "This text must contain X" is not a per-block assertion. Every paragraph of a
+// page does not carry the call to action, the trademark line or the safety
+// notice; the page does. Matched per block the way [Findings] matches the
+// prohibited half, a required pattern would flag essentially every block of
+// every document — so it is evaluated once, over the concatenation of a
+// document's content, and the rules that found nothing are reported against the
+// document rather than against any block in it. That is why a streaming tool,
+// which sees one block at a time, cannot evaluate them and does not pretend to.
+//
+// Pass the whole document's text; an empty text still fails every required rule,
+// because a document with no content carries nothing the rules ask for.
+func DocumentFindings(p *VoiceProfile, text string) []VoiceFinding {
+	return RequiredPatternFindings(UnmetRequiredPatterns(p, text))
+}
+
+// UnmetRequiredPatterns returns the profile's required patterns that text does
+// not satisfy, in their declared order. Each rule's regex is matched as authored
+// — no implicit case folding and no implicit word boundaries — exactly as
+// [MatchPatterns] matches the prohibited half, so one profile's two pattern
+// lists read the same way. An empty regex declares nothing and is skipped; a
+// regex that does not compile is skipped for the same reason it is on the
+// prohibited side (ValidateProfile is where an author learns it is broken, and
+// a gate must not fail a document over a rule it cannot evaluate).
+func UnmetRequiredPatterns(p *VoiceProfile, text string) []Pattern {
+	if p == nil {
+		return nil
+	}
+	var unmet []Pattern
+	for _, pat := range p.Style.RequiredPatterns {
+		src := strings.TrimSpace(pat.Regex)
+		if src == "" {
+			continue
+		}
+		re := compilePattern(src)
+		if re == nil {
+			continue
+		}
+		if !re.MatchString(text) {
+			unmet = append(unmet, pat)
+		}
+	}
+	return unmet
+}
+
+// RequiredPatternFindings maps unsatisfied required patterns onto voice
+// findings. A required pattern's violation is an absence, so a finding carries
+// no snippet and no position: there is no text to point at, which is the whole
+// complaint. Patterns default to major severity; a rule's own Severity, when
+// set, overrides the default.
+func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
+	if len(unmet) == 0 {
+		return nil
+	}
+	findings := make([]VoiceFinding, 0, len(unmet))
+	for _, pat := range unmet {
+		f := VoiceFinding{
+			Category: string(DimensionStyle),
+			Severity: severityForRule(pat.Severity, SeverityMajor),
+			// The regex is the rule's identity — the only thing an author has to
+			// trace a finding back to the line in the profile that raised it.
+			Metadata: map[string]string{"pattern": pat.Regex},
+		}
+		if desc := strings.TrimSpace(pat.Description); desc != "" {
+			f.Message = "Required pattern absent: " + desc
+		} else {
+			f.Message = fmt.Sprintf("Required pattern %q is absent", pat.Regex)
+		}
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+// PatternRuleCount is how many style pattern rules a profile applies — the
+// number a surface reports as the profile's pattern-rule total. Both lists count
+// because both are enforced: the prohibited patterns by [Findings] at block
+// scope, the required ones by [DocumentFindings] at document scope. Reporting a
+// count from anywhere else is how the two drift, and a rule counted but not
+// applied is a profile claiming to govern something it does not.
+func PatternRuleCount(p *VoiceProfile) int {
+	if p == nil {
+		return 0
+	}
+	return len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns)
 }

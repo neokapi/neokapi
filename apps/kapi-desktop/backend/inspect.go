@@ -174,7 +174,10 @@ func (a *App) overlayProjectTargets(ctx context.Context, op *openProject, pctx *
 		if _, err := os.Stat(tgtPath); err != nil {
 			continue
 		}
-		targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
+		// A target is the translated rendering of the same item, so it is read
+		// under the item's declared format and the recipe's config for it.
+		targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, rf.Format,
+			host.FormatConfigForItem(op.Project, rf.Format, rf.Item), sourceLang)
 		if err != nil {
 			continue
 		}

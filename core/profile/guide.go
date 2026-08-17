@@ -53,6 +53,12 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 			fmt.Fprintf(&b, "  - %s (severity: %s)\n", pat.Description, pat.Severity)
 		}
 	}
+	if len(p.Style.RequiredPatterns) > 0 {
+		b.WriteString("- Required in the document:\n")
+		for _, pat := range p.Style.RequiredPatterns {
+			fmt.Fprintf(&b, "  - %s (severity: %s)\n", pat.Description, pat.Severity)
+		}
+	}
 	b.WriteString("\n")
 
 	// Vocabulary
@@ -117,7 +123,7 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 // prompt where the full guide would be too verbose. Every constraint the full
 // guide renders is represented — tone (personality, formality, emotion, humor,
 // guidelines), style (active voice, sentence length, point of view,
-// contractions, prohibited patterns), and vocabulary bans (forbidden and
+// contractions, prohibited and required patterns), and vocabulary bans (forbidden and
 // competitor terms, with or without a replacement) — so no populated profile
 // field is silently dead context at generation time. Only the illustrative
 // material (preferred terms, examples) is left to the full guide; preferred
@@ -170,6 +176,12 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 		b.WriteString(".")
 	}
 
+	if hints := patternHints(p.Style.RequiredPatterns); len(hints) > 0 {
+		b.WriteString(" The document must carry these: ")
+		b.WriteString(strings.Join(hints, "; "))
+		b.WriteString(".")
+	}
+
 	swaps := termSwaps(p)
 	if len(swaps) > 0 {
 		b.WriteString(" Never use these terms (use the replacement): ")
@@ -185,9 +197,9 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	return strings.TrimSpace(b.String())
 }
 
-// patternHints returns the prohibited patterns' prompt-facing hints in their
-// declared order: the human description where present, else the raw regex — a
-// pattern must not vanish from the prompt just because nobody described it.
+// patternHints returns a pattern list's prompt-facing hints in its declared
+// order: the human description where present, else the raw regex — a pattern
+// must not vanish from the prompt just because nobody described it.
 func patternHints(pats []Pattern) []string {
 	var hints []string
 	for _, pat := range pats {

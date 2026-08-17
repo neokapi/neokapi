@@ -111,14 +111,17 @@ func (a *App) findReviewSource(op *openProject, locale, file string) (project.Re
 // same source-block+target-overlay pairing RunChecks measures.
 func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale string) (map[string]*model.Block, error) {
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
+	// Source and target are two renderings of one item, so both are read under
+	// the format and reader config the recipe declares for it.
+	fmtCfg := host.FormatConfigForItem(op.Project, rf.Format, rf.Item)
+	passBlocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
 		return nil, err
 	}
 	if _, serr := os.Stat(tgtPath); serr != nil {
 		return nil, fmt.Errorf("target file %q not found: %w", tgtPath, serr)
 	}
-	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
+	targetBlocks, err := a.readBlocksForChecks(ctx, tgtPath, rf.Format, fmtCfg, sourceLang)
 	if err != nil {
 		return nil, err
 	}
