@@ -119,6 +119,43 @@ func TestConverge_ParkedLocaleUnderManualPolicyKeepsWriting(t *testing.T) {
 	assert.Contains(t, string(body), "Tidevannsvindu")
 }
 
+// TestConverge_ParkedLocaleIsReportedOnWhatIsOnDisk: the run's closing report
+// describes the tree it leaves behind, not the draft it graded and threw away.
+//
+// A parked locale's draft is discarded, so figures derived from it describe a
+// tree nobody can open — and `kapi status`, run immediately after with no draft
+// to prefer, contradicts them. Here the drafted-but-withheld locale is fully
+// translated in the draft and has nothing on disk at all, which is the widest
+// the two readings can be apart: 100% against 0% (#2024).
+func TestConverge_ParkedLocaleIsReportedOnWhatIsOnDisk(t *testing.T) {
+	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
+		"translated": {Pct: 100},
+		"reviewed":   {Pct: 50},
+	})
+
+	out := converge(t, a, cmd, recipe)
+	require.Len(t, out.Locales, 1)
+	require.False(t, out.Locales[0].Shippable, "the gate withholds the locale")
+
+	_, err := os.Stat(filepath.Join(dir, "site", "locales", "nb.json"))
+	require.True(t, os.IsNotExist(err), "and nothing was delivered")
+	assert.Zero(t, out.Locales[0].Pct["translated"],
+		"so the run reports the locale as untranslated, which is what a reader will find")
+
+	// The same derivation `kapi status` runs, over the same tree, reaches the
+	// same figure — which is the whole property.
+	proj, lerr := project.Load(recipe)
+	require.NoError(t, lerr)
+	units, uerr := a.UnitsFromProject(proj, dir, "")
+	require.NoError(t, uerr)
+	cov, cerr := a.ComputeShipCoverage(cmd.Context(), proj, dir, units, nil)
+	require.NoError(t, cerr)
+	require.Len(t, cov, 1)
+	assert.Equal(t, cov[0].Pct["translated"], out.Locales[0].Pct["translated"],
+		"up and status must publish one `translated` figure for one locale")
+	assert.Equal(t, cov[0].Shippable, out.Locales[0].Shippable)
+}
+
 // TestConverge_ParkedDraftSurvivesInTheStore: withheld is not lost. The locale's
 // work is in the project block store, and materializing it — the deliberate act
 // `--materialize` or `kapi merge` is — puts it on disk.

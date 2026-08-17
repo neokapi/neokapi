@@ -114,12 +114,12 @@ type surfaces struct {
 }
 
 // readSurfaces runs `kapi up`, `kapi status` and `kapi status --ship` over the
-// same tree, in that order, with nothing in between, and reads one locale's
+// same tree, in that order, with nothing in between, and reads every locale's
 // answer out of each. `up` runs exactly once: it is the verb that changes the
 // tree, so a second call would be measuring a different project.
-func readSurfaces(t *testing.T, a *App, recipe, root, locale string) surfaces {
+func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces {
 	t.Helper()
-	var s surfaces
+	out := map[string]surfaces{}
 
 	upJSON, err := runCLI(t, NewUpCmd(a), "--project", recipe, "--json")
 	require.NoError(t, err, upJSON)
@@ -142,38 +142,37 @@ func readSurfaces(t *testing.T, a *App, recipe, root, locale string) surfaces {
 	}
 	require.NotEmpty(t, result, "up --json must close with a result event: %s", upJSON)
 	require.NoError(t, json.Unmarshal([]byte(result), &up), "up result must be JSON: %s", result)
-	found := false
+	require.NotEmpty(t, up.Locales, "up must report the project's locales: %s", result)
 	for _, lc := range up.Locales {
-		if lc.Locale != locale {
-			continue
+		out[lc.Locale] = surfaces{
+			upTranslated: lc.Pct["translated"], upShippable: lc.Shippable,
+			upVerified: lc.Verified, upFailingChecks: lc.FailingChecks,
+			// A locale is no stronger than its weakest collection scope, which is
+			// the fold BuildShipManifest applies; the grid's rows are per scope.
+			statusTranslated: 100, statusShippable: true, statusVerified: true,
 		}
-		found = true
-		s.upTranslated, s.upShippable = lc.Pct["translated"], lc.Shippable
-		s.upVerified, s.upFailingChecks = lc.Verified, lc.FailingChecks
 	}
-	require.True(t, found, "up must report %s: %s", locale, upJSON)
 
 	statusJSON, err := runCLI(t, NewStatusCmd(a), "--project", recipe, "--json")
 	require.NoError(t, err, statusJSON)
 	var status StatusOutput
 	require.NoError(t, json.Unmarshal([]byte(statusJSON), &status), "status must emit JSON: %s", statusJSON)
-	// A locale is no stronger than its weakest collection scope, which is the
-	// fold BuildShipManifest applies; the grid's own rows are per scope.
-	s.statusTranslated, s.statusShippable, s.statusVerified = 100, true, true
-	found = false
+	seen := map[string]bool{}
 	for _, lc := range status.Locales {
-		if lc.Locale != locale {
-			continue
-		}
-		found = true
+		s, ok := out[lc.Locale]
+		require.True(t, ok, "status reports %s, which up did not: %s", lc.Locale, statusJSON)
+		seen[lc.Locale] = true
 		if lc.Pct["translated"] < s.statusTranslated {
 			s.statusTranslated = lc.Pct["translated"]
 		}
 		s.statusShippable = s.statusShippable && lc.Shippable
 		s.statusVerified = s.statusVerified && lc.Verified
 		s.statusFailingChecks += lc.FailingChecks
+		out[lc.Locale] = s
 	}
-	require.True(t, found, "status must report %s: %s", locale, statusJSON)
+	for locale := range out {
+		require.True(t, seen[locale], "status must report %s: %s", locale, statusJSON)
+	}
 
 	shipPath := filepath.Join(root, "ship-read.json")
 	shipOut, err := runCLI(t, NewStatusCmd(a), "--project", recipe, "--ship", "--emit", shipPath)
@@ -185,14 +184,18 @@ func readSurfaces(t *testing.T, a *App, recipe, root, locale string) surfaces {
 		Verified  bool `json:"verified"`
 	}
 	require.NoError(t, json.Unmarshal(shipBytes, &ship), "ship manifest must be JSON: %s", shipBytes)
-	entry, ok := ship[locale]
-	require.True(t, ok, "ship manifest must carry %s: %s", locale, shipBytes)
-	s.shipShippable, s.shipVerified = entry.Shippable, entry.Verified
 
 	statusText, err := runCLI(t, NewStatusCmd(a), "--project", recipe)
 	require.NoError(t, err, statusText)
-	s.statusText = statusText
-	return s
+
+	for locale, s := range out {
+		entry, ok := ship[locale]
+		require.True(t, ok, "ship manifest must carry %s: %s", locale, shipBytes)
+		s.shipShippable, s.shipVerified = entry.Shippable, entry.Verified
+		s.statusText = statusText
+		out[locale] = s
+	}
+	return out
 }
 
 // assertAgree is the property the three surfaces are held to.
@@ -230,13 +233,18 @@ func breakPlaceholder(t *testing.T, root, locale string) {
 
 // TestCompass_ThreeSurfacesGiveOneAnswer drives the journey samples/compass
 // documents and holds `kapi up`, `kapi status` and `kapi status --ship` to one
-// answer about `nb` — first with the content clean, then with a real finding on
-// a unit every one of whose 38 strings carries a committed review decision.
+// answer about EVERY locale — first with the content clean, then with a real
+// finding on a unit every one of whose 38 strings carries a committed review
+// decision.
 //
 // The second state is the one that used to publish three answers: up called the
 // locale `parked (needs human)` at `translated 95%`, status called it
 // `translated 100% / ready`, and the manifest the deployed page reads offered it
 // as governed.
+//
+// Every locale, not just the one carrying the defect: a run that grades one tree
+// and leaves another behind mis-reports whichever locale it declined to deliver,
+// which is a different locale from the one a test author is looking at.
 func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := compassCopy(t)
@@ -253,30 +261,38 @@ func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 	})
 	approveLocale(t, a, recipe, root, "nb", func(string) bool { return true })
 
-	clean := readSurfaces(t, a, recipe, root, "nb")
-	assertAgree(t, clean, "nb")
-	assert.True(t, clean.shipShippable, "the journey ends with nb offered:\n%s", clean.statusText)
-	assert.True(t, clean.shipVerified, "and with its AI marker off:\n%s", clean.statusText)
-	assert.Zero(t, clean.upFailingChecks, "nothing fails the guardrails yet:\n%s", clean.statusText)
+	clean := readSurfaces(t, a, recipe, root)
+	for locale, s := range clean {
+		assertAgree(t, s, locale)
+	}
+	nb := clean["nb"]
+	assert.True(t, nb.shipShippable, "the journey ends with nb offered:\n%s", nb.statusText)
+	assert.True(t, nb.shipVerified, "and with its AI marker off:\n%s", nb.statusText)
+	assert.Zero(t, nb.upFailingChecks, "nothing fails the guardrails yet:\n%s", nb.statusText)
 
 	// A defect on content every one of whose 38 units carries a committed review
 	// decision. Whatever the loop then does with it — this pass re-drafts the
-	// unit, which withdraws its approval — the three surfaces must describe the
+	// unit, which withdraws its approval — the surfaces must describe the
 	// outcome identically.
 	breakPlaceholder(t, root, "nb")
 
-	broken := readSurfaces(t, a, recipe, root, "nb")
-	assertAgree(t, broken, "nb")
-	assert.False(t, broken.shipShippable,
+	broken := readSurfaces(t, a, recipe, root)
+	for locale, s := range broken {
+		assertAgree(t, s, locale)
+	}
+	nb = broken["nb"]
+	assert.False(t, nb.shipShippable,
 		"the defect withholds the locale — and the manifest a deployed picker reads says so, "+
-			"rather than offering what the run declined to publish:\n%s", broken.statusText)
-	assert.False(t, broken.upShippable,
-		"which is the same predicate up's state column reports:\n%s", broken.statusText)
+			"rather than offering what the run declined to publish:\n%s", nb.statusText)
+	assert.False(t, nb.upShippable,
+		"which is the same predicate up's state column reports:\n%s", nb.statusText)
+	assert.Positive(t, nb.upFailingChecks,
+		"and up names the finding, on the tree it leaves behind:\n%s", nb.statusText)
 	// The reported figure, on the input it was reported on: every unit here has
 	// a committed target, so `translated` is 100% on every surface. It read 95%
 	// on `up` alone, because that surface — and only that surface — subtracted
 	// the units carrying a finding from a lifecycle percentage.
-	assert.Equal(t, 100, broken.upTranslated,
-		"a unit carrying a finding is still translated:\n%s", broken.statusText)
-	assert.Equal(t, 100, broken.statusTranslated, broken.statusText)
+	assert.Equal(t, 100, nb.upTranslated,
+		"a unit carrying a finding is still translated:\n%s", nb.statusText)
+	assert.Equal(t, 100, nb.statusTranslated, nb.statusText)
 }

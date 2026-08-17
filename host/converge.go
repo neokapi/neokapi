@@ -929,6 +929,42 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		if out.MaterializedFiles > 0 {
 			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles})
 		}
+
+		// Delivery is done, so the drafts stop being anybody's subject and the
+		// standing is re-read off the tree the run leaves behind.
+		//
+		// Everything above is graded against the drafts, correctly: whether a
+		// pass moved a locale, and so whether it is delivered, is a question
+		// about what the pass produced. What the run REPORTS is a different
+		// question — it is what a reader will find, and for a parked locale that
+		// is the file already on disk, because its draft was discarded. Reporting
+		// the draft's figures put `kapi up` and `kapi status` at odds over one
+		// locale with no command between them, which is the whole defect (#2024):
+		// a locale whose committed catalog is 97% reviewed and carries a failing
+		// check was reported at 3% reviewed and clean, off a tree nobody could
+		// open.
+		//
+		// The verdict does not move by re-reading: a locale is pending — and so
+		// parked — because of staleness, a failing check, or a gate it has not
+		// cleared, and each of those holds on the delivered file too. What moves
+		// is that the numbers become true.
+		a.endConvergeDrafts()
+		cov, _, rerr := a.deriveCoverage(ctx, cmd, proj, filepath.Dir(projectPath), !opts.noChecks)
+		if rerr != nil {
+			return fmt.Errorf("re-derive the delivered standing: %w", rerr)
+		}
+		report := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
+		// How many files each locale got is the run's own fact, not the tree's.
+		materialized := make(map[string]int, len(out.Locales))
+		for _, lc := range out.Locales {
+			materialized[lc.Locale] = lc.Materialized
+		}
+		for i := range report.Locales {
+			report.Locales[i].Materialized = materialized[report.Locales[i].Locale]
+		}
+		out.Locales = report.Locales
+		out.ParkedScopes = report.ParkedScopes
+		out.Converged = report.Converged
 	}
 
 	// Everything this run wrote is the store's own output. Stamping it as
