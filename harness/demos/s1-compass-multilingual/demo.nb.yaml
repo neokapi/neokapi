@@ -1,13 +1,13 @@
 id: s1-compass-multilingual
 title: Et språk vises når det er klart
 subtitle: "Det samme prosjektet, det samme punktet, tre nye språk — konvergert, gjennomgått og portvoktet ved kanten der en leser ser det."
-tagline: velgeren er porten.
-kind: brukstilfelle
+tagline: the picker is the gate.
+kind: use-case
 publishAs: multilingual-ship-states
 # A scripted plain-shell demo: every command is deterministic and offline. The AI
 # leg is the built-in `demo` provider, which needs no key and no network and
 # marks its own output, so a take costs nothing and claims nothing.
-terminal: skall
+terminal: shell
 brand: kapi
 cwd: ~/compass
 needsAi: false
@@ -17,55 +17,55 @@ fixturesFrom: samples/compass
 project: true
 captureTimeoutSec: 240
 aspects:
-  - "ett poeng, én akse til"
-  - gjenbruk før KI
-  - gjennomgang flytter kanten
-  - "ship-tilstander, ikke filtilstedeværelse"
+  - one point, one more axis
+  - recycle before AI
+  - review moves the edge
+  - ship states, not file presence
 
 script:
   # --- 1. The same project, one more axis ---------------------------------
-  - comment: Compass er Northsea-produktet hvis grensesnittstrenger den enspråklige prøven allerede styrer. Ingenting ved det har endret seg.
+  - comment: Compass is the Northsea product whose interface strings the monolingual sample already governs. Nothing about it has moved.
   - command: cat kapi.yaml
-  - comment: Én linje gjør det flerspråklig. Poenget er det det alltid har vært.
+  - comment: One line makes it multilingual. The point is the one it always sat at.
   - command: kapi context site/locales/en-GB.json | head -6
-  - comment: "Begge akser, på én skjerm. Kilden fikk et Tide-vinduspanel forrige uke; ingen språk har det."
+  - comment: Both axes, on one screen. The source gained a Tide window panel last week; no language carries it.
   - command: kapi status
 
   # --- 2. What the site may offer today ------------------------------------
-  - comment: "Den publiserte siden bygger sin språkvelger fra én fil, og kapi skriver den."
+  - comment: The deployed page builds its language picker from one file, and kapi writes it.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: "Ingenting tilbys. Fire uoversatte strenger feiler aldri en bygg — de holder imidlertid hvert språk bak ship-gaten, og det er det ærlige svaret."
+  - comment: Nothing is offered. Four untranslated strings never fail a build — they do hold every language behind the ship gate, which is the honest answer.
 
   # --- 3. Converge: recycle first, draft the remainder ---------------------
-  - comment: Ett verb. Godkjent ordlyd gjenbrukes; bare det som gjenstår sendes til en leverandør.
+  - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norsk og tysk passerer leveringsporten på kladdet arbeid. Nederlandsk gjør det ikke — ingenting i det har blitt gjennomgått.
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch does not — nothing in it has been reviewed.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
 
   # --- 4. Review moves the edge --------------------------------------------
-  - comment: Gjennomgangskøen har allerede formen til et endrings-sett. Dette velger den nederlandske teksten en person skrev og lar det kladden utformet stå.
+  - comment: The review queue is already the shape of a change-set. This selects the Dutch a person wrote and leaves what the stub drafted.
   - command: >-
       kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > dutch.json
   # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply dutch.json 2>&1 | tail -3
-  - comment: "Godkjenninger venter til de blir bekreftet. Da er de i loggen, sporbare, i git."
+  - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
   - command: kapi commit
-  - comment: "Nederlandsk tilbys nå — med markøren, fordi det ikke er godkjent fra ende til ende."
+  - comment: Dutch is offered now — carrying the marker, because it is not signed off end to end.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
 
   # --- 5. Finish one, and its marker comes off -----------------------------
-  - comment: "Fullfør norsk, og samme fil sier det."
+  - comment: Finish Norwegian, and the same file says so.
   - command: >-
       kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > norwegian.json
   - command: kapi apply norwegian.json 2>&1 | tail -2
   - command: kapi commit
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: "Tre språk, tre statuser, ett utledet svar. Ingenting ble konfigurert per språk."
+  - comment: Three languages, three standings, one derived answer. Nothing was configured per language.
   - command: kapi status
 
 artifacts:
@@ -73,7 +73,7 @@ artifacts:
   # file:// load. The default server roots at the sandbox, so the path carries
   # the site/ prefix; settleMs covers the two fetches before the shot.
   - id: picker
-    caption: "site/index.html — velgeren, bygget fra ship.json"
+    caption: "site/index.html — the picker, built from ship.json"
     source: url
     path: /site/index.html
     port: 4599
@@ -81,21 +81,21 @@ artifacts:
     width: 1200
     height: 760
   - id: ship
-    caption: "site/ship.json — språkkode → leveringsklar, verifisert"
+    caption: "site/ship.json — locale → shippable, verified"
     source: report
     report: json
     path: site/ship.json
     reportTitle: "kapi status --ship"
-    reportSub: "hele kontrakten mellom loopen og leveringskanten"
+    reportSub: "the whole contract between the loop and the delivery edge"
     width: 1200
     height: 900
 
 narration:
-  - id: tittel
-    kind: tittel
+  - id: title
+    kind: title
     text: >
       Et andre språk er ikke et andre produkt. Det er én ny akse på innhold som allerede er styrt — og det interessante spørsmålet er ikke hvordan det blir oversatt. Det er hvem som bestemmer at en leser kan se det.
-  - id: akse
+  - id: axis
     kind: terminal
     text: >
       Compass er produktet hvis grensesnittstrenger det enspråklige eksemplet allerede styrer. Oppskriften er den samme oppskriften, poenget er det samme poenget, merkevarestemme-profilen er den samme profilen. Én linje ble lagt til: tre målspråk. Spør grafen hvor dette innholdet befinner seg, og den svarer det den svarte før — northsea slash app.
@@ -108,7 +108,7 @@ narration:
     caption: "38 enheter, tre språk, fire strenger bak"
 
   - id: ship
-    kind: artefakt
+    kind: artifact
     artifact: ship
     text: >
       Dette er hele kontrakten mellom løkken og det publiserte nettstedet. Hvert språk, og to uavhengige svar: er det trygt å tilby i det hele tatt, og har en person godkjent hver streng i det. En bygging skriver denne filen. En språkvelger leser den. Ingenting annet passerer mellom dem.
@@ -124,13 +124,13 @@ narration:
       Norsk og tysk passerer nå skipsluken for utkast, og tilbys som markert. Nederlandsk gjør det ikke, og tilbys ikke i det hele tatt. Filen eksisterer. Den inneholder nederlandsk. Luken har rett og slett ikke klarert den, og at en fil er til stede har aldri vært avgjørelsen.
     caption: "blokkert: gjennomgang — gaten navngir hva som mangler"
 
-  - id: gjennomgang
+  - id: review
     kind: terminal
     text: >
       Gjennomgang er et endrings-sett, og køen er allerede i form av ett. Dette filteret godkjenner det nederlandske en person skrev og lar det stubben utarbeidet stå — som er det skillet hele løkken er bygget rundt. Godkjenningsstadiet, deretter inn i prosjektregisteret: sporbart, i git, knyttet til den eksakte teksten de vurderte.
     caption: "nitten beslutninger, én commit"
 
-  - id: vises
+  - id: appears
     kind: terminal
     text: >
       Nederlandsk tilbys nå, og bærer markøren. Fullfør norsk, og den samme filen mister markøren sin i stedet. Tre språk, tre forskjellige statuser, og ikke ett av dem ble konfigurert — alle er avledet fra arbeidet som ble gjort.
@@ -138,7 +138,7 @@ narration:
 
   - id: picker
     kind: artifact
-    artifact: velger
+    artifact: picker
     text: >
       Og her lander det. Velgeren tilbyr det porten godkjente, markerer det ingen person har godkjent, og tilbyr ikke det som ikke er klart. En korrekturleser som godkjenner en streng om morgenen er grunnen til at et språk er der om ettermiddagen.
   - id: outro

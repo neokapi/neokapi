@@ -1,19 +1,19 @@
 id: kapi-desktop-flows
 title: Sett sammen flyter for et prosjekt
 subtitle: Rørledningene et prosjekt kjører over innholdet sitt.
-tagline: den visuelle følgesvennen til kapi-kommandolinjen
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-flows
-terminal: skrivebord
+terminal: desktop
 brand: desktop
 needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Prosjektflyter
-  - Rørledninger av trinn
-  - KI-oversettelse og kvalitetssikring
-  - Sammensettbare verktøy
+  - Project flows
+  - Pipelines of steps
+  - AI translation & QA
+  - Composable tools
 
 narration:
   - id: title
@@ -21,7 +21,7 @@ narration:
     text: >-
       Et prosjekt trenger ingen flytdefinisjoner for å oversette: Kapi leveres med en innebygd standardflyt — gjenbruk av oversettelsesminne, deretter KI-oversettelse, deretter kontroller.
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
       Bring up to date kjører den standard flyten slik den er. Vi åpner KapiMart-eksemplet for å se når et prosjekt definerer sin egen.
@@ -31,26 +31,26 @@ narration:
     caption: KapiMart — åpnet fra startskjermen.
     text: >-
       KapiMart åpnes fra startskjermen, med sitt eget innhold, innstillinger og flyter.
-  - id: bibliotek
-    kind: skrivebord
+  - id: library
+    kind: desktop
     beat: library
     caption: Flyt-fanen viser pipelinene som er definert i prosjektet.
     text: >-
       Flyter-fanen i verktøykassen er nødutgangen: rørledninger som prosjektet definerer når standarden ikke er tilstrekkelig, lagret sammen med det og delt via versjonskontroll.
   - id: library-zoom
-    kind: skrivebord
+    kind: desktop
     beat: library-zoom
     caption: Hver flyt er en navngitt sekvens av trinn.
     text: >-
       Hver enkelt er en navngitt sekvens av trinn — en enkel oversettelse, en oversettelse med kvalitetskontroller og en pseudo-oversettelse for testing.
   - id: open-flow
-    kind: skrivebord
+    kind: desktop
     beat: open-flow
     caption: Å åpne en flyt viser dens pipeline.
     text: >-
       Å åpne translate-and-qa avslører pipelinen.
   - id: pipeline
-    kind: skrivebord
+    kind: desktop
     beat: pipeline
     caption: "Kilden flyter gjennom KI-oversettelse, deretter en kvalitetskontroll."
     text: >-

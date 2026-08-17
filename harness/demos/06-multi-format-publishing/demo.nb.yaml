@@ -1,51 +1,54 @@
 id: 06-multi-format-publishing
 title: Oversett Markdown og en properties-fil
 subtitle: "To filer i to formater, én forespørsel, hver returnert i sitt eget format."
-kind: brukstilfelle
+kind: use-case
 aspects:
-  - formatbevisst
-  - Markdown tur-retur
-  - .properties tur-retur
+  - format-aware
+  - Markdown round-trip
+  - .properties round-trip
 needsAi: true
 model: sonnet
 captureTimeoutSec: 320
 
 prompt: >
-  Vi trenger franske versjoner av to filer: veiledningen README.md for å komme i gang, og UI-strengene messages.properties. Kan du oversette begge til fransk og beholde hver i sitt eget format? Lagre dem som README.fr.md og messages.fr.properties.
+  We need French versions of two files: our getting-started guide README.md, and our UI
+  strings messages.properties. Can you translate both into French, keeping each in its own
+  format? Save them as README.fr.md and messages.fr.properties.
+
 artifacts:
   - id: md-before
-    caption: "README.md — den engelske veiledningen, gjengitt"
-    source: rapport
+    caption: "README.md — the English guide, rendered"
+    source: report
     report: markdown
-    reportTitle: "README.md (engelsk)"
+    reportTitle: "README.md (English)"
     path: README.md
     width: 1100
     height: 820
   - id: md-after
-    caption: "README.fr.md — samme overskrifter, lister og sitat, på fransk"
-    source: rapport
+    caption: "README.fr.md — same headings, lists and quote, in French"
+    source: report
     report: markdown
     reportTitle: "README.fr.md (Français)"
     path: README.fr.md
     width: 1100
     height: 820
   - id: props
-    caption: "messages.fr.properties — nøkler bevart, verdier oversatt"
-    source: rapport
+    caption: "messages.fr.properties — keys preserved, values translated"
+    source: report
     report: catalog
     reportTitle: "messages.fr.properties"
-    reportSub: "kapi · Java properties tur-retur"
+    reportSub: "kapi · Java properties round-trip"
     path: messages.fr.properties
     width: 1100
     height: 700
 
 narration:
-  - id: tittel
+  - id: title
     kind: title
     text: >
       Innhold lever sjelden i ett format. Her må to filer i to formater oversettes, og hver av dem må komme tilbake i sitt opprinnelige format.
-  - id: forespørsel
-    kind: forespørsel
+  - id: prompt
+    kind: prompt
     text: >
       Forespørselen nevner begge filene og ber om å beholde hver i sitt eget format. Den forklarer ikke hvordan de to formatene skiller seg — kapi vet det allerede.
   - id: markdown
@@ -59,17 +62,17 @@ narration:
       For properties-filen beholder den hver nøkkel til venstre for likhetstegnet og oversetter kun meldingen til høyre.
     caption: "messages.properties — nøkler urørt, bare verdiene oversatt"
   - id: md-before
-    kind: artefakt
+    kind: artifact
     artifact: md-before
     text: >
       Den engelske veiledningen slik den gjengis i dag: en tittel, seksjoner og et tips i et blokksitatfelt.
   - id: md-after
-    kind: artefakt
+    kind: artifact
     artifact: md-after
     text: >
       Den franske versjonen, med samme struktur — fordi kapi behandlet den som Markdown gjennom hele prosessen, ikke som en tekstblokk.
   - id: props
-    kind: artefakt
+    kind: artifact
     artifact: props
     text: >
       Og properties-filen på fransk: hver nøkkel bevart, hver verdi oversatt. Én kjøring håndterte begge formatene.

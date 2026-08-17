@@ -1,19 +1,19 @@
 id: kapi-desktop-projects
 title: Opprett og administrer et prosjekt
 subtitle: Sett opp et flerspråklig innholdsprosjekt i Kapi Desktop.
-tagline: det visuelle følgesvennet til kapi-kommandolinjen
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-projects
-terminal: skrivebord
+terminal: desktop
 brand: desktop
 needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Prosjekter
-  - Kilde- og målspråk
-  - Innholdsmønstre
-  - Prosjektinnstillinger
+  - Projects
+  - Source & target languages
+  - Content patterns
+  - Project settings
 
 narration:
   - id: title
@@ -21,7 +21,7 @@ narration:
     text: >-
       Kapi Desktop — la oss opprette og sette opp et flerspråklig innholdsprosjekt.
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
       Det åpnes til en startskjerm. Et nytt prosjekt starter her.
@@ -33,7 +33,7 @@ narration:
       Nytt prosjekt krever bare et navn — her, Acme Help Center. Kapi utleder mappen og resten fra det.
   - id: templates
     kind: desktop
-    beat: maler
+    beat: templates
     caption: Eller start fra KapiMart-eksempelet.
     text: >-
       Eller start fra KapiMart — et ferdiglaget eksempelprosjekt med innholdssamlinger, målspråk og et fylt innholdsminne.

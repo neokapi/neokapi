@@ -1,7 +1,7 @@
 id: 09-toolbox-find-replace
 title: "grep, sed og cat — for alle formater"
 subtitle: "kcat, kgrep og ksed arbeider på teksten kapi leser ut av et dokument — Word, Excel, Markdown — ikke rå bytes."
-tagline: "muskellminne fra verktøyene du allerede kjenner, på innhold disse verktøyene ikke kan se inn i."
+tagline: muscle memory from the tools you already know, on content those tools can't see into.
 kind: use-case
 publishAs: toolbox-explainer
 # A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
@@ -12,35 +12,35 @@ cwd: ~/sales
 needsAi: false
 captureTimeoutSec: 120
 aspects:
-  - format-bevisst
+  - format-aware
   - kcat · kgrep · ksed
   - docx + xlsx + markdown
-  - "ett pass, på stedet"
+  - one pass, in place
 
 # Each comment names exactly what the command below it does. Wildcards (`*`)
 # fan a single pattern or substitution across every file, regardless of format.
 script:
-  - comment: "Et salgsteams materiell — ett produktnavn, tre formater."
+  - comment: A sales team's collateral — one product name, three formats.
   - command: ls
-  - comment: kcat Word-forslaget — innholdet som rene tekstlinjer.
+  - comment: kcat the Word proposal — its prose, as plain lines.
   - command: kcat proposal.docx
-  - comment: kcat Excel-prislisten — én celle per linje.
+  - comment: kcat the Excel price list — one cell per line.
   - command: kcat pricing.xlsx
-  - comment: kgrep etter hvert «SalesPilot» i alle tre filene samtidig.
+  - comment: kgrep every "SalesPilot" across all three files at once.
   - command: kgrep -n SalesPilot *
-  - comment: "ksed gir nytt navn fra SalesPilot til Northstar, på stedet, i alle tre."
+  - comment: ksed renames SalesPilot to Northstar, in place, in all three.
   - command: ksed -i 's/SalesPilot/Northstar/g' *
-  - comment: "kgrep det nye navnet for å bekrefte — samme treff, omdøpt."
+  - comment: kgrep the new name to confirm — same matches, renamed.
   - command: kgrep -c Northstar *
   - command: kcat proposal.docx
 
 artifacts:
-  - id: etter
-    caption: "proposal.docx — omdøpt til Northstar, overskrift og fet skrift intakt"
+  - id: after
+    caption: "proposal.docx — renamed to Northstar, heading and bold intact"
     source: docx
     path: proposal.docx
     reportTitle: "proposal.docx"
-    reportSub: "fortsatt et gyldig Word-dokument — bare ordene ble endret"
+    reportSub: "still a valid Word document — only the words changed"
     width: 1100
     height: 760
 
@@ -65,8 +65,8 @@ narration:
       Og én ksed gir produktet nytt navn overalt, på stedet — hver fil lagret tilbake i sitt eget format.
     caption: "én ksed omdøper på tvers av alle tre, på stedet"
   - id: after
-    kind: artefakt
-    artifact: etter
+    kind: artifact
+    artifact: after
     text: >
       Forslaget er fortsatt et gyldig Word-dokument — overskrift og struktur intakt. Bare ordene ble endret.
   - id: outro

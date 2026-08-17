@@ -2,7 +2,7 @@
   "tools": {
     "case-transform": {
       "displayName": "Stortransformasjon",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "applySource": {
           "title": "Bruk på kilde",
@@ -31,7 +31,7 @@
     },
     "create-target": {
       "displayName": "Opprett mål",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "copySource": {
           "title": "Kopier kilde",
@@ -53,7 +53,7 @@
     },
     "diff-leverage": {
       "displayName": "Diff-utnyttelse",
-      "category": "oversettelse",
+      "category": "translation",
       "properties": {
         "caseSensitive": {
           "title": "Skille mellom store og små bokstaver",
@@ -67,7 +67,7 @@
     },
     "dnt-check": {
       "displayName": "Ikke-oversett-sjekk",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "caseInsensitive": {
           "title": "Bevaring uten skille mellom store og små bokstaver",
@@ -81,12 +81,12 @@
     },
     "encoding-detect": {
       "displayName": "Registrer koding",
-      "category": "analyse"
+      "category": "analysis"
     },
     "entity-extract": {
       "displayName": "AI-enhetsuttrekk",
       "description": "Gjenkjenn navngitte enheter (personer, organisasjoner, produkter, steder) med en LLM, en lokal NER-modell eller begge",
-      "category": "analyse",
+      "category": "analysis",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -170,7 +170,7 @@
     },
     "external-command": {
       "displayName": "Ekstern kommando",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "applySource": {
           "title": "Bruk på kilde",
@@ -204,7 +204,7 @@
     },
     "inline-codes-remove": {
       "displayName": "Fjern innebygde koder",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "applySource": {
           "title": "Bruk på kilde",
@@ -231,7 +231,7 @@
     "media-refine": {
       "displayName": "Medieraffinering",
       "description": "Les om lavtillits OCR\/ASR-linjer med en konfigurerbar multimodal LLM",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -281,7 +281,7 @@
     },
     "placeholder-check": {
       "displayName": "Plassholdersjekk",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "flagExtra": {
           "title": "Flagg ekstra plassholdere",
@@ -291,7 +291,7 @@
     },
     "pseudo-translate": {
       "displayName": "Pseudooversett",
-      "category": "oversettelse",
+      "category": "translation",
       "properties": {
         "expansionPercent": {
           "title": "Utvidelsesprosent",
@@ -310,7 +310,7 @@
     "qa": {
       "displayName": "Kvalitetskontroll",
       "description": "Kontroller oversettelseskvalitet med deterministiske regler eller en LLM (velg med --mode)",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "absoluteMaxCharLength": {
           "title": "Absolutt maksimalt antall tegn",
@@ -543,7 +543,7 @@
     },
     "recycle": {
       "displayName": "Gjenbruk",
-      "category": "oversettelse",
+      "category": "translation",
       "properties": {
         "downgradeIdenticalBestMatches": {
           "title": "Nedgrader identiske eksakte treff",
@@ -582,7 +582,7 @@
     "redact": {
       "displayName": "Rediger",
       "description": "Erstatt sensitive sekvenser med beskyttede plassholdere før behandling",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "detectors": {
           "title": "Detektorer",
@@ -627,7 +627,7 @@
     "review": {
       "displayName": "Gjennomgang",
       "description": "Gjennomgå oversettelser med poenggivning ved hjelp av en LLM-leverandør",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -673,7 +673,7 @@
     },
     "script": {
       "displayName": "Skript",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "allowSourceMutation": {
           "title": "Tillat kildemutasjon",
@@ -703,7 +703,7 @@
     },
     "search-replace": {
       "displayName": "Søk og erstatt",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "dotAll": {
           "title": "Punktum matcher også linjeskift",
@@ -738,7 +738,7 @@
     "segmentation": {
       "displayName": "Segmentering",
       "description": "Del kildetekst inn i setnings- eller blokksegmenter (frittstående overlegg)",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "credential": {
           "title": "Legitimasjon",
@@ -834,7 +834,7 @@
     },
     "source-gate": {
       "displayName": "Kildesluse",
-      "category": "oversettelse",
+      "category": "translation",
       "properties": {
         "gate": {
           "title": "Kildegate",
@@ -858,7 +858,7 @@
     },
     "term-check": {
       "displayName": "Terminologikontroll",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "caseSensitive": {
           "title": "Skiller mellom store og små bokstaver",
@@ -869,7 +869,7 @@
     "term-extract": {
       "displayName": "AI-terminologiutvinning",
       "description": "Hent kandidatterminologi fra innhold ved hjelp av en LLM-leverandør",
-      "category": "analyse",
+      "category": "analysis",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -920,7 +920,7 @@
     "translate": {
       "displayName": "Oversett",
       "description": "Oversett innhold med en LLM eller maskinoversettelses­leverandør (velg en motor, deretter en leverandør)",
-      "category": "oversettelse",
+      "category": "translation",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -1029,12 +1029,12 @@
     "unredact": {
       "displayName": "Angre redigering",
       "description": "Gjenopprett opprinnelige verdier i redigert innhold etter behandling",
-      "category": "tekstbehandling"
+      "category": "text-processing"
     },
     "voice-check": {
       "displayName": "AI-stemmekontroll",
       "description": "Sjekk tekst mot en stemprofil ved hjelp av en LLM-leverandør",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -1085,7 +1085,7 @@
     "voice-infer": {
       "displayName": "KI-stemmegenerering",
       "description": "Utled et utkast til stemmeprofil fra et innholdkorpus ved hjelp av en LLM-leverandør",
-      "category": "analyse",
+      "category": "analysis",
       "properties": {
         "apiKey": {
           "title": "API-nøkkel",
@@ -1143,7 +1143,7 @@
     },
     "whitespace-correct": {
       "displayName": "Hvitromskorreksjon",
-      "category": "tekstbehandling",
+      "category": "text-processing",
       "properties": {
         "correctComma": {
           "title": "Komma",
@@ -1205,7 +1205,7 @@
     },
     "xml-validation": {
       "displayName": "XML-validering",
-      "category": "kvalitet",
+      "category": "quality",
       "properties": {
         "checkSource": {
           "title": "Kontroller kilde",

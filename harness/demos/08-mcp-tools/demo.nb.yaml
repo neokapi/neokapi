@@ -3,19 +3,22 @@ title: Nå kapi via MCP
 subtitle: "Den samme motoren, eksponert for assistenten som Model Context Protocol-verktøy."
 kind: integration
 aspects:
-  - MCP-integrasjon
-  - uttrekk og statistikk
-  - pseudo-oversett
+  - MCP integration
+  - extract & stats
+  - pseudo-translate
 needsAi: false
 mcp: true
 model: sonnet
 captureTimeoutSec: 300
 
 prompt: >
-  Bruk kapi og ta en titt på content.json for meg: hvilket format er det, hvor mange oversettbare ord har det, og hva kan kapi gjøre med det? Vis meg deretter en rask pseudooversatt forhåndsvisning av innholdet.
+  Using kapi, take a look at content.json for me: what format is it, how many translatable
+  words does it have, and what could kapi do with it? Then show me a quick pseudo-translated
+  preview of the content.
+
 artifacts:
   - id: wordcount
-    caption: "kapi stats på content.json — det virkelige tallet"
+    caption: "kapi stats on content.json — the real figure"
     source: command
     command: kapi stats content.json --json
     report: stats
@@ -42,7 +45,7 @@ narration:
       Den kjører en pseudooversettelses gjennom det samme grensesnittet. Dette er hvordan kapi kobles til andre MCP-klienter, som Cursor eller Windsurf — den samme motoren, en annen inngangsport.
     caption: "Pseudooversett via MCP — samme motor, nådd som et verktøy"
   - id: wordcount
-    kind: artefakt
+    kind: artifact
     artifact: wordcount
     text: >
       Tallene kom direkte fra motoren: det oppdagede formatet og antall oversettbare ord og segmenter i filen. Ingen gjetning.
