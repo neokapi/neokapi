@@ -208,6 +208,25 @@ func TestConceptProjectsTellsNoUseFromNoGraph(t *testing.T) {
 		"a concept the graph never recorded falls back rather than reporting nothing")
 	require.NotEmpty(t, unknown.Notes)
 	assert.Contains(t, unknown.Notes[0], "bounded scan")
+
+	// A concept added after the last push is in the terms store and not in the
+	// graph, which is exactly the case the fallback exists for. It answers the
+	// same question, so it answers it at the same narrowing: a reader who pinned
+	// a project does not get the workspace back when the source changes.
+	h.seedProject(t, ctx, "app", "web", "A warm cache is not the content memory.")
+	require.NoError(t, h.terms.AddConcept(ctx, fwterms.Concept{
+		ID:    "c-late",
+		Terms: []fwterms.Term{{Text: "warm cache", Locale: "en", Status: model.TermApproved}},
+	}))
+
+	wide := h.ask(t, "/", "c-late")
+	require.Equal(t, "scan", wide.Source)
+	require.Len(t, wide.Projects, 1, "the walk finds the use the graph has not recorded yet")
+
+	pinned := h.ask(t, "/?project="+proj.ID, "c-late")
+	require.Equal(t, "scan", pinned.Source)
+	assert.Empty(t, pinned.Projects,
+		"pinning the project that does not use it walks that project alone")
 }
 
 // TestConceptProjectsDegradesToAPartial is the degradation contract at the

@@ -272,8 +272,13 @@ func (s *Server) conceptProjectsByScan(
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	usage, err := engine.ConceptUsage(c.Request().Context(), wsID, conceptID,
-		knowledge.EvalOptions{Budget: s.scanBudget(), MaxSamples: limit})
+	// The narrowing has to survive the fallback, or a reader who pinned a project
+	// gets the workspace back the moment the answer changes source.
+	usage, err := engine.ConceptUsage(c.Request().Context(), wsID, conceptID, knowledge.EvalOptions{
+		ProjectID:  c.QueryParam("project"),
+		Budget:     s.scanBudget(),
+		MaxSamples: limit,
+	})
 	if err != nil {
 		return serverErr(c, err)
 	}
