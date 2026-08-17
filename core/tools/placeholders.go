@@ -156,6 +156,19 @@ func compareLiteralPlaceholders(source, target string, flagExtra bool) (missing,
 	return missing, extra
 }
 
+// PlaceholdersCarried reports whether a translation still carries every
+// interpolation placeholder its source carries.
+//
+// The read-side counterpart of the check: a caller deciding whether a
+// source→target pairing is worth keeping asks this rather than assembling
+// findings for a reader. Only what the target *dropped* is asked about — an
+// invented placeholder is a defect a check reports, but it does not make the
+// pairing a translation of some other sentence.
+func PlaceholdersCarried(source, target string) bool {
+	missing, _ := comparePlaceholders(source, target, false)
+	return len(missing) == 0
+}
+
 // placeholderFindings reports the placeholder integrity of one translation as
 // check findings: dropped placeholders are critical, because a program that
 // interpolates into a string that lost its slot breaks where the reader is

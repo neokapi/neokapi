@@ -129,6 +129,35 @@ func TestAbsorbCommittedRecord(t *testing.T) {
 			wantMemory:    map[string]string{"Plain line": "Enkel linje"},
 		},
 		{
+			// The #1869 shape: a help string gained wording that names its
+			// parameters, and the committed translation is of the sentence
+			// before it. The two documents still pair by key, so nothing else
+			// tells them apart; the placeholders the target does not carry do.
+			name:          "a target that dropped a text placeholder is refused",
+			ext:           ".json",
+			source:        `{"target":"Write it to {path} in {lang}","ok":"OK, ready"}`,
+			target:        `{"target":"Skriv den til stien","ok":"OK, klar"}`,
+			wantPairs:     1,
+			wantLearned:   1,
+			wantRefused:   1,
+			wantDocuments: 1,
+			wantMemory:    map[string]string{"OK, ready": "OK, klar"},
+		},
+		{
+			// Coverage is never the question: a plural translated with the
+			// categories the target language needs carries what it owes.
+			name:          "a plural translated with fewer categories is absorbed",
+			ext:           ".json",
+			source:        `{"n":"{count, plural, one {# file} other {# files}}"}`,
+			target:        `{"n":"{count, plural, other {# filer}}"}`,
+			wantPairs:     1,
+			wantLearned:   1,
+			wantDocuments: 1,
+			wantMemory: map[string]string{
+				"{count, plural, one {# file} other {# files}}": "{count, plural, other {# filer}}",
+			},
+		},
+		{
 			name:   "no committed target teaches nothing",
 			ext:    ".json",
 			source: `{"greeting":"Hello world"}`,
@@ -148,7 +177,7 @@ func TestAbsorbCommittedRecord(t *testing.T) {
 			assert.Equal(t, tc.wantDocuments, res.Record.Documents, "committed target documents read")
 			assert.Equal(t, tc.wantPairs, res.Record.Pairs, "pairs absorbed")
 			assert.Equal(t, tc.wantLearned, res.Record.Learned, "entries learned")
-			assert.Equal(t, tc.wantRefused, res.Record.Refused, "pairs refused for dropped inline codes")
+			assert.Equal(t, tc.wantRefused, res.Record.Refused, "pairs refused for dropped placeholders")
 
 			entries := storeEntries(t, a, root)
 			assert.Len(t, entries, len(tc.wantMemory))

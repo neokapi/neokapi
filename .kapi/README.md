@@ -71,8 +71,8 @@ travel one path:
 
 Editing a `.memory.json` bundle to change a rendered string records a decision
 nobody made, in the one place the loop treats as an input rather than an output.
-`scripts/check-sync-backed.sh` refuses a sync whose derived artifacts have no
-`.kapi/` change behind them, and hand-editing a bundle to clear that gate
+`scripts/check-sync-backed.sh` refuses a sync that removed a derived artifact
+with no `.kapi/` change behind it, and hand-editing a bundle to clear that gate
 manufactures the backing rather than supplying it.
 
 What legitimately lands in a bundle is a **new** reviewed pair for a string that
@@ -163,6 +163,25 @@ wrong: when a source string gains or renumbers an inline code, its entry stops
 matching structurally and shows up here until it is re-anchored. Retire an entry
 only when its wording should never come back.
 
+## Targets the source moved away from
+
+The same rewrite lands differently on the other kind of catalog, and that one is
+not drift. `core/i18n/catalogs/<lang>.json` and `host/i18n/catalogs/<lang>.json`
+are addressed by **scope path**, not by source text, so a reworded string keeps
+its scope and the previous translation stays attached to it. Nothing falls back:
+the locale ships a translation of a sentence the source no longer contains, and
+it is indistinguishable from a current one — the opposite of the drift the loop
+is built to tolerate.
+
+Two things narrow it. The record absorber refuses a pairing whose target does not
+carry the source's placeholders, in either spelling, so a rewrite that moved a
+parameter is not taught to the corpus as reviewed wording. And
+`make l10n-stale-report` reads the rest out of git: for each translated entry,
+the commit its text last changed at is the commit it was produced at, and the
+source document there is the wording it translates. It reports and never gates —
+re-translate the entry where it is reviewed, or remove it so the locale falls
+back to English until the next convergence writes it again.
+
 ## Why not PO files? (decided, not overlooked)
 
 The Go-surface catalogs (builtins, CLI help) are standard gettext at runtime —
@@ -205,7 +224,7 @@ gitignored ephemera (`.kapi/work/`, extraction batches, `i18n-*/` intermediates,
    same-repo pull request commits the regeneration back instead of failing.
    Never hand-edit.
 
-3. **Loop-owned — written by `kapi up`, reported not gated.** The
+3. **Loop-owned — written by `kapi up`, gated on content rather than bytes.** The
    target-language tier: the Go-surface catalogs
    (`core/i18n/catalogs/<lang>.json`, `host/i18n/catalogs/<lang>.json`), the
    frontend runtime dictionaries (`public/translations/<lang>.json`), the
@@ -216,10 +235,19 @@ gitignored ephemera (`.kapi/work/`, extraction batches, `i18n-*/` intermediates,
    of the project store, which holds the union of what git carries and what a
    venue pull brought home, so no byte gate can be laid over them: a checkout
    with no server cannot reproduce an approval made on one, and a gate that
-   demanded it would overwrite the approval. Their standing is reported instead
-   — `make l10n-report` (coverage and placeholder parity) — and one guard
-   survives, `l10n-collapse-check`: a catalog that carried entries at HEAD may
-   not regenerate to empty. Never hand-edit.
+   demanded it would overwrite the approval. Their coverage is reported instead
+   — `make l10n-report` — and never gated.
+
+   Their **content** is gated. Reproducibility cannot be asserted about this
+   tier; soundness can, and it is a different question: an artifact must parse,
+   must carry exactly the placeholders its source carries, and must not have
+   translated a machine identifier the recipe never declared translatable.
+   `scripts/check-derived-content.mjs` reads that — `make l10n-content-check`
+   over the committed tier, `scripts/check-sync-backed.sh` over what a run wrote.
+   `l10n-collapse-check` still asserts existence: a catalog that carried entries
+   at HEAD may not regenerate to empty. Never hand-edit — though a defective
+   entry may be **removed**, because a wrong translation is not an approved one
+   and falling back to source is the correct pending state.
 
    The compiled MO the Go binaries embed is **not** committed: `make
    i18n-catalogs` produces `<lang>.mo` from the `<lang>.json` beside it, ahead

@@ -1510,9 +1510,16 @@ L10N_COMPILE_TARGETS := \
 # of the project store, which holds the union of what git carries and what a
 # venue pull brought home. A byte gate over it would require a checkout with no
 # server to reproduce wording a reviewer approved on one, and would overwrite
-# that wording the moment it could not. So this tier is reported — coverage and
-# placeholder parity, `make l10n-report` — and gated by nothing except
-# l10n-collapse-check, which asserts existence rather than coverage.
+# that wording the moment it could not. So this tier carries no byte gate.
+#
+# It is not ungated. What cannot be asserted about it is that it reproduces;
+# what can be asserted is that what was written in it is sound — it parses, it
+# carries its source's placeholders, and it did not translate a machine
+# identifier the recipe never declared translatable. `make l10n-content-check`
+# reads the committed tier, `scripts/check-sync-backed.sh` refuses a run whose
+# output fails, and l10n-collapse-check still asserts existence. Coverage stays
+# reported and never gated (`make l10n-report`), because a string the target
+# does not carry falls back to its source, which is pending work.
 #
 # The compiled runtime dictionaries split the same way, and by the same rule:
 # `translations/qps.json` is compiled from the pseudo expansion of the source
@@ -1750,7 +1757,7 @@ l10n-collapse-check: ## Guard: no committed target-locale catalog regenerated to
 l10n-derived-paths: ## Print the git pathspecs l10n-verify byte-gates
 	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC)"
 
-l10n-loop-owned-paths: ## Print the git pathspecs the loop owns (target tier, never byte-gated)
+l10n-loop-owned-paths: ## Print the git pathspecs the loop owns (target tier, gated on content rather than bytes)
 	@echo "$(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC)"
 
 l10n-owned-paths: ## Print every committed artifact this pipeline owns (both tiers)
@@ -1798,6 +1805,21 @@ L10N_REPORT_PAIRS = \
 l10n-report: ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-loop-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
+# What a derived artifact derives from, printed one locale per line, so the
+# return-leg gate and this walk cannot disagree about it. The same pairs the
+# report is measured against: a coverage number and a soundness verdict are two
+# readings of one relation.
+l10n-content-pairs: ## Print <artifact>:<reference> for every derived artifact whose content can be read
+	@$(foreach lang,$(L10N_LANGS),echo "$(lang) $(call L10N_REPORT_PAIRS,$(lang))";)
+
+# The content question over the whole committed tier — the standing burndown of
+# what is already in git. `scripts/check-sync-backed.sh` asks it of what a run
+# wrote, which is where it gates; here it is a reading, run when someone wants
+# the list. Not in `make l10n`: content soundness gates the return leg, never an
+# ordinary build.
+l10n-content-check: ## Read every committed derived artifact for parse, placeholder parity and machine identifiers
+	@$(foreach lang,$(L10N_LANGS),node scripts/check-derived-content.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
+
 # Everything the loop materializes for one locale — the corpus the orphan report
 # asks "did this seed entry produce anything?" against. Not the same set as
 # L10N_LOOP_CATALOGS: that one names what is *committed*, and the docs pages and
@@ -1812,12 +1834,21 @@ L10N_TARGETS = $(foreach d,$(L10N_KBF_DIRS),$(d)/i18n-$(1)) \
 # entry whose source string is gone is kept rather than deleted. Content memory
 # matches on text, though, so a kept entry is wording any surface can pick up
 # again; the point of the report is that a reviewer sees which ones those are.
-l10n-orphans: l10n l10n-orphans-report ## Run the loop, then report seed entries that produced nothing
+l10n-orphans: l10n l10n-orphans-report l10n-stale-report ## Run the loop, then report entries the source has moved away from
 
 # The report over already-materialized targets. Split out because CI has just
 # run the stages and re-running them to read their output would double the job.
 l10n-orphans-report: ## Report seed entries that produced no target artifact (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-orphan-report.mjs $(lang) $(call L10N_TARGETS,$(lang));)
+
+# The mirror image of the orphan report, and the reason both exist. A KBF
+# catalog keys on the source text, so a rewrite orphans the entry and the locale
+# falls back — visible above. A scope-addressed catalog keys on the key path, so
+# a rewrite leaves the old translation attached to the new sentence and nothing
+# falls back. That is a wrong translation rather than a missing one, and the
+# wording it was produced from lives in git.
+l10n-stale-report: ## Report target entries whose source string changed under them (never gates)
+	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-stale-target-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # ── Frontend packages ────────────────────────────────────────────────────────
 
@@ -2595,8 +2626,8 @@ help: ## Show this help
         l10n l10n-build l10n-extract l10n-converge l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-loop-owned-paths l10n-owned-paths \
         l10n-extract-globs l10n-review-export \
-        l10n-collapse-check l10n-report \
-        l10n-orphans l10n-orphans-report \
+        l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
+        l10n-orphans l10n-orphans-report l10n-stale-report \
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \

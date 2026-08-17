@@ -152,18 +152,24 @@ jobs:
         if: ${{ !inputs.plan }}
         run: make l10n-compile
 
-      # Delivery is conditional on the committed context explaining what the run
-      # produced. Every artifact the loop owns is rebuilt from .kapi/ on the next
-      # regeneration, so wording delivered without a matching .kapi/ change lives
-      # exactly until then and is overwritten from a context that never learned
-      # it — a green run that erases its own result. The gate refuses that run,
-      # naming every file, and this job goes red: pending work the loop has not
-      # carried home is a signal, not something to commit past.
+      # Delivery is conditional on what the run wrote being sound. Every artifact
+      # the loop owns is re-materialized on the next regeneration rather than
+      # repaired, so a defect delivered here is a defect the next run reproduces:
+      # a translation that lost the placeholder its sentence was built around, a
+      # scene id translated into something the harness matches nothing by, a
+      # catalog that no longer parses. The gate reads the artifacts and refuses
+      # that run, naming every defect, and this job goes red.
+      #
+      # Coverage is not what it asks. A locale short of its source is the pending
+      # state this loop absorbs, and a night that approved nothing is an ordinary
+      # night — what the committed context did is reported beside the verdict,
+      # not required for it. What a run *removed* still needs the context to
+      # explain it: a removal carries no content to read.
       #
       # Runs unconditionally rather than behind has-changes, so the gate reads
       # the tree itself rather than the action's account of it. A clean tree
       # (a `plan` dispatch, or a run with nothing to catch up) passes.
-      - name: Refuse what the committed context cannot explain
+      - name: Refuse derived content that must not be committed
         id: gate
         run: ./scripts/check-sync-backed.sh
 
@@ -194,6 +200,7 @@ jobs:
           COMMIT_NOTE: ${{ steps.commit.outputs.note }}
           DERIVED: ${{ steps.gate.outputs.derived }}
           BACKING: ${{ steps.gate.outputs.backing }}
+          DECISIONS: ${{ steps.gate.outputs.decisions }}
         run: |
           # Globbing off: the derived set carries git pathspec magic
           # (`:(glob)…`), which the shell must not expand against the tree.
@@ -211,7 +218,7 @@ jobs:
             echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
             exit 1
           fi
-          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${COMMIT_NOTE} The backing gate classified ${DERIVED:-0} derived change(s), backed by ${BACKING:-0} change(s) under \`.kapi/\`."
+          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${COMMIT_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound; \`.kapi/\` moved in ${BACKING:-0} file(s), ${DECISIONS:-0} of which carry a decision rather than a re-serialization."
           export AUTO_PR_NOTE
           # shellcheck disable=SC2086  # the derived set is a list of pathspecs
           ./scripts/auto-pr.sh bot/dogfood-sync \

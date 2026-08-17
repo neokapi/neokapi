@@ -101,25 +101,52 @@ store: the Go-surface catalogs, the runtime dictionaries, the subject catalogs,
 the rendered per-locale email templates, and the demo narration sidecars. A byte
 gate over this tier would require a checkout with no server to reproduce wording
 a reviewer approved on one — and would overwrite the wording the moment it could
-not, green every time and silent. So there is no byte gate here. What is
-asserted instead:
+not, green every time and silent. So there is no byte gate here.
 
+What replaces it is not a weaker version of the same question. Reproducibility
+cannot be asserted about this tier; **soundness** can, and it is a different
+question with a different answer. A derived artifact must parse, must carry
+exactly the interpolation placeholders its source carries, and must not have
+translated a machine identifier the recipe never declared translatable. None of
+those is coverage: a string the target does not carry falls back to its source,
+which is the pending state the loop absorbs. These are strings the target does
+carry and gets wrong, and the next convergence re-materializes them rather than
+repairing them.
+
+- `scripts/check-derived-content.mjs` — the content reader. Every artifact is
+  measured against the document it derives from: the `qps` probe where a surface
+  has one, its source document otherwise, and for a narration sidecar the
+  `demo.yaml` master it overlays. `make l10n-content-check` reads the whole
+  committed tier; `scripts/check-sync-backed.sh` reads what a run wrote, and
+  refuses on a defect.
 - `make l10n-report` — per-locale coverage and placeholder parity, posted to the
   `l10n` workflow's job summary. It reports and cannot fail: an English change
-  that leaves nb behind is pending work, not a build break. Each surface is
-  measured against the `qps` probe where it has one (every source string, with
-  its placeholders intact) and against its source document otherwise.
-- `make l10n-collapse-check` — the one guard that survives. A catalog that
-  carried entries at HEAD, in a locale the committed content memory still holds
-  pairs for, may not come back empty. Partial coverage passes; existence is the
-  question. It runs inside `make l10n`, in the walk that produced the files,
-  because that is the only place that can tell an empty catalog from an
-  unchanged one.
-- `scripts/check-sync-backed.sh` — the erasure gate, below.
+  that leaves nb behind is pending work, not a build break. Coverage and
+  soundness are two readings of one relation, which is why both take their pairs
+  from `make l10n-content-pairs`.
+- `make l10n-collapse-check` — existence. A catalog that carried entries at HEAD,
+  in a locale the committed content memory still holds pairs for, may not come
+  back empty. Partial coverage passes. It runs inside `make l10n`, in the walk
+  that produced the files, because that is the only place that can tell an empty
+  catalog from an unchanged one.
+- `scripts/check-sync-backed.sh` — the return-leg gate, below.
 
 `make l10n-orphans-report` is the mirror image of coverage: the memory entries
 that produced nothing, which [`.kapi/README.md`](../../.kapi/README.md) explains.
 It reports and never gates either.
+
+`make l10n-stale-report` is the mirror image of *that*, and the two together
+cover both ways a source rewrite lands. A KBF catalog keys on the source text, so
+rewording changes the key: the old target stops being emitted and the locale
+falls back to English — pending work, reported by the orphan report. The
+Go-surface catalogs are addressed by scope path, so rewording keeps the scope and
+the previous translation stays attached to a sentence the source no longer
+contains. Nothing falls back, and the locale ships a wrong translation that looks
+exactly like a current one. The wording a translation was produced from survives
+a clone in exactly one place — the target's own git history — which is what this
+reads. It reports and never gates: re-translating an entry, or removing it so the
+locale falls back until the next convergence, is a decision rather than a build
+step.
 
 Three make targets print the three path sets, one definition each, so nothing
 re-derives a list:
@@ -223,15 +250,30 @@ alone would leave every surface compiled from them behind until someone ran
 return leg and before the gate, which classifies the compiled dictionaries and
 the per-locale renders as owned output alongside the catalogs they come from.
 
-`scripts/check-sync-backed.sh` then asks whether the committed context moved
-with what the run produced, which is why it runs second. Wording the loop
-materialized lives in git in exactly one place — the artifact — until something
-under `.kapi/` explains it, and the next convergence that runs from a colder
-store writes over it from a context that never learned it, with every run in the
-sequence green. The gate refuses that run, naming every file, and the nightly
-goes red. It also refuses anything the run changed outside `.kapi/` and the
-owned set, backed or not: an indiscriminate delivery would otherwise carry a
-source edit into main with no review and no CI.
+`scripts/check-sync-backed.sh` then reads what the run wrote, which is why it
+runs last. It classifies the working tree — context, derived, foreign — and then
+opens the derived artifacts: a run whose output does not parse, dropped a
+placeholder, or translated a machine identifier is refused by name, and the
+nightly goes red. It also refuses anything the run changed outside `.kapi/` and
+the owned set: an indiscriminate delivery would otherwise carry a source edit
+into main with no review and no CI.
+
+Two things it does *not* do, each for a reason the other half of this document
+gives.
+
+It does not require the committed context to have moved. A night that converged
+and approved nothing is the ordinary night for a repository whose source moves
+daily and whose reviewers approve in batches, and requiring backing made the
+nightly red on every one of them. What the context did is *reported* beside the
+verdict — and reported by what it says rather than by whether its bytes moved,
+because a projection that re-sorted an array decided nothing and was once
+credited with backing forty-eight derived files.
+
+It does still require the context to explain a **removal**. A rewrite carries
+content to read; a deletion carries none, so there the committed context stays
+the authority: a catalog or a sidecar that disappeared is an erasure until a
+decision shard, a terms edit, a memory seed, the voice profile or a profile
+explains it. A re-serialization is not that.
 
 Delivery is `scripts/auto-pr.sh`: what survives the gate goes up as a pull
 request on the rolling `bot/dogfood-sync` branch, never as a push to main, so a
@@ -266,10 +308,13 @@ reversibly.
 | `i18n-catalogs` | the Go binaries' embedded MO is build output, and `//go:embed` resolves at compile time, so it is a build prerequisite rather than a stage anyone runs by hand |
 | `l10n-verify` / `l10n-derived-paths` | a generated-vs-source gate over the build tier, and its single source of truth for what that set is |
 | `l10n-loop-owned-paths` / `l10n-owned-paths` | the target tier, and the union the erasure gate and the delivery step classify against |
-| `l10n-report` | what replaced the byte gate on the target tier: coverage and placeholder parity, reported |
+| `l10n-report` | coverage and placeholder parity over the target tier, reported and never gating |
+| `l10n-content-pairs` | what each derived artifact derives from, defined once for the report and the gate |
+| `l10n-content-check` | the soundness question over the whole committed tier — the standing burndown of what is already in git |
 | `l10n-collapse-check` | existence, not coverage: a catalog that carried entries may not come back empty, asserted in the walk that produced it |
 | `l10n-review-export` | emits the lossy interchange views (TMX/CSV) a human reviewer asks for; read-only, and wording is still decided in the ledger |
 | `l10n-orphans` / `l10n-orphans-report` | content memory matches on text, so an entry whose source string is gone is wording any surface can pick up again, and the only safe version of keeping it is seeing it |
+| `l10n-stale-report` | a scope-addressed catalog keeps a translation attached to its scope when the sentence under it is rewritten, and git is the only record of what it was a translation of that survives a clone |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |
 | `make l10n-extract` in the dogfood workflow | the loop cannot carry collections whose source catalogs do not exist yet |
 | `make l10n-compile` in the dogfood workflow | a night that delivered catalogs alone would ship every runtime compiled from the previous one |

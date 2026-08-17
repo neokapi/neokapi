@@ -3,7 +3,6 @@
     "commands": {
       "kapi": {
         "add": {
-          "long": "Legg til filmønstre i dette prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Format oppdages automatisk\nfra filendelsen med mindre --format er angitt.\n\n  kapi add \"src\/**\/*.html\"\n  kapi add \"locales\/*.json\" --format json\n  kapi add \"src\/**\/*.html\" \"content\/**\/*.md\"",
           "short": "Legg til filmønstre i prosjektets innhold"
         },
         "apply": {
@@ -45,7 +44,6 @@
         },
         "context": {
           "example": "kapi context docs\/guide.md\n  kapi context docs\/guide.md --json\n  kapi context --profile marketing\n  kapi context search widget",
-          "long": "Hent innholdskonteksten dette prosjektet bruker — termene, stemmen og reglene som gjelder — uten å måtte vite hvilken lagring som har svaret.\n\nKommunikasjon er kontekstuell: en juridisk merknad er ikke en hjelpetekst. Spør hva prosjektet sier om et ord eller en frase før du skriver, i stedet for å lære det fra en mislykket sjekk etterpå.",
           "search": {
             "example": "  kapi context search widget\n  kapi context search \"sign in\" --locale en\n  kapi context search widget --json",
             "long": "Still ett spørsmål og få svar fra alle butikker prosjektet\nbinder: hva dette kalles og om det frarådes, og formuleringer\nprosjektet allerede har godkjent.\n\nResultater grupperes etter type fremfor å slås sammen til én rangert liste, fordi et\nterminologitreff og et formuleringsreff ikke scores på sammenlignbare ting.",
@@ -245,7 +243,6 @@
         },
         "long": "kapi analyserer alle formater til én samlet innholdsmodell, redigerer innholdet\ni den, kontrollerer det og skriver det tilbake byte for byte. Det holder et prosjekts\ninnholdskontekst — termene, stemmen og reglene det følger — slik at du kan\nkonvertere formater, oversette med KI og kjøre kvalitetskontroller mot det som\nfaktisk gjelder.",
         "ls": {
-          "long": "List filene som matcher prosjektets innholdssamlinger (med hensyn til\nekskluderingslisten). Med --stats vises også antall blokker og ord per fil.\n\nI et servertilkoblet prosjekt (en oppskrift med en bowrain:-blokk, med\nbowrain-pluginen installert) rapporterer en SYNC-kolonne hver fils status for\nventing på push (\"2 to push\" \/ \"synced\"), utledet fra synkroniseringsbufferen.\n\n  kapi ls\n  kapi ls src\/\n  kapi ls --stats",
           "short": "List opp filene som prosjektets innhold sporer"
         },
         "mcp": {
@@ -264,7 +261,6 @@
           },
           "import": {
             "example": "  kapi memory import corpus.tmx -s en -t fr\n  kapi memory import corpus.tmx --all-pairs --locales en,fr,de --name my-tm\n  kapi memory import seeds\/builtins-nb.memory.json",
-            "long": "Importer én enkelt TMX-fil (vanlig eller .gz) eller et innebygd .memory.json-\nbunt til innholdsminnet.\n\nBunten er den innebygde innholdsminneformen: en deterministisk, tapsfri JSON-\nserialisering som rund-tripper alle Entry-felt (entitetsmappinger, provenans-\nopprinnelser, egenskaper, notater) som TMX dropper. Import av én bevarer oppføringens\nidentitet ordrett, slik at re-seeding av et innholdsminne fra forpliktede bunter er\nfullt reproduserbart. Formatet velges etter filendelse; --format overstyrer.\n\nSom standard importeres oppføringer som samsvarer med angitt --source-locale og --target-locale.\nBruk --all-pairs for å sende ut oppføringer for hvert (kilde, mål) språkpar som finnes i\nhvert TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der\net enkelt TU kan inneholde 24+ språk). Kombiner med --locales for å begrense\nparsettet (f.eks. --all-pairs --locales en-GB,fr,de).\n\nImporten oppdager automatisk UTF-8\/UTF-16 fra BOM-en, slik at Euramis-eksporter fungerer\nuten forhåndskonvertering. For web-crawl TMX-sett (bitextor-utdata) blir per-TUV\n<prop type=\"source-document\"> URL registrert som Origin.Reference.",
             "short": "Importer en TMX-fil eller en innebygd .memory.json-pakke til innholdsminnet"
           },
           "import-dir": {
