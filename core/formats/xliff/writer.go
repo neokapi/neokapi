@@ -532,6 +532,18 @@ func (w *Writer) sourceText(block *model.Block) string {
 	return concatSegments(sourceSegViews(block))
 }
 
+// transUnitID is the `@id` a block is written under: the one the document
+// spelled, which differs from the block's own ID exactly when the reader had to
+// separate units that called themselves the same thing. A block's ID is an
+// identity for the store; `@id` is what the document says, and the two are the
+// same for every conforming document.
+func transUnitID(block *model.Block) string {
+	if original, ok := block.Properties[TransUnitIDProperty]; ok && original != "" {
+		return original
+	}
+	return block.ID
+}
+
 // renderXliffRuns serializes a Run sequence into xliff 1.2 inline
 // markup. TextRun bytes are XML-escaped; PcOpen/PcClose/Ph runs are
 // re-wrapped in <bpt>/<ept>/<ph> elements so the round-trip preserves
@@ -795,7 +807,7 @@ func (w *Writer) flush() (retErr error) {
 			return err
 		}
 
-		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(block.ID))
+		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(transUnitID(block)))
 		if !block.Translatable {
 			fmt.Fprintf(ew, ` translate="no"`)
 		}
