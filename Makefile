@@ -1834,12 +1834,21 @@ L10N_TARGETS = $(foreach d,$(L10N_KBF_DIRS),$(d)/i18n-$(1)) \
 # entry whose source string is gone is kept rather than deleted. Content memory
 # matches on text, though, so a kept entry is wording any surface can pick up
 # again; the point of the report is that a reviewer sees which ones those are.
-l10n-orphans: l10n l10n-orphans-report ## Run the loop, then report seed entries that produced nothing
+l10n-orphans: l10n l10n-orphans-report l10n-stale-report ## Run the loop, then report entries the source has moved away from
 
 # The report over already-materialized targets. Split out because CI has just
 # run the stages and re-running them to read their output would double the job.
 l10n-orphans-report: ## Report seed entries that produced no target artifact (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-orphan-report.mjs $(lang) $(call L10N_TARGETS,$(lang));)
+
+# The mirror image of the orphan report, and the reason both exist. A KBF
+# catalog keys on the source text, so a rewrite orphans the entry and the locale
+# falls back — visible above. A scope-addressed catalog keys on the key path, so
+# a rewrite leaves the old translation attached to the new sentence and nothing
+# falls back. That is a wrong translation rather than a missing one, and the
+# wording it was produced from lives in git.
+l10n-stale-report: ## Report target entries whose source string changed under them (never gates)
+	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-stale-target-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # ── Frontend packages ────────────────────────────────────────────────────────
 
@@ -2618,7 +2627,7 @@ help: ## Show this help
         l10n-verify l10n-derived-paths l10n-loop-owned-paths l10n-owned-paths \
         l10n-extract-globs l10n-review-export \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
-        l10n-orphans l10n-orphans-report \
+        l10n-orphans l10n-orphans-report l10n-stale-report \
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \

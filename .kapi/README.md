@@ -163,6 +163,25 @@ wrong: when a source string gains or renumbers an inline code, its entry stops
 matching structurally and shows up here until it is re-anchored. Retire an entry
 only when its wording should never come back.
 
+## Targets the source moved away from
+
+The same rewrite lands differently on the other kind of catalog, and that one is
+not drift. `core/i18n/catalogs/<lang>.json` and `host/i18n/catalogs/<lang>.json`
+are addressed by **scope path**, not by source text, so a reworded string keeps
+its scope and the previous translation stays attached to it. Nothing falls back:
+the locale ships a translation of a sentence the source no longer contains, and
+it is indistinguishable from a current one — the opposite of the drift the loop
+is built to tolerate.
+
+Two things narrow it. The record absorber refuses a pairing whose target does not
+carry the source's placeholders, in either spelling, so a rewrite that moved a
+parameter is not taught to the corpus as reviewed wording. And
+`make l10n-stale-report` reads the rest out of git: for each translated entry,
+the commit its text last changed at is the commit it was produced at, and the
+source document there is the wording it translates. It reports and never gates —
+re-translate the entry where it is reviewed, or remove it so the locale falls
+back to English until the next convergence writes it again.
+
 ## Why not PO files? (decided, not overlooked)
 
 The Go-surface catalogs (builtins, CLI help) are standard gettext at runtime —

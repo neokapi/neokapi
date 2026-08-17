@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -58,9 +59,10 @@ type RecordAbsorbResult struct {
 	// answered in several locales is one entry carrying a variant each.
 	Learned    int `json:"learned,omitempty"`
 	Reconciled int `json:"reconciled,omitempty"`
-	// Refused counts pairs whose target does not carry its source's inline
-	// codes. Such a pair can only produce a translation with a hole in it, so
-	// it is not absorbed.
+	// Refused counts pairs whose target does not carry its source's
+	// placeholders, in either spelling — an inline code the reader lifted out
+	// of the text, or an interpolation token left in it. Such a pair can only
+	// produce a translation with a hole in it, so it is not absorbed.
 	Refused int `json:"refused,omitempty"`
 	// Contested counts source texts the record answers more than one way. The
 	// pair the corpus repeats most often wins; the rest are reported here.
@@ -238,10 +240,22 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 				}
 				srcRuns = blessed
 			}
-			if !model.DiffRunCodes(srcRuns, tgtRuns).Balanced() {
+			if !model.DiffRunCodes(srcRuns, tgtRuns).Balanced() ||
+				!coretools.PlaceholdersCarried(model.RunsText(srcRuns), model.RunsText(tgtRuns)) {
 				// The three-layer protection holds here too: an asymmetric pair
 				// is one side of which has already lost a placeholder, and
 				// recycle would refuse to fill from it anyway.
+				//
+				// Both spellings of a placeholder are asked about, because a
+				// surface carries them one way or the other and the committed
+				// record holds every surface. The JSX extraction lifts `{count}`
+				// into an inline code, which DiffRunCodes reads; a plain JSON or
+				// gettext catalog leaves it in the text, where only the text
+				// comparison can see it. Reading one and not the other is how a
+				// help string that gained `--target` documentation kept the
+				// translation of the sentence before it: the pair paired by
+				// scope, absorbed at full score against wording it does not
+				// translate, and recycle filled it back over itself every run.
 				res.Refused++
 				continue
 			}

@@ -135,6 +135,19 @@ repairing them.
 that produced nothing, which [`.kapi/README.md`](../../.kapi/README.md) explains.
 It reports and never gates either.
 
+`make l10n-stale-report` is the mirror image of *that*, and the two together
+cover both ways a source rewrite lands. A KBF catalog keys on the source text, so
+rewording changes the key: the old target stops being emitted and the locale
+falls back to English — pending work, reported by the orphan report. The
+Go-surface catalogs are addressed by scope path, so rewording keeps the scope and
+the previous translation stays attached to a sentence the source no longer
+contains. Nothing falls back, and the locale ships a wrong translation that looks
+exactly like a current one. The wording a translation was produced from survives
+a clone in exactly one place — the target's own git history — which is what this
+reads. It reports and never gates: re-translating an entry, or removing it so the
+locale falls back until the next convergence, is a decision rather than a build
+step.
+
 Three make targets print the three path sets, one definition each, so nothing
 re-derives a list:
 
@@ -301,6 +314,7 @@ reversibly.
 | `l10n-collapse-check` | existence, not coverage: a catalog that carried entries may not come back empty, asserted in the walk that produced it |
 | `l10n-review-export` | emits the lossy interchange views (TMX/CSV) a human reviewer asks for; read-only, and wording is still decided in the ledger |
 | `l10n-orphans` / `l10n-orphans-report` | content memory matches on text, so an entry whose source string is gone is wording any surface can pick up again, and the only safe version of keeping it is seeing it |
+| `l10n-stale-report` | a scope-addressed catalog keeps a translation attached to its scope when the sentence under it is rewritten, and git is the only record of what it was a translation of that survives a clone |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |
 | `make l10n-extract` in the dogfood workflow | the loop cannot carry collections whose source catalogs do not exist yet |
 | `make l10n-compile` in the dogfood workflow | a night that delivered catalogs alone would ship every runtime compiled from the previous one |
