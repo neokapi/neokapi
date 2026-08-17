@@ -113,9 +113,9 @@
             }
           },
           "enumDescriptions": {
-            "hybrid": "Kjør den lokale modellen og LLM-en, og slå sammen resultatene.",
-            "llm": "Ekstraher med en AI-leverandør.",
-            "ner": "Lokal modell – ingen legitimasjon, ingenting forlater maskinen."
+            "hybrid": "Run the local model and the LLM, merging results.",
+            "llm": "Extract with an AI provider.",
+            "ner": "On-device model — no credentials, nothing leaves the machine."
           }
         },
         "knownTerms": {
@@ -456,8 +456,8 @@
             }
           },
           "enumDescriptions": {
-            "ai": "LLM-vurdert kvalitetskontroll via en AI-leverandør.",
-            "rules": "Lokale regelbaserte kontroller — ingen legitimasjon, intet nettverk."
+            "ai": "LLM-judged quality review via an AI provider.",
+            "rules": "Local rule-based checks — no credentials, no network."
           }
         },
         "model": {
@@ -759,9 +759,9 @@
             }
           },
           "enumDescriptions": {
-            "llm": "Semantisk chunking via en AI-leverandør — produserer meningsbaserte chunks fremfor setningsgrenser.",
-            "srx": "Tro setningssegmentering: ICU UAX-29-grenser raffinert av Okapi SRX-unntak der ICU er tilgjengelig, rene Go SRX-regler ellers. Ingen konfigurasjon nødvendig.",
-            "uax29": "Unicodes standard setningsgrenser (ICU UAX-29). En språkuavhengig grunnlinje uten unntak."
+            "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
           }
         },
         "instruction": {
@@ -973,8 +973,8 @@
             }
           },
           "enumDescriptions": {
-            "llm": "Oversett med en stor språkmodell.",
-            "mt": "Oversett med en maskinoversettelses-motor levert av en plugin."
+            "llm": "Translate with a large language model.",
+            "mt": "Translate with a plugin-provided machine-translation engine."
           }
         },
         "instruction": {
