@@ -148,16 +148,24 @@ collections:
       # The block name the reader derives from the key path is the gettext
       # msgctxt the compiled catalog is keyed by, and the Scope the runtime
       # looks a string up under (core/i18n.Scope) — dot-separated, no leading
-      # slash, which is what useKeyAsName alone produces. Only the four leaf
-      # keys that hold prose are extracted; ids, categories, extensions and
-      # mime types are not text a reader sees.
+      # slash, which is what useKeyAsName alone produces. Only the keys that
+      # hold prose are extracted; ids, categories, extensions and mime types
+      # are not text a reader sees.
+      #
+      # An enum description is keyed by the enum value it describes, so its
+      # leaf is `hybrid` or `ner` rather than `description` and the anchored
+      # alternation above cannot reach it. It is prose all the same — it sits
+      # beside the translated `label` in the desktop's engine picker, and
+      # core/i18n/schema.go resolves it at <base>.enumDescriptions.<value>, a
+      # lookup core/i18n/schema_test.go already exercises against a translated
+      # answer. Naming the container is what lets the loop supply one.
       - path: builtins/metadata.json
         format:
           name: json
           config:
             extractAllPairs: false
             useKeyAsName: true
-            extractionRules: "(displayName|description|title|label)$"
+            extractionRules: '(displayName|description|title|label)$|enumDescriptions\.[^.]+$'
         target: catalogs/{lang}.json
   # The CLI's own help and output strings.
   - name: neokapi-cli
