@@ -3,6 +3,7 @@ import type { EntityInfo, SpanInfo } from "../../types/api";
 import {
   getDefaultRegistry,
   parseCodedSegments,
+  semanticLabel,
   semanticTooltip,
   tagColors,
   type TagColorScheme,
@@ -173,9 +174,10 @@ export function FormattedSourceDisplay({
             </span>,
           );
         } else {
-          // Placeholder — render as small inline pill
-          const info = getDefaultRegistry().lookupOrFallback(span.type);
-          const label = span.display_text ?? info.chipLabel.placeholder ?? info.label ?? "?";
+          // Placeholder — render as small inline pill. The label comes from the
+          // registry, which expands the vocabulary's template over the span, so
+          // a variable chip names the variable rather than its type.
+          const label = semanticLabel(span);
 
           elements.push(
             <span
