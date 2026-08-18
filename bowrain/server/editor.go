@@ -2089,6 +2089,8 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			stat.CollectionName = c.Name
 			stat.Channel = c.ConnectorConfig[coreprofile.PropertyChannel]
 			stat.Coordinates = maps.Clone(c.Context)
+			stat.PreviewKind = c.PreviewKind
+			stat.PreviewURL = c.PreviewURL
 		}
 		collStats = append(collStats, stat)
 	}

@@ -457,3 +457,87 @@ describe("ProjectView — the row reads the file, the row's own action does not"
     expect(screen.queryByTestId("file-preview")).toBeNull();
   });
 });
+
+// The offer has to be on the page a reviewer opens a file from, not only on the
+// project page: `?collection=` lands here, and a toggle that appeared on one
+// route and not the other would read as the feature being broken.
+describe("CollectionItemsView — in-context reading follows the collection", () => {
+  const rollup = (preview: { preview_kind?: string; preview_url?: string }) => ({
+    collection_id: "c1",
+    collection_name: "bowrain-app",
+    item_count: 1,
+    block_count: 1,
+    word_count: 1,
+    locales: localeStats,
+    ...preview,
+  });
+
+  const openPreview = {
+    projectId: "proj-1",
+    itemName: "docs/releasing.md",
+    onOpen: vi.fn(),
+    onClose: vi.fn(),
+    targetLocales: ["fr-FR"],
+  };
+
+  it("offers it when the collection declares a host it can read", async () => {
+    render(
+      wrap(
+        <CollectionItemsView
+          collection={rollup({
+            preview_kind: "storybook",
+            preview_url: "https://neokapi.github.io/storybook/bowrain/",
+          })}
+          title="bowrain-app"
+          itemStats={itemStats}
+          localeStats={localeStats}
+          onBack={vi.fn()}
+          preview={openPreview}
+        />,
+        createMockAdapter(),
+      ),
+    );
+
+    expect(await screen.findByTestId("file-preview-reading")).toBeInTheDocument();
+  });
+
+  it("offers nothing when the collection declares no host", async () => {
+    render(
+      wrap(
+        <CollectionItemsView
+          collection={rollup({})}
+          title="neokapi-docs"
+          itemStats={itemStats}
+          localeStats={localeStats}
+          onBack={vi.fn()}
+          preview={openPreview}
+        />,
+        createMockAdapter(),
+      ),
+    );
+
+    await screen.findByRole("dialog");
+    expect(screen.queryByTestId("file-preview-reading")).not.toBeInTheDocument();
+  });
+
+  // A kind this client cannot resolve a view within is not a Storybook at an
+  // unfamiliar address.
+  it("offers nothing for a kind it cannot resolve", async () => {
+    render(
+      wrap(
+        <CollectionItemsView
+          collection={rollup({ preview_kind: "ladle", preview_url: "https://example.dev/ladle/" })}
+          title="bowrain-app"
+          itemStats={itemStats}
+          localeStats={localeStats}
+          onBack={vi.fn()}
+          preview={openPreview}
+        />,
+        createMockAdapter(),
+      ),
+    );
+
+    await screen.findByRole("dialog");
+    expect(screen.queryByTestId("file-preview-reading")).not.toBeInTheDocument();
+  });
+});
