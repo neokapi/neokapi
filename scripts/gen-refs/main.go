@@ -19,6 +19,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/check"
 )
 
 func main() {
@@ -73,6 +75,12 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	}
 	if err := overlayNativeDocs(nativeDocsDir, KindTool, toolEntries); err != nil {
 		return nil, nil, false, err
+	}
+	// The check dossiers overlay onto nothing — they document the source-side
+	// checkers, which carry no registry entry — so they are verified against the
+	// set core/check names rather than merged.
+	if err := verifyCheckDocs(nativeDocsDir, check.SourceCheckIDs()); err != nil {
+		return nil, nil, false, fmt.Errorf("verify check docs: %w", err)
 	}
 
 	// Append bridge entries (non-fatal if the plugin dir is absent).
@@ -170,9 +178,10 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 }
 
 // overlayNativeDocs loads sidecars for one kind and merges them into the
-// matching built-in entries.
+// matching built-in entries. The entries are also what a sidecar must match:
+// loadNativeDocs refuses one that documents no entry.
 func overlayNativeDocs(dir, kind string, entries []Entry) error {
-	docs, err := loadNativeDocs(dir, kind)
+	docs, err := loadNativeDocs(dir, kind, entries)
 	if err != nil {
 		return fmt.Errorf("load native %s docs: %w", kind, err)
 	}

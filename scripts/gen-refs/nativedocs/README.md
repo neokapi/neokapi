@@ -9,15 +9,41 @@ the same documentation richness as bridge cards.
 ```
 nativedocs/
 ├── formats/<format-id>.yaml   # e.g. json.yaml, html.yaml, properties.yaml
-└── tools/<tool-id>.yaml       # e.g. word-count.yaml, pseudo-translate.yaml
+├── tools/<tool-id>.yaml       # e.g. term-check.yaml, pseudo-translate.yaml
+└── checks/<check-id>.yaml     # the source-side checks of `kapi check`
 ```
 
 - The file name **must** be the registry id (the `id` in `formats.json` /
-  `tools.json`), e.g. `json`, `word-count`.
+  `tools.json`), e.g. `json`, `voice-check`. `gen-refs` **fails** on a file name
+  no built-in entry carries, naming the file and the id it failed to match: a
+  sidecar that binds to nothing documents nothing, and read-and-dropped it leaves
+  the entry it was written for shipping the registry's bare metadata. Renaming a
+  format or a tool therefore means renaming its sidecar in the same change —
+  and, when the rename went with a change of mechanism, rewriting the prose to
+  describe the current one rather than attaching stale copy to a live entry.
 - `gen-refs` merges the sidecar into the entry: `displayName` / `description`
   override the registry values; everything else becomes the entry's `doc`,
   which the website renders and whose `parameters` map feeds `SchemaForm`'s
   `paramDocs`.
+
+### `checks/` — the sidecars with no entry behind them
+
+`content-lint`, `length-check` and `pattern-check` are the source-side checks
+`kapi check` runs directly (`core/check/sourcechecks.go`). They are check
+infrastructure rather than registry tools, so they carry no dataset entry and no
+schema, and nothing overlays their dossiers onto a card — but a user meets them
+by the rule ids their findings carry, and the behaviour is live, so they are
+documented here and held to the same register as the rest.
+
+The binding is `core/check.SourceCheckIDs`, and `gen-refs` holds `checks/` to it
+in **both** directions: a dossier naming no check fails the build, and a check
+with no dossier fails it too. Retiring a check therefore takes its dossier with
+it, and adding one asks for its dossier — which is the guarantee an exemption
+list cannot give.
+
+These dossiers have no generated page today. The Format and Tool Reference is
+built from the dataset, and a check is not in it; giving the check rules a
+reference section of their own is a separate piece of work.
 
 ## Schema
 
@@ -60,12 +86,9 @@ Regenerate and check after editing:
 ```bash
 make generate-reference-docs        # → packages/reference-data/data/*.json
 make generate-reference-pages       # → web/docs/reference/{commands,formats,tools}
-kapi check 'scripts/gen-refs/nativedocs/*/*.yaml'
+make check-reference-prose          # the register gate over these files
 ```
 
-Both generated trees are gated by the *Reference Data — Drift Gate* workflow, so
-an edit here lands together with the dataset and the pages it produces.
-
-Read the check's findings by rule: every `hygiene.trailing-whitespace` one over
-these files is the block-scalar terminator of issue #2070, not something an
-author wrote.
+All three are gated by the *Reference Data — Drift Gate* workflow, so an edit
+here lands together with the dataset and the pages it produces, and it lands
+clean: `check-reference-prose` fails on any critical, major or minor finding.

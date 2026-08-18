@@ -1,0 +1,46 @@
+# Native reference doc for the `pattern-check` source-side check.
+# Source: core/check/sourcechecks.go (NewSourcePatternTool, PatternRule);
+# flags in cli/check.go.
+# A check, not a registry tool: it is configured by CLI flags, not a schema.
+description: Require a pattern to appear in every source block, or forbid one from appearing at all.
+overview: |
+  The **Pattern Check** holds each translatable block's source text to regular
+  expressions the caller names. `--forbid` gives a pattern that must not appear
+  and `--require` one that must, both repeatable, and both reported at major
+  severity — `pattern.forbidden-pattern` when a forbidden pattern is found, and
+  `pattern.pattern-missing` when a required one is absent. A forbidden-pattern
+  finding carries the text it matched, so the block and the offending words are
+  both named.
+
+  The patterns are Go regular expressions, matched as written: no implicit case
+  folding and no implicit word boundaries, so `(?i)todo` is how case is ignored
+  and `\bdraft\b` is how a whole word is asked for. An empty pattern, one that
+  does not compile, or a rule that both requires and forbids is refused when the
+  check is built, rather than quietly passing everything.
+
+  It is the escape hatch beside the checks that know what they are looking for.
+  A voice profile carries the vocabulary a project decided, and terms carry the
+  words it agreed on; a pattern is for the bar that has no vocabulary behind it —
+  a placeholder syntax that must survive, a marker that must never ship.
+parameters:
+  --forbid:
+    description: A regular expression that must not appear in the source.
+    help: |
+      Reports every block whose source matches. Repeatable, so several
+      prohibitions can be given in one run.
+    values: "Go regular expression, repeatable"
+  --require:
+    description: A regular expression that must appear in the source.
+    help: |
+      Reports every block whose source does not match. Repeatable. Applied per
+      block, so a pattern only one section of a document carries reports
+      everywhere else.
+    values: "Go regular expression, repeatable"
+limitations:
+  - Reads source text only; whether a translation preserved a pattern is the bilingual `qa` check's question.
+  - A required pattern is asked of every block, so it suits a rule that is true of each block rather than of a document as a whole.
+  - Matching is over the block's plain text, so a pattern cannot address the runs a placeholder or an inline code stands for.
+processingNotes:
+  - Off unless a pattern is given, so an ordinary check run reports nothing from it.
+  - Runs over translatable blocks; content a reader surfaces as structure or code is never matched.
+  - An empty or uncompilable pattern, and a rule that both requires and forbids, are errors when the check is built.

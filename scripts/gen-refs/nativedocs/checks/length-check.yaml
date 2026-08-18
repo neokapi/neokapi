@@ -1,0 +1,45 @@
+# Native reference doc for the `length-check` source-side check.
+# Source: core/check/sourcechecks.go (NewSourceLengthTool,
+# absoluteLengthFindings); flags in cli/check.go.
+# A check, not a registry tool: it is configured by CLI flags, not a schema.
+description: Hold each source block to an absolute character or word limit.
+overview: |
+  The **Length Check** holds every translatable block's source text to an
+  absolute ceiling: `--max-chars` for characters and `--max-words` for words,
+  each reported as `length.max-chars-exceeded` or `length.max-words-exceeded` at
+  major severity.
+
+  Both are off unless asked for, and a limit of `0` is the way to leave one off.
+  A negative limit is refused rather than ignored, so a typo in a recipe or a
+  script is an error at the point it is written.
+
+  Characters are counted as runes, so a limit means the same thing whatever
+  script the content is in, and a word is counted the way the rest of the engine
+  counts words.
+
+  The bar is the *source* text, which is what makes this a source-side check: it
+  answers "is what we wrote short enough", the question a UI string or a push
+  notification has before any translation exists. Whether a translation fits
+  where its source did is a different question, asked by the bilingual `qa`
+  check, which compares the two.
+parameters:
+  --max-chars:
+    description: Maximum characters a source block may hold.
+    help: |
+      Reports a block whose source is longer than this many characters. Counted
+      in runes. Left off by `0`, which is the default.
+    values: "integer ≥ 0 (default `0`, off)"
+  --max-words:
+    description: Maximum words a source block may hold.
+    help: |
+      Reports a block whose source holds more than this many words. Left off by
+      `0`, which is the default.
+    values: "integer ≥ 0 (default `0`, off)"
+limitations:
+  - Measures the source only; it does not compare a translation against its source.
+  - An absolute ceiling, not a ratio — there is no percentage-of-source model here.
+  - The limit is one number for the whole run; a per-collection or per-key ceiling is a recipe-level concern.
+processingNotes:
+  - Off unless a limit is given, so an ordinary check run reports nothing from it.
+  - Runs over translatable blocks; content a reader surfaces as structure or code is never measured.
+  - A negative limit is an error rather than a silently disabled check.

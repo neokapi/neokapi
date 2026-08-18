@@ -2316,6 +2316,22 @@ generate-reference-docs: i18n-catalogs ## Generate the reference dataset from TH
 check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
 	$(GO) run ./scripts/gen-refs -check $(BRIDGE_ARG)
 
+# Register gate over the authored dossiers the reference dataset is compiled
+# from — the recipe's `neokapi-docs-reference` collection, held to the same bar
+# as the prose an author writes by hand, at the one place a finding against it
+# can be acted on. The generated pages carry a DO-NOT-EDIT banner, so a finding
+# reported there would name a file nobody may edit.
+#
+# The explicit `-p` binds the dogfood recipe (which is what declares the
+# collection, its reader config and the voice profile it is judged against);
+# $(KAPI_ISO_ENV) still isolates config, caches and plugin discovery, so the gate
+# reads nothing of the developer's machine. Any critical, major or minor finding
+# fails it: the collection is clean, and a gate that tolerates its own findings
+# teaches the reader to stop reading them.
+check-reference-prose: build ## Register gate: the authored reference dossiers pass `kapi check` with no findings
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'scripts/gen-refs/nativedocs/*/*.yaml' \
+		-p $(CURDIR)/kapi.yaml --max-major 0 --max-minor 0
+
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
@@ -2646,7 +2662,7 @@ help: ## Show this help
         publish-cdn-wasm publish-cdn-vision-models publish-cdn-videos publish-cdn-bowrain-videos \
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \
-        generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
+        generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \

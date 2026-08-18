@@ -17,6 +17,30 @@ import (
 // host.ComputeCheck instantiates them directly, so they live here, next to the
 // Finding/Report vocabulary they produce.
 
+// The ids of the source-side checkers: the name each records its findings
+// under, and the name each is documented by. A finding's stable rule id is
+// `<family>.<category>`, and the family is the one the venue attributes the
+// checker to (`hygiene`, `length`, `pattern` in host.collectFileDiagnostics),
+// not the id here.
+//
+// They are exported because a checker off the registry is still something a user
+// meets and something documentation is written for, and this file is the only
+// record of which ones exist. [SourceCheckIDs] is the list; the reference
+// generator holds the authored dossiers under `scripts/gen-refs/nativedocs` to
+// it, so retiring a checker fails the build until its dossier goes with it, and
+// adding one fails until it has a dossier.
+const (
+	ContentLintID   = "content-lint"
+	SourceLengthID  = "length-check"
+	SourcePatternID = "pattern-check"
+)
+
+// SourceCheckIDs returns the ids of every source-side checker, in the order
+// `kapi check` runs them.
+func SourceCheckIDs() []string {
+	return []string{ContentLintID, SourceLengthID, SourcePatternID}
+}
+
 // NewContentLintTool creates the generic, source-side content-hygiene checker.
 // It inspects a single text (the source) with no target or locale comparison
 // and records issues as Finding under the unified quality.findings annotation
@@ -24,14 +48,14 @@ import (
 // in `kapi check`.
 func NewContentLintTool() *tool.BaseTool {
 	t := &tool.BaseTool{
-		ToolName:        "content-lint",
+		ToolName:        ContentLintID,
 		ToolDescription: "Flags text-hygiene issues (empty, double spaces, doubled words, stray whitespace, control chars) in source content",
 	}
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {
 			return nil
 		}
-		Annotate(v, "content-lint", contentLintFindings(HygieneText(v.SourceRuns())))
+		Annotate(v, ContentLintID, contentLintFindings(HygieneText(v.SourceRuns())))
 		return nil
 	}
 	return t
@@ -63,7 +87,11 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if TrailingWhitespace(text) != "" {
+	// The stray edge, not the whole one: a single terminating line break belongs
+	// to the content the way a line ending does, and a format may require it
+	// (see [StrayTrailingWhitespace]). This rule judges one text on its own, so
+	// nothing else can tell the two apart for it.
+	if StrayTrailingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "trailing-whitespace",
 			Severity: SeverityMinor,
@@ -111,14 +139,14 @@ func NewSourceLengthTool(maxChars, maxWords int) (*tool.BaseTool, error) {
 		return nil, errors.New("length-check: MaxWords must be non-negative")
 	}
 	t := &tool.BaseTool{
-		ToolName:        "length-check",
+		ToolName:        SourceLengthID,
 		ToolDescription: "Verifies source length constraints (chars, words)",
 	}
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {
 			return nil
 		}
-		Annotate(v, "length-check", absoluteLengthFindings(v.SourceText(), "Source", maxChars, maxWords))
+		Annotate(v, SourceLengthID, absoluteLengthFindings(v.SourceText(), "Source", maxChars, maxWords))
 		return nil
 	}
 	return t, nil
@@ -185,7 +213,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 	}
 
 	t := &tool.BaseTool{
-		ToolName:        "pattern-check",
+		ToolName:        SourcePatternID,
 		ToolDescription: "Validates forbidden and required regex patterns in source content",
 	}
 	t.Annotate = func(v tool.BlockView) error {
@@ -215,7 +243,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 				}
 			}
 		}
-		Annotate(v, "pattern-check", findings)
+		Annotate(v, SourcePatternID, findings)
 		return nil
 	}
 	return t, nil

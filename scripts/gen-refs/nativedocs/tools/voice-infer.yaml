@@ -1,0 +1,76 @@
+# Native reference doc for the built-in `voice-infer` tool.
+# Schema source: core/ai/tools/voiceinfer.go (VoiceInferConfig, InferOptions).
+description: Draft a voice profile from a body of existing content with an LLM, with per-field confidence and source notes.
+overview: |
+  The **AI Voice Inference** tool reads a body of content and proposes the voice
+  profile it is already written in — the inverse of `voice-check`, which holds
+  content to a profile that exists. It is the onboarding move: a project that has
+  been writing in a consistent register for years has a profile, and this reads
+  it off the corpus rather than asking someone to write it down.
+
+  Inference is corpus-level rather than per-block. Every part passes through
+  unchanged while the tool accumulates each block's source text, and one
+  inference runs when the input stream ends. The corpus is truncated on a rune
+  boundary before it is sent, so a large document set costs one bounded request.
+  An empty stream is not a failure — there is nothing to infer from, and the
+  tool yields no draft.
+
+  The result is a draft in the ordinary voice-profile shape — tone, style,
+  vocabulary and before/after examples — read from `Draft()` after the flow
+  completes, together with an evidence sidecar carrying the model's confidence
+  and a short source note for each top-level field. The evidence stays beside the
+  profile rather than inside it, so the draft round-trips through the same
+  `profile.yaml` an author edits by hand. Treat the output as a draft: it is a
+  proposal to review and commit, not a decided profile.
+parameters:
+  provider:
+    description: The LLM provider backend to use.
+    help: |
+      Selects which model backend performs the inference.
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
+  apiKey:
+    description: API key for the AI provider.
+    help: |
+      Credential for the selected provider. A local provider such as Ollama may
+      need none. Prefer the credential store or the environment over writing a
+      key into a recipe.
+    values: "string"
+  model:
+    description: The model name to request from the provider.
+    help: |
+      The provider-specific model identifier. Omitted, the provider's default
+      model is used.
+    values: "string"
+  profileName:
+    description: Name for the drafted profile.
+    help: |
+      The name the draft carries. Omitted, the draft is named "Inferred Voice".
+    values: "string"
+  domain:
+    description: Subject-domain hint woven into the prompt.
+    help: |
+      A short hint at the subject matter — "medical", "developer tools", "public
+      sector" — which steers the register the model reads the corpus as. Omitted,
+      the corpus speaks for itself.
+    values: "string"
+  maxExamples:
+    description: How many before/after examples the draft may carry.
+    help: |
+      Caps the rewrite examples requested from the model and kept out of its
+      response. Defaults to 3.
+    values: "integer ≥ 1 (default `3`)"
+limitations:
+  - Requires provider credentials and makes one external API call per run.
+  - The corpus is truncated before it is sent, so a very large content set is inferred from its beginning.
+  - The output is a draft to review; confidence is the model's own estimate, not a measurement.
+processingNotes:
+  - Every part passes through unchanged; the tool annotates nothing on the content.
+  - The corpus is each block's source text, accumulated over the whole stream; inference runs once, when the stream ends.
+  - An empty or whitespace-only corpus yields no draft rather than an error.
+examples:
+  - title: Draft a profile from a documentation set
+    description: Name the draft and hint at the subject domain; the corpus is whatever the flow reads.
+    config: |
+      provider: anthropic
+      profileName: House Style
+      domain: developer tools

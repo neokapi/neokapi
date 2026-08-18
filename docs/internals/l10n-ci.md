@@ -62,6 +62,11 @@ dossiers puts the register of the largest generated body of prose in this
 repository under the same bar as the prose an author writes by hand, at the one
 place a finding against it can be acted on.
 
+That bar is enforced. `make check-reference-prose` runs the check over the
+collection and fails on any critical, major or minor finding; the *Reference
+Data — Drift Gate* workflow runs it beside the dataset and page gates, so a
+dossier lands fresh and in register in the same change.
+
 The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
 nothing else — no AI, no provider credentials, no network. A checkout with no
 credentials therefore converges from the committed context alone. AI convergence

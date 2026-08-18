@@ -1,5 +1,7 @@
 # Annotated template for a native reference doc sidecar.
-# Copy to formats/<id>.yaml or tools/<id>.yaml and fill in. Delete unused keys.
+# Copy to formats/<id>.yaml, tools/<id>.yaml or checks/<id>.yaml and fill in.
+# Delete unused keys. The file name is the id it binds to, and gen-refs fails on
+# one that binds to nothing.
 # Every statement must be grounded in the code/spec — see README.md.
 
 # Optional. Overrides the registry display name on the card.
