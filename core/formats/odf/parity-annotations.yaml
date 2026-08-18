@@ -1,6 +1,20 @@
 format: odf
-# Native ODF reads/writes are now canonical-equal with the upstream
-# okapi reference on all 15 fixtures. Bridge is byte-equal on all 15
-# (literally invokes Okapi's OpenOfficeFilter via okapi-bridge#11's
-# two-pass pipeline). No outstanding native divergences.
+# Measured over the 15 upstream okapi/filters/openoffice fixtures:
+#
+#   odf | native | 15 total | 0 byte | 15 canon (15 faithful) | 0 divergent
+#   odf | bridge | 15 total | 15 byte | 0 canon | 0 divergent
+#
+# Native reaches canonical-equal rather than byte-equal because okapi
+# re-serializes every stream on round-trip — reordering attributes, rewriting
+# the declaration, expanding empty elements — while native writes each stream
+# from the source's own bytes. Native is the more faithful side, which is why
+# the format is classified CanonFaithful and why driving these to byte-equal
+# against okapi would be a regression: an untranslated .odt/.ods/.odp/.odg
+# comes back byte for byte against the SOURCE, on all 15
+# (core/formats/odf/package_roundtrip_test.go).
+#
+# Bridge is byte-equal on all 15 (it literally invokes Okapi's
+# OpenOfficeFilter via okapi-bridge#11's two-pass pipeline).
+#
+# No per-fixture divergences.
 fixtures: {}

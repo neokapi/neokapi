@@ -170,7 +170,7 @@ spec/parity engine. Kinds observed (approx. counts):
 | `transform_test` (8) | Okapi config-kind mapping | `transform_test.go` |
 | `config_test` (mif/rtf/ttx/txml) | config validation | `config_test.go` |
 | `schema_test` (**only html/json**) | schema matches the config struct | `schema_test.go` |
-| `subfilter_test` (epub/json/odf/xml) | embedded content | `subfilter_test.go` |
+| `subfilter_test` (epub/json/xml) | embedded content | `subfilter_test.go` |
 | `upstream_test` (csv/icml/idml/odf) | real vendor files | `upstream_test.go` |
 | `bench`/`perf_test` (html/json/openxml/wiki) | performance | `*_bench`/`perf_test.go` |
 | `acceptance_test` (7 harvest) | external validator, `//go:build acceptance`, **SKIP if tool absent, FAIL only on rejection** | `acceptance_test.go` |

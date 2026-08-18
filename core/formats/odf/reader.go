@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -48,79 +47,25 @@ const (
 	skelPartEndPrefix   = "@@ODF_SKEL_PART_END@@"
 )
 
-// ODF namespace prefix map for skeleton serialization.
-var odfNSPrefixMap = map[string]string{
-	nsText:         "text",
-	nsTable:        "table",
-	nsOffice:       "office",
-	nsPresentation: "presentation",
-	nsStyle:        "style",
-	nsXLink:        "xlink",
-	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":              "fo",
-	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":         "draw",
-	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":  "svg",
-	"urn:oasis:names:tc:opendocument:xmlns:chart:1.0":           "chart",
-	"urn:oasis:names:tc:opendocument:xmlns:form:1.0":            "form",
-	"urn:oasis:names:tc:opendocument:xmlns:script:1.0":          "script",
-	"urn:oasis:names:tc:opendocument:xmlns:meta:1.0":            "meta",
-	"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0":       "number",
-	"urn:oasis:names:tc:opendocument:xmlns:animation:1.0":       "anim",
-	"urn:oasis:names:tc:opendocument:xmlns:database:1.0":        "db",
-	"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0": "smil",
-	"urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0":            "dr3d",
-	"urn:oasis:names:tc:opendocument:xmlns:config:1.0":          "config",
-	"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0":        "manifest",
-	"http://purl.org/dc/elements/1.1/":                          "dc",
-	"http://www.w3.org/XML/1998/namespace":                      "xml",
-}
-
-// odfNSRegistry tracks dynamic namespace URI -> prefix mappings from the
-// document. It is a process-global shared by every Reader, so the mutex guards
-// it against concurrent ODF readers (e.g. parallel extractions) racing on the
-// map — without it the race detector flags the unsynchronised map writes in
-// odfRegisterNamespaces against reads in odfResolvePrefix.
-var odfNSRegistry = struct {
-	mu sync.RWMutex
-	m  map[string]string
-}{m: make(map[string]string)}
-
-func odfRegisterNamespaces(attrs []xml.Attr) {
-	odfNSRegistry.mu.Lock()
-	defer odfNSRegistry.mu.Unlock()
-	for _, a := range attrs {
-		if a.Name.Space == "xmlns" {
-			odfNSRegistry.m[a.Value] = a.Name.Local
-		} else if a.Name.Space == "" && a.Name.Local == "xmlns" {
-			odfNSRegistry.m[a.Value] = ""
-		}
-	}
-}
-
-func odfResolvePrefix(ns string) string {
-	odfNSRegistry.mu.RLock()
-	p, ok := odfNSRegistry.m[ns]
-	odfNSRegistry.mu.RUnlock()
-	if ok {
-		return p
-	}
-	if p, ok := odfNSPrefixMap[ns]; ok {
-		return p
-	}
-	return ""
-}
-
 // Reader implements DataFormatReader for ODF files (ODT, ODS, ODP).
+//
+// The package's XML streams — content.xml, styles.xml, meta.xml — are parsed
+// here, by parseODFContent, and are never handed to the generic XML reader.
+// They are ODF, not arbitrary XML: which elements hold translatable text
+// (text:p, text:h, dc:title, …), which are opaque, which carry geometry, and
+// what this reader's own Config says about notes, hidden content and
+// non-translatable content are all ODF rules that a generic XML reader knows
+// nothing about. Upstream Okapi draws the same line — OpenOfficeFilter unpacks
+// the ZIP and dispatches every inner stream to its own ODFFilter (okf_odf),
+// never to okf_xml.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
-	resolver      format.SubfilterResolver
 	skeletonStore *format.SkeletonStore
 	tmpFile       string // path to temp file for ZIP access
-	layerSeq      int    // counter for generating unique child layer IDs
 }
 
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
-var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new ODF reader.
 func NewReader() *Reader {
@@ -136,11 +81,6 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
-}
-
-// SetSubfilterResolver sets the resolver for creating sub-format readers.
-func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
-	r.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming skeleton output.
@@ -288,32 +228,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
-		if r.resolver != nil {
-			// Route through XML sub-format reader
-			r.layerSeq++
-			childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
-			childLayer := &model.Layer{
-				ID:       childLayerID,
-				Name:     "content.xml",
-				Format:   "xml",
-				Locale:   locale,
-				ParentID: rootLayer.ID,
-				Properties: map[string]string{
-					"subfilter.source": "odf",
-					"entry":            "content.xml",
-				},
-			}
-			r.skelPartStart("content.xml")
-			if r.skeletonStore != nil {
-				r.skeletonStore.WriteRef("layer:content.xml")
-			}
-			r.skelPartEnd("content.xml")
-			r.emitSubfiltered(ctx, ch, contentData, "content.xml", rootLayer.ID, childLayer, &blockCounter)
-		} else {
-			r.skelPartStart("content.xml")
-			r.parseODFContent(ctx, ch, contentData, docType, &blockCounter, "content.xml")
-			r.skelPartEnd("content.xml")
-		}
+		r.skelPartStart("content.xml")
+		r.parseODFContent(ctx, ch, contentData, docType, &blockCounter, "content.xml")
+		r.skelPartEnd("content.xml")
 	}
 
 	// Process meta.xml (carries document metadata: dc:title, dc:description,
@@ -341,32 +258,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
-		if r.resolver != nil {
-			// Route through XML sub-format reader
-			r.layerSeq++
-			childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
-			childLayer := &model.Layer{
-				ID:       childLayerID,
-				Name:     "styles.xml",
-				Format:   "xml",
-				Locale:   locale,
-				ParentID: rootLayer.ID,
-				Properties: map[string]string{
-					"subfilter.source": "odf",
-					"entry":            "styles.xml",
-				},
-			}
-			r.skelPartStart("styles.xml")
-			if r.skeletonStore != nil {
-				r.skeletonStore.WriteRef("layer:styles.xml")
-			}
-			r.skelPartEnd("styles.xml")
-			r.emitSubfiltered(ctx, ch, stylesData, "styles.xml", rootLayer.ID, childLayer, &blockCounter)
-		} else {
-			r.skelPartStart("styles.xml")
-			r.parseODFContent(ctx, ch, stylesData, docType, &blockCounter, "styles.xml")
-			r.skelPartEnd("styles.xml")
-		}
+		r.skelPartStart("styles.xml")
+		r.parseODFContent(ctx, ch, stylesData, docType, &blockCounter, "styles.xml")
+		r.skelPartEnd("styles.xml")
 	}
 
 	// End root layer
@@ -395,6 +289,23 @@ func (p *odfParser) skelRef(id string) {
 	}
 }
 
+// skelOriginal records the source bytes the next ref stands in for, paired
+// with what that ref renders to while nothing has edited its block. Extraction
+// resolves `<text:s text:c="4"/>` to four spaces and `<text:tab/>` to a tab —
+// upstream Okapi's own reading (ODFFilter.java:604-618), and the reading the
+// content model is worth having — and an XML processor folds a source CRLF
+// inside the text to LF (XML 1.0 §2.11). Each rewrites bytes the document
+// held, so the writer replays the original whenever the block is untouched:
+// the extraction stays what it is, and an untranslated document still comes
+// back byte for byte.
+func (p *odfParser) skelOriginal(rendered, original string) {
+	if p.skeletonStore == nil || rendered == original {
+		return
+	}
+	p.skelFlush()
+	p.skeletonStore.WriteOriginal([]byte(rendered), []byte(original))
+}
+
 func (p *odfParser) skelFlush() {
 	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
 		p.skeletonStore.WriteText(p.skelBuf.Bytes())
@@ -402,34 +313,19 @@ func (p *odfParser) skelFlush() {
 	}
 }
 
-func (p *odfParser) skelWriteStartElement(t xml.StartElement) {
-	if p.skeletonStore == nil {
-		return
+// skelRaw buffers a token's own source bytes into the skeleton.
+//
+// The skeleton carries what the file said rather than what a re-serialization
+// of the parsed token would say, and the difference is the whole round-trip: a
+// decoder reports `<office:scripts/>` and `<office:scripts></office:scripts>`
+// identically, and hands back `'` for a source `&apos;`, so rebuilding a tag
+// rewrites every document that passes through — attribute order, quote
+// character, entity choice, empty-element form and intra-tag whitespace all
+// settle on the rebuilder's preference instead of the author's.
+func (p *odfParser) skelRaw(raw []byte) {
+	if p.skeletonStore != nil {
+		p.skelBuf.Write(raw)
 	}
-	odfRegisterNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	odfWriteElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		odfWriteAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
-}
-
-func (p *odfParser) skelWriteEndElement(t xml.EndElement) {
-	if p.skeletonStore == nil {
-		return
-	}
-	var buf strings.Builder
-	buf.WriteString("</")
-	odfWriteElementName(&buf, t.Name)
-	buf.WriteString(">")
-	p.skelBuf.WriteString(buf.String())
 }
 
 // parseODFContent parses an ODF XML file (content.xml or styles.xml) and emits blocks.
@@ -445,8 +341,11 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	var idCounter int
 	inTranslatable := false
 	var translatableDepth int
-	// For skeleton: buffer the start element of a translatable block
-	var translatableStart xml.StartElement
+	// For skeleton: the source bytes of the start tag of a translatable block,
+	// so the tag comes back as the file spelled it, and the offset its content
+	// begins at, so the content can too.
+	var translatableStartRaw []byte
+	var translatableContentStart int
 	// inlineIDStack records the PcOpen id for each currently-open
 	// generic inline element so the matching EndElement can emit a
 	// PcClose with the same id. Special-cased elements (text:line-break,
@@ -460,10 +359,16 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	pageNum := 0
 
 	for {
+		// InputOffset gives the end of the token just returned and the start of
+		// the next, so [tokStart, tokEnd) is this token's own bytes. A
+		// self-closing element yields an EndElement whose range is empty, which
+		// is exactly what has to go back into the file after `<tag/>`.
+		tokStart := int(d.InputOffset())
 		tok, err := d.Token()
 		if err != nil {
 			break
 		}
+		tokRaw := data[tokStart:int(d.InputOffset())]
 
 		switch t := tok.(type) {
 		case xml.StartElement:
@@ -481,7 +386,8 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				b = newRunBuilder()
 				idCounter = 0
 				inlineIDStack = inlineIDStack[:0]
-				translatableStart = t.Copy()
+				translatableStartRaw = tokRaw
+				translatableContentStart = tokStart + len(tokRaw)
 			} else if inTranslatable {
 				switch {
 				case isProtectedInlineElement(t.Name):
@@ -490,12 +396,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					// the inner text is NOT pseudo-translated. Mirrors
 					// upstream Okapi's opaque-element handling for
 					// metadata + auto-generated reference fields.
-					sub, err := odfReadSubtreeMarkup(d, t)
+					sub, err := odfReadSubtreeMarkup(d, data, tokStart)
 					if err != nil {
 						// Fall back to the generic inline path on
 						// decode error so we don't drop content.
 						idCounter++
-						b.AddPcOpen(fmt.Sprintf("s%d", idCounter), inlineSpanTypeFor(t.Name), odfBuildStartTagMarkup(t))
+						b.AddPcOpen(fmt.Sprintf("s%d", idCounter), inlineSpanTypeFor(t.Name), string(tokRaw))
 						inlineIDStack = append(inlineIDStack, idCounter)
 						break
 					}
@@ -511,7 +417,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					// Preserve the same shape so the writer splices the
 					// original self-closing element back into the output.
 					idCounter++
-					b.AddPh(fmt.Sprintf("s%d", idCounter), "lb", odfBuildEmptyTagMarkup(t))
+					b.AddPh(fmt.Sprintf("s%d", idCounter), "lb", string(tokRaw))
 					inlineIDStack = append(inlineIDStack, 0)
 				case t.Name.Space == nsText && t.Name.Local == "tab":
 					// Upstream Okapi extracts the tab as a literal "\t"
@@ -539,13 +445,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					// (ODFFilter.java:636-644) for any element that's not
 					// in toExtract/toProtect/subFlow.
 					idCounter++
-					data := odfBuildStartTagMarkup(t)
 					spanType := inlineSpanTypeFor(t.Name)
-					b.AddPcOpen(fmt.Sprintf("s%d", idCounter), spanType, data)
+					b.AddPcOpen(fmt.Sprintf("s%d", idCounter), spanType, string(tokRaw))
 					inlineIDStack = append(inlineIDStack, idCounter)
 				}
 			} else {
-				r.emitElementWithAttrExtraction(ctx, ch, p, t, docType, blockCounter, partPath)
+				r.emitElementWithAttrExtraction(ctx, ch, p, t, tokRaw, docType, blockCounter, partPath)
 			}
 
 		case xml.CharData:
@@ -565,7 +470,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				elem := elementStack[len(elementStack)-1].Local
 				r.emitAccessibilityContent(ctx, ch, p, string(t), elem, partPath, frameStack, pageNum, blockCounter)
 			default:
-				p.skelText(xmlesc.Text(string(t)))
+				p.skelRaw(tokRaw)
 			}
 
 		case xml.EndElement:
@@ -576,17 +481,19 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					// untrimmed content in the emitted block so leading
 					// or trailing whitespace inside the element round-
 					// trips byte-for-byte (upstream Okapi keeps it).
-					raw := b.PlainText()
+					plain := b.PlainText()
 					runs := b.Runs()
-					hasContent := strings.TrimSpace(raw) != "" || hasInlineCodeRuns(runs)
+					hasContent := strings.TrimSpace(plain) != "" || hasInlineCodeRuns(runs)
 					if hasContent {
 						*blockCounter++
 						blockID := fmt.Sprintf("tu%d", *blockCounter)
 
 						// Skeleton: write element open, ref, element close
-						p.skelWriteStartElement(translatableStart)
+						p.skelRaw(translatableStartRaw)
+						p.skelOriginal(renderSourceRunsForODF(runs, plain),
+							string(data[translatableContentStart:tokStart]))
 						p.skelRef(blockID)
-						p.skelWriteEndElement(t)
+						p.skelRaw(tokRaw)
 
 						var block *model.Block
 						if hasInlineCodeRuns(runs) {
@@ -601,7 +508,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 								},
 							}
 						} else {
-							block = model.NewBlock(blockID, raw)
+							block = model.NewBlock(blockID, plain)
 							block.Properties["partPath"] = partPath
 							block.Properties["element"] = t.Name.Local
 						}
@@ -610,9 +517,9 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					} else {
 						// Empty translatable element — pass through to skeleton
-						p.skelWriteStartElement(translatableStart)
-						p.skelText(xmlesc.Text(raw))
-						p.skelWriteEndElement(t)
+						p.skelRaw(translatableStartRaw)
+						p.skelText(xmlesc.Text(plain))
+						p.skelRaw(tokRaw)
 					}
 					inTranslatable = false
 					inlineIDStack = inlineIDStack[:0]
@@ -622,13 +529,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					id := inlineIDStack[len(inlineIDStack)-1]
 					inlineIDStack = inlineIDStack[:len(inlineIDStack)-1]
 					if id > 0 {
-						data := odfBuildEndTagMarkup(t)
 						spanType := inlineSpanTypeFor(t.Name)
-						b.AddPcCloseData(fmt.Sprintf("s%d", id), spanType, data)
+						b.AddPcCloseData(fmt.Sprintf("s%d", id), spanType, string(tokRaw))
 					}
 				}
 			} else {
-				p.skelWriteEndElement(t)
+				p.skelRaw(tokRaw)
 			}
 
 			if t.Name.Space == nsDraw && t.Name.Local == "frame" && len(frameStack) > 0 {
@@ -639,54 +545,14 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				elementStack = elementStack[:len(elementStack)-1]
 			}
 
-		case xml.ProcInst:
+		case xml.ProcInst, xml.Comment, xml.Directive:
 			if !inTranslatable {
-				p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
-			}
-
-		case xml.Comment:
-			if !inTranslatable {
-				p.skelText("<!--" + string(t) + "-->")
-			}
-
-		case xml.Directive:
-			if !inTranslatable {
-				p.skelText("<!" + string(t) + ">")
+				p.skelRaw(tokRaw)
 			}
 		}
 	}
 
 	p.skelFlush()
-}
-
-// odfBuildStartTagMarkup serialises an xml.StartElement back to its
-// `<prefix:name attr="val" ...>` form for use as inline-code Data.
-// Mirrors upstream Okapi ODFFilter.buildStartTag (ODFFilter.java:431-489)
-// — the captured outer markup is what gets spliced back into the
-// reconstructed XML around the translated inner text.
-func odfBuildStartTagMarkup(t xml.StartElement) string {
-	odfRegisterNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	odfWriteElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		odfWriteAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString(">")
-	return buf.String()
-}
-
-// odfBuildEndTagMarkup serialises an xml.EndElement back to `</prefix:name>`.
-func odfBuildEndTagMarkup(t xml.EndElement) string {
-	var buf strings.Builder
-	buf.WriteString("</")
-	odfWriteElementName(&buf, t.Name)
-	buf.WriteString(">")
-	return buf.String()
 }
 
 // odfReadSubtreeMarkup consumes XML tokens from dec starting JUST
@@ -697,59 +563,21 @@ func odfBuildEndTagMarkup(t xml.EndElement) string {
 // auto-generated reference fields). The decoder is left positioned
 // after the consumed EndElement so the caller's outer loop continues
 // past the subtree cleanly.
-func odfReadSubtreeMarkup(dec *xml.Decoder, start xml.StartElement) (string, error) {
-	var buf strings.Builder
-	buf.WriteString(odfBuildStartTagMarkup(start))
+func odfReadSubtreeMarkup(dec *xml.Decoder, src []byte, startOffset int) (string, error) {
 	depth := 1
 	for depth > 0 {
 		tok, err := dec.Token()
 		if err != nil {
 			return "", err
 		}
-		switch tt := tok.(type) {
+		switch tok.(type) {
 		case xml.StartElement:
-			buf.WriteString(odfBuildStartTagMarkup(tt))
 			depth++
 		case xml.EndElement:
-			buf.WriteString(odfBuildEndTagMarkup(tt))
 			depth--
-		case xml.CharData:
-			buf.WriteString(xmlesc.Text(string(tt)))
-		case xml.Comment:
-			buf.WriteString("<!--")
-			buf.Write([]byte(tt))
-			buf.WriteString("-->")
-		case xml.ProcInst:
-			buf.WriteString("<?")
-			buf.WriteString(tt.Target)
-			if len(tt.Inst) > 0 {
-				buf.WriteString(" ")
-				buf.Write(tt.Inst)
-			}
-			buf.WriteString("?>")
 		}
 	}
-	return buf.String(), nil
-}
-
-// odfBuildEmptyTagMarkup serialises an xml.StartElement back to a
-// self-closing `<prefix:name attr="val"/>` form for use as a placeholder
-// inline-code Data. Mirrors upstream Okapi's `<text:line-break/>`
-// emission for self-closing inline elements.
-func odfBuildEmptyTagMarkup(t xml.StartElement) string {
-	odfRegisterNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	odfWriteElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		odfWriteAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(xmlesc.Attr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString("/>")
-	return buf.String()
+	return string(src[startOffset:int(dec.InputOffset())]), nil
 }
 
 // inlineSpanTypeFor returns the semantic type for an inline element.
@@ -775,83 +603,113 @@ func inlineSpanTypeFor(name xml.Name) string {
 // hold display text wrapping list-level numbering / sheet names and
 // should be pseudo-translated. Matches OpenDocument 1.2 §19.711 /
 // §19.812 / §19.731.
+// The tag's own bytes go to the skeleton and only the value of an extracted
+// attribute is replaced by a ref, so every other attribute — its order, its
+// quoting, its entities — comes back as the file wrote it.
 func (r *Reader) emitElementWithAttrExtraction(ctx context.Context, ch chan<- model.PartResult,
-	p *odfParser, t xml.StartElement, docType odfDocType, blockCounter *int, partPath string) {
+	p *odfParser, t xml.StartElement, tagRaw []byte, docType odfDocType, blockCounter *int, partPath string) {
 
-	odfRegisterNamespaces(t.Attr)
+	values := odfTagAttrValueRanges(tagRaw)
 
-	// Buffer "<elementName" into the skeleton text buffer.
-	var head strings.Builder
-	head.WriteString("<")
-	odfWriteElementName(&head, t.Name)
-	p.skelText(head.String())
-
-	for _, a := range t.Attr {
-		if isTranslatableAttribute(a.Name, docType) && hasTrueText(a.Value) {
-			// Emit a Block whose source text is the attribute value.
-			*blockCounter++
-			blockID := fmt.Sprintf("tu%d", *blockCounter)
-			block := model.NewBlock(blockID, a.Value)
-			block.Properties["partPath"] = partPath
-			block.Properties["element"] = t.Name.Local
-			block.Properties["attribute"] = a.Name.Local
-			if a.Name.Space != "" {
-				block.Properties["attributeNS"] = a.Name.Space
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-
-			// Write ` name="` then a ref to the block, then `"`.
-			var pre strings.Builder
-			pre.WriteString(" ")
-			odfWriteAttrName(&pre, a.Name)
-			pre.WriteString(`="`)
-			p.skelText(pre.String())
-			p.skelRef(blockID)
-			p.skelText(`"`)
-			continue
-		}
-
+	pos := 0
+	for i, a := range t.Attr {
+		translatable := isTranslatableAttribute(a.Name, docType) && hasTrueText(a.Value)
 		// Form-control display strings (form:label / form:title /
 		// form:help-text) are UI text that upstream Okapi's ODFFilter does NOT
-		// extract. Surface them as NON-translatable content blocks (visible to
-		// ingestion, skipped by MT) — gated behind ExtractNonTranslatableContent
-		// — riding the attribute value via a skeleton ref so the round-trip
-		// stays byte-exact. Parity forces the flag off, leaving the literal
-		// path below byte-identical to before.
-		if r.cfg.ExtractNonTranslatableContent() && isFormDisplayAttribute(a.Name) && hasTrueText(a.Value) {
-			*blockCounter++
-			blockID := fmt.Sprintf("tu%d", *blockCounter)
-			block := model.NewBlock(blockID, a.Value)
-			block.Translatable = false
-			block.Properties["partPath"] = partPath
-			block.Properties["element"] = t.Name.Local
-			block.Properties["attribute"] = a.Name.Local
-			if a.Name.Space != "" {
-				block.Properties["attributeNS"] = a.Name.Space
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-
-			var pre strings.Builder
-			pre.WriteString(" ")
-			odfWriteAttrName(&pre, a.Name)
-			pre.WriteString(`="`)
-			p.skelText(pre.String())
-			p.skelRef(blockID)
-			p.skelText(`"`)
+		// extract. They are surfaced as NON-translatable content blocks
+		// (visible to ingestion, skipped by MT) — gated behind
+		// ExtractNonTranslatableContent — riding the attribute value via a
+		// skeleton ref so the round-trip stays byte-exact. Parity forces the
+		// flag off, leaving the value in the tag's own bytes.
+		display := r.cfg.ExtractNonTranslatableContent() && isFormDisplayAttribute(a.Name) && hasTrueText(a.Value)
+		if !translatable && !display {
+			continue
+		}
+		// The scanner and the decoder disagree about how many attributes this
+		// tag has only for a tag neither should have accepted; leaving the
+		// value in skeleton keeps the document intact and costs the
+		// substitution, which is the safe way round.
+		if i >= len(values) {
 			continue
 		}
 
-		// Non-translatable: write literally.
-		var attr strings.Builder
-		attr.WriteString(" ")
-		odfWriteAttrName(&attr, a.Name)
-		attr.WriteString(`="`)
-		attr.WriteString(xmlesc.Attr(a.Value))
-		attr.WriteString(`"`)
-		p.skelText(attr.String())
-	}
+		*blockCounter++
+		blockID := fmt.Sprintf("tu%d", *blockCounter)
+		block := model.NewBlock(blockID, a.Value)
+		block.Translatable = translatable
+		block.Properties["partPath"] = partPath
+		block.Properties["element"] = t.Name.Local
+		block.Properties["attribute"] = a.Name.Local
+		if a.Name.Space != "" {
+			block.Properties["attributeNS"] = a.Name.Space
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
-	p.skelText(">")
+		p.skelRaw(tagRaw[pos:values[i][0]])
+		p.skelRef(blockID)
+		pos = values[i][1]
+	}
+	p.skelRaw(tagRaw[pos:])
+}
+
+// odfTagAttrValueRanges returns the byte range of every attribute value inside
+// a start tag's own bytes, in document order and excluding the delimiting
+// quotes. The decoder reports attributes in that same order, so the i-th range
+// belongs to the i-th reported attribute — which is what lets a skeleton
+// substitute one value and keep the rest of the tag verbatim.
+func odfTagAttrValueRanges(tag []byte) [][2]int {
+	var out [][2]int
+	i := 0
+	// Skip `<` and the element name.
+	for i < len(tag) && tag[i] != '<' {
+		i++
+	}
+	i++
+	for i < len(tag) && !odfIsTagSpace(tag[i]) && tag[i] != '/' && tag[i] != '>' {
+		i++
+	}
+	for i < len(tag) {
+		for i < len(tag) && odfIsTagSpace(tag[i]) {
+			i++
+		}
+		if i >= len(tag) || tag[i] == '/' || tag[i] == '>' {
+			return out
+		}
+		// Attribute name, then `=`, then the quoted value.
+		for i < len(tag) && !odfIsTagSpace(tag[i]) && tag[i] != '=' && tag[i] != '>' {
+			i++
+		}
+		for i < len(tag) && odfIsTagSpace(tag[i]) {
+			i++
+		}
+		if i >= len(tag) || tag[i] != '=' {
+			return out
+		}
+		i++
+		for i < len(tag) && odfIsTagSpace(tag[i]) {
+			i++
+		}
+		if i >= len(tag) || (tag[i] != '"' && tag[i] != '\'') {
+			return out
+		}
+		quote := tag[i]
+		i++
+		start := i
+		for i < len(tag) && tag[i] != quote {
+			i++
+		}
+		if i >= len(tag) {
+			return out
+		}
+		out = append(out, [2]int{start, i})
+		i++
+	}
+	return out
+}
+
+// odfIsTagSpace reports whether c is XML white space (XML 1.0 §2.3 S).
+func odfIsTagSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
 // isTranslatableAttribute reports whether an attribute should be
@@ -942,75 +800,6 @@ func hasTrueText(s string) bool {
 		}
 	}
 	return false
-}
-
-// emitSubfiltered emits a child layer with content parsed by the XML sub-format reader.
-func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult,
-	content []byte, entryName, parentLayerID string,
-	childLayer *model.Layer, blockCounter *int) {
-
-	subReader, err := r.resolver.ResolveReader("xml")
-	if err != nil {
-		// Fall back to direct ODF parsing if XML reader is unavailable
-		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
-			return
-		}
-		r.parseODFContent(ctx, ch, content, odfTypeUnknown, blockCounter, entryName)
-		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
-		return
-	}
-
-	locale := r.Doc.SourceLocale
-	if locale.IsEmpty() {
-		locale = model.LocaleEnglish
-	}
-
-	// Emit child layer start
-	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
-		return
-	}
-
-	// Open sub-reader and emit its parts
-	subDoc := &model.RawDocument{
-		URI:          entryName,
-		SourceLocale: locale,
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-	if err := subReader.Open(ctx, subDoc); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("odf: subfilter open for %s: %w", entryName, err)}
-		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
-		return
-	}
-
-	// Read sub-reader parts, skipping the sub-reader's own root layer start/end
-	for pr := range subReader.Read(ctx) {
-		if pr.Error != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("odf: subfilter read for %s: %w", entryName, pr.Error)}
-			break
-		}
-		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
-			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
-				continue
-			}
-		}
-		// The sub-reader is a fresh instance per part and counts from one, so
-		// content.xml's first paragraph and styles.xml's first paragraph both
-		// arrive as `tu1`. The direct-parse branch above threads this document's
-		// one counter through every part — including meta.xml, which is never
-		// delegated and so shares the space either way; qualifying by the part's
-		// layer keeps the delegated path in it too.
-		if pr.Part.Type == model.PartBlock {
-			if b, ok := pr.Part.Resource.(*model.Block); ok {
-				model.QualifyMemberID(b, childLayer.ID)
-			}
-		}
-		r.emit(ctx, ch, pr.Part)
-	}
-	subReader.Close()
-
-	// Emit child layer end
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 
 func (r *Reader) skelPartStart(partPath string) {
@@ -1175,39 +964,6 @@ func zipFileByName(zr *zip.Reader, name string) *zip.File {
 		}
 	}
 	return nil
-}
-
-// XML serialization helpers for ODF skeleton.
-
-func odfWriteElementName(buf *strings.Builder, name xml.Name) {
-	if name.Space != "" {
-		prefix := odfResolvePrefix(name.Space)
-		if prefix != "" {
-			buf.WriteString(prefix)
-			buf.WriteString(":")
-		}
-	}
-	buf.WriteString(name.Local)
-}
-
-func odfWriteAttrName(buf *strings.Builder, name xml.Name) {
-	if name.Space == "xmlns" {
-		buf.WriteString("xmlns:")
-		buf.WriteString(name.Local)
-		return
-	}
-	if name.Space == "" && name.Local == "xmlns" {
-		buf.WriteString("xmlns")
-		return
-	}
-	if name.Space != "" {
-		prefix := odfResolvePrefix(name.Space)
-		if prefix != "" {
-			buf.WriteString(prefix)
-			buf.WriteString(":")
-		}
-	}
-	buf.WriteString(name.Local)
 }
 
 // The odf reader's two XML escapers were byte-identical to xliff, xliff2 and
