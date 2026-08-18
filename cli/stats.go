@@ -36,7 +36,7 @@ no FILE means the project's tracked content; FILE "-" reads standard input.`,
 	}
 	f := cmd.Flags()
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input encoding")
 	return cmd
 }

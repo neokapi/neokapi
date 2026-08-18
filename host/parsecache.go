@@ -233,7 +233,7 @@ func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.Pa
 		return nil, ""
 	}
 	h := sha256.New()
-	fmt.Fprintf(h, "%s\x00", a.SourceLang)
+	fmt.Fprintf(h, "%s\x00", a.SourceLocale())
 	if len(mergedConfig) > 0 {
 		if b, err := json.Marshal(mergedConfig); err == nil {
 			h.Write(b)

@@ -63,6 +63,11 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
+	// Bounded to this run: the embedding App outlives it and may converge a
+	// different project next, which must not inherit this recipe's language
+	// (host/sourcelang.go). The recipe itself is adopted inside the loop, where
+	// the project context resolves.
+	defer a.scopeSourceLang()()
 	if sourceLang != "" {
 		a.SourceLang = sourceLang
 	}

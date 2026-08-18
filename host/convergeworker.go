@@ -48,8 +48,8 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		Explain:   a.Explain,
 
 		FormatFlag: a.FormatFlag,
-		Encoding:   a.Encoding,
-		SourceLang: a.SourceLang,
+		Encoding:   a.InputEncoding(),
+		SourceLang: a.SourceLocale(),
 		TargetLang: locale,
 		ConvTiming: a.ConvTiming,
 

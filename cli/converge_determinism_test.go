@@ -64,10 +64,7 @@ func fingerprintStanding(t *testing.T, statusJSON string) string {
 //
 // The mode that used to disagree is the one nobody watches: under --json (and
 // under --quiet) the recipe's `source_language` never reached the loop, because
-// --source-lang is registered with a default of "en" straight into the field the
-// loop reads (host.AddProcessingFlags), so the `a.SourceLang == ""` fallback in
-// RunDefaultFlowConverge could not fire and only the live-renderer branch
-// applied the recipe. Converging an `en-GB` project at "en" misses every
+// only the live-renderer branch applied it. Converging an `en-GB` project at "en" misses every
 // content-memory lookup: recycle fills nothing, the AI step drafts every unit
 // in every locale over the project's approved wording, and no locale clears its
 // ship gate. Repeats catch a scheduling-dependent outcome too — the locales of a

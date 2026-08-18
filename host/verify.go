@@ -271,16 +271,14 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 	localeFilter, _ := cmd.Flags().GetString("locale")
 
-	// Resolve the source language: explicit --source-lang flag wins, else the
-	// project's declared source language, else fall back to "en".
-	sourceLang, _ := cmd.Flags().GetString("source-lang")
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	// The language the gates grade in: an explicit --source-lang, else the
+	// project's declared source language, else the built-in default
+	// (host/sourcelang.go). A gate that reads en-GB content as "en" holds it to
+	// no vocabulary at all.
+	sourceLang, _ := cmd.Flags().GetString(sourceLangFlag)
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
+	// And the encoding they read it in (host/encoding.go).
+	a.ResolveEncoding(proj.Defaults.Encoding)
 
 	var gates []verifyGateResult
 
@@ -645,7 +643,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		}
 		governed = true
 		fmtName, fmtCfg := formats.forFile(a, f)
-		blocks, rerr := a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLang)
+		blocks, rerr := a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
 		if rerr != nil {
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
 		}
@@ -657,7 +655,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if rel, ok := projectRelPath(root, f); ok {
 			display = rel
 		}
-		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLang))
+		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLocale()))
 		for _, b := range blocks {
 			findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
 			if verr != nil {
@@ -811,13 +809,13 @@ type VerifyUnit struct {
 // readSource reads the unit's source file under its declared reader binding.
 func (a *App) readSource(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
 	name, cfg := a.unitFormat(u.SourceFormat, u.SourceConfig)
-	return a.readBlocksAs(ctx, u.SourcePath, name, cfg, a.SourceLang)
+	return a.readBlocksAs(ctx, u.SourcePath, name, cfg, a.SourceLocale())
 }
 
 // readTarget reads the unit's target file under its declared reader binding.
 func (a *App) readTarget(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
 	name, cfg := a.unitFormat(u.TargetFormat, u.TargetConfig)
-	return a.readBlocksAs(ctx, u.TargetPath, name, cfg, a.SourceLang)
+	return a.readBlocksAs(ctx, u.TargetPath, name, cfg, a.SourceLocale())
 }
 
 // unitFormat resolves the reader binding to read one of a unit's files under.
@@ -1376,7 +1374,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	}
 
 	for _, sb := range sourceBlocks {
-		sb.SourceLocale = model.LocaleID(a.SourceLang)
+		sb.SourceLocale = model.LocaleID(a.SourceLocale())
 	}
 	OverlayTargets(sourceBlocks, targetBlocks, model.LocaleID(u.Locale))
 	return sourceBlocks, false, nil
@@ -1493,7 +1491,7 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 	doc := &model.RawDocument{
 		URI:          path,
 		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     firstNonEmpty(a.Encoding, "UTF-8"),
+		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
@@ -1598,7 +1596,7 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 	if err != nil {
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	declaredEnc := firstNonEmpty(a.Encoding, "UTF-8")
+	declaredEnc := a.InputEncoding()
 
 	// Format-agnostic encoding diagnostics (invalid UTF-8, declared-vs-detected
 	// charset mismatch) over the same raw bytes; no-op when mode is Off.

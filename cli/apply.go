@@ -68,8 +68,8 @@ writes nothing. No AI provider is required.`,
 	f.BoolVar(&diff, "diff", false, "preview content changes as a unified diff and write nothing")
 	f.BoolVar(&asJSON, "json", false, "print the apply report as JSON")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input/output encoding")
 	inPlaceFlag = RegisterInPlace(f, "keep a backup of edited content files with --in-place=.bak")
 	// Asset entries are written into the project's committed sources, so apply
 	// is a project verb and names its project the way every other one does.

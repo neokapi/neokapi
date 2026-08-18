@@ -528,8 +528,8 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 		if provider != nil {
 			cfg.Provider = provider
 		}
-		if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
-			cfg.SourceLocale = model.LocaleID(a.SourceLang)
+		if cfg.SourceLocale.IsEmpty() {
+			cfg.SourceLocale = model.LocaleID(a.SourceLocale())
 		}
 		return nil
 	}

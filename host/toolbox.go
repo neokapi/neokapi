@@ -201,8 +201,8 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 	}
 	if err := src.rawDocument(doc); err != nil {
 		return fmtName, err
@@ -288,8 +288,8 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 	}
 	if err := src.rawDocument(doc); err != nil {
 		reader.Close()
@@ -352,7 +352,7 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 			return err
 		}
 	}
-	writer.SetEncoding(a.Encoding)
+	writer.SetEncoding(a.InputEncoding())
 	writer.SetLocale(writeLocale)
 
 	ch := make(chan *model.Part, len(outParts)+1)

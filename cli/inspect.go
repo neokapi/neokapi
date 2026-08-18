@@ -72,7 +72,7 @@ FILE "-" reads standard input.`,
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
 	f.StringSliceVar(&project, "project", nil, "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input encoding")
 	return cmd
 }

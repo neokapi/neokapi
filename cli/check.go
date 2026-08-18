@@ -87,7 +87,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
 	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
 	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
+	a.AddSourceLangFlag(f)
 
 	// Project gate mode (--ship): the project gates surface.
 	AddProjectFlag(cmd)

@@ -89,6 +89,6 @@ func (a *App) binaryStream(content io.ReadSeeker) bool {
 // encodingAllowsNUL reports whether --encoding names a Unicode form whose
 // text legitimately contains NUL bytes, which takes the NUL rule off the table.
 func (a *App) encodingAllowsNUL() bool {
-	enc := strings.ToUpper(strings.NewReplacer("-", "", "_", "", " ", "").Replace(a.Encoding))
+	enc := strings.ToUpper(strings.NewReplacer("-", "", "_", "", " ", "").Replace(a.InputEncoding()))
 	return strings.HasPrefix(enc, "UTF16") || strings.HasPrefix(enc, "UTF32")
 }

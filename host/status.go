@@ -555,14 +555,8 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 	}
 	root := filepath.Dir(projectPath)
 
-	sourceLang, _ := cmd.Flags().GetString("source-lang")
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	sourceLang, _ := cmd.Flags().GetString(sourceLangFlag)
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	localeFilter, _ := cmd.Flags().GetString("locale")
 	units, err := a.resolveVerifyUnits(cmd, proj, root, nil, localeFilter)
