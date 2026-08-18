@@ -230,6 +230,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// (visible to ingestion/LLM consumers, skipped by MT) instead of
 			// burying it in an opaque Data part.
 			block := r.newPreambleBlock(id, name, content)
+			ids.Assign(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -265,6 +266,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 		for colIdx, cell := range records[headerRow] {
 			hb := model.NewBlock(fmt.Sprintf("h%d", colIdx), cell)
+			ids.Assign(hb)
 			// A header cell's address is the column it labels — the same segment
 			// every cell below it is named by.
 			hb.Name = r.names.Name(model.StructuralPath("header", r.columnName(headers, colIdx)))
@@ -352,6 +354,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					// (mirrors the header cells: visible to ingestion, skipped
 					// by MT) instead of an opaque Data part.
 					block := r.newNonTranslatableCell(id, name, cell, colIdx, rowNum)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -558,6 +561,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				name := fmt.Sprintf("preamble-row%d", rowIdx+1)
 				if r.cfg.ExtractNonTranslatableContent() {
 					block := r.newPreambleBlock(id, name, content)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -657,6 +661,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 					// (mirrors header cells: visible to ingestion, skipped by
 					// MT). The body rides the skeleton text above, not a ref.
 					block := r.newNonTranslatableCell(id, name, parsedValue, colIdx, rowNum)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
