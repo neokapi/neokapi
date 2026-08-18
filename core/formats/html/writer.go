@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // Writer implements DataFormatWriter for HTML files.
@@ -485,7 +486,50 @@ func (w *Writer) writeReparse(content []byte, blocks map[string]*model.Block, so
 	walker := newDOMWalker(w.cfg, visitor)
 	walker.walk(doc)
 
+	// A fragment goes back a fragment. html.Parse promotes any input to a full
+	// document tree (§13.2 tree construction inserts html, head and body
+	// whether or not the input spelled them), so rendering that tree around
+	// content that arrived as `<p>…</p>` would wrap it in a shell the source
+	// never had — which is what an HTML value inside another document, an XML
+	// element or a JSON string, actually is. When the source declared none of
+	// the shell, only the body's children are rendered.
+	if isFragmentSource(content) {
+		if body := findBodyNode(doc); body != nil {
+			for n := body.FirstChild; n != nil; n = n.NextSibling {
+				if err := html.Render(w.Output, n); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
 	return html.Render(w.Output, doc)
+}
+
+// isFragmentSource reports whether content declared none of the document shell
+// — no doctype, no <html>, <head> or <body> start tag.
+func isFragmentSource(content []byte) bool {
+	lower := strings.ToLower(string(content))
+	for _, marker := range []string{"<!doctype", "<html", "<head", "<body"} {
+		if strings.Contains(lower, marker) {
+			return false
+		}
+	}
+	return true
+}
+
+// findBodyNode returns the <body> element of a parsed document, or nil.
+func findBodyNode(n *html.Node) *html.Node {
+	if n.Type == html.ElementNode && n.DataAtom == atom.Body {
+		return n
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if found := findBodyNode(c); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // writerVisitor implements walkVisitor for the writer, patching DOM nodes

@@ -15,9 +15,13 @@ import (
 )
 
 // Writer implements DataFormatWriter for ODF files.
+//
+// It reconstructs the package's XML streams from the skeleton this package's
+// own reader wrote, which is the counterpart of that reader parsing them
+// itself: no stream is delegated to a sub-format writer, so none can come back
+// as anything but the stream it was.
 type Writer struct {
 	format.BaseFormatWriter
-	resolver      format.SubfilterResolver
 	skeletonStore *format.SkeletonStore
 	// originalContent holds the source archive bytes when handed over via
 	// SetOriginalContent. When sourcePath is set instead the source is
@@ -30,7 +34,6 @@ type Writer struct {
 var _ format.OriginalContentSetter = (*Writer)(nil)
 var _ format.SourcePathSetter = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
-var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new ODF writer.
 func NewWriter() *Writer {
@@ -40,11 +43,6 @@ func NewWriter() *Writer {
 			RequiresSkeleton: true,
 		},
 	}
-}
-
-// SetSubfilterResolver sets the resolver for creating sub-format writers.
-func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
-	w.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming reconstruction.
@@ -68,20 +66,10 @@ func (w *Writer) SetSourcePath(path string) {
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Collect all blocks keyed by ID
 	blocks := make(map[string]*model.Block)
-	childLayerValues := make(map[string]string)
 	for part := range parts {
-		switch part.Type {
-		case model.PartBlock:
+		if part.Type == model.PartBlock {
 			if b, ok := part.Resource.(*model.Block); ok {
 				blocks[b.ID] = b
-			}
-		case model.PartLayerStart:
-			if layer, ok := part.Resource.(*model.Layer); ok && isSubfilteredLayer(layer) {
-				val, err := w.writeChildLayer(ctx, layer, parts)
-				if err != nil {
-					return fmt.Errorf("odf: writing child layer %s: %w", layer.Name, err)
-				}
-				childLayerValues[layer.Name] = val
 			}
 		}
 	}
@@ -116,7 +104,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("odf: skeleton flush: %w", err)
 		}
-		if err := w.writeFromSkeleton(origZR, zw, blocks, childLayerValues); err != nil {
+		if err := w.writeFromSkeleton(origZR, zw, blocks); err != nil {
 			return err
 		}
 		if err := zw.Close(); err != nil {
@@ -127,7 +115,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	// Fallback: reparse-based reconstruction
-	if err := w.writeFromReparse(origZR, zw, blocks, childLayerValues); err != nil {
+	if err := w.writeFromReparse(origZR, zw, blocks); err != nil {
 		return err
 	}
 	if err := zw.Close(); err != nil {
@@ -139,12 +127,17 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 
 // writeFromSkeleton reconstructs translatable XML parts using the skeleton store.
 func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
-	blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	blocks map[string]*model.Block) error {
 
 	// Read all skeleton entries, splitting by part-boundary markers
 	partContents := make(map[string][]byte)
 	var currentPart string
 	var currentBuf bytes.Buffer
+	// pendingOriginal holds the source bytes the next ref may replay, with the
+	// rendering that entry expects while the block is unedited. An original
+	// applies to the ref that immediately follows it, so any other entry
+	// between the two drops it.
+	var pendingOriginal, pendingRendered []byte
 
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -154,6 +147,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		if err != nil {
 			return fmt.Errorf("odf: reading skeleton: %w", err)
 		}
+		if entry.Type != format.SkeletonOriginal && entry.Type != format.SkeletonRef {
+			pendingOriginal, pendingRendered = nil, nil
+		}
 
 		switch entry.Type {
 		case format.SkeletonText:
@@ -161,8 +157,17 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				currentBuf.Write(entry.Data)
 			}
 
+		case format.SkeletonOriginal:
+			rendered, original, ok := format.DecodeSkeletonPair(entry.Data)
+			if !ok {
+				continue
+			}
+			pendingRendered, pendingOriginal = rendered, original
+
 		case format.SkeletonRef:
 			refID := string(entry.Data)
+			original, expected := pendingOriginal, pendingRendered
+			pendingOriginal, pendingRendered = nil, nil
 
 			// Check for part-boundary markers
 			if after, ok := strings.CutPrefix(refID, skelPartStartPrefix); ok {
@@ -180,15 +185,18 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				continue
 			}
 
-			// Regular block ref or layer ref — render translated text
+			// Regular block ref — render translated text
 			if currentPart != "" {
-				if strings.HasPrefix(refID, "layer:") {
-					layerPath := refID[6:]
-					if val, ok := childLayerValues[layerPath]; ok {
-						currentBuf.WriteString(val)
+				if block, ok := blocks[refID]; ok {
+					text := w.getBlockText(block)
+					// Extraction resolved markup this element held into plain
+					// characters, and nothing has edited the block since:
+					// replay the bytes the document had rather than the
+					// resolved reading of them.
+					if original != nil && text == string(expected) {
+						text = string(original)
 					}
-				} else if block, ok := blocks[refID]; ok {
-					currentBuf.WriteString(w.getBlockText(block))
+					currentBuf.WriteString(text)
 				}
 			}
 		}
@@ -241,24 +249,10 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 // writeFromReparse copies the original ZIP, replacing translatable content
 // in content.xml and styles.xml using XML reparse (fallback without skeleton).
 func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
-	blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	blocks map[string]*model.Block) error {
 
 	for _, f := range origZR.File {
-		if val, ok := childLayerValues[f.Name]; ok {
-			// Write subfiltered content reconstructed through sub-format writer
-			fh := f.FileHeader
-			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
-			if err != nil {
-				return err
-			}
-			if _, err := fw.Write([]byte(val)); err != nil {
-				return err
-			}
-		} else if f.Name == "content.xml" || f.Name == "styles.xml" || f.Name == "meta.xml" {
+		if f.Name == "content.xml" || f.Name == "styles.xml" || f.Name == "meta.xml" {
 			// Replace translatable content in XML files
 			origData, err := readZipFile(f)
 			if err != nil {
@@ -447,81 +441,6 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 	return output.Bytes(), nil
 }
 
-// isSubfilteredLayer returns true if the layer was created by the subfilter mechanism.
-func isSubfilteredLayer(layer *model.Layer) bool {
-	if layer.Properties == nil {
-		return false
-	}
-	_, ok := layer.Properties["subfilter.source"]
-	return ok
-}
-
-// writeChildLayer collects parts until the matching PartLayerEnd and writes them
-// through the appropriate sub-format writer.
-func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
-	var childParts []*model.Part
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case part, ok := <-parts:
-			if !ok {
-				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
-			}
-			if part.Type == model.PartLayerEnd {
-				if endLayer, ok := part.Resource.(*model.Layer); ok && endLayer.ID == layer.ID {
-					goto collected
-				}
-			}
-			childParts = append(childParts, part)
-		}
-	}
-
-collected:
-	if w.resolver == nil {
-		return w.fallbackChildText(childParts), nil
-	}
-
-	subWriter, err := w.resolver.ResolveWriter(layer.Format)
-	if err != nil {
-		return w.fallbackChildText(childParts), nil
-	}
-
-	var buf bytes.Buffer
-	if err := subWriter.SetOutputWriter(&buf); err != nil {
-		return "", err
-	}
-	subWriter.SetLocale(w.Locale)
-
-	childCh := make(chan *model.Part, len(childParts))
-	for _, p := range childParts {
-		childCh <- p
-	}
-	close(childCh)
-
-	if err := subWriter.Write(ctx, childCh); err != nil {
-		return "", err
-	}
-	if err := subWriter.Close(); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
-// fallbackChildText concatenates block source/target texts when no sub-writer is available.
-func (w *Writer) fallbackChildText(parts []*model.Part) string {
-	var sb strings.Builder
-	for _, p := range parts {
-		if p.Type == model.PartBlock {
-			if block, ok := p.Resource.(*model.Block); ok {
-				sb.WriteString(w.getBlockText(block))
-			}
-		}
-	}
-	return sb.String()
-}
-
 // getBlockText returns the rendered text for a block. When the block
 // carries inline-code runs (PcOpen/PcClose pairs captured by the reader
 // from elements like <text:span>, <text:script>, <draw:frame>, etc.),
@@ -533,17 +452,21 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // round-trip without breaking the surrounding XML.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		runs := block.TargetRuns(w.Locale)
-		if hasInlineCodeRuns(runs) {
-			return renderRunsForODF(runs)
-		}
-		return odfEscapeText(block.TargetText(w.Locale))
+		return renderSourceRunsForODF(block.TargetRuns(w.Locale), block.TargetText(w.Locale))
 	}
-	runs := block.SourceRuns()
+	return renderSourceRunsForODF(block.SourceRuns(), block.SourceText())
+}
+
+// renderSourceRunsForODF renders one side of a block — runs plus the plain
+// text they flatten to — into the XML a `<text:p>` holds. The reader calls it
+// too, on the runs it is about to make a block from, so the expectation it
+// pairs with a SkeletonOriginal is the very rendering this writer will compare
+// against rather than a second reading of the same rule.
+func renderSourceRunsForODF(runs []model.Run, plain string) string {
 	if hasInlineCodeRuns(runs) {
 		return renderRunsForODF(runs)
 	}
-	return odfEscapeText(block.SourceText())
+	return odfEscapeText(plain)
 }
 
 // odfEscapeText XML-escapes the five XML special characters in CharData

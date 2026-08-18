@@ -996,11 +996,16 @@ mergeCaptions.b=false
 			// okapi-bridge#11's two-pass refactor (pass 1 reads with
 			// filter A, pass 2 opens a fresh filter B for write so
 			// the source-side close() in nextInZipFile can't race the
-			// writer). minTier=TierDivergent for both engines because
-			// native vs okapi reference have real semantic differences
-			// on every fixture (Okapi's ODFFilter inlines drawing/
-			// script elements differently from native); per-fixture
-			// annotation is a separate follow-up.
+			// writer), and is byte-equal on all 15.
+			//
+			// Native reaches canonical-equal on all 15: it writes each
+			// stream from the source's own bytes, so the whole gap to
+			// okapi is okapi's re-serialization (attribute order, the
+			// declaration, empty-element form) — which the normalizer
+			// below cancels. The bar is set at what is measured rather
+			// than at TierDivergent: a floor nothing can fall through
+			// is how a suite reporting 15-of-15 destroyed documents sat
+			// beside an annotation claiming canonical equality (#2086).
 			formatID:    "odf",
 			filterClass: "okf_openoffice",
 			sources:     []string{"okapi/filters/openoffice/src/test/resources"},
@@ -1015,8 +1020,8 @@ mergeCaptions.b=false
 				},
 			}}},
 			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierDivergent,
-				"bridge": roundtrip.TierDivergent,
+				"native": roundtrip.TierCanonicalEqual,
+				"bridge": roundtrip.TierByteEqual,
 			},
 		},
 	}

@@ -180,3 +180,34 @@ func TestQualifyMemberID_StaysWithinTheCharactersAnIDMaySpell(t *testing.T) {
 			"%q is not a character an NMTOKEN may hold", r)
 	}
 }
+
+// A member's own writer matches what a member's own reader minted, so the
+// qualification a container adds on the way out comes off on the way back in.
+func TestUnqualifyMemberID(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		id     string
+		member string
+		want   string
+	}{
+		{"the member that qualified it", "sf1_tu1", "sf1", "tu1"},
+		{"one layer of nesting at a time", "sf3_sf1_tu1", "sf3", "sf1_tu1"},
+		{"a different member is not this one's prefix", "sf2_tu1", "sf1", "sf2_tu1"},
+		{"an id that carries no qualification", "tu1", "sf1", "tu1"},
+		{"a container with no name for its member", "sf1_tu1", "", "sf1_tu1"},
+		{"a prefix that is not followed by the separator", "sf10_tu1", "sf1", "sf10_tu1"},
+		{"an empty id", "", "sf1", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, model.UnqualifyMemberID(tt.id, tt.member))
+		})
+	}
+}
+
+// Qualify then unqualify is the identity, which is what makes it safe for a
+// container to hand a member's blocks to the member's own writer.
+func TestUnqualifyMemberID_UndoesQualify(t *testing.T) {
+	block := model.NewBlock("tu7", "File")
+	model.QualifyMemberID(block, "sf2")
+	assert.Equal(t, "tu7", model.UnqualifyMemberID(block.ID, "sf2"))
+}
