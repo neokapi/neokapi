@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"errors"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -42,7 +41,7 @@ func TestContentModelEpoch_AnOlderProducerIsRefused(t *testing.T) {
 	err := engine.CheckContentModelEpoch(ctx, "proj-epoch", "main", 1)
 	require.Error(t, err)
 	var conflict *ContentModelConflict
-	require.True(t, errors.As(err, &conflict))
+	require.ErrorAs(t, err, &conflict)
 	assert.Equal(t, 1, conflict.Stated)
 	assert.Equal(t, 2, conflict.Recorded)
 	assert.Contains(t, conflict.Error(), "push --force",
