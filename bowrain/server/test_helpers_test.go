@@ -130,8 +130,8 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 	for itemName, blocks := range blocksByItem {
 		blockHashes := map[string]string{}
 		for _, b := range blocks {
-			identity := model.ComputeIdentity(b)
-			blockHashes[b.ID] = identity.ContentHash
+			// The transfer hash, as a real client sends it.
+			blockHashes[b.ID] = model.ComputeIdentity(b).RecordHash()
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
@@ -141,8 +141,9 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 
 	// 1. Init — send item hashes.
 	initBody, _ := json.Marshal(map[string]any{
-		"project_id":  projectID,
-		"item_hashes": itemHashes,
+		"project_id":          projectID,
+		"item_hashes":         itemHashes,
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	req := httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/init", bytes.NewReader(initBody))
 	req.Header.Set("Content-Type", "application/json")
@@ -273,11 +274,12 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 	itemsJSON, _ := json.Marshal(itemMetaJSON)
 
 	commitBody, _ := json.Marshal(map[string]any{
-		"upload_id":  uploadID,
-		"project_id": projectID,
-		"stream":     "main",
-		"chunks":     chunkRefs,
-		"items":      json.RawMessage(itemsJSON),
+		"upload_id":           uploadID,
+		"project_id":          projectID,
+		"stream":              "main",
+		"chunks":              chunkRefs,
+		"items":               json.RawMessage(itemsJSON),
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	req = httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/commit", bytes.NewReader(commitBody))
 	req.Header.Set("Content-Type", "application/json")

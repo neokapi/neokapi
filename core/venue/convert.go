@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -397,4 +398,36 @@ func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 		out[k] = model.DecodePayload(typeName, e.Data)
 	}
 	return out, nil
+}
+
+// BlockPropertyKeys is the set of property keys a producer's readers emit,
+// declared by a push so the far side knows what this producer is authoritative
+// about.
+//
+// It scopes DELETION, not transfer — what to send is decided by the record hash
+// (model.BlockIdentity.RecordHash), per block, and needs no declaration.
+//
+// The problem it solves is a fleet that is not one version. A CI runner pinned
+// to an older kapi reads the same files with a reader that records less, and
+// because the sync cache is not committed a fresh checkout declares every item,
+// so that producer really does push the whole corpus. Storing what it sent as
+// the whole truth would delete a property it has never heard of, and two
+// vintages would take turns adding and removing it. Declaring the keys it knows
+// lets the far side keep the rest.
+//
+// Computed over every block the producer read, not the changed ones: a key is
+// declared because this reader emits it, and a push that carries one edited
+// string still knows what a note is.
+func BlockPropertyKeys(blocks []*model.Block) []string {
+	var keys []string
+	for _, b := range blocks {
+		if b == nil {
+			continue
+		}
+		for key := range b.Properties {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	return slices.Compact(keys)
 }

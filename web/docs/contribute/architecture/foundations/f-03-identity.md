@@ -140,6 +140,33 @@ reaches content already stored elsewhere. Anything a block is persisted with
 belongs in one half or the other, and anything computed rather than read belongs
 behind the advisory prefix.
 
+### Two producers, two vintages
+
+Delivering a field to content already stored raises the mirror question: what
+stops an *older* producer from taking it away again? A fleet is not one version —
+a CI runner pinned to an older release, or a laptop that has not upgraded, reads
+the same files with a reader that records less.
+
+Two mechanisms answer it, and they divide by what can be merged.
+
+**Fields are declared, and silence is not deletion.** A push declares the
+property keys its readers emit, computed over every block it read rather than the
+ones it sent. The far side is authoritative about those keys and leaves the rest
+of a stored block's properties alone, so a note deleted in the source is deleted
+here, while a key this producer has never heard of survives. A producer that
+declares nothing knows nothing: it adds and updates, and removes nothing. No
+version is involved, which is the point — a reader that learns to record
+something new needs no coordination at all.
+
+**Structure is versioned, and a downgrade is refused.** Segmentation, the run
+model, overlays, how blocks are named: there is no merging half of one. So the
+framework states a **content-model epoch**, the stream records the highest it has
+received, and a push from a lower one is refused at init — before it uploads
+anything — rather than applied. `kapi push --force` carries past it, because a
+deliberate downgrade is a legitimate thing to want and an accidental one is not.
+The epoch moves only when produced content gains fidelity an older kapi cannot
+reproduce from the same file; a new block property is never a reason to move it.
+
 ### Identity across revisions
 
 The two hashes answer "is this the same content?" at a point in time. An iterative

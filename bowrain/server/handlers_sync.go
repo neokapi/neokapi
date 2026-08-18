@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,6 +50,11 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		RootHash     string            `json:"root_hash"`
 		ContextHash  string            `json:"context_hash"`
 		Collections  []string          `json:"collections"`
+		// ContentModelEpoch is the generation of content model the producer
+		// reads into, and AllowModelDowngrade is `push --force` carrying past
+		// the refusal — see core/venue.ContentModelEpoch.
+		ContentModelEpoch   int  `json:"content_model_epoch"`
+		AllowModelDowngrade bool `json:"allow_model_downgrade"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -65,6 +71,20 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	}
 
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
+
+	// The model generation is checked before anything else is computed: a push
+	// that would flatten what a richer kapi wrote is refused here, so the
+	// refusal costs no upload and no diff.
+	if !req.AllowModelDowngrade {
+		if err := diffEngine.CheckContentModelEpoch(c.Request().Context(),
+			req.ProjectID, req.Stream, req.ContentModelEpoch); err != nil {
+			var conflict *bowsync.ContentModelConflict
+			if errors.As(err, &conflict) {
+				return apiErr(c, http.StatusConflict, conflict.Error())
+			}
+			return serverErr(c, err)
+		}
+	}
 
 	// The context content type negotiates first, because its answer qualifies
 	// the content fast path below: a push whose blocks are all unchanged but
@@ -196,6 +216,14 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// on `kapi push` is told at once, and again in the worker, which is
 		// where the write actually lands.
 		ExpectedRef ref.Ref `json:"expected_ref"`
+		// BlockPropertyKeys declares what this producer's readers record, so
+		// the worker knows which stored properties this push is authoritative
+		// about. Passed through verbatim like Items — see
+		// core/venue.BlockPropertyKeys.
+		BlockPropertyKeys []string `json:"block_property_keys"`
+		// ContentModelEpoch is the generation this push wrote, recorded on the
+		// stream now that it has been accepted.
+		ContentModelEpoch int `json:"content_model_epoch"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -307,6 +335,15 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 			_ = s.JobStore.DeleteJob(c.Request().Context(), pushID)
 			return apiErr(c, http.StatusInternalServerError, "failed to enqueue push job")
 		}
+	}
+
+	// Raise the stream's model generation to the one this push carried, now
+	// that it is accepted. On commit rather than at init: a push that
+	// negotiated and then failed must not close a stream to producers whose
+	// content it never delivered. Best-effort — the next push records it.
+	if manifest.ContentModelEpoch > 0 {
+		_ = bowsync.NewDiffEngine(s.ContentStore, s.SyncCache).RecordContentModelEpoch(
+			c.Request().Context(), manifest.ProjectID, manifest.Stream, manifest.ContentModelEpoch)
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{

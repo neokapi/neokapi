@@ -49,6 +49,10 @@ type syncPushManifest struct {
 	// work is queued, and this is where the write actually happens, so the
 	// assertion is re-made here against the state it is about to change.
 	ExpectedRef ref.Ref `json:"expected_ref"`
+	// BlockPropertyKeys is what the producer declared its readers record. It
+	// scopes deletion: a property key outside this set was written by someone
+	// this push knows nothing about, and survives it. See keepDeclaredProperties.
+	BlockPropertyKeys []string `json:"block_property_keys"`
 }
 
 type syncChunkRef struct {
@@ -264,7 +268,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Route by content type.
 		switch chunk.ContentType {
 		case "blocks":
-			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap)
+			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, manifest.BlockPropertyKeys)
 			if err != nil {
 				markJobFailed(ctx, deps, job.ID, err.Error())
 				return err
@@ -456,7 +460,7 @@ func sampleItemNames(names []string, n int) []string {
 
 // processBlockChunk converts SyncBlocks to model.Blocks and stores them.
 // Blocks with ExpectedHash set are checked for optimistic concurrency conflicts.
-func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta) (int, []string, error) {
+func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta, declaredProperties []string) (int, []string, error) {
 	// Check expected_hash conflict detection (optimistic concurrency). A block
 	// that came out of this store names its row directly (sb.Id is the stored
 	// row id — what a pull handed the client); one read from a local file
@@ -518,6 +522,7 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 	var itemNames []string
 	for itemName, blocks := range itemGroups {
 		if itemName != "" {
+			keepUndeclaredProperties(ctx, deps, projectID, stream, itemName, blocks, declaredProperties)
 			if err := deps.ContentStore.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
 				return stored, itemNames, fmt.Errorf("store blocks for %s: %w", itemName, err)
 			}
@@ -601,4 +606,82 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 	}
 
 	return stored, itemNames, nil
+}
+
+// keepUndeclaredProperties carries forward the block properties a stored row
+// holds that this push declared no knowledge of.
+//
+// A fleet is not one version. A CI runner pinned to an older kapi, or a laptop
+// that has not upgraded, reads the same files with a reader that records less —
+// and because the sync cache is not committed, a fresh checkout declares every
+// item, so the older producer really does push the whole corpus. Storing what it
+// sent as the whole truth would let it delete a field it has never heard of, and
+// two vintages would take turns adding and removing it.
+//
+// Silence is not deletion; disagreement is. A push declares the keys its readers
+// emit (core/venue.BlockPropertyKeys), computed over every block it read rather
+// than the ones it sent — so a value genuinely removed at the source is removed
+// here, while a key this producer never emits survives untouched. A push that
+// declares nothing knows nothing: it adds and updates, and removes nothing.
+//
+// Derived locators are excluded. An advisory property says where a block was
+// found, so preserving one from a producer that no longer records it leaves a
+// locator pointing at nothing — worse than its absence.
+//
+// Best-effort: a push must not fail because the prior state could not be read.
+func keepUndeclaredProperties(
+	ctx context.Context,
+	deps *WorkerDeps,
+	projectID, stream, itemName string,
+	arriving []*model.Block,
+	declared []string,
+) {
+	authoritative := map[string]bool{}
+	for _, key := range declared {
+		authoritative[key] = true
+	}
+	// The keys the payload carries are authoritative whatever was declared: a
+	// block that arrived with a property plainly knows about it.
+	for _, b := range arriving {
+		for key := range b.Properties {
+			authoritative[key] = true
+		}
+	}
+
+	storedRows, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID, Stream: stream, ItemName: itemName,
+	})
+	if err != nil || len(storedRows) == 0 {
+		return
+	}
+	// Joined both ways, like the conflict check above: a block that came out of
+	// this store names its row directly, one read from a local file carries its
+	// durable identity in the structural name the store filed as source_id.
+	byRowID := map[string]*venue.StoredBlock{}
+	byKey := map[string]*venue.StoredBlock{}
+	for _, row := range storedRows {
+		byRowID[row.ID] = row
+		if row.SourceID != "" {
+			byKey[row.SourceID] = row
+		}
+	}
+
+	for _, b := range arriving {
+		row, found := byRowID[b.ID]
+		if !found && b.Name != "" {
+			row, found = byKey[b.Name]
+		}
+		if !found || row.Block == nil {
+			continue
+		}
+		for key, value := range row.Block.Properties {
+			if authoritative[key] || model.IsAdvisoryProperty(key) {
+				continue
+			}
+			if b.Properties == nil {
+				b.Properties = map[string]string{}
+			}
+			b.Properties[key] = value
+		}
+	}
 }

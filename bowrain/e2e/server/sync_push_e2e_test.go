@@ -59,8 +59,7 @@ func TestSyncPushE2E(t *testing.T) {
 	blocks := []*model.Block{b1, b2}
 	blockHashes := map[string]string{}
 	for _, b := range blocks {
-		identity := model.ComputeIdentity(b)
-		blockHashes[b.ID] = identity.ContentHash
+		blockHashes[b.ID] = model.ComputeIdentity(b).RecordHash()
 	}
 	itemHash := venue.ComputeItemHash(blockHashes)
 	rootHash := venue.ComputeRootHash(map[string]string{"en.json": itemHash})

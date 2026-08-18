@@ -76,3 +76,101 @@ func TestSyncPush_ARecordedPropertyReachesContentAlreadyPushed(t *testing.T) {
 	assert.Zero(t, third.BlocksUploaded)
 	assert.Equal(t, apiclient.PushUnchanged, third.PushID)
 }
+
+// A fleet is not all one version: a CI runner pinned to an older kapi, or a
+// laptop that has not upgraded, pushes the same files with a reader that
+// records less. Its push must not be able to delete what it does not know
+// about — otherwise the two vintages take turns adding and removing the field,
+// and the reviewer's in-context reading works or not depending on which one
+// pushed last.
+//
+// A CI runner makes this the ordinary case rather than a corner: the sync cache
+// lives under .kapi/work/, which is gitignored, so a fresh checkout declares
+// every item and the whole corpus is re-negotiated on every run.
+func TestSyncPush_AnOlderProducerDoesNotStripWhatItCannotRecord(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+
+	http := httptest.NewServer(srv.GetEcho())
+	defer http.Close()
+	client := apiclient.NewProjectBearerClient(http.URL, pid, token)
+	ctx := context.Background()
+
+	enriched := &model.Block{ID: "b1", Translatable: true, Name: "greeting",
+		Properties: map[string]string{"hash": "k1_9c2f", "component": "Header"}}
+	enriched.SetSourceText("Hello")
+	_, err := client.Push(ctx, map[string][]*model.Block{
+		"src/App.jsx": {enriched},
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	require.NoError(t, err)
+	drainPushQueue(t, srv)
+
+	// The older runner: same text, same file, a reader that records neither.
+	bare := &model.Block{ID: "b1", Translatable: true, Name: "greeting"}
+	bare.SetSourceText("Hello")
+	_, err = client.Push(ctx, map[string][]*model.Block{
+		"src/App.jsx": {bare},
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	require.NoError(t, err)
+	drainPushQueue(t, srv)
+
+	stored, err := srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{
+		ProjectID: pid, Stream: "main", ItemName: "src/App.jsx",
+	})
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+	assert.Equal(t, "k1_9c2f", stored[0].Block.Properties["hash"],
+		"a push that says nothing about a property must not delete it")
+	assert.Equal(t, "Header", stored[0].Block.Properties["component"])
+}
+
+// Silence is not deletion, but disagreement is: a push whose blocks DO carry a
+// property is authoritative about it, so a value genuinely removed at the
+// source — a developer note deleted from the code — is removed here too.
+func TestSyncPush_APropertyThePushKnowsAboutIsStillRemovable(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+
+	http := httptest.NewServer(srv.GetEcho())
+	defer http.Close()
+	client := apiclient.NewProjectBearerClient(http.URL, pid, token)
+	ctx := context.Background()
+
+	noted := func(id, text, note string) *model.Block {
+		b := &model.Block{ID: id, Translatable: true, Name: id}
+		if note != "" {
+			b.Properties = map[string]string{"locNote": note}
+		}
+		b.SetSourceText(text)
+		return b
+	}
+
+	// A current kapi declares what its readers emit, computed over its whole
+	// scan — which is how the server tells "removed" from "never heard of".
+	declaresNotes := apiclient.DeclareBlockProperties([]string{"locNote"})
+
+	_, err := client.Push(ctx, map[string][]*model.Block{
+		"src/App.jsx": {noted("b1", "Hello", "keep it short"), noted("b2", "Bye", "informal")},
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, declaresNotes)
+	require.NoError(t, err)
+	drainPushQueue(t, srv)
+
+	// The note on b1 is deleted in the source. The push still knows what a
+	// locNote is — b2 carries one — so the removal is real.
+	_, err = client.Push(ctx, map[string][]*model.Block{
+		"src/App.jsx": {noted("b1", "Hello", ""), noted("b2", "Bye", "informal")},
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, declaresNotes)
+	require.NoError(t, err)
+	drainPushQueue(t, srv)
+
+	stored, err := srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{
+		ProjectID: pid, Stream: "main", ItemName: "src/App.jsx",
+	})
+	require.NoError(t, err)
+	byID := map[string]map[string]string{}
+	for _, sb := range stored {
+		byID[sb.SourceID] = sb.Block.Properties
+	}
+	assert.Empty(t, byID["b1"]["locNote"], "a note deleted at the source is deleted here")
+	assert.Equal(t, "informal", byID["b2"]["locNote"])
+}

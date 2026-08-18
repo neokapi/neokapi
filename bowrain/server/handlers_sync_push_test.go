@@ -39,9 +39,10 @@ func TestSyncPush_Init_Unchanged(t *testing.T) {
 
 	// Init with matching root hash → unchanged.
 	body, _ := json.Marshal(map[string]any{
-		"project_id":  pid,
-		"item_hashes": itemHashes,
-		"root_hash":   rootHash,
+		"project_id":          pid,
+		"item_hashes":         itemHashes,
+		"root_hash":           rootHash,
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -68,8 +69,9 @@ func TestSyncPush_Init_DiffComputed(t *testing.T) {
 
 	// Init with a different item hash → diff computed.
 	body, _ := json.Marshal(map[string]any{
-		"project_id":  pid,
-		"item_hashes": map[string]string{"en.json": "different-hash"},
+		"project_id":          pid,
+		"item_hashes":         map[string]string{"en.json": "different-hash"},
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -94,8 +96,9 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 
 	// 1. Init — new project, all items are new.
 	initBody, _ := json.Marshal(map[string]any{
-		"project_id":  pid,
-		"item_hashes": map[string]string{"en.json": "new-hash"},
+		"project_id":          pid,
+		"item_hashes":         map[string]string{"en.json": "new-hash"},
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(initBody))
 	req.Header.Set("Content-Type", "application/json")
