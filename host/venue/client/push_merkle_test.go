@@ -36,7 +36,7 @@ func TestPushItemHashesCoverSentSubset(t *testing.T) {
 	for item, blocks := range blocksByItem {
 		bh := map[string]string{}
 		for _, b := range blocks {
-			bh[b.ID] = model.ComputeIdentity(b).ContentHash
+			bh[b.ID] = model.ComputeIdentity(b).RecordHash()
 		}
 		wantItem[item] = venue.ComputeItemHash(bh)
 	}

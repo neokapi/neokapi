@@ -115,6 +115,58 @@ offset — and a locator moves whenever anything above it moves, so hashing one
 would report an untouched block as changed every time a blank line was added
 earlier in the file.
 
+### The record hash: what a transfer compares
+
+A third value is derived from the pair rather than stored beside it.
+`BlockIdentity.RecordHash` folds both halves, and it is what decides **transfer**
+— whether a far side already holds what a block currently is.
+
+Neither half can decide that alone. The content hash must not move for a reason
+other than the text moving: it is the identity a decision, a memory entry and a
+store key are all filed under. But a block is persisted with more than its text —
+its name, its type, and the properties a reader recorded about it. A reader that
+starts recording something new leaves the text untouched, so a comparison made on
+the content hash reports the block unchanged and the new field never arrives. Not
+on the next transfer: never, because the text is the same forever.
+
+Folding the context half in is what makes an ordinary transfer deliver it, per
+block, with nothing declared and no version bumped. The cost that would otherwise
+make this unaffordable — a locator shifting and re-sending a file's whole tail —
+is already paid for by the advisory prefix above, which keeps derived locators
+out of the context hash in the first place.
+
+The consequence for readers: a field this hash cannot see is a field that never
+reaches content already stored elsewhere. Anything a block is persisted with
+belongs in one half or the other, and anything computed rather than read belongs
+behind the advisory prefix.
+
+### Two producers, two vintages
+
+Delivering a field to content already stored raises the mirror question: what
+stops an *older* producer from taking it away again? A fleet is not one version —
+a CI runner pinned to an older release, or a laptop that has not upgraded, reads
+the same files with a reader that records less.
+
+Two mechanisms answer it, and they divide by what can be merged.
+
+**Fields are declared, and silence is not deletion.** A push declares the
+property keys its readers emit, computed over every block it read rather than the
+ones it sent. The far side is authoritative about those keys and leaves the rest
+of a stored block's properties alone, so a note deleted in the source is deleted
+here, while a key this producer has never heard of survives. A producer that
+declares nothing knows nothing: it adds and updates, and removes nothing. No
+version is involved, which is the point — a reader that learns to record
+something new needs no coordination at all.
+
+**Structure is versioned, and a downgrade is refused.** Segmentation, the run
+model, overlays, how blocks are named: there is no merging half of one. So the
+framework states a **content-model epoch**, the stream records the highest it has
+received, and a push from a lower one is refused at init — before it uploads
+anything — rather than applied. `kapi push --force` carries past it, because a
+deliberate downgrade is a legitimate thing to want and an accidental one is not.
+The epoch moves only when produced content gains fidelity an older kapi cannot
+reproduce from the same file; a new block property is never a reason to move it.
+
 ### Identity across revisions
 
 The two hashes answer "is this the same content?" at a point in time. An iterative

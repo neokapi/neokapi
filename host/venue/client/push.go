@@ -40,6 +40,17 @@ type PushInitRequest struct {
 	// Collections names the collections the recipe declares, so the server can
 	// answer which of the ones it holds are no longer declared.
 	Collections []string `json:"collections,omitempty"`
+
+	// ContentModelEpoch states the generation of content model this producer
+	// reads into. A stream that has received a higher one refuses this push
+	// rather than letting it flatten what a richer kapi wrote — see
+	// core/venue.ContentModelEpoch. Stated at init so the refusal costs no
+	// upload.
+	ContentModelEpoch int `json:"content_model_epoch,omitempty"`
+
+	// AllowModelDowngrade carries `kapi push --force` past that refusal: the
+	// deliberate downgrade, for when flattening is what you meant.
+	AllowModelDowngrade bool `json:"allow_model_downgrade,omitempty"`
 }
 
 // PushInitResponse is the response from the init endpoint.
@@ -114,6 +125,16 @@ type PushCommitRequest struct {
 	// this push last observed on the server. The server asserts only the ones
 	// this manifest writes, and rejects with a conflict when one has moved.
 	ExpectedRef ref.Ref `json:"expected_ref,omitzero"`
+
+	// BlockPropertyKeys declares the property keys this producer's readers
+	// emit, so the server knows what this push is authoritative about and
+	// leaves the rest of a stored block's properties alone. See
+	// core/venue.BlockPropertyKeys — it scopes deletion, never transfer.
+	BlockPropertyKeys []string `json:"block_property_keys,omitempty"`
+
+	// ContentModelEpoch is the generation this push wrote, recorded on the
+	// stream once the manifest commits.
+	ContentModelEpoch int `json:"content_model_epoch,omitempty"`
 }
 
 // PushUnchanged is the push id a push reports when the negotiation found
@@ -126,7 +147,9 @@ const PushUnchanged = "unchanged"
 type PushOption func(*pushSettings)
 
 type pushSettings struct {
-	expected ref.Ref
+	expected       ref.Ref
+	propertyKeys   []string
+	allowDowngrade bool
 }
 
 // AssertRef makes the push a compare-and-swap over the governance it carries:
@@ -140,6 +163,26 @@ type pushSettings struct {
 // had already shifted.
 func AssertRef(observed ref.Ref) PushOption {
 	return func(s *pushSettings) { s.expected = observed }
+}
+
+// DeclareBlockProperties tells the server which block property keys this
+// producer's readers emit, so a push is authoritative about those and about
+// nothing else. Computed over every block the producer read — see
+// core/venue.BlockPropertyKeys.
+//
+// A push that declares nothing is read as knowing nothing, so it adds and
+// updates but never removes: an older kapi cannot delete a field it has never
+// heard of.
+func DeclareBlockProperties(keys []string) PushOption {
+	return func(s *pushSettings) { s.propertyKeys = keys }
+}
+
+// AllowModelDowngrade lets this push write content from an older model
+// generation than the stream has already received — what `kapi push --force`
+// means when the two disagree. Without it the server refuses, because the
+// alternative is silently flattening work a richer kapi did.
+func AllowModelDowngrade() PushOption {
+	return func(s *pushSettings) { s.allowDowngrade = true }
 }
 
 // PushContext is everything the context content type contributes to one push:
@@ -258,7 +301,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			// source_id. Keyed on the reader's id instead, deleting a paragraph
 			// renumbered every block below it and the push reported an untouched
 			// file as wholly changed.
-			blockHashes[convergence.BlockKey(b)] = identity.ContentHash
+			blockHashes[convergence.BlockKey(b)] = identity.RecordHash()
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
@@ -267,10 +310,12 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 
 	// 2. Init — send item hashes and the declared context.
 	initResp, err := c.pushInit(ctx, PushInitRequest{
-		ItemHashes:  itemHashes,
-		RootHash:    rootHash,
-		ContextHash: contextHashOf(pushCtx),
-		Collections: pushCtx.names(),
+		ItemHashes:          itemHashes,
+		RootHash:            rootHash,
+		ContextHash:         contextHashOf(pushCtx),
+		Collections:         pushCtx.names(),
+		ContentModelEpoch:   venue.ContentModelEpoch,
+		AllowModelDowngrade: settings.allowDowngrade,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
@@ -428,12 +473,14 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		UploadID: initResp.UploadID,
 		// The server takes the stream from the authorized route path; this
 		// field only matters to a deployment whose commit route carries no ref.
-		Stream:      c.stream,
-		Chunks:      chunks,
-		Items:       itemsJSON,
-		Contexts:    contexts,
-		Decisions:   decisions,
-		ExpectedRef: settings.expected,
+		Stream:            c.stream,
+		Chunks:            chunks,
+		Items:             itemsJSON,
+		Contexts:          contexts,
+		Decisions:         decisions,
+		ExpectedRef:       settings.expected,
+		BlockPropertyKeys: settings.propertyKeys,
+		ContentModelEpoch: venue.ContentModelEpoch,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)

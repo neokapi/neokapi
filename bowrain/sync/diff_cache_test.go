@@ -6,6 +6,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -114,7 +115,12 @@ func TestDiffEngine_CacheMiss_LoadsFromStoreAndPopulatesCache(t *testing.T) {
 
 	cachedBlocks, ok := cache.GetBlockHashes(ctx, "proj-1", "en.json")
 	require.True(t, ok, "block hashes should be cached after a miss")
-	assert.Equal(t, map[string]string{"b1": "hash-b1", "b2": "hash-b2"}, cachedBlocks)
+	// Cached as the transfer hash — both stored halves folded — because that is
+	// what a push's block hashes are compared against.
+	assert.Equal(t, map[string]string{
+		"b1": model.ComputeRecordHash("hash-b1", ""),
+		"b2": model.ComputeRecordHash("hash-b2", ""),
+	}, cachedBlocks)
 
 	// Second call: now served from the item-hash cache → no further store reads.
 	hashes2, err := engine.ExportItemHashes(ctx, "proj-1", "main")

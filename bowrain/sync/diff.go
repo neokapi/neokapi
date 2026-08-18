@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -23,14 +24,14 @@ type DiffEngine struct {
 	cache        HashCache // optional; nil = always query DB
 }
 
-// HashCache provides cached access to project content hashes.
+// HashCache provides cached access to a project's transfer hashes.
 // Implementations: RedisHashCache (production), nil (fallback to DB).
 type HashCache interface {
 	// GetItemHashes returns all item_name → item_hash for a project.
 	// Returns nil, false on cache miss.
 	GetItemHashes(ctx context.Context, projectID string) (map[string]string, bool)
 
-	// GetBlockHashes returns all block_id → content_hash for an item.
+	// GetBlockHashes returns all block_id → record_hash for an item.
 	// Returns nil, false on cache miss.
 	GetBlockHashes(ctx context.Context, projectID, itemName string) (map[string]string, bool)
 
@@ -222,7 +223,11 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, projectID, stream, ite
 		if key == "" {
 			key = sb.Block.ID
 		}
-		hashes[key] = sb.ContentHash
+		// The transfer hash, not the content hash: a block the client stores
+		// with a property this row was written before does not match, so the
+		// push that carries it is asked for it. Both halves are columns here,
+		// so the fold costs nothing — see model.BlockIdentity.RecordHash.
+		hashes[key] = model.ComputeRecordHash(sb.ContentHash, sb.ContextHash)
 	}
 
 	// Cache.

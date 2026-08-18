@@ -260,7 +260,7 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
 			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
-			if !found || cached != identity.ContentHash {
+			if !found || cached != identity.RecordHash() {
 				dirty++
 			}
 		}
@@ -709,8 +709,23 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// The compare-and-swap asserts the ref this project last observed, not one
 	// fetched now: the payload was built by diffing against the observed ref,
 	// so that is the state it is correct against.
-	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions,
-		apiclient.AssertRef(c.refs.Ref(c.stream)))
+	// Declared over EVERY block this scan read, not the changed ones: the
+	// declaration says what this producer's readers record, and a push carrying
+	// one edited string still knows what a note is. Scoping it to the payload
+	// would make a one-block push claim ignorance of the rest of the file, and
+	// the server would preserve values the source had genuinely dropped.
+	pushOpts := []apiclient.PushOption{
+		apiclient.AssertRef(c.refs.Ref(c.stream)),
+		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
+	}
+	// --force already means "send everything, ignore the cache". It also means
+	// the one thing the server refuses on its own: writing content from an
+	// older model than the stream holds. Deliberate is the whole difference
+	// between a downgrade and an accident.
+	if opts.Force {
+		pushOpts = append(pushOpts, apiclient.AllowModelDowngrade())
+	}
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions, pushOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("push: %w", err)
 	}
@@ -1367,7 +1382,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1392,7 +1407,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1943,3 +1958,13 @@ func (c *BowrainSourceConnector) Client() *apiclient.BowrainClient {
 
 // Ensure BowrainSourceConnector implements SourceConnector at compile time.
 var _ bowrainconn.SourceConnector = (*BowrainSourceConnector)(nil)
+
+// allScannedBlocks flattens a scan's per-item blocks into one slice, for the
+// facts a push declares about itself rather than about its payload.
+func allScannedBlocks(blockMap map[string][]*model.Block) []*model.Block {
+	var all []*model.Block
+	for _, blocks := range blockMap {
+		all = append(all, blocks...)
+	}
+	return all
+}
