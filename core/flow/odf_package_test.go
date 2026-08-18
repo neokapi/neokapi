@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	encxml "encoding/xml"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -99,7 +100,7 @@ func TestFileRunner_ODFPackageSurvivesARun(t *testing.T) {
 
 	require.NotEmpty(t, zr.File)
 	assert.Equal(t, "mimetype", zr.File[0].Name, "mimetype must be the first entry")
-	assert.Equal(t, uint16(zip.Store), zr.File[0].Method, "mimetype must be stored uncompressed")
+	assert.Equal(t, zip.Store, zr.File[0].Method, "mimetype must be stored uncompressed")
 
 	bodies := map[string]string{}
 	for _, f := range zr.File {
@@ -123,7 +124,7 @@ func TestFileRunner_ODFPackageSurvivesARun(t *testing.T) {
 		var root encxml.Name
 		for {
 			tok, err := d.Token()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			require.NoErrorf(t, err, "%s does not parse as XML: %q", name, body)

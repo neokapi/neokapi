@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	encxml "encoding/xml"
+	"errors"
 	"io"
 	"testing"
 
@@ -77,7 +78,7 @@ func requireODFPackage(t *testing.T, data []byte, wantMime string) map[string][]
 
 	require.NotEmpty(t, order)
 	assert.Equal(t, "mimetype", order[0], "mimetype must be the first entry")
-	assert.Equal(t, uint16(zip.Store), methods["mimetype"], "mimetype must be stored uncompressed")
+	assert.Equal(t, zip.Store, methods["mimetype"], "mimetype must be stored uncompressed")
 	assert.Equal(t, wantMime, string(entries["mimetype"]))
 	assert.Contains(t, entries, "META-INF/manifest.xml")
 
@@ -95,7 +96,7 @@ func requireODFPackage(t *testing.T, data []byte, wantMime string) map[string][]
 		var root encxml.Name
 		for {
 			tok, err := d.Token()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			require.NoErrorf(t, err, "%s does not parse as XML: %q", name, string(body))
