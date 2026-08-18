@@ -330,12 +330,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	var inBody bool
 	var groupStack []string // stack of group IDs
 	var blockCount int
-	// idTaken records every block id already handed out in THIS document, so a
-	// repeated `trans-unit/@id` can be given one of its own. Document-scoped, not
-	// per <file>: the spec's uniqueness guarantee is per <file>, so a multi-file
-	// .xlf repeats ids by construction, and a store that keys a block on (source
-	// document, id) needs the id to separate them.
-	idTaken := map[string]bool{}
+	// ids separates `trans-unit/@id`s this document repeats, so each unit gets an
+	// identity of its own. Document-scoped, not per <file>: the spec's uniqueness
+	// guarantee is per <file>, so a multi-file .xlf repeats ids by construction,
+	// and a store that keys a block on (source document, id) needs the id to
+	// separate them.
+	var ids model.IDBuilder
 	// preserveWSStack tracks xml:space inheritance. When we see xml:space="preserve"
 	// on any ancestor, we push true. Default is false.
 	var preserveWSStack []bool
@@ -524,7 +524,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 
 				block := r.buildBlock(tu, sourceLang, targetLang, translatable, preserveWS)
-				uniqueBlockID(block, idTaken)
+				ids.Assign(block)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
@@ -1332,48 +1332,12 @@ func readInnerXMLCharData(decoder *xml.Decoder) string {
 // spells it, set only when the block's own ID had to differ from it. The writer
 // emits this rather than the block ID, so a document keeps the ids it arrived
 // with even where they repeat.
-const TransUnitIDProperty = "xliff:trans-unit-id"
-
-// uniqueBlockID gives a block an ID no other block of this document holds,
-// recording the original under TransUnitIDProperty when it has to change.
 //
 // XLIFF 1.2 requires `trans-unit/@id` to be unique within a `<file>`, and
 // documents in the wild repeat it — okapi's own PAS conformance corpus does.
-// Everything downstream treats (source document, block id) as a block's
-// identity: it is the block store's key, so one row survived extraction for
-// several units; it is the overlay key, so the translate tools' cache served the
-// first unit's target to every later one, and a menu of File/Edit/Format/Help
-// came out reading "File" four times. Repairing that at the key would not do —
-// a `.kpz` handed on without its source reconstructs its blocks from a skeleton
-// that has their ids and nothing else, so the id is all a merge has to go on.
-// So the id is what has to be an identity, and this is where it becomes one.
-//
-// The suffix is applied only to the repeats, so a conforming document is
-// untouched, and it is retried until free in case the document also contains
-// the spelling we would have produced.
-func uniqueBlockID(block *model.Block, taken map[string]bool) {
-	if block == nil || block.ID == "" {
-		return
-	}
-	original := block.ID
-	if !taken[original] {
-		taken[original] = true
-		return
-	}
-	for n := 2; ; n++ {
-		candidate := original + "#" + strconv.Itoa(n)
-		if taken[candidate] {
-			continue
-		}
-		taken[candidate] = true
-		block.ID = candidate
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-		block.Properties[TransUnitIDProperty] = original
-		return
-	}
-}
+// model.IDBuilder is what separates them and model.DocumentID is what reads this
+// back; the rule and the reason are stated once, in core/model/blockid.go.
+const TransUnitIDProperty = model.PropDocumentID
 
 // buildBlock creates a Block from parsed trans-unit data.
 func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.LocaleID, translatable, preserveWS bool) *model.Block {

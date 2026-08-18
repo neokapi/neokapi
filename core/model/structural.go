@@ -42,9 +42,11 @@ import (
 //     headings instead. Then rewording it changes content alone and grades as
 //     an edit, which is what it is.
 //
-// Block.ID is a separate thing and is not affected. It is the skeleton join —
-// the reader writes a ref, the writer matches on it — lives inside one
-// read/write pass, and is free to stay a counter.
+// Block.ID is a separate thing and is not affected. It is the block's identity
+// within its document — the skeleton join and the store key — and a counter
+// serves it well, because what it has to be is unique, not stable. See
+// blockid.go for the rule a reader that takes its ids from the document follows
+// instead.
 
 // PathSeparator joins structural segments. A path reads like a location because
 // it is one.
