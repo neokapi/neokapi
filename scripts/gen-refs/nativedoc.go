@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 )
@@ -82,6 +83,51 @@ func loadNativeDocs(dir, kind string, known []Entry) (map[string]*nativeDocFile,
 		out[id] = &ndf
 	}
 	return out, nil
+}
+
+// verifyCheckDocs holds the dossiers under dir/checks/ to the source-side
+// checkers `kapi check` runs: every checker has one, and every one names a
+// checker. ids is core/check.SourceCheckIDs.
+//
+// These are the sidecars with nothing to overlay onto. A checker off the
+// registry has no dataset entry, so the file-name binding [loadNativeDocs]
+// enforces has nothing to bind to — and the documentation is still owed, because
+// a finding a user reads carries the checker's id and the behaviour behind it is
+// live. Naming the set in code rather than exempting the files makes the binding
+// a statement in both directions: retire a checker and its dossier fails the
+// build, add one and the build asks for its dossier.
+//
+// Each file is parsed, so a dossier that stopped being YAML fails here rather
+// than at the venue that reads it.
+func verifyCheckDocs(dir string, ids []string) error {
+	subdir := filepath.Join(dir, KindCheck+"s")
+	files, err := filepath.Glob(filepath.Join(subdir, "*.yaml"))
+	if err != nil {
+		return err
+	}
+	documented := make(map[string]bool, len(files))
+	for _, f := range files {
+		data, rerr := os.ReadFile(f)
+		if rerr != nil {
+			return rerr
+		}
+		var ndf nativeDocFile
+		if uerr := yaml.Unmarshal(data, &ndf); uerr != nil {
+			return fmt.Errorf("parse %s: %w", f, uerr)
+		}
+		id := trimSuffix(filepath.Base(f), ".yaml")
+		if !slices.Contains(ids, id) {
+			return fmt.Errorf("%s documents nothing: no source-side check has the id %q the file name binds it to", f, id)
+		}
+		documented[id] = true
+	}
+	for _, id := range ids {
+		if !documented[id] {
+			return fmt.Errorf("the %s check has no dossier: write %s",
+				id, filepath.Join(subdir, id+".yaml"))
+		}
+	}
+	return nil
 }
 
 // applyNativeDoc overlays an authored sidecar onto a native entry.

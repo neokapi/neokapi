@@ -1,8 +1,10 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,4 +70,59 @@ func TestLoadNativeDocs_MissingDirectoryIsEmpty(t *testing.T) {
 	docs, err := loadNativeDocs(t.TempDir(), KindFormat, []Entry{{ID: "json", Kind: KindFormat}})
 	require.NoError(t, err)
 	assert.Empty(t, docs)
+}
+
+// The source-side checkers are the sidecars with nothing to overlay onto: a
+// checker off the registry has no entry, so the file-name binding has no entry
+// to bind to. Naming the set in code makes the binding hold in both directions
+// rather than exempting the files from it, so neither a retired checker's
+// dossier nor an undocumented checker survives a regeneration.
+func TestVerifyCheckDocs(t *testing.T) {
+	ids := []string{"content-lint", "length-check"}
+
+	tests := []struct {
+		name    string
+		files   []string
+		wantErr []string
+	}{
+		{
+			name:  "a dossier for every check",
+			files: []string{"checks/content-lint.yaml", "checks/length-check.yaml"},
+		},
+		{
+			name:    "a dossier for a check that no longer exists",
+			files:   []string{"checks/content-lint.yaml", "checks/length-check.yaml", "checks/repetition-analysis.yaml"},
+			wantErr: []string{"repetition-analysis.yaml", "documents nothing", "source-side check", `"repetition-analysis"`},
+		},
+		{
+			name:    "a check nobody has documented",
+			files:   []string{"checks/content-lint.yaml"},
+			wantErr: []string{"length-check", "no dossier", filepath.Join("checks", "length-check.yaml")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range tt.files {
+				writeFile(t, dir, f, "description: A check that reports something.\n")
+			}
+
+			err := verifyCheckDocs(dir, ids)
+			if len(tt.wantErr) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range tt.wantErr {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
+}
+
+// The repository's own tree satisfies the binding, so the guard is a live
+// statement about it rather than a rule only its unit tests obey.
+func TestVerifyCheckDocs_TheRepositoryIsDocumented(t *testing.T) {
+	require.NoError(t, verifyCheckDocs("nativedocs", check.SourceCheckIDs()))
 }

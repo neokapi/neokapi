@@ -18,6 +18,14 @@ const (
 	KindTool   = "tool"
 )
 
+// KindCheck is a third sidecar kind, and the only one with no dataset entry
+// behind it: the source-side checkers of `kapi check`, which are check
+// infrastructure rather than registry tools (see core/check.SourceCheckIDs).
+// Their dossiers under nativedocs/checks/ document rules a user meets by their
+// stable id, so they are authored and held to the same register as the rest;
+// they simply have no card to overlay onto. See verifyCheckDocs.
+const KindCheck = "check"
+
 // Entry is one format or tool in the reference dataset. The shape is shared
 // by the website reference pages and the kapi-desktop Storybook via the
 // @neokapi/reference-data package — keep the JSON tags in sync with

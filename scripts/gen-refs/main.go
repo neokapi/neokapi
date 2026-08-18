@@ -19,6 +19,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/check"
 )
 
 func main() {
@@ -73,6 +75,12 @@ func buildEntries(bridgeDir, pluginsDir, metaPath, nativeDocsDir string) (format
 	}
 	if err := overlayNativeDocs(nativeDocsDir, KindTool, toolEntries); err != nil {
 		return nil, nil, false, err
+	}
+	// The check dossiers overlay onto nothing — they document the source-side
+	// checkers, which carry no registry entry — so they are verified against the
+	// set core/check names rather than merged.
+	if err := verifyCheckDocs(nativeDocsDir, check.SourceCheckIDs()); err != nil {
+		return nil, nil, false, fmt.Errorf("verify check docs: %w", err)
 	}
 
 	// Append bridge entries (non-fatal if the plugin dir is absent).
