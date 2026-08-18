@@ -780,6 +780,16 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 				continue
 			}
 		}
+		// The sub-reader is a fresh instance per subfiltered value and counts
+		// from one, so three `*_html` values all hand back a `tu1`. The
+		// resolver-unavailable branch above uses this document's own counter;
+		// qualifying by the value's layer keeps the delegated path in that same
+		// id space.
+		if pr.Part.Type == model.PartBlock {
+			if b, ok := pr.Part.Resource.(*model.Block); ok {
+				model.QualifyMemberID(b, childLayerID)
+			}
+		}
 		r.emit(ctx, ch, pr.Part)
 	}
 	subReader.Close()

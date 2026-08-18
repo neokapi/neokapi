@@ -26,6 +26,13 @@ import (
 // Separation is a store-side identity and never something the document is made
 // to carry: the block keeps the id its document spells under PropDocumentID, and
 // the writer emits that, so a document keeps the ids it arrived with.
+//
+// A counter also stops satisfying it the moment one document is read by more
+// than one reader. A container — an EPUB over its spine, a JSON value handed to
+// an HTML subfilter, ODF over content.xml and styles.xml — delegates each member
+// to a sub-reader that is a fresh instance counting from one, so every member's
+// first block is `tu1` and the container's members collide with one another.
+// QualifyMemberID is how a container keeps that from happening.
 
 // PropDocumentID names the property carrying the id a document spells for a
 // block. It is present only where a reader had to separate blocks the document
@@ -183,6 +190,49 @@ func insertDigest(slots []uint64, d uint64) bool {
 			return false
 		}
 	}
+}
+
+// MemberIDSeparator joins the member a container delegated to the id that
+// member's own reader minted. It is `_` rather than a path separator or the `!`
+// of the bang locator because a block id is written into documents that
+// constrain it: an XLIFF 2 `unit/@id` is an `xs:NMTOKEN`, whose character set
+// admits `_`, `-`, `.` and `:` and admits neither `/` nor `!`. Upstream Okapi
+// spells the same qualification the same way — `<parentId>_sf<n>_<subId>`, from
+// ISubFilter.buildResourceId.
+const MemberIDSeparator = "_"
+
+// QualifyMemberID makes a block a container's own by prefixing the member it
+// came from, so two members' `tu1` are two ids.
+//
+// The member is the container's own name for one sub-document — the child
+// layer's id, which every container mints per member as it goes (`sf2`, `ar3`,
+// `layer4`). It is deliberately that rather than the member's path or key:
+//
+//   - It is an identity by construction. A member's *name* is not always one —
+//     an XML element path with no sibling ordinals repeats across siblings —
+//     and a qualifier that repeats separates nothing.
+//   - It stays inside the character set a block id has to survive (see
+//     MemberIDSeparator). Entry paths and key paths do not.
+//   - It leaves the id space this container already keeps everywhere else. A
+//     container's non-delegating paths — EPUB extracting XHTML itself, ODF
+//     parsing its own parts, OpenXML across document/headers/footnotes — thread
+//     one counter through every member, and the delegating path was the only
+//     one that walked out of it.
+//
+// Nothing is recorded under PropDocumentID: unlike a document-supplied id, there
+// is no member-local spelling any writer has to put back. A container writes a
+// delegated member back by position or by the text the reader witnessed, never
+// by the id, and a cross-format export must carry the identity — the qualified
+// id — or it exports the collision.
+//
+// Stateless, and that is load-bearing: a container's members are the biggest
+// documents there are, and prefixing is a pure function of (member, id), so
+// nothing here grows with the document the way a set of seen ids would.
+func QualifyMemberID(block *Block, member string) {
+	if block == nil || block.ID == "" || member == "" {
+		return
+	}
+	block.ID = member + MemberIDSeparator + block.ID
 }
 
 // DocumentID is the id a block is written back under: the one its document

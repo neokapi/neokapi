@@ -994,6 +994,17 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 				continue
 			}
 		}
+		// The sub-reader is a fresh instance per part and counts from one, so
+		// content.xml's first paragraph and styles.xml's first paragraph both
+		// arrive as `tu1`. The direct-parse branch above threads this document's
+		// one counter through every part — including meta.xml, which is never
+		// delegated and so shares the space either way; qualifying by the part's
+		// layer keeps the delegated path in it too.
+		if pr.Part.Type == model.PartBlock {
+			if b, ok := pr.Part.Resource.(*model.Block); ok {
+				model.QualifyMemberID(b, childLayer.ID)
+			}
+		}
 		r.emit(ctx, ch, pr.Part)
 	}
 	subReader.Close()

@@ -108,6 +108,43 @@ func TestInspectSurfacesEntries(t *testing.T) {
 	assert.Contains(t, blockTexts, "Bye")
 }
 
+// #2077. Every entry gets its own reader, and every reader counts its blocks
+// from one, so an archive of catalogs holds one `tu1` per entry. Downstream that
+// is one block: the block store keys on (source document, block id), so two
+// entries the key cannot tell apart are two entries with one translation.
+// Archive has no writer, which changes nothing — the store is where the damage
+// lands, and `kgrep`/`inspect` address a block by the same pair.
+func TestEntriesDoNotShareBlockIDs(t *testing.T) {
+	reg := buildRegistry(t)
+	data := makeZip(t, map[string][]byte{
+		"locales/menu.json": []byte(`{"item":"File"}`),
+		"locales/edit.json": []byte(`{"item":"Edit"}`),
+		"locales/help.json": []byte(`{"item":"Help"}`),
+	}, []string{"locales/menu.json", "locales/edit.json", "locales/help.json"})
+
+	reader, err := reg.NewReader("archive")
+	require.NoError(t, err)
+	doc := &model.RawDocument{URI: "bundle.zip", Reader: io.NopCloser(bytes.NewReader(data))}
+	require.NoError(t, reader.Open(context.Background(), doc))
+
+	byID := map[string]string{}
+	for pr := range reader.Read(context.Background()) {
+		require.NoError(t, pr.Error)
+		if pr.Part.Type != model.PartBlock {
+			continue
+		}
+		b, ok := pr.Part.Resource.(*model.Block)
+		require.True(t, ok)
+		prev, seen := byID[b.ID]
+		assert.False(t, seen,
+			"%q addresses both %q and %q; the second entry's translation would be the first's",
+			b.ID, prev, b.SourceText())
+		byID[b.ID] = b.SourceText()
+	}
+	require.NoError(t, reader.Close())
+	assert.Len(t, byID, 3, "three entries holding one string each are three blocks")
+}
+
 func TestExcludeGlobListsEntryAsData(t *testing.T) {
 	reg := buildRegistry(t)
 	reader, err := reg.NewReader("archive")

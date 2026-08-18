@@ -116,3 +116,67 @@ func TestIDBuilder_SeparatesAtScale(t *testing.T) {
 		require.Equal(t, fmt.Sprintf("u%d#2", i), block.ID)
 	}
 }
+
+// Two members of one container each hand back the id their own reader minted
+// from one, and the container makes both its own.
+func TestQualifyMemberID_MembersDoNotShareTheIDsTheyMint(t *testing.T) {
+	first := model.NewBlock("tu1", "File")
+	second := model.NewBlock("tu1", "Edit")
+	model.QualifyMemberID(first, "sf1")
+	model.QualifyMemberID(second, "sf2")
+
+	assert.Equal(t, "sf1_tu1", first.ID)
+	assert.Equal(t, "sf2_tu1", second.ID)
+	assert.NotEqual(t, first.ID, second.ID)
+}
+
+// A qualified id is the block's identity and the only one: unlike a repeat the
+// document itself spelled, there is no member-local spelling for a writer to put
+// back, so an export carries the identity rather than the collision.
+func TestQualifyMemberID_RecordsNoDocumentSpelling(t *testing.T) {
+	block := model.NewBlock("tu1", "File")
+	model.QualifyMemberID(block, "sf1")
+
+	assert.Empty(t, block.Properties[model.PropDocumentID])
+	assert.Equal(t, "sf1_tu1", model.DocumentID(block))
+}
+
+// Containers nest — a JSON value handed to an XML subfilter that hands an
+// element to HTML — and each layer of container qualifies what it carries.
+func TestQualifyMemberID_Nests(t *testing.T) {
+	block := model.NewBlock("tu1", "File")
+	model.QualifyMemberID(block, "sf1") // the inner container's member
+	model.QualifyMemberID(block, "sf3") // the outer container's member
+
+	assert.Equal(t, "sf3_sf1_tu1", block.ID)
+}
+
+// Nothing to qualify, or nothing to qualify it with, leaves the block as it is:
+// an empty id is not a claim on the id space, and a container with no name for
+// one of its members has nothing to separate by.
+func TestQualifyMemberID_LeavesWhatItCannotQualify(t *testing.T) {
+	empty := model.NewBlock("", "File")
+	model.QualifyMemberID(empty, "sf1")
+	assert.Empty(t, empty.ID)
+
+	unnamed := model.NewBlock("tu1", "File")
+	model.QualifyMemberID(unnamed, "")
+	assert.Equal(t, "tu1", unnamed.ID)
+
+	model.QualifyMemberID(nil, "sf1")
+}
+
+// A block id is written into documents that constrain its characters — an XLIFF
+// 2 `unit/@id` is an xs:NMTOKEN — so the qualification stays inside that set.
+// This is why the member is the container's layer id and not the entry path or
+// key path it stands for.
+func TestQualifyMemberID_StaysWithinTheCharactersAnIDMaySpell(t *testing.T) {
+	block := model.NewBlock("tu1", "File")
+	model.QualifyMemberID(block, "sf1")
+	for _, r := range block.ID {
+		assert.True(t,
+			r == '.' || r == '-' || r == '_' || r == ':' ||
+				(r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'),
+			"%q is not a character an NMTOKEN may hold", r)
+	}
+}

@@ -222,12 +222,18 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 		// (inspect, word-count, grep) can attribute it to `<archive>!<entry>`
 		// without tracking the enclosing child layer. The sub-reader's own blocks
 		// carry their format-local Name/keypath, not the entry, so we add it here.
+		//
+		// Its id is format-local too: every entry gets a fresh reader counting
+		// from one, so an archive of ten catalogs holds ten blocks calling
+		// themselves `tu1`. The entry stamp is attribution and not an id, so the
+		// id is qualified by the entry's layer as well.
 		if part != nil && part.Type == model.PartBlock {
 			if b, ok := part.Resource.(*model.Block); ok && b != nil {
 				if b.Properties == nil {
 					b.Properties = map[string]string{}
 				}
 				b.Properties[model.PropContainerEntry] = name
+				model.QualifyMemberID(b, childLayer.ID)
 			}
 		}
 		if !r.emit(ctx, ch, part) {
