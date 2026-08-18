@@ -144,35 +144,48 @@ type recordPair struct {
 func answerKey(point, text string) string { return point + "\x00" + text }
 
 // contested reports whether the record gives this source more than one answer.
+// Two points giving the SAME wording are not a disagreement — the pick does not
+// matter, and splitting them would put a copy of one answer in the store per
+// collection that carries the string.
 func (p *recordPair) contested() bool {
-	first := ""
+	var first *recordAnswer
 	for _, a := range p.answers {
-		if first == "" {
-			first = a.text
+		if first == nil {
+			first = a
 			continue
 		}
-		if a.text != first {
+		if a.text != first.text {
 			return true
 		}
 	}
 	return false
 }
 
+// ordered returns the pair's answers in the recipe's stable content order, so
+// every choice made over them is a function of the record and not of map
+// iteration.
+func (p *recordPair) ordered() []*recordAnswer {
+	out := make([]*recordAnswer, 0, len(p.answers))
+	for _, a := range p.answers {
+		out = append(out, a)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].order < out[j].order })
+	return out
+}
+
 // points returns the distinct context points the record answered this source
 // at, in the order they were first seen — one entry per point is what lets a
 // contested source keep every approval instead of collapsing to one.
 func (p *recordPair) points() []string {
-	seen := map[string]int{}
-	for _, a := range p.answers {
-		if o, ok := seen[a.point]; !ok || a.order < o {
-			seen[a.point] = a.order
+	var out []string
+	seen := map[string]bool{}
+	for _, a := range p.ordered() {
+		if seen[a.point] {
+			continue
 		}
+		seen[a.point] = true
+		out = append(out, a.point)
 	}
-	out := make([]string, 0, len(seen))
-	for pt := range seen {
-		out = append(out, pt)
-	}
-	sort.Slice(out, func(i, j int) bool { return seen[out[i]] < seen[out[j]] })
 	return out
 }
 
@@ -181,7 +194,7 @@ func (p *recordPair) points() []string {
 // (memory.NearerAnswer). Nil only for a pair with no answers at all.
 func (p *recordPair) resolve(at string) *recordAnswer {
 	var best *recordAnswer
-	for _, a := range p.answers {
+	for _, a := range p.ordered() {
 		if best == nil || memory.NearerAnswer(a.point, a.text, best.point, best.text, at) {
 			best = a
 		}
@@ -193,7 +206,7 @@ func (p *recordPair) resolve(at string) *recordAnswer {
 // answer, where it was approved, and which one governs there.
 func (p *recordPair) listContested() ContestedSource {
 	c := ContestedSource{Source: model.FlattenRuns(p.sourceRuns), Locale: p.locale}
-	for _, a := range p.answers {
+	for _, a := range p.ordered() {
 		c.Answers = append(c.Answers, ContestedAnswer{
 			Target:  model.FlattenRuns(a.runs),
 			Point:   displayPoint(a.point),
