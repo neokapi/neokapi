@@ -808,4 +808,16 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN content_hash TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     19,
+		Description: "where a collection's strings can be read in place",
+		SQL: `
+			-- Mirrors the collections columns in bowrain/store/migrations.go
+			-- (Version 25): the preview host a collection declares, and the
+			-- kind that says how a view is found within it. One contract, two
+			-- backends. SQLite adds one column per statement.
+			ALTER TABLE collections ADD COLUMN preview_kind TEXT NOT NULL DEFAULT '';
+			ALTER TABLE collections ADD COLUMN preview_url  TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

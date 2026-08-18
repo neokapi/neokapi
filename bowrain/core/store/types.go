@@ -246,6 +246,19 @@ type Collection struct {
 	// row — and its UpdatedAt — untouched.
 	ContextHash string `json:"context_hash,omitempty"`
 
+	// Preview is where this collection's strings can be read in place: the
+	// component explorer or running site that shows them as a reader sees
+	// them. Declared per collection because a repository publishes one per
+	// surface it ships, and carried on the context entry with the coordinates
+	// and the voice. Empty when the recipe declares none, which is how a
+	// reviewer decides to offer document reading only.
+	//
+	// PreviewKind says how a view is found within that host. A kind this
+	// server does not recognise is stored and served unchanged: what can be
+	// read is the client's judgement, not the store's.
+	PreviewKind string `json:"preview_kind,omitempty"`
+	PreviewURL  string `json:"preview_url,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

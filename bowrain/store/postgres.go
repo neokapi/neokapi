@@ -266,10 +266,10 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
-		sealedConfig, string(contextJSON), c.Owner, c.ContextHash, now, now)
+		sealedConfig, string(contextJSON), c.Owner, c.ContextHash, c.PreviewKind, c.PreviewURL, now, now)
 	if err != nil {
 		return fmt.Errorf("create collection: %w", err)
 	}
@@ -278,14 +278,14 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 
 func (s *PostgresStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND id=$2`, projectID, collectionID)
 	return s.scanCollectionPg(row)
 }
 
 func (s *PostgresStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND name=$2 AND (stream='' OR stream=$3)`,
 		projectID, name, stream)
 	return s.scanCollectionPg(row)
@@ -293,14 +293,14 @@ func (s *PostgresStore) GetCollectionByName(ctx context.Context, projectID, name
 
 func (s *PostgresStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND is_default=TRUE`, projectID)
 	return s.scanCollectionPg(row)
 }
 
 func (s *PostgresStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND (stream='' OR stream=$2)
 		 ORDER BY is_default DESC, name`, projectID, stream)
 	if err != nil {
@@ -337,10 +337,10 @@ func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Colle
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, context=$6, owner=$7, context_hash=$8, updated_at=$9
-		 WHERE project_id=$10 AND id=$11`,
+		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, context=$6, owner=$7, context_hash=$8, preview_kind=$9, preview_url=$10, updated_at=$11
+		 WHERE project_id=$12 AND id=$13`,
 		c.Name, string(c.Kind), c.ItemLabel, c.Stream, sealedConfig,
-		string(contextJSON), c.Owner, c.ContextHash, c.UpdatedAt, c.ProjectID, c.ID)
+		string(contextJSON), c.Owner, c.ContextHash, c.PreviewKind, c.PreviewURL, c.UpdatedAt, c.ProjectID, c.ID)
 	if err != nil {
 		return fmt.Errorf("update collection: %w", err)
 	}
@@ -386,7 +386,7 @@ func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, er
 	var kindStr, configJSON, contextJSON string
 	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
 		&c.IsDefault, &c.Stream, &configJSON, &contextJSON, &c.Owner, &c.ContextHash,
-		&c.CreatedAt, &c.UpdatedAt)
+		&c.PreviewKind, &c.PreviewURL, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan collection: %w", err)
 	}

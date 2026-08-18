@@ -359,3 +359,29 @@ func setEntryExtra(entry *coreproj.Collection, key string, value any) {
 		entry.Extras[key] = node
 	}
 }
+
+// CollectionPreview decodes a named collection's `preview:` block — where its
+// strings can be read in place. Nil when the collection declares none, which is
+// how a reviewer decides to offer document reading only.
+//
+// A malformed block reads as none rather than failing here: the recipe loader
+// already refused it at validation time through the registered extension, so
+// reaching this with something undecodable means the caller is looking at a
+// recipe nobody validated, and a preview is not the thing to fail them on.
+func CollectionPreview(coll *coreproj.Collection) *schema.PreviewSpec {
+	if coll == nil || coll.Extras == nil {
+		return nil
+	}
+	node, ok := coll.Extras["preview"]
+	if !ok {
+		return nil
+	}
+	var spec schema.PreviewSpec
+	if err := node.Decode(&spec); err != nil {
+		return nil
+	}
+	if spec.Kind == "" || spec.URL == "" {
+		return nil
+	}
+	return &spec
+}

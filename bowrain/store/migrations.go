@@ -1154,4 +1154,22 @@ var Migrations = []storage.Migration{
 			-- the fold is a column declaration rather than a guarded ALTER.
 		`,
 	},
+	{
+		Version:     25,
+		Description: "where a collection's strings can be read in place",
+		SQL: `
+			-- The preview host a collection declares: the component explorer or
+			-- running site that shows its strings as a reader sees them. Per
+			-- collection because a repository publishes one per surface it
+			-- ships, and carried on the collection's context entry, so these
+			-- move with the coordinates and the voice rather than separately.
+			--
+			-- kind names how a view is FOUND within that host — a Storybook
+			-- resolves an item to a story through its published index — and a
+			-- kind this server does not recognise is stored and served
+			-- unchanged: the client decides what it can read.
+			ALTER TABLE collections ADD COLUMN IF NOT EXISTS preview_kind TEXT NOT NULL DEFAULT '';
+			ALTER TABLE collections ADD COLUMN IF NOT EXISTS preview_url  TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

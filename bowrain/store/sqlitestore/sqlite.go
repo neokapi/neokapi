@@ -226,10 +226,11 @@ func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collect
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
 		string(configJSON), string(contextJSON), c.Owner, c.ContextHash,
+		c.PreviewKind, c.PreviewURL,
 		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("create collection: %w", err)
@@ -239,14 +240,14 @@ func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collect
 
 func (s *SQLiteStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=? AND id=?`, projectID, collectionID)
 	return scanCollection(row)
 }
 
 func (s *SQLiteStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=? AND name=? AND (stream='' OR stream=?)`,
 		projectID, name, stream)
 	return scanCollection(row)
@@ -254,14 +255,14 @@ func (s *SQLiteStore) GetCollectionByName(ctx context.Context, projectID, name, 
 
 func (s *SQLiteStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=? AND is_default=1`, projectID)
 	return scanCollection(row)
 }
 
 func (s *SQLiteStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=? AND (stream='' OR stream=?)
 		 ORDER BY is_default DESC, name`, projectID, stream)
 	if err != nil {
@@ -284,10 +285,10 @@ func (s *SQLiteStore) UpdateCollection(ctx context.Context, c *platstore.Collect
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, context=?, owner=?, context_hash=?, updated_at=?
+		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, context=?, owner=?, context_hash=?, preview_kind=?, preview_url=?, updated_at=?
 		 WHERE project_id=? AND id=?`,
 		c.Name, string(c.Kind), c.ItemLabel, c.Stream, string(configJSON),
-		string(contextJSON), c.Owner, c.ContextHash,
+		string(contextJSON), c.Owner, c.ContextHash, c.PreviewKind, c.PreviewURL,
 		c.UpdatedAt.Format(time.RFC3339), c.ProjectID, c.ID)
 	if err != nil {
 		return fmt.Errorf("update collection: %w", err)
@@ -336,7 +337,7 @@ func scanCollection(row scanner) (*platstore.Collection, error) {
 	var kindStr, configJSON, contextJSON, createdStr, updatedStr string
 	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
 		&c.IsDefault, &c.Stream, &configJSON, &contextJSON, &c.Owner, &c.ContextHash,
-		&createdStr, &updatedStr)
+		&c.PreviewKind, &c.PreviewURL, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan collection: %w", err)
 	}

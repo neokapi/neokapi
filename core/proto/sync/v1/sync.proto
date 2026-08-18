@@ -431,6 +431,30 @@ message SyncContextEntry {
   // stores it and compares it: an entry whose hash is unchanged is not
   // rewritten, so a re-push of an unedited recipe does not churn the row.
   string content_hash = 7;
+
+  // Preview is where this collection's strings can be read in place — the
+  // component explorer or running site that shows them as a reader sees them.
+  // A repository fact the server cannot derive, so it travels with the
+  // collection's other declared facts. Absent when the collection declares
+  // none, which is how a reviewer decides to offer document reading only.
+  SyncPreviewSource preview = 8;
+}
+
+// SyncPreviewSource is a place a collection's strings can be seen in situ.
+//
+// The kinds differ in how a view is FOUND, not in how it renders: a Storybook
+// publishes an index that maps components to stories, while a running site is
+// addressed by route. What they share is the runtime bridge that pushes the
+// reviewer's translations into the page, which belongs to the i18n runtime and
+// not to any one host — so the kind is carried, and a host a client does not
+// recognise offers no in-context reading rather than a guess.
+message SyncPreviewSource {
+  // Kind names how to resolve a view. "storybook" is the one implemented.
+  string kind = 1;
+
+  // URL is the root of the preview host — the published Storybook, the running
+  // site — without a trailing view path.
+  string url = 2;
 }
 
 // ---------------------------------------------------------------------------

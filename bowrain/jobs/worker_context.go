@@ -130,6 +130,8 @@ func reconcileContext(
 				Owner:           venue.ContextOwnerRecipe,
 				ContextHash:     e.ContentHash,
 				ConnectorConfig: governanceConfig(nil, profileID, e.Channel),
+				PreviewKind:     e.GetPreview().GetKind(),
+				PreviewURL:      e.GetPreview().GetUrl(),
 			}
 			if cerr := deps.ContentStore.CreateCollection(ctx, col); cerr != nil {
 				return nil, fmt.Errorf("create collection %s: %w", e.Name, cerr)
@@ -162,6 +164,12 @@ func reconcileContext(
 		current.Owner = venue.ContextOwnerRecipe
 		current.ContextHash = e.ContentHash
 		current.ConnectorConfig = wantConfig
+		// Written from the entry, including when the entry declares none: a
+		// recipe that drops its `preview:` block means the collection no longer
+		// has one, and leaving the old URL would keep offering a reading of
+		// components that may no longer be published there.
+		current.PreviewKind = e.GetPreview().GetKind()
+		current.PreviewURL = e.GetPreview().GetUrl()
 		if uerr := deps.ContentStore.UpdateCollection(ctx, current); uerr != nil {
 			return nil, fmt.Errorf("update collection %s: %w", e.Name, uerr)
 		}

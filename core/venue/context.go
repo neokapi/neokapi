@@ -76,6 +76,13 @@ func ComputeContextEntryHash(e *pb.SyncContextEntry) string {
 	h.Write(e.VoiceProfileJson)
 	h.Write([]byte{0})
 	h.Write([]byte(NormalizeContextOwner(e.Owner)))
+	// The preview host is part of the entry, so re-pointing a collection at a
+	// different Storybook reconciles rather than sitting unnoticed behind an
+	// unchanged hash — the same reason the coordinates and the voice are here.
+	h.Write([]byte{0})
+	h.Write([]byte(e.GetPreview().GetKind()))
+	h.Write([]byte{0})
+	h.Write([]byte(e.GetPreview().GetUrl()))
 	return hex.EncodeToString(h.Sum(nil))
 }
 

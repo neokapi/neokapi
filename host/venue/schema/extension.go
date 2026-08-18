@@ -45,6 +45,11 @@ func init() {
 
 		// ── Named-collection-level keys ───────────────────────────
 		{Name: "collection", Scope: coreproj.ScopeCollection, Decoder: stringDecoder},
+		// Where this collection's strings can be read in place. Per collection
+		// because a repository publishes one host per surface it ships, and
+		// DependsOn the venue because a preview is something a reviewer on the
+		// server offers — declared without one, it would be inert.
+		{Name: "preview", Scope: coreproj.ScopeCollection, Decoder: previewDecoder, DependsOn: VenueKey},
 	})
 }
 
@@ -55,6 +60,15 @@ var serverDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
 		return fmt.Errorf("decode %s: %w", VenueKey, err)
 	}
 	return s.Validate()
+})
+
+// previewDecoder validates a collection's `preview:` block.
+var previewDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
+	var p PreviewSpec
+	if err := n.Decode(&p); err != nil {
+		return fmt.Errorf("decode preview: %w", err)
+	}
+	return p.Validate()
 })
 
 // hooksDecoder validates the top-level `hooks:` block.
