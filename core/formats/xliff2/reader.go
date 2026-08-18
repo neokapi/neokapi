@@ -781,12 +781,45 @@ func (r *Reader) Close() error {
 // Streaming skeleton path (preserved from legacy reader)
 // =====================================================================
 
-// elemPos tracks the byte position of a source or target element's inner content.
+// Element kinds a skeleton ref can name. The first two address bytes that exist
+// in the source; the last two are zero-width positions where the writer may put
+// something the source does not have.
+const (
+	elemSource = "source"
+	elemTarget = "target"
+	// elemTargetInject marks the position, immediately after a `</source>` whose
+	// `<segment>` holds no `<target>`, where the writer emits the one it is
+	// carrying. The XLIFF 2.0 content model is `<source>` then an optional
+	// `<target>` (xliff_core_2.0.xsd declares the pair as an xs:sequence), so a
+	// source-only extraction is a conforming document and so is the same
+	// document with targets — which is why the position has to be recorded on
+	// the way in: the skeleton can only substitute into elements the reader saw,
+	// and a run over a file with no `<target>` anywhere otherwise produces a
+	// translation that reaches the store and never the file. XLIFF 1.2 records
+	// the same position under `target-inject`.
+	elemTargetInject = "target-inject"
+	// elemTrgLangInject marks the position inside the `<xliff>` start tag where
+	// a `trgLang` is added when the document declares none and targets are
+	// injected. XLIFF 2.1's Schematron (rule F1) requires trgLang if and only if
+	// the document carries `<target>` children of `<segment>`/`<ignorable>`, so
+	// writing the first target into a source-only file obliges the attribute.
+	elemTrgLangInject = "trglang-inject"
+)
+
+// elemPos tracks the byte position of a source or target element's inner
+// content, or — when start and end coincide — a position where the writer may
+// insert an element the source does not carry.
 type elemPos struct {
 	startOffset int    // byte offset after opening tag
 	endOffset   int    // byte offset before closing tag
 	blockIdx    int    // 0-based block index
-	elemType    string // "source" or "target"
+	segIdx      int    // 0-based segment index within the unit
+	elemType    string // one of the elem* constants
+	// indent is the whitespace run that precedes the segment's `<source>`, used
+	// as the leading whitespace of an injected `<target>` so it lands where a
+	// hand-written one would. Empty for a document that is not pretty-printed,
+	// and for every elemType but elemTargetInject.
+	indent string
 }
 
 // xliff2StreamState holds the mutable state for streaming XLIFF 2.x parsing.
@@ -830,6 +863,18 @@ type xliff2StreamState struct {
 	elemPositions  []elemPos
 	elemStartOff   int64
 
+	// Per-segment bookkeeping for the target the source may not carry.
+	// segSourceEnd is the offset just past `</source>` (-1 before one is seen),
+	// segIndent the whitespace that preceded `<source>`, segHadTarget whether a
+	// `<target>` followed, and segIdx the segment's position in its unit.
+	segSourceEnd int
+	segIndent    string
+	segHadTarget bool
+	segIdx       int
+	// rootTagEnd is the offset of the `>` closing the `<xliff>` start tag, where
+	// a trgLang is inserted when the document declares none.
+	rootTagEnd int
+
 	// Accumulators
 	sourceInnerXML strings.Builder
 	targetInnerXML strings.Builder
@@ -861,11 +906,13 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	decoder.Strict = false
 
 	s := &xliff2StreamState{
-		reader:  r,
-		ctx:     ctx,
-		ch:      ch,
-		rawText: rawText,
-		decoder: decoder,
+		reader:       r,
+		ctx:          ctx,
+		ch:           ch,
+		rawText:      rawText,
+		decoder:      decoder,
+		segSourceEnd: -1,
+		rootTagEnd:   -1,
 	}
 
 	for {
@@ -913,6 +960,13 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 				}
 			}
 		}
+		// The decoder is past the `>` that closes the start tag; the byte
+		// before it is where another attribute goes. `<xliff>` always has
+		// children, so the tag is never self-closing and the byte before `>` is
+		// never the `/` of one.
+		if end := int(s.decoder.InputOffset()) - 1; end > 0 && end <= len(s.rawText) {
+			s.rootTagEnd = end
+		}
 	case "file":
 		s.inFile = true
 		s.fileID = ""
@@ -957,6 +1011,7 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 		s.unitID = ""
 		s.unitName = ""
 		s.unitTranslate = ""
+		s.segIdx = -1
 		s.sourceSegs = nil
 		s.targets = make(map[model.LocaleID][]seg)
 		s.notes = nil
@@ -984,6 +1039,10 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 		if s.inUnit {
 			s.inSegment = true
 			s.segID = ""
+			s.segIdx++
+			s.segSourceEnd = -1
+			s.segIndent = ""
+			s.segHadTarget = false
 			segState := ""
 			for _, a := range t.Attr {
 				switch a.Name.Local {
@@ -1083,6 +1142,20 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 			s.inNote = false
 		}
 	case "segment":
+		// A segment carrying no <target> gets the position where one goes, so a
+		// writer holding a translation has somewhere to put it. The position is
+		// zero-width: with nothing to write the skeleton replays the source
+		// bytes unchanged and the round trip stays byte-exact.
+		if s.inSegment && !s.segHadTarget && s.segSourceEnd >= 0 {
+			s.elemPositions = append(s.elemPositions, elemPos{
+				startOffset: s.segSourceEnd,
+				endOffset:   s.segSourceEnd,
+				blockIdx:    s.blockCount,
+				segIdx:      s.segIdx,
+				elemType:    elemTargetInject,
+				indent:      s.segIndent,
+			})
+		}
 		s.inSegment = false
 	case "source":
 		if s.inSource {
@@ -1151,8 +1224,11 @@ func (s *xliff2StreamState) finishSource() {
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,
 		blockIdx:    s.blockCount,
-		elemType:    "source",
+		segIdx:      s.segIdx,
+		elemType:    elemSource,
 	})
+	s.segSourceEnd = int(endOff)
+	s.segIndent = s.indentBefore(int(s.elemStartOff))
 	sid := s.segID
 	if sid == "" {
 		sid = fmt.Sprintf("s%d", len(s.sourceSegs)+1)
@@ -1165,6 +1241,28 @@ func (s *xliff2StreamState) finishSource() {
 	s.inSource = false
 }
 
+// indentBefore returns the whitespace run that precedes the start tag whose
+// inner content begins at innerStart. Attribute values cannot hold a `<` in
+// well-formed XML, so the last one before the content opens the tag.
+func (s *xliff2StreamState) indentBefore(innerStart int) string {
+	if innerStart <= 0 || innerStart > len(s.rawText) {
+		return ""
+	}
+	tagStart := strings.LastIndexByte(s.rawText[:innerStart], '<')
+	if tagStart < 0 {
+		return ""
+	}
+	wsStart := tagStart
+	for wsStart > 0 && isXMLSpaceByte(s.rawText[wsStart-1]) {
+		wsStart--
+	}
+	return s.rawText[wsStart:tagStart]
+}
+
+func isXMLSpaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
+}
+
 func (s *xliff2StreamState) finishTarget() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</target>"
@@ -1173,8 +1271,10 @@ func (s *xliff2StreamState) finishTarget() {
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,
 		blockIdx:    s.blockCount,
-		elemType:    "target",
+		segIdx:      s.segIdx,
+		elemType:    elemTarget,
 	})
+	s.segHadTarget = true
 	targetText := strings.TrimSpace(s.targetInnerXML.String())
 	tl := model.LocaleID(s.trgLang)
 	if targetText != "" && !tl.IsEmpty() {
@@ -1194,19 +1294,37 @@ func (s *xliff2StreamState) buildSkeleton() {
 	if len(s.elemPositions) == 0 {
 		return
 	}
+	positions := s.elemPositions
+	// The trgLang position sits inside the root start tag, ahead of every
+	// element position, and is only worth recording when the document declares
+	// no trgLang of its own.
+	if s.trgLang == "" && s.rootTagEnd >= 0 {
+		positions = append([]elemPos{{
+			startOffset: s.rootTagEnd,
+			endOffset:   s.rootTagEnd,
+			elemType:    elemTrgLangInject,
+		}}, positions...)
+	}
 	skelPos := 0
-	for _, ep := range s.elemPositions {
+	for _, ep := range positions {
 		if ep.startOffset > skelPos {
 			s.reader.skelText(s.rawText[skelPos:ep.startOffset])
 		}
-		refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
-		s.reader.skelRef(refID)
+		s.reader.skelRef(encodeSkelRef(ep))
 		skelPos = ep.endOffset
 	}
 	if skelPos < len(s.rawText) {
 		s.reader.skelText(s.rawText[skelPos:])
 	}
 	s.reader.skelFlush()
+}
+
+// encodeSkelRef spells one skeleton reference: block index, segment index,
+// element kind, and — for an injected target — the leading whitespace it is
+// written with. The whitespace is last because it is the only field that may be
+// empty or hold anything but digits and letters, and it never holds a colon.
+func encodeSkelRef(ep elemPos) string {
+	return fmt.Sprintf("%d:%d:%s:%s", ep.blockIdx, ep.segIdx, ep.elemType, ep.indent)
 }
 
 // Reader-side skeleton helpers (used only in streaming mode).

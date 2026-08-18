@@ -212,6 +212,20 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 	}
 
+	// Whether any block carries a translation decides both injections, and both
+	// refs are reached while replaying, so the answer is settled first: the
+	// trgLang position is the first ref in the skeleton and the targets it
+	// covers come after it.
+	injecting := false
+	if !targetLang.IsEmpty() {
+		for _, b := range blocks {
+			if b.HasTarget(targetLang) {
+				injecting = true
+				break
+			}
+		}
+	}
+
 	for {
 		entry, err := w.skeletonStore.Next()
 		if errors.Is(err, io.EOF) {
@@ -226,28 +240,62 @@ func (w *Writer) writeFromSkeleton() error {
 				return err
 			}
 		case format.SkeletonRef:
-			refID := string(entry.Data)
-			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			blockIdx, segIdx, elemType, indent, ok := decodeSkelRef(string(entry.Data))
 			if !ok {
 				continue
 			}
-			blockIdx, err := strconv.Atoi(idxStr)
-			if err != nil || blockIdx < 0 || blockIdx >= len(blocks) {
+			if elemType == elemTrgLangInject {
+				if !injecting {
+					continue
+				}
+				attr := ` trgLang="` + xmlesc.Attr(string(targetLang)) + `"`
+				if _, err := io.WriteString(w.Output, attr); err != nil {
+					return err
+				}
+				continue
+			}
+			if blockIdx < 0 || blockIdx >= len(blocks) {
 				continue
 			}
 			block := blocks[blockIdx]
-			elemType := refSuffix
 
 			var text string
 			switch elemType {
-			case "source":
+			case elemSource:
 				text = block.SourceText()
-			case "target":
+			case elemTarget:
 				if block.HasTarget(targetLang) {
 					text = block.TargetText(targetLang)
 				} else {
 					text = block.SourceText()
 				}
+			case elemTargetInject:
+				// The source carries no <target> here. One is written only when
+				// this segment has a translation to put in it — a run that
+				// produced nothing leaves the document as it found it, and a
+				// unit whose translation is one text for several segments gets
+				// one <target>, on the segment that holds it, rather than the
+				// same text repeated down the unit.
+				if !injecting || !block.HasTarget(targetLang) {
+					continue
+				}
+				segs := targetSegsFromBlock(block, targetLang)
+				if segIdx < 0 || segIdx >= len(segs) {
+					continue
+				}
+				// The indent is the document's own bytes and goes out as it came
+				// in — a CRLF file's line break is not content to be escaped.
+				if _, err := io.WriteString(w.Output, indent+"<target>"); err != nil {
+					return err
+				}
+				body := xmlesc.Text(model.FlattenRuns(segs[segIdx].Runs))
+				if err := writeBytesCREscape(w.Output, []byte(body)); err != nil {
+					return err
+				}
+				if _, err := io.WriteString(w.Output, "</target>"); err != nil {
+					return err
+				}
+				continue
 			}
 			if err := writeBytesCREscape(w.Output, []byte(xmlesc.Text(text))); err != nil {
 				return err
@@ -255,6 +303,34 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 	}
 	return nil
+}
+
+// decodeSkelRef reads back what encodeSkelRef spelled. A reference the writer
+// cannot parse is skipped rather than guessed at: the skeleton's own text still
+// carries the document, so an unreadable ref costs one substitution and not the
+// file.
+func decodeSkelRef(refID string) (blockIdx, segIdx int, elemType, indent string, ok bool) {
+	idxStr, rest, ok := strings.Cut(refID, ":")
+	if !ok {
+		return 0, 0, "", "", false
+	}
+	segStr, rest, ok := strings.Cut(rest, ":")
+	if !ok {
+		return 0, 0, "", "", false
+	}
+	elemType, indent, ok = strings.Cut(rest, ":")
+	if !ok {
+		return 0, 0, "", "", false
+	}
+	blockIdx, err := strconv.Atoi(idxStr)
+	if err != nil {
+		return 0, 0, "", "", false
+	}
+	segIdx, err = strconv.Atoi(segStr)
+	if err != nil {
+		return 0, 0, "", "", false
+	}
+	return blockIdx, segIdx, elemType, indent, true
 }
 
 // flush serializes the captured stream to XLIFF 2.x XML. When the

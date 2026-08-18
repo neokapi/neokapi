@@ -1135,8 +1135,15 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		// block no longer matches anything in those bytes and the edit is
 		// silently dropped. The sub-reader cannot record either — it does not
 		// know it is inside a container.
+		//
+		// It cannot know its ids belong to a shared space either: the html
+		// reader is a fresh instance per spine item and counts from one, so
+		// every chapter's first paragraph arrives as `tu1`. The direct-extraction
+		// path threads this book's one counter through every item; qualifying by
+		// the item's layer keeps the delegated path in that same id space.
 		if pr.Part.Type == model.PartBlock {
 			if b, ok := pr.Part.Resource.(*model.Block); ok {
+				model.QualifyMemberID(b, childLayer.ID)
 				format.RecordVerbatimText(b, propXHTMLText, b.SourceText())
 				if b.Properties == nil {
 					b.Properties = make(map[string]string)
