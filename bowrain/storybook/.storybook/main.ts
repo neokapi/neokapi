@@ -23,8 +23,14 @@ const config = createMainConfig(
       "../../apps/bowrain/frontend/src/**/*.stories.@(ts|tsx)",
       "../../apps/ctrl/src/**/*.stories.@(ts|tsx)",
     ],
+    i18n: true,
   },
   import.meta,
 );
+
+// The web shell's committed catalogs, so a story can be read in a target
+// language: the locale toolbar fetches `<base>/translations/<locale>.json`, and
+// without a static root there is nothing at that path to fetch.
+config.staticDirs = ["../../apps/web/public"];
 
 export default config;

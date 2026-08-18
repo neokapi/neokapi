@@ -601,6 +601,9 @@ export function ProjectView({
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}
           onOpenPreProcess={preview.onOpenPreProcess}
+          // Where this project's components are published. A project that
+          // declares none is read as a document and nothing else is offered.
+          storybookURL={project.properties?.storybook_url}
         />
       )}
     </div>

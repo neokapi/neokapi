@@ -176,6 +176,27 @@ func TestPreviewBuilder(t *testing.T) {
 // the element it sits in, and every run rendered — a variable is a chip, not a
 // gap. Falling through to the generic listing dropped all three: the component,
 // the element, and (because a placeholder run carries no text) the variable.
+// The bundle's block hash is the key a running component looks its string up
+// by, so it is the join between a block here and the text on screen there. It
+// lives on the annotation, which does not survive into a REST payload — a
+// surface that renders the component reads it off the block's properties.
+func TestReaderCarriesTheMessageKeyIntoProperties(t *testing.T) {
+	doc := makeKBFFile()
+	buf, err := kbf.Marshal(doc)
+	require.NoError(t, err)
+
+	r := NewReader()
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf.json", Reader: io.NopCloser(bytes.NewReader(buf))}))
+	blocks := collectBlocks(t, r)
+	require.NotEmpty(t, blocks)
+
+	ann, ok := model.AnnoAs[*KBFAnnotation](blocks[0], AnnotationType)
+	require.True(t, ok)
+	require.NotEmpty(t, ann.Hash)
+	assert.Equal(t, ann.Hash, blocks[0].Properties["hash"],
+		"the property and the annotation must name the same key")
+}
+
 func TestBuildPreviewRendersTheComponentTree(t *testing.T) {
 	doc := makeKBFFile()
 	buf, err := kbf.Marshal(doc)
