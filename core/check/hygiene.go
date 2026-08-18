@@ -51,10 +51,43 @@ func LeadingWhitespace(s string) string {
 }
 
 // TrailingWhitespace returns the trailing whitespace of a [HygieneText]
-// flattening — the trailing-edge counterpart of [LeadingWhitespace].
+// flattening — the trailing-edge counterpart of [LeadingWhitespace]. It is the
+// whole edge, which is what a rule comparing two sides reads; a rule judging one
+// text on its own reads [StrayTrailingWhitespace].
 func TrailingWhitespace(s string) string {
 	trimmed := strings.TrimRight(s, " \t\n\r")
 	return s[len(trimmed):]
+}
+
+// StrayTrailingWhitespace returns the trailing whitespace an author left on a
+// [HygieneText] flattening: [TrailingWhitespace] with one terminating line break
+// discounted.
+//
+// A block's last line break is often the format's rather than the author's. A
+// YAML block scalar keeps exactly one under clip chomping, which is what `|` and
+// `>` mean — `|-` and `>-` are how an author asks for none, and a plain scalar
+// carries none either way. The break terminates the content instead of trailing
+// off it, so grading it reports the scalar's style, on a character the author
+// cannot remove without changing what the document says.
+//
+// Everything else stands, because nothing structural puts it there: trailing
+// spaces and tabs, spaces or tabs before the break, whitespace after it, and a
+// second break — a blank line the author kept, which is what `|+` is for.
+//
+// A rule that compares a source against its target reads the whole edge
+// ([TrailingWhitespace]) instead: a terminator both sides carry cancels, and a
+// target that dropped one differs from its source. The same is true of the
+// whitespace-correct tool, which copies the source's edge onto the target and
+// must carry the terminator with it.
+func StrayTrailingWhitespace(s string) string {
+	ws := TrailingWhitespace(s)
+	switch {
+	case strings.HasSuffix(ws, "\r\n"):
+		return ws[:len(ws)-len("\r\n")]
+	case strings.HasSuffix(ws, "\n"):
+		return ws[:len(ws)-len("\n")]
+	}
+	return ws
 }
 
 // DoubleSpaces reports whether a [HygieneText] flattening contains two or more

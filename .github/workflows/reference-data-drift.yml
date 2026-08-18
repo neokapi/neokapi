@@ -92,6 +92,15 @@ jobs:
       - name: Check reference dataset for drift
         run: make check-reference-docs
 
+      # The register of the dossiers the dataset is compiled from. `make
+      # check-reference-prose` builds kapi, so it needs the cgo ICU/FTS5
+      # toolchain the framework links.
+      - name: Install ICU toolchain
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Check reference dossier prose
+        run: make check-reference-prose
+
       - name: Check shared TS contract types for drift
         run: make check-contract-types
 

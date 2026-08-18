@@ -63,7 +63,11 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if TrailingWhitespace(text) != "" {
+	// The stray edge, not the whole one: a single terminating line break belongs
+	// to the content the way a line ending does, and a format may require it
+	// (see [StrayTrailingWhitespace]). This rule judges one text on its own, so
+	// nothing else can tell the two apart for it.
+	if StrayTrailingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "trailing-whitespace",
 			Severity: SeverityMinor,

@@ -60,12 +60,9 @@ Regenerate and check after editing:
 ```bash
 make generate-reference-docs        # → packages/reference-data/data/*.json
 make generate-reference-pages       # → web/docs/reference/{commands,formats,tools}
-kapi check 'scripts/gen-refs/nativedocs/*/*.yaml'
+make check-reference-prose          # the register gate over these files
 ```
 
-Both generated trees are gated by the *Reference Data — Drift Gate* workflow, so
-an edit here lands together with the dataset and the pages it produces.
-
-Read the check's findings by rule: every `hygiene.trailing-whitespace` one over
-these files is the block-scalar terminator of issue #2070, not something an
-author wrote.
+All three are gated by the *Reference Data — Drift Gate* workflow, so an edit
+here lands together with the dataset and the pages it produces, and it lands
+clean: `check-reference-prose` fails on any critical, major or minor finding.
