@@ -126,10 +126,14 @@ type digestSet struct {
 	hasZero bool
 }
 
-// maxDigestSetLoad is how full the table is allowed to get before it doubles.
-// Linear probing degrades sharply as a table fills; below three quarters the
-// probe stays short, and the table is still under half the bytes a map costs.
-const maxDigestSetLoad = 4 // grow when count*4 >= len(slots)*3, i.e. at 3/4
+// The table doubles once it is three quarters full. Linear probing degrades
+// sharply as a table fills, and three quarters is where the probe is still short
+// while the table costs under half the bytes a map does.
+const (
+	digestSetInitialSlots = 64
+	digestSetLoadNum      = 3
+	digestSetLoadDen      = 4
+)
 
 // add records a digest, reporting whether it was absent.
 func (s *digestSet) add(d uint64) bool {
@@ -140,9 +144,10 @@ func (s *digestSet) add(d uint64) bool {
 		s.hasZero = true
 		return true
 	}
-	if len(s.slots) == 0 {
-		s.slots = make([]uint64, 64)
-	} else if (s.count+1)*maxDigestSetLoad >= len(s.slots)*(maxDigestSetLoad-1) {
+	switch {
+	case len(s.slots) == 0:
+		s.slots = make([]uint64, digestSetInitialSlots)
+	case (s.count+1)*digestSetLoadDen >= len(s.slots)*digestSetLoadNum:
 		s.grow()
 	}
 	if !insertDigest(s.slots, d) {
