@@ -31,8 +31,9 @@ type CandidateSource struct {
 // Tiers 1-3 are exact matches on the generalized, structural and plain keys.
 // Plain-text equality with a differing inline-code structure takes the
 // industry tag-mismatch penalty (ScoreNearExact). Several full-score exacts
-// with differing targets demote to ScoreNearExact (demoteAmbiguousExacts) — no
-// single one is THE translation. When MinScore requires exact-only results the
+// with differing targets are settled by the approval nearest the asking point
+// (resolveNearestApproval), and demote to ScoreNearExact when there is no point
+// to measure from (demoteAmbiguousExacts). When MinScore requires exact-only results the
 // fuzzy tier is skipped. Tiers 4-6 score fuzzy candidates by Levenshtein
 // ratio, with a small same-project boost. Results sort by score, then
 // match-type priority, then entry ID (sortMatches) and are capped at
@@ -108,9 +109,13 @@ func TieredLookup(
 		}
 	}
 
-	// Ambiguity rule: several full-score exacts with differing targets
-	// demote to ScoreNearExact — none of them is THE translation.
-	demoteAmbiguousExacts(matches, targetLocale)
+	// Several full-score exacts with differing targets are not one answer. A
+	// caller that named the point it is asking from gets the approval nearest
+	// that point; a caller that named none has no way to prefer one, so none of
+	// them is THE translation and all demote to ScoreNearExact.
+	if !resolveNearestApproval(matches, targetLocale, opts.Point) {
+		demoteAmbiguousExacts(matches, targetLocale)
+	}
 
 	if len(matches) > 0 && opts.MinScore >= 1.0 {
 		kept := matches[:0]

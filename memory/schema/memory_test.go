@@ -30,6 +30,7 @@ func TestMemorySQLiteGolden(t *testing.T) {
 		{"memory_sqlite_v1.golden.sql", RenderMemorySQLiteV1("icu")},
 		{"memory_sqlite_v2.golden.sql", RenderMemorySQLiteV2()},
 		{"memory_sqlite_v3.golden.sql", RenderMemorySQLiteV3()},
+		{"memory_sqlite_v4.golden.sql", RenderMemorySQLiteV4()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

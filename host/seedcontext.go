@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -104,7 +106,44 @@ func formatRecordLine(r RecordAbsorbResult) string {
 	if r.Superseded > 0 {
 		line += fmt.Sprintf("; %d pair(s) whose source was rewritten since the translation was written", r.Superseded)
 	}
-	return line
+	return line + formatContestedSources(r.ContestedSources)
+}
+
+// formatContestedSources names the sources the record answers more than one
+// way: each answer, where it was approved, and which of them governs there.
+//
+// The count alone was unauditable. Both candidates are real translations a
+// reader approved, so no gate tells them apart on quality and no reader can
+// look at a number; what settles them is where each was approved, and that is
+// exactly what a person needs in front of them to agree with the settlement or
+// to go and change one of the two decisions.
+func formatContestedSources(sources []ContestedSource) string {
+	if len(sources) == 0 {
+		return ""
+	}
+	ordered := slices.Clone(sources)
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].Source != ordered[j].Source {
+			return ordered[i].Source < ordered[j].Source
+		}
+		return ordered[i].Locale < ordered[j].Locale
+	})
+	var b strings.Builder
+	for _, c := range ordered {
+		fmt.Fprintf(&b, "\n  contested: %q in %s", c.Source, c.Locale)
+		for _, a := range c.Answers {
+			at := a.Point
+			if at == "" {
+				at = "the project's default point"
+			}
+			mark := " "
+			if a.Governs {
+				mark = "*"
+			}
+			fmt.Fprintf(&b, "\n    %s %q approved at %s", mark, a.Target, at)
+		}
+	}
+	return b.String()
 }
 
 // contextSource is one committed context bundle a seeding pass considers.
