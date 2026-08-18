@@ -376,6 +376,40 @@ func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 	return combined
 }
 
+// layerRefPrefix marks a skeleton ref that names an embedded child layer
+// rather than a block. The parent's writer renders the layer through its own
+// sub-format writer and puts the result where the ref stands — the shape json,
+// odf and epub already use for a delegated member.
+const layerRefPrefix = "layer:"
+
+// A subfiltered element's content reaches the sub-reader decoded, so the
+// carrier — how the element wrote that content — is what decides how the
+// translated child layer goes back in. The two carriers are the two ways XML
+// spells character data, and each returns as itself: a document that arrived
+// with a CDATA section leaves with one, and escaped text leaves escaped. XML
+// 1.0 §2.7 makes them the same content, so converting between them would be a
+// rewrite of every such element for no gain, and §2.4 makes the escaping
+// obligatory for the second — text handed back raw would close its own element.
+const (
+	// subfilterCarrierProperty names the child layer property holding it.
+	subfilterCarrierProperty = "subfilter.carrier"
+	// subfilterOriginalProperty names the child layer property holding the
+	// content the sub-reader was handed. The sub-writer takes it back as its
+	// original content, so it splices translations into the member's own
+	// markup instead of serializing a fresh document from the content model —
+	// which for an HTML fragment means a synthesized doctype and an <html>
+	// shell wrapped around an element that had neither. The whole member is
+	// one delegated element, the same span the writer already collects
+	// through its LayerEnd, so nothing new is held. `json.original` on the
+	// JSON reader's root layer carries a whole document the same way.
+	subfilterOriginalProperty = "subfilter.original"
+	// carrierText is character data with `&`, `<` and `>` escaped.
+	carrierText = "text"
+	// carrierCDATA is a CDATA section whose delimiters stay in the skeleton
+	// and whose interior the child layer occupies verbatim.
+	carrierCDATA = "cdata"
+)
+
 // skelContentRange records a byte range in the source that corresponds to a block's text content.
 type skelContentRange struct {
 	blockID string
@@ -870,7 +904,32 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 
 	// Check for subfilter
 	if mapping := s.reader.matchSubfilter(path); mapping != nil && s.reader.resolver != nil {
-		s.reader.emitSubfiltered(s.ctx, s.ch, text, path, s.layer.ID, mapping, &s.blockCounter, &s.dataCounter)
+		// The delegated element's content is a range like any other block's:
+		// the child layer takes the place of a block id in the skeleton, so
+		// what the sub-reader produced is what the writer puts back. Without
+		// the range the element's bytes stay skeleton text and the whole child
+		// layer — translated, stored, reported done — reaches no file.
+		start, end := s.contentSpan(frame, endTagOffset, interimEnd)
+		carrier := carrierText
+		if start >= 0 && end <= s.srcLen() {
+			if cs, ce, ok := cdataSectionInterior(s.win(start, end), start); ok {
+				// A CDATA section is a carrier, not content: its delimiters
+				// stay in skeleton and only its interior is the child layer,
+				// so what comes back is written between them unescaped —
+				// upstream Okapi passes a CDATA subfilter a nil parent encoder
+				// for the same reason (AbstractMarkupFilter.handleCdataSection),
+				// where a PCDATA one gets an XMLEncoder.
+				carrier, start, end = carrierCDATA, cs, ce
+			}
+		}
+		layerID := s.reader.emitSubfiltered(s.ctx, s.ch, text, path, s.layer.ID, mapping, carrier, &s.blockCounter)
+		if s.contentRanges != nil && start >= 0 && layerID != "" {
+			*s.contentRanges = append(*s.contentRanges, skelContentRange{
+				blockID: layerRefPrefix + layerID,
+				start:   start,
+				end:     end,
+			})
+		}
 		frame.resetRuns()
 		return
 	}
@@ -928,41 +987,82 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 	// Track content range for skeleton
-	if s.contentRanges != nil && frame.contentByteStart > 0 {
-		// Interim flush (a non-inline child is about to open inside a
-		// text-bearing parent): the block's range ends at the child's
-		// start tag, leaving the inter-child / post-child bytes free
-		// for further interim ranges or the parent's final flush.
-		if interimEnd > 0 && interimEnd > frame.contentByteStart {
-			*s.contentRanges = append(*s.contentRanges, skelContentRange{
-				blockID: blockID,
-				start:   frame.contentByteStart,
-				end:     interimEnd,
-			})
-		} else if endTagOffset > 0 {
-			// Final flush: the range ends at the parent's own closing
-			// tag. Find it by searching backwards from endTagOffset.
-			// Use the source qname (`z:汇集`) when available — searching
-			// for the local name alone (`汇集`) misses the `z:` prefix
-			// in `</z:汇集>` and the search returns -1, so the block's
-			// content range is dropped from skeleton and the translation
-			// never gets substituted into the output.
-			closeName := frame.qname
-			if closeName == "" {
-				closeName = frame.name
-			}
-			closeStart := s.findCloseTagStartWin(frame.contentByteStart, endTagOffset, closeName)
-			if closeStart >= 0 {
-				*s.contentRanges = append(*s.contentRanges, skelContentRange{
-					blockID: blockID,
-					start:   frame.contentByteStart,
-					end:     closeStart,
-				})
-			}
-		}
+	if start, end := s.contentRange(frame, endTagOffset, interimEnd); start >= 0 {
+		*s.contentRanges = append(*s.contentRanges, skelContentRange{
+			blockID: blockID,
+			start:   start,
+			end:     end,
+		})
 	}
 
 	frame.resetRuns()
+}
+
+// contentRange returns the source byte range an element's content occupies, or
+// (-1, -1) when this parse has no byte view of it (no skeleton) or the closing
+// tag cannot be located.
+//
+// interimEnd > 0 is an interim flush — a non-inline child is about to open
+// inside a text-bearing parent — and the range ends at that child's start tag,
+// leaving the inter-child and post-child bytes free for further interim ranges
+// or the parent's final flush. Otherwise the range ends at the element's own
+// closing tag, found by searching back from endTagOffset for the source qname
+// (`z:汇集`): searching for the local name alone misses the `z:` in `</z:汇集>`,
+// the search returns -1, the range is dropped, and the translation never gets
+// substituted into the output.
+func (s *xmlParseState) contentRange(frame *elementFrame, endTagOffset, interimEnd int) (int, int) {
+	if s.contentRanges == nil {
+		return -1, -1
+	}
+	return s.contentSpan(frame, endTagOffset, interimEnd)
+}
+
+// contentSpan is contentRange without the skeleton gate: the element's content
+// bytes are locatable whether or not this parse is writing a skeleton, and
+// deciding a subfiltered element's carrier is reading the document, not
+// building one.
+func (s *xmlParseState) contentSpan(frame *elementFrame, endTagOffset, interimEnd int) (int, int) {
+	if frame.contentByteStart <= 0 {
+		return -1, -1
+	}
+	start := frame.contentByteStart
+	if interimEnd > 0 && interimEnd > start {
+		return start, interimEnd
+	}
+	if endTagOffset > 0 {
+		closeName := frame.qname
+		if closeName == "" {
+			closeName = frame.name
+		}
+		if end := s.findCloseTagStartWin(start, endTagOffset, closeName); end >= 0 {
+			return start, end
+		}
+	}
+	return -1, -1
+}
+
+// cdataSectionInterior reports whether content is exactly one CDATA section —
+// nothing before it, nothing after — and returns the absolute range of its
+// interior, given the absolute offset content starts at.
+//
+// Exactly one, because the interior is what the sub-reader was handed: text
+// outside the section reached it too, so narrowing the ref to the interior
+// while leaving that text in skeleton would write it twice. Content that mixes
+// a section with anything else is therefore carried as escaped character data,
+// which is the same content (XML 1.0 §2.7) written the other way.
+func cdataSectionInterior(content []byte, offset int) (start, end int, ok bool) {
+	const open, close = "<![CDATA[", "]]>"
+	if len(content) < len(open)+len(close) {
+		return 0, 0, false
+	}
+	if !bytes.HasPrefix(content, []byte(open)) || !bytes.HasSuffix(content, []byte(close)) {
+		return 0, 0, false
+	}
+	inner := content[len(open) : len(content)-len(close)]
+	if bytes.Contains(inner, []byte(close)) {
+		return 0, 0, false
+	}
+	return offset + len(open), offset + len(content) - len(close), true
 }
 
 // emitNonTranslatableBlock surfaces a non-translatable element's accumulated
@@ -2413,8 +2513,11 @@ func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 	return nil
 }
 
-// emitSubfiltered emits a child layer with content parsed by the subfilter format reader.
-func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult, content, path, parentLayerID string, mapping *format.SubfilterMapping, blockCounter, dataCounter *int) {
+// emitSubfiltered emits a child layer with content parsed by the subfilter
+// format reader, and returns the child layer's id — the name the skeleton
+// refers to it by. It returns "" when no child layer was made, which is when
+// the sub-format is unavailable and the content stays one plain block.
+func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult, content, path, parentLayerID string, mapping *format.SubfilterMapping, carrier string, blockCounter *int) string {
 	subReader, err := r.resolver.ResolveReader(mapping.Format)
 	if err != nil {
 		// Fall back to plain block
@@ -2422,7 +2525,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		block := model.NewBlock("tu"+strconv.Itoa(*blockCounter), content)
 		block.Name = path
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		return
+		return ""
 	}
 
 	r.layerSeq++
@@ -2440,13 +2543,15 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		Locale:   locale,
 		ParentID: parentLayerID,
 		Properties: map[string]string{
-			"subfilter.source":      "xml",
-			"subfilter.elementPath": path,
+			"subfilter.source":        "xml",
+			"subfilter.elementPath":   path,
+			subfilterCarrierProperty:  carrier,
+			subfilterOriginalProperty: content,
 		},
 	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
-		return
+		return childLayerID
 	}
 
 	subDoc := &model.RawDocument{
@@ -2458,7 +2563,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	if err := subReader.Open(ctx, subDoc); err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xml: subfilter open for %s: %w", path, err)}
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
-		return
+		return childLayerID
 	}
 
 	for pr := range subReader.Read(ctx) {
@@ -2487,6 +2592,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	subReader.Close()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+	return childLayerID
 }
 
 // Close releases resources.

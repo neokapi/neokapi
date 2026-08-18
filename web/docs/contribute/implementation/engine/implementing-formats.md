@@ -238,6 +238,43 @@ subReader, err := r.resolver.ResolveReader(subFormatName)
 // Emit PartLayerStart for child, forward sub-parts, emit PartLayerEnd
 ```
 
+Three obligations come with a child layer, and each is a way the translated
+child silently fails to reach the file when it is skipped.
+
+**Write a skeleton ref for it.** A delegated span is a range like any other
+block's: emit `layer:<id>` where the member's bytes were. A reader that emits
+the child layer and no ref produces a translated sub-document that the writer
+then drops — the exit code is 0, the file is written, and the work is only in
+the store, so a later merge reports it done.
+
+**Delegate what the format actually is.** Sub-filtering is for content in
+*another* format — HTML inside a JSON string, XHTML in an EPUB spine. Handing a
+format its own markup to a generic reader of the same family discards the
+format's extraction rules and its config along with them, and there is nothing
+the writer side can do to repair that. Upstream Okapi draws the same line:
+`OpenOfficeFilter` dispatches each stream of an ODF package to its own
+`ODFFilter`, never to `okf_xml`.
+
+**Put the child back in the carrier it came out of.** The sub-reader is handed
+*decoded* content, so how the parent spelled it is not recoverable from the
+child's output. Record the carrier on the child layer as the reader sees it and
+have the writer honour it — for XML, a CDATA section returns as a CDATA section
+with its delimiters left in the skeleton and the child written between them
+verbatim, and escaped character data returns escaped. XML 1.0 §2.7 makes the
+two the same content, so converting either into the other would rewrite every
+such element for nothing; §2.4 makes the escaping obligatory for the second, or
+the markup the sub-reader handed back closes the element it sits in. Okapi
+encodes exactly this distinction in the parent encoder it hands the sub-filter:
+`null` for a CDATA subfilter ("we don't encode cdata") and an `XMLEncoder` for
+a PCDATA one (`AbstractMarkupFilter.handleCdataSection` /
+`handleAttributeSubfiltering`).
+
+A member nothing translated should go back as the member. The sub-writer
+serializes from the content model, so putting an untouched member through it
+rewrites markup no run had reason to change — which is why the EPUB writer
+splices into the entry's original bytes and the XML writer returns the member's
+own content when no block in the child layer holds a target.
+
 ## Writer
 
 Embed `format.BaseFormatWriter` and implement `format.DataFormatWriter`:

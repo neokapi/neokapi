@@ -3,6 +3,7 @@ package model
 import (
 	"hash/fnv"
 	"strconv"
+	"strings"
 )
 
 // A block's ID is its IDENTITY within the document it was read from.
@@ -233,6 +234,22 @@ func QualifyMemberID(block *Block, member string) {
 		return
 	}
 	block.ID = member + MemberIDSeparator + block.ID
+}
+
+// UnqualifyMemberID returns id with the member prefix removed, or id unchanged
+// when it does not carry one.
+//
+// The qualified id is the container's, and stops being the right name the
+// moment a block is handed back to the member's own writer: that writer matches
+// what its own reader minted, so a member re-serialized against `sf1_tu1` finds
+// none of its blocks and emits the source it was given. A container that
+// qualifies on the way out therefore un-qualifies on the way back in, and the
+// pairing is why the two live together.
+func UnqualifyMemberID(id, member string) string {
+	if member == "" {
+		return id
+	}
+	return strings.TrimPrefix(id, member+MemberIDSeparator)
 }
 
 // DocumentID is the id a block is written back under: the one its document

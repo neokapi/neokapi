@@ -97,7 +97,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					if err != nil {
 						return fmt.Errorf("xml: writing child layer %s: %w", layer.Name, err)
 					}
-					if _, err := fmt.Fprint(w.Output, val); err != nil {
+					if _, err := fmt.Fprint(w.Output, carryChildLayerStandalone(val, layer)); err != nil {
 						return err
 					}
 				}
@@ -109,6 +109,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 // writeWithSkeletonStore collects all blocks, then reconstructs output from skeleton entries.
 func (w *Writer) writeWithSkeletonStore(ctx context.Context, parts <-chan *model.Part) error {
 	blocksByID := make(map[string]*model.Block)
+	layersByID := make(map[string]string)
 
 	for {
 		select {
@@ -118,9 +119,18 @@ func (w *Writer) writeWithSkeletonStore(ctx context.Context, parts <-chan *model
 			if !ok {
 				goto done
 			}
-			if part.Type == model.PartBlock {
+			switch part.Type {
+			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
 					blocksByID[block.ID] = block
+				}
+			case model.PartLayerStart:
+				if layer, ok := part.Resource.(*model.Layer); ok && layer.IsEmbedded() {
+					val, err := w.writeChildLayer(ctx, layer, parts)
+					if err != nil {
+						return fmt.Errorf("xml: writing child layer %s: %w", layer.Name, err)
+					}
+					layersByID[layer.ID] = carryChildLayer(val, layer)
 				}
 			}
 		}
@@ -129,7 +139,7 @@ done:
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("xml writer: flush skeleton: %w", err)
 	}
-	return w.writeFromSkeleton(blocksByID)
+	return w.writeFromSkeleton(blocksByID, layersByID)
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
@@ -142,8 +152,37 @@ done:
 //
 // `blocks` is also used to expand inline-attribute reference markers
 // (see writeRunsXML / expandInlineAttrRefs).
-func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
-	return w.replaySkeleton(func(id string) *model.Block { return blocks[id] }, blocks)
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, layers map[string]string) error {
+	return w.replaySkeleton(
+		func(id string) *model.Block { return blocks[id] },
+		func(id string) (string, bool) { v, ok := layers[id]; return v, ok },
+		blocks)
+}
+
+// carryChildLayer returns what a rendered child layer looks like inside its
+// parent element: written into the CDATA section it came out of, or escaped as
+// the character data it came out of. See the carrier constants in reader.go.
+func carryChildLayer(rendered string, layer *model.Layer) string {
+	if layer.Properties[subfilterCarrierProperty] == carrierCDATA {
+		// XML 1.0 §2.7 forbids `]]>` inside a CDATA section, so a translation
+		// that produced one continues in a second section rather than closing
+		// the first early. Upstream Okapi writes the sub-filter's output into
+		// the section unguarded, which is well-formed until a translation
+		// contains the sequence.
+		return strings.ReplaceAll(rendered, "]]>", "]]]]><![CDATA[>")
+	}
+	return xmlEscapeString(rendered)
+}
+
+// carryChildLayerStandalone is carryChildLayer for the generative path, where
+// no skeleton holds the element the child sits inside: a CDATA-carried member
+// brings its own delimiters, because there are none in the output for it to sit
+// between.
+func carryChildLayerStandalone(rendered string, layer *model.Layer) string {
+	if layer.Properties[subfilterCarrierProperty] == carrierCDATA {
+		return "<![CDATA[" + carryChildLayer(rendered, layer) + "]]>"
+	}
+	return carryChildLayer(rendered, layer)
 }
 
 // streamWrite consumes a streaming skeleton store interleaved with the Part
@@ -153,11 +192,19 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // block) become available to renderBlockXML. The window is capped and the oldest
 // entries evicted, since a block's last use is its own ref or a neighbouring
 // element's inline expansion.
+//
+// An embedded child layer arrives on the same stream and is rendered where it
+// is met, so the only thing buffered whole is one delegated element's content —
+// bounded by that element, not by the document. Rendering it as it arrives
+// rather than on demand is what keeps the pull loop from having to unwind a
+// half-consumed layer.
 func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
 	const windowCap = 512
 	pending := make(map[string]*model.Block)
+	pendingLayers := make(map[string]string)
 	order := make([]string, 0, windowCap+1)
 	closed := false
+	var pullErr error
 
 	pullBlock := func() (*model.Block, bool) {
 		for !closed {
@@ -170,9 +217,25 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 					closed = true
 					return nil, false
 				}
-				if p != nil && p.Type == model.PartBlock {
+				if p == nil {
+					continue
+				}
+				switch p.Type {
+				case model.PartBlock:
 					if b, ok := p.Resource.(*model.Block); ok {
 						return b, true
+					}
+				case model.PartLayerStart:
+					if layer, ok := p.Resource.(*model.Layer); ok && layer.IsEmbedded() {
+						val, err := w.writeChildLayer(ctx, layer, parts)
+						if err != nil {
+							if pullErr == nil {
+								pullErr = fmt.Errorf("xml: writing child layer %s: %w", layer.Name, err)
+							}
+							closed = true
+							return nil, false
+						}
+						pendingLayers[layer.ID] = carryChildLayer(val, layer)
 					}
 				}
 			}
@@ -205,20 +268,41 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 		}
 		return nil
 	}
+	layerFor := func(id string) (string, bool) {
+		if v, ok := pendingLayers[id]; ok {
+			return v, true
+		}
+		for !closed {
+			b, ok := pullBlock()
+			if !ok {
+				break
+			}
+			stash(b)
+			if v, ok := pendingLayers[id]; ok {
+				return v, true
+			}
+		}
+		v, ok := pendingLayers[id]
+		return v, ok
+	}
 
-	err := w.replaySkeleton(blockFor, pending)
+	err := w.replaySkeleton(blockFor, layerFor, pending)
 	// Drain remaining parts so the executor's tool goroutines can finish.
 	for !closed {
 		pullBlock()
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return pullErr
 }
 
 // replaySkeleton walks the skeleton store, resolving each ref via blockFor (a
-// whole-map lookup in buffered mode, or an on-demand pull in streaming mode) and
-// rendering it against blocks (the live map, used for inline attribute-ref
-// expansion). Shared by writeFromSkeleton (buffered) and streamWrite.
-func (w *Writer) replaySkeleton(blockFor func(string) *model.Block, blocks map[string]*model.Block) error {
+// whole-map lookup in buffered mode, or an on-demand pull in streaming mode) —
+// or, for a ref naming an embedded child layer, via layerFor — and rendering it
+// against blocks (the live map, used for inline attribute-ref expansion).
+// Shared by writeFromSkeleton (buffered) and streamWrite.
+func (w *Writer) replaySkeleton(blockFor func(string) *model.Block, layerFor func(string) (string, bool), blocks map[string]*model.Block) error {
 	first := true
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -259,7 +343,16 @@ func (w *Writer) replaySkeleton(blockFor func(string) *model.Block, blocks map[s
 			}
 		case format.SkeletonRef:
 			first = false
-			if block := blockFor(string(entry.Data)); block != nil {
+			refID := string(entry.Data)
+			if layerID, isLayer := strings.CutPrefix(refID, layerRefPrefix); isLayer {
+				if val, ok := layerFor(layerID); ok {
+					if _, err := io.WriteString(w.Output, val); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			if block := blockFor(refID); block != nil {
 				text := w.renderBlockXML(block, blocks)
 				if err := format.CheckXMLText("xml", w.Locale, block, text); err != nil {
 					return err
@@ -623,6 +716,15 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 	}
 
 collected:
+	// A member nothing translated goes back as the member: the sub-writer
+	// serializes from the content model, so putting an untouched member
+	// through it would rewrite markup no run had any reason to change. This is
+	// the same trade the ODF and EPUB writers make with a member's original
+	// bytes, and it is what keeps an untranslated document byte-exact.
+	if orig, ok := layer.Properties[subfilterOriginalProperty]; ok && !childPartsTranslated(childParts, w.Locale) {
+		return orig, nil
+	}
+
 	if w.resolver == nil {
 		return w.fallbackChildText(childParts), nil
 	}
@@ -637,10 +739,17 @@ collected:
 		return "", err
 	}
 	subWriter.SetLocale(w.Locale)
+	// Hand the sub-writer the member's own markup so it splices translations
+	// into it rather than serializing a fresh document around them.
+	if orig, ok := layer.Properties[subfilterOriginalProperty]; ok {
+		if setter, ok := subWriter.(format.OriginalContentSetter); ok {
+			setter.SetOriginalContent([]byte(orig))
+		}
+	}
 
 	childCh := make(chan *model.Part, len(childParts))
 	for _, p := range childParts {
-		childCh <- p
+		childCh <- memberScopedPart(p, layer.ID)
 	}
 	close(childCh)
 
@@ -652,6 +761,46 @@ collected:
 	}
 
 	return buf.String(), nil
+}
+
+// memberScopedPart returns the part as the member's own writer expects it: a
+// block reaches this container qualified by the member it came from
+// (model.QualifyMemberID), and the member's writer matches what the member's
+// reader minted. The block is copied rather than renamed in place, so the
+// qualified id every other consumer addresses it by is left alone.
+func memberScopedPart(p *model.Part, member string) *model.Part {
+	if p == nil || p.Type != model.PartBlock {
+		return p
+	}
+	b, ok := p.Resource.(*model.Block)
+	if !ok {
+		return p
+	}
+	scoped := model.UnqualifyMemberID(b.ID, member)
+	if scoped == b.ID {
+		return p
+	}
+	clone := *b
+	clone.ID = scoped
+	return &model.Part{Type: p.Type, Resource: &clone}
+}
+
+// childPartsTranslated reports whether any block in an embedded layer holds a
+// target for locale. An empty locale is a run with no target language at all,
+// which no block can have been translated for.
+func childPartsTranslated(parts []*model.Part, locale model.LocaleID) bool {
+	if locale.IsEmpty() {
+		return false
+	}
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		if b, ok := p.Resource.(*model.Block); ok && b.HasTarget(locale) {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackChildText concatenates block texts when no sub-writer is available.
