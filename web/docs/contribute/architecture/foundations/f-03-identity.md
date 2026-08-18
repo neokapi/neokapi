@@ -115,6 +115,31 @@ offset — and a locator moves whenever anything above it moves, so hashing one
 would report an untouched block as changed every time a blank line was added
 earlier in the file.
 
+### The record hash: what a transfer compares
+
+A third value is derived from the pair rather than stored beside it.
+`BlockIdentity.RecordHash` folds both halves, and it is what decides **transfer**
+— whether a far side already holds what a block currently is.
+
+Neither half can decide that alone. The content hash must not move for a reason
+other than the text moving: it is the identity a decision, a memory entry and a
+store key are all filed under. But a block is persisted with more than its text —
+its name, its type, and the properties a reader recorded about it. A reader that
+starts recording something new leaves the text untouched, so a comparison made on
+the content hash reports the block unchanged and the new field never arrives. Not
+on the next transfer: never, because the text is the same forever.
+
+Folding the context half in is what makes an ordinary transfer deliver it, per
+block, with nothing declared and no version bumped. The cost that would otherwise
+make this unaffordable — a locator shifting and re-sending a file's whole tail —
+is already paid for by the advisory prefix above, which keeps derived locators
+out of the context hash in the first place.
+
+The consequence for readers: a field this hash cannot see is a field that never
+reaches content already stored elsewhere. Anything a block is persisted with
+belongs in one half or the other, and anything computed rather than read belongs
+behind the advisory prefix.
+
 ### Identity across revisions
 
 The two hashes answer "is this the same content?" at a point in time. An iterative

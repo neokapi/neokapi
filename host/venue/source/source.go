@@ -260,7 +260,7 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
 			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
-			if !found || cached != identity.ContentHash {
+			if !found || cached != identity.RecordHash() {
 				dirty++
 			}
 		}
@@ -1367,7 +1367,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1392,7 +1392,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks

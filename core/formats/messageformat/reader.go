@@ -16,6 +16,16 @@ import (
 	"github.com/neokapi/neokapi/core/safeio"
 )
 
+// propLine records the 1-based source line a block was read from.
+//
+// Advisory (model.AdvisoryPropertyPrefix), so it is carried but never hashed
+// into the block's identity — and so it never reaches the transfer hash either
+// (model.BlockIdentity.RecordHash). A file here is one pattern per line, so a
+// line inserted at the top moves every locator below it; letting one identify a
+// block would report a file's whole tail as changed on an edit that touched one
+// message.
+const propLine = model.AdvisoryPropertyPrefix + "line"
+
 // Reader implements DataFormatReader for ICU MessageFormat files.
 // Input is treated as one MessageFormat pattern per line, or the whole file
 // as a single pattern.
@@ -281,7 +291,7 @@ func newContentBlock(id, name, text string, lineNum int) *model.Block {
 		Properties:         make(map[string]string),
 		Name:               name,
 	}
-	block.Properties["line"] = strconv.Itoa(lineNum)
+	block.Properties[propLine] = strconv.Itoa(lineNum)
 	return block
 }
 
@@ -312,7 +322,7 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine, names *model
 
 	block := model.NewBlock(id, seg.text)
 	block.Name = name
-	block.Properties["line"] = strconv.Itoa(pl.lineNum)
+	block.Properties[propLine] = strconv.Itoa(pl.lineNum)
 	if seg.path != "" {
 		block.Properties["path"] = seg.path
 	}

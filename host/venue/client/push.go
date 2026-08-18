@@ -258,7 +258,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			// source_id. Keyed on the reader's id instead, deleting a paragraph
 			// renumbered every block below it and the push reported an untouched
 			// file as wholly changed.
-			blockHashes[convergence.BlockKey(b)] = identity.ContentHash
+			blockHashes[convergence.BlockKey(b)] = identity.RecordHash()
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
