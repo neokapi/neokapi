@@ -1,0 +1,48 @@
+# Native reference doc for the built-in `voice-vocab-check` tool.
+# Schema source: core/tools/voicevocab.go (VoiceVocabConfig — the profile and the
+# terms store are supplied programmatically, so the tool declares no schema
+# properties).
+description: Flag forbidden, competitor and retired wording from a voice profile and the project's terms.
+overview: |
+  The **Voice Vocabulary Check** tool is the deterministic gate a voice profile
+  carries: the forbidden terms, the competitor terms and the prohibited style
+  patterns, matched over each block's source text with no model and no network.
+  A forbidden term reports at major severity and a competitor term at critical,
+  each defaulting from the profile and overridable per rule; where the rule names
+  a replacement, the finding carries it as the suggestion. Terms match whole-word
+  and Unicode-aware, so `use` never fires inside `user`; style patterns match as
+  the regular expression the author wrote them as.
+
+  When the project binds a terms store, the tool enforces that too — the
+  vocabulary the project *decided*, alongside the lists the profile carries. A
+  competitor entry reports critical, a forbidden one major and a retired one
+  minor, the softer reading for a word that was the project's own until a
+  decision replaced it. The alternative comes from the concept: its preferred
+  term in the same language, or the replacement the term's note names. Lookup
+  asks in the block's own language and, when that names a region, in the bare
+  language beneath it, so a project writing `en-GB` is still held to a decision
+  recorded as `en`.
+
+  Findings and an overall score are attached as a `voice` annotation. The profile
+  and the terms store are supplied by the host rather than by step configuration:
+  a recipe names this tool as a step (`kapi init` scaffolds exactly that) and the
+  project's `defaults.voice` binding decides what it enforces. The standalone
+  command is `kapi check --profile`.
+
+  This is the half to run before `voice-check`, its LLM-judged sibling: what a
+  rule can decide should not be spent on a model.
+limitations:
+  - The profile and the terms store are supplied programmatically; neither is a schema parameter.
+  - Matching is lexical — whole-word and case-insensitive, with no account of inflection or morphology.
+  - Judges source text only, and skips a block whose source is empty or whitespace-only.
+  - Required style patterns are a document-scope question and are evaluated by the check venue, not here.
+processingNotes:
+  - Operates on blocks; a block with no findings is left unannotated.
+  - Monolingual by declaration, because it reads the source — a bilingual declaration would yield no pass at all on a project with no target languages.
+  - A term recorded in both a regional and a bare language is one decision and reports once.
+  - Every finding carries the run range it matched, so a preview can highlight the exact words.
+examples:
+  - title: Add to a flow
+    description: The profile and terms come from the project binding, so the step needs no configuration of its own.
+    config: |
+      {}

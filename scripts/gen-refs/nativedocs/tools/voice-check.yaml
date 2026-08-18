@@ -1,0 +1,64 @@
+# Native reference doc for the built-in `voice-check` tool.
+# Schema source: core/ai/tools/voicecheck.go (VoiceCheckConfig).
+description: Judge each block's source text against a voice profile with an LLM and record the findings and a compliance score.
+overview: |
+  The **AI Voice Check** tool sends each block's source text to a configured LLM
+  provider alongside the guidelines a voice profile carries, and reads back
+  structured findings over four dimensions — tone, style, clarity and brand
+  compliance — each with a severity, a message and a suggested rewrite. It
+  computes an overall compliance score, records the score and any findings on the
+  block's properties, and attaches a `voice` annotation carrying both. A block
+  whose source text is empty or whitespace-only is skipped.
+
+  A voice profile is the context type that says how content should read; a
+  brand's tone of voice is the common use of it. The profile reaches this tool
+  three ways: named by `profileId` and resolved from the local store, supplied
+  already-resolved by the host (the `kapi voice` command, or a project's
+  `defaults.voice` binding), or resolved lazily from the organizational context
+  hierarchy on first use. With no profile the prompt carries no guidelines, and
+  the model is asked to judge against nothing.
+
+  This is the judged half of a pair. `voice-vocab-check` is the deterministic
+  half — the profile's vocabulary and style patterns matched as rules, needing
+  no credentials and no network — and it is the one to run first, so the model
+  is spent on what rules cannot decide.
+parameters:
+  provider:
+    description: The LLM provider backend to use.
+    help: |
+      Selects which model backend performs the judgement.
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
+  apiKey:
+    description: API key for the AI provider.
+    help: |
+      Credential for the selected provider. A local provider such as Ollama may
+      need none. Prefer the credential store or the environment over writing a
+      key into a recipe.
+    values: "string"
+  model:
+    description: The model name to request from the provider.
+    help: |
+      The provider-specific model identifier. Omitted, the provider's default
+      model is used.
+    values: "string"
+  profileId:
+    description: Voice profile to resolve from the local store.
+    help: |
+      The identifier of the profile whose guidelines the text is judged against.
+      The host may supply a resolved profile instead, in which case this is not
+      needed.
+    values: "string"
+limitations:
+  - Requires provider credentials and makes an external API call per block.
+  - Findings are model output; two runs over the same text may not agree.
+  - Judges source text only, and skips a block whose source is empty or whitespace-only.
+processingNotes:
+  - Operates on blocks; blocks are judged in parallel by default for throughput.
+  - The compliance score and any findings are written to the block's properties, and a `voice` annotation carries both.
+  - A profile that cannot be resolved is not an error, and the run proceeds with no guidelines in the prompt.
+examples:
+  - title: Judge against a stored profile
+    description: Resolve a profile by name from the local store and judge each block against it.
+    config: |
+      provider: anthropic
+      profileId: house-style

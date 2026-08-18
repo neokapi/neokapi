@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T09:15:01Z",
+  "generatedAt": "2026-08-18T08:17:47Z",
   "kind": "tool",
   "entries": [
     {
@@ -460,7 +460,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "AI Voice Check",
-      "description": "Check text against a voice profile using an LLM provider",
+      "description": "Judge each block's source text against a voice profile with an LLM and record the findings and a compliance score.",
       "category": "quality",
       "tags": [
         "ai-powered",
@@ -571,6 +571,48 @@
             ]
           }
         }
+      },
+      "doc": {
+        "overview": "The **AI Voice Check** tool sends each block's source text to a configured LLM\nprovider alongside the guidelines a voice profile carries, and reads back\nstructured findings over four dimensions — tone, style, clarity and brand\ncompliance — each with a severity, a message and a suggested rewrite. It\ncomputes an overall compliance score, records the score and any findings on the\nblock's properties, and attaches a `voice` annotation carrying both. A block\nwhose source text is empty or whitespace-only is skipped.\n\nA voice profile is the context type that says how content should read; a\nbrand's tone of voice is the common use of it. The profile reaches this tool\nthree ways: named by `profileId` and resolved from the local store, supplied\nalready-resolved by the host (the `kapi voice` command, or a project's\n`defaults.voice` binding), or resolved lazily from the organizational context\nhierarchy on first use. With no profile the prompt carries no guidelines, and\nthe model is asked to judge against nothing.\n\nThis is the judged half of a pair. `voice-vocab-check` is the deterministic\nhalf — the profile's vocabulary and style patterns matched as rules, needing\nno credentials and no network — and it is the one to run first, so the model\nis spent on what rules cannot decide.\n",
+        "parameters": {
+          "apiKey": {
+            "description": "API key for the AI provider.",
+            "help": "Credential for the selected provider. A local provider such as Ollama may\nneed none. Prefer the credential store or the environment over writing a\nkey into a recipe.\n",
+            "values": "string"
+          },
+          "model": {
+            "description": "The model name to request from the provider.",
+            "help": "The provider-specific model identifier. Omitted, the provider's default\nmodel is used.\n",
+            "values": "string"
+          },
+          "profileId": {
+            "description": "Voice profile to resolve from the local store.",
+            "help": "The identifier of the profile whose guidelines the text is judged against.\nThe host may supply a resolved profile instead, in which case this is not\nneeded.\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "The LLM provider backend to use.",
+            "help": "Selects which model backend performs the judgement.\n",
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
+          }
+        },
+        "limitations": [
+          "Requires provider credentials and makes an external API call per block.",
+          "Findings are model output; two runs over the same text may not agree.",
+          "Judges source text only, and skips a block whose source is empty or whitespace-only."
+        ],
+        "processingNotes": [
+          "Operates on blocks; blocks are judged in parallel by default for throughput.",
+          "The compliance score and any findings are written to the block's properties, and a `voice` annotation carries both.",
+          "A profile that cannot be resolved is not an error, and the run proceeds with no guidelines in the prompt."
+        ],
+        "examples": [
+          {
+            "title": "Judge against a stored profile",
+            "description": "Resolve a profile by name from the local store and judge each block against it.",
+            "config": "provider: anthropic\nprofileId: house-style\n"
+          }
+        ]
       }
     },
     {
@@ -578,7 +620,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "AI Voice Inference",
-      "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+      "description": "Draft a voice profile from a body of existing content with an LLM, with per-field confidence and source notes.",
       "category": "analysis",
       "tags": [
         "ai-powered",
@@ -691,6 +733,58 @@
             ]
           }
         }
+      },
+      "doc": {
+        "overview": "The **AI Voice Inference** tool reads a body of content and proposes the voice\nprofile it is already written in — the inverse of `voice-check`, which holds\ncontent to a profile that exists. It is the onboarding move: a project that has\nbeen writing in a consistent register for years has a profile, and this reads\nit off the corpus rather than asking someone to write it down.\n\nInference is corpus-level rather than per-block. Every part passes through\nunchanged while the tool accumulates each block's source text, and one\ninference runs when the input stream ends. The corpus is truncated on a rune\nboundary before it is sent, so a large document set costs one bounded request.\nAn empty stream is not a failure — there is nothing to infer from, and the\ntool yields no draft.\n\nThe result is a draft in the ordinary voice-profile shape — tone, style,\nvocabulary and before/after examples — read from `Draft()` after the flow\ncompletes, together with an evidence sidecar carrying the model's confidence\nand a short source note for each top-level field. The evidence stays beside the\nprofile rather than inside it, so the draft round-trips through the same\n`profile.yaml` an author edits by hand. Treat the output as a draft: it is a\nproposal to review and commit, not a decided profile.\n",
+        "parameters": {
+          "apiKey": {
+            "description": "API key for the AI provider.",
+            "help": "Credential for the selected provider. A local provider such as Ollama may\nneed none. Prefer the credential store or the environment over writing a\nkey into a recipe.\n",
+            "values": "string"
+          },
+          "domain": {
+            "description": "Subject-domain hint woven into the prompt.",
+            "help": "A short hint at the subject matter — \"medical\", \"developer tools\", \"public\nsector\" — which steers the register the model reads the corpus as. Omitted,\nthe corpus speaks for itself.\n",
+            "values": "string"
+          },
+          "maxExamples": {
+            "description": "How many before/after examples the draft may carry.",
+            "help": "Caps the rewrite examples requested from the model and kept out of its\nresponse. Defaults to 3.\n",
+            "values": "integer ≥ 1 (default `3`)"
+          },
+          "model": {
+            "description": "The model name to request from the provider.",
+            "help": "The provider-specific model identifier. Omitted, the provider's default\nmodel is used.\n",
+            "values": "string"
+          },
+          "profileName": {
+            "description": "Name for the drafted profile.",
+            "help": "The name the draft carries. Omitted, the draft is named \"Inferred Voice\".\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "The LLM provider backend to use.",
+            "help": "Selects which model backend performs the inference.\n",
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
+          }
+        },
+        "limitations": [
+          "Requires provider credentials and makes one external API call per run.",
+          "The corpus is truncated before it is sent, so a very large content set is inferred from its beginning.",
+          "The output is a draft to review; confidence is the model's own estimate, not a measurement."
+        ],
+        "processingNotes": [
+          "Every part passes through unchanged; the tool annotates nothing on the content.",
+          "The corpus is each block's source text, accumulated over the whole stream; inference runs once, when the stream ends.",
+          "An empty or whitespace-only corpus yields no draft rather than an error."
+        ],
+        "examples": [
+          {
+            "title": "Draft a profile from a documentation set",
+            "description": "Name the draft and hint at the subject domain; the corpus is whatever the flow reads.",
+            "config": "provider: anthropic\nprofileName: House Style\ndomain: developer tools\n"
+          }
+        ]
       }
     },
     {
@@ -4418,6 +4512,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Voice Vocabulary Check",
+      "description": "Flag forbidden, competitor and retired wording from a voice profile and the project's terms.",
       "category": "quality",
       "cardinality": "monolingual",
       "produces": [
@@ -4439,6 +4534,28 @@
           ],
           "internal": true
         }
+      },
+      "doc": {
+        "overview": "The **Voice Vocabulary Check** tool is the deterministic gate a voice profile\ncarries: the forbidden terms, the competitor terms and the prohibited style\npatterns, matched over each block's source text with no model and no network.\nA forbidden term reports at major severity and a competitor term at critical,\neach defaulting from the profile and overridable per rule; where the rule names\na replacement, the finding carries it as the suggestion. Terms match whole-word\nand Unicode-aware, so `use` never fires inside `user`; style patterns match as\nthe regular expression the author wrote them as.\n\nWhen the project binds a terms store, the tool enforces that too — the\nvocabulary the project *decided*, alongside the lists the profile carries. A\ncompetitor entry reports critical, a forbidden one major and a retired one\nminor, the softer reading for a word that was the project's own until a\ndecision replaced it. The alternative comes from the concept: its preferred\nterm in the same language, or the replacement the term's note names. Lookup\nasks in the block's own language and, when that names a region, in the bare\nlanguage beneath it, so a project writing `en-GB` is still held to a decision\nrecorded as `en`.\n\nFindings and an overall score are attached as a `voice` annotation. The profile\nand the terms store are supplied by the host rather than by step configuration:\na recipe names this tool as a step (`kapi init` scaffolds exactly that) and the\nproject's `defaults.voice` binding decides what it enforces. The standalone\ncommand is `kapi check --profile`.\n\nThis is the half to run before `voice-check`, its LLM-judged sibling: what a\nrule can decide should not be spent on a model.\n",
+        "limitations": [
+          "The profile and the terms store are supplied programmatically; neither is a schema parameter.",
+          "Matching is lexical — whole-word and case-insensitive, with no account of inflection or morphology.",
+          "Judges source text only, and skips a block whose source is empty or whitespace-only.",
+          "Required style patterns are a document-scope question and are evaluated by the check venue, not here."
+        ],
+        "processingNotes": [
+          "Operates on blocks; a block with no findings is left unannotated.",
+          "Monolingual by declaration, because it reads the source — a bilingual declaration would yield no pass at all on a project with no target languages.",
+          "A term recorded in both a regional and a bare language is one decision and reports once.",
+          "Every finding carries the run range it matched, so a preview can highlight the exact words."
+        ],
+        "examples": [
+          {
+            "title": "Add to a flow",
+            "description": "The profile and terms come from the project binding, so the step needs no configuration of its own.",
+            "config": "{}\n"
+          }
+        ]
       }
     },
     {

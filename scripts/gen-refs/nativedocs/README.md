@@ -9,11 +9,17 @@ the same documentation richness as bridge cards.
 ```
 nativedocs/
 ├── formats/<format-id>.yaml   # e.g. json.yaml, html.yaml, properties.yaml
-└── tools/<tool-id>.yaml       # e.g. word-count.yaml, pseudo-translate.yaml
+└── tools/<tool-id>.yaml       # e.g. term-check.yaml, pseudo-translate.yaml
 ```
 
 - The file name **must** be the registry id (the `id` in `formats.json` /
-  `tools.json`), e.g. `json`, `word-count`.
+  `tools.json`), e.g. `json`, `voice-check`. `gen-refs` **fails** on a file name
+  no built-in entry carries, naming the file and the id it failed to match: a
+  sidecar that binds to nothing documents nothing, and read-and-dropped it leaves
+  the entry it was written for shipping the registry's bare metadata. Renaming a
+  format or a tool therefore means renaming its sidecar in the same change —
+  and, when the rename went with a change of mechanism, rewriting the prose to
+  describe the current one rather than attaching stale copy to a live entry.
 - `gen-refs` merges the sidecar into the entry: `displayName` / `description`
   override the registry values; everything else becomes the entry's `doc`,
   which the website renders and whose `parameters` map feeds `SchemaForm`'s

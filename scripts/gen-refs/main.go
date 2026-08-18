@@ -170,9 +170,10 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 }
 
 // overlayNativeDocs loads sidecars for one kind and merges them into the
-// matching built-in entries.
+// matching built-in entries. The entries are also what a sidecar must match:
+// loadNativeDocs refuses one that documents no entry.
 func overlayNativeDocs(dir, kind string, entries []Entry) error {
-	docs, err := loadNativeDocs(dir, kind)
+	docs, err := loadNativeDocs(dir, kind, entries)
 	if err != nil {
 		return fmt.Errorf("load native %s docs: %w", kind, err)
 	}

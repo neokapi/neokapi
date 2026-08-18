@@ -44,13 +44,26 @@ type nativeDocExample struct {
 	Config      string `yaml:"config"`
 }
 
-// loadNativeDocs reads every sidecar under dir/<kind>s/ keyed by entry id.
-// A missing directory yields an empty map (no native docs authored yet).
-func loadNativeDocs(dir, kind string) (map[string]*nativeDocFile, error) {
+// loadNativeDocs reads every sidecar under dir/<kind>s/ keyed by entry id, and
+// refuses one whose name matches no entry in known. A missing directory yields
+// an empty map (no native docs authored yet).
+//
+// The file name is the binding: applyNativeDoc overlays a sidecar onto the entry
+// carrying that id, so a name the registry does not carry documents nothing.
+// Dropped in silence, it leaves the entry it was written for shipping the
+// registry's bare metadata while its prose sits unread in the tree, and the gap
+// report — which measures the entry, not the file — says the entry has no
+// overview without saying why. Two tool dossiers outlived a tool rename that
+// way, so a sidecar that documents nothing is an error rather than a no-op.
+func loadNativeDocs(dir, kind string, known []Entry) (map[string]*nativeDocFile, error) {
 	subdir := filepath.Join(dir, kind+"s")
 	files, err := filepath.Glob(filepath.Join(subdir, "*.yaml"))
 	if err != nil {
 		return nil, err
+	}
+	ids := make(map[string]bool, len(known))
+	for _, e := range known {
+		ids[e.ID] = true
 	}
 	out := make(map[string]*nativeDocFile, len(files))
 	for _, f := range files {
@@ -63,6 +76,9 @@ func loadNativeDocs(dir, kind string) (map[string]*nativeDocFile, error) {
 			return nil, fmt.Errorf("parse %s: %w", f, uerr)
 		}
 		id := trimSuffix(filepath.Base(f), ".yaml")
+		if !ids[id] {
+			return nil, fmt.Errorf("%s documents nothing: no built-in %s has the id %q the file name binds it to", f, kind, id)
+		}
 		out[id] = &ndf
 	}
 	return out, nil
