@@ -67,8 +67,16 @@ jobs:
           # `latest` resolves stable tags only, so a prerelease is reachable
           # from a pin and from nowhere else. The CLI and the plugin are cut at
           # one version, so this pair is the pair that was released together.
-          version: 1.2.0-rc25
-          plugins: bowrain@1.2.0-rc25
+          #
+          # rc26 is the first release whose transfer hash covers what a block is
+          # STORED as rather than its source text alone, so this run delivers
+          # `properties.hash` to content pushed before the JSX reader recorded
+          # it — the key the reviewer joins a string to the component that ships
+          # it. Once it has pushed, this stream's content model is generation 1
+          # and rc25 is refused rather than allowed to flatten it: the pin is
+          # not optional from here.
+          version: 1.2.0-rc26
+          plugins: bowrain@1.2.0-rc26
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
