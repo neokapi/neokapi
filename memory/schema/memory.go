@@ -37,6 +37,11 @@ var (
 			// has_codes is added by a later migration (v3 SQLite); Postgres
 			// derives the facet at query time and never stores it.
 			{Name: "has_codes", SQLite: "INTEGER NOT NULL DEFAULT 0"},
+			// point is added by a later migration (v4 SQLite): the context
+			// point an answer was approved at. SQLite only — the point resolves
+			// from a recipe, which is a project's own artifact, and the server
+			// scopes a decision by the item it belongs to instead.
+			{Name: "point", SQLite: "TEXT NOT NULL DEFAULT ''"},
 		},
 		PGPK: []string{"id"},
 		Indexes: []sq.Index{
@@ -215,7 +220,7 @@ var pgFuzzyBaselineBlock = strings.NewReplacer(
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
 // IF NOT EXISTS, aligned index names, has_codes/concept_id excluded (added by
 // later migrations).
-var sqliteV1Opt = sq.Opt{IfNotExists: true, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id"}}
+var sqliteV1Opt = sq.Opt{IfNotExists: true, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point"}}
 
 // RenderMemorySQLiteV1 renders the v1 SQLite content memory migration body, byte-identical to
 // the historical hand-written migration.
@@ -249,12 +254,19 @@ func RenderMemorySQLiteV3() string {
 	return "\n" + memoryEntries.AddColumn(sq.SQLite, o, "has_codes") + "\t\t"
 }
 
+// RenderMemorySQLiteV4 renders the v4 SQLite migration: the context point an
+// entry's answer was approved at.
+func RenderMemorySQLiteV4() string {
+	o := sq.Opt{}
+	return "\n" + memoryEntries.AddColumn(sq.SQLite, o, "point") + "\t\t"
+}
+
 // RenderMemoryPostgresCreate renders the fresh-install Postgres content memory schema (the body
 // of historical migration v4, without the leading DROP statements): all tables
 // partitioned by the given tenant column plus the pg_trgm/tsvector fuzzy
 // infrastructure.
 func RenderMemoryPostgresCreate(tenantColumn string) string {
-	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id"}}
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
@@ -296,7 +308,7 @@ func RenderMemoryPostgresCreate(tenantColumn string) string {
 // and a baseline is re-applied by design — carrying them would mean every
 // migrate pass silently destroyed the content memory it was meant to preserve.
 func RenderMemoryPostgresBaseline(tenantColumn string) string {
-	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes"}}
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes", "point"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))

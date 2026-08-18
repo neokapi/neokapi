@@ -297,11 +297,134 @@ func TestAbsorbCommittedRecord_LaterStatementWins(t *testing.T) {
 		"an edited target is the newer statement in its turn")
 }
 
-// TestAbsorbCommittedRecord_ContestedSourceResolvesToTheRepeatedAnswer: the
-// record itself answers one string two ways. No text-keyed store can hold both
-// without making every occurrence unfillable, so the answer the corpus repeats
-// wins and the disagreement is counted for a reader.
-func TestAbsorbCommittedRecord_ContestedSourceResolvesToTheRepeatedAnswer(t *testing.T) {
+// newTwoChannelRecordProject writes a project whose two collections sit at two
+// points of one product's context space — the shape the repo's own recipe has,
+// where the CLI's catalog and the engine's are reviewed apart and absorbed
+// together.
+func newTwoChannelRecordProject(t *testing.T) (a *App, root, recipe string) {
+	t.Helper()
+	root = t.TempDir()
+	for _, dir := range []string{"cli", "engine"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, dir), 0o755))
+	}
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Name:    "TwoChannelRecordTest",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Profiles: map[string]project.Profile{
+			"neokapi": {Channels: []project.Channel{{ID: "cli"}, {ID: "engine"}}},
+		},
+		Collections: []project.Collection{
+			{Name: "neokapi-cli", Channel: "neokapi/cli", Path: "cli/en.json", Target: "cli/{lang}.json"},
+			{Name: "neokapi-engine", Channel: "neokapi/engine", Path: "engine/en.json", Target: "engine/{lang}.json"},
+		},
+	}
+	recipe = filepath.Join(root, project.RecipeFileName)
+	require.NoError(t, project.Save(recipe, proj))
+
+	a = &App{}
+	a.InitRegistries()
+	return a, root, recipe
+}
+
+// lookupFrom asks the store the question a fill asks: for this source, at this
+// point, what does the record answer? It is the full-score, unambiguous
+// question a `fillTargetThreshold: 100` policy puts.
+func lookupFrom(t *testing.T, a *App, root, source, at string) []memory.Match {
+	t.Helper()
+	db, err := a.ProjectDB(context.Background(), root)
+	require.NoError(t, err)
+	tm := db.Memory()
+	require.NotNil(t, tm)
+	block := &model.Block{ID: "q", Translatable: true}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: source}}})
+	matches, err := tm.Lookup(context.Background(), block, "en", "nb", memory.LookupOptions{
+		MinScore: 1.0, MaxResults: 20, Point: at,
+	})
+	require.NoError(t, err)
+	return matches
+}
+
+// TestAbsorbCommittedRecord_ContestedSourceResolvesToTheNearestApproval is the
+// defect this file was written around, in miniature: one English string, two
+// Norwegian answers, each approved in a different collection of the same
+// product. The record used to pick between them by how often the corpus
+// repeated each spelling, so the CLI's own reviewed wording was replaced by the
+// engine's for no reason other than the engine having three occurrences to the
+// CLI's one — and adding or removing an unrelated string could flip it back.
+//
+// The engine's answer is BOTH the more repeated one and the one that sorts
+// first, so neither the old rule nor the tie-break can produce this result: only
+// asking from where the string sits does.
+func TestAbsorbCommittedRecord_ContestedSourceResolvesToTheNearestApproval(t *testing.T) {
+	a, root, recipe := newTwoChannelRecordProject(t)
+	writeDoc(t, root, "cli/en.json", `{"recycle":"Recycle"}`)
+	writeDoc(t, root, "cli/nb.json", `{"recycle":"Gjenbruk"}`)
+	writeDoc(t, root, "engine/en.json", `{"a":"Recycle","b":"Recycle","c":"Recycle"}`)
+	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen","b":"Bruk om igjen","c":"Bruk om igjen"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 4, res.Record.Pairs)
+	assert.Equal(t, 1, res.Record.Contested, "one source string, answered two ways")
+	assert.Equal(t, 2, res.Record.Learned, "one entry per approval, not one winner")
+
+	cli := memory.NewPoint("neokapi", "cli", "neokapi-cli")
+	engine := memory.NewPoint("neokapi", "engine", "neokapi-engine")
+
+	fromCLI := lookupFrom(t, a, root, "Recycle", cli)
+	require.NotEmpty(t, fromCLI)
+	assert.False(t, fromCLI[0].Ambiguous)
+	assert.Equal(t, "Gjenbruk", fromCLI[0].Entry.VariantText("nb"),
+		"the CLI is answered by the approval made in the CLI's own collection, "+
+			"though the other answer is repeated three times over and sorts first")
+
+	fromEngine := lookupFrom(t, a, root, "Recycle", engine)
+	require.NotEmpty(t, fromEngine)
+	assert.False(t, fromEngine[0].Ambiguous)
+	assert.Equal(t, "Bruk om igjen", fromEngine[0].Entry.VariantText("nb"))
+}
+
+// TestAbsorbCommittedRecord_ContestedSourceIsNamed: a count says a disagreement
+// exists and leaves nobody able to look at it. Both candidates are real
+// translations a reader approved, so the only way to audit the resolver is to
+// see both answers and where each was approved.
+func TestAbsorbCommittedRecord_ContestedSourceIsNamed(t *testing.T) {
+	a, root, recipe := newTwoChannelRecordProject(t)
+	writeDoc(t, root, "cli/en.json", `{"recycle":"Recycle"}`)
+	writeDoc(t, root, "cli/nb.json", `{"recycle":"Gjenbruk"}`)
+	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
+	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	require.Len(t, res.Record.ContestedSources, 1)
+	c := res.Record.ContestedSources[0]
+	assert.Equal(t, "Recycle", c.Source)
+	assert.Equal(t, model.LocaleID("nb"), c.Locale)
+	assert.Equal(t, []ContestedAnswer{
+		{Target: "Gjenbruk", Point: "neokapi/cli/neokapi-cli", Governs: true},
+		{Target: "Bruk om igjen", Point: "neokapi/engine/neokapi-engine", Governs: true},
+	}, c.Answers, "each answer, and the point that approved it")
+
+	line := formatSeedLine(res)
+	assert.Contains(t, line, "1 source string(s) the record answers more than one way")
+	assert.Contains(t, line, `contested: "Recycle" in nb`)
+	assert.Contains(t, line, `"Gjenbruk" approved at neokapi/cli/neokapi-cli`)
+	assert.Contains(t, line, `"Bruk om igjen" approved at neokapi/engine/neokapi-engine`)
+}
+
+// TestAbsorbCommittedRecord_TwoApprovalsAtOnePointFallToTheirText: coordinates
+// cannot separate two answers approved in the same collection, and the fallback
+// must not be the repeat count the coordinates replaced — a winner that moves
+// when unrelated content moves is exactly the defect. The answer's own text
+// decides instead: arbitrary in meaning, and a function of the two answers
+// alone, so it cannot move when anything else does.
+func TestAbsorbCommittedRecord_TwoApprovalsAtOnePointFallToTheirText(t *testing.T) {
 	a, root, recipe := newRecordProject(t, ".json")
 	writeDoc(t, root, "src/en.json", `{"a":"Name","b":"Name","c":"Name"}`)
 	writeDoc(t, root, "src/nb.json", `{"a":"Navn","b":"Navn","c":"Betegnelse"}`)
@@ -309,14 +432,111 @@ func TestAbsorbCommittedRecord_ContestedSourceResolvesToTheRepeatedAnswer(t *tes
 	res, err := a.SeedProjectContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 3, res.Record.Pairs)
-	assert.Equal(t, 1, res.Record.Learned, "one source string, one entry")
 	assert.Equal(t, 1, res.Record.Contested)
+	assert.Equal(t, 1, res.Record.Learned, "one point, so one entry")
 
-	matches := lookupFullScore(t, a, root, "Name")
+	at := memory.NewPoint("", "", "app")
+	matches := lookupFrom(t, a, root, "Name", at)
 	require.Len(t, matches, 1)
 	assert.False(t, matches[0].Ambiguous)
-	entry := matches[0].Entry
-	assert.Equal(t, "Navn", entry.VariantText("nb"))
+	assert.Equal(t, "Betegnelse", matches[0].Entry.VariantText("nb"),
+		"the smaller text, not the twice-repeated one")
+
+	// The corpus grows a third occurrence of the losing spelling. Under the
+	// repeat count that flips the answer; under the tie-break nothing moves.
+	writeDoc(t, root, "src/en.json", `{"a":"Name","b":"Name","c":"Name","d":"Name"}`)
+	writeDoc(t, root, "src/nb.json", `{"a":"Navn","b":"Navn","c":"Betegnelse","d":"Navn"}`)
+	_, err = a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	after := lookupFrom(t, a, root, "Name", at)
+	require.Len(t, after, 1)
+	assert.Equal(t, "Betegnelse", after[0].Entry.VariantText("nb"),
+		"a rebuild reproduces the wording it started from")
+}
+
+// TestAbsorbCommittedRecord_ContestedSourceIsAmbiguousWithoutAPoint: a reader
+// who cannot say where they are asking from has no way to prefer one approval
+// over another, and the corpus says so rather than picking. That is the same
+// answer it always gave; what changed is that a caller who CAN say where it is
+// now gets a decision instead.
+func TestAbsorbCommittedRecord_ContestedSourceIsAmbiguousWithoutAPoint(t *testing.T) {
+	a, root, recipe := newTwoChannelRecordProject(t)
+	writeDoc(t, root, "cli/en.json", `{"recycle":"Recycle"}`)
+	writeDoc(t, root, "cli/nb.json", `{"recycle":"Gjenbruk"}`)
+	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
+	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
+
+	_, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+
+	assert.Empty(t, lookupFrom(t, a, root, "Recycle", ""),
+		"a full-score policy takes neither approval when it cannot say which one governs here")
+
+	db, err := a.ProjectDB(context.Background(), root)
+	require.NoError(t, err)
+	block := &model.Block{ID: "q", Translatable: true}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Recycle"}}})
+	matches, err := db.Memory().Lookup(context.Background(), block, "en", "nb",
+		memory.LookupOptions{MinScore: 0.7, MaxResults: 20})
+	require.NoError(t, err)
+	require.Len(t, matches, 2)
+	for _, m := range matches {
+		assert.True(t, m.Ambiguous, "both approvals are offered, and neither is filled unattended")
+	}
+}
+
+// TestAbsorbCommittedRecord_RelearnsAStoreKeyedWithoutItsPoint: a store written
+// before an answer carried the point that approved it holds one row per source,
+// with whichever wording the corpus repeated most. Left alone, that row sits
+// beside the point-keyed ones as a rival bound to no location — competing at
+// full score with the approvals that actually govern.
+//
+// The absorber's own entries are re-learned rather than migrated, because
+// everything it taught the corpus is reproducible from the committed
+// translations it read. What the corpus learned elsewhere is not the record's to
+// forget, and is left where it is.
+func TestAbsorbCommittedRecord_RelearnsAStoreKeyedWithoutItsPoint(t *testing.T) {
+	a, root, recipe := newTwoChannelRecordProject(t)
+	ctx := context.Background()
+	writeDoc(t, root, "cli/en.json", `{"recycle":"Recycle"}`)
+	writeDoc(t, root, "cli/nb.json", `{"recycle":"Gjenbruk"}`)
+	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
+	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
+
+	_, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+
+	// A store as an older kapi left it: one record-derived row for the source,
+	// carrying no point, and the pass having stamped every artifact as read.
+	db, err := a.ProjectDB(ctx, root)
+	require.NoError(t, err)
+	legacy := memory.Entry{
+		ID:          "record:legacy",
+		HintSrcLang: "en",
+		Origins:     []memory.Origin{{Source: "record", Key: "cli/nb.json"}},
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Recycle"}}},
+			"nb": {{Text: &model.TextRun{Text: "Attvinning"}}},
+		},
+	}
+	require.NoError(t, db.Memory().Add(ctx, legacy))
+	require.NoError(t, db.PutMeta(ctx, MetaRecordScheme, ""))
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 2, res.Record.Documents, "every committed target is read again")
+
+	entries := storeEntries(t, a, root)
+	require.NotEmpty(t, entries)
+	all, err := db.Memory().Entries(ctx)
+	require.NoError(t, err)
+	for _, e := range all {
+		assert.NotEqual(t, "record:legacy", e.ID, "the row bound to no location is gone")
+	}
+
+	fromCLI := lookupFrom(t, a, root, "Recycle", memory.NewPoint("neokapi", "cli", "neokapi-cli"))
+	require.NotEmpty(t, fromCLI)
+	assert.Equal(t, "Gjenbruk", fromCLI[0].Entry.VariantText("nb"))
 }
 
 // TestAbsorbCommittedRecord_FoldsEveryLocaleIntoOneEntry: an entry is

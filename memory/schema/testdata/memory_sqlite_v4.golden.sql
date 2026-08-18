@@ -1,0 +1,3 @@
+
+		ALTER TABLE tm_entries ADD COLUMN point TEXT NOT NULL DEFAULT '';
+		

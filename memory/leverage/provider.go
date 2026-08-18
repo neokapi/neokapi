@@ -94,10 +94,16 @@ func (p *Provider) LookupFuzzy(ctx context.Context, source string, sourceLocale,
 // tool records them without filling. Entity adaptations computed during the
 // match are applied to the target runs so a stored translation is retargeted to
 // the current source's entity values before it is offered as a fill.
-func (p *Provider) LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (tools.MemoryBlockMatch, bool) {
+//
+// at is the context point the fill is happening at. A source the record answers
+// more than one way — one wording approved in this collection, another approved
+// elsewhere — resolves to the approval nearest here, which is what keeps one
+// surface's reviewed wording out of another's.
+func (p *Provider) LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int, at string) (tools.MemoryBlockMatch, bool) {
 	matches, err := p.tm.Lookup(ctx, block, sourceLocale, targetLocale, memory.LookupOptions{
 		MinScore:   float64(threshold) / 100.0,
 		MaxResults: 1,
+		Point:      at,
 	})
 	if err != nil || len(matches) == 0 {
 		return tools.MemoryBlockMatch{}, false

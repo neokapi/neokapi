@@ -63,6 +63,7 @@ type Entry struct {
     Properties  map[string]string
     Origins     []Origin
     Note        string
+    Point       string                         // where this answer was approved
     CreatedAt   time.Time
     UpdatedAt   time.Time
 }
@@ -70,7 +71,9 @@ type Entry struct {
 
 `HintSrcLang` records which locale the author treated as canonical, and is used
 for display and entity direction only. An entity mapping records a typed entity
-across every variant with its per-locale value and position.
+across every variant with its per-locale value and position. `Point` records
+where the answer was approved — see [Where an answer was
+approved](#where-an-answer-was-approved).
 
 ### Derived matching keys
 
@@ -102,9 +105,13 @@ computed at write time:
 
 Two cross-cutting rules apply to the exact tiers:
 
-- **Ambiguity demotion.** When several entries match at full score but disagree
-  on the target text, none of them is *the* translation: all are demoted to
-  near-exact and flagged ambiguous. Full-score policies — a strict lookup, a
+- **Nearest approval wins.** When several entries match at full score but
+  disagree on the target text, the one approved nearest the point the caller is
+  asking from is the one that governs there, and the others demote out of its
+  way. See [Where an answer was approved](#where-an-answer-was-approved).
+- **Ambiguity demotion.** A caller that names no point cannot prefer one
+  approval over another, so none of them is *the* translation: all are demoted
+  to near-exact and flagged ambiguous. Full-score policies — a strict lookup, a
   100-threshold leverage step, extract pre-fill — therefore get nothing rather
   than a coin flip, and the choice surfaces for review. Identical targets at full
   score are not ambiguous, because the pick does not matter.
@@ -128,6 +135,57 @@ When a generalized match is found, the result carries adaptation information tha
 substitutes entity values from the current source into the stored target. The
 `recycle` tool applies these automatically, so what arrives is a pre-adapted
 target with the correct values already in place.
+
+### Where an answer was approved
+
+A project answers one source string more than once, and the answers do not have
+to agree. Two collections reviewed apart — a CLI's help catalog and an engine's
+metadata catalog — can each carry a reviewed Norwegian wording for the same
+English sentence, and both are correct where they were approved. The corpus
+absorbs both, so it has to be able to hand back the right one.
+
+**A decision is qualified by where it was made.** Each entry the record teaches
+the corpus carries the **context point** its answer was approved at — the
+coordinate [C-02](c-02-coordinates-and-governance.md) resolves, rendered as the
+containment ladder:
+
+```
+profile → channel → collection
+```
+
+**Nearest is a prefix comparison down that ladder.** Two points are 0 apart when
+they name the same collection, 1 apart when they share a channel, 2 apart when
+they share only a product, and maximally apart when they share nothing.
+Containment is what makes the comparison meaningful: two files in one collection
+ship on one channel by construction, so a match at a fine rung that disagreed at
+a coarse one would not describe anything. An entry bound to no location — a
+seed, an import, an ad-hoc addition — sits at the project's default point, which
+is maximally far from every answer that names a product. That is the right
+reading rather than a missing value: such an entry was never approved anywhere in
+particular.
+
+The ladder stops at the collection because that is the finest place a fill can
+honestly name itself at. A project flow resolves its governance once and bakes it
+into the tool chain before any content is read, and the chain is shared by every
+file of a binding group ([C-02](c-02-coordinates-and-governance.md), *One run,
+one resolution per collection*), so the point a `recycle` step asks from is its
+group's product and channel.
+
+**A genuine tie is broken by the answer's own text, smallest byte sequence
+first.** Two approvals at one point, or two points equally far from the asker,
+are a disagreement the ladder cannot separate, and the fallback must not be
+anything that moves when the rest of the corpus moves — a winner decided by how
+often each spelling happens to appear flips when an unrelated string is added or
+removed, so a rebuild stops reproducing the wording it started from. The
+answer's own text is arbitrary in meaning and exact in behaviour: a function of
+the two answers alone. A tie is also **reported**, because two approvals at one
+point is a question about the project's governance that the corpus cannot
+answer.
+
+Every contested source is named where the absorption is reported — the source,
+each answer, and the point that approved it — because both candidates are real
+translations a reader approved, so no gate tells them apart on quality and a
+count alone leaves nobody able to look at the disagreement.
 
 ### The lookup interface
 
@@ -212,9 +270,18 @@ back as if a person had committed it.
 Two rules keep the absorbed record honest. A pair whose target does not carry its
 source's inline codes is refused rather than stored — the same predicate
 `recycle` fills by. And where the record answers one source string more than one
-way, the answer the corpus repeats most often wins: no text-keyed store can hold
-both, and holding both makes every occurrence unfillable through the ambiguity
-rule above.
+way, each answer keeps an entry of its own under the point that approved it, so
+the fill resolves between them by asking from where it is — see [Where an answer
+was approved](#where-an-answer-was-approved). A source answered the same way
+wherever it appears stays one entry bound to no point: an answer every point
+agrees on is not a decision about a place, and giving it one would put a copy of
+it in the store per collection that carries the string.
+
+Because the absorber's entries are reproducible from the committed translations
+by construction — that is what this stage does — a store written under an older
+entry identity is **re-learned rather than migrated**: the pass forgets the
+entries it minted and the stamps that would let it skip a document, and reads the
+record again. What the corpus learned elsewhere is not the record's to forget.
 
 Whether the loop materializes context on its own is a recipe decision:
 `defaults.materialize` is `manual` by default and `on-converge` opts the project
@@ -293,6 +360,9 @@ entity mappings, so the memory accumulates richer data over time.
 
 - The memory stores rich content — run sequences with inline-code runs and entity
   metadata — not flat strings.
+- One source string can carry a different reviewed answer per collection, and a
+  fill that knows where it is gets the local one. A rebuild therefore reproduces
+  the wording it started from instead of moving with the corpus.
 - Generalized matching turns entity variation from a fuzzy penalty into an exact
   match at the top tier.
 - Inline codes survive storage and matching, reducing manual tag reinsertion.
@@ -304,6 +374,8 @@ entity mappings, so the memory accumulates richer data over time.
 
 ## See also
 
+- [C-02: Coordinates and governance](c-02-coordinates-and-governance.md) — the
+  context space an approval point names, and the resolver that answers it.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md) —
   the state carrier this store is deliberately not.
 - [C-08: Terms](c-08-terms.md) — shared matching infrastructure and the

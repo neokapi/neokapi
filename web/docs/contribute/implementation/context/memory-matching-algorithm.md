@@ -45,12 +45,20 @@ Lookup tries matching strategies in order of reuse potential:
 5. structural fuzzy -- Levenshtein on structural keys
 6. plain fuzzy -- Levenshtein on plain keys
 
-After the exact tiers, the ambiguity rule runs: multiple full-score
-matches with *differing* target texts all demote to `ScoreNearExact` and
-flag `Match.Ambiguous` -- exact-only consumers (extract pre-fill,
-`fillTargetThreshold: 100`) skip them instead of picking by storage order.
-Results order deterministically by (score desc, match-type priority,
-entry ID).
+After the exact tiers, multiple full-score matches with *differing* target
+texts are settled by where each answer was approved. `LookupOptions.Point`
+names the point the caller is asking from; each entry carries the point its
+answer was approved at (`Entry.Point`, the `point` column on `tm_entries`,
+SQLite migration v4). `memory.PointDistance` compares the two as a prefix walk
+down `profile → channel → collection`, and the nearest answer keeps score 1.0
+while the rest demote to `ScoreNearExact`. A tie -- two approvals at one point,
+or two equally far -- goes to the smaller target text (`memory.NearerAnswer`).
+
+A caller that names no point settles nothing: the ambiguity rule runs instead
+and every full-score match demotes to `ScoreNearExact` with `Match.Ambiguous`
+set, so exact-only consumers (extract pre-fill, `fillTargetThreshold: 100`)
+skip them rather than picking by storage order. Results order deterministically
+by (score desc, match-type priority, entry ID).
 
 The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold (default 70%) provides fuzzy matching.
 

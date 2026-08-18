@@ -1617,6 +1617,16 @@ type ProjectBindings struct {
 	// ToolPresets (per-locale wins) and under the step's own config (the step
 	// still wins). nil when the recipe declares none.
 	localePresets map[string]project.LocaleDefaults
+	// point is where this group's content sits in the context space, rendered
+	// for the content memory (memory.NewPoint). It is injected into recycle as
+	// config["point"], which is how a fill asks the corpus for the answer
+	// approved nearest here rather than the one it repeats most.
+	//
+	// It is resolved to the group's channel, not to a file: a project flow bakes
+	// its governance into the tool chain before any content is read, and the
+	// chain is shared by every file in the group, so the channel is the finest
+	// place a fill can honestly name itself at.
+	point string
 }
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
@@ -1650,7 +1660,17 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		return nil, err
 	}
 
-	if profile == nil && len(glossary) == 0 && len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
+	// Resolved directly rather than through ResolveGovernanceAtPoint: this is a
+	// second read of a resolution the run has already reported, and reporting a
+	// closing governance window twice would read as two events.
+	gov, err := proj.ResolveGovernanceFor(point)
+	if err != nil {
+		return nil, err
+	}
+	at := sqltm.NewPoint(gov.Profile, gov.Channel, "")
+
+	if profile == nil && len(glossary) == 0 && at == "" &&
+		len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
 		return nil, nil
 	}
 	return &ProjectBindings{
@@ -1658,6 +1678,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		glossary:      glossary,
 		ToolPresets:   proj.Defaults.Tools,
 		localePresets: proj.Defaults.Locales,
+		point:         at,
 	}, nil
 }
 
@@ -2166,6 +2187,18 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		if _, ok := config["profile"]; !ok {
 			clone()
 			config["profile"] = b.profile
+		}
+	}
+
+	// Context point → recycle. A fill asks the content memory from where it is,
+	// so a source string the record answers more than one way is answered by the
+	// approval nearest this point rather than by whichever wording the corpus
+	// happens to repeat most. Translate takes no point: it produces a new
+	// translation rather than choosing between approved ones.
+	if b.point != "" && isMemoryRecycleTool(toolName, s) {
+		if _, ok := config["point"]; !ok {
+			clone()
+			config["point"] = b.point
 		}
 	}
 

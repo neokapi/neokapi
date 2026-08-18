@@ -123,8 +123,14 @@ type Entry struct {
 	Properties  map[string]string
 	Origins     []Origin
 	Note        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Point is where this answer was approved: the context point on the
+	// containment ladder (see point.go), empty for an entry bound to no
+	// location — a seed, an import, an ad-hoc addition. It is what lets one
+	// source string carry a different approved answer per collection, and what
+	// a lookup measures nearness against.
+	Point     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Variant returns the Run sequence for a given locale, or nil if not
@@ -242,6 +248,48 @@ func demoteAmbiguousExacts(matches []Match, targetLocale model.LocaleID) {
 	}
 }
 
+// resolveNearestApproval settles a full-score disagreement by where each answer
+// was approved: the approval nearest the point the caller is asking from is the
+// one that governs there, and every other full-score answer demotes out of its
+// way. It reports whether it settled anything.
+//
+// This is what stops one collection's reviewed wording from being answered by
+// another's. Both answers are real translations approved by a reader, so no
+// gate can tell them apart on quality; what tells them apart is that one of them
+// was approved where the string being written actually sits.
+//
+// A caller with no point in hand settles nothing — nearness to nowhere is not a
+// measurement — and the disagreement falls to the ambiguity rule, which is the
+// honest answer for a reader who cannot say where they are asking from.
+func resolveNearestApproval(matches []Match, targetLocale model.LocaleID, at string) bool {
+	if at == "" {
+		return false
+	}
+	best := -1
+	targets := map[string]bool{}
+	for i := range matches {
+		if matches[i].Score < 1.0 {
+			continue
+		}
+		text := matches[i].Entry.VariantText(targetLocale)
+		targets[text] = true
+		if best < 0 || NearerAnswer(matches[i].Entry.Point, text, matches[best].Entry.Point,
+			matches[best].Entry.VariantText(targetLocale), at) {
+			best = i
+		}
+	}
+	if best < 0 || len(targets) <= 1 {
+		return false
+	}
+	winner := matches[best].Entry.VariantText(targetLocale)
+	for i := range matches {
+		if matches[i].Score >= 1.0 && matches[i].Entry.VariantText(targetLocale) != winner {
+			matches[i].Score = ScoreNearExact
+		}
+	}
+	return true
+}
+
 // ProjectScope controls project filtering in content-memory lookups.
 type ProjectScope int
 
@@ -258,6 +306,12 @@ type LookupOptions struct {
 	MatchModes   []MatchMode  // which key types to use (default: all)
 	ProjectID    string       // project context for scoring boost
 	ProjectScope ProjectScope // project filtering mode (default: all)
+	// Point is where the caller is asking from — the context point of the unit
+	// about to be filled. When a source has more than one approved answer, the
+	// approval nearest this point wins (resolveNearestApproval). Empty means
+	// the caller has no location in hand, and a disagreement is then reported
+	// as ambiguous rather than settled by a nearness nobody can measure.
+	Point string
 }
 
 // MatchMode controls which matching tiers to use.

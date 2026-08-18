@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -354,6 +355,34 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 	explicit := a.applyBindings(b, "translate", nil, map[string]any{"profile": caller})
 	assert.Equal(t, caller, explicit["profile"],
 		"an explicit per-call profile outranks the recipe's collection-tier binding")
+}
+
+// TestResolveProjectBindings_CarriesThePointToRecycle: a fill has to know where
+// it is happening. The record can hold two reviewed answers for one source —
+// one approved in each collection that carries the string — and the corpus can
+// only prefer the local one if the caller says which one it is. The point comes
+// from the same resolution the voice does, and reaches recycle and nothing else:
+// translate produces a new translation rather than choosing between approved
+// ones.
+func TestResolveProjectBindings_CarriesThePointToRecycle(t *testing.T) {
+	recipe, _ := governedProject(t, "platform/docs")
+	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+	require.NoError(t, err)
+
+	a := &App{}
+	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe,
+		project.GovernancePoint{Collection: "platform-docs"})
+	require.NoError(t, err)
+	require.NotNil(t, b)
+
+	want := memory.NewPoint("platform", "docs", "")
+	assert.Equal(t, want, b.point, "the group's product and channel, as the recipe binds them")
+
+	recycled := a.applyBindings(b, "recycle", nil, map[string]any{})
+	assert.Equal(t, want, recycled["point"], "recycle asks the corpus from where it is")
+
+	translated := a.applyBindings(b, "translate", nil, map[string]any{})
+	assert.NotContains(t, translated, "point", "translate chooses between no approvals")
 }
 
 // TestRecipeGovernanceEntersTheChain is the unification: the profile a

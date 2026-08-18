@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -473,10 +474,14 @@ type mockBlockMemoryProvider struct {
 	match tools.MemoryBlockMatch
 	found bool
 	calls int
+	// at records the context point the tool asked from, so a test can assert
+	// that a fill names where it is happening.
+	at string
 }
 
-func (m *mockBlockMemoryProvider) LookupBlock(_ context.Context, _ *model.Block, _, _ model.LocaleID, _ int) (tools.MemoryBlockMatch, bool) {
+func (m *mockBlockMemoryProvider) LookupBlock(_ context.Context, _ *model.Block, _, _ model.LocaleID, _ int, at string) (tools.MemoryBlockMatch, bool) {
 	m.calls++
+	m.at = at
 	return m.match, m.found
 }
 
@@ -535,6 +540,27 @@ func TestMemoryLeverageBlockAwareRunsFill(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 100, tm.Score)
 	assert.Equal(t, "exact", tm.Type)
+}
+
+// TestMemoryLeverageAsksFromWhereItIs: a fill has to name the point it is
+// happening at, or the content memory cannot tell one collection's reviewed
+// wording from another's and answers both with whichever it repeats most. The
+// point comes from the flow's bindings and reaches the lookup unchanged.
+func TestMemoryLeverageAsksFromWhereItIs(t *testing.T) {
+	t.Parallel()
+	provider := &mockBlockMemoryProvider{
+		match: tools.MemoryBlockMatch{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
+		found: true,
+	}
+	at := memory.NewPoint("neokapi", "cli", "neokapi-cli")
+	cfg := &tools.MemoryLeverageConfig{
+		TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish,
+		FuzzyThreshold: 70, Provider: provider, Point: at,
+	}
+	tl := tools.NewMemoryLeverageTool(cfg)
+
+	processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	assert.Equal(t, at, provider.at, "the fill names the collection it is filling")
 }
 
 // TestMemoryLeverageBlockAwareAmbiguousSkips: an ambiguous match is recorded
@@ -786,7 +812,7 @@ func (p *ctxCapturingProvider) LookupFuzzy(ctx context.Context, _ string, _, _ m
 	return "", 0, false
 }
 
-func (p *ctxCapturingProvider) LookupBlock(ctx context.Context, _ *model.Block, _, _ model.LocaleID, _ int) (tools.MemoryBlockMatch, bool) {
+func (p *ctxCapturingProvider) LookupBlock(ctx context.Context, _ *model.Block, _, _ model.LocaleID, _ int, _ string) (tools.MemoryBlockMatch, bool) {
 	p.got = append(p.got, ctx)
 	if p.block {
 		return tools.MemoryBlockMatch{

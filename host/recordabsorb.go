@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -42,6 +43,18 @@ import (
 // project-relative slash path to digest.
 const MetaRecordDigests = "context.recordDigests"
 
+// MetaRecordScheme is the store-metadata key holding the identity the
+// absorber's own entries were last written under. A store written under an
+// older one is re-learned rather than migrated: everything the absorber taught
+// the corpus is, by construction, reproducible from the committed translations
+// it read — that IS what this file does — so re-reading them costs one pass and
+// carries no risk of a half-converted row.
+const MetaRecordScheme = "context.recordScheme"
+
+// recordSchemeCurrent names the identity in force: an entry per (source,
+// approval point).
+const recordSchemeCurrent = "point"
+
 // recordOriginSource marks a content-memory origin whose pair was read back out
 // of a committed target artifact, as opposed to a seed bundle (whose origins the
 // bundle carries) or an approval promoted by `kapi apply` (Source "apply").
@@ -64,9 +77,13 @@ type RecordAbsorbResult struct {
 	// of the text, or an interpolation token left in it. Such a pair can only
 	// produce a translation with a hole in it, so it is not absorbed.
 	Refused int `json:"refused,omitempty"`
-	// Contested counts source texts the record answers more than one way. The
-	// pair the corpus repeats most often wins; the rest are reported here.
-	Contested int `json:"contested,omitempty"`
+	// Contested counts source texts the record answers more than one way, and
+	// ContestedSources names them: each answer, and the point it was approved
+	// at. A count alone says a disagreement exists and leaves nobody able to
+	// look at it; the resolver's choices are only auditable if the choices are
+	// on the page.
+	Contested        int               `json:"contested,omitempty"`
+	ContestedSources []ContestedSource `json:"contestedSources,omitempty"`
 	// Superseded counts pairs the project's own record says do not go together:
 	// the committed target translates source wording that has since been
 	// rewritten, so it is not a translation of the sentence now beside it. Such
@@ -92,14 +109,21 @@ type recordUnit struct {
 	format                string
 	config                map[string]any
 	locale                model.LocaleID
+	// point is where the source document sits in the project's context space —
+	// the product, the channel and the collection that claim it. It is the
+	// approval point of every pair this unit carries: a committed translation
+	// was reviewed where its document lives, and that is what qualifies it
+	// against a different answer approved somewhere else.
+	point string
 }
 
-// recordTarget is one answer the record gives for a source, with how often the
-// corpus repeats it and where it was first seen.
-type recordTarget struct {
+// recordAnswer is one answer the record gives for a source: the target wording,
+// and the context point it was approved at.
+type recordAnswer struct {
 	runs  []model.Run
-	count int
-	order int
+	text  string // the normalized target text, the answer's identity
+	point string
+	order int // first occurrence in the recipe's stable content order
 }
 
 // recordPair collects every answer the committed record gives for one source
@@ -108,20 +132,115 @@ type recordPair struct {
 	order      int
 	locale     model.LocaleID
 	sourceRuns []model.Run
-	targets    map[string]*recordTarget
-	origin     memory.Origin
+	// answers is keyed by (point, target text): one point can answer a source
+	// twice — two keys of one catalog holding the same English and different
+	// Norwegian — and two points can give the same answer.
+	answers map[string]*recordAnswer
+	origin  memory.Origin
 }
 
-// winner returns the target the corpus repeats most often, ties broken by first
-// occurrence in the recipe's stable content order, plus whether the record gave
-// more than one answer.
-func (p *recordPair) winner() (target *recordTarget, contested bool) {
-	for _, t := range p.targets {
-		if target == nil || t.count > target.count || (t.count == target.count && t.order < target.order) {
-			target = t
+// answerKey is the identity of one answer: the point that approved it and the
+// wording it approved.
+func answerKey(point, text string) string { return point + "\x00" + text }
+
+// contested reports whether the record gives this source more than one answer.
+func (p *recordPair) contested() bool {
+	first := ""
+	for _, a := range p.answers {
+		if first == "" {
+			first = a.text
+			continue
+		}
+		if a.text != first {
+			return true
 		}
 	}
-	return target, len(p.targets) > 1
+	return false
+}
+
+// points returns the distinct context points the record answered this source
+// at, in the order they were first seen — one entry per point is what lets a
+// contested source keep every approval instead of collapsing to one.
+func (p *recordPair) points() []string {
+	seen := map[string]int{}
+	for _, a := range p.answers {
+		if o, ok := seen[a.point]; !ok || a.order < o {
+			seen[a.point] = a.order
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for pt := range seen {
+		out = append(out, pt)
+	}
+	sort.Slice(out, func(i, j int) bool { return seen[out[i]] < seen[out[j]] })
+	return out
+}
+
+// resolve returns the answer that governs at the given point: the approval
+// nearest it on the containment ladder, ties broken by the answer's own text
+// (memory.NearerAnswer). Nil only for a pair with no answers at all.
+func (p *recordPair) resolve(at string) *recordAnswer {
+	var best *recordAnswer
+	for _, a := range p.answers {
+		if best == nil || memory.NearerAnswer(a.point, a.text, best.point, best.text, at) {
+			best = a
+		}
+	}
+	return best
+}
+
+// listContested renders the pair as the contested source a reader audits: every
+// answer, where it was approved, and which one governs there.
+func (p *recordPair) listContested() ContestedSource {
+	c := ContestedSource{Source: model.FlattenRuns(p.sourceRuns), Locale: p.locale}
+	for _, a := range p.answers {
+		c.Answers = append(c.Answers, ContestedAnswer{
+			Target:  model.FlattenRuns(a.runs),
+			Point:   displayPoint(a.point),
+			Governs: p.resolve(a.point) == a,
+		})
+	}
+	sort.Slice(c.Answers, func(i, j int) bool {
+		if c.Answers[i].Point != c.Answers[j].Point {
+			return c.Answers[i].Point < c.Answers[j].Point
+		}
+		return c.Answers[i].Target < c.Answers[j].Target
+	})
+	return c
+}
+
+// ContestedSource is one source string the committed record answers more than
+// one way, with every answer and the point that approved it.
+type ContestedSource struct {
+	Source  string            `json:"source"`
+	Locale  model.LocaleID    `json:"locale"`
+	Answers []ContestedAnswer `json:"answers"`
+}
+
+// ContestedAnswer is one of those answers.
+type ContestedAnswer struct {
+	Target string `json:"target"`
+	// Point is where the answer was approved, as the recipe writes it
+	// (`profile/channel/collection`). Empty at the project's default point.
+	Point string `json:"point,omitempty"`
+	// Governs reports that this answer is the one the resolver hands back at
+	// its own point — false for an answer another approval outranks even there,
+	// which is what a genuine tie at one point looks like.
+	Governs bool `json:"governs,omitempty"`
+}
+
+// displayPoint renders a context point the way a recipe writes the binding it
+// came from: `profile/channel/collection`, with the rungs nothing declared
+// dropped. The stored form is separator-delimited so a rung may hold any name;
+// this is the form a reader sees.
+func displayPoint(point string) string {
+	var rungs []string
+	for i := range memory.PointRungs {
+		if r := memory.PointRung(point, i); r != "" {
+			rungs = append(rungs, r)
+		}
+	}
+	return strings.Join(rungs, "/")
 }
 
 // absorbCommittedRecord reads every committed target artifact the recipe binds,
@@ -173,6 +292,10 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	// What the corpus already answers, so a rewritten unit's committed target can
 	// be recognized as the loop's own last output for the wording that is gone.
 	corpus := &memoryAnswers{ctx: ctx, tm: tm, source: sourceLocale, cache: map[string][]memory.Entry{}}
+
+	if err := relearnRecordIfRekeyed(ctx, db, tm); err != nil {
+		return res, err
+	}
 
 	stamps := loadRecordDigests(ctx, db)
 	next := make(map[string]string, len(units))
@@ -268,7 +391,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 					order:      order,
 					locale:     u.locale,
 					sourceRuns: srcRuns,
-					targets:    map[string]*recordTarget{},
+					answers:    map[string]*recordAnswer{},
 					origin: memory.Origin{
 						Source:    recordOriginSource,
 						Key:       u.targetRel,
@@ -278,14 +401,13 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 				}
 				pairs[key] = p
 			}
-			tk := memory.NormalizeText(model.FlattenRuns(tgtRuns))
-			t, ok := p.targets[tk]
-			if !ok {
+			text := memory.NormalizeText(model.FlattenRuns(tgtRuns))
+			if _, ok := p.answers[answerKey(u.point, text)]; !ok {
 				order++
-				t = &recordTarget{runs: tgtRuns, order: order}
-				p.targets[tk] = t
+				p.answers[answerKey(u.point, text)] = &recordAnswer{
+					runs: tgtRuns, text: text, point: u.point, order: order,
+				}
 			}
-			t.count++
 		}
 	}
 
@@ -406,62 +528,138 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 
 	for _, k := range keys {
 		p := pairs[k]
-		win, contested := p.winner()
-		if contested {
-			res.Contested++
-		}
-		winText := memory.NormalizeText(model.FlattenRuns(win.runs))
-
 		existing, err := tm.FullScoreEntries(ctx, p.sourceRuns, sourceLocale)
 		if err != nil {
 			return fmt.Errorf("read content-memory entries for a committed pair: %w", err)
 		}
-		held := false
-		for _, e := range existing {
-			// An entry with no variant in this locale is not a candidate the
-			// lookup can return, so it is not part of the disagreement and is
-			// left alone.
-			if !e.HasLocale(p.locale) {
-				continue
-			}
-			if memory.NormalizeText(e.VariantText(p.locale)) == winText {
+
+		// The ordinary case: the record answers this source one way, wherever it
+		// asked. One entry, bound to no point, exactly as before — an answer
+		// every point agrees on is not a decision about a place, and giving it
+		// one would put a copy of it in the store per collection that carries
+		// the string.
+		if !p.contested() {
+			win := p.resolve("")
+			held := false
+			for _, e := range existing {
+				// An entry with no variant in this locale is not a candidate the
+				// lookup can return, so it is not part of the disagreement and is
+				// left alone.
+				if !e.HasLocale(p.locale) {
+					continue
+				}
+				if memory.NormalizeText(e.VariantText(p.locale)) == win.text {
+					held = true
+					continue
+				}
+				// Full score, same source, different target: the committed
+				// record is the later, reviewed answer, so the entry is
+				// corrected to it rather than left to compete. Left competing,
+				// the ambiguity rule (AD-009) would demote both and a full-score
+				// fill policy would take neither — the disagreement would cost
+				// the translation instead of resolving it.
+				s, fresh := stage(e)
+				s.Variants[p.locale] = win.runs
+				s.Origins = withRecordOrigin(s.Origins, p.origin, now)
+				s.UpdatedAt = now
+				if fresh {
+					res.Reconciled++
+				}
 				held = true
+			}
+			if held {
 				continue
 			}
-			// Full score, same source, different target: the committed record
-			// is the later, reviewed answer, so the entry is corrected to it
-			// rather than left to compete. Left competing, the ambiguity rule
-			// (AD-009) would demote both and a full-score fill policy would
-			// take neither — the disagreement would cost the translation
-			// instead of resolving it.
-			s, fresh := stage(e)
+			origin := p.origin
+			origin.AddedAt = now
+			// The id keys on the source alone, so a second locale for the same
+			// source folds into the entry the first one staged rather than
+			// opening a rival.
+			s, fresh := stage(memory.Entry{
+				ID:          recordEntryID(recordSourceKey(p.sourceRuns), ""),
+				HintSrcLang: sourceLocale,
+				Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
+				Origins:     []memory.Origin{origin},
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			})
 			s.Variants[p.locale] = win.runs
+			s.UpdatedAt = now
+			if fresh {
+				res.Learned++
+			}
+			continue
+		}
+
+		// The record answers this source more than one way. Every answer is a
+		// translation a reader approved, so none of them can be discarded and no
+		// gate can tell them apart on quality; what tells them apart is where
+		// each was approved. So each point keeps an entry of its own, and the
+		// fill resolves between them by asking from where it is — instead of the
+		// whole project being handed whichever spelling the corpus repeats most.
+		res.Contested++
+		res.ContestedSources = append(res.ContestedSources, p.listContested())
+
+		byID := make(map[string]memory.Entry, len(existing))
+		for _, e := range existing {
+			byID[e.ID] = e
+		}
+		written := map[string]bool{}
+		for _, point := range p.points() {
+			answer := p.resolve(point)
+			id := recordEntryID(recordSourceKey(p.sourceRuns), point)
+			written[id] = true
+			if e, ok := byID[id]; ok {
+				// The store already holds this point's entry: correct it in
+				// place, so the other locales it carries survive the write.
+				s, fresh := stage(e)
+				s.Point = point
+				s.Variants[p.locale] = answer.runs
+				s.Origins = withRecordOrigin(s.Origins, p.origin, now)
+				s.UpdatedAt = now
+				if fresh && memory.NormalizeText(e.VariantText(p.locale)) != answer.text {
+					res.Reconciled++
+				}
+				continue
+			}
+			origin := p.origin
+			origin.AddedAt = now
+			s, fresh := stage(memory.Entry{
+				ID:          id,
+				HintSrcLang: sourceLocale,
+				Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
+				Origins:     []memory.Origin{origin},
+				Point:       point,
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			})
+			s.Variants[p.locale] = answer.runs
+			s.UpdatedAt = now
+			if fresh {
+				res.Learned++
+			}
+		}
+
+		// Every other entry the store answers this source with — a seed, an
+		// import, an approval promoted by `kapi apply` — is corrected to the
+		// answer that governs at ITS point rather than to a project-wide winner,
+		// so an entry bound to no location does not carry one collection's
+		// wording into every reader that finds it first.
+		for _, e := range existing {
+			if written[e.ID] || !e.HasLocale(p.locale) {
+				continue
+			}
+			answer := p.resolve(e.Point)
+			if memory.NormalizeText(e.VariantText(p.locale)) == answer.text {
+				continue
+			}
+			s, fresh := stage(e)
+			s.Variants[p.locale] = answer.runs
 			s.Origins = withRecordOrigin(s.Origins, p.origin, now)
 			s.UpdatedAt = now
 			if fresh {
 				res.Reconciled++
 			}
-			held = true
-		}
-		if held {
-			continue
-		}
-		origin := p.origin
-		origin.AddedAt = now
-		// The id keys on the source alone, so a second locale for the same source
-		// folds into the entry the first one staged rather than opening a rival.
-		s, fresh := stage(memory.Entry{
-			ID:          recordEntryID(recordSourceKey(p.sourceRuns)),
-			HintSrcLang: sourceLocale,
-			Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
-			Origins:     []memory.Origin{origin},
-			CreatedAt:   now,
-			UpdatedAt:   now,
-		})
-		s.Variants[p.locale] = win.runs
-		s.UpdatedAt = now
-		if fresh {
-			res.Learned++
 		}
 	}
 	if len(write) == 0 {
@@ -760,11 +958,16 @@ func recordUnits(a *App, proj *project.KapiProject, pctx *project.ProjectContext
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
 	var units []recordUnit
+	points := map[string]string{}
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
 		}
 		cfg := mergedFormatConfig(proj, rf.Format, rf.Item)
+		point, perr := a.approvalPoint(proj, points, rf)
+		if perr != nil {
+			return nil, perr
+		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
 			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
 			if blockedTargetPath(targetPath) != nil {
@@ -778,6 +981,7 @@ func recordUnits(a *App, proj *project.KapiProject, pctx *project.ProjectContext
 				format:     rf.Format,
 				config:     cfg,
 				locale:     loc,
+				point:      point,
 			})
 		}
 	}
@@ -788,6 +992,32 @@ func recordUnits(a *App, proj *project.KapiProject, pctx *project.ProjectContext
 		return units[i].locale < units[j].locale
 	})
 	return units, nil
+}
+
+// approvalPoint resolves the context point a resolved source file sits at, as
+// the content memory stores it: the product profile and channel the recipe
+// governs the file through, and the collection that claims it.
+//
+// It resolves through project.ResolveGovernanceFor, the same seam a run, a
+// check and a push resolve through, so the point an answer is stored under and
+// the point a fill asks from are one resolution rather than two that have to
+// agree. Cached per collection+item channel, because a collection of a thousand
+// files resolves to one point.
+func (a *App) approvalPoint(proj *project.KapiProject, cache map[string]string, rf project.ResolvedFile) (string, error) {
+	channel := rf.Collection
+	if rf.Item != nil && rf.Item.Channel != "" {
+		channel += "\x00" + rf.Item.Channel
+	}
+	if p, ok := cache[channel]; ok {
+		return p, nil
+	}
+	gov, err := proj.ResolveGovernanceFor(a.GovernancePointFor(rf.Collection, rf.Relative))
+	if err != nil {
+		return "", fmt.Errorf("resolve the point %s sits at: %w", rf.Relative, err)
+	}
+	p := memory.NewPoint(gov.Profile, gov.Channel, rf.Collection)
+	cache[channel] = p
+	return p, nil
 }
 
 // recordDigest is the content identity one (source, target) pair is keyed by.
@@ -827,13 +1057,71 @@ func recordKey(locale model.LocaleID, runs []model.Run) string {
 	return string(locale) + "\x00" + recordSourceKey(runs)
 }
 
+// recordEntryPrefix marks an id the record absorber minted, and nothing else
+// does — which is what lets a pass tell what it taught the corpus from what the
+// corpus was taught elsewhere.
+const recordEntryPrefix = "record:"
+
 // recordEntryID is the deterministic id a record-derived entry carries, so a
-// re-absorbed pair updates its own row instead of adding a rival. It keys on the
-// source alone: an entry is multilingual, and every locale's answer for one
-// source belongs in it.
-func recordEntryID(sourceKey string) string {
-	sum := sha256.Sum256([]byte(sourceKey))
-	return "record:" + hex.EncodeToString(sum[:])[:24]
+// re-absorbed pair updates its own row instead of adding a rival.
+//
+// It keys on the source AND the point that approved the answer. The source
+// alone would be right if a project answered each string once, and it is why a
+// second reviewed answer could only ever displace the first: two collections
+// reviewed apart wrote to one row and the last write won. The point is what
+// gives each approval a row of its own; the locale is not part of it, because
+// an entry is multilingual and every locale's answer at one point belongs in
+// the same one.
+func recordEntryID(sourceKey, point string) string {
+	key := sourceKey
+	if point != "" {
+		key += "\x00" + point
+	}
+	sum := sha256.Sum256([]byte(key))
+	return recordEntryPrefix + hex.EncodeToString(sum[:])[:24]
+}
+
+// relearnRecordIfRekeyed makes a store written under an older entry identity
+// forget what the absorber taught it, so this pass teaches it again under the
+// current one.
+//
+// It drops the absorber's own entries — the ids it mints, and nobody else does
+// — and every absorb stamp, which is what makes the next loop read every
+// committed target rather than skip the ones whose bytes have not moved. What
+// the corpus learned elsewhere is left alone: a seed, an import and an approval
+// are not the record's to forget, and the pass corrects them the same way it
+// always did.
+//
+// Left in place, an entry keyed on its source alone would sit beside the
+// point-keyed entries as a rival answer bound to no location — an answer at the
+// default point, competing at full score with the approvals that actually
+// govern, and demoting them for every reader who cannot say where they are
+// asking from.
+func relearnRecordIfRekeyed(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore) error {
+	scheme, _, err := db.Meta(ctx, MetaRecordScheme)
+	if err == nil && scheme == recordSchemeCurrent {
+		return nil
+	}
+	entries, eerr := tm.Entries(ctx)
+	if eerr != nil {
+		return fmt.Errorf("read the content memory to re-learn the committed record: %w", eerr)
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.ID, recordEntryPrefix) {
+			continue
+		}
+		if derr := tm.Delete(ctx, e.ID); derr != nil {
+			return fmt.Errorf("forget content-memory entry %s: %w", e.ID, derr)
+		}
+	}
+	if serr := saveRecordDigests(ctx, db, map[string]string{}); serr != nil {
+		return serr
+	}
+	if perr := db.PutMeta(ctx, MetaRecordScheme, recordSchemeCurrent); perr != nil &&
+		!errors.Is(perr, projectdb.ErrNoStore) {
+		return perr
+	}
+	return nil
 }
 
 // loadRecordDigests reads the per-artifact absorb stamps. Any uncertainty

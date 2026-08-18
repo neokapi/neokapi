@@ -78,8 +78,11 @@ type MemoryBlockMatch struct {
 type BlockMemoryProvider interface {
 	// LookupBlock looks up the best match for the block's source content.
 	// threshold is the minimum acceptable score (0-100) for fuzzy matches.
+	// at names the context point the fill is happening at, so a source the
+	// corpus answers more than one way resolves to the approval nearest the
+	// content being written; empty when the caller has no location in hand.
 	// Returns false when no match at or above threshold exists.
-	LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (MemoryBlockMatch, bool)
+	LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int, at string) (MemoryBlockMatch, bool)
 }
 
 // NullMemoryProvider is a MemoryProvider that returns no matches.
@@ -111,6 +114,13 @@ type MemoryLeverageConfig struct {
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
 	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
 	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
+
+	// Point is where this run's content sits in the project's context space,
+	// injected by the flow's bindings. It is a location, not governance: it
+	// never enters the context fingerprint, and it is passed to the content
+	// memory so a source with more than one approved answer resolves to the
+	// approval nearest here rather than to the one the corpus repeats most.
+	Point string `json:"point,omitempty" schema:"-"`
 
 	// Profile and Glossary carry the context governing the collection, injected
 	// by the flow's bindings. Recycling consults neither for matching, but a
@@ -164,6 +174,7 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.MakeTMX = false
 	c.TMXPath = ""
 	c.DowngradeIdenticalBestMatches = false
+	c.Point = ""
 	c.Profile = nil
 	c.Glossary = nil
 	c.profileID = ""
@@ -387,7 +398,7 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		block.SetAnno(key, payload)
 	}
 
-	m, found := bp.LookupBlock(v.Context(), block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold)
+	m, found := bp.LookupBlock(v.Context(), block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold, conf.Point)
 	if !found || len(m.TargetRuns) == 0 {
 		return false
 	}
