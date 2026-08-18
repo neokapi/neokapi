@@ -3,7 +3,7 @@
 # Upstream analogue: Okapi TEXFilter (net.sf.okapi.filters.tex.TEXFilter).
 # Config is empty (no schema), so no `parameters`/`examples` blocks are
 # authored.
-description: Extract translatable text from TeX and LaTeX documents.
+description: Extract text from TeX and LaTeX documents.
 overview: |
   TeX/LaTeX is a markup-based typesetting language. neokapi reads the LaTeX2e
   document syntax — preamble, body, command sequences, environments, math

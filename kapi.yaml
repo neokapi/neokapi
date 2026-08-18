@@ -38,6 +38,9 @@
 #   bowrain-ctrl           — the ctrl admin app (bowrain/apps/ctrl)
 #   bowrain-pulse          — the pulse dashboard (bowrain/apps/pulse)
 #   neokapi-docs           — the kapi Docusaurus site → web/i18n/<locale>/ tree
+#   neokapi-docs-reference — the authored dossiers the Format/Tool Reference is
+#                            generated from (scripts/gen-refs/nativedocs/) —
+#                            source-only, checked and never converged
 #   bowrain-docs           — the bowrain Docusaurus site (bowrain/web/docs) →
 #                            bowrain/web/docs/i18n/<locale>/ tree
 #   neokapi-demos          — harness demo scripts → generated demo.<lang>.yaml
@@ -219,6 +222,54 @@ collections:
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: docs/**/*.mdx
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+  # The Format and Tool Reference pages under web/docs/reference/ carry a
+  # DO-NOT-EDIT banner and no prose of their own: `make generate-reference-pages`
+  # writes a frontmatter block and one React component, and every sentence a
+  # reader sees comes from packages/reference-data/data/*.json, which
+  # `make generate-reference-docs` compiles out of the dossiers below. So this
+  # is where the reference's prose is authored, and the only place a finding
+  # against it can be acted on — a fix applied to a generated page is gone on
+  # the next regeneration. Declaring the dossiers holds them to the register the
+  # rest of the docs are held to, at the point of authorship.
+  #
+  # Source-only: the items name no `target:`, so nothing is converged or
+  # materialized here. The pages render the English dataset through a component,
+  # so a translated sidecar would be read by nothing; whether the reference
+  # ships in a target language is a question about the dataset and the page, not
+  # about this collection.
+  - name: neokapi-docs-reference
+    channel: neokapi/docs
+    base: scripts/gen-refs/nativedocs
+    content:
+      # `*/*.yaml` is the generator's own glob (loadNativeDocs reads
+      # <kind>s/*.yaml), so the checked set is exactly the set it compiles.
+      #
+      # Only the keys that hold prose are extracted. A dossier is mostly
+      # machine-facing: `examples[].config` is a YAML configuration snippet,
+      # `wikiUrl` a link, `dependsOn[].property` a schema property path,
+      # `introducedIn` a version and `seeAlso` a cross-reference. Grading those
+      # as sentences is how a check earns the reputation that stops anyone
+      # reading its findings. `parameters` keys are schema property paths and
+      # carry dots of their own (`parser.preserveWhitespace`), so the patterns
+      # under it span segments with `**` rather than one with `*`.
+      - path: "*/*.yaml"
+        format:
+          name: yaml
+          config:
+            keyPathPatterns:
+              - displayName
+              - description
+              - overview
+              - limitations.*
+              - processingNotes.*
+              - examples.*.title
+              - examples.*.description
+              - parameters.**.description
+              - parameters.**.help
+              - parameters.**.values
+              - parameters.**.notes.*
+              - parameters.**.examples.*
+              - parameters.**.dependsOn.*.condition
   - name: bowrain-docs
     channel: bowrain/docs
     base: bowrain/web/docs

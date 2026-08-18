@@ -2,7 +2,7 @@
 # Schema source: core/formats/plaintext/config.go (Config).
 # Behaviour grounded in core/formats/plaintext/reader.go and spec.yaml,
 # mirroring Okapi's BasePlainTextFilter (okf_plaintext).
-description: Extract translatable text from plain `.txt` files, one block per line or per paragraph.
+description: Extract text from plain `.txt` files, one block per line or per paragraph.
 overview: |
   The plain text format reads generic `.txt` documents and emits the
   text content as translatable blocks. It is the fallback for files that

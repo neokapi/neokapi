@@ -37,7 +37,7 @@ parameters:
     description: Skip values that are bare resource references.
     help: |
       When enabled (the default), values that are a single resource reference
-      (`@string/foo`, `?attr/bar`) are not extracted as translatable text.
+      (`@string/foo`, `?attr/bar`) are not extracted.
     values: "`true` / `false` (default `true`)"
 processingNotes:
   - "`<string>`, `<string-array>` items, and `<plurals>` items become translatable blocks; plural items are keyed by CLDR quantity."

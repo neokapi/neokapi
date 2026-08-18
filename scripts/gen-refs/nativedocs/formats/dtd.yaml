@@ -3,7 +3,7 @@
 # Upstream analogue: Okapi DTDFilter (net.sf.okapi.filters.dtd.DTDFilter).
 # The native reader has no JSON Schema (Config does not implement
 # SchemaProvider), so no `parameters`/`examples` blocks are authored.
-description: Extract translatable text from entity declarations in XML DTD files.
+description: Extract text from entity declarations in XML DTD files.
 overview: |
   A DTD (Document Type Definition) declares the structure and entities of an
   XML vocabulary. This reader targets DTDs that carry user-interface text —

@@ -3,15 +3,14 @@
 # Upstream analogue: Okapi IDMLFilter (net.sf.okapi.filters.idml.IDMLFilter).
 # The native reader has no JSON Schema (Config does not implement
 # SchemaProvider), so no `parameters`/`examples` blocks are authored.
-description: Extract translatable text from Adobe InDesign IDML packages.
+description: Extract text from Adobe InDesign IDML packages.
 overview: |
   IDML (InDesign Markup Language) is the XML-based interchange format Adobe
   InDesign produces. An `.idml` file is a ZIP package (UCF) containing a
   `designmap.xml` index plus one or more `Stories/Story_*.xml` sub-documents.
-  neokapi walks each story in spread order, extracting translatable text from
-  `<Content>` runs while preserving the surrounding XML — paragraph and
-  character style ranges, hyperlink sources, and the package structure — as
-  skeleton.
+  neokapi walks each story in spread order, extracting the text of `<Content>`
+  runs while preserving the surrounding XML — paragraph and character style
+  ranges, hyperlink sources, and the package structure — as skeleton.
 
   neokapi reads and writes IDML, round-tripping the package so the translated
   output remains a valid InDesign document. By default it extracts text from

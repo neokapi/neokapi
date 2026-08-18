@@ -3,7 +3,7 @@
 # Behaviour grounded in core/formats/openxml/reader.go, writer.go and spec.yaml,
 # mirroring Okapi's OpenXML filter (okf_openxml) and ECMA-376 / ISO/IEC 29500.
 displayName: OpenXML (Office)
-description: Extract and write translatable text from Word, Excel, and PowerPoint Office Open XML files.
+description: Extract and write text from Word, Excel, and PowerPoint Office Open XML files.
 overview: |
   The OpenXML format handles Microsoft Office Open XML documents — Word
   (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`). All three share a
@@ -228,7 +228,7 @@ parameters:
   codeFinderRules:
     description: Regular-expression patterns that match inline codes in text.
     help: |
-      A list of regular expressions; each match within translatable text is
+      A list of regular expressions; each match within extracted text is
       protected as an inline code rather than translated. Only takes effect
       when `useCodeFinder` is enabled.
     values: "Array of regular-expression strings"
