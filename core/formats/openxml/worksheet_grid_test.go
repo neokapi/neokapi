@@ -191,9 +191,10 @@ func TestUnbracketedCellsKeepTheRowHint(t *testing.T) {
 	require.NoError(t, err)
 
 	blockCounter := 0
+	var ids model.IDBuilder
 	cfg := &Config{}
 	cfg.Reset()
-	p := &smlParser{cfg: cfg, blockCounter: &blockCounter}
+	p := &smlParser{cfg: cfg, blockCounter: &blockCounter, ids: &ids}
 
 	sheet := xlsxPart(t, data, "xl/worksheets/sheet1.xml")
 	var cells int

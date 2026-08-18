@@ -591,7 +591,10 @@ func (w *Writer) flush() error {
 			return err
 		}
 		tu := xmlTU{
-			TUid: block.ID,
+			// `tuid` is what the document says; a block's ID is an identity for
+			// the store, and the two are the same for every document whose units
+			// already identify themselves.
+			TUid: model.DocumentID(block),
 		}
 
 		// Add source TUV

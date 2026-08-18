@@ -164,10 +164,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	trgLang := attrValue(root, "trgLang")
 	version := attrValue(root, "version")
 
-	// One builder for the whole document. Unit ids are unique within a <file>
-	// per the spec and the file id opens every path, so the ordinal is reserved
-	// for documents that break that rule.
+	// One pair of builders for the whole document. Unit ids are unique within a
+	// <file> per the spec and the file id opens every path, so the name's ordinal
+	// is reserved for documents that break that rule — and the id's separation is
+	// what keeps such a document addressable at all, since a block store keys on
+	// (source document, id) and the spec's guarantee stops at the <file>.
 	var names model.NameBuilder
+	var ids model.IDBuilder
 
 	files := root.SelectElements("file")
 	for fileIdx, file := range files {
@@ -226,9 +229,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		for _, child := range file.ChildElements() {
 			switch child.Tag {
 			case "group":
-				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names)
+				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names, &ids)
 			case "unit":
-				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names)
+				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names, &ids)
 			}
 		}
 
@@ -273,7 +276,7 @@ func recordUnitNameAttr(block *model.Block, name string) {
 // the inheritable translate flag from the enclosing <file>/<group>;
 // this group's own translate attribute, if present, overrides it before
 // being passed to children.
-func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder) {
+func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder, ids *model.IDBuilder) {
 	gs := &model.GroupStart{
 		ID:   attrValue(group, "id"),
 		Name: attrValue(group, "name"),
@@ -287,9 +290,9 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 	for _, child := range group.ChildElements() {
 		switch child.Tag {
 		case "group":
-			r.emitGroup(ctx, ch, child, trgLang, groupTranslate, inner, names)
+			r.emitGroup(ctx, ch, child, trgLang, groupTranslate, inner, names, ids)
 		case "unit":
-			r.emitUnit(ctx, ch, child, trgLang, groupTranslate, inner, names)
+			r.emitUnit(ctx, ch, child, trgLang, groupTranslate, inner, names, ids)
 		}
 	}
 	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: gs.ID}})
@@ -299,7 +302,7 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 // parentTranslate is the inheritable translate flag from the enclosing
 // <file>/<group>; the unit's own translate attribute (if present)
 // overrides it. Default at the document level is "yes".
-func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder) {
+func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder, ids *model.IDBuilder) {
 	translatable := inheritedTranslate(parentTranslate, unit)
 
 	block := &model.Block{
@@ -309,6 +312,7 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 		Properties:   make(map[string]string),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
+	ids.Assign(block)
 	recordUnitNameAttr(block, attrValue(unit, "name"))
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
@@ -813,6 +817,9 @@ type xliff2StreamState struct {
 	groupIDs []string
 	// names assigns the structural names for this document.
 	names model.NameBuilder
+	// ids separates the `unit/@id`s this document repeats, so each unit keeps an
+	// identity of its own. The DOM path holds the same pair.
+	ids model.IDBuilder
 	// translateStack is the inheritable XLIFF 2 `translate` flag stack:
 	// one entry per open <file>/<group> from outer to inner. Top of
 	// stack is the effective parent value for the current element.
@@ -1114,6 +1121,7 @@ func (s *xliff2StreamState) emitUnit() {
 		Properties:   make(map[string]string),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
+	s.ids.Assign(block)
 	recordUnitNameAttr(block, s.unitName)
 	for _, st := range s.states {
 		if st != "" {

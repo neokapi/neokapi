@@ -178,6 +178,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	blockCounter := 0
 	dataCounter := 0
 	r.names.Reset()
+	// ids separates the block ids this document repeats. With key columns
+	// configured a block is identified by the cells in them, and a key column
+	// holds ordinary data — two rows sharing a SKU, a category label used as a
+	// key, a spreadsheet exported twice — so nothing but this makes the id an
+	// identity. See core/model/blockid.go.
+	var ids model.IDBuilder
 
 	// Determine header row
 	if r.cfg.HasHeader {
@@ -224,6 +230,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// (visible to ingestion/LLM consumers, skipped by MT) instead of
 			// burying it in an opaque Data part.
 			block := r.newPreambleBlock(id, name, content)
+			ids.Assign(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -259,6 +266,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 		for colIdx, cell := range records[headerRow] {
 			hb := model.NewBlock(fmt.Sprintf("h%d", colIdx), cell)
+			ids.Assign(hb)
 			// A header cell's address is the column it labels — the same segment
 			// every cell below it is named by.
 			hb.Name = r.names.Name(model.StructuralPath("header", r.columnName(headers, colIdx)))
@@ -288,6 +296,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				return
 			}
 			if block := r.newBilingualBlock(row, rowNum, keyCols, &blockCounter); block != nil {
+				ids.Assign(block)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
@@ -345,6 +354,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					// (mirrors the header cells: visible to ingestion, skipped
 					// by MT) instead of an opaque Data part.
 					block := r.newNonTranslatableCell(id, name, cell, colIdx, rowNum)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -387,6 +397,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 
 			block := model.NewBlock(blockID, cellValue)
+			ids.Assign(block)
 			block.Name = r.cellName(rowAddr, colName, rowNum)
 			block.Type = "table-cell"
 			block.SetSemanticRole(model.RoleTableCell, 0)
@@ -519,6 +530,10 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	blockCounter := 0
 	dataCounter := 0
 	r.names.Reset()
+	// ids separates the block ids this document repeats; see the buffered path.
+	// Here it also has to run before the skeleton ref is written, because the ref
+	// and the block are joined by that id at write time.
+	var ids model.IDBuilder
 	keyCols := r.nameKeyColumns(headers, records, startRow)
 
 	// Process each raw line, matching against parsed records.
@@ -546,6 +561,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				name := fmt.Sprintf("preamble-row%d", rowIdx+1)
 				if r.cfg.ExtractNonTranslatableContent() {
 					block := r.newPreambleBlock(id, name, content)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -578,7 +594,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// Bilingual (column-role) mode: the whole row is skeleton except the
 		// target cell, which becomes the ref the writer fills on merge.
 		if r.cfg.BilingualMode() {
-			if !r.emitBilingualRowSkeleton(ctx, ch, row, rawLine, rowNum, keyCols, &blockCounter) {
+			if !r.emitBilingualRowSkeleton(ctx, ch, row, rawLine, rowNum, keyCols, &blockCounter, &ids) {
 				return
 			}
 			r.skelText(rawLine.lineEnding)
@@ -645,6 +661,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 					// (mirrors header cells: visible to ingestion, skipped by
 					// MT). The body rides the skeleton text above, not a ref.
 					block := r.newNonTranslatableCell(id, name, parsedValue, colIdx, rowNum)
+					ids.Assign(block)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -687,12 +704,16 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				}
 			}
 
-			// Write quoting prefix as skeleton text, then ref for value, then quoting suffix.
+			block := model.NewBlock(blockID, cellValue)
+			ids.Assign(block)
+
+			// Write quoting prefix as skeleton text, then ref for value, then
+			// quoting suffix. The ref carries the block's id after separation,
+			// which is what the writer looks the block up by.
 			r.skelText(rc.prefix)
-			r.skelRef(blockID)
+			r.skelRef(block.ID)
 			r.skelText(rc.suffix)
 
-			block := model.NewBlock(blockID, cellValue)
 			block.Name = r.cellName(rowAddr, colName, rowNum)
 			block.Properties["column"] = strconv.Itoa(colIdx)
 			block.Properties["row"] = strconv.Itoa(rowNum)
@@ -792,7 +813,7 @@ func (r *Reader) newBilingualBlock(row []string, rowNum int, keyCols []int, bloc
 // the skeleton verbatim (the source column is never overwritten on merge);
 // the target cell becomes the skeleton ref the writer fills with the
 // block's target text.
-func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.PartResult, row []string, line rawLine, rowNum int, keyCols []int, blockCounter *int) bool {
+func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.PartResult, row []string, line rawLine, rowNum int, keyCols []int, blockCounter *int, ids *model.IDBuilder) bool {
 	rawCells := splitRawCells(line.text, r.cfg.Separator)
 	block := r.newBilingualBlock(row, rowNum, keyCols, blockCounter)
 	if block == nil || r.cfg.TargetColumn >= len(rawCells) {
@@ -804,6 +825,9 @@ func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.P
 		r.skelText(line.text)
 		return true
 	}
+	// After the row is known to be extracted, so a row that stays skeleton text
+	// does not claim an id nothing addresses.
+	ids.Assign(block)
 
 	for colIdx, rc := range rawCells {
 		if colIdx > 0 {
