@@ -407,6 +407,8 @@ collections.item_label text NOT NULL DEFAULT 'item'::text
 collections.kind text NOT NULL DEFAULT 'uploaded'::text
 collections.name text NOT NULL
 collections.owner text NOT NULL DEFAULT 'workspace'::text
+collections.preview_kind text NOT NULL DEFAULT ''::text
+collections.preview_url text NOT NULL DEFAULT ''::text
 collections.project_id text NOT NULL
 collections.stream text NOT NULL DEFAULT ''::text
 collections.updated_at timestamp with time zone NOT NULL DEFAULT now()
