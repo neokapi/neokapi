@@ -716,6 +716,14 @@ type CollectionTranslationStats struct {
 	// Coordinates is the collection's point in the project's context space:
 	// axis → value, as Collection.Context holds it.
 	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// PreviewKind and PreviewURL are where this collection's strings can be
+	// read in place, as the context push stored them on the collection row.
+	// Projected here because the items view opens a preview from this rollup
+	// and has no other route to the collection: without them the in-context
+	// reading is offered on the project page and missing on the page where a
+	// reviewer actually opens a file.
+	PreviewKind string `json:"preview_kind,omitempty"`
+	PreviewURL  string `json:"preview_url,omitempty"`
 	// Ungrouped marks the synthetic bucket that holds items belonging to no
 	// collection (CollectionID is empty and no collection row exists). It is
 	// the flag rather than an invented id, so a consumer can label and place

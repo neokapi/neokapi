@@ -136,6 +136,14 @@ export function CollectionItemsView({
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}
           onOpenPreProcess={preview.onOpenPreProcess}
+          // Where THIS collection publishes its components. Read from the
+          // rollup the view was opened with, so the offer is the same on the
+          // page a reviewer opens a file from as on the project page.
+          preview={
+            collection?.preview_kind && collection.preview_url
+              ? { kind: collection.preview_kind, url: collection.preview_url }
+              : undefined
+          }
         />
       )}
     </div>

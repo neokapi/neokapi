@@ -946,6 +946,13 @@ export interface CollectionTranslationStats {
   channel?: string;
   /** The collection's point in context space: axis → value. */
   coordinates?: Record<string, string>;
+  /**
+   * Where this collection's strings can be read in place, projected from the
+   * collection row. Carried on the rollup because the items view opens a
+   * preview from it and has no other route to the collection.
+   */
+  preview_kind?: string;
+  preview_url?: string;
   /** True on the single bucket holding items that belong to no collection. */
   ungrouped?: boolean;
   item_count: number;
