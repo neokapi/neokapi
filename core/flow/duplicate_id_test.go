@@ -240,13 +240,11 @@ msgstr ""
 				SourceLocale: "en",
 				Store:        store,
 				ProjectRoot:  root,
-				DetectFormat: func(path string) registry.FormatID {
-					if tc.format != "" {
-						return tc.format
-					}
-					id, _ := reg.DetectByExtension(path)
-					return id
-				},
+				// An empty answer defers to the runner's own content-aware
+				// detection, which is what every case but the two sniffed
+				// formats wants — .xlf is claimed by both XLIFF versions and
+				// `strings.xml` is an ordinary .xml name.
+				DetectFormat: func(string) registry.FormatID { return tc.format },
 				ConfigureReader: func(r format.DataFormatReader, _ registry.FormatID) error {
 					if tc.configure != nil {
 						tc.configure(r)

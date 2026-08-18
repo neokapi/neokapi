@@ -86,7 +86,7 @@ func TestIDBuilder_ResetStartsANewDocument(t *testing.T) {
 // DocumentID reads through for a block that was never separated, including one
 // with no properties map at all.
 func TestDocumentID_ReadsThroughWhenNothingWasSeparated(t *testing.T) {
-	assert.Equal(t, "", model.DocumentID(nil))
+	assert.Empty(t, model.DocumentID(nil))
 	assert.Equal(t, "tu1", model.DocumentID(&model.Block{ID: "tu1"}))
 	assert.Equal(t, "tu1", model.DocumentID(&model.Block{
 		ID: "tu1", Properties: map[string]string{model.PropDocumentID: ""},
