@@ -85,7 +85,23 @@ else
   _CI_FAST :=
 endif
 
-GOTEST_BASE := $(GOTEST) $(_RACE) $(_SHUFFLE) -timeout 15m
+# The per-package deadline. It is the SERVER package that sets it: on a CI
+# runner that package needs about fifteen minutes, and it reached them.
+#
+# Measured rather than guessed, from the results of the run that first hit the
+# wall: 677 top-level tests summing to 899.6s, the slowest of them 15s. Nothing
+# hangs and nothing is pathological — every one of those tests stands a server
+# up, which runs the whole migration set into a fresh schema, and 677 of those
+# is simply what the suite now costs. The same package takes 231s on a
+# developer laptop, so the runner is roughly four times slower and a deadline
+# that fits locally says nothing about whether it fits there.
+#
+# Raised rather than trimmed because trimming the tests would not touch the
+# cause: standing up a server is the cost, and the fix that would actually pay
+# is migrating once per package and cloning the schema per test. Until that
+# exists this has to be a deadline the suite can finish inside, or the lane
+# fails on whichever pull request happens to add the test that crosses it.
+GOTEST_BASE := $(GOTEST) $(_RACE) $(_SHUFFLE) -timeout 30m
 
 # cov,<outfile>: coverage flags on the full gate; nothing in fast-PR mode
 # (a -coverprofile flag would disable Go's test result cache).
