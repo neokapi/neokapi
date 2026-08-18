@@ -66,9 +66,10 @@ func TestSyncPushE2E(t *testing.T) {
 
 	// 3. Init — send item hashes.
 	initBody, _ := json.Marshal(map[string]any{
-		"project_id":  projectID,
-		"item_hashes": map[string]string{"en.json": itemHash},
-		"root_hash":   rootHash,
+		"project_id":          projectID,
+		"item_hashes":         map[string]string{"en.json": itemHash},
+		"root_hash":           rootHash,
+		"content_model_epoch": venue.ContentModelEpoch,
 	})
 	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/init", token, string(initBody))
 	require.Equal(t, http.StatusOK, resp.StatusCode)
