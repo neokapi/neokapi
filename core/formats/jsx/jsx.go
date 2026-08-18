@@ -302,6 +302,15 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 	if b.Properties.LocNote != "" {
 		mb.Properties["locNote"] = b.Properties.LocNote
 	}
+	// The bundle's block hash is the key the i18n runtime looks a string up by
+	// at render time (both are `hashKey(text, descriptor)`), so it is the join
+	// between a block here and the string a running component displays. A
+	// surface that renders the component — a story, a live preview — can only
+	// show *this* block's translation if it can name it, and the annotation
+	// carrying the hash does not survive into a REST block payload.
+	if b.Hash != "" {
+		mb.Properties["hash"] = b.Hash
+	}
 	for locale, runs := range b.Targets {
 		mb.SetTargetRuns(model.LocaleID(locale), cloneRuns(runs))
 	}
@@ -488,6 +497,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	// content the model.Block carries.
 	b := kbf.Block{
 		ID:           model.DocumentID(mb),
+		Hash:         mb.Properties["hash"],
 		Translatable: mb.Translatable,
 		Type:         kbf.BlockTypeJSXElement,
 		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},

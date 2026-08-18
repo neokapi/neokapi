@@ -13,6 +13,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { useLocales } from "../hooks/useLocales";
 import { DocumentPreview } from "./editor/DocumentPreview";
+import { ItemStoryPreview, type ReadingMode } from "./editor/StoryPreview";
 import { LocaleSelect } from "./LocaleSelect";
 
 /**
@@ -50,6 +51,12 @@ export interface FilePreviewProps {
   onOpenReview?: (itemName: string) => void;
   /** Open the item's pre-processing surface. */
   onOpenPreProcess?: (itemName: string) => void;
+  /**
+   * Base URL of the Storybook publishing this project's components. Given, the
+   * item can be read inside the component that ships it — with this surface's
+   * own targets, pending edits included — rather than only as a document.
+   */
+  storybookURL?: string;
 }
 
 /**
@@ -73,9 +80,11 @@ export function FilePreview({
   onOpenTranslate,
   onOpenReview,
   onOpenPreProcess,
+  storybookURL,
 }: FilePreviewProps) {
   const { getDisplayName } = useLocales();
   const [side, setSide] = useState<"source" | "target">("source");
+  const [reading, setReading] = useState<ReadingMode>("document");
   const [picked, setPicked] = useState<string | undefined>();
 
   // The chosen locale, held only while it stays one the project targets — a
@@ -106,19 +115,37 @@ export function FilePreview({
           <SheetDescription>Read the document, then open it in an editor.</SheetDescription>
         </SheetHeader>
 
-        {hasTargets && (
+        {(hasTargets || storybookURL) && (
           <div className="flex flex-wrap items-center gap-2 px-4">
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              size="sm"
-              value={side}
-              onValueChange={(value) => value && setSide(value as "source" | "target")}
-              data-testid="file-preview-side"
-            >
-              <ToggleGroupItem value="source">Source</ToggleGroupItem>
-              <ToggleGroupItem value="target">{targetLabel}</ToggleGroupItem>
-            </ToggleGroup>
+            {hasTargets && (
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={side}
+                onValueChange={(value) => value && setSide(value as "source" | "target")}
+                data-testid="file-preview-side"
+              >
+                <ToggleGroupItem value="source">Source</ToggleGroupItem>
+                <ToggleGroupItem value="target">{targetLabel}</ToggleGroupItem>
+              </ToggleGroup>
+            )}
+            {/* Which language is one question; what it is read inside is
+                another. A document is the file; in context is the component
+                that ships it, at the width it lays out to. */}
+            {storybookURL && (
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={reading}
+                onValueChange={(value) => value && setReading(value as ReadingMode)}
+                data-testid="file-preview-reading"
+              >
+                <ToggleGroupItem value="document">Document</ToggleGroupItem>
+                <ToggleGroupItem value="context">In context</ToggleGroupItem>
+              </ToggleGroup>
+            )}
             {targetLocales.length > 1 && (
               <LocaleSelect
                 value={locale}
@@ -134,15 +161,26 @@ export function FilePreview({
         {/* Keyed by item: opening a different file starts a fresh read rather
             than showing the previous document until the new one arrives. */}
         <div className="min-h-0 flex-1 px-4">
-          {itemName && (
-            <DocumentPreview
+          {itemName && reading === "context" && storybookURL ? (
+            <ItemStoryPreview
               key={itemName}
               projectId={projectId}
               itemName={itemName}
-              targetLocale={locale}
-              previewContentMode={side}
-              onBlockSelect={() => {}}
+              storybookURL={storybookURL}
+              locale={locale}
+              source={side === "source"}
             />
+          ) : (
+            itemName && (
+              <DocumentPreview
+                key={itemName}
+                projectId={projectId}
+                itemName={itemName}
+                targetLocale={locale}
+                previewContentMode={side}
+                onBlockSelect={() => {}}
+              />
+            )
           )}
         </div>
 

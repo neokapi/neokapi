@@ -88,7 +88,7 @@ function targetBlockToHTML(block: BlockInfo, locale: string): string {
  * cached for as long as the surface keeps asking. The iframe covers the whole
  * document, so this is the document — never a request per block.
  */
-function useDocumentBlocks(projectId: string, itemName: string, targetLocale: string) {
+export function useDocumentBlocks(projectId: string, itemName: string, targetLocale: string) {
   const { getFileBlocks } = useEditorApi();
   const { activeStream } = useStream();
   const { activeWorkspace } = useWorkspace();
