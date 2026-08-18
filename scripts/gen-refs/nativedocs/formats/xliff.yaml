@@ -138,7 +138,7 @@ parameters:
   useCodeFinder:
     description: Detect inline codes inside content using regular expressions.
     help: |
-      Enables regex-based detection of inline codes in translatable text,
+      Enables regex-based detection of inline codes in extracted text,
       using the patterns in `codeFinderRules`. This supplements the native
       XLIFF inline elements. When disabled (the default), only the XLIFF
       inline elements are recognised.
@@ -146,7 +146,7 @@ parameters:
   codeFinderRules:
     description: Regular-expression patterns that match inline codes in content.
     help: |
-      A list of regular expressions; each match within translatable text is
+      A list of regular expressions; each match within extracted text is
       protected as an inline code rather than translated. Only takes effect
       when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"

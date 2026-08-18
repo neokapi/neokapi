@@ -161,7 +161,7 @@ parameters:
     description: Enable pattern-based inline-code detection.
     help: |
       Enables regex-based detection of inline codes (placeholders, variables,
-      tags) inside translatable text. The patterns are supplied via
+      tags) inside extracted text. The patterns are supplied via
       `codeFinderRules`.
     values: "`true` / `false` (default `false`)"
   codeFinderRules:

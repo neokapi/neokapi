@@ -3,7 +3,7 @@
 # Upstream analogue: Okapi EPUBFilter (electronic publication). The
 # okapi-bridge ships no okf_epub filter, so this is a native-only format.
 # Config is empty (no schema), so no `parameters`/`examples` blocks.
-description: Extract translatable text from EPUB e-books by walking the reading-order spine.
+description: Extract text from EPUB e-books by walking the reading-order spine.
 overview: |
   EPUB is the open e-book format: a ZIP container (OCF) packaging XHTML and
   SVG content documents alongside a Package Document (OPF) that lists the
@@ -22,7 +22,7 @@ overview: |
   reference.
 limitations:
   - The fallback XHTML walk extracts a fixed set of block elements; richer extraction depends on an HTML sub-format reader being wired into the pipeline.
-  - Spine items not listed in the OPF reading order are not walked for translatable text.
+  - Spine items not listed in the OPF reading order are not walked.
 processingNotes:
   - The OPF is located via `META-INF/container.xml`; spine items are walked in reading order, each as a child layer.
   - Content documents are processed as embedded XHTML, either through an HTML sub-format reader or a direct token walk.

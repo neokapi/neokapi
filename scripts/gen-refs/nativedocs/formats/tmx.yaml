@@ -48,7 +48,7 @@ parameters:
     description: Detect inline codes inside segment text using regular expressions.
     help: |
       Enables regex-based detection of inline codes (placeholders,
-      variables, tags) within translatable text, using the patterns in
+      variables, tags) within extracted text, using the patterns in
       `codeFinderRules`. When disabled (the default), no pattern-based
       inline codes are extracted.
     values: "`true` / `false` (default `false`)"

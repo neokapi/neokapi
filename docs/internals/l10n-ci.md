@@ -16,9 +16,9 @@ target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is;
 
 ## One verb, between two build stages
 
-The recipe declares every surface as a content collection with a `target:`
-template. Bringing all of them up to date is three stages, and only two are
-make's business:
+The recipe declares every surface that converges as a content collection with a
+`target:` template. Bringing all of them up to date is three stages, and only two
+are make's business:
 
 | Stage | Make target | Whose job |
 | --- | --- | --- |
@@ -50,6 +50,17 @@ Nothing wipes the store. The store is the union of what git carries and what a
 venue pull brought home, so a wipe deletes precisely the half git does not
 hold — every approval a reviewer made on the server, gone from a build that
 reports success.
+
+One collection names no `target:` at all. `neokapi-docs-reference` binds the
+authored dossiers under `scripts/gen-refs/nativedocs/`, which
+`make generate-reference-docs` compiles into the reference dataset and
+`make generate-reference-pages` renders as the Format and Tool Reference — pages
+that carry a DO-NOT-EDIT banner and hold no prose of their own. Without a target
+the loop passes over it, and what the collection buys is the other half of a
+recipe: `kapi check` reads the project's declared content, so declaring the
+dossiers puts the register of the largest generated body of prose in this
+repository under the same bar as the prose an author writes by hand, at the one
+place a finding against it can be acted on.
 
 The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
 nothing else — no AI, no provider credentials, no network. A checkout with no

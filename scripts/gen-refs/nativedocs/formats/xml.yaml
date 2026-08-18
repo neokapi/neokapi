@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `xml` format.
 # Schema source: core/formats/xml/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_xml filter (generic XML, ITS-style rules).
-description: Extract and reinsert translatable text from generic XML, controlled by element and attribute rules.
+description: Extract and reinsert text from generic XML, controlled by element and attribute rules.
 overview: |
   The **XML** format reads generic XML documents, extracts the text of
   configured elements and attributes as translatable blocks, and writes the
@@ -124,7 +124,7 @@ parameters:
   useCodeFinder:
     description: Enable regex-based inline-code detection.
     help: |
-      Enables regex-based detection of inline codes within translatable text.
+      Enables regex-based detection of inline codes within extracted text.
       The patterns are supplied via `codeFinderRules`.
     values: "`true` / `false` (default `false`)"
   codeFinderRules:

@@ -47,12 +47,25 @@ generated `schema.properties`.
 2. **Cover every schema property.** Run `make generate-reference-docs` and check
    `packages/reference-data/data/reference-gaps.json` — your entry should
    produce no `property:*` or `doc.*` gaps.
-3. Match the brand voice in `docs/internals/brand-communication.md`: restrained,
-   academic, no marketing superlatives, no hardcoded counts.
+3. Match the register in `docs/internals/brand-communication.md`: restrained,
+   academic, no marketing superlatives, no hardcoded counts. These files are the
+   `neokapi-docs-reference` collection in the repo-root `kapi.yaml`, so the
+   project's voice profile grades them the way it grades the authored docs —
+   run `kapi check` (below) rather than reading the rendered page, which no one
+   may edit.
 4. Keep examples runnable and minimal — show one idea per example.
 
-Regenerate after editing:
+Regenerate and check after editing:
 
 ```bash
 make generate-reference-docs        # → packages/reference-data/data/*.json
+make generate-reference-pages       # → web/docs/reference/{commands,formats,tools}
+kapi check 'scripts/gen-refs/nativedocs/*/*.yaml'
 ```
+
+Both generated trees are gated by the *Reference Data — Drift Gate* workflow, so
+an edit here lands together with the dataset and the pages it produces.
+
+Read the check's findings by rule: every `hygiene.trailing-whitespace` one over
+these files is the block-scalar terminator of issue #2070, not something an
+author wrote.

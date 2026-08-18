@@ -1,16 +1,16 @@
 # Native reference doc for the built-in `html` format.
 # Schema source: core/formats/html/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_html filter; element/attribute rule model.
-description: Extract and reinsert translatable text from HTML, with element and attribute extraction rules.
+description: Extract and reinsert text from HTML, with element and attribute extraction rules.
 overview: |
-  The **HTML** format reads HTML documents, extracts translatable text and
+  The **HTML** format reads HTML documents, extracts element text and
   attribute values, and writes the translations back while preserving the
   surrounding markup. Inline elements (such as `b`, `i`, `a`) become inline
   codes within a block, so formatting and links survive translation.
 
-  The reader ships with sensible defaults for which elements hold translatable
-  text, which are inline, and which attributes (such as `alt` and `title`) are
-  translatable. The `elements` and `attributes` maps let you override or extend
+  The reader ships with sensible defaults for which elements hold content,
+  which are inline, and which attributes (such as `alt` and `title`) are
+  extracted. The `elements` and `attributes` maps let you override or extend
   those rules per element and per attribute, mirroring the okf_html bridge
   configuration. Parser behaviour (whitespace handling) is grouped under
   `parser`.
@@ -47,7 +47,7 @@ parameters:
     description: Enable regex-based inline-code detection.
     help: |
       Enables regex-based detection of inline codes (placeholders, variables,
-      tags) within translatable text, beyond the inline HTML elements already
+      tags) within extracted text, beyond the inline HTML elements already
       recognized. The patterns are supplied via `codeFinderRules`.
     values: "`true` / `false` (default `false`)"
   codeFinderRules:

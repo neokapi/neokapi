@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `markdown` format.
 # Schema source: core/formats/markdown/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_markdown filter; CommonMark structural model.
-description: Extract and reinsert translatable text from Markdown, keeping headings, lists, links, and code intact.
+description: Extract and reinsert text from Markdown, keeping headings, lists, links, and code intact.
 overview: |
   The **Markdown** format reads Markdown documents, extracts prose as
   translatable blocks, and writes the translations back while preserving the
@@ -75,7 +75,7 @@ parameters:
     description: Enable regex-based inline-code detection.
     help: |
       Enables regex-based detection of additional inline codes within
-      translatable text, beyond the Markdown inline markup already recognized.
+      extracted text, beyond the Markdown inline markup already recognized.
       The patterns are supplied via `codeFinderRules`.
     values: "`true` / `false` (default `false`)"
   codeFinderRules:

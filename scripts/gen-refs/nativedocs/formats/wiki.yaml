@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `wiki` format.
 # Schema source: core/formats/wiki/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_wiki filter (DokuWiki-targeted upstream).
-description: Extract and reinsert translatable text from wiki markup (DokuWiki or MediaWiki).
+description: Extract and reinsert text from wiki markup (DokuWiki or MediaWiki).
 overview: |
   The **Wiki** format reads wiki markup, extracts prose as translatable
   blocks, and writes the translations back while preserving the markup

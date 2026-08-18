@@ -3,13 +3,13 @@
 # Upstream analogue: Okapi MIFFilter (net.sf.okapi.filters.mif.MIFFilter).
 # The native reader has no JSON Schema (Config does not implement
 # SchemaProvider), so no `parameters`/`examples` blocks are authored.
-description: Extract translatable text from Adobe FrameMaker Maker Interchange Format (MIF) documents.
+description: Extract text from Adobe FrameMaker Maker Interchange Format (MIF) documents.
 overview: |
   MIF (Maker Interchange Format) is Adobe FrameMaker's text-based interchange
   format. A MIF file is a brace-delimited, SGML-flavoured statement tree
   introduced by a version header line (`<MIFFile 2015>`, `<MIFFile 9.00>`, …);
-  translatable text lives inside `<String \`…'>` values nested under `<Para>`
-  paragraphs that hang off text-flow, table, and note containers.
+  the text lives inside `<String \`…'>` values nested under `<Para>` paragraphs
+  that hang off text-flow, table, and note containers.
 
   neokapi reads MIF and writes it back, preserving the surrounding statement
   structure as skeleton so untranslated markup round-trips unchanged. By
@@ -28,5 +28,5 @@ limitations:
 processingNotes:
   - Body, master, reference, and hidden page content is extracted by default; variables and index markers are also extracted.
   - Non-translatable MIF statements are preserved as skeleton for byte-faithful round-trips.
-  - "A code finder protects FrameMaker auto-numbering prefixes (`H:`, `T:`, …) and Asian numbering format names from being treated as translatable text."
+  - "A code finder protects FrameMaker auto-numbering prefixes (`H:`, `T:`, …) and Asian numbering format names from being treated as text."
 wikiUrl: "https://help.adobe.com/en_US/framemaker/2015/mif_reference/mif_reference.pdf"

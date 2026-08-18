@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T10:27:34Z",
+  "generatedAt": "2026-08-18T07:45:26Z",
   "kind": "format",
   "entries": [
     {
@@ -164,7 +164,7 @@
           },
           "skipResourceReferences": {
             "description": "Skip values that are bare resource references.",
-            "help": "When enabled (the default), values that are a single resource reference\n(`@string/foo`, `?attr/bar`) are not extracted as translatable text.\n",
+            "help": "When enabled (the default), values that are a single resource reference\n(`@string/foo`, `?attr/bar`) are not extracted.\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
@@ -874,7 +874,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "EPUB E-Book",
-      "description": "Extract translatable text from EPUB e-books by walking the reading-order spine.",
+      "description": "Extract text from EPUB e-books by walking the reading-order spine.",
       "extensions": [
         ".epub"
       ],
@@ -920,7 +920,7 @@
         "overview": "EPUB is the open e-book format: a ZIP container (OCF) packaging XHTML and\nSVG content documents alongside a Package Document (OPF) that lists the\nmanifest and the reading-order spine. neokapi reads the\n`META-INF/container.xml` entry to locate the OPF, parses the OPF to resolve\nthe spine, and walks each spine item as a child layer of the document.\n\nneokapi reads and writes EPUB, round-tripping the container so the\ntranslated output remains a valid e-book. Content documents are parsed as\nembedded XHTML: when an HTML sub-format reader is wired, each spine item is\ndelegated to it; otherwise neokapi falls back to a direct XHTML walk that\ntreats common block elements (paragraphs, headings, list items, table cells,\nfigure and table captions, blockquotes, and the document title) as\ntranslatable. The OPF, container metadata, and non-content resources are\npreserved as skeleton. This format has no configurable JSON schema in this\nreference.\n",
         "limitations": [
           "The fallback XHTML walk extracts a fixed set of block elements; richer extraction depends on an HTML sub-format reader being wired into the pipeline.",
-          "Spine items not listed in the OPF reading order are not walked for translatable text."
+          "Spine items not listed in the OPF reading order are not walked."
         ],
         "processingNotes": [
           "The OPF is located via `META-INF/container.xml`; spine items are walked in reading order, each as a child layer.",
@@ -1033,7 +1033,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "HTML",
-      "description": "Extract and reinsert translatable text from HTML, with element and attribute extraction rules.",
+      "description": "Extract and reinsert text from HTML, with element and attribute extraction rules.",
       "extensions": [
         ".html",
         ".htm",
@@ -1142,7 +1142,7 @@
         }
       },
       "doc": {
-        "overview": "The **HTML** format reads HTML documents, extracts translatable text and\nattribute values, and writes the translations back while preserving the\nsurrounding markup. Inline elements (such as `b`, `i`, `a`) become inline\ncodes within a block, so formatting and links survive translation.\n\nThe reader ships with sensible defaults for which elements hold translatable\ntext, which are inline, and which attributes (such as `alt` and `title`) are\ntranslatable. The `elements` and `attributes` maps let you override or extend\nthose rules per element and per attribute, mirroring the okf_html bridge\nconfiguration. Parser behaviour (whitespace handling) is grouped under\n`parser`.\n",
+        "overview": "The **HTML** format reads HTML documents, extracts element text and\nattribute values, and writes the translations back while preserving the\nsurrounding markup. Inline elements (such as `b`, `i`, `a`) become inline\ncodes within a block, so formatting and links survive translation.\n\nThe reader ships with sensible defaults for which elements hold content,\nwhich are inline, and which attributes (such as `alt` and `title`) are\nextracted. The `elements` and `attributes` maps let you override or extend\nthose rules per element and per attribute, mirroring the okf_html bridge\nconfiguration. Parser behaviour (whitespace handling) is grouped under\n`parser`.\n",
         "parameters": {
           "attributes": {
             "description": "Per-attribute extraction rules.",
@@ -1178,7 +1178,7 @@
           },
           "useCodeFinder": {
             "description": "Enable regex-based inline-code detection.",
-            "help": "Enables regex-based detection of inline codes (placeholders, variables,\ntags) within translatable text, beyond the inline HTML elements already\nrecognized. The patterns are supplied via `codeFinderRules`.\n",
+            "help": "Enables regex-based detection of inline codes (placeholders, variables,\ntags) within extracted text, beyond the inline HTML elements already\nrecognized. The patterns are supplied via `codeFinderRules`.\n",
             "values": "`true` / `false` (default `false`)"
           }
         },
@@ -2020,7 +2020,7 @@
           },
           "useCodeFinder": {
             "description": "Enable pattern-based inline-code detection.",
-            "help": "Enables regex-based detection of inline codes (placeholders, variables,\ntags) inside translatable text. The patterns are supplied via\n`codeFinderRules`.\n",
+            "help": "Enables regex-based detection of inline codes (placeholders, variables,\ntags) inside extracted text. The patterns are supplied via\n`codeFinderRules`.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "useFullKeyPath": {
@@ -2107,7 +2107,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "Markdown",
-      "description": "Extract and reinsert translatable text from Markdown, keeping headings, lists, links, and code intact.",
+      "description": "Extract and reinsert text from Markdown, keeping headings, lists, links, and code intact.",
       "extensions": [
         ".md",
         ".markdown"
@@ -2312,7 +2312,7 @@
           },
           "useCodeFinder": {
             "description": "Enable regex-based inline-code detection.",
-            "help": "Enables regex-based detection of additional inline codes within\ntranslatable text, beyond the Markdown inline markup already recognized.\nThe patterns are supplied via `codeFinderRules`.\n",
+            "help": "Enables regex-based detection of additional inline codes within\nextracted text, beyond the Markdown inline markup already recognized.\nThe patterns are supplied via `codeFinderRules`.\n",
             "values": "`true` / `false` (default `false`)"
           }
         },
@@ -2520,7 +2520,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "Open Document Format",
-      "description": "Extract translatable text from OpenDocument Format files (ODT, ODS, ODP, ODG).",
+      "description": "Extract text from OpenDocument Format files (ODT, ODS, ODP, ODG).",
       "extensions": [
         ".odt",
         ".ods",
@@ -2589,7 +2589,7 @@
         }
       },
       "doc": {
-        "overview": "ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,\nOpenOffice, and compatible suites. neokapi handles the text (`.odt`),\nspreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,\nauto-detecting the variant from the package's `mimetype` entry. Each file is\na ZIP archive containing a `content.xml` payload plus styles and metadata\nsub-documents; the reader extracts translatable text from the content while\npreserving the surrounding XML and the package structure as skeleton.\n\nneokapi reads and writes ODF, round-tripping the archive so the translated\noutput remains a valid OpenDocument file. By default it extracts\npresentation notes but skips hidden content — matching the upstream Okapi\nOpenOffice filter behaviour. The native reader applies these defaults but\ndoes not expose them as a configurable JSON schema in this reference.\n",
+        "overview": "ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,\nOpenOffice, and compatible suites. neokapi handles the text (`.odt`),\nspreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,\nauto-detecting the variant from the package's `mimetype` entry. Each file is\na ZIP archive containing a `content.xml` payload plus styles and metadata\nsub-documents; the reader extracts text from the content while preserving\nthe surrounding XML and the package structure as skeleton.\n\nneokapi reads and writes ODF, round-tripping the archive so the translated\noutput remains a valid OpenDocument file. By default it extracts\npresentation notes but skips hidden content — matching the upstream Okapi\nOpenOffice filter behaviour. The native reader applies these defaults but\ndoes not expose them as a configurable JSON schema in this reference.\n",
         "limitations": [
           "Hidden content is not extracted by default.",
           "Extraction toggles match the upstream Okapi OpenOffice filter but are not surfaced as configurable schema properties in this reference."
@@ -2607,7 +2607,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "OpenXML (Office)",
-      "description": "Extract and write translatable text from Word, Excel, and PowerPoint Office Open XML files.",
+      "description": "Extract and write text from Word, Excel, and PowerPoint Office Open XML files.",
       "extensions": [
         ".docx",
         ".docm",
@@ -2949,7 +2949,7 @@
           },
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in text.",
-            "help": "A list of regular expressions; each match within translatable text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled.\n",
+            "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled.\n",
             "values": "Array of regular-expression strings",
             "examples": [
               "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
@@ -3221,7 +3221,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "Plain Text",
-      "description": "Extract translatable text from plain `.txt` files, one block per line or per paragraph.",
+      "description": "Extract text from plain `.txt` files, one block per line or per paragraph.",
       "extensions": [
         ".txt",
         ".text"
@@ -3689,7 +3689,7 @@
           },
           "useCodeFinder": {
             "description": "Detect inline codes inside segment text using regular expressions.",
-            "help": "Enables regex-based detection of inline codes (placeholders,\nvariables, tags) within translatable text, using the patterns in\n`codeFinderRules`. When disabled (the default), no pattern-based\ninline codes are extracted.\n",
+            "help": "Enables regex-based detection of inline codes (placeholders,\nvariables, tags) within extracted text, using the patterns in\n`codeFinderRules`. When disabled (the default), no pattern-based\ninline codes are extracted.\n",
             "values": "`true` / `false` (default `false`)"
           }
         },
@@ -4307,7 +4307,7 @@
           },
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in content.",
-            "help": "A list of regular expressions; each match within translatable text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
+            "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
               "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
@@ -4376,7 +4376,7 @@
           },
           "useCodeFinder": {
             "description": "Detect inline codes inside content using regular expressions.",
-            "help": "Enables regex-based detection of inline codes in translatable text,\nusing the patterns in `codeFinderRules`. This supplements the native\nXLIFF inline elements. When disabled (the default), only the XLIFF\ninline elements are recognised.\n",
+            "help": "Enables regex-based detection of inline codes in extracted text,\nusing the patterns in `codeFinderRules`. This supplements the native\nXLIFF inline elements. When disabled (the default), only the XLIFF\ninline elements are recognised.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "useTranslationTargetState": {
@@ -4540,7 +4540,7 @@
         "parameters": {
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in content.",
-            "help": "A list of regular expressions; each match within translatable text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
+            "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
               "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
@@ -4569,7 +4569,7 @@
           },
           "useCodeFinder": {
             "description": "Detect inline codes inside content using regular expressions.",
-            "help": "Enables regex-based detection of inline codes in translatable text,\nusing the patterns in `codeFinderRules`. This supplements the native\nXLIFF 2 inline tag elements. When disabled (the default), only the\nnative inline elements are recognised.\n",
+            "help": "Enables regex-based detection of inline codes in extracted text,\nusing the patterns in `codeFinderRules`. This supplements the native\nXLIFF 2 inline tag elements. When disabled (the default), only the\nnative inline elements are recognised.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "version": {
@@ -4611,7 +4611,7 @@
       "source": "built-in",
       "kind": "format",
       "displayName": "XML",
-      "description": "Extract and reinsert translatable text from generic XML, controlled by element and attribute rules.",
+      "description": "Extract and reinsert text from generic XML, controlled by element and attribute rules.",
       "extensions": [
         ".xml"
       ],
@@ -4885,7 +4885,7 @@
           },
           "useCodeFinder": {
             "description": "Enable regex-based inline-code detection.",
-            "help": "Enables regex-based detection of inline codes within translatable text.\nThe patterns are supplied via `codeFinderRules`.\n",
+            "help": "Enables regex-based detection of inline codes within extracted text.\nThe patterns are supplied via `codeFinderRules`.\n",
             "values": "`true` / `false` (default `false`)"
           }
         },

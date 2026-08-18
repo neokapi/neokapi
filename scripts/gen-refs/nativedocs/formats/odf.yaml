@@ -4,15 +4,15 @@
 # ZIP; okf_odf is the inner content.xml filter). The native reader has no
 # JSON Schema (Config does not implement SchemaProvider), so no
 # `parameters`/`examples` blocks are authored.
-description: Extract translatable text from OpenDocument Format files (ODT, ODS, ODP, ODG).
+description: Extract text from OpenDocument Format files (ODT, ODS, ODP, ODG).
 overview: |
   ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,
   OpenOffice, and compatible suites. neokapi handles the text (`.odt`),
   spreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,
   auto-detecting the variant from the package's `mimetype` entry. Each file is
   a ZIP archive containing a `content.xml` payload plus styles and metadata
-  sub-documents; the reader extracts translatable text from the content while
-  preserving the surrounding XML and the package structure as skeleton.
+  sub-documents; the reader extracts text from the content while preserving
+  the surrounding XML and the package structure as skeleton.
 
   neokapi reads and writes ODF, round-tripping the archive so the translated
   output remains a valid OpenDocument file. By default it extracts

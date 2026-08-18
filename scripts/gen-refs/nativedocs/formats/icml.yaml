@@ -3,7 +3,7 @@
 # Upstream analogue: Okapi ICMLFilter (net.sf.okapi.filters.icml.ICMLFilter).
 # The native reader has no JSON Schema (Config does not implement
 # SchemaProvider), so no `parameters`/`examples` blocks are authored.
-description: Extract translatable text from Adobe InCopy ICML and WCML documents.
+description: Extract text from Adobe InCopy ICML and WCML documents.
 overview: |
   ICML (InCopy Markup Language) is the XML-based format Adobe InDesign and
   InCopy use for editorial workflows. Unlike its IDML sibling, an `.icml` (or
