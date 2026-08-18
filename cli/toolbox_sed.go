@@ -92,8 +92,8 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.StringVar(&targetLoc, "target", "", "edit the target translation for LOCALE instead of the source")
 	f.BoolVar(&force, "force", false, "write an edited binary document (.docx, .idml, …) to the terminal anyway")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: auto-detect by extension/content)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input/output encoding")
 
 	// -i takes an OPTIONAL backup suffix: `-i` (no backup) or `-i.bak`.
 	inPlaceFlag = RegisterInPlace(f, "edit files in place; append a backup SUFFIX if given (e.g. -i.bak)")

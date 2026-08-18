@@ -246,8 +246,8 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				if memoryProvider != nil {
 					if cfg, ok := t.Config().(*coretools.MemoryLeverageConfig); ok {
 						cfg.Provider = memoryProvider
-						if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
-							cfg.SourceLocale = model.LocaleID(a.SourceLang)
+						if cfg.SourceLocale.IsEmpty() {
+							cfg.SourceLocale = model.LocaleID(a.SourceLocale())
 						}
 					}
 				}

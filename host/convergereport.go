@@ -34,13 +34,7 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 	}
 	root := filepath.Dir(projectPath)
 
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	units, err := a.UnitsFromProject(proj, root, "")
 	if err != nil {
@@ -180,13 +174,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 		return false, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	units, err := a.UnitsFromProject(proj, root, ref.Locale)
 	if err != nil {
@@ -314,13 +302,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		return 0, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	units, err := a.UnitsFromProject(proj, root, locale)
 	if err != nil {
@@ -422,13 +404,7 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 		return nil, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	units, err := a.UnitsFromProject(proj, root, ref.Locale)
 	if err != nil {

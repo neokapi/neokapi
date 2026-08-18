@@ -70,8 +70,8 @@ document skeleton; a cross-format conversion reconstructs from the content model
 	f.BoolVarP(&recursive, "recursive", "r", false, "recurse into directory arguments")
 	f.StringVar(&targetLoc, "target", "", "convert the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input/output encoding")
 	f.BoolVar(&a.ConvTiming, "timing", false, "report each file's conversion time on stderr")
 	return cmd
 }

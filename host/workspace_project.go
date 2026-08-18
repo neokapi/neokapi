@@ -88,7 +88,7 @@ func (a *App) RunPack(cmd Command) error {
 		}
 		pkg.Overlays = storeToKpzOverlays(snap.Overlays)
 		if len(snap.Blocks) > 0 {
-			pkg.Blocks = []kpz.BlockDoc{{Path: "blocks/project.kbf.json", File: blocksToKBF(snap.Blocks, a.SourceLang)}}
+			pkg.Blocks = []kpz.BlockDoc{{Path: "blocks/project.kbf.json", File: blocksToKBF(snap.Blocks, a.SourceLocale())}}
 		}
 	}
 

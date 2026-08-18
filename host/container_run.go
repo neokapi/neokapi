@@ -33,8 +33,8 @@ var containerSkipFormats = map[string]bool{
 func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, outputPath string, progress progressGroup) error {
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
-		SourceLocale:    model.LocaleID(a.SourceLang),
-		Encoding:        a.Encoding,
+		SourceLocale:    model.LocaleID(a.SourceLocale()),
+		Encoding:        a.InputEncoding(),
 		ConfigureReader: a.containerConfigureReader(),
 	})
 

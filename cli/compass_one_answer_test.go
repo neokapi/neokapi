@@ -231,16 +231,98 @@ func breakPlaceholder(t *testing.T, root, locale string) {
 	require.NoError(t, os.WriteFile(path, []byte(edited), 0o644))
 }
 
+// The other kind of defect: not drift in a delivered file, which the loop
+// absorbs, but a wrong decision in the content memory, which the loop
+// reproduces.
+//
+// One string is added to the source catalog and answered in Norwegian by a
+// translation carrying a placeholder the source does not have — as an approved
+// decision in the committed content-memory bundle, and in the delivered catalog
+// that decision produced. Nothing in the project answers that wording any other
+// way, so every pass recycles the same defect back: recycle fills the unit from
+// the approved answer, `skipMatched` keeps the AI step off it, and the
+// placeholder check reports it again. The loop has no way out, because the
+// defect IS the approved wording — which is what makes this the case a repair
+// cannot swallow.
+const (
+	newSourceKey    = "booked"
+	newSourceString = "Berth booked for {vessel}."
+	badDecision     = "Kaiplass booket for {vessel} {until}."
+)
+
+// insertAfter adds one line to a JSON catalog directly below anchor. A targeted
+// text insert, not a re-encode: every other unit's bytes stay exactly as the
+// loop wrote them.
+func insertAfter(t *testing.T, path, anchor, line string) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), anchor, "sample shape: %s", path)
+	require.NoError(t, os.WriteFile(path,
+		[]byte(strings.Replace(string(raw), anchor, anchor+"\n"+line, 1)), 0o644))
+}
+
+// approveBadWording is the whole defect: a string the product added, a
+// translation of it carrying a placeholder the source does not have, and the
+// project standing behind that translation in both places it keeps an answer —
+// the committed content-memory bundle every pass compiles into the store, and
+// the delivered catalog a reader opens.
+func approveBadWording(t *testing.T, root string) {
+	t.Helper()
+	insertAfter(t, filepath.Join(root, "site", "locales", "en-GB.json"),
+		`    "book": "Book a berth",`, `    "`+newSourceKey+`": "`+newSourceString+`",`)
+	insertAfter(t, filepath.Join(root, "site", "locales", "nb.json"),
+		`    "book": "Book en kaiplass",`, `    "`+newSourceKey+`": "`+badDecision+`",`)
+
+	path := filepath.Join(root, ".kapi", "memory", "compass-nb.memory.json")
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var bundle map[string]any
+	require.NoError(t, json.Unmarshal(raw, &bundle))
+	entries, ok := bundle["entries"].([]any)
+	require.True(t, ok, "sample shape: %s carries entries", path)
+	bundle["entries"] = append(entries, map[string]any{
+		"id":          "compass-nb:berths-booked",
+		"hintSrcLang": "en-GB",
+		"variants": map[string]any{
+			"en-GB": []any{map[string]any{"text": newSourceString}},
+			"nb":    []any{map[string]any{"text": badDecision}},
+		},
+		"created": "2026-02-11T08:30:00Z",
+		"updated": "2026-02-11T08:30:00Z",
+	})
+	out, err := json.MarshalIndent(bundle, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, out, 0o644))
+}
+
+// assertWithheld is the second property the surfaces are held to, alongside
+// agreement: a locale carrying a finding is offered by none of them.
+func assertWithheld(t *testing.T, s surfaces, locale string) {
+	t.Helper()
+	assert.Positive(t, s.upFailingChecks,
+		"%s: the finding is reported, not merely acted on\n%s", locale, s.statusText)
+	assert.False(t, s.shipShippable,
+		"%s: the manifest a deployed language picker reads must not offer a locale carrying a finding\n%s",
+		locale, s.statusText)
+	assert.False(t, s.upShippable, "%s: nor up's state column\n%s", locale, s.statusText)
+	assert.False(t, s.statusShippable, "%s: nor status's ship column\n%s", locale, s.statusText)
+}
+
 // TestCompass_ThreeSurfacesGiveOneAnswer drives the journey samples/compass
 // documents and holds `kapi up`, `kapi status` and `kapi status --ship` to one
-// answer about EVERY locale — first with the content clean, then with a real
-// finding on a unit every one of whose 38 strings carries a committed review
-// decision.
+// answer about EVERY locale, through three states of one tree:
 //
-// The second state is the one that used to publish three answers: up called the
-// locale `parked (needs human)` at `translated 95%`, status called it
-// `translated 100% / ready`, and the manifest the deployed page reads offered it
-// as governed.
+//  1. the content clean, every locale converged and reviewed;
+//  2. a hand edit to a delivered catalog — drift the loop absorbs, because the
+//     unit's approved wording is in the content memory and recycling puts it
+//     back;
+//  3. a wrong decision the loop cannot absorb, because that decision IS what it
+//     recycles. Here the locale carrying the finding is withheld, and all three
+//     surfaces have to say so — the case the surfaces used to answer three ways:
+//     up called the locale `parked (needs human)` at `translated 95%`, status
+//     called it `translated 100% / ready`, and the manifest the deployed page
+//     reads offered it as governed.
 //
 // Every locale, not just the one carrying the defect: a run that grades one tree
 // and leaves another behind mis-reports whichever locale it declined to deliver,
@@ -310,4 +392,42 @@ func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 	require.NoError(t, rerr)
 	assert.Contains(t, string(raw), " {until}",
 		"the approved wording is back in the delivered catalog")
+
+	// The third state: a defect the loop cannot absorb, because the loop's own
+	// answer IS the defect.
+	approveBadWording(t, root)
+
+	withheld := readSurfaces(t, a, recipe, root)
+	for locale, s := range withheld {
+		assertAgree(t, s, locale)
+	}
+	assertWithheld(t, withheld["nb"], "nb")
+	// The finding is about nb, and the run says so about nb only: de answered the
+	// same new string from the provider and is offered exactly as before. A run
+	// that graded one tree and withheld every locale would pass the agreement
+	// property and mean nothing.
+	assert.True(t, withheld["de"].shipShippable,
+		"de is unaffected and still offered:\n%s", withheld["de"].statusText)
+	assert.Zero(t, withheld["de"].upFailingChecks,
+		"and carries no finding of its own:\n%s", withheld["de"].statusText)
+
+	// The wording is in the file a reader opens — recycled back from the approved
+	// answer, not repaired away as the hand edit was.
+	delivered, nerr := os.ReadFile(filepath.Join(root, "site", "locales", "nb.json"))
+	require.NoError(t, nerr)
+	assert.Contains(t, string(delivered), badDecision,
+		"the approved-but-wrong wording is what the loop produced")
+
+	// And it survives the run that reports it: recycling reproduces the approved
+	// answer, so a second convergence lands in exactly the same place. A defect
+	// the loop could repair would not.
+	still := readSurfaces(t, a, recipe, root)
+	for locale, s := range still {
+		assertAgree(t, s, locale)
+	}
+	assertWithheld(t, still["nb"], "nb")
+	assert.Equal(t, withheld["nb"].upFailingChecks, still["nb"].upFailingChecks,
+		"the same finding, on the same unit, after another pass:\n%s", still["nb"].statusText)
+	assert.Equal(t, withheld["nb"].upTranslated, still["nb"].upTranslated,
+		"and the same standing:\n%s", still["nb"].statusText)
 }

@@ -37,8 +37,8 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(i
 
 	doc := &model.RawDocument{
 		URI:          loc.Archive + "!" + loc.Entry,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
@@ -93,8 +93,8 @@ func (a *App) editBytes(ctx context.Context, name string, content []byte, t *too
 
 	doc := &model.RawDocument{
 		URI:          name,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
@@ -128,7 +128,7 @@ func (a *App) editBytes(ctx context.Context, name string, content []byte, t *too
 	if ocs, ok := writer.(format.OriginalContentSetter); ok {
 		ocs.SetOriginalContent(content)
 	}
-	writer.SetEncoding(a.Encoding)
+	writer.SetEncoding(a.InputEncoding())
 	writer.SetLocale(writeLocale)
 
 	ch := make(chan *model.Part, len(outParts)+1)

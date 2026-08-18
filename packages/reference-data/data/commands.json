@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T21:20:23Z",
+  "generatedAt": "2026-08-18T09:15:01Z",
   "commands": [
     {
       "id": "add",
@@ -90,7 +90,6 @@
         {
           "name": "encoding",
           "usage": "input/output encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -119,8 +118,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         }
       ],
@@ -251,8 +249,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -818,7 +815,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -890,8 +886,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -951,7 +946,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1023,8 +1017,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1079,7 +1072,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1151,8 +1143,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1205,7 +1196,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1260,8 +1250,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1311,7 +1300,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1366,8 +1354,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1433,7 +1420,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1516,8 +1502,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1584,7 +1569,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1656,8 +1640,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1724,7 +1707,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1802,8 +1784,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1862,7 +1843,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -1939,8 +1919,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -1990,7 +1969,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2051,8 +2029,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2099,7 +2076,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2177,8 +2153,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2386,7 +2361,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2521,8 +2495,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2595,7 +2568,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2702,8 +2674,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2762,7 +2733,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2844,8 +2814,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2889,7 +2858,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -2967,8 +2935,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3032,7 +2999,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3109,8 +3075,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3169,7 +3134,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3246,8 +3210,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3297,7 +3260,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3393,8 +3355,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3456,7 +3417,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3583,8 +3543,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3650,7 +3609,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3711,8 +3669,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3762,7 +3719,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3817,8 +3773,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3886,7 +3841,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -3952,8 +3906,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4035,7 +3988,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4129,8 +4081,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4179,7 +4130,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4245,8 +4195,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4300,7 +4249,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4371,8 +4319,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4435,7 +4382,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4512,8 +4458,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4581,7 +4526,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4677,8 +4621,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4751,7 +4694,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -4811,8 +4753,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -5157,7 +5098,6 @@
         {
           "name": "encoding",
           "usage": "input encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -5180,8 +5120,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         }
       ],
@@ -6484,7 +6423,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -6558,8 +6496,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -6682,7 +6619,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -6756,8 +6692,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -6804,7 +6739,6 @@
         {
           "name": "encoding",
           "usage": "input encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -6815,8 +6749,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         }
       ],
@@ -7426,7 +7359,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -7500,8 +7432,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -7627,7 +7558,6 @@
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
-          "default": "UTF-8",
           "type": "string"
         },
         {
@@ -7750,8 +7680,7 @@
         },
         {
           "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {

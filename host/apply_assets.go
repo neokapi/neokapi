@@ -392,6 +392,8 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	if reviewState == "" {
 		reviewState = string(model.TargetStatusReviewed)
 	}
+	// The raw record of what --source-lang named, not the resolved read: empty is
+	// how this hands the choice on to the recipe ApproveReviewUnit loads.
 	changed, aerr := a.ApproveReviewUnit(ctx, recipePath, a.SourceLang, e.Locale, e.File, e.ID, reviewState)
 	if aerr != nil {
 		return errResult(res, aerr.Error())

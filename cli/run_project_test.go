@@ -38,25 +38,20 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 	}
 	require.NoError(t, project.Save(projPath, proj))
 
-	// Create an App with default source lang.
-	app := &App{
-		SourceLang: "en", // default
-		TargetLang: "",   // not set
-	}
+	// An App the way a command tree leaves it: nothing named on the command line,
+	// so both fields are empty and a recipe can be adopted into them.
+	app := &App{}
 
-	// Load the project and verify defaults are applied.
 	loaded, err := project.Load(projPath)
 	require.NoError(t, err)
 
-	// Simulate what RunFromProject does for language defaults.
-	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
-		app.SourceLang = string(loaded.Defaults.SourceLanguage)
-	}
+	// The language defaults RunFromProject applies.
+	app.ResolveSourceLang(loaded.Defaults.SourceLanguage)
 	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
 		app.TargetLang = string(loaded.Defaults.TargetLanguages[0])
 	}
 
-	assert.Equal(t, "ja-JP", app.SourceLang, "project source lang should override default 'en'")
+	assert.Equal(t, "ja-JP", app.SourceLang, "the recipe names the source language")
 	assert.Equal(t, "en-US", app.TargetLang, "project first target lang should be used as default")
 }
 
@@ -75,19 +70,18 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 	}
 	require.NoError(t, project.Save(projPath, proj))
 
-	// Simulate user setting --target-lang explicitly.
+	// Simulate user setting --source-lang / --target-lang explicitly.
 	app := &App{
-		SourceLang: "fr-FR", // explicitly set (not default "en")
-		TargetLang: "de-DE", // explicitly set
+		SourceLang: "fr-FR", // explicitly named on the command line
+		TargetLang: "de-DE", // explicitly named on the command line
 	}
 
 	loaded, err := project.Load(projPath)
 	require.NoError(t, err)
 
-	// Same logic as RunFromProject — only override when CLI default.
-	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
-		app.SourceLang = string(loaded.Defaults.SourceLanguage)
-	}
+	// Same resolution as RunFromProject — the recipe is adopted only where the
+	// command line named nothing.
+	app.ResolveSourceLang(loaded.Defaults.SourceLanguage)
 	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
 		app.TargetLang = string(loaded.Defaults.TargetLanguages[0])
 	}

@@ -89,7 +89,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}') — a workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
 	}
 
-	recipe := newWorkspaceRecipe(a.SourceLang, splitLocales(targetLang), outLayout)
+	recipe := newWorkspaceRecipe(a.SourceLocale(), splitLocales(targetLang), outLayout)
 
 	// Build a full in-memory package (raw source always present) so the cache
 	// holds it. The packed .kpz then drops raw source unless withSource.
@@ -120,7 +120,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 		// writes back re-serialized, lower-fidelity files while reporting
 		// success. Fail rather than degrade silently.
 		if formatID != "" {
-			skel, serr := captureSkeletonBytes(ctx, a.FormatReg, registry.FormatID(formatID), f, data, model.LocaleID(a.SourceLang))
+			skel, serr := captureSkeletonBytes(ctx, a.FormatReg, registry.FormatID(formatID), f, data, model.LocaleID(a.SourceLocale()))
 			if serr != nil {
 				return fmt.Errorf("capture round-trip skeleton for %s: %w", base, serr)
 			}
@@ -222,7 +222,7 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 		return err
 	}
 	if c.meta.Recipe == nil {
-		c.meta.Recipe = newWorkspaceRecipe(a.SourceLang, nil, "")
+		c.meta.Recipe = newWorkspaceRecipe(a.SourceLocale(), nil, "")
 	}
 	targets := recipeTargetLangs(c.meta.Recipe)
 	locale := targetLang
@@ -452,8 +452,8 @@ func (a *App) runCacheSource(ctx context.Context, c *kpzCache, src kpzCacheSourc
 	defer store.Close()
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
-		SourceLocale:    model.LocaleID(a.SourceLang),
-		Encoding:        a.Encoding,
+		SourceLocale:    model.LocaleID(a.SourceLocale()),
+		Encoding:        a.InputEncoding(),
 		Store:           store,
 		DetectFormat:    a.kpzDetectFormat(src.Path),
 		ConfigureReader: a.kpzConfigureReader(),

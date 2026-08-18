@@ -138,7 +138,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 // leaves the resolved language as it stands — that is the file-only shape, which
 // has no project language to adopt.
 func (a *App) applyProjectSourceLang(cmd Command) {
-	if cmd == nil || cmd.Flags().Changed("source-lang") {
+	if cmd == nil {
 		return
 	}
 	path, err := ResolveProjectPath(cmd)
@@ -146,10 +146,10 @@ func (a *App) applyProjectSourceLang(cmd Command) {
 		return
 	}
 	proj, err := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil || proj.Defaults.SourceLanguage == "" {
+	if err != nil {
 		return
 	}
-	a.SourceLang = string(proj.Defaults.SourceLanguage)
+	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 }
 
 // runShipCheck is `kapi check --ship`: the project gate mode that absorbed the
@@ -219,10 +219,9 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	}
 
 	// The project's own source language, unless the caller named one. A term
-	// lookup matches the locale exactly, so content read in the wrong language
-	// is held to no vocabulary at all — and the flag's static default ("en")
-	// would otherwise shadow a project that writes en-GB. `check --ship` maps
-	// the same default for the same reason.
+	// lookup matches the locale exactly, so content read in the wrong language is
+	// held to no vocabulary at all. `check --ship` resolves it the same way, off
+	// the same precedence (host/sourcelang.go).
 	a.applyProjectSourceLang(cmd)
 
 	voice, err := a.newCheckVoice(cmd)
@@ -365,7 +364,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	fmtName, fmtCfg := opts.formats.forFile(a, file)
 
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, a.SourceLang, validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, a.SourceLocale(), validateMode)
 		if rerr != nil {
 			return nil, nil, rerr
 		}
@@ -374,7 +373,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file)))
 		}
 	} else {
-		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, a.SourceLang)
+		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, a.SourceLocale())
 		if rerr != nil {
 			// A read failure is operational in off mode: the lenient readers
 			// extract from imperfect inputs, so a hard error means the file
@@ -491,7 +490,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 
 	// Brand vocabulary — separate annotation; runs when a profile is bound.
 	if opts.profile != nil {
-		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLang))
+		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
 		for _, b := range blocks {
 			if err := RunCheckTool(ctx, vocab, b); err != nil {
 				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)

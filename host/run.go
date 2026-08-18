@@ -82,14 +82,10 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	ctx := project.NewProjectContext(proj, projectPath)
 
 	// Apply project defaults where CLI flags weren't explicitly set.
-	if !cmd.Flags().Changed("source-lang") && ctx.SourceLocale != "" {
-		a.SourceLang = string(ctx.SourceLocale)
-	}
+	a.ResolveSourceLang(ctx.SourceLocale)
+	a.ResolveEncoding(ctx.Encoding)
 	if !cmd.Flags().Changed("target-lang") && len(ctx.TargetLocales) > 0 {
 		a.TargetLang = string(ctx.TargetLocales[0])
-	}
-	if !cmd.Flags().Changed("encoding") && ctx.Encoding != "" {
-		a.Encoding = ctx.Encoding
 	}
 
 	// Check if it's a built-in flow first (project can reference built-in flows).
@@ -144,7 +140,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		outputFlag, _ := cmd.Flags().GetString("output")
 		locales := []string{a.TargetLang}
 		if !cmd.Flags().Changed("target-lang") {
-			if passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLang, localeStrings(ctx.TargetLocales)); len(passes) > 0 {
+			if passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLocale(), localeStrings(ctx.TargetLocales)); len(passes) > 0 {
 				locales = locales[:0]
 				for _, pass := range passes {
 					if len(pass) > 1 {
@@ -183,7 +179,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	absProjectPath, _ := filepath.Abs(projectPath)
 	rCtx := flow.ResourceContext{
 		ProjectDir:   filepath.Dir(absProjectPath),
-		SourceLocale: a.SourceLang,
+		SourceLocale: a.SourceLocale(),
 		TargetLocale: a.TargetLang,
 	}
 
@@ -210,7 +206,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// work" — via localesNeedingPass in converge.go.) A source-only flow
 	// (nil passes) keeps the single default-target run.
 	if !cmd.Flags().Changed("target-lang") {
-		passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLang, localeStrings(ctx.TargetLocales))
+		passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLocale(), localeStrings(ctx.TargetLocales))
 		if len(passes) > 0 {
 			savedTarget := a.TargetLang
 			defer func() { a.TargetLang = savedTarget }()

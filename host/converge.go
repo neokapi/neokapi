@@ -313,12 +313,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// Project context + content sources (the flow reads source, writes per-locale
 	// targets via the project's target template).
 	pctx := project.NewProjectContext(proj, projectPath)
-	if a.SourceLang == "" {
-		a.SourceLang = string(pctx.SourceLocale)
-	}
-	if a.SourceLang == "" {
-		a.SourceLang = "en"
-	}
+	// The one place the recipe's source language is adopted for a convergence:
+	// an explicit --source-lang still wins, and a project that declares none
+	// leaves the built-in default standing. A pass that reaches the loop at the
+	// wrong language misses every content-memory lookup and re-drafts the whole
+	// project over its own approved wording (host/sourcelang.go).
+	a.ResolveSourceLang(pctx.SourceLocale)
+	// And the encoding it reads them in, for the same reason: the writer already
+	// takes the recipe's (project.ConfigureWriterFor), so a reader left on the
+	// flag's own value decodes and re-encodes a project through two different
+	// character sets (host/encoding.go).
+	a.ResolveEncoding(pctx.Encoding)
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
 		return fmt.Errorf("resolve content: %w", err)

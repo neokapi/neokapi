@@ -309,7 +309,7 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 		if p, ok := a.projectItemTargetPath(filePath, cfg.TargetLang); ok {
 			outputPath = p
 		} else {
-			outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
+			outputPath = localeOutputPath(filePath, a.SourceLocale(), cfg.TargetLang)
 		}
 		if mkErr := os.MkdirAll(filepath.Dir(outputPath), 0o755); mkErr != nil {
 			return "", false, fmt.Errorf("create output dir: %w", mkErr)
@@ -458,8 +458,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	doc := &model.RawDocument{
 		URI:          filePath,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 

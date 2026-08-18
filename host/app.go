@@ -282,8 +282,8 @@ func (a *App) T() i18n.Translator {
 // AddProcessingFlags adds file-processing flags to a command.
 func (a *App) AddProcessingFlags(cmd Command) {
 	cmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "override input format detection")
-	cmd.Flags().StringVarP(&a.Encoding, "encoding", "e", "UTF-8", "input file encoding")
-	cmd.Flags().StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
+	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
+	a.AddSourceLangFlag(cmd.Flags())
 	cmd.Flags().StringVar(&a.TargetLang, "target-lang", "", "target language (e.g. fr, de-DE)")
 }
 
@@ -364,7 +364,7 @@ func (a *App) Init() error {
 		// flag/inline → recipe defaults → app config → built-in. a.Config is
 		// loaded by the time tools run, so reading it here is safe.
 		config = ApplyAIDefaults(a.Config, toolName, requires, config)
-		config = ApplySourceLocale(a.SourceLang, config)
+		config = ApplySourceLocale(a.SourceLocale(), config)
 		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 

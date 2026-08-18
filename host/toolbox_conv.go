@@ -188,8 +188,8 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 	}
 	if err := src.rawDocument(doc); err != nil {
 		return err
@@ -228,7 +228,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 			return err
 		}
 	}
-	writer.SetEncoding(a.Encoding)
+	writer.SetEncoding(a.InputEncoding())
 	writer.SetLocale(targetLoc)
 
 	// readCtx lets a writer that stops early stop the reader with it, rather

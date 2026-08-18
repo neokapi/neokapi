@@ -217,14 +217,9 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	ctx := cmd.Context()
 	ctx = ctxOrBackground(ctx)
 
-	// Source language: an explicit --source-lang wins; otherwise the project's
-	// source_language (the flag's static default would shadow it).
-	if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
-		a.SourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if a.SourceLang == "" {
-		a.SourceLang = "en"
-	}
+	// The plan is priced in the language the run would work in, which is the
+	// recipe's unless --source-lang names another (host/sourcelang.go).
+	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 
 	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
 	if err != nil {
@@ -357,13 +352,10 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
-	if sourceLang == "" {
-		sourceLang = string(proj.Defaults.SourceLanguage)
-	}
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
-	a.SourceLang = sourceLang
+	// Bounded to this call: the embedding caller's App outlives it and may plan a
+	// different project next, which must not inherit this recipe's language.
+	defer a.scopeSourceLang()()
+	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
 	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
 	if err != nil {
@@ -486,7 +478,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		return s
 	}
 
-	source := model.LocaleID(a.SourceLang)
+	source := model.LocaleID(a.SourceLocale())
 	for _, u := range units {
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {

@@ -100,8 +100,8 @@ any block matched, 1 if none did, 2 on error.`,
 	f.StringArrayVarP(&patterns, "regexp", "e", nil, "pattern to search for (repeatable; PATTERN positional not needed)")
 	f.StringVar(&targetLoc, "target", "", "search the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
-	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
-	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input encoding")
+	a.AddSourceLangFlag(f)
+	a.AddEncodingFlag(f, "", "input encoding")
 
 	// Full classic shorthand surface — kapi's persistent flags are never inherited
 	// (busybox root, or detached proxy), so -v/-c/-q are ours to define.

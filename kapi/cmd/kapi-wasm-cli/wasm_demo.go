@@ -96,7 +96,7 @@ func forceDemoProviders(app *cli.App) {
 		// This replaces App.Init's preprocessor wholesale, so anything it
 		// contributed must be re-applied here or the browser silently sends a
 		// different prompt than the native CLI.
-		config = cli.ApplySourceLocale(app.SourceLang, config)
+		config = cli.ApplySourceLocale(app.SourceLocale(), config)
 		// Real in-browser providers run via a host JS bridge, not a credentialed
 		// network call: `local` (a model via WebLLM/WebGPU, transformers.js
 		// fallback) and `browser` (the on-device Translator API). Let either

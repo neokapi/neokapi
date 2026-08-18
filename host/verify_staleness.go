@@ -279,7 +279,7 @@ func (s *sourceBlockCache) forPath(path string) ([]*model.Block, error) {
 	if b, ok := s.blocks[path]; ok {
 		return b, nil
 	}
-	b, err := s.app.readBlocks(s.ctx, path, s.app.SourceLang)
+	b, err := s.app.readBlocks(s.ctx, path, s.app.SourceLocale())
 	if err != nil {
 		return nil, err
 	}

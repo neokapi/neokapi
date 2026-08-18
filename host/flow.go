@@ -405,8 +405,8 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
-		SourceLocale:    model.LocaleID(a.SourceLang),
-		Encoding:        a.Encoding,
+		SourceLocale:    model.LocaleID(a.SourceLocale()),
+		Encoding:        a.InputEncoding(),
 		Recorder:        recorder,
 		Store:           projStore,
 		ProjectRoot:     projRoot,
@@ -886,8 +886,8 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
+		SourceLocale: model.LocaleID(a.SourceLocale()),
+		Encoding:     a.InputEncoding(),
 		Store:        projStore,
 		ProjectRoot:  projRoot,
 	})
@@ -1235,7 +1235,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	}
 
 	config := map[string]any{
-		"source_locale": a.SourceLang,
+		"source_locale": a.SourceLocale(),
 		"target_locale": a.TargetLang,
 	}
 
@@ -1389,11 +1389,11 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				} else if tb != nil {
 					qaTools = append(qaTools,
 						sqltb.NewTermLookupTool(tb, sqltb.TermLookupConfig{
-							SourceLocale: model.LocaleID(a.SourceLang),
+							SourceLocale: model.LocaleID(a.SourceLocale()),
 							TargetLocale: model.LocaleID(a.TargetLang),
 						}),
 						sqltb.NewTermEnforceTool(tb, sqltb.TermEnforceConfig{
-							SourceLocale: model.LocaleID(a.SourceLang),
+							SourceLocale: model.LocaleID(a.SourceLocale()),
 							TargetLocale: model.LocaleID(a.TargetLang),
 						}),
 					)
@@ -1405,7 +1405,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				// Tools requiring a content memory get a real SQLite provider injected from
 				// the --memory flag or, with no flag, the project's own store.
 				memoryConfig := map[string]any{
-					"source_locale":   a.SourceLang,
+					"source_locale":   a.SourceLocale(),
 					"target_locale":   a.TargetLang,
 					"fuzzy_threshold": 70,
 				}
@@ -1435,8 +1435,8 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				if provider != nil {
 					if cfg, ok := t.Config().(*coretools.MemoryLeverageConfig); ok {
 						cfg.Provider = provider
-						if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
-							cfg.SourceLocale = model.LocaleID(a.SourceLang)
+						if cfg.SourceLocale.IsEmpty() {
+							cfg.SourceLocale = model.LocaleID(a.SourceLocale())
 						}
 					}
 				}
@@ -1773,7 +1773,7 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point pr
 		return nil, err
 	}
 
-	source := model.LocaleID(a.SourceLang)
+	source := model.LocaleID(a.SourceLocale())
 	target := model.LocaleID(targetLang)
 	if target == "" {
 		target = model.LocaleID(a.TargetLang)

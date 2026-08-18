@@ -109,7 +109,6 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			}
 		}
 	}
-	a.SourceLang = firstNonEmpty(a.SourceLang, "en")
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
 

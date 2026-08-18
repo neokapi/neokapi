@@ -77,12 +77,10 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 			return nil, nil, err
 		}
 		a.InitRegistries()
-		if a.SourceLang == "" && proj.Defaults.SourceLanguage != "" {
-			a.SourceLang = string(proj.Defaults.SourceLanguage)
-		}
-		if a.SourceLang == "" {
-			a.SourceLang = "en"
-		}
+		// One MCP server serves many projects over its lifetime, so this
+		// project's language is bounded to this call (host/sourcelang.go).
+		defer a.scopeSourceLang()()
+		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 		plan, err := a.computeProjectPlan(ctx, proj, path)
 		if err != nil {
 			return nil, nil, err

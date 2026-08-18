@@ -184,19 +184,11 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		jobs = proj.Defaults.Jobs
 	}
 
-	// The recipe's source language governs the run, whatever the run prints.
-	// It is applied HERE, on the way into the loop, and not left to the
-	// `a.SourceLang == ""` fallback inside RunDefaultFlowConverge: --source-lang
-	// is registered with `StringVar(&a.SourceLang, …, "en", …)`
-	// (AddProcessingFlags), so the flag's own default is already sitting in the
-	// field by the time any `up` runs and that fallback can never fire. A run
-	// that reaches the loop at "en" over an `en-GB` recipe misses every
-	// content-memory lookup: nothing recycles, the AI step drafts every unit in
-	// every locale over the project's approved wording, and no locale clears its
-	// ship gate. `kapi run` applies the recipe the same way (host/run.go).
-	if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
-		a.SourceLang = string(proj.Defaults.SourceLanguage)
-	}
+	// The recipe's source language governs the run, whatever the run prints —
+	// so it is adopted here, before the branch that chooses the output mode,
+	// rather than inside one of its arms. The plan preamble below and the loop
+	// itself then read the same language (host/sourcelang.go).
+	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 
 	// The run is live by default: --json streams the convergence
 	// events as NDJSON (one event per line, a final result record) for
