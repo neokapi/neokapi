@@ -2,6 +2,7 @@ package xliff2_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -224,6 +225,119 @@ func TestSkeletonStore_ByteExact_SourceOnly(t *testing.T) {
 </xliff>`
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "source-only XLIFF 2 roundtrip should be byte-exact")
+}
+
+// #2078. A segment with no `<target>` still has a place for one — after
+// `<source>`, where the XLIFF 2.0 content model puts it — and the reader records
+// that place so a translation the run produced reaches the file instead of only
+// the store. Nothing is written where nothing was translated
+// (TestSkeletonStore_ByteExact_SourceOnly is that half).
+func TestSkeletonStore_InjectsTargetWhereTheSourceHasNone(t *testing.T) {
+	// A partly translated file: one unit still source-only, one already carrying
+	// its target. trgLang is declared because the document holds a `<target>`,
+	// which is when XLIFF 2.1 requires it.
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1">
+      <segment id="s1">
+        <source>Hello</source>
+      </segment>
+    </unit>
+    <unit id="u2">
+      <segment id="s1">
+        <source>Goodbye</source>
+        <target>Au revoir</target>
+      </segment>
+    </unit>
+  </file>
+</xliff>`
+	ctx := t.Context()
+
+	reader := xliff2.NewReader()
+	writer := xliff2.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		b := p.Resource.(*model.Block)
+		if b.SourceText() == "Hello" {
+			b.SetTargetRuns(model.LocaleID("fr"), []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
+		}
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleID("fr"))
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+
+	assert.Equal(t, input[:strings.Index(input, "<source>Hello</source>")+len("<source>Hello</source>")]+
+		"\n        <target>Bonjour</target>"+
+		input[strings.Index(input, "<source>Hello</source>")+len("<source>Hello</source>"):],
+		buf.String(),
+		"the file is its own bytes plus the one element it was missing")
+}
+
+// A unit holding several segments gets one `<target>` where its translation is,
+// not the same text repeated down the unit: a translator handed a unit as one
+// string produces one target, and the segment it belongs to is the first.
+func TestSkeletonStore_InjectsOneTargetForAUnitTranslatedAsOne(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1">
+      <segment id="s1">
+        <source>Hello.</source>
+      </segment>
+      <segment id="s2">
+        <source>Goodbye.</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>`
+	ctx := t.Context()
+
+	reader := xliff2.NewReader()
+	writer := xliff2.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			p.Resource.(*model.Block).SetTargetRuns(model.LocaleID("fr"),
+				[]model.Run{{Text: &model.TextRun{Text: "Bonjour. Au revoir."}}})
+		}
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleID("fr"))
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+
+	assert.Equal(t, 1, strings.Count(buf.String(), "<target>"),
+		"one translation is one target element")
+	assert.Contains(t, buf.String(), "<target>Bonjour. Au revoir.</target>")
 }
 
 func TestSkeletonStore_ByteExact_WithNotes(t *testing.T) {
