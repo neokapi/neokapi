@@ -247,6 +247,13 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 	// are scoped to this file. See unitName, and nameOrdinals for why this is not
 	// model.NameBuilder.
 	var names nameOrdinals
+	// ids separates the `tuid`s this document repeats. TMX declares `tuid` as
+	// CDATA #IMPLIED rather than an XML ID and states that its value is not
+	// defined by the standard, so a memory whose units all carry `tuid="1"` — or
+	// none at all, where the positional fallback below can meet a literal `tu3` —
+	// is a conforming file, and the block store still needs to tell its units
+	// apart. See core/model/blockid.go.
+	var ids model.IDBuilder
 
 	for {
 		token, err := decoder.Token()
@@ -509,6 +516,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					}
 
 					block := r.buildBlock(tuID, currentTU, srcLang, locale)
+					ids.Assign(block)
 					block.Name = unitName(&names, currentTU.id, block.SourceText())
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						currentTU = nil

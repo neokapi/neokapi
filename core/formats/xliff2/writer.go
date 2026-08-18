@@ -509,13 +509,19 @@ func writeBytesCREscape(w io.Writer, data []byte) error {
 // Two shapes collide: a repeated id, and an absent id — attrValue returns ""
 // for a missing attribute, so every id-less unit keys on the empty string.
 // Resolving in document order covers both.
+//
+// The queue is keyed by the id the DOCUMENT spells (model.DocumentID), not the
+// block's own ID: a repeat has been separated at the reader so the block store
+// can address it, and it is the document's spelling that the `<unit>` element
+// being patched still carries.
 type blockQueues map[string][]*model.Block
 
 func newBlockQueues(items []writerItem) blockQueues {
 	q := make(blockQueues, len(items))
 	for _, it := range items {
 		if it.kind == itemBlock && it.block != nil {
-			q[it.block.ID] = append(q[it.block.ID], it.block)
+			id := model.DocumentID(it.block)
+			q[id] = append(q[id], it.block)
 		}
 	}
 	return q
@@ -1375,7 +1381,9 @@ func (w *Writer) unitNameAttr(block *model.Block) string {
 // to parent.
 func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLang model.LocaleID) {
 	unitEl := parent.CreateElement("unit")
-	unitEl.CreateAttr("id", block.ID)
+	// `@id` is what the document says; a block's ID is an identity for the store,
+	// and the two are the same for every conforming document.
+	unitEl.CreateAttr("id", model.DocumentID(block))
 	if name := w.unitNameAttr(block); name != "" {
 		unitEl.CreateAttr("name", name)
 	}

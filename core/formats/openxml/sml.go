@@ -17,8 +17,13 @@ import (
 
 // smlParser parses SpreadsheetML XML parts (XLSX worksheets, shared strings).
 type smlParser struct {
-	cfg           *Config
-	blockCounter  *int
+	cfg          *Config
+	blockCounter *int
+	// ids separates the ids this document repeats. A cell anchor is identified
+	// by its `r` reference, which the worksheet supplies: OOXML says a reference
+	// is unique within a sheet, and a repaired or machine-generated workbook
+	// repeats one anyway. See core/model/blockid.go.
+	ids           *model.IDBuilder
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	sharedStrings []string // pre-parsed shared string table
@@ -559,6 +564,7 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 			"siIndex":  strconv.Itoa(idx),
 		},
 	}
+	p.ids.Assign(block)
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
@@ -581,6 +587,7 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
 		Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
 	}
+	p.ids.Assign(block)
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}

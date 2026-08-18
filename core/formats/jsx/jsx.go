@@ -262,9 +262,15 @@ func (r *Reader) streamKBF(ctx context.Context, ch chan<- model.PartResult, data
 		ch <- model.PartResult{Error: fmt.Errorf("kbf: parse kbf: %w", err)}
 		return
 	}
+	// ids separates the block ids this bundle repeats. A `.kbf.json` supplies
+	// every block's id and bundles many documents into one file, so uniqueness
+	// rests entirely on whoever generated it — and the store keys on the bundle.
+	// See core/model/blockid.go.
+	var ids model.IDBuilder
 	for _, doc := range file.Documents {
 		for i := range doc.Blocks {
 			block := toModelBlock(&doc, &doc.Blocks[i])
+			ids.Assign(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -454,7 +460,10 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 				source = runsFromModel(mb.Source)
 			}
 			b := kbf.Block{
-				ID:           mb.ID,
+				// The id is what the bundle says; a block's ID is an identity
+				// for the store, and the two are the same for every bundle whose
+				// blocks already identify themselves.
+				ID:           model.DocumentID(mb),
 				Hash:         ann.Hash,
 				Translatable: mb.Translatable,
 				Type:         ann.Type,
@@ -478,7 +487,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	// Synthesized fallback: minimal text-only block from whatever
 	// content the model.Block carries.
 	b := kbf.Block{
-		ID:           mb.ID,
+		ID:           model.DocumentID(mb),
 		Translatable: mb.Translatable,
 		Type:         kbf.BlockTypeJSXElement,
 		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},

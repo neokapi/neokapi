@@ -221,6 +221,13 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 	// are scoped to this file. See messageName, and nameOrdinals for why this is
 	// not model.NameBuilder.
 	var names nameOrdinals
+	// ids separates the `message/@id`s this document repeats. Qt's DTD declares
+	// it CDATA and its id-based workflow expects one id per string, but a catalog
+	// merged from several sources — or one whose ids were copied along with the
+	// messages — repeats them, and the block store still needs to tell the
+	// messages apart. It also guards the positional fallback below against a
+	// document that spells a literal `tu3`. See core/model/blockid.go.
+	var ids model.IDBuilder
 
 	var (
 		tsVersion             string
@@ -836,6 +843,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 						block = model.NewBlock(blockID, sourceText)
 						block.Translatable = translatable
 					}
+					ids.Assign(block)
 					block.Name = messageName(&names, contextName, messageID, sourceText, commentBuilder.String())
 
 					// Store translation type

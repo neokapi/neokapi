@@ -644,8 +644,12 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 	// Build <message> opening tag
 	var msgTag strings.Builder
 	msgTag.WriteString("    <message")
-	if block.ID != "" && !strings.HasPrefix(block.ID, "tu") {
-		fmt.Fprintf(&msgTag, ` id="%s"`, xmlEscape(block.ID))
+	// `@id` is what the document says; a block's ID is an identity for the store,
+	// and the two are the same for every document whose messages already identify
+	// themselves. The `tu` prefix is the reader's synthesized id for a message
+	// that declared none, and stays unwritten.
+	if id := model.DocumentID(block); id != "" && !strings.HasPrefix(id, "tu") {
+		fmt.Fprintf(&msgTag, ` id="%s"`, xmlEscape(id))
 	}
 	if block.Properties["numerus"] == "yes" {
 		msgTag.WriteString(` numerus="yes"`)

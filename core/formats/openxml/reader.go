@@ -156,6 +156,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	blockCounter := 0
 	dataCounter := 0
+	// ids separates the ids the archive's parts repeat; see core/model/blockid.go.
+	// One per document, like the counter beside it: an id has to be an identity
+	// across the whole archive, because that is the unit the block store keys on.
+	var ids model.IDBuilder
 
 	// Initialize code finder if configured
 	var cf *codeFinder
@@ -354,6 +358,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			parser := &smlParser{
 				cfg:           r.cfg,
 				blockCounter:  &blockCounter,
+				ids:           &ids,
 				skeletonStore: r.skeletonStore,
 				sharedStrings: info.sharedStrings,
 				sheetNames:    info.sheetNames,
