@@ -5,6 +5,32 @@
  */
 
 import type { Run } from "./block.ts";
+import { projectRunsText, type ModelRunSpec } from "./run-projection.ts";
+
+/**
+ * The runtime's string form: every kind of run is representable, so this
+ * projection drops nothing. It is the reference for what a lossless run
+ * projection looks like — `t()` / `tx()` reconstruct the typed sequence from
+ * the string, which is only possible because nothing left it.
+ */
+const RUNTIME_TEXT: ModelRunSpec<string> = {
+  text: (r) => r.text,
+  ph: (r) => `{${r.ph.equiv || r.ph.id}}`,
+  // Paired codes keep their content; the markers let tx() re-attach elements.
+  pcOpen: (r) => `{=m${r.pcOpen.id}}`,
+  pcClose: (r) => `{/=m${r.pcClose.id}}`,
+  sub: (r) => `[${r.sub.equiv || r.sub.id}]`,
+  // ICU syntax, so the runtime's resolveICU picks the form at render time.
+  plural: (r) => `{${r.plural.pivot}, plural, ${branches(r.plural.forms)}}`,
+  select: (r) => `{${r.select.pivot}, select, ${branches(r.select.cases)}}`,
+  fallback: (kind) => `{${kind}}`,
+};
+
+function branches(byKey: Record<string, Run[]>): string {
+  return Object.entries(byKey)
+    .map(([key, runs]) => `${key} {${flattenRuns(runs)}}`)
+    .join(" ");
+}
 
 /**
  * Flatten a Run sequence to the string shape the neokapi-i18n runtime
@@ -15,29 +41,5 @@ import type { Run } from "./block.ts";
  * the right form at render time.
  */
 export function flattenRuns(runs: Run[]): string {
-  let out = "";
-  for (const r of runs) {
-    if ("text" in r) {
-      out += r.text;
-    } else if ("ph" in r) {
-      out += `{${r.ph.equiv || r.ph.id}}`;
-    } else if ("pcOpen" in r) {
-      out += `{=m${r.pcOpen.id}}`;
-    } else if ("pcClose" in r) {
-      out += `{/=m${r.pcClose.id}}`;
-    } else if ("sub" in r) {
-      out += `[${r.sub.equiv || r.sub.id}]`;
-    } else if ("plural" in r) {
-      const forms = Object.entries(r.plural.forms)
-        .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
-        .join(" ");
-      out += `{${r.plural.pivot}, plural, ${forms}}`;
-    } else if ("select" in r) {
-      const cases = Object.entries(r.select.cases)
-        .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
-        .join(" ");
-      out += `{${r.select.pivot}, select, ${cases}}`;
-    }
-  }
-  return out;
+  return projectRunsText(runs, RUNTIME_TEXT);
 }

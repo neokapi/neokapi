@@ -11,7 +11,7 @@ import { DocumentPreview } from "../components/editor/DocumentPreview";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { createMockAdapter, type MockAdapter } from "../stories/mock-adapter";
-import type { Workspace } from "../types/api";
+import type { BlockInfo, Workspace } from "../types/api";
 
 const mockWorkspace: Workspace = {
   id: "ws-1",
@@ -25,9 +25,9 @@ const mockWorkspace: Workspace = {
 
 function renderPreview(
   prepare: (adapter: MockAdapter) => void,
-  { mounts = 1 }: { mounts?: number } = {},
+  { mounts = 1, blocks }: { mounts?: number; blocks?: BlockInfo[] } = {},
 ) {
-  const adapter = createMockAdapter();
+  const adapter = createMockAdapter(blocks);
   prepare(adapter);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -80,5 +80,52 @@ describe("DocumentPreview — the document is one query, never one per block", (
 
     await waitFor(() => expect(screen.getAllByTestId("preview-iframe")).toHaveLength(2));
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+  });
+});
+
+// Reading a locale a document has not been translated into shows the source —
+// a document is still a document with its translation outstanding. Showing it
+// *silently*, under the locale's own name, reads as a translation that happens
+// to match the source, or as a toggle that did nothing.
+describe("DocumentPreview — what the target side is actually showing", () => {
+  function block(id: string, target?: string): BlockInfo {
+    return {
+      id,
+      source: `Source ${id}`,
+      translatable: true,
+      has_spans: false,
+      properties: {},
+      targets: target ? { "fr-FR": { text: target, status: "translated" } } : {},
+    };
+  }
+
+  it("says so when nothing is translated into the locale", async () => {
+    renderPreview(() => {}, { blocks: [block("b1"), block("b2")] });
+
+    const notice = await screen.findByTestId("preview-coverage");
+    expect(notice).toHaveTextContent(/Nothing is translated into/);
+  });
+
+  it("counts the blocks that are, when only some are", async () => {
+    renderPreview(() => {}, { blocks: [block("b1", "Bonjour"), block("b2"), block("b3")] });
+
+    const notice = await screen.findByTestId("preview-coverage");
+    expect(notice).toHaveTextContent(/1 of 3 blocks are translated/);
+    expect(notice).toHaveTextContent(/the rest read as the source/);
+  });
+
+  it("says nothing when the document is fully translated", async () => {
+    renderPreview(() => {}, { blocks: [block("b1", "Bonjour"), block("b2", "Salut")] });
+
+    await waitFor(() => expect(screen.getByTestId("preview-iframe")).toBeInTheDocument());
+    expect(screen.queryByTestId("preview-coverage")).toBeNull();
+  });
+
+  it("counts only the blocks there is something to translate in", async () => {
+    const untranslatable: BlockInfo = { ...block("b3"), translatable: false };
+    renderPreview(() => {}, { blocks: [block("b1", "Bonjour"), untranslatable] });
+
+    await waitFor(() => expect(screen.getByTestId("preview-iframe")).toBeInTheDocument());
+    expect(screen.queryByTestId("preview-coverage")).toBeNull();
   });
 });

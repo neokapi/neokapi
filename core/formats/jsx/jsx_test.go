@@ -171,6 +171,64 @@ func TestPreviewBuilder(t *testing.T) {
 	assert.Contains(t, preview, "Files ")
 }
 
+// A bundle is a catalog of a React tree, and the document preview says so: the
+// blocks are grouped by the component they came from, each one labelled with
+// the element it sits in, and every run rendered — a variable is a chip, not a
+// gap. Falling through to the generic listing dropped all three: the component,
+// the element, and (because a placeholder run carries no text) the variable.
+func TestBuildPreviewRendersTheComponentTree(t *testing.T) {
+	doc := makeKBFFile()
+	buf, err := kbf.Marshal(doc)
+	require.NoError(t, err)
+
+	r := NewReader()
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf.json", Reader: io.NopCloser(bytes.NewReader(buf))}))
+
+	parts := collectParts(t, r)
+
+	preview := r.BuildPreview(parts)
+
+	// Every block is addressable, so a click selects it and a target swap can
+	// replace it — the contract the preview host works to.
+	assert.Contains(t, preview, `<kat-block id="files-heading"`)
+	assert.Contains(t, preview, `<kat-block id="tag-chip"`)
+
+	// The component each block was extracted from, stated once above its blocks.
+	assert.Contains(t, preview, "FilesHeading")
+	assert.Contains(t, preview, "TagChip")
+
+	// The element it sits in, and where it came from.
+	assert.Contains(t, preview, "&lt;h2&gt;")
+	assert.Contains(t, preview, "src/FilesHeading.tsx:4")
+
+	// The variable renders as itself, not as the hole a text listing leaves.
+	assert.Contains(t, preview, `class="neokapi-var"`)
+	assert.Contains(t, preview, "count")
+	assert.Contains(t, preview, "Files ")
+}
+
+// A block the reader could not annotate still appears: the document preview
+// leans on the block-level builder, which falls back to the flattened text
+// rather than dropping the block.
+func TestBuildPreviewIsTheSameBlockRenderingAsTheBlockBuilder(t *testing.T) {
+	doc := makeKBFFile()
+	buf, err := kbf.Marshal(doc)
+	require.NoError(t, err)
+
+	r := NewReader()
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf.json", Reader: io.NopCloser(bytes.NewReader(buf))}))
+	blocks := collectBlocks(t, r)
+
+	one := NewPreviewBuilder().BuildBlockPreview(blocks[0])
+	require.NotEmpty(t, one)
+
+	r2 := NewReader()
+	require.NoError(t, r2.Open(context.Background(), &model.RawDocument{URI: "inline.kbf.json", Reader: io.NopCloser(bytes.NewReader(buf))}))
+	parts := collectParts(t, r2)
+	assert.Contains(t, r2.BuildPreview(parts), one,
+		"a block reads identically whether the host asked for it or for the document")
+}
+
 func TestReaderSniffsKBFEnvelope(t *testing.T) {
 	r := NewReader()
 	sig := r.Signature()
@@ -194,6 +252,19 @@ func TestReaderDoesNotSniffSiblingEnvelopes(t *testing.T) {
 }
 
 // ───────── helpers ─────────
+
+// collectParts drains a reader into the part slice a PreviewBuilder is given.
+func collectParts(t *testing.T, r *Reader) []*model.Part {
+	t.Helper()
+	var parts []*model.Part
+	for res := range r.Read(context.Background()) {
+		require.NoError(t, res.Error)
+		if res.Part != nil {
+			parts = append(parts, res.Part)
+		}
+	}
+	return parts
+}
 
 func collectBlocks(t *testing.T, r *Reader) []*model.Block {
 	t.Helper()

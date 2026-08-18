@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
-import { Button, Badge, cn } from "@neokapi/ui-primitives";
-import { FormatPreview } from "@neokapi/ui-primitives/preview";
+import { useCallback, useState } from "react";
+import { Button, Badge, cn, directionAttrs } from "@neokapi/ui-primitives";
 import type { EntityInfo, OnBrandBasis } from "../../types/api";
 import { OnBrandRateChip } from "../OnBrandRateChip";
-import { blocksToContentTree, type BlockEvidence } from "../../preview/toContentTree";
 import { entityLabel } from "../editor/HighlightedSource";
+import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, statusConfig } from "../editor/blockStatus";
@@ -79,6 +78,11 @@ export interface FocusedReviewerProps {
   onEntityPromote?: (entityKey: string) => void;
 }
 
+// Source and target are read against each other, so they are the same cell:
+// same frame, same type, same renderer — only the label above them differs. A
+// side that styles its text differently reads as a difference in the content.
+const CELL = "rounded-lg border border-border bg-card p-3 text-sm leading-relaxed";
+
 // The verdict over all three bars the server applies on approve, not over
 // checks alone: "Passes checks" was a claim about one of them.
 const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string }> = {
@@ -94,9 +98,9 @@ const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string
 
 /**
  * FocusedReviewer is the review session's right pane: one pending block shown
- * source-vs-target, rendered faithfully through the same content-model
- * primitives the translation editor uses (inline codes as protected tokens,
- * term/entity overlays), with its checks and on-brand signal inline. Review is
+ * source-vs-target, both sides rendered by the same cell primitive the
+ * translation editor uses (inline codes as chips, entity marks, formatting
+ * applied), with its checks and on-brand signal inline. Review is
  * bidirectional — the reviewer can act on the target (approve / reject / edit →
  * re-check, and turn a fix into a brand rule) and on the source (select a span
  * → mark a term or suggest a brand rule). All actions are emitted to the parent
@@ -136,27 +140,15 @@ export function FocusedReviewer({
   // Capture the current source-text selection so the source-side lane can act
   // on it. Constrained to the source column via the onMouseUp target.
   //
-  // The kit renders the source as the concatenation of the block's literal
-  // runs, so a DOM selection over it yields exactly the source text a term or a
-  // voice rule is matched against — overlay marks split the text into more
-  // elements, but `Selection.toString()` reads across them.
+  // The cell renders the block's literal text plus non-selectable chips for its
+  // inline codes, so a DOM selection over it yields exactly the source text a
+  // term or a voice rule is matched against: entity marks and formatting split
+  // the text into more elements but `Selection.toString()` reads across them,
+  // and a chip's label is not part of the source, so it stays out of it.
   const captureSelection = useCallback(() => {
     const text = window.getSelection?.()?.toString().trim() ?? "";
     setSelection(text);
   }, []);
-
-  // The source as the content model holds it: typed runs with the block's
-  // entities as an inline overlay, and its position-less check results recorded
-  // as annotations rather than guessed onto a span. One block and no item name,
-  // so the block is the whole tree.
-  const sourceTree = useMemo(() => {
-    const evidence: BlockEvidence = { issues, issueLocale: locale };
-    return blocksToContentTree([block], {
-      evidence: { [block.id]: evidence },
-      sourceLocale,
-      locales: [locale],
-    });
-  }, [block, issues, locale, sourceLocale]);
 
   const entities: EntityInfo[] = block.entities ?? [];
   const errorCount = issues.filter((i) => i.severity === "error").length;
@@ -235,18 +227,23 @@ export function FocusedReviewer({
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Source */}
           <section className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex h-6 items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Source ({sourceLocale})
               </span>
             </div>
             <div
-              className="rounded-lg border border-border bg-muted/20 p-3 text-sm leading-relaxed"
+              className={CELL}
               onMouseUp={captureSelection}
               onKeyUp={captureSelection}
               data-testid="reviewer-source"
+              {...directionAttrs(sourceLocale)}
             >
-              <FormatPreview tree={sourceTree} side="source" reducedMotion />
+              <FormattedSourceDisplay
+                codedText={block.source_coded ?? block.source ?? ""}
+                spans={block.source_spans ?? []}
+                entities={entities}
+              />
             </div>
             {/* Marked entities. The document marks them where they occur; this
                 lane is where they can be acted on — a tooltip cannot hold a
@@ -335,7 +332,7 @@ export function FocusedReviewer({
 
           {/* Target */}
           <section className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex h-6 items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Target ({locale})
               </span>
@@ -365,10 +362,7 @@ export function FocusedReviewer({
                 />
               </div>
             ) : (
-              <div
-                className="rounded-lg border border-border bg-card p-3 text-sm leading-relaxed"
-                data-testid="reviewer-target"
-              >
+              <div className={CELL} data-testid="reviewer-target" {...directionAttrs(locale)}>
                 <CollapsedTargetCell block={block} locale={locale} testId="reviewer-target-cell" />
               </div>
             )}

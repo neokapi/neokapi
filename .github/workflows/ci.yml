@@ -894,6 +894,8 @@ jobs:
         run: ./scripts/check-abs-paths.sh
       - name: Guard — no retired framing in user-facing prose
         run: ./scripts/check-vocabulary.sh
+      - name: Guard — every run projection is declared, never hand-rolled
+        run: ./scripts/check-run-projection.sh
       - name: Guard — reference dataset is reproducible from this repo
         run: ./scripts/check-reference-provenance.sh
       - name: Guard — publishable packages declare a license and ship its text

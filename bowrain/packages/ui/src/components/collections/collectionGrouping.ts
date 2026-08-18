@@ -14,6 +14,20 @@ import type { CollectionTranslationStats } from "../../types/api";
 type Rollup = Pick<CollectionTranslationStats, "coordinates" | "ungrouped">;
 
 /**
+ * What grouping needs of a collection, whichever payload it arrived on: the
+ * point it sits at, and what it holds. The overview groups rollups
+ * (`CollectionTranslationStats`); the source rail groups the collections
+ * themselves (`CollectionInfo`). Both carry a coordinate, and neither should
+ * have its own idea of what a group is.
+ */
+export interface GroupableCollection {
+  coordinates?: Record<string, string>;
+  ungrouped?: boolean;
+  item_count: number;
+  word_count?: number;
+}
+
+/**
  * The bucket of items belonging to no collection. The server marks it with
  * `ungrouped` rather than an invented id, because its collection id is the
  * empty string and resolves to no collection anywhere else in the API.
@@ -88,10 +102,10 @@ export function defaultGroupingAxis(collections: Rollup[]): string | undefined {
 }
 
 /** Collections sharing one value on the grouping axis. */
-export interface CollectionGroup {
+export interface CollectionGroup<T extends GroupableCollection = CollectionTranslationStats> {
   /** The coordinate value the group is named by; empty when the axis is unset. */
   value: string;
-  collections: CollectionTranslationStats[];
+  collections: T[];
   itemCount: number;
   wordCount: number;
 }
@@ -104,11 +118,11 @@ export interface CollectionGroup {
  * Passing no axis returns every collection in one nameless group — the shape a
  * workspace with no coordinates gets, rendered as a plain list.
  */
-export function groupCollectionsByAxis(
-  collections: CollectionTranslationStats[],
+export function groupCollectionsByAxis<T extends GroupableCollection>(
+  collections: T[],
   axis?: string,
-): CollectionGroup[] {
-  const byValue = new Map<string, CollectionTranslationStats[]>();
+): CollectionGroup<T>[] {
+  const byValue = new Map<string, T[]>();
   for (const c of collections) {
     const value = axis ? (c.coordinates?.[axis] ?? "") : "";
     const bucket = byValue.get(value);
@@ -126,7 +140,7 @@ export function groupCollectionsByAxis(
       value,
       collections: group,
       itemCount: group.reduce((n, c) => n + c.item_count, 0),
-      wordCount: group.reduce((n, c) => n + c.word_count, 0),
+      wordCount: group.reduce((n, c) => n + (c.word_count ?? 0), 0),
     }));
 }
 

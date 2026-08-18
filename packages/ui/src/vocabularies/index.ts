@@ -1,6 +1,7 @@
 import type { SpanInfo } from "../types/span";
 import commonFormatting from "./common-formatting.json";
 import richHtml from "./rich-html.json";
+import richJsx from "./rich-jsx.json";
 import codeTokens from "./code-tokens.json";
 
 // --- Vocabulary Schema Types ---
@@ -63,6 +64,40 @@ interface VocabularySchema {
   fallback?: FallbackDefinition;
 }
 
+/**
+ * Expand a vocabulary template over one span's fields. The substitutions are
+ * the ones `core/kbf/preview.go` expands, so a chip in the browser and the
+ * markup the engine writes name the same thing.
+ *
+ * `escape` is applied to the substituted values (not the template) where the
+ * result is markup rather than text.
+ */
+function expand(
+  template: string | undefined,
+  span: SpanInfo,
+  escape: (s: string) => string = (s) => s,
+): string {
+  if (!template) return "";
+  const values: Record<string, string> = {
+    id: span.id,
+    subType: span.sub_type ?? "",
+    data: span.data,
+    equiv: span.equiv_text ?? "",
+  };
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
+    key in values ? escape(values[key]) : whole,
+  );
+}
+
+/** Minimal HTML escaping for values substituted into a markup template. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /** Derive a short chip label from a span type name (e.g. "fmt:bold" → "bold"). */
 function shortChipLabel(
   typeName: string,
@@ -112,9 +147,18 @@ export class VocabularyRegistry {
     }
   }
 
+  /**
+   * The vocabularies every surface can meet: formatting, rich HTML, rich JSX
+   * and code tokens. JSX belongs here for the same reason HTML does — a KBF
+   * catalog extracted from a React tree carries `jsx:element` / `jsx:var` /
+   * `jsx:node` codes, and a registry without them renders every variable in a
+   * block as the same fallback chip ("var"), so a reviewer cannot tell one
+   * variable from the next.
+   */
   loadDefaults(): void {
     this.load(commonFormatting as VocabularySchema);
     this.load(richHtml as VocabularySchema);
+    this.load(richJsx as VocabularySchema);
     this.load(codeTokens as VocabularySchema);
   }
 
@@ -149,33 +193,59 @@ export class VocabularyRegistry {
     return typeName.startsWith(this.entityPrefix);
   }
 
+  /**
+   * The chip a span reads as. A vocabulary states the label as a template over
+   * the span's own fields — `jsx:var` is `{equiv}` — so the chip names the
+   * variable it stands for rather than its type: four `{equiv}` chips in a
+   * block are four different variables, and a reviewer can see which is which
+   * without hovering each one.
+   *
+   * A template that expands to nothing (a span carrying no `equiv`) falls back
+   * to the type's short name, so a chip is never blank.
+   */
   chipLabel(span: SpanInfo): string {
     const info = this.lookupOrFallback(span.type);
+    const fallback = shortChipLabel(span.type, this.fallback.chipLabel);
     switch (span.span_type) {
       case "opening":
-        return info.chipLabel.open ?? "?>";
+        return expand(info.chipLabel.open, span) || fallback.open;
       case "closing":
-        return info.chipLabel.close ?? "/?";
+        return expand(info.chipLabel.close, span) || fallback.close;
       case "placeholder":
-        return info.chipLabel.placeholder ?? "?";
+        return expand(info.chipLabel.placeholder, span) || fallback.placeholder;
       default:
         return "?";
     }
+  }
+
+  /**
+   * The span's text equivalent — what it reads as where markup cannot be shown
+   * (a break's newline, a variable's name). Empty when the vocabulary states
+   * none.
+   */
+  textEquiv(span: SpanInfo): string {
+    return expand(this.lookupOrFallback(span.type).equiv, span);
   }
 
   chipColor(span: SpanInfo): ColorScheme {
     return this.lookupOrFallback(span.type).color;
   }
 
+  /**
+   * The markup a span renders as, with the vocabulary's template expanded from
+   * the span (`<{subType} data-neokapi-span="{id}">` → `<span
+   * data-neokapi-span="3">`). Values are HTML-escaped on the way in, mirroring
+   * `core/kbf`'s renderer, because the result is concatenated into a document.
+   */
   htmlTag(span: SpanInfo): string | null {
     const info = this.lookupOrFallback(span.type);
     switch (span.span_type) {
       case "opening":
-        return info.html.open ?? null;
+        return info.html.open ? expand(info.html.open, span, escapeHtml) : null;
       case "closing":
-        return info.html.close ?? null;
+        return info.html.close ? expand(info.html.close, span, escapeHtml) : null;
       case "placeholder":
-        return info.html.placeholder ?? null;
+        return info.html.placeholder ? expand(info.html.placeholder, span, escapeHtml) : null;
       default:
         return null;
     }

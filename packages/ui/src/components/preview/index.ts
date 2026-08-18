@@ -41,10 +41,18 @@ export type { Lang, Token, TokenType } from "./highlight";
 export { FileIcon, fileType, extOf } from "./fileTypes";
 export type { FileTypeInfo, FileGroup, FileIconProps } from "./fileTypes";
 export { downloadBytes, downloadText, formatBytes } from "./download";
-export { treeToRenderDoc, runsText, parseCellRef, colLabel, STRUCTURE_RULES } from "./renderDoc";
+export {
+  treeToRenderDoc,
+  runsText,
+  runsCodes,
+  parseCellRef,
+  colLabel,
+  STRUCTURE_RULES,
+} from "./renderDoc";
 export { inlineSegments, tableFromNode, nodeText, headingLevel } from "./projectionRender";
 export type { InlineSeg, RenderTable, RenderTableCell } from "./projectionRender";
 export type {
+  InlineCode,
   RenderDoc,
   RenderKind,
   RenderLine,
@@ -56,6 +64,7 @@ export type {
   StructureRule,
 } from "./renderDoc";
 export { runsPlainText, runRangeForChars, runRangeForBytes, textForBytes } from "./runRange";
+export { byteToCharOffset } from "../../lib/offsets";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
 // Multimodal viewers (AD-030): timed media (subtitles/audio/video) + raster OCR.

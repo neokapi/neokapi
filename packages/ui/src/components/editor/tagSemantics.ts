@@ -256,9 +256,11 @@ export function codedTextToHtml(codedText: string, spans: SpanInfo[]): string {
 
         if (span.span_type === "placeholder") {
           const info = registry.lookupOrFallback(span.type);
-          if (info.equiv) {
-            // Render text equivalent (e.g., "\n" for breaks).
-            html += escapeHtml(info.equiv);
+          // The text equivalent, with the vocabulary's template expanded from
+          // the span — a break's newline, a variable's own name.
+          const equiv = registry.textEquiv(span);
+          if (equiv) {
+            html += escapeHtml(equiv);
           } else {
             html += `<span style="opacity:0.5">[${escapeHtml(info.label)}]</span>`;
           }

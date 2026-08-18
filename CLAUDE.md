@@ -137,6 +137,35 @@ too — a Go subtest named after an absolute fixture path once put 358 home path
 into a committed dataset. See
 [Workspace Paths](docs/internals/workspace-paths.md).
 
+## Never walk a run sequence by hand
+
+A surface that shows content projects the block's `Run[]` into its own shape.
+The lossy version of that loop is the one that is easy to write —
+
+```ts
+for (const r of runs) if (typeof r.text === "string") out += r.text;
+```
+
+— which reads as *concatenate the text* and behaves as *silently delete every
+placeholder, every paired code, every plural*. It shipped three times: a review
+pane whose source read "Your credits reset on ." beside a target showing the
+variable; a document preview that drew a plural block as an empty line; a lab
+that measured segmentation over text no reader saw. Nothing failed; the content
+was simply gone.
+
+So a projection is **declared**, never looped: a `RunSpec`
+(`packages/kapi-format/src/run-projection.ts`) answers for every kind in
+`RUN_KINDS`, and its type is a mapped type over that list — omit `plural` and it
+does not compile. Each kind is rendered, `{ dropped: "why" }` (nothing, on
+purpose, with the reason), or `{ unsupported: "why" }` (reported, and the spec's
+required `fallback` drawn in its place). A kind added to the model breaks every
+projection until each has said what it does with it.
+
+`scripts/check-run-projection.sh` enforces it in `make lint`, `make pre-push`
+and the *Repo guards* CI job; its allowlist is for files that map every kind
+one-to-one (coded-text bridges, the KBF canonicaliser, anatomy views), and the
+bar for joining it is that the file cannot lose content silently.
+
 ## Target-language drift must never block the build
 
 A **source-language** change must never hard-fail a build (or kapi itself)

@@ -7,6 +7,7 @@
 // re-derivation. Pure (no React) so it is unit-testable in isolation; the
 // presentational layer consumes these.
 
+import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
 import type { RenderNode, Run } from "./types";
 
 /** Projection roles shipped by Go (core/projection.Role*). */
@@ -40,39 +41,28 @@ export type InlineSeg =
  * skipped (sub-document content projects as its own node).
  */
 export function inlineSegments(runs: Run[] | undefined): InlineSeg[] {
-  const out: InlineSeg[] = [];
-  walk(runs ?? [], out);
-  return out;
+  return projectRuns(runs, INLINE_EVENTS);
 }
 
-function walk(runs: Run[], out: InlineSeg[]): void {
-  for (const r of runs) {
-    if (r.text !== undefined) {
-      out.push({ kind: "text", text: r.text });
-    } else if (r.pcOpen) {
-      out.push({ kind: "open", type: r.pcOpen.type ?? "", attrs: r.pcOpen.attrs });
-    } else if (r.pcClose) {
-      out.push({ kind: "close", type: r.pcClose.type ?? "" });
-    } else if (r.ph) {
-      out.push({
-        kind: "placeholder",
-        type: r.ph.type ?? "",
-        equiv: r.ph.equiv,
-        attrs: r.ph.attrs,
-      });
-    } else if (r.plural) {
-      walk(pluralBranch(r.plural.forms), out);
-    } else if (r.select) {
-      walk(pluralBranch(r.select.cases), out);
-    }
-  }
-}
-
-function pluralBranch(branches: Record<string, Run[]>): Run[] {
-  if (branches.other) return branches.other;
-  for (const k of Object.keys(branches)) return branches[k];
-  return [];
-}
+/** The inline-event reading, mirroring Go's projection.WalkInline. */
+const INLINE_EVENTS: RunSpec<Run, InlineSeg> = {
+  text: (r) => ({ kind: "text", text: r.text ?? "" }),
+  pcOpen: (r) => ({ kind: "open", type: r.pcOpen?.type ?? "", attrs: r.pcOpen?.attrs }),
+  pcClose: (r) => ({ kind: "close", type: r.pcClose?.type ?? "" }),
+  ph: (r) => ({
+    kind: "placeholder",
+    type: r.ph?.type ?? "",
+    equiv: r.ph?.equiv,
+    attrs: r.ph?.attrs,
+  }),
+  // A subblock's content is projected as its own node in the tree, so it is
+  // present in the document — this reading of one sequence is not where it
+  // appears. (Go's WalkInline makes the same call.)
+  sub: { dropped: "sub-document content projects as its own node in the tree" },
+  plural: { expand: (r) => projectRuns(otherBranch(r.plural?.forms ?? {}), INLINE_EVENTS) },
+  select: { expand: (r) => projectRuns(otherBranch(r.select?.cases ?? {}), INLINE_EVENTS) },
+  fallback: (kind) => ({ kind: "placeholder", type: kind }),
+};
 
 /** A reconstructed table: rows of cells, each cell carrying span + header info. */
 export interface RenderTable {

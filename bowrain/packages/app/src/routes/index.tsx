@@ -522,8 +522,12 @@ const projectSourceRoute = createRoute({
   },
   pendingComponent: ProjectDetailSkeleton,
   component: ProjectDetailRoute,
-  validateSearch: (search: Record<string, unknown>): { preview?: string } => ({
+  // `collection` names the one being read — the same parameter the overview
+  // carries, so the two surfaces agree on how a collection is addressed and a
+  // reader can link to one, reload on it, and go Back out of it.
+  validateSearch: (search: Record<string, unknown>): { preview?: string; collection?: string } => ({
     preview: previewSearch(search),
+    collection: typeof search.collection === "string" ? search.collection : undefined,
   }),
 });
 

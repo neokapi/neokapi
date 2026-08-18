@@ -445,10 +445,10 @@ describe("FileProgressTable (server paging)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. CollectionTabs
+// 4. CollectionRail
 // ---------------------------------------------------------------------------
 
-import { CollectionTabs } from "../components/CollectionTabs";
+import { CollectionRail } from "../components/CollectionRail";
 import type { CollectionInfo } from "../types/api";
 
 function makeCollection(overrides: Partial<CollectionInfo> = {}): CollectionInfo {
@@ -466,14 +466,14 @@ function makeCollection(overrides: Partial<CollectionInfo> = {}): CollectionInfo
   };
 }
 
-describe("CollectionTabs", () => {
-  it("renders tab labels with item counts", () => {
+describe("CollectionRail", () => {
+  it("renders every collection with its item count", () => {
     const collections = [
       makeCollection({ id: "c1", name: "Strings", item_count: 12 }),
       makeCollection({ id: "c2", name: "Docs", item_count: 5 }),
     ];
     render(
-      <CollectionTabs
+      <CollectionRail
         collections={collections}
         activeCollectionId="c1"
         onSelectCollection={() => {}}
@@ -485,29 +485,86 @@ describe("CollectionTabs", () => {
     expect(screen.getByText("5")).toBeInTheDocument();
   });
 
-  it("shows 'All Items' for default collection", () => {
+  it("groups collections under the product they are declared at", () => {
     const collections = [
-      makeCollection({ id: "c1", is_default: true, name: "Default" }),
-      makeCollection({ id: "c2", name: "Other" }),
+      makeCollection({
+        id: "c1",
+        name: "bowrain-app",
+        item_count: 297,
+        coordinates: { product: "bowrain", channel: "app" },
+      }),
+      makeCollection({
+        id: "c2",
+        name: "bowrain-docs",
+        item_count: 113,
+        coordinates: { product: "bowrain", channel: "docs" },
+      }),
+      makeCollection({
+        id: "c3",
+        name: "neokapi-cli",
+        item_count: 12,
+        coordinates: { product: "neokapi", channel: "cli" },
+      }),
     ];
     render(
-      <CollectionTabs
+      <CollectionRail
         collections={collections}
         activeCollectionId="c1"
         onSelectCollection={() => {}}
       />,
     );
-    expect(screen.getByText("All Items")).toBeInTheDocument();
+
+    // The group states the product once, and the rows carry the channel — the
+    // name spelled it out ("bowrain-app") and flattened the coordinate.
+    expect(screen.getByTestId("collection-group-bowrain")).toHaveTextContent("bowrain");
+    expect(screen.getByTestId("collection-group-bowrain")).toHaveTextContent("410");
+    expect(screen.getByTestId("collection-group-neokapi")).toHaveTextContent("neokapi");
+    expect(screen.getByTestId("collection-c1")).toHaveTextContent("app");
+    expect(screen.getByTestId("collection-c3")).toHaveTextContent("cli");
   });
 
-  it("calls onSelectCollection when a tab is clicked", async () => {
+  it("files a collection declared at no point under Ungrouped, after the rest", () => {
+    const collections = [
+      makeCollection({ id: "c1", name: "Uploads" }),
+      makeCollection({ id: "c2", name: "bowrain-app", coordinates: { product: "bowrain" } }),
+    ];
+    render(
+      <CollectionRail
+        collections={collections}
+        activeCollectionId="c1"
+        onSelectCollection={() => {}}
+      />,
+    );
+    const groups = screen.getAllByRole("button", { expanded: true });
+    expect(groups.map((g) => g.textContent)).toEqual([
+      expect.stringContaining("bowrain"),
+      expect.stringContaining("Ungrouped"),
+    ]);
+  });
+
+  it("shows 'All items' for the default collection", () => {
+    const collections = [
+      makeCollection({ id: "c1", is_default: true, name: "Default" }),
+      makeCollection({ id: "c2", name: "Other" }),
+    ];
+    render(
+      <CollectionRail
+        collections={collections}
+        activeCollectionId="c1"
+        onSelectCollection={() => {}}
+      />,
+    );
+    expect(screen.getByText("All items")).toBeInTheDocument();
+  });
+
+  it("calls onSelectCollection when a row is clicked", async () => {
     const onSelect = vi.fn();
     const collections = [
       makeCollection({ id: "c1", name: "First" }),
       makeCollection({ id: "c2", name: "Second" }),
     ];
     render(
-      <CollectionTabs
+      <CollectionRail
         collections={collections}
         activeCollectionId="c1"
         onSelectCollection={onSelect}
@@ -517,30 +574,49 @@ describe("CollectionTabs", () => {
     expect(onSelect).toHaveBeenCalledWith("c2");
   });
 
-  it("returns null for single collection without onCreate", () => {
-    const collections = [makeCollection()];
-    const { container } = render(
-      <CollectionTabs
+  it("collapses a group without losing the selection", async () => {
+    // Three collections over two products, so the grouping axis is `product`
+    // without ambiguity: with one collection each, product and channel cover
+    // and cut the set identically and the tie falls alphabetically.
+    const collections = [
+      makeCollection({
+        id: "c1",
+        name: "app",
+        coordinates: { product: "bowrain", channel: "app" },
+      }),
+      makeCollection({
+        id: "c2",
+        name: "cli",
+        coordinates: { product: "neokapi", channel: "cli" },
+      }),
+      makeCollection({
+        id: "c3",
+        name: "desktop",
+        coordinates: { product: "neokapi", channel: "desktop" },
+      }),
+    ];
+    render(
+      <CollectionRail
         collections={collections}
         activeCollectionId="c1"
         onSelectCollection={() => {}}
       />,
     );
-    expect(container.innerHTML).toBe("");
+    await userEvent.click(screen.getByTestId("collection-group-neokapi"));
+    expect(screen.queryByTestId("collection-c2")).not.toBeInTheDocument();
+    expect(screen.getByTestId("collection-c1")).toBeInTheDocument();
   });
 
-  it("shows create button when onCreateCollection is provided", () => {
-    const collections = [makeCollection()];
+  it("shows the create button when onCreateCollection is provided", () => {
     render(
-      <CollectionTabs
-        collections={collections}
+      <CollectionRail
+        collections={[makeCollection()]}
         activeCollectionId="c1"
         onSelectCollection={() => {}}
         onCreateCollection={() => {}}
       />,
     );
-    // The create button contains "Collection" text (hidden on sm)
-    expect(screen.getByText("Collection")).toBeInTheDocument();
+    expect(screen.getByTestId("create-collection")).toBeInTheDocument();
   });
 });
 
