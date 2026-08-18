@@ -522,6 +522,9 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 			Owner:       venue.NormalizeContextOwner(col.Owner),
 			ContentHash: col.ContextHash,
 		}
+		if col.PreviewKind != "" || col.PreviewURL != "" {
+			e.Preview = &pb.SyncPreviewSource{Kind: col.PreviewKind, Url: col.PreviewURL}
+		}
 		if pid := col.ConnectorConfig[coreprofile.PropertyProfileID]; pid != "" {
 			name, cached := profileNames[pid]
 			if !cached {

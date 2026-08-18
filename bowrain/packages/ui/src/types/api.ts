@@ -310,10 +310,29 @@ export interface CollectionInfo {
    * declared point.
    */
   coordinates?: Record<string, string>;
+  /**
+   * Where this collection's strings can be read in place: the component
+   * explorer or running site the recipe declares. Absent when it declares none,
+   * which is how the reviewer decides to offer document reading only.
+   *
+   * `kind` says how a view is FOUND within that host — a Storybook resolves an
+   * item to a story through its published index — so a kind this client cannot
+   * resolve offers no in-context reading rather than a guess.
+   */
+  preview?: CollectionPreview;
   item_count: number;
   created_at: string;
   updated_at: string;
 }
+
+/** A place a collection's strings can be seen in situ. */
+export interface CollectionPreview {
+  kind: string;
+  url: string;
+}
+
+/** The preview kinds this client knows how to resolve a view within. */
+export const PREVIEW_KIND_STORYBOOK = "storybook";
 
 /** Create collection request */
 export interface CreateCollectionRequest {

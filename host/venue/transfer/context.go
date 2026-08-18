@@ -102,6 +102,15 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 		if governance != nil {
 			entry.Channel = governance.Channel
 		}
+		// Where this collection's strings can be read in place. A repository
+		// fact the server cannot derive, so it travels with the collection's
+		// other declared facts rather than being configured twice.
+		if preview := bproject.CollectionPreview(coll); preview != nil {
+			entry.Preview = &pb.SyncPreviewSource{
+				Kind: string(preview.Kind),
+				Url:  preview.URL,
+			}
+		}
 
 		if found && brandResult == nil {
 			brandResult = &PushBrandResult{Name: profile.Name, Action: brandAction(dryRun)}

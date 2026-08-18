@@ -601,9 +601,11 @@ export function ProjectView({
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}
           onOpenPreProcess={preview.onOpenPreProcess}
-          // Where this project's components are published. A project that
-          // declares none is read as a document and nothing else is offered.
-          storybookURL={project.properties?.storybook_url}
+          // Where THIS collection publishes its components. Per collection
+          // because a repository publishes one host per surface it ships: the
+          // desktop app's components and the web app's are two Storybooks, and
+          // a project-wide URL would offer each collection the other's.
+          preview={activeCollection?.preview}
         />
       )}
     </div>

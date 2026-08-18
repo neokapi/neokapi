@@ -11,9 +11,11 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@neokapi/ui-primitives";
+import { type CollectionPreview } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import { ItemStoryPreview, type ReadingMode } from "./editor/StoryPreview";
+import { storybookHost } from "./editor/previewHost";
 import { LocaleSelect } from "./LocaleSelect";
 
 /**
@@ -52,11 +54,16 @@ export interface FilePreviewProps {
   /** Open the item's pre-processing surface. */
   onOpenPreProcess?: (itemName: string) => void;
   /**
-   * Base URL of the Storybook publishing this project's components. Given, the
-   * item can be read inside the component that ships it — with this surface's
-   * own targets, pending edits included — rather than only as a document.
+   * Where this item's collection publishes its components. Given a kind this
+   * client can resolve a view within, the item can be read inside the component
+   * that ships it — with this surface's own targets, pending edits included —
+   * rather than only as a document.
+   *
+   * A kind it cannot resolve offers no in-context reading. Guessing at a URL
+   * shape would put an empty iframe in front of a reviewer with nothing to say
+   * why it is empty.
    */
-  storybookURL?: string;
+  preview?: CollectionPreview;
 }
 
 /**
@@ -80,7 +87,7 @@ export function FilePreview({
   onOpenTranslate,
   onOpenReview,
   onOpenPreProcess,
-  storybookURL,
+  preview,
 }: FilePreviewProps) {
   const { getDisplayName } = useLocales();
   const [side, setSide] = useState<"source" | "target">("source");
@@ -91,6 +98,9 @@ export function FilePreview({
   // project switch must not leave the reading pinned to a locale it dropped.
   const locale = picked && targetLocales.includes(picked) ? picked : (targetLocales[0] ?? "");
   const hasTargets = targetLocales.length > 0;
+  const storybookURL = storybookHost(preview);
+  // A host is only offered when this client knows how to find a view inside it
+  // — see previewHost.
   // With one target locale the toggle names it outright; with several the
   // selector names it, and the toggle only says which side is being read.
   const targetLabel = targetLocales.length === 1 ? getDisplayName(locale) : "Target";

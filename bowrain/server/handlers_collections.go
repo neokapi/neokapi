@@ -45,8 +45,20 @@ type CollectionResponse struct {
 	// read as twelve unrelated tabs. Empty for a collection that sits at no
 	// declared point.
 	Coordinates map[string]string `json:"coordinates,omitempty"`
-	CreatedAt   string            `json:"created_at"`
-	UpdatedAt   string            `json:"updated_at"`
+	// Preview is where this collection's strings can be read in place: the
+	// component explorer or running site the recipe declares. Absent when it
+	// declares none, which is how a reviewer decides to offer document reading
+	// only. The kind is served as stored, including one this server does not
+	// recognise: what can be read is the client's judgement.
+	Preview   *CollectionPreview `json:"preview,omitempty"`
+	CreatedAt string             `json:"created_at"`
+	UpdatedAt string             `json:"updated_at"`
+}
+
+// CollectionPreview is a place a collection's strings can be seen in situ.
+type CollectionPreview struct {
+	Kind string `json:"kind"`
+	URL  string `json:"url"`
 }
 
 // CreateCollectionRequest is the request body for creating a collection.
@@ -77,6 +89,7 @@ func collectionToResponse(c *store.Collection) CollectionResponse {
 		Origin:              origin,
 		Editable:            origin == collectionOriginManaged,
 		Coordinates:         cloneCoordinates(c.Context),
+		Preview:             collectionPreview(c),
 		CreatedAt:           c.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:           c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -393,4 +406,13 @@ func EnsureMainStream(ctx context.Context, cs store.ContentStore, projectID stri
 		Name:       "main",
 		Visibility: store.StreamPublic,
 	})
+}
+
+// collectionPreview lifts the stored preview host onto the response, or nil
+// when the collection declares none.
+func collectionPreview(c *store.Collection) *CollectionPreview {
+	if c == nil || c.PreviewKind == "" || c.PreviewURL == "" {
+		return nil
+	}
+	return &CollectionPreview{Kind: c.PreviewKind, URL: c.PreviewURL}
 }

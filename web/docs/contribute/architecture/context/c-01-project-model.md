@@ -337,6 +337,33 @@ the package manager or binary path — kapi runs whatever `command` says verbati
 which is why the exec class is gated by explicit consent
 ([E-06](../engine/e-06-execution-trust.md)).
 
+### Where a collection's strings can be read in place
+
+A collection may declare a **preview host** — the component explorer or running
+site that shows its strings as a reader sees them, so a review is done against
+the rendered surface rather than against a file.
+
+It binds to the collection, at the same grain as the channel that places it,
+because a repository publishes one host per surface it ships: this one has two,
+one for the desktop app's components and one for the web app's, and a
+project-level setting could only ever name one of them. It is not format
+configuration either — a reader turns files into blocks and never consumes this;
+declaring it there would document an option no reader reads.
+
+The declaration carries a **kind** as well as a URL, because hosts differ in how
+a view is *found*, not in how it renders. A Storybook publishes an index that
+maps components to stories, so an item resolves to a story by the components its
+blocks name; a running site is addressed by route instead. What they share is
+the runtime bridge that pushes a reviewer's translations into the page, which
+belongs to the i18n runtime rather than to any one host. A client that cannot
+resolve a view within the declared kind offers no in-context reading rather than
+guessing at a URL shape it does not understand.
+
+It travels on the collection's context entry with the coordinates and the
+governance, and is folded into that entry's hash — so re-pointing a collection
+at a different host reconciles, instead of sitting unnoticed behind a hash that
+did not move.
+
 ### The store interface
 
 Flows and tools read and write blocks and overlays through the `Store` and

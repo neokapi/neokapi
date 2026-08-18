@@ -186,24 +186,41 @@ collections:
   - name: neokapi-desktop
     channel: neokapi/desktop
     base: apps/kapi-desktop/frontend
+    # A reviewer can read one of these strings inside the component that ships
+    # it. Declared per collection because this repository publishes one host per
+    # surface it ships — the desktop app's components and the web app's are two
+    # Storybooks, both deployed from here on every push to main
+    # (pages-deploy.yml).
+    preview:
+      kind: storybook
+      url: https://neokapi.github.io/storybook/kapi/
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-app
     channel: bowrain/app
     base: bowrain/packages/app
+    preview:
+      kind: storybook
+      url: https://neokapi.github.io/storybook/bowrain/
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-ctrl
     channel: bowrain/ctrl
     base: bowrain/apps/ctrl
+    preview:
+      kind: storybook
+      url: https://neokapi.github.io/storybook/bowrain/
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-pulse
     channel: bowrain/pulse
     base: bowrain/apps/pulse
+    preview:
+      kind: storybook
+      url: https://neokapi.github.io/storybook/bowrain/
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
