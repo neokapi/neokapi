@@ -271,9 +271,8 @@ func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 	assert.Zero(t, nb.upFailingChecks, "nothing fails the guardrails yet:\n%s", nb.statusText)
 
 	// A defect on content every one of whose 38 units carries a committed review
-	// decision. Whatever the loop then does with it — this pass re-drafts the
-	// unit, which withdraws its approval — the surfaces must describe the
-	// outcome identically.
+	// decision. Whatever the loop then does with it, the surfaces must describe
+	// the outcome identically.
 	breakPlaceholder(t, root, "nb")
 
 	broken := readSurfaces(t, a, recipe, root)
@@ -281,13 +280,23 @@ func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 		assertAgree(t, s, locale)
 	}
 	nb = broken["nb"]
-	assert.False(t, nb.shipShippable,
-		"the defect withholds the locale — and the manifest a deployed picker reads says so, "+
-			"rather than offering what the run declined to publish:\n%s", nb.statusText)
-	assert.False(t, nb.upShippable,
+	// What the loop does with it is repair it. The finding puts the locale back
+	// in the pass (a unit failing a bound check is work on any scope), and the
+	// unit's source has an exact answer in the content memory — the wording a
+	// person approved — so the pass recycles that back over the hand edit and
+	// delivers the repaired catalog. A hand edit to a catalog
+	// `defaults.materialize: on-converge` owns is drift, and absorbing drift is
+	// what the loop is for.
+	//
+	// So the three surfaces are held to that one answer: offered, marker off,
+	// nothing outstanding.
+	assert.True(t, nb.shipShippable,
+		"the loop repaired the unit from approved wording, and the manifest a deployed "+
+			"picker reads says so:\n%s", nb.statusText)
+	assert.True(t, nb.upShippable,
 		"which is the same predicate up's state column reports:\n%s", nb.statusText)
-	assert.Positive(t, nb.upFailingChecks,
-		"and up names the finding, on the tree it leaves behind:\n%s", nb.statusText)
+	assert.Zero(t, nb.upFailingChecks,
+		"and nothing is left failing the guardrails:\n%s", nb.statusText)
 	// The reported figure, on the input it was reported on: every unit here has
 	// a committed target, so `translated` is 100% on every surface. It read 95%
 	// on `up` alone, because that surface — and only that surface — subtracted
@@ -295,4 +304,10 @@ func TestCompass_ThreeSurfacesGiveOneAnswer(t *testing.T) {
 	assert.Equal(t, 100, nb.upTranslated,
 		"a unit carrying a finding is still translated:\n%s", nb.statusText)
 	assert.Equal(t, 100, nb.statusTranslated, nb.statusText)
+
+	// And the repair is in the file a reader opens, not only in the report.
+	raw, rerr := os.ReadFile(filepath.Join(root, "site", "locales", "nb.json"))
+	require.NoError(t, rerr)
+	assert.Contains(t, string(raw), " {until}",
+		"the approved wording is back in the delivered catalog")
 }

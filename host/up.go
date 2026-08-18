@@ -184,6 +184,20 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		jobs = proj.Defaults.Jobs
 	}
 
+	// The recipe's source language governs the run, whatever the run prints.
+	// It is applied HERE, on the way into the loop, and not left to the
+	// `a.SourceLang == ""` fallback inside RunDefaultFlowConverge: --source-lang
+	// is registered with `StringVar(&a.SourceLang, …, "en", …)`
+	// (AddProcessingFlags), so the flag's own default is already sitting in the
+	// field by the time any `up` runs and that fallback can never fire. A run
+	// that reaches the loop at "en" over an `en-GB` recipe misses every
+	// content-memory lookup: nothing recycles, the AI step drafts every unit in
+	// every locale over the project's approved wording, and no locale clears its
+	// ship gate. `kapi run` applies the recipe the same way (host/run.go).
+	if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
+		a.SourceLang = string(proj.Defaults.SourceLanguage)
+	}
+
 	// The run is live by default: --json streams the convergence
 	// events as NDJSON (one event per line, a final result record) for
 	// agents and CI; otherwise a renderer paints per-locale progress
@@ -201,9 +215,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	} else if !a.Quiet {
 		// Plan-first: one line of scope before any tokens burn (the
 		// full dry-run table stays under --plan).
-		if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
-			a.SourceLang = string(proj.Defaults.SourceLanguage)
-		}
+		//
 		// The preamble is a courtesy line, so a plan that cannot be computed must
 		// not stop a run that is otherwise fine — the converge below opens its own
 		// content memory and does its own resolution. But it is REPORTED: the
