@@ -836,6 +836,14 @@ runner_usage.operation text NOT NULL
 runner_usage.project_id text NOT NULL DEFAULT ''::text
 runner_usage.reference_id text NOT NULL DEFAULT ''::text
 runner_usage.workspace_id text NOT NULL
+ship_verdicts.basis text NOT NULL DEFAULT ''::text
+ship_verdicts.block_id text NOT NULL
+ship_verdicts.fails boolean NOT NULL DEFAULT false
+ship_verdicts.gate text NOT NULL DEFAULT ''::text
+ship_verdicts.locale text NOT NULL
+ship_verdicts.project_id text NOT NULL
+ship_verdicts.stream text NOT NULL DEFAULT 'main'::text
+ship_verdicts.updated_at timestamp with time zone NOT NULL DEFAULT now()
 sod_settings.mode text NOT NULL DEFAULT 'warn'::text
 sod_settings.updated_at timestamp with time zone NOT NULL DEFAULT now()
 sod_settings.workspace_id text NOT NULL
@@ -1342,6 +1350,8 @@ role_templates role_templates_workspace_id_fkey FOREIGN KEY (workspace_id) REFER
 role_templates role_templates_workspace_id_name_key UNIQUE (workspace_id, name)
 runner_schema_migrations runner_schema_migrations_pkey PRIMARY KEY (version)
 runner_usage runner_usage_pkey PRIMARY KEY (id)
+ship_verdicts ship_verdicts_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+ship_verdicts ship_verdicts_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 sod_settings sod_settings_pkey PRIMARY KEY (workspace_id)
 sod_settings sod_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 store_schema_migrations store_schema_migrations_pkey PRIMARY KEY (version)
@@ -1531,6 +1541,7 @@ CREATE INDEX idx_review_items_confidence ON public.review_items USING btree (pro
 CREATE INDEX idx_review_items_project_status ON public.review_items USING btree (project_id, status)
 CREATE INDEX idx_review_items_project_type ON public.review_items USING btree (project_id, type)
 CREATE INDEX idx_runner_usage_workspace ON public.runner_usage USING btree (workspace_id, created_at)
+CREATE INDEX idx_ship_verdicts_scope ON public.ship_verdicts USING btree (project_id, stream, locale)
 CREATE INDEX idx_slug_reservations_until ON public.workspace_slug_reservations USING btree (reserved_until)
 CREATE INDEX idx_source_proposals_project_status ON public.proposed_source_changes USING btree (project_id, status)
 CREATE INDEX idx_stream_tags_project_kind ON public.stream_tags USING btree (project_id, kind)
@@ -1731,6 +1742,7 @@ CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (wo
 CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)
 CREATE UNIQUE INDEX runner_schema_migrations_pkey ON public.runner_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX runner_usage_pkey ON public.runner_usage USING btree (id)
+CREATE UNIQUE INDEX ship_verdicts_pkey ON public.ship_verdicts USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX sod_settings_pkey ON public.sod_settings USING btree (workspace_id)
 CREATE UNIQUE INDEX store_schema_migrations_pkey ON public.store_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX stream_members_pkey ON public.stream_members USING btree (project_id, stream, user_id)

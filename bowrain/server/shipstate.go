@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
@@ -19,10 +21,13 @@ import (
 // decides what a locale can ship as: the dashboard, the public ship manifest
 // and the workspace loop rollup all read the ShipState it stamps.
 //
-// The QA pass is bounded the same way the convergence derive path bounds it
-// (deriveFunc): the expensive full-block read happens only when some locale has
-// at least one translated block, and each translated block+locale pair is
-// checked exactly once. Ship-state semantics are unchanged: FailingChecks is
+// The per-block judgement is stored, not repeated. A dashboard load asks the
+// content store to COUNT the ship-gate verdicts it holds (store.ShipVerdictStore)
+// and hands back only the pairs whose verdict no longer matches the content or
+// the governance — so a load over an unchanged project reads no blocks at all,
+// and a load after an edit reads what was edited. A store that keeps no verdicts
+// is asked to judge every translated pair, which is the derivation this pass has
+// always run. Ship-state semantics are unchanged: FailingChecks is
 // attributed only to locales at full coverage in at least one scope (checks
 // cannot promote an under-covered locale). The on-brand rate, by contrast, is
 // meaningful below full coverage — it rates the blocks that ARE translated — so
@@ -75,16 +80,6 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		}
 	}
 
-	// Ship-gate failing block counts among the locale's translated blocks
-	// (ship-candidate locales only) — a QA error-severity finding OR a term
-	// violation — and on-brand block counts (all rate candidates), project-wide
-	// and attributed per collection.
-	failing := map[string]int{}
-	failingByColl := map[string]map[string]int{}
-	onBrand := map[string]int{}
-	onBrandByColl := map[string]map[string]int{}
-	voiceUsed := map[string]bool{}
-	voiceUsedByColl := map[string]map[string]bool{}
 	// termActive is per-locale (term governance is workspace/project-wide, not
 	// per collection): true where the gate has a terms store or brand-vocab rule to
 	// enforce for the locale, so the on_brand_basis can honestly note term checks
@@ -103,102 +98,245 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		return err
 	}
 
+	// The per-(collection, locale) tallies, counted by the store where it holds
+	// verdicts and folded in here for the pairs it could not.
+	var rollup store.ShipGateRollup
 	if len(rateCandidates) > 0 {
-		scores := latestVoiceScores(ctx, brandStore, projectID, stream)
-
-		// Per-locale governance and voice scores resolve once, outside the walk:
-		// they are indexed by locale, not by block, and re-resolving them per
-		// batch would repeat the same work for every page of the corpus.
-		type localeCtx struct {
-			loc    model.LocaleID
-			scored map[string]scoredBlock
+		locales := slices.Sorted(maps.Keys(rateCandidates))
+		for _, localeStr := range locales {
+			// Drives both the term-compliance predicate and the basis note.
+			termActive[localeStr] = gate.active(ctx, model.LocaleID(localeStr))
 		}
-		locales := make(map[string]localeCtx, len(rateCandidates))
-		for localeStr := range rateCandidates {
-			loc := model.LocaleID(localeStr)
-			locales[localeStr] = localeCtx{loc: loc, scored: scores[string(locale.Normalize(loc))]}
-			// Drives both the term-compliance predicate below and the basis note.
-			termActive[localeStr] = gate.active(ctx, loc)
+		rollup, err = deriveShipGate(ctx, cs, brandStore, projectID, stream, gate, locales, collByItem)
+		if err != nil {
+			return err
 		}
+	}
 
-		// The corpus is walked a batch at a time and the locale loop moved
-		// inside it. Everything accumulated here is a counter, so a batch can be
-		// folded and dropped — which is the point: reading a whole project's
-		// blocks to compute these tallies is what OOM-killed the server, and the
-		// dashboard asks for them on every load.
-		walkErr := store.EachBlockBatch(ctx, cs,
-			store.BlockQuery{ProjectID: projectID, Stream: stream},
-			store.DefaultBlockBatch,
-			func(batch []*venue.StoredBlock) error {
-				for _, sb := range batch {
-					for localeStr, lc := range locales {
-						loc := lc.loc
-						scored := lc.scored
-						if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
-							continue
-						}
-						// A block fails the ship gate when its QA checks flag an
-						// error-severity finding OR its target is not term-compliant for
-						// the locale — the two are treated identically for both
-						// FailingChecks and the on-brand rate. gate.compliant is offline
-						// (in-memory snapshot).
-						blockFails := blockFailsChecks(ctx, sb.Block, loc) || !gate.compliant(ctx, sb.Block, loc)
-						cid := collByItem[sb.ItemName]
-						if blockFails && shipCandidates[localeStr] {
-							failing[localeStr]++
-							if failingByColl[cid] == nil {
-								failingByColl[cid] = map[string]int{}
-							}
-							failingByColl[cid][localeStr]++
-						}
-
-						blockOnBrand := !blockFails
-						if vs, ok := scored[sb.Block.ID]; ok {
-							voiceUsed[localeStr] = true
-							if voiceUsedByColl[cid] == nil {
-								voiceUsedByColl[cid] = map[string]bool{}
-							}
-							voiceUsedByColl[cid][localeStr] = true
-							if vs.score < vs.bar {
-								blockOnBrand = false
-							}
-						}
-						if blockOnBrand {
-							onBrand[localeStr]++
-							if onBrandByColl[cid] == nil {
-								onBrandByColl[cid] = map[string]int{}
-							}
-							onBrandByColl[cid][localeStr]++
-						}
-					}
-				}
-				return nil
-			})
-		if walkErr != nil {
-			return fmt.Errorf("load blocks for ship-state checks: %w", walkErr)
+	// A scope's on-brand count is its clean blocks less the ones a voice score
+	// withholds; its failing count is reported only for a locale some scope
+	// covers fully. Both read the same tallies, project-wide (summed over the
+	// collections every block belongs to exactly one of) and per collection.
+	project := map[string]store.ShipGateCounts{}
+	for _, byLocale := range rollup.Scopes {
+		for loc, c := range byLocale {
+			p := project[loc]
+			p.Failing += c.Failing
+			p.Clean += c.Clean
+			p.Scored += c.Scored
+			p.CleanBelowBar += c.CleanBelowBar
+			project[loc] = p
 		}
+	}
+
+	stamp := func(ls *store.LocaleTranslationStats, c store.ShipGateCounts, b basisCounts) {
+		if shipCandidates[ls.Locale] {
+			ls.FailingChecks = c.Failing
+		}
+		ls.StaleBlocks = b.Stale
+		ls.BasisUnknownBlocks = b.BasisUnknown
+		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
+		applyOnBrand(ls, c.Clean-c.CleanBelowBar, c.Scored > 0, termActive[ls.Locale])
 	}
 
 	for i := range stats.LocaleStats {
 		ls := &stats.LocaleStats[i]
-		ls.FailingChecks = failing[ls.Locale]
-		ls.StaleBlocks = basis.forLocale(ls.Locale).Stale
-		ls.BasisUnknownBlocks = basis.forLocale(ls.Locale).BasisUnknown
-		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
-		applyOnBrand(ls, onBrand[ls.Locale], voiceUsed[ls.Locale], termActive[ls.Locale])
+		stamp(ls, project[ls.Locale], basis.forLocale(ls.Locale))
 	}
 	for i := range stats.CollectionStats {
 		coll := &stats.CollectionStats[i]
 		for j := range coll.Locales {
 			ls := &coll.Locales[j]
-			ls.FailingChecks = failingByColl[coll.CollectionID][ls.Locale]
-			ls.StaleBlocks = basis.forCollection(coll.CollectionID, ls.Locale).Stale
-			ls.BasisUnknownBlocks = basis.forCollection(coll.CollectionID, ls.Locale).BasisUnknown
-			ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks, ls.StaleBlocks)
-			applyOnBrand(ls, onBrandByColl[coll.CollectionID][ls.Locale], voiceUsedByColl[coll.CollectionID][ls.Locale], termActive[ls.Locale])
+			stamp(ls, rollup.CountsFor(coll.CollectionID, ls.Locale), basis.forCollection(coll.CollectionID, ls.Locale))
 		}
 	}
 	return nil
+}
+
+// deriveShipGate produces the per-(collection, locale) ship-gate tallies the
+// dashboard reports, judging as few blocks as it can.
+//
+// Where the content store keeps verdicts, the counting happens in the database
+// and only the pairs whose stored verdict no longer matches the content or the
+// governance come back to be judged — none, over a project nothing has touched.
+// Where it does not, every translated pair is judged, walking the corpus a batch
+// at a time so peak memory is the batch rather than the project.
+//
+// Voice scores are applied over the scored set rather than folded into the
+// stored verdict, and deliberately: the worker rewrites scores on every
+// convergence pass, and a verdict that named its score in its basis would be
+// retired by the loop as fast as it was recorded — which is to say the
+// whole-project read would be back.
+func deriveShipGate(
+	ctx context.Context,
+	cs store.ContentStore,
+	brandStore coreprofile.Store,
+	projectID, stream string,
+	gate *termGate,
+	locales []string,
+	collByItem map[string]string,
+) (store.ShipGateRollup, error) {
+	scores := latestVoiceScores(ctx, brandStore, projectID, stream)
+
+	// Per-locale governance and voice scores resolve once, outside any walk:
+	// they are indexed by locale, not by block, and re-resolving them per batch
+	// would repeat the same work for every page of the corpus.
+	scored := make(map[string]map[string]scoredBlock, len(locales))
+	for _, l := range locales {
+		scored[l] = scores[string(locale.Normalize(model.LocaleID(l)))]
+	}
+
+	fingerprint := gate.fingerprint(ctx, locales)
+	vs, keepsVerdicts := store.ShipVerdicts(cs)
+
+	var rollup store.ShipGateRollup
+	var stale []store.ShipGateStale
+	if keepsVerdicts {
+		q := store.ShipGateQuery{
+			ProjectID: projectID, Stream: stream,
+			Gate: fingerprint, Locales: locales,
+			Scores: shipGateScores(scored),
+		}
+		var err error
+		rollup, err = vs.ShipGateRollup(ctx, q)
+		if err != nil {
+			return rollup, fmt.Errorf("roll up ship-gate verdicts: %w", err)
+		}
+		stale = rollup.Stale
+		if len(stale) == 0 {
+			return rollup, nil
+		}
+	}
+
+	// One pair's judgement, folded into the tallies and queued for storage.
+	verdicts := make([]store.ShipGateVerdict, 0, min(len(stale), store.DefaultBlockBatch*4))
+	judge := func(block *model.Block, itemName, localeStr, basis string) {
+		loc := model.LocaleID(localeStr)
+		// A block fails the ship gate when its QA checks flag an
+		// error-severity finding OR its target is not term-compliant for the
+		// locale — the two are treated identically for both FailingChecks and
+		// the on-brand rate. gate.compliant is offline (in-memory snapshot).
+		fails := blockFailsChecks(ctx, block, loc) || !gate.compliant(ctx, block, loc)
+		sb, isScored := scored[localeStr][block.ID]
+		rollup.Add(collByItem[itemName], localeStr, fails, isScored, isScored && sb.score < sb.bar)
+		if keepsVerdicts {
+			verdicts = append(verdicts, store.ShipGateVerdict{
+				ShipGateRef: store.ShipGateRef{BlockID: block.ID, Locale: localeStr},
+				Basis:       basis,
+				Fails:       fails,
+			})
+		}
+	}
+
+	if !keepsVerdicts {
+		// Everything the project holds, a batch at a time. Everything
+		// accumulated is a counter, so a batch can be folded and dropped —
+		// reading a whole project's blocks into memory is what OOM-killed the
+		// server, and this pass is the one that used to do it on every load.
+		walkErr := store.EachBlockBatch(ctx, cs,
+			store.BlockQuery{ProjectID: projectID, Stream: stream},
+			store.DefaultBlockBatch,
+			func(batch []*venue.StoredBlock) error {
+				for _, b := range batch {
+					if b.Block == nil || !b.Block.Translatable {
+						continue
+					}
+					for _, localeStr := range locales {
+						if b.Block.Target(model.LocaleID(localeStr)) == nil {
+							continue
+						}
+						judge(b.Block, b.ItemName, localeStr, "")
+					}
+				}
+				return nil
+			})
+		if walkErr != nil {
+			return rollup, fmt.Errorf("load blocks for ship-state checks: %w", walkErr)
+		}
+		return rollup, nil
+	}
+
+	// Only the pairs the store could not answer for. They arrive grouped by
+	// block, so a block whose every locale went stale is hydrated once, and each
+	// batch is recorded before the next is read: a verdict stands on its own, so
+	// a pass that is cancelled halfway leaves the half it finished behind rather
+	// than nothing, and the batch is what peak memory costs either way.
+	for _, group := range shipGateBatches(stale, store.DefaultBlockBatch) {
+		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream, IDs: group.ids})
+		if err != nil {
+			return rollup, fmt.Errorf("load blocks for ship-state checks: %w", err)
+		}
+		byID := make(map[string]*venue.StoredBlock, len(blocks))
+		for _, b := range blocks {
+			if b != nil && b.Block != nil {
+				byID[b.Block.ID] = b
+			}
+		}
+		verdicts = verdicts[:0]
+		for _, pair := range group.pairs {
+			b := byID[pair.BlockID]
+			// A pair the store named but the block read did not return was
+			// deleted between the two queries. It has no verdict to record and
+			// no content to count.
+			if b == nil || !b.Block.Translatable || b.Block.Target(model.LocaleID(pair.Locale)) == nil {
+				continue
+			}
+			judge(b.Block, b.ItemName, pair.Locale, pair.Basis)
+		}
+		if err := vs.PutShipGateVerdicts(ctx, projectID, stream, fingerprint, verdicts); err != nil {
+			return rollup, fmt.Errorf("store ship-gate verdicts: %w", err)
+		}
+	}
+	return rollup, nil
+}
+
+// shipGateScores flattens the resolved per-locale voice scores into the pairs
+// the store's rollup needs, carrying only whether each clears its profile's bar.
+func shipGateScores(scored map[string]map[string]scoredBlock) []store.ShipGateScore {
+	var out []store.ShipGateScore
+	for localeStr, byBlock := range scored {
+		for blockID, sb := range byBlock {
+			out = append(out, store.ShipGateScore{
+				ShipGateRef: store.ShipGateRef{BlockID: blockID, Locale: localeStr},
+				BelowBar:    sb.score < sb.bar,
+			})
+		}
+	}
+	return out
+}
+
+// shipGateGroup is one hydration's worth of stale pairs: the distinct block ids
+// to read, and the pairs those blocks answer for.
+type shipGateGroup struct {
+	ids   []string
+	pairs []store.ShipGateStale
+}
+
+// shipGateBatches groups stale pairs into hydrations of at most size distinct
+// blocks. The input is ordered by block, so a block's locales stay together and
+// no block is read twice.
+func shipGateBatches(stale []store.ShipGateStale, size int) []shipGateGroup {
+	if size <= 0 {
+		size = store.DefaultBlockBatch
+	}
+	var out []shipGateGroup
+	cur := shipGateGroup{}
+	seen := map[string]bool{}
+	for _, st := range stale {
+		if !seen[st.BlockID] {
+			if len(cur.ids) >= size {
+				out = append(out, cur)
+				cur, seen = shipGateGroup{}, map[string]bool{}
+			}
+			seen[st.BlockID] = true
+			cur.ids = append(cur.ids, st.BlockID)
+		}
+		cur.pairs = append(cur.pairs, st)
+	}
+	if len(cur.pairs) > 0 {
+		out = append(out, cur)
+	}
+	return out
 }
 
 // basisCounts is one scope's stale / unknown-basis decision counts.

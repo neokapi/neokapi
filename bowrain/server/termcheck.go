@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -148,21 +151,59 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 type termGate struct {
 	srcLoc     model.LocaleID
 	tb         terms.Terminology // in-memory snapshot; nil = no terms governance
+	termsFP    string            // digest of the snapshot, for the gate fingerprint
 	resolve    func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
 	profiles   map[model.LocaleID]*coreprofile.VoiceProfile
 	profileSet map[model.LocaleID]bool
 }
 
 // newTermGate builds a gate around an already-resolved terms snapshot and a
-// per-locale profile resolver. Either input may be absent (nil tb / nil resolve).
-func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile) *termGate {
+// per-locale profile resolver. Either input may be absent (nil tb / nil
+// resolve). termsFP digests the snapshot so the gate can name the governance a
+// stored verdict was computed under.
+func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, termsFP string, resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile) *termGate {
 	return &termGate{
 		srcLoc:     srcLoc,
 		tb:         tb,
+		termsFP:    termsFP,
 		resolve:    resolve,
 		profiles:   map[model.LocaleID]*coreprofile.VoiceProfile{},
 		profileSet: map[model.LocaleID]bool{},
 	}
+}
+
+// shipGateAlgorithm names the revision of the per-block ship-gate predicate.
+// It rides in every gate fingerprint, so changing what blockFailsChecks or
+// blockTermCompliant decide retires every stored verdict rather than leaving
+// counters that were computed by code no longer running. Bump it whenever the
+// predicate's answer can change for unchanged content.
+const shipGateAlgorithm = "1"
+
+// fingerprint names the governance in force for a set of target locales: the
+// predicate's own revision, the source language it reads, the terms snapshot,
+// and each rated locale's resolved voice profile. Two passes that agree on this
+// string judge identical content identically, which is precisely the condition
+// under which a stored verdict may be counted instead of recomputed.
+//
+// Locales are fingerprinted in the order given, so the caller sorts them; the
+// alternative is a gate that changes with map iteration order and a corpus that
+// is recomputed on every load.
+func (g *termGate) fingerprint(ctx context.Context, locales []string) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "algo=%s\n", shipGateAlgorithm)
+	if g != nil {
+		fmt.Fprintf(h, "src=%s\nterms=%s\n", g.srcLoc, g.termsFP)
+		for _, l := range locales {
+			p := g.profileFor(ctx, model.LocaleID(l))
+			if p == nil {
+				fmt.Fprintf(h, "loc=%s profile=-\n", l)
+				continue
+			}
+			fmt.Fprintf(h, "loc=%s profile=%s v=%d bar=%d at=%d\n",
+				l, p.ID, p.Version, p.ComplianceBar(), p.UpdatedAt.UnixNano())
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // profileFor resolves (and caches) the brand voice profile for one target locale.
@@ -222,8 +263,9 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 	// per-block LookupAll calls never touch the database. An unavailable or empty
 	// terms leaves the snapshot nil (the terms store half of the predicate skips).
 	var snap terms.Terminology
+	var snapFP string
 	if tb, err := s.workspaceTermsByID(ctx, wsID); err == nil && tb != nil {
-		snap = snapshotTerms(ctx, tb)
+		snap, snapFP = snapshotTerms(ctx, tb)
 	}
 
 	// Brand-profile resolver: the same hierarchical binding ladder the editor and
@@ -251,7 +293,7 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 	if snap == nil && resolve == nil {
 		return nil
 	}
-	return newTermGate(proj.DefaultSourceLanguage, snap, resolve)
+	return newTermGate(proj.DefaultSourceLanguage, snap, snapFP, resolve)
 }
 
 // snapshotTerms reads every concept from a workspace terms and indexes them
@@ -260,12 +302,19 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 // then skips the terms store half of the predicate). Relations are not copied: the
 // shared predicate does not follow USE_INSTEAD / REPLACED_BY redirection, matching
 // the review loop's primitive check.
-func snapshotTerms(ctx context.Context, tb terms.Store) terms.Terminology {
+//
+// The second return is a digest of exactly what was indexed — the concepts as
+// the snapshot holds them, not as the store spells them — so a gate fingerprint
+// changes if and only if the governance the predicate actually applies changed.
+// A concept dropped by AddConcept is therefore absent from both the snapshot and
+// the digest, which is the honest pairing: verdicts are counted as computed.
+func snapshotTerms(ctx context.Context, tb terms.Store) (terms.Terminology, string) {
 	concepts, err := tb.Concepts(ctx)
 	if err != nil || len(concepts) == 0 {
-		return nil
+		return nil, ""
 	}
 	mem := terms.NewInMemoryStore()
+	h := sha256.New()
 	for _, c := range concepts {
 		// A concept that does not make it into the snapshot is a term the
 		// on-brand gate then fails to enforce, silently and for that check
@@ -274,7 +323,13 @@ func snapshotTerms(ctx context.Context, tb terms.Store) terms.Terminology {
 		if err := mem.AddConcept(ctx, c); err != nil {
 			slog.ErrorContext(ctx, "termcheck: concept omitted from the snapshot; it will not be enforced",
 				"concept", c.ID, "error", err)
+			continue
 		}
+		fmt.Fprintf(h, "%s|%s|", c.ID, c.Domain)
+		for _, t := range c.Terms {
+			fmt.Fprintf(h, "%s/%s/%s/%t,", t.Locale, t.Text, t.Status, t.CompetitorTerm)
+		}
+		h.Write([]byte{'\n'})
 	}
-	return mem
+	return mem, hex.EncodeToString(h.Sum(nil))
 }

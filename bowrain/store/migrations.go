@@ -58,7 +58,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 25.
+// repaired. Retired numbers are never reused; the next migration is version 27.
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1170,6 +1170,41 @@ var Migrations = []storage.Migration{
 			-- unchanged: the client decides what it can read.
 			ALTER TABLE collections ADD COLUMN IF NOT EXISTS preview_kind TEXT NOT NULL DEFAULT '';
 			ALTER TABLE collections ADD COLUMN IF NOT EXISTS preview_url  TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     26,
+		Description: "the ship gate's per-block verdict, so the dashboard counts instead of reading",
+		SQL: `
+			-- One row per (block, locale) whose target has been judged against
+			-- the ship gate: fails is true where the target carries an
+			-- error-severity check finding or breaches terminology governance.
+			-- The dashboard's failing and on-brand counts are aggregates over
+			-- this table, so a load costs two grouped queries rather than a
+			-- read of every block the customer has.
+			--
+			-- Derived, and says so: gate fingerprints the governance in force,
+			-- basis names the source hash and target revision judged. A row
+			-- whose gate or basis has moved is not counted — it is recomputed.
+			-- Nothing here is authored, so the table can be truncated at any
+			-- time and the next dashboard load rebuilds it.
+			--
+			-- Not partitioned, unlike the overlay families: it holds one small
+			-- fixed-width row per translated pair and is only ever read by the
+			-- two project-scoped aggregates below.
+			CREATE TABLE IF NOT EXISTS ship_verdicts (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				gate       TEXT NOT NULL DEFAULT '',
+				basis      TEXT NOT NULL DEFAULT '',
+				fails      BOOLEAN NOT NULL DEFAULT FALSE,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
+			CREATE INDEX IF NOT EXISTS idx_ship_verdicts_scope
+				ON ship_verdicts(project_id, stream, locale);
 		`,
 	},
 }
