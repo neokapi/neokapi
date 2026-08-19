@@ -19,7 +19,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -480,8 +479,89 @@ func TestCountFailingBlocks(t *testing.T) {
 	}
 	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
 
-	blocks := []*venue.StoredBlock{{Block: dropped}, {Block: clean}, {Block: nonTranslatable}}
-	assert.Equal(t, 1, countFailingBlocks(t.Context(), blocks, fr))
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "checks.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	require.NoError(t, cs.CreateProject(t.Context(), &platstore.Project{ID: "p1", Name: "p1"}))
+	require.NoError(t, cs.StoreBlocks(t.Context(), "p1", "main",
+		[]*model.Block{dropped, clean, nonTranslatable}))
+
+	failing, err := countFailingBlocks(t.Context(), cs, "p1", "main", []model.LocaleID{fr})
+	require.NoError(t, err)
+	assert.Equal(t, 1, failing[fr])
+}
+
+// The walk answers every locale from one pass, and answers each of them the
+// same as a pass for that locale alone would have.
+func TestCountFailingBlocks_AllLocalesInOneWalk(t *testing.T) {
+	fr, de := model.LocaleFrench, model.LocaleID("de")
+	// Drops the placeholder in French, keeps it in German.
+	src := []model.Run{{Text: &model.TextRun{Text: "Hello "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}}
+	b := &model.Block{
+		ID:           "b1",
+		Translatable: true,
+		Source:       src,
+		Targets: map[model.VariantKey]*model.Target{
+			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
+			model.Variant(de): {Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}}},
+		},
+	}
+
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "checks.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	require.NoError(t, cs.CreateProject(t.Context(), &platstore.Project{ID: "p1", Name: "p1"}))
+	require.NoError(t, cs.StoreBlocks(t.Context(), "p1", "main", []*model.Block{b}))
+
+	failing, err := countFailingBlocks(t.Context(), cs, "p1", "main", []model.LocaleID{fr, de})
+	require.NoError(t, err)
+	assert.Equal(t, 1, failing[fr], "French dropped the placeholder")
+	assert.Zero(t, failing[de], "German kept it")
+}
+
+// Coverage is derived from the blocks themselves, for every locale at once.
+func TestBlockCoverage_CountsTranslatablesPerLocale(t *testing.T) {
+	fr, de := model.LocaleFrench, model.LocaleID("de")
+	translated := &model.Block{
+		ID:           "b1",
+		Translatable: true,
+		Source:       []model.Run{{Text: &model.TextRun{Text: "Yes"}}},
+		Targets: map[model.VariantKey]*model.Target{
+			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Oui"}}}},
+		},
+	}
+	untranslated := &model.Block{
+		ID:           "b2",
+		Translatable: true,
+		Source:       []model.Run{{Text: &model.TextRun{Text: "No"}}},
+	}
+	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
+
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "coverage.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+	require.NoError(t, cs.CreateProject(t.Context(), &platstore.Project{ID: "p1", Name: "p1"}))
+	require.NoError(t, cs.StoreBlocks(t.Context(), "p1", "main",
+		[]*model.Block{translated, untranslated, nonTranslatable}))
+
+	cov, err := blockCoverage(t.Context(), cs, "p1", "main", []model.LocaleID{fr, de})
+	require.NoError(t, err)
+	assert.Equal(t, 2, cov[fr].total, "the non-translatable block is not a unit")
+	assert.Equal(t, 1, cov[fr].translated)
+	assert.Equal(t, 2, cov[de].total)
+	assert.Zero(t, cov[de].translated, "nothing is translated into German")
+}
+
+// Asking about no locale reads nothing at all — the derive skips the walk
+// rather than paying for a scan whose result it would discard.
+func TestBlockCoverage_NoLocalesReadsNothing(t *testing.T) {
+	cov, err := blockCoverage(t.Context(), nil, "p1", "main", nil)
+	require.NoError(t, err)
+	assert.Empty(t, cov)
+
+	failing, err := countFailingBlocks(t.Context(), nil, "p1", "main", nil)
+	require.NoError(t, err)
+	assert.Empty(t, failing)
 }
 
 func convergenceEventTypes(t *testing.T, payloads [][]byte) []string {

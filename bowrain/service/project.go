@@ -105,6 +105,19 @@ func (s *ProjectService) GetBlocks(ctx context.Context, query store.BlockQuery) 
 	return s.store.GetBlocks(ctx, query)
 }
 
+// CountBlocks summarizes a query without hydrating a block. The same defaults
+// GetBlocks applies, so a caller that only wants the size of a scope asks the
+// same question and pays for an integer rather than a corpus.
+func (s *ProjectService) CountBlocks(ctx context.Context, query store.BlockQuery) (store.BlockCounts, error) {
+	if query.ProjectID == "" {
+		return store.BlockCounts{}, ErrProjectIDRequired
+	}
+	if query.Stream == "" {
+		query.Stream = "main"
+	}
+	return s.store.CountBlocks(ctx, query)
+}
+
 // CreateVersion creates a version snapshot.
 func (s *ProjectService) CreateVersion(ctx context.Context, projectID, label, description string) (*store.Version, error) {
 	if projectID == "" {

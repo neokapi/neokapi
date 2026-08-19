@@ -9,6 +9,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // ApprovePassingRequest scopes a bulk approve-passing pass. Both fields are
@@ -99,10 +100,6 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		locales = append(locales, loc)
 	}
 
-	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: pid, Stream: stream})
-	if err != nil {
-		return serverErr(c, fmt.Errorf("load blocks: %w", err))
-	}
 	scores := latestVoiceScores(ctx, s.BrandStore, pid, stream)
 	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
 	// once (workspace terms snapshot + per-locale brand profile): a pending
@@ -111,54 +108,80 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 
-	approved, skipped := 0, 0
+	approved, skipped, remaining := 0, 0, 0
 	skippedBy := map[approveBlocker]int{}
 	touchedSet := map[model.LocaleID]bool{}
-	var toStore []*model.Block
-	for _, sb := range blocks {
-		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
-			continue
-		}
-		modified := false
-		for _, loc := range locales {
-			if !targetPendingReview(sb.Block, loc) {
-				continue // untranslated, or already approved — not a candidate
-			}
-			scored := scores[string(locale.Normalize(loc))]
-			blocker := blockApproveBlocker(ctx, sb.Block, loc, scored, gate)
-			if blocker == approveBlockerNone {
-				sb.Block.Target(loc).Status = model.TargetStatusReviewed
-				approved++
-				touchedSet[loc] = true
-				modified = true
-			} else {
-				// Failing/off-brand: left pending for a person, and named by
-				// the bar it missed rather than lumped into one count.
-				skipped++
-				skippedBy[blocker]++
-			}
-		}
-		if modified {
-			toStore = append(toStore, sb.Block)
-		}
-	}
 
-	if len(toStore) > 0 {
-		if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
-			return serverErr(c, fmt.Errorf("store blocks: %w", err))
-		}
-	}
-
-	// Remaining pending after the pass: the excluded (failing/off-brand) targets
-	// still awaiting review. Computed over the same in-memory blocks, whose
-	// approved targets were just promoted above.
-	remaining := 0
-	for _, sb := range blocks {
-		for _, loc := range locales {
-			if targetPendingReview(sb.Block, loc) {
-				remaining++
+	// A batch at a time: decide it, write back the blocks it changed, count
+	// what it leaves pending, drop it. Reading a whole project's blocks — and
+	// holding every modified one until the end — is what OOM-killed the server,
+	// and "approve everything that passes" is by nature the request that touches
+	// the most of a corpus at once.
+	//
+	// Writing per batch rather than once at the end does mean a failure part-way
+	// leaves the earlier batches approved. That is the same guarantee the single
+	// call gave (StoreBlocks is an upsert, not a transaction over the set), and
+	// the operation is idempotent: re-running approves what is still pending.
+	//
+	// Safe to write during the walk: the cursor is keyed on block id and an
+	// approval changes a target's status, never an id, so the page boundary the
+	// next query resumes from cannot move underneath it.
+	walkErr := platstore.EachBlockBatch(ctx, s.ContentStore,
+		platstore.BlockQuery{ProjectID: pid, Stream: stream},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			var toStore []*model.Block
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+					continue
+				}
+				modified := false
+				for _, loc := range locales {
+					if !targetPendingReview(sb.Block, loc) {
+						continue // untranslated, or already approved — not a candidate
+					}
+					scored := scores[string(locale.Normalize(loc))]
+					blocker := blockApproveBlocker(ctx, sb.Block, loc, scored, gate)
+					if blocker == approveBlockerNone {
+						sb.Block.Target(loc).Status = model.TargetStatusReviewed
+						approved++
+						touchedSet[loc] = true
+						modified = true
+					} else {
+						// Failing/off-brand: left pending for a person, and named
+						// by the bar it missed rather than lumped into one count.
+						skipped++
+						skippedBy[blocker]++
+					}
+				}
+				if modified {
+					toStore = append(toStore, sb.Block)
+				}
 			}
-		}
+
+			if len(toStore) > 0 {
+				if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
+					return fmt.Errorf("store blocks: %w", err)
+				}
+			}
+
+			// What this batch leaves pending: the excluded (failing/off-brand)
+			// targets. Counted after the promotion above, over the same blocks,
+			// so an approval in this pass is not also reported as outstanding.
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil {
+					continue
+				}
+				for _, loc := range locales {
+					if targetPendingReview(sb.Block, loc) {
+						remaining++
+					}
+				}
+			}
+			return nil
+		})
+	if walkErr != nil {
+		return serverErr(c, walkErr)
 	}
 
 	touched := make([]model.LocaleID, 0, len(touchedSet))

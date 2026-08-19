@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // Correction-learning loop tools: an AI assistant can see the candidate rules a
@@ -119,21 +120,30 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolReque
 		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get profile: %w", err)
 	}
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement})
-	stored, err := s.contentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: input.ProjectID, Stream: input.Stream})
+	// Walked a batch at a time, projecting as it goes: the evaluation wants an
+	// id, a name and the source text, and holding the stored blocks those came
+	// from — runs, every target, properties, annotations — alongside the
+	// projection meant paying for the corpus twice to look at part of it once.
+	var blocks []coreprofile.EvalBlock
+	err = store.EachBlockBatch(ctx, s.contentStore,
+		store.BlockQuery{ProjectID: input.ProjectID, Stream: input.Stream},
+		store.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil {
+					continue
+				}
+				blocks = append(blocks, coreprofile.EvalBlock{
+					BlockID:        sb.Block.ID,
+					CollectionID:   sb.ItemName,
+					CollectionName: sb.ItemName,
+					Text:           sb.Block.SourceText(),
+				})
+			}
+			return nil
+		})
 	if err != nil {
 		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get blocks: %w", err)
-	}
-	blocks := make([]coreprofile.EvalBlock, 0, len(stored))
-	for _, sb := range stored {
-		if sb == nil || sb.Block == nil {
-			continue
-		}
-		blocks = append(blocks, coreprofile.EvalBlock{
-			BlockID:        sb.Block.ID,
-			CollectionID:   sb.ItemName,
-			CollectionName: sb.ItemName,
-			Text:           sb.Block.SourceText(),
-		})
 	}
 	return nil, coreprofile.EvaluateBlastRadius(blocks, baseline, candidate), nil
 }

@@ -200,6 +200,16 @@ func governanceSubgraph(ctx context.Context, scope contextgraph.Scope, in Projec
 	return d, nil
 }
 
+// blessedBlock is what the (item, unit) join needs of a block: its identity in
+// the graph and the content key a decision blesses. Deliberately not a
+// *venue.StoredBlock — one entry per decision, three strings each, rather than
+// a retained copy of every block the project holds.
+type blessedBlock struct {
+	sourceID    string
+	itemName    string
+	contentHash string
+}
+
 // blessingSubgraph builds the unit-state nodes the decision ledger holds and the
 // blesses edges binding each to the block it decided.
 //
@@ -222,20 +232,42 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 		return d, nil
 	}
 
-	stored, err := in.Content.GetBlocks(ctx, platstore.BlockQuery{ProjectID: in.ProjectID, Stream: in.Stream})
+	// Only the blocks a decision names are of interest, and only three of
+	// their fields. Reading the corpus to find them — and holding every block
+	// that came back — is what OOM-killed the server on a project of no
+	// remarkable size, so the walk is batched and keeps the join key and the
+	// content hash rather than the block they came from.
+	wanted := make(map[string]struct{}, len(records))
+	for _, r := range records {
+		wanted[r.ItemName+"\x00"+r.Unit] = struct{}{}
+	}
+
+	index := make(map[string]blessedBlock, len(wanted))
+	err = platstore.EachBlockBatch(ctx, in.Content,
+		platstore.BlockQuery{ProjectID: in.ProjectID, Stream: in.Stream},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.SourceID == "" {
+					continue
+				}
+				key := sb.ItemName + "\x00" + sb.SourceID
+				if _, ok := wanted[key]; !ok {
+					continue
+				}
+				if _, taken := index[key]; taken {
+					continue
+				}
+				index[key] = blessedBlock{
+					sourceID:    sb.SourceID,
+					itemName:    sb.ItemName,
+					contentHash: sb.ContentHash,
+				}
+			}
+			return nil
+		})
 	if err != nil {
 		return nil, fmt.Errorf("materialize context graph: read blocks: %w", err)
-	}
-	index := make(map[string]*venue.StoredBlock, len(stored))
-	for _, sb := range stored {
-		if sb == nil || sb.SourceID == "" {
-			continue
-		}
-		key := sb.ItemName + "\x00" + sb.SourceID
-		if _, taken := index[key]; taken {
-			continue
-		}
-		index[key] = sb
 	}
 
 	seenBlocks := map[string]bool{}
@@ -252,18 +284,18 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 		d.Nodes = append(d.Nodes, contextgraph.UnitStateNode(scope, u))
 
 		sb, found := index[r.ItemName+"\x00"+r.Unit]
-		if !found || sb.ContentHash == "" {
+		if !found || sb.contentHash == "" {
 			continue
 		}
-		if !seenBlocks[sb.ContentHash] {
-			seenBlocks[sb.ContentHash] = true
+		if !seenBlocks[sb.contentHash] {
+			seenBlocks[sb.contentHash] = true
 			d.Nodes = append(d.Nodes, contextgraph.BlockNode(scope, contextgraph.Block{
-				ContentKey: sb.ContentHash,
-				BlockID:    sb.SourceID,
-				Document:   sb.ItemName,
+				ContentKey: sb.contentHash,
+				BlockID:    sb.sourceID,
+				Document:   sb.itemName,
 			}))
 		}
-		d.Edges = append(d.Edges, contextgraph.BlessesEdge(scope, u, sb.ContentHash))
+		d.Edges = append(d.Edges, contextgraph.BlessesEdge(scope, u, sb.contentHash))
 	}
 	return d, nil
 }
