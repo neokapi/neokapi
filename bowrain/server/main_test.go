@@ -5,10 +5,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/migrations"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"go.uber.org/goleak"
 )
 
 func TestMain(m *testing.M) {
+	// Every test in this package works against a fully migrated database, so
+	// the migrations run once here instead of once per test — 279ms of DDL
+	// each, against 37ms to copy a template. The stores a test constructs still
+	// call their own Migrate and simply find the schema current.
+	//
+	// This package can name migrations.Apply because nothing in
+	// bowrain/migrations imports it. The subsystems that ARE imported there
+	// cannot, and hand pgtest their own migration instead.
+	pgtest.UseTemplate(func(db *storage.PgDB) error { return migrations.Apply(db, nil) })
+
 	goleak.VerifyTestMain(m,
 		// The shared pgtest pool lives for the whole test binary; its
 		// database/sql and underlying pgx pool background goroutines are only
