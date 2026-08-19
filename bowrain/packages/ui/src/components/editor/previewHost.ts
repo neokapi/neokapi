@@ -19,7 +19,28 @@ export function storybookHost(preview: CollectionPreview | undefined): string | 
   return url ? url : undefined;
 }
 
-/** Whether this client can offer in-context reading for a collection. */
+/**
+ * The embed origin this deployment frames previews through.
+ *
+ * A build-time constant rather than something the server answers, because it is
+ * the twin of the application's own content policy: the policy names this origin
+ * in frame-src (bowrain-infra, modules/spa-site's csp_frame_src) and the two
+ * have to agree, or the frame is refused and there is nothing in the interface
+ * to read that from. Set VITE_EMBED_ORIGIN where the app is built.
+ *
+ * Empty in development and in the desktop app, where no such origin exists — so
+ * in-context reading is not offered there rather than offered and broken.
+ */
+export function embedOrigin(): string {
+  const configured = (import.meta.env?.VITE_EMBED_ORIGIN ?? "") as string;
+  return configured.trim().replace(/\/+$/, "");
+}
+
+/**
+ * Whether this client can offer in-context reading for a collection: it needs
+ * both a host it knows how to resolve a view within and an origin it is allowed
+ * to frame that view through.
+ */
 export function canReadInContext(preview: CollectionPreview | undefined): boolean {
-  return storybookHost(preview) !== undefined;
+  return storybookHost(preview) !== undefined && embedOrigin() !== "";
 }

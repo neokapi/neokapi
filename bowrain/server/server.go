@@ -1907,6 +1907,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/collections/:ref/:cid", s.HandleUpdateCollection)
 	g.DELETE("/:id/collections/:ref/:cid", s.HandleDeleteCollection)
 	g.POST("/:id/collections/:ref/:cid/items", s.HandleUploadToCollection)
+	// The story index the collection's preview host publishes, read here so the
+	// application's connect-src stays 'self' and CORS stops being the
+	// customer's problem — see handlers_preview_index.go.
+	g.GET("/:id/collections/:ref/:cid/preview/index", s.HandlePreviewIndex)
 
 	// Assets — Bowrain AD-011: /:ws/:id/assets/:ref
 	g.POST("/:id/assets/:ref/upload-url", s.HandleAssetUploadURL)

@@ -9,11 +9,12 @@ import {
 } from "@neokapi/ui-primitives";
 import type { BlockInfo } from "../../types/api";
 import { useDocumentBlocks } from "./DocumentPreview";
+import { embedOrigin } from "./previewHost";
 import {
   componentsOf,
   storiesForComponents,
+  embeddedStoryURL,
   storyIndexURL,
-  storyURL,
   translationsFor,
   type StoryEntry,
   type StoryIndex,
@@ -25,7 +26,13 @@ const READY_MESSAGE = "neokapi-i18n-ready";
 const TRANSLATIONS_MESSAGE = "neokapi-i18n-translations";
 
 export interface StoryPreviewProps {
-  /** Base URL of the published Storybook (project property `storybook_url`). */
+  /** The project whose API serves the story index. */
+  projectId: string;
+  /** The stream the collection belongs to. Defaults to main. */
+  stream?: string;
+  /** The collection whose declared preview host publishes the stories. */
+  collectionId: string;
+  /** Base URL of that host, as the collection declares it. */
   storybookURL: string;
   /** The item's blocks, carrying their message keys and current targets. */
   blocks: BlockInfo[];
@@ -49,11 +56,19 @@ export interface StoryPreviewProps {
  * reviewer is looking at is therefore the component as it will ship *if they
  * approve what they are holding*, not as it shipped last time.
  */
-export function StoryPreview({ storybookURL, blocks, locale, source }: StoryPreviewProps) {
+export function StoryPreview({
+  projectId,
+  stream = "main",
+  collectionId,
+  storybookURL,
+  blocks,
+  locale,
+  source,
+}: StoryPreviewProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [picked, setPicked] = useState<string | undefined>();
 
-  const { data: index, isPending, error } = useStoryIndex(storybookURL);
+  const { data: index, isPending, error } = useStoryIndex(projectId, stream, collectionId);
 
   const stories = useMemo(() => {
     if (!index) return [];
@@ -71,9 +86,14 @@ export function StoryPreview({ storybookURL, blocks, locale, source }: StoryPrev
   );
 
   const post = useCallback(() => {
+    // Addressed to the embed origin, which relays it to the story. Naming the
+    // origin rather than "*" keeps the dictionary — a reviewer's unapproved
+    // wording — from being readable by whatever else might be framed.
+    const origin = embedOrigin();
+    if (!origin) return;
     frameRef.current?.contentWindow?.postMessage(
       { type: TRANSLATIONS_MESSAGE, locale: source ? "en" : locale, translations },
-      "*",
+      origin,
     );
   }, [locale, source, translations]);
 
@@ -131,7 +151,10 @@ export function StoryPreview({ storybookURL, blocks, locale, source }: StoryPrev
         // Keyed by story: switching stories starts a fresh frame rather than
         // showing the previous component until the new one arrives.
         key={story.id}
-        src={storyURL(storybookURL, story.id)}
+        // Framed through the embed origin, never directly: the application's
+        // content policy names that one origin, because the hosts a recipe may
+        // declare cannot be enumerated in advance. See embeddedStoryURL.
+        src={embeddedStoryURL(embedOrigin(), storybookURL, story.id)}
         onLoad={post}
         className="min-h-0 w-full flex-1 rounded-lg border border-border bg-white"
         // A Storybook is a JavaScript application: it needs `allow-scripts` to
@@ -176,11 +199,14 @@ function Mono({ children }: { children: React.ReactNode }) {
  * The published Storybook's story index. Cached for the session: it changes
  * when the Storybook is rebuilt, not while a reviewer works.
  */
-function useStoryIndex(storybookURL: string) {
+function useStoryIndex(projectId: string, stream: string, collectionId: string) {
   return useQuery({
-    queryKey: ["story-index", storybookURL],
+    queryKey: ["story-index", projectId, stream, collectionId],
+    enabled: Boolean(collectionId),
     queryFn: async (): Promise<StoryIndex> => {
-      const response = await fetch(storyIndexURL(storybookURL));
+      const response = await fetch(storyIndexURL(projectId, stream, collectionId), {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error(`story index: ${response.status}`);
       return (await response.json()) as StoryIndex;
     },
@@ -199,12 +225,16 @@ export type ReadingMode = "document" | "context";
  */
 export function ItemStoryPreview({
   projectId,
+  stream,
+  collectionId,
   itemName,
   storybookURL,
   locale,
   source,
 }: {
   projectId: string;
+  stream?: string;
+  collectionId: string;
   itemName: string;
   storybookURL: string;
   locale: string;
@@ -213,6 +243,9 @@ export function ItemStoryPreview({
   const { data: blocks } = useDocumentBlocks(projectId, itemName, locale);
   return (
     <StoryPreview
+      projectId={projectId}
+      stream={stream}
+      collectionId={collectionId}
       storybookURL={storybookURL}
       blocks={blocks ?? []}
       locale={locale}

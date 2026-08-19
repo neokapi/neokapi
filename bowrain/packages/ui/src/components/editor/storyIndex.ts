@@ -80,9 +80,44 @@ export function storyURL(storybookURL: string, storyId: string): string {
   return `${base}/iframe.html?id=${encodeURIComponent(storyId)}&viewMode=story`;
 }
 
-/** The `index.json` URL for a Storybook base. */
-export function storyIndexURL(storybookURL: string): string {
-  return `${storybookURL.replace(/\/+$/, "")}/index.json`;
+/**
+ * That story, addressed through the embed origin.
+ *
+ * The application never frames a customer's host directly. Its content policy
+ * names one origin — the embed shim — because the hosts a recipe may declare
+ * cannot be enumerated in advance, and widening frame-src to "any https" would
+ * let an injection here frame anything at all, beside this session and this
+ * API. The shim frames the story and relays the i18n runtime's two messages.
+ *
+ * Without an embed origin configured there is no in-context reading: returning
+ * the story URL directly would be blocked by the policy and look like a blank
+ * frame rather than like a deployment that has not set this.
+ */
+export function embeddedStoryURL(
+  embedOrigin: string,
+  storybookURL: string,
+  storyId: string,
+): string | undefined {
+  const origin = embedOrigin.replace(/\/+$/, "");
+  if (!origin) return undefined;
+  return `${origin}/?src=${encodeURIComponent(storyURL(storybookURL, storyId))}`;
+}
+
+/**
+ * The story index, read through this project's own API rather than from the
+ * customer's host.
+ *
+ * Not a detour: the browser cannot make that fetch. connect-src names 'self'
+ * and no list of customer hosts can be added to it, and the host would have to
+ * return Access-Control-Allow-Origin, which a static bucket or an internal CDN
+ * has no reason to send. The server reads it instead — see
+ * bowrain/server/handlers_preview_index.go.
+ */
+export function storyIndexURL(projectId: string, stream: string, collectionId: string): string {
+  return (
+    `/api/v1/projects/${encodeURIComponent(projectId)}` +
+    `/collections/${encodeURIComponent(stream)}/${encodeURIComponent(collectionId)}/preview/index`
+  );
 }
 
 /**
