@@ -23,6 +23,13 @@ func NewEventEmittingStore(inner store.ContentStore, bus platev.EventBus) *Event
 	return &EventEmittingStore{inner: inner, bus: bus}
 }
 
+// Unwrap names the store this one decorates, so a caller probing for an
+// optional capability finds it where it is implemented rather than concluding
+// the decorator has none (store.ShipVerdicts). Event emission is a write-path
+// concern: a capability reached this way still writes through the same
+// database, it simply does not announce itself on the bus.
+func (s *EventEmittingStore) Unwrap() store.ContentStore { return s.inner }
+
 func (s *EventEmittingStore) publish(ctx context.Context, ev platev.Event) {
 	if ev.Actor == "" {
 		ev.Actor = platev.ActorFromContext(ctx)
