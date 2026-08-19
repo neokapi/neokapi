@@ -97,6 +97,16 @@ type BlockQuery struct {
 
 	Limit  int // Max results (0 = no limit)
 	Offset int // Pagination offset
+
+	// AfterID resumes a scan after the block id it names, which is how a
+	// caller walks a project's blocks a batch at a time. Blocks are returned in
+	// id order, so this is a keyset cursor: it costs the same on the thousandth
+	// batch as on the first, and — unlike Offset — a row updated mid-scan
+	// cannot shift the window and make the walk skip its neighbour.
+	//
+	// A whole-project read is what memory is spent on, so reach for this rather
+	// than for a limitless query. See EachBlockBatch, which is that walk.
+	AfterID string
 }
 
 // The per-locale status buckets a block falls into, as the editor names them.

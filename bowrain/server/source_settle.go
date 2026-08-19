@@ -7,6 +7,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file is the server venue of source-first convergence (strategy
@@ -83,11 +84,29 @@ func (o *convergenceOrchestrator) settleSource(ctx context.Context, projectID st
 		return res, nil // opt-out: no gate, no settle
 	}
 
-	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
+	// Walked a batch at a time, and persisted a batch at a time. Reading the
+	// project in one query is what OOM-killed the production server: it idles
+	// at ~16 MiB and this read drove it past 934 MiB of a 1 GiB task on a
+	// thousand-item project. Peak is now the batch, whatever the corpus.
+	err = platstore.EachBlockBatch(ctx, s.ContentStore,
+		platstore.BlockQuery{ProjectID: projectID, Stream: "main"}, 0,
+		func(blocks []*venue.StoredBlock) error {
+			return o.settleBatch(ctx, projectID, blocks, &res)
+		})
 	if err != nil {
-		return res, fmt.Errorf("load source blocks: %w", err)
+		return res, err
 	}
+	return res, nil
+}
 
+// settleBatch settles one batch of blocks and persists the ones that moved,
+// so the batch becomes garbage before the next one is read.
+func (o *convergenceOrchestrator) settleBatch(
+	ctx context.Context,
+	projectID string,
+	blocks []*venue.StoredBlock,
+	res *settleResult,
+) error {
 	var changed []*model.Block
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
@@ -126,11 +145,11 @@ func (o *convergenceOrchestrator) settleSource(ctx context.Context, projectID st
 	}
 
 	if len(changed) > 0 {
-		if err := s.ContentStore.StoreBlocks(ctx, projectID, "main", changed); err != nil {
-			return res, fmt.Errorf("persist settled source: %w", err)
+		if err := o.server.ContentStore.StoreBlocks(ctx, projectID, "main", changed); err != nil {
+			return fmt.Errorf("persist settled source: %w", err)
 		}
 	}
-	return res, nil
+	return nil
 }
 
 // gateItemsBySource partitions a project's items by the source-first gate: an
@@ -151,23 +170,31 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 		return itemNames, 0, nil // opt-out: translate everything
 	}
 
-	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
-	if err != nil {
-		return nil, 0, fmt.Errorf("load blocks for gate: %w", err)
-	}
 	// Per-item readiness: does the item have any translatable source block whose
 	// source clears the gate? An item with no translatable blocks is treated as
 	// producible (nothing to hold — it falls through to the normal no-op path).
+	//
+	// Walked in batches: what this needs from the corpus is two booleans per
+	// ITEM, so holding the blocks themselves is the whole cost and none of the
+	// answer.
 	readyItem := map[string]bool{}
 	seenItem := map[string]bool{}
-	for _, sb := range blocks {
-		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
-			continue
-		}
-		seenItem[sb.ItemName] = true
-		if gate.Admits(sb.Block.SourceStatus) {
-			readyItem[sb.ItemName] = true
-		}
+	err = platstore.EachBlockBatch(ctx, s.ContentStore,
+		platstore.BlockQuery{ProjectID: projectID, Stream: "main"}, 0,
+		func(blocks []*venue.StoredBlock) error {
+			for _, sb := range blocks {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+					continue
+				}
+				seenItem[sb.ItemName] = true
+				if gate.Admits(sb.Block.SourceStatus) {
+					readyItem[sb.ItemName] = true
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, 0, fmt.Errorf("load blocks for gate: %w", err)
 	}
 	for _, name := range itemNames {
 		switch {
