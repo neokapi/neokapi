@@ -42,6 +42,13 @@ const preview = createPreview({
         url: `${import.meta.env.BASE_URL}translations/qps.json`,
       },
     ],
+    // A reviewer's pending translation is not in any built catalog, so bowrain
+    // posts it in and the story renders it: the string read in the component it
+    // ships in rather than in a list beside it. Without this the desktop and
+    // framework stories still frame and draw — they simply ignore what the
+    // reviewer is holding and show the last shipped wording, which reads as the
+    // translation being missing rather than as the story not listening.
+    hostTranslations: true,
   },
 });
 
