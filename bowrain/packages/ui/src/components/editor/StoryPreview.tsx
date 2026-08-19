@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@neokapi/ui-primitives";
 import type { BlockInfo } from "../../types/api";
+import { useWorkspace } from "../../context/WorkspaceContext";
 import { useDocumentBlocks } from "./DocumentPreview";
 import { embedOrigin } from "./previewHost";
 import {
@@ -68,7 +69,12 @@ export function StoryPreview({
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [picked, setPicked] = useState<string | undefined>();
 
-  const { data: index, isPending, error } = useStoryIndex(projectId, stream, collectionId);
+  const { workspace } = useWorkspace();
+  const {
+    data: index,
+    isPending,
+    error,
+  } = useStoryIndex(workspace?.slug ?? "", projectId, stream, collectionId);
 
   const stories = useMemo(() => {
     if (!index) return [];
@@ -199,12 +205,17 @@ function Mono({ children }: { children: React.ReactNode }) {
  * The published Storybook's story index. Cached for the session: it changes
  * when the Storybook is rebuilt, not while a reviewer works.
  */
-function useStoryIndex(projectId: string, stream: string, collectionId: string) {
+function useStoryIndex(
+  workspaceSlug: string,
+  projectId: string,
+  stream: string,
+  collectionId: string,
+) {
   return useQuery({
-    queryKey: ["story-index", projectId, stream, collectionId],
-    enabled: Boolean(collectionId),
+    queryKey: ["story-index", workspaceSlug, projectId, stream, collectionId],
+    enabled: Boolean(collectionId) && Boolean(workspaceSlug),
     queryFn: async (): Promise<StoryIndex> => {
-      const response = await fetch(storyIndexURL(projectId, stream, collectionId), {
+      const response = await fetch(storyIndexURL(workspaceSlug, projectId, stream, collectionId), {
         credentials: "include",
       });
       if (!response.ok) throw new Error(`story index: ${response.status}`);

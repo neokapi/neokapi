@@ -113,9 +113,18 @@ export function embeddedStoryURL(
  * has no reason to send. The server reads it instead — see
  * bowrain/server/handlers_preview_index.go.
  */
-export function storyIndexURL(projectId: string, stream: string, collectionId: string): string {
+export function storyIndexURL(
+  workspaceSlug: string,
+  projectId: string,
+  stream: string,
+  collectionId: string,
+): string {
+  // Workspace-scoped, like every other collection route (Bowrain AD-011:
+  // /:ws/:id/collections/:ref). There is no flat /projects/:id form for these,
+  // and asking for one answers 404 — which reads in the interface as the
+  // Storybook being unreadable rather than as an address that does not exist.
   return (
-    `/api/v1/projects/${encodeURIComponent(projectId)}` +
+    `/api/v1/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectId)}` +
     `/collections/${encodeURIComponent(stream)}/${encodeURIComponent(collectionId)}/preview/index`
   );
 }
