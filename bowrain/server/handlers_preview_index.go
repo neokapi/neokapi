@@ -70,11 +70,15 @@ func (s *Server) HandlePreviewIndex(c echo.Context) error {
 
 	body, contentType, err := s.fetchPreviewIndex(c, indexURL)
 	if err != nil {
-		// The customer's host is not ours to be confident about: it can be
-		// down, private, or serving something else entirely. Say which host
-		// failed, because the person who can fix it is reading the recipe.
-		return apiErr(c, http.StatusBadGateway,
-			fmt.Sprintf("could not read the preview host at %s: %v", indexURL, err))
+		// Returned rather than written: a 502 says the failure is on our side
+		// of the wire, and whatever produced it — a DNS refusal, a TLS error,
+		// the address policy — wrote its message for an operator's log, not for
+		// the network. serverErrStatus logs it against the request's reference
+		// and answers with the generic envelope. The reviewer is not left
+		// guessing: the surface already knows which host it asked about and
+		// names it.
+		return serverErrStatus(c, http.StatusBadGateway,
+			fmt.Errorf("read preview index %s: %w", indexURL, err))
 	}
 
 	if contentType == "" {

@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -102,7 +103,7 @@ func TestEachBlockBatch_OwnsThePaging(t *testing.T) {
 func TestEachBlockBatch_StopsOnTheVisitorsError(t *testing.T) {
 	cs := &pagedStore{blocks: corpus(1000)}
 
-	boom := fmt.Errorf("persist failed")
+	boom := errors.New("persist failed")
 	err := platstore.EachBlockBatch(t.Context(), cs,
 		platstore.BlockQuery{ProjectID: "p1"}, 100,
 		func(blocks []*venue.StoredBlock) error { return boom })
