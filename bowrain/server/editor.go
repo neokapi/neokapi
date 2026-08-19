@@ -233,7 +233,14 @@ type ProjectItemResponse struct {
 // only the legacy block-global Properties["translation-status"], which readers
 // use as a fallback when targets[locale].status is empty.
 type BlockInfoResponse struct {
-	ID             string                     `json:"id"`
+	ID string `json:"id"`
+	// SourceID is the id the format reader gave this block inside its item —
+	// the id the document itself carries. The store mints its own id on
+	// ingest, so a surface holding a block and a surface holding the
+	// document are naming the same content two different ways, and anything
+	// addressed across that boundary has to translate. Empty for a block
+	// stored without an item, where there is no document to disagree with.
+	SourceID       string                     `json:"source_id,omitempty"`
 	Source         string                     `json:"source"`
 	SourceRuns     []model.Run                `json:"source_runs,omitempty"`
 	Targets        map[string]BlockTargetInfo `json:"targets"`
@@ -1568,6 +1575,7 @@ func storedBlockToInfoResponse(sb *venue.StoredBlock, targetLocales []string) Bl
 
 	bi := BlockInfoResponse{
 		ID:           sb.Block.ID,
+		SourceID:     sb.SourceID,
 		Source:       sb.Block.SourceText(),
 		Targets:      targets,
 		Translatable: sb.Block.Translatable,
