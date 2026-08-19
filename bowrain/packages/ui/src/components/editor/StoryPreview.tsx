@@ -69,12 +69,12 @@ export function StoryPreview({
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [picked, setPicked] = useState<string | undefined>();
 
-  const { workspace } = useWorkspace();
+  const { activeWorkspace } = useWorkspace();
   const {
     data: index,
     isPending,
     error,
-  } = useStoryIndex(workspace?.slug ?? "", projectId, stream, collectionId);
+  } = useStoryIndex(activeWorkspace?.slug ?? "", projectId, stream, collectionId);
 
   const stories = useMemo(() => {
     if (!index) return [];
