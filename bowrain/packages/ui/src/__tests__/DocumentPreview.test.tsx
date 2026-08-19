@@ -7,11 +7,7 @@ import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import {
-  DocumentPreview,
-  documentIdOf,
-  idTranslation,
-} from "../components/editor/DocumentPreview";
+import { DocumentPreview, documentIdOf, idTranslation } from "../components/editor/DocumentPreview";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { createMockAdapter, type MockAdapter } from "../stories/mock-adapter";
@@ -137,7 +133,6 @@ describe("DocumentPreview — what the target side is actually showing", () => {
     expect(screen.queryByTestId("preview-coverage")).toBeNull();
   });
 });
-
 
 // Two id spaces meet at the iframe boundary: the store mints its own id when a
 // block is ingested and keeps the format reader's as source_id, while the
