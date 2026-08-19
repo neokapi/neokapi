@@ -126,8 +126,8 @@ describe("story URLs", () => {
   // from the customer's host: connect-src names 'self', and that host has no
   // reason to send Access-Control-Allow-Origin.
   it("reads the index through the project's API, per collection", () => {
-    expect(storyIndexURL("proj-1", "main", "col-9")).toBe(
-      "/api/v1/projects/proj-1/collections/main/col-9/preview/index",
+    expect(storyIndexURL("bowrain-hq", "proj-1", "main", "col-9")).toBe(
+      "/api/v1/bowrain-hq/proj-1/collections/main/col-9/preview/index",
     );
   });
 });
