@@ -209,7 +209,7 @@ func deriveShipGate(
 	}
 
 	// One pair's judgement, folded into the tallies and queued for storage.
-	verdicts := make([]store.ShipGateVerdict, 0, len(stale))
+	verdicts := make([]store.ShipGateVerdict, 0, min(len(stale), store.DefaultBlockBatch*4))
 	judge := func(block *model.Block, itemName, localeStr, basis string) {
 		loc := model.LocaleID(localeStr)
 		// A block fails the ship gate when its QA checks flag an
@@ -257,7 +257,10 @@ func deriveShipGate(
 	}
 
 	// Only the pairs the store could not answer for. They arrive grouped by
-	// block, so a block whose every locale went stale is hydrated once.
+	// block, so a block whose every locale went stale is hydrated once, and each
+	// batch is recorded before the next is read: a verdict stands on its own, so
+	// a pass that is cancelled halfway leaves the half it finished behind rather
+	// than nothing, and the batch is what peak memory costs either way.
 	for _, group := range shipGateBatches(stale, store.DefaultBlockBatch) {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream, IDs: group.ids})
 		if err != nil {
@@ -269,6 +272,7 @@ func deriveShipGate(
 				byID[b.Block.ID] = b
 			}
 		}
+		verdicts = verdicts[:0]
 		for _, pair := range group.pairs {
 			b := byID[pair.BlockID]
 			// A pair the store named but the block read did not return was
@@ -279,10 +283,9 @@ func deriveShipGate(
 			}
 			judge(b.Block, b.ItemName, pair.Locale, pair.Basis)
 		}
-	}
-
-	if err := vs.PutShipGateVerdicts(ctx, projectID, stream, fingerprint, verdicts); err != nil {
-		return rollup, fmt.Errorf("store ship-gate verdicts: %w", err)
+		if err := vs.PutShipGateVerdicts(ctx, projectID, stream, fingerprint, verdicts); err != nil {
+			return rollup, fmt.Errorf("store ship-gate verdicts: %w", err)
+		}
 	}
 	return rollup, nil
 }
