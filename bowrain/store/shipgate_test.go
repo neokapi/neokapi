@@ -1,6 +1,7 @@
 package store
 
 import (
+	"slices"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -29,36 +30,49 @@ func seedShipGateProject(t *testing.T, s *PostgresStore) *platstore.Project {
 		Name: "b.json", Format: "json", ItemType: "file", CollectionID: "col-b",
 	}))
 
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json",
-		[]*model.Block{shipGateBlock("b1", "one", true), shipGateBlock("b2", "two", true), shipGateBlock("b3", "three", false)}))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json", shipGateItemA("traduit")))
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "b.json",
-		[]*model.Block{shipGateBlock("b4", "four", true)}))
+		[]*model.Block{shipGateBlock("b4", "four", "traduit four", true)}))
 	return p
+}
+
+// shipGateItemA is a.json's three blocks, with b1's target under the caller's
+// control. Rewriting one block of an item means storing the item's blocks
+// again, so the fixture is a function rather than a literal.
+func shipGateItemA(b1Target string) []*model.Block {
+	return []*model.Block{
+		shipGateBlock("b1", "one", b1Target, true),
+		shipGateBlock("b2", "two", "traduit two", true),
+		shipGateBlock("b3", "three", "", false),
+	}
 }
 
 // shipGateBlock builds one block whose source_id the store keeps, so a test can
 // name the pairs a rollup reports. The store mints its own project-unique block
 // ids, so the caller's id survives as source_id and nothing else.
-func shipGateBlock(sourceID, text string, translatable bool) *model.Block {
+func shipGateBlock(sourceID, text, target string, translatable bool) *model.Block {
 	b := &model.Block{ID: sourceID, Translatable: translatable}
 	b.SetSourceText(text)
 	if translatable {
-		b.SetTargetText(model.LocaleFrench, "traduit "+text)
+		b.SetTargetText(model.LocaleFrench, target)
 	}
 	return b
 }
 
-// shipGateNames maps the store's minted block ids back to the source ids the
-// fixtures name them by, so an assertion reads b1/b2/b4 rather than a mint.
-func shipGateNames(t *testing.T, s *PostgresStore, projectID string) map[string]string {
+// shipGateNames maps the store's minted block ids to the source ids the
+// fixtures name them by, and back, so an assertion reads b1/b2/b4 rather than a
+// mint.
+func shipGateNames(t *testing.T, s *PostgresStore, projectID string) (names, ids map[string]string) {
 	t.Helper()
 	blocks, err := s.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
 	require.NoError(t, err)
-	out := make(map[string]string, len(blocks))
+	names = make(map[string]string, len(blocks))
+	ids = make(map[string]string, len(blocks))
 	for _, b := range blocks {
-		out[b.Block.ID] = b.SourceID
+		names[b.Block.ID] = b.SourceID
+		ids[b.SourceID] = b.Block.ID
 	}
-	return out
+	return names, ids
 }
 
 func shipGateQuery(projectID, gate string, scores ...platstore.ShipGateScore) platstore.ShipGateQuery {
@@ -100,29 +114,31 @@ func TestShipGateRollup(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
 	p := seedShipGateProject(t, s)
+	names, ids := shipGateNames(t, s, p.ID)
 	const gate = "gate-1"
+	fr := string(model.LocaleFrench)
 
 	t.Run("every translated pair is stale before anything is stored", func(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 		require.NoError(t, err)
 		assert.Empty(t, got.Scopes, "nothing is counted before a verdict exists")
-		assert.Equal(t, []string{"b1", "b2", "b4"}, staleIDs(got.Stale),
+		assert.Equal(t, []string{"b1", "b2", "b4"}, staleNames(names, got.Stale),
 			"the untranslatable block is not a pair the gate judges")
 	})
 
 	rollup, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 	require.NoError(t, err)
-	storeVerdicts(t, s, p.ID, gate, rollup.Stale, map[string]bool{"b2": true})
+	storeVerdicts(t, s, p.ID, gate, rollup.Stale, map[string]bool{ids["b2"]: true})
 
 	t.Run("stored verdicts are counted in their collection", func(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 		require.NoError(t, err)
 		assert.Empty(t, got.Stale, "nothing has changed, so nothing needs judging")
 
-		a := got.CountsFor("col-a", string(model.LocaleFrench))
+		a := got.CountsFor("col-a", fr)
 		assert.Equal(t, 1, a.Clean)
 		assert.Equal(t, 1, a.Failing)
-		b := got.CountsFor("col-b", string(model.LocaleFrench))
+		b := got.CountsFor("col-b", fr)
 		assert.Equal(t, 1, b.Clean)
 		assert.Zero(t, b.Failing)
 	})
@@ -130,17 +146,17 @@ func TestShipGateRollup(t *testing.T) {
 	t.Run("a voice score below the bar withholds a clean block", func(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate,
 			platstore.ShipGateScore{
-				ShipGateRef: platstore.ShipGateRef{BlockID: "b1", Locale: string(model.LocaleFrench)},
+				ShipGateRef: platstore.ShipGateRef{BlockID: ids["b1"], Locale: fr},
 				BelowBar:    true,
 			},
 			platstore.ShipGateScore{
-				ShipGateRef: platstore.ShipGateRef{BlockID: "b4", Locale: string(model.LocaleFrench)},
+				ShipGateRef: platstore.ShipGateRef{BlockID: ids["b4"], Locale: fr},
 			}))
 		require.NoError(t, err)
-		a := got.CountsFor("col-a", string(model.LocaleFrench))
+		a := got.CountsFor("col-a", fr)
 		assert.Equal(t, 1, a.Scored)
 		assert.Equal(t, 1, a.CleanBelowBar)
-		b := got.CountsFor("col-b", string(model.LocaleFrench))
+		b := got.CountsFor("col-b", fr)
 		assert.Equal(t, 1, b.Scored)
 		assert.Zero(t, b.CleanBelowBar, "a score above the bar withholds nothing")
 	})
@@ -149,23 +165,20 @@ func TestShipGateRollup(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, "gate-2"))
 		require.NoError(t, err)
 		assert.Empty(t, got.Scopes)
-		assert.Equal(t, []string{"b1", "b2", "b4"}, staleIDs(got.Stale))
+		assert.Equal(t, []string{"b1", "b2", "b4"}, staleNames(names, got.Stale))
 	})
 
-	t.Run("a rewritten target retires its own verdict and no other", func(t *testing.T) {
-		rewritten := shipGateBlock("b1", "one", true)
-		rewritten.SetTargetText(model.LocaleFrench, "réécrit")
-		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json",
-			[]*model.Block{rewritten, shipGateBlock("b2", "two", true), shipGateBlock("b3", "three", false)}))
+	t.Run("a rewritten item retires its verdicts and no other item's", func(t *testing.T) {
+		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json", shipGateItemA("réécrit")))
 
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 		require.NoError(t, err)
-		assert.Equal(t, []string{"b1"}, staleIDs(got.Stale),
-			"only the pair whose target moved is judged again")
-		assert.Equal(t, 1, got.CountsFor("col-a", string(model.LocaleFrench)).Failing,
-			"b2 keeps the verdict it was given")
-		assert.Equal(t, 1, got.CountsFor("col-b", string(model.LocaleFrench)).Clean,
-			"another collection is untouched")
+		// Storing an item rewrites every target row it holds, so the whole
+		// item is judged again — which is the delta an ordinary push leaves:
+		// the files it wrote, not the project they sit in.
+		assert.Equal(t, []string{"b1", "b2"}, staleNames(names, got.Stale))
+		assert.Zero(t, got.CountsFor("col-a", fr).Clean, "a.json holds no verdict that still applies")
+		assert.Equal(t, 1, got.CountsFor("col-b", fr).Clean, "b.json was not written and keeps its own")
 	})
 }
 
@@ -177,6 +190,7 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
 	p := seedShipGateProject(t, s)
+	names, _ := shipGateNames(t, s, p.ID)
 	const gate = "gate-1"
 
 	rollup, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
@@ -184,15 +198,14 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 	require.NotEmpty(t, rollup.Stale)
 
 	// The target moves after the pass read it and before it writes back.
-	moved := shipGateBlock("b1", "one", true)
-	moved.SetTargetText(model.LocaleFrench, "déplacé")
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json",
-		[]*model.Block{moved, shipGateBlock("b2", "two", true), shipGateBlock("b3", "three", false)}))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "a.json", shipGateItemA("déplacé")))
 
 	storeVerdicts(t, s, p.ID, gate, rollup.Stale, nil)
 
 	got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
 	require.NoError(t, err)
-	assert.Equal(t, []string{"b1"}, staleIDs(got.Stale),
-		"the pair whose basis moved keeps no verdict and is judged again")
+	assert.Equal(t, []string{"b1", "b2"}, staleNames(names, got.Stale),
+		"the pairs whose basis moved keep no verdict and are judged again")
+	assert.Equal(t, 1, got.CountsFor("col-b", string(model.LocaleFrench)).Clean,
+		"the pair whose basis held is recorded as normal")
 }
