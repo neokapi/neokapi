@@ -15,7 +15,7 @@ import { type CollectionPreview } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import { ItemStoryPreview, type ReadingMode } from "./editor/StoryPreview";
-import { storybookHost } from "./editor/previewHost";
+import { embedOrigin, storybookHost } from "./editor/previewHost";
 import { LocaleSelect } from "./LocaleSelect";
 
 /**
@@ -64,6 +64,12 @@ export interface FilePreviewProps {
    * why it is empty.
    */
   preview?: CollectionPreview;
+  /**
+   * The collection this item belongs to. In-context reading needs it: the story
+   * index is read through this project's own API, per collection, because the
+   * declared host is the collection's.
+   */
+  collectionId?: string;
 }
 
 /**
@@ -88,6 +94,7 @@ export function FilePreview({
   onOpenReview,
   onOpenPreProcess,
   preview,
+  collectionId,
 }: FilePreviewProps) {
   const { getDisplayName } = useLocales();
   const [side, setSide] = useState<"source" | "target">("source");
@@ -98,7 +105,13 @@ export function FilePreview({
   // project switch must not leave the reading pinned to a locale it dropped.
   const locale = picked && targetLocales.includes(picked) ? picked : (targetLocales[0] ?? "");
   const hasTargets = targetLocales.length > 0;
-  const storybookURL = storybookHost(preview);
+  // Both halves are needed: a host this client can resolve a view within, and
+  // the collection whose API serves that host's index.
+  // Every half must be present or the reading cannot happen: a host this client
+  // can resolve a view within, the collection whose API serves that host's index,
+  // and an embed origin to frame it through. Offering the toggle without one
+  // would put an empty frame in front of a reviewer with nothing to explain it.
+  const storybookURL = collectionId && embedOrigin() ? storybookHost(preview) : undefined;
   // A host is only offered when this client knows how to find a view inside it
   // — see previewHost.
   // With one target locale the toggle names it outright; with several the
@@ -175,6 +188,7 @@ export function FilePreview({
             <ItemStoryPreview
               key={itemName}
               projectId={projectId}
+              collectionId={collectionId ?? ""}
               itemName={itemName}
               storybookURL={storybookURL}
               locale={locale}

@@ -9,6 +9,7 @@ import { describe, it, expect } from "vite-plus/test";
 import {
   componentsOf,
   storiesForComponents,
+  embeddedStoryURL,
   storyIndexURL,
   storyURL,
   translationsFor,
@@ -96,8 +97,37 @@ describe("story URLs", () => {
     expect(storyURL("https://x.dev/storybook/bowrain/", "emails-invite--default")).toBe(
       "https://x.dev/storybook/bowrain/iframe.html?id=emails-invite--default&viewMode=story",
     );
-    expect(storyIndexURL("https://x.dev/storybook/bowrain")).toBe(
-      "https://x.dev/storybook/bowrain/index.json",
+  });
+
+  // The frame goes through the embed origin, never straight at the customer's
+  // host: the application's content policy names that one origin, because the
+  // hosts a recipe may declare cannot be listed in advance.
+  it("frames a story through the embed origin", () => {
+    expect(
+      embeddedStoryURL(
+        "https://embed.bowrain.cloud",
+        "https://x.dev/sb/",
+        "emails-invite--default",
+      ),
+    ).toBe(
+      "https://embed.bowrain.cloud/?src=" +
+        encodeURIComponent("https://x.dev/sb/iframe.html?id=emails-invite--default&viewMode=story"),
+    );
+  });
+
+  // Without one configured there is nothing to frame through, and returning the
+  // story URL directly would be refused by the policy — a blank frame with
+  // nothing to explain it.
+  it("offers no framed URL when no embed origin is configured", () => {
+    expect(embeddedStoryURL("", "https://x.dev/sb/", "s--1")).toBeUndefined();
+  });
+
+  // The index comes through this project's own API. The browser cannot fetch it
+  // from the customer's host: connect-src names 'self', and that host has no
+  // reason to send Access-Control-Allow-Origin.
+  it("reads the index through the project's API, per collection", () => {
+    expect(storyIndexURL("proj-1", "main", "col-9")).toBe(
+      "/api/v1/projects/proj-1/collections/main/col-9/preview/index",
     );
   });
 });

@@ -912,6 +912,12 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 		where = append(where, "b.content_hash = ?")
 		whereArgs = append(whereArgs, query.ContentHash)
 	}
+	// The keyset cursor. Rows come back in id order, so "after this id" is the
+	// next page — see BlockQuery.AfterID.
+	if query.AfterID != "" {
+		where = append(where, "b.id > ?")
+		whereArgs = append(whereArgs, query.AfterID)
+	}
 	if query.Translatable != nil {
 		v := 0
 		if *query.Translatable {

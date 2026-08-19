@@ -606,6 +606,7 @@ export function ProjectView({
           // desktop app's components and the web app's are two Storybooks, and
           // a project-wide URL would offer each collection the other's.
           preview={activeCollection?.preview}
+          collectionId={activeCollection?.id}
         />
       )}
     </div>

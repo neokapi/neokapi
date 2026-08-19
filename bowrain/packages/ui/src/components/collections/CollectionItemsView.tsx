@@ -144,6 +144,7 @@ export function CollectionItemsView({
               ? { kind: collection.preview_kind, url: collection.preview_url }
               : undefined
           }
+          collectionId={collection?.collection_id}
         />
       )}
     </div>

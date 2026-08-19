@@ -3,7 +3,7 @@
  * editor, a row's own actions do not, the editors are reached only from the
  * preview's explicit actions, and the document is one paged, cached query.
  */
-import { describe, it, expect, vi } from "vite-plus/test";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -462,6 +462,17 @@ describe("ProjectView — the row reads the file, the row's own action does not"
 // project page: `?collection=` lands here, and a toggle that appeared on one
 // route and not the other would read as the feature being broken.
 describe("CollectionItemsView — in-context reading follows the collection", () => {
+  // The offer needs a deployment with an embed origin to frame through: the
+  // application's content policy names exactly that origin, so without one
+  // there is nothing a frame could legally load. Stated here rather than
+  // assumed, because a deployment without it must offer nothing at all.
+  beforeEach(() => {
+    vi.stubEnv("VITE_EMBED_ORIGIN", "https://embed.example.dev");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   const rollup = (preview: { preview_kind?: string; preview_url?: string }) => ({
     collection_id: "c1",
     collection_name: "bowrain-app",

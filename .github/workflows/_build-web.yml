@@ -32,6 +32,14 @@ jobs:
           # key above. This is the "inject on deploy to S3" point: the build
           # runs in the deploy pipeline, then the dist is synced to S3.
           VITE_SENTRY_DSN: https://5a70f1f43a8bbeb81ccb3b88445909be@o4511753590538240.ingest.de.sentry.io/4511753715318864
+          # In-context review frames a component from whatever preview host a
+          # customer's recipe declares, and no list of those can be put in a
+          # content policy. The app frames this shim origin instead, and the
+          # policy names exactly it — bowrain-infra modules/embed-origin, wired
+          # to spa_web's csp_frame_src in 50-edge. The two have to agree: change
+          # one without the other and every preview frame is refused with
+          # nothing in the interface to say why.
+          VITE_EMBED_ORIGIN: https://embed.bowrain.cloud
         run: vp run build
 
       - name: Upload web artifacts

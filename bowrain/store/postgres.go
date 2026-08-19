@@ -962,6 +962,11 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	if query.ContentHash != "" {
 		where = append(where, "b.content_hash = "+bind(query.ContentHash))
 	}
+	// The keyset cursor. Rows come back in id order, so "after this id" is the
+	// next page — see BlockQuery.AfterID.
+	if query.AfterID != "" {
+		where = append(where, "b.id > "+bind(query.AfterID))
+	}
 	if query.Translatable != nil {
 		where = append(where, "b.translatable = "+bind(*query.Translatable))
 	}
