@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The correction-learning loop's events. rule_promoted (manual) lives with the
@@ -131,21 +132,30 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	}
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: req.Term, Replacement: req.Replacement})
 
-	stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: req.ProjectID, Stream: req.Stream})
+	// Walked a batch at a time, projecting as it goes: the evaluation wants an
+	// id, a name and the source text, and holding the stored blocks those came
+	// from — runs, every target, properties, annotations — alongside the
+	// projection meant paying for the corpus twice to look at part of it once.
+	var blocks []coreprofile.EvalBlock
+	err = store.EachBlockBatch(ctx, s.ContentStore,
+		store.BlockQuery{ProjectID: req.ProjectID, Stream: req.Stream},
+		store.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil {
+					continue
+				}
+				blocks = append(blocks, coreprofile.EvalBlock{
+					BlockID:        sb.Block.ID,
+					CollectionID:   sb.ItemName,
+					CollectionName: sb.ItemName,
+					Text:           sb.Block.SourceText(),
+				})
+			}
+			return nil
+		})
 	if err != nil {
 		return serverErr(c, err)
-	}
-	blocks := make([]coreprofile.EvalBlock, 0, len(stored))
-	for _, sb := range stored {
-		if sb == nil || sb.Block == nil {
-			continue
-		}
-		blocks = append(blocks, coreprofile.EvalBlock{
-			BlockID:        sb.Block.ID,
-			CollectionID:   sb.ItemName,
-			CollectionName: sb.ItemName,
-			Text:           sb.Block.SourceText(),
-		})
 	}
 	radius := coreprofile.EvaluateBlastRadius(blocks, baseline, candidate)
 	return c.JSON(http.StatusOK, radius)

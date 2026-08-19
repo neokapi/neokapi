@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // applyShipStates enriches dashboard stats in place with failing-check counts,
@@ -103,54 +104,78 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 	}
 
 	if len(rateCandidates) > 0 {
-		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream})
-		if err != nil {
-			return fmt.Errorf("load blocks for ship-state checks: %w", err)
-		}
 		scores := latestVoiceScores(ctx, brandStore, projectID, stream)
+
+		// Per-locale governance and voice scores resolve once, outside the walk:
+		// they are indexed by locale, not by block, and re-resolving them per
+		// batch would repeat the same work for every page of the corpus.
+		type localeCtx struct {
+			loc    model.LocaleID
+			scored map[string]scoredBlock
+		}
+		locales := make(map[string]localeCtx, len(rateCandidates))
 		for localeStr := range rateCandidates {
 			loc := model.LocaleID(localeStr)
-			scored := scores[string(locale.Normalize(loc))]
-			// Resolve the gate's per-locale governance once (never per block): it
-			// drives both the term-compliance predicate below and the basis note.
+			locales[localeStr] = localeCtx{loc: loc, scored: scores[string(locale.Normalize(loc))]}
+			// Drives both the term-compliance predicate below and the basis note.
 			termActive[localeStr] = gate.active(ctx, loc)
-			for _, sb := range blocks {
-				if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
-					continue
-				}
-				// A block fails the ship gate when its QA checks flag an
-				// error-severity finding OR its target is not term-compliant for the
-				// locale — the two are treated identically for both FailingChecks and
-				// the on-brand rate. gate.compliant is offline (in-memory snapshot).
-				blockFails := blockFailsChecks(ctx, sb.Block, loc) || !gate.compliant(ctx, sb.Block, loc)
-				cid := collByItem[sb.ItemName]
-				if blockFails && shipCandidates[localeStr] {
-					failing[localeStr]++
-					if failingByColl[cid] == nil {
-						failingByColl[cid] = map[string]int{}
-					}
-					failingByColl[cid][localeStr]++
-				}
+		}
 
-				blockOnBrand := !blockFails
-				if vs, ok := scored[sb.Block.ID]; ok {
-					voiceUsed[localeStr] = true
-					if voiceUsedByColl[cid] == nil {
-						voiceUsedByColl[cid] = map[string]bool{}
-					}
-					voiceUsedByColl[cid][localeStr] = true
-					if vs.score < vs.bar {
-						blockOnBrand = false
+		// The corpus is walked a batch at a time and the locale loop moved
+		// inside it. Everything accumulated here is a counter, so a batch can be
+		// folded and dropped — which is the point: reading a whole project's
+		// blocks to compute these tallies is what OOM-killed the server, and the
+		// dashboard asks for them on every load.
+		walkErr := store.EachBlockBatch(ctx, cs,
+			store.BlockQuery{ProjectID: projectID, Stream: stream},
+			store.DefaultBlockBatch,
+			func(batch []*venue.StoredBlock) error {
+				for _, sb := range batch {
+					for localeStr, lc := range locales {
+						loc := lc.loc
+						scored := lc.scored
+						if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
+							continue
+						}
+						// A block fails the ship gate when its QA checks flag an
+						// error-severity finding OR its target is not term-compliant for
+						// the locale — the two are treated identically for both
+						// FailingChecks and the on-brand rate. gate.compliant is offline
+						// (in-memory snapshot).
+						blockFails := blockFailsChecks(ctx, sb.Block, loc) || !gate.compliant(ctx, sb.Block, loc)
+						cid := collByItem[sb.ItemName]
+						if blockFails && shipCandidates[localeStr] {
+							failing[localeStr]++
+							if failingByColl[cid] == nil {
+								failingByColl[cid] = map[string]int{}
+							}
+							failingByColl[cid][localeStr]++
+						}
+
+						blockOnBrand := !blockFails
+						if vs, ok := scored[sb.Block.ID]; ok {
+							voiceUsed[localeStr] = true
+							if voiceUsedByColl[cid] == nil {
+								voiceUsedByColl[cid] = map[string]bool{}
+							}
+							voiceUsedByColl[cid][localeStr] = true
+							if vs.score < vs.bar {
+								blockOnBrand = false
+							}
+						}
+						if blockOnBrand {
+							onBrand[localeStr]++
+							if onBrandByColl[cid] == nil {
+								onBrandByColl[cid] = map[string]int{}
+							}
+							onBrandByColl[cid][localeStr]++
+						}
 					}
 				}
-				if blockOnBrand {
-					onBrand[localeStr]++
-					if onBrandByColl[cid] == nil {
-						onBrandByColl[cid] = map[string]int{}
-					}
-					onBrandByColl[cid][localeStr]++
-				}
-			}
+				return nil
+			})
+		if walkErr != nil {
+			return fmt.Errorf("load blocks for ship-state checks: %w", walkErr)
 		}
 	}
 

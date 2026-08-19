@@ -179,8 +179,10 @@ func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest
 		return nil, err
 	}
 
-	// Count blocks before pushing so we can report the count.
-	blocks, err := g.srv.Services.Project.GetBlocks(ctx, store.BlockQuery{ProjectID: req.ProjectId})
+	// Count blocks before pushing so we can report the count. CountBlocks
+	// answers from the database and hydrates nothing — reading the corpus to
+	// take its len() was a whole project held in memory to produce one integer.
+	counts, err := g.srv.Services.Project.CountBlocks(ctx, store.BlockQuery{ProjectID: req.ProjectId})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "count blocks: %v", err)
 	}
@@ -189,7 +191,7 @@ func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest
 	if err := g.srv.Services.Connector.Publish(ctx, p.WorkspaceID, req.ConnectorId, req.ProjectId, opts); err != nil {
 		return nil, status.Errorf(codes.Internal, "push content: %v", err)
 	}
-	return &pb.PushContentResponse{PushedCount: int32(len(blocks))}, nil
+	return &pb.PushContentResponse{PushedCount: int32(counts.Total)}, nil
 }
 
 // flowConfig is the YAML structure for flow definitions sent via gRPC.

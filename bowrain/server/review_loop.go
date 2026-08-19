@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -54,20 +55,66 @@ func targetPendingReview(b *model.Block, loc model.LocaleID) bool {
 	return t.Status.Rank() < model.TargetStatusReviewed.Rank()
 }
 
-// localeHasPendingReview reports whether any translatable block still has a
-// target awaiting review for the locale. When it goes false for a locale, that
-// locale's open review task(s) can close.
-func localeHasPendingReview(blocks []*venue.StoredBlock, loc model.LocaleID) bool {
-	for _, sb := range blocks {
-		if sb != nil && targetPendingReview(sb.Block, loc) {
-			return true
+// pendingReviewLocales answers, for every locale asked about, whether the
+// project still holds a translated-but-unreviewed target in it.
+//
+// One walk answers for all of them: the loop needs the flag per touched locale
+// (to close that locale's review tasks) and across every configured target (the
+// completion gate), and asking twice would read the corpus twice. What is kept
+// between batches is one bool per locale, so the memory is the batch.
+func pendingReviewLocales(
+	ctx context.Context,
+	cs platstore.ContentStore,
+	projectID, stream string,
+	locales ...[]model.LocaleID,
+) (map[model.LocaleID]bool, error) {
+	want := map[model.LocaleID]bool{}
+	for _, set := range locales {
+		for _, loc := range set {
+			want[loc] = false
 		}
 	}
-	return false
+	if len(want) == 0 {
+		return want, nil
+	}
+
+	// Once every locale has been answered yes there is nothing left to learn,
+	// and the walk stops rather than reading the rest of the corpus to confirm
+	// what it already knows.
+	remaining := len(want)
+	err := platstore.EachBlockBatch(ctx, cs,
+		platstore.BlockQuery{ProjectID: projectID, Stream: stream},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil {
+					continue
+				}
+				for loc, already := range want {
+					if already || !targetPendingReview(sb.Block, loc) {
+						continue
+					}
+					want[loc] = true
+					remaining--
+				}
+				if remaining == 0 {
+					return errWalkSatisfied
+				}
+			}
+			return nil
+		})
+	if err != nil && !errors.Is(err, errWalkSatisfied) {
+		return nil, err
+	}
+	return want, nil
 }
 
-// projectHasPendingReview reports whether the project still has ANY translated-
-// but-unreviewed target block for a configured target locale — the block-derived,
+// errWalkSatisfied ends a walk that has learned everything it came for. Not a
+// failure: pendingReviewLocales swallows exactly this one.
+var errWalkSatisfied = errors.New("walk satisfied")
+
+// anyPending reports whether the project still has ANY translated-but-unreviewed
+// target block for a configured target locale — the block-derived,
 // assignment-independent definition of "pending review" that the review-session
 // UI and the ship gate already reason about. It is the completion condition for
 // the review loop: zero pending-review blocks means the loop can continue to
@@ -75,15 +122,10 @@ func localeHasPendingReview(blocks []*venue.StoredBlock, loc model.LocaleID) boo
 // completion correct even when task creation is imperfect (e.g. a member-less
 // project that only got unassigned/owner-routed tasks), and makes the UI queue
 // and the completion trigger agree exactly.
-func projectHasPendingReview(blocks []*venue.StoredBlock, targets []model.LocaleID) bool {
-	for _, sb := range blocks {
-		if sb == nil {
-			continue
-		}
-		for _, loc := range targets {
-			if targetPendingReview(sb.Block, loc) {
-				return true
-			}
+func anyPending(pending map[model.LocaleID]bool, targets []model.LocaleID) bool {
+	for _, loc := range targets {
+		if pending[loc] {
+			return true
 		}
 	}
 	return false
@@ -100,7 +142,7 @@ func projectHasPendingReview(blocks []*venue.StoredBlock, targets []model.Locale
 // delivery. It reports whether review.completed was published.
 //
 // The completion condition is BLOCK-derived, not task-count-derived
-// (projectHasPendingReview): the loop continues exactly when the honest coverage
+// (pendingReviewLocales): the loop continues exactly when the honest coverage
 // truth says nothing is left to review, independent of whether every review task
 // was created/assigned. Tasks are the "for you" projection on top. It is a no-op
 // (returns false) for a non-governed project — those never enter the review loop,
@@ -117,7 +159,12 @@ func (s *Server) advanceReviewLoop(ctx context.Context, proj *platstore.Project,
 		return false
 	}
 
-	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: proj.ID, Stream: stream})
+	// Both questions below are folds over the corpus — "is anything still
+	// pending for this locale" — so the corpus is walked a batch at a time and
+	// what survives each batch is a set of locale flags. Reading it whole is
+	// what OOM-killed the server once; this runs on every approval, which is
+	// the worst place to have kept doing it.
+	pending, err := pendingReviewLocales(ctx, s.ContentStore, proj.ID, stream, touched, proj.TargetLanguages)
 	if err != nil {
 		slog.WarnContext(ctx, "review loop: load blocks failed", "project", proj.ID, "error", err)
 		return false
@@ -134,7 +181,7 @@ func (s *Server) advanceReviewLoop(ctx context.Context, proj *platstore.Project,
 				continue
 			}
 			seen[loc] = true
-			if !localeHasPendingReview(blocks, loc) {
+			if !pending[loc] {
 				s.completeLocaleReviewTasks(ctx, proj, string(loc), actor)
 			}
 		}
@@ -142,7 +189,7 @@ func (s *Server) advanceReviewLoop(ctx context.Context, proj *platstore.Project,
 
 	// Completion gate (block-derived): continue the loop only when NO configured
 	// target locale has a block still awaiting review.
-	if projectHasPendingReview(blocks, proj.TargetLanguages) {
+	if anyPending(pending, proj.TargetLanguages) {
 		return false
 	}
 

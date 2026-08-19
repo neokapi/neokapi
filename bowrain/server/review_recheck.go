@@ -258,43 +258,53 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 // locales for review. A conforming target is never touched (no needless churn),
 // and a project with no failure produces no store write, no task, and no event.
 func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates recheckOracle, actor string) error {
-	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: proj.ID, Stream: "main"})
+	changed := map[string]*venue.StoredBlock{} // deduped by block id — one store write per block
+	affected := map[model.LocaleID]bool{}
+
+	// A batch at a time. What survives a batch is only what this pass demoted,
+	// which on a conforming project is nothing at all — the common case now
+	// holds a page rather than the corpus. A recheck runs on a governed change,
+	// across every project in the workspace, so it is exactly the sweep that
+	// must not scale its memory with the content it sweeps.
+	err := platstore.EachBlockBatch(ctx, s.ContentStore,
+		platstore.BlockQuery{ProjectID: proj.ID, Stream: "main"},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+					continue
+				}
+				for _, loc := range proj.TargetLanguages {
+					t := sb.Block.Target(loc)
+					if t == nil {
+						continue
+					}
+					// RV-E pulls back only APPROVED work. A target below reviewed is
+					// already pending review, so re-checking it would change nothing —
+					// leaving it alone is what makes replays idempotent and avoids
+					// demoting a target that was already re-queued.
+					if t.Status.Rank() < model.TargetStatusReviewed.Rank() {
+						continue
+					}
+					if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
+						continue
+					}
+					if !violates(sb, proj.DefaultSourceLanguage, loc) {
+						continue // still conforms — untouched
+					}
+					// Demote to draft, mirroring HandleReviewBlock's rejection mapping:
+					// the translation is now wrong (it carries a forbidden term), so it
+					// re-enters the work queue, not merely re-review.
+					t.Status = model.TargetStatusDraft
+					changed[sb.Block.ID] = sb
+					affected[loc] = true
+				}
+			}
+			return nil
+		})
 	if err != nil {
 		slog.WarnContext(ctx, "review recheck: load blocks failed", "project", proj.ID, "error", err)
 		return fmt.Errorf("load blocks for %s: %w", proj.ID, err)
-	}
-
-	changed := map[string]*venue.StoredBlock{} // deduped by block id — one store write per block
-	affected := map[model.LocaleID]bool{}
-	for _, sb := range blocks {
-		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
-			continue
-		}
-		for _, loc := range proj.TargetLanguages {
-			t := sb.Block.Target(loc)
-			if t == nil {
-				continue
-			}
-			// RV-E pulls back only APPROVED work. A target below reviewed is already
-			// pending review, so re-checking it would change nothing — leaving it
-			// alone is what makes replays idempotent and avoids demoting a target
-			// that was already re-queued.
-			if t.Status.Rank() < model.TargetStatusReviewed.Rank() {
-				continue
-			}
-			if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
-				continue
-			}
-			if !violates(sb, proj.DefaultSourceLanguage, loc) {
-				continue // still conforms — untouched
-			}
-			// Demote to draft, mirroring HandleReviewBlock's rejection mapping: the
-			// translation is now wrong (it carries a forbidden term), so it re-enters
-			// the work queue, not merely re-review.
-			t.Status = model.TargetStatusDraft
-			changed[sb.Block.ID] = sb
-			affected[loc] = true
-		}
 	}
 	if len(changed) == 0 {
 		return nil

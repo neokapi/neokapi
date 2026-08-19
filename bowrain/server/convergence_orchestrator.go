@@ -637,68 +637,84 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 			byLocale[ls.Locale] = ls
 		}
 
-		// Blocks are loaded at most once per derive, and only if some locale is
-		// fully covered (a check pass is pointless below full coverage — the
-		// locale is pending regardless). This bounds the expensive full-block
-		// read to runs approaching their gate.
-		var blocks []*venue.StoredBlock
-		var blocksErr error
-		blocksLoaded := false
-		loadBlocks := func() ([]*venue.StoredBlock, error) {
-			if !blocksLoaded {
-				blocks, blocksErr = s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: runStream(stream)})
-				blocksLoaded = true
+		// The locales this derive is answering for.
+		var locales []model.LocaleID
+		for _, loc := range proj.TargetLanguages {
+			if len(filter) == 0 || filter[string(loc)] {
+				locales = append(locales, loc)
 			}
-			return blocks, blocksErr
+		}
+
+		// Coverage first, and only for the locales the dashboard stats cannot
+		// answer for. The stats are ITEM-scoped (GetBlockStats scopes its block
+		// query to the stream's item rows), so blocks ingested without item
+		// bookkeeping — the historical connector-fetch path stored blocks
+		// item-less — are invisible to them and the locale would false-read as
+		// at-gate ("Up to date") over real pending work. The block store is the
+		// truth for pending-work derivation: a translatable block lacking a
+		// target for a CONFIGURED locale is pending, item rows or not.
+		var needCoverage []model.LocaleID
+		for _, loc := range locales {
+			ls := byLocale[string(loc)]
+			if ls.TotalBlocks == 0 && stats.TranslatableBlocks == 0 {
+				needCoverage = append(needCoverage, loc)
+			}
+		}
+		coverage, err := blockCoverage(ctx, s.ContentStore, projectID, runStream(stream), needCoverage)
+		if err != nil {
+			return convergence.PassState{}, fmt.Errorf("load blocks for coverage: %w", err)
+		}
+
+		// Resolve each locale's totals, then check only the fully covered ones —
+		// a check pass is pointless below full coverage, the locale is pending
+		// regardless.
+		type localeState struct {
+			total      int
+			translated int
+		}
+		states := make(map[string]localeState, len(locales))
+		var toCheck []model.LocaleID
+		for _, loc := range locales {
+			l := string(loc)
+			ls := byLocale[l]
+			st := localeState{total: ls.TotalBlocks, translated: ls.TranslatedBlocks}
+			if st.total == 0 {
+				st.total = stats.TranslatableBlocks
+			}
+			if cov, ok := coverage[loc]; ok {
+				st.total, st.translated = cov.total, cov.translated
+			}
+			states[l] = st
+			if st.translated >= st.total {
+				toCheck = append(toCheck, loc)
+			}
+		}
+		failingByLocale, err := countFailingBlocks(ctx, s.ContentStore, projectID, runStream(stream), toCheck)
+		if err != nil {
+			return convergence.PassState{}, fmt.Errorf("load blocks for checks: %w", err)
 		}
 
 		var pending []string
 		produced := 0
 		failingTotal := 0
 		unitTotals := map[string]int{}
-		for _, loc := range proj.TargetLanguages {
+		for _, loc := range locales {
 			l := string(loc)
-			if len(filter) > 0 && !filter[l] {
-				continue
-			}
-			ls := byLocale[l]
-			total := ls.TotalBlocks
-			if total == 0 {
-				total = stats.TranslatableBlocks
-			}
-			if total == 0 {
-				// The dashboard stats are ITEM-scoped (GetBlockStats scopes its
-				// block query to the stream's item rows), so blocks ingested
-				// without item bookkeeping — the historical connector-fetch path
-				// stored blocks item-less — are invisible to them and the locale
-				// would false-read as at-gate ("Up to date") over real pending
-				// work. The block store is the truth for pending-work derivation:
-				// a translatable block lacking a target for a CONFIGURED locale
-				// is pending, item rows or not.
-				bl, berr := loadBlocks()
-				if berr != nil {
-					return convergence.PassState{}, fmt.Errorf("load blocks for coverage: %w", berr)
-				}
-				total, ls.TranslatedBlocks = blockCoverage(bl, loc)
-			}
-			unitTotals[l] = total
-			if ls.TranslatedBlocks < total {
+			st := states[l]
+			unitTotals[l] = st.total
+			if st.translated < st.total {
 				// Under-covered: pending on coverage alone, no need to check.
-				produced += ls.TranslatedBlocks
+				produced += st.translated
 				pending = append(pending, l)
 				continue
 			}
-			// Fully covered: run the bound checks and demote failing units below
-			// the gate (they read as not-produced for gating, like local up).
-			bl, berr := loadBlocks()
-			if berr != nil {
-				return convergence.PassState{}, fmt.Errorf("load blocks for checks: %w", berr)
-			}
-			failing := countFailingBlocks(ctx, bl, loc)
+			// Fully covered: the bound checks demote failing units below the gate
+			// (they read as not-produced for gating, like local up).
+			failing := failingByLocale[loc]
 			failingTotal += failing
-			effective := max(ls.TranslatedBlocks-failing, 0)
+			effective := max(st.translated-failing, 0)
 			produced += effective
-			if effective < total {
+			if effective < st.total {
 				pending = append(pending, l)
 			}
 		}
@@ -711,40 +727,100 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 	}
 }
 
-// blockCoverage derives one locale's coverage directly from the stored blocks:
-// how many are translatable (the unit total) and how many of those carry a
-// non-empty target for the locale. It is the item-bookkeeping-free fallback the
-// derive uses when the dashboard stats see zero units — the pending-work
-// question ("does a translatable block lack a target for a configured locale?")
-// must never depend on item rows existing.
-func blockCoverage(blocks []*venue.StoredBlock, locale model.LocaleID) (total, translated int) {
-	for _, sb := range blocks {
-		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
-			continue
-		}
-		total++
-		if convergence.TargetState(sb.Block, string(locale)) != "" {
-			translated++
-		}
-	}
-	return total, translated
+// coverageCounts is one locale's block-derived coverage: how many blocks are
+// translatable (the unit total) and how many of those carry a non-empty target.
+type coverageCounts struct {
+	total      int
+	translated int
 }
 
-// countFailingBlocks runs the project's QA checks over the locale's translated
+// blockCoverage derives coverage directly from the stored blocks for every
+// locale asked about. It is the item-bookkeeping-free fallback the derive uses
+// when the dashboard stats see zero units — the pending-work question ("does a
+// translatable block lack a target for a configured locale?") must never depend
+// on item rows existing.
+//
+// One walk answers for every locale, a batch at a time: the counts are the only
+// thing that survives a batch. Asking per locale would read the corpus once per
+// language, and reading it whole is what OOM-killed the server.
+func blockCoverage(
+	ctx context.Context,
+	cs platstore.ContentStore,
+	projectID, stream string,
+	locales []model.LocaleID,
+) (map[model.LocaleID]coverageCounts, error) {
+	out := make(map[model.LocaleID]coverageCounts, len(locales))
+	if len(locales) == 0 {
+		return out, nil
+	}
+	for _, loc := range locales {
+		out[loc] = coverageCounts{}
+	}
+	err := platstore.EachBlockBatch(ctx, cs,
+		platstore.BlockQuery{ProjectID: projectID, Stream: stream},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+					continue
+				}
+				for _, loc := range locales {
+					c := out[loc]
+					c.total++
+					if convergence.TargetState(sb.Block, string(loc)) != "" {
+						c.translated++
+					}
+					out[loc] = c
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// countFailingBlocks runs the project's QA checks over each locale's translated
 // blocks and returns how many carry an error-severity finding — the units the
 // gate must demote. At full coverage every translatable block has a target for
 // the locale, so the QA tool always reads a real translation.
-func countFailingBlocks(ctx context.Context, blocks []*venue.StoredBlock, locale model.LocaleID) int {
-	failing := 0
-	for _, sb := range blocks {
-		if sb.Block == nil || !sb.Block.Translatable {
-			continue
-		}
-		if blockFailsChecks(ctx, sb.Block, locale) {
-			failing++
-		}
+//
+// Batched, and every locale answered in the one walk: a count per locale is all
+// that outlives a batch.
+func countFailingBlocks(
+	ctx context.Context,
+	cs platstore.ContentStore,
+	projectID, stream string,
+	locales []model.LocaleID,
+) (map[model.LocaleID]int, error) {
+	out := make(map[model.LocaleID]int, len(locales))
+	if len(locales) == 0 {
+		return out, nil
 	}
-	return failing
+	for _, loc := range locales {
+		out[loc] = 0
+	}
+	err := platstore.EachBlockBatch(ctx, cs,
+		platstore.BlockQuery{ProjectID: projectID, Stream: stream},
+		platstore.DefaultBlockBatch,
+		func(batch []*venue.StoredBlock) error {
+			for _, sb := range batch {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+					continue
+				}
+				for _, loc := range locales {
+					if blockFailsChecks(ctx, sb.Block, loc) {
+						out[loc]++
+					}
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // produceFunc builds the server venue's Produce: enqueue the missing-block
