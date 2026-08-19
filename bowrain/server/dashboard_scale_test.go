@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -58,7 +59,7 @@ func scaleBlock(name string, item, index int, locales []model.LocaleID, revision
 	b := &model.Block{
 		ID:           fmt.Sprintf("%s-b-%04d-%04d", name, item, index),
 		Translatable: true,
-		Properties:   map[string]string{"index": fmt.Sprint(index)},
+		Properties:   map[string]string{"index": strconv.Itoa(index)},
 	}
 	b.SetSourceText(fmt.Sprintf("%s (paragraph %d of item %d%s)", scaleParagraph, index, item, revision))
 	for _, loc := range locales {
@@ -260,7 +261,7 @@ func TestDashboardScaleMeasure(t *testing.T) {
 		// Bulk-loaded tables carry no statistics, so a load measured straight
 		// after the seed measures the planner guessing. Production has been
 		// analyzed long before anyone opens a dashboard.
-		_, err = db.Exec("ANALYZE")
+		_, err = db.ExecContext(t.Context(), "ANALYZE")
 		require.NoError(t, err)
 		load("warm")
 
