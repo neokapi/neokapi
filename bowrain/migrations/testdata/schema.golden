@@ -152,6 +152,7 @@ assets.blob_key text NOT NULL
 assets.created_at timestamp with time zone NOT NULL DEFAULT now()
 assets.filename text NOT NULL DEFAULT ''::text
 assets.id text NOT NULL
+assets.item_id text NOT NULL DEFAULT ''::text
 assets.item_name text NOT NULL DEFAULT ''::text
 assets.mime_type text NOT NULL
 assets.processing_hint text NOT NULL DEFAULT ''::text
@@ -273,6 +274,7 @@ blocks.access text NOT NULL DEFAULT 'open'::text
 blocks.content_hash text NOT NULL DEFAULT ''::text
 blocks.context_hash text NOT NULL DEFAULT ''::text
 blocks.id text NOT NULL
+blocks.item_id text NOT NULL DEFAULT ''::text
 blocks.item_name text NOT NULL DEFAULT ''::text
 blocks.mime_type text NOT NULL DEFAULT ''::text
 blocks.name text NOT NULL DEFAULT ''::text
@@ -283,6 +285,7 @@ blocks.properties text NOT NULL DEFAULT '{}'::text
 blocks.source_id text NOT NULL DEFAULT ''::text
 blocks.source_json text NOT NULL DEFAULT '[]'::text
 blocks.stored_at timestamp with time zone NOT NULL DEFAULT now()
+blocks.stream text NOT NULL DEFAULT 'main'::text
 blocks.translatable boolean NOT NULL DEFAULT true
 blocks.type text NOT NULL DEFAULT ''::text
 blocks.updated_at timestamp with time zone NOT NULL DEFAULT now()
@@ -767,6 +770,7 @@ proposed_source_changes.decision_reason text NOT NULL DEFAULT ''::text
 proposed_source_changes.finder_user text NOT NULL DEFAULT ''::text
 proposed_source_changes.found_in_locale text NOT NULL DEFAULT ''::text
 proposed_source_changes.id text NOT NULL
+proposed_source_changes.item_id text NOT NULL DEFAULT ''::text
 proposed_source_changes.item_name text NOT NULL DEFAULT ''::text
 proposed_source_changes.kind text NOT NULL DEFAULT 'text-fix'::text
 proposed_source_changes.original_source text NOT NULL DEFAULT ''::text
@@ -1119,6 +1123,7 @@ unit_decisions.assignee text NOT NULL DEFAULT ''::text
 unit_decisions.content_hash text NOT NULL DEFAULT ''::text
 unit_decisions.decided_at text NOT NULL DEFAULT ''::text
 unit_decisions.decided_by text NOT NULL DEFAULT ''::text
+unit_decisions.item_id text NOT NULL DEFAULT ''::text
 unit_decisions.item_name text NOT NULL DEFAULT ''::text
 unit_decisions.note text NOT NULL DEFAULT ''::text
 unit_decisions.parked boolean NOT NULL DEFAULT false
@@ -1245,7 +1250,7 @@ billing_schema_migrations billing_schema_migrations_pkey PRIMARY KEY (version)
 block_asset_refs block_asset_refs_pkey PRIMARY KEY (project_id, block_id, asset_id)
 block_history block_history_pkey PRIMARY KEY (id)
 block_notes block_notes_pkey PRIMARY KEY (id)
-blocks blocks_pkey PRIMARY KEY (project_id, id)
+blocks blocks_pkey PRIMARY KEY (project_id, stream, id)
 blocks blocks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 brand_profile_tags brand_profile_tags_pkey PRIMARY KEY (profile_id, name)
 brand_profile_versions brand_profile_versions_pkey PRIMARY KEY (profile_id, version)
@@ -1294,7 +1299,7 @@ group_role_bindings group_role_bindings_workspace_id_fkey FOREIGN KEY (workspace
 groups groups_pkey PRIMARY KEY (id)
 groups groups_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 groups groups_workspace_id_name_key UNIQUE (workspace_id, name)
-items items_pkey PRIMARY KEY (project_id, stream, name)
+items items_pkey PRIMARY KEY (project_id, stream, id)
 items items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 jobs_schema_migrations jobs_schema_migrations_pkey PRIMARY KEY (version)
 kg_changeset_ops kg_changeset_ops_pkey PRIMARY KEY (workspace_id, changeset_id, seq)
@@ -1403,7 +1408,7 @@ translations_p7 translations_p7_pkey PRIMARY KEY (project_id, stream, block_id, 
 translations_p7 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 unclaimed_projects unclaimed_projects_claim_token_key UNIQUE (claim_token)
 unclaimed_projects unclaimed_projects_pkey PRIMARY KEY (project_id)
-unit_decisions unit_decisions_pkey PRIMARY KEY (project_id, stream, item_name, unit, variant)
+unit_decisions unit_decisions_pkey PRIMARY KEY (project_id, stream, item_id, unit, variant)
 users users_email_key UNIQUE (email)
 users users_pkey PRIMARY KEY (id)
 version_blocks version_blocks_pkey PRIMARY KEY (version_id, block_id)
@@ -1477,7 +1482,8 @@ CREATE INDEX idx_block_history_stream ON public.block_history USING btree (proje
 CREATE INDEX idx_block_notes_lookup ON public.block_notes USING btree (project_id, block_id)
 CREATE INDEX idx_block_notes_stream ON public.block_notes USING btree (project_id, stream, block_id)
 CREATE INDEX idx_blocks_content_hash ON public.blocks USING btree (content_hash)
-CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, item_name)
+CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, stream, item_name)
+CREATE INDEX idx_blocks_item_id ON public.blocks USING btree (project_id, stream, item_id)
 CREATE INDEX idx_blocks_project ON public.blocks USING btree (project_id)
 CREATE INDEX idx_brand_profiles_workspace ON public.brand_profiles USING btree (workspace_id)
 CREATE INDEX idx_brand_scan_jobs_processing_updated ON public.brand_scan_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
@@ -1581,6 +1587,7 @@ CREATE INDEX idx_tm_ws_updated ON public.tm_entries USING btree (workspace_id, u
 CREATE INDEX idx_translations_project_block ON ONLY public.translations USING btree (project_id, stream, block_id)
 CREATE INDEX idx_translations_project_locale ON ONLY public.translations USING btree (project_id, stream, locale, updated_at DESC)
 CREATE INDEX idx_unclaimed_expires ON public.unclaimed_projects USING btree (expires_at)
+CREATE INDEX idx_unit_decisions_item ON public.unit_decisions USING btree (project_id, stream, item_id)
 CREATE INDEX idx_unit_decisions_project ON public.unit_decisions USING btree (project_id, stream)
 CREATE INDEX idx_users_oidc_sub ON public.users USING btree (oidc_sub)
 CREATE INDEX idx_versions_project ON public.versions USING btree (project_id)
@@ -1653,7 +1660,7 @@ CREATE UNIQUE INDEX billing_schema_migrations_pkey ON public.billing_schema_migr
 CREATE UNIQUE INDEX block_asset_refs_pkey ON public.block_asset_refs USING btree (project_id, block_id, asset_id)
 CREATE UNIQUE INDEX block_history_pkey ON public.block_history USING btree (id)
 CREATE UNIQUE INDEX block_notes_pkey ON public.block_notes USING btree (id)
-CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, id)
+CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, stream, id)
 CREATE UNIQUE INDEX brand_profile_tags_pkey ON public.brand_profile_tags USING btree (profile_id, name)
 CREATE UNIQUE INDEX brand_profile_versions_pkey ON public.brand_profile_versions USING btree (profile_id, version)
 CREATE UNIQUE INDEX brand_profiles_pkey ON public.brand_profiles USING btree (id)
@@ -1693,13 +1700,14 @@ CREATE UNIQUE INDEX group_role_bindings_pkey ON public.group_role_bindings USING
 CREATE UNIQUE INDEX groups_pkey ON public.groups USING btree (id)
 CREATE UNIQUE INDEX groups_workspace_id_name_key ON public.groups USING btree (workspace_id, name)
 CREATE UNIQUE INDEX idx_assets_blob ON public.assets USING btree (project_id, blob_key) WHERE (stream = 'main'::text)
-CREATE UNIQUE INDEX idx_blocks_source_id ON public.blocks USING btree (project_id, item_name, source_id) WHERE (source_id <> ''::text)
+CREATE UNIQUE INDEX idx_blocks_source_id ON public.blocks USING btree (project_id, stream, item_name, source_id) WHERE (source_id <> ''::text)
 CREATE UNIQUE INDEX idx_collections_default ON public.collections USING btree (project_id) WHERE (is_default = true)
 CREATE UNIQUE INDEX idx_convergence_runs_one_active ON public.convergence_runs USING btree (project_id) WHERE (state = 'running'::text)
 CREATE UNIQUE INDEX idx_items_id ON public.items USING btree (project_id, stream, id)
+CREATE UNIQUE INDEX idx_items_stream_name ON public.items USING btree (project_id, stream, name)
 CREATE UNIQUE INDEX idx_provider_configs_ws_name ON public.provider_configs USING btree (workspace_id, name)
 CREATE UNIQUE INDEX idx_stream_tags_unique ON public.stream_tags USING btree (project_id, stream, name)
-CREATE UNIQUE INDEX items_pkey ON public.items USING btree (project_id, stream, name)
+CREATE UNIQUE INDEX items_pkey ON public.items USING btree (project_id, stream, id)
 CREATE UNIQUE INDEX jobs_schema_migrations_pkey ON public.jobs_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX kg_changeset_ops_pkey ON public.kg_changeset_ops USING btree (workspace_id, changeset_id, seq)
 CREATE UNIQUE INDEX kg_changeset_reviews_pkey ON public.kg_changeset_reviews USING btree (workspace_id, changeset_id, reviewer)
@@ -1775,7 +1783,7 @@ CREATE UNIQUE INDEX translations_p7_pkey ON public.translations_p7 USING btree (
 CREATE UNIQUE INDEX translations_pkey ON ONLY public.translations USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX unclaimed_projects_claim_token_key ON public.unclaimed_projects USING btree (claim_token)
 CREATE UNIQUE INDEX unclaimed_projects_pkey ON public.unclaimed_projects USING btree (project_id)
-CREATE UNIQUE INDEX unit_decisions_pkey ON public.unit_decisions USING btree (project_id, stream, item_name, unit, variant)
+CREATE UNIQUE INDEX unit_decisions_pkey ON public.unit_decisions USING btree (project_id, stream, item_id, unit, variant)
 CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
 CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
 CREATE UNIQUE INDEX version_blocks_pkey ON public.version_blocks USING btree (version_id, block_id)

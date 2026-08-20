@@ -58,7 +58,11 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 27.
+// repaired. Retired numbers are never reused; the next migration is version 28.
+//
+// 25  where a collection's strings can be read in place
+// 26  the ship gate's per-block verdict
+// 27  a stream owns its content, and a file is identified by what it is
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1205,6 +1209,103 @@ var Migrations = []storage.Migration{
 			);
 			CREATE INDEX IF NOT EXISTS idx_ship_verdicts_scope
 				ON ship_verdicts(project_id, stream, locale);
+		`,
+	},
+	{
+		Version:     27,
+		Description: "a stream owns its content, and a file is identified by what it is rather than where it sits",
+		SQL: `
+			-- Two changes, one migration, because they rewrite the same keys.
+			--
+			-- ONE: a stream owns its content. CreateStream copied item rows and
+			-- left blocks shared, so two branches could not differ in source by
+			-- construction — a branch was a translation branch, and MergeStream
+			-- counted changes without moving any. blocks gains the stream every
+			-- table describing a block already carries.
+			--
+			-- TWO: a file is identified by what it IS. items_pkey was
+			-- (project_id, stream, name) — the PATH was the primary key — so a
+			-- rename was a delete and an insert, and every row pointing at the
+			-- old name was orphaned. unit_decisions had the path in its key too,
+			-- which is how renaming a file dropped its approvals.
+			--
+			-- The id is the identity and is STABLE ACROSS STREAMS: branching
+			-- copies rows verbatim under a new stream, so the same unit has the
+			-- same id on every branch that holds it. That is what lets a diff
+			-- or a merge compare branches by key instead of guessing by content,
+			-- and it is why a branch inherits its parent's approvals rather than
+			-- starting ungoverned.
+
+			-- ---- items: the id becomes the key, the path becomes an address ----
+			-- Existing rows may carry '' (the column's old default) or an id
+			-- minted per stream by CreateStream. Fill the blanks first.
+			UPDATE items SET id = substr(md5(random()::text || project_id || stream || name), 1, 12)
+				WHERE id = '';
+
+			ALTER TABLE items DROP CONSTRAINT IF EXISTS items_pkey;
+			ALTER TABLE items ADD PRIMARY KEY (project_id, stream, id);
+			-- A path still addresses at most one item within a stream. It is a
+			-- constraint on the address, no longer the identity.
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_items_stream_name
+				ON items(project_id, stream, name);
+
+			-- ---- blocks: per stream, and pointing at the item's id ----
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS stream  TEXT NOT NULL DEFAULT 'main';
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS item_id TEXT NOT NULL DEFAULT '';
+
+			UPDATE blocks b SET item_id = i.id
+				FROM items i
+				WHERE i.project_id = b.project_id
+				  AND i.stream     = b.stream
+				  AND i.name       = b.item_name
+				  AND b.item_id    = '';
+
+			-- Every block written before this migration belongs to the stream it
+			-- was authored on, which is main; the column default says so.
+			--
+			-- Branches that already exist are NOT carried over, and nothing here
+			-- tries to. They held no blocks of their own — they read main's —
+			-- and MergeStream never moved a row, so there is no branch work to
+			-- preserve. Content this migration reshapes is re-pushed rather than
+			-- repaired: see bowrain-infra/docs/runbooks/data-reset.md.
+
+			ALTER TABLE blocks DROP CONSTRAINT IF EXISTS blocks_pkey;
+			ALTER TABLE blocks ADD PRIMARY KEY (project_id, stream, id);
+
+			-- The reader's id is unique within an item, and an item is within a
+			-- stream — the old index spanned streams and would now collide
+			-- between a branch and its parent.
+			DROP INDEX IF EXISTS idx_blocks_source_id;
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_blocks_source_id
+				ON blocks(project_id, stream, item_name, source_id) WHERE source_id != '';
+			CREATE INDEX IF NOT EXISTS idx_blocks_item_id ON blocks(project_id, stream, item_id);
+			DROP INDEX IF EXISTS idx_blocks_item;
+			CREATE INDEX IF NOT EXISTS idx_blocks_item ON blocks(project_id, stream, item_name);
+
+			-- ---- governance follows the file, not its address ----
+			ALTER TABLE unit_decisions          ADD COLUMN IF NOT EXISTS item_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE proposed_source_changes ADD COLUMN IF NOT EXISTS item_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE assets                  ADD COLUMN IF NOT EXISTS item_id TEXT NOT NULL DEFAULT '';
+
+			UPDATE unit_decisions d SET item_id = i.id
+				FROM items i
+				WHERE i.project_id = d.project_id AND i.stream = d.stream
+				  AND i.name = d.item_name AND d.item_id = '';
+			UPDATE proposed_source_changes c SET item_id = i.id
+				FROM items i
+				WHERE i.project_id = c.project_id AND i.stream = c.stream
+				  AND i.name = c.item_name AND c.item_id = '';
+			UPDATE assets a SET item_id = i.id
+				FROM items i
+				WHERE i.project_id = a.project_id AND i.stream = a.stream
+				  AND i.name = a.item_name AND a.item_id = '';
+
+			-- The ledger is the one table that cannot be re-derived from a push,
+			-- so its key is the one that most needed the path out of it.
+			ALTER TABLE unit_decisions DROP CONSTRAINT IF EXISTS unit_decisions_pkey;
+			ALTER TABLE unit_decisions ADD PRIMARY KEY (project_id, stream, item_id, unit, variant);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_item
+				ON unit_decisions(project_id, stream, item_id);
 		`,
 	},
 }
