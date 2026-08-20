@@ -72,7 +72,7 @@ jobs:
           go-version-file: neokapi/go.mod
 
       - name: Install ICU dev libraries
-        uses: ./.github/actions/apt-install
+        uses: ./neokapi/.github/actions/apt-install
         with:
           packages: libicu-dev pkg-config
 
