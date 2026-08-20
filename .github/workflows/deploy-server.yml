@@ -95,18 +95,42 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Task definitions are Terraform-owned and pin :latest — the forced
-      # deployments make ECS re-pull the :latest images pushed above.
-      # Rollback = re-run this workflow from an older commit (a retag
-      # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of server + worker
+      # The task definition's shape — env, roles, sizing — stays Terraform-owned.
+      # This step owns one field: which image runs. It derives a revision from
+      # the latest Terraform-registered one, so a Terraform change to the shape
+      # lands on the next deploy, and pins the image to this commit.
+      #
+      # A :latest pin cannot be rolled back and cannot say what is running:
+      # every task-definition revision resolves to whatever the tag points at
+      # now, so reverting to an older revision returns the same code, a task
+      # replaced hours later silently picks up a newer build, and two deploys
+      # close together can each start tasks from the other's image. A
+      # commit-tagged revision answers all of it — `describe-services` names the
+      # commit, and rollback is `update-service --task-definition <revision>`.
+      - name: Deploy server + worker at this commit
         env:
           CLUSTER: ${{ vars.ECS_CLUSTER }}
           PREFIX: bowrain-${{ inputs.environment || 'prod' }}
+          IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
         run: |
-          aws ecs update-service --cluster "$CLUSTER" --service "$PREFIX-server" \
-            --force-new-deployment > /dev/null
-          aws ecs update-service --cluster "$CLUSTER" --service "$PREFIX-worker" \
-            --force-new-deployment > /dev/null
+          set -euo pipefail
+          for svc in server worker; do
+            image="ghcr.io/neokapi/bowrain-$svc:$IMAGE_TAG"
+            # Matched by container name rather than index, so a sidecar added
+            # later cannot silently retag the wrong container.
+            aws ecs describe-task-definition --task-definition "$PREFIX-$svc" \
+              --query taskDefinition \
+            | jq --arg name "bowrain-$svc" --arg img "$image" '
+                (.containerDefinitions[] | select(.name == $name) | .image) = $img
+                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                      .compatibilities, .registeredAt, .registeredBy)
+              ' > /tmp/$svc-td.json
+            arn=$(aws ecs register-task-definition \
+                    --cli-input-json "file:///tmp/$svc-td.json" \
+                    --query 'taskDefinition.taskDefinitionArn' --output text)
+            aws ecs update-service --cluster "$CLUSTER" --service "$PREFIX-$svc" \
+              --task-definition "$arn" > /dev/null
+            echo "$PREFIX-$svc -> $image"
+          done
           aws ecs wait services-stable --cluster "$CLUSTER" \
             --services "$PREFIX-server" "$PREFIX-worker"
