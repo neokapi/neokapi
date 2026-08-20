@@ -96,7 +96,9 @@ jobs:
       # check-reference-prose` builds kapi, so it needs the cgo ICU/FTS5
       # toolchain the framework links.
       - name: Install ICU toolchain
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Check reference dossier prose
         run: make check-reference-prose

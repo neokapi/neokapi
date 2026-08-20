@@ -40,7 +40,9 @@ jobs:
       # module, so without these it fails to load packages rather than scanning.
       # Harmless for the non-GUI modules in the matrix.
       - name: Install native build deps
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       # core/i18n and host/i18n embed compiled gettext catalogs, which are build
       # output rather than source. govulncheck compiles the module, so the

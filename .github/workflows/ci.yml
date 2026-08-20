@@ -186,7 +186,9 @@ jobs:
           go-version: "1.26.0"
 
       - name: Install Wails system dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Run Kapi Desktop Go backend tests
         run: make kapi-desktop-test
@@ -234,7 +236,9 @@ jobs:
       # The Wails app backend links the GTK/WebKit runtime on Linux; these dev
       # packages also pull in libicu-dev that the framework's cgo build needs.
       - name: Install Wails system dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Run Bowrain Desktop Go backend tests
         run: make bowrain-desktop-test
@@ -288,7 +292,9 @@ jobs:
       # xmllint enforces the DocLang XSD conformance test (core/formats/doclang);
       # without it that test self-skips. Tiny package; keeps the schema gate real.
       - name: Install xmllint (DocLang XSD conformance)
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libxml2-utils
 
       - name: Run framework tests
         id: run-tests
@@ -793,7 +799,9 @@ jobs:
       # the cgo ICU tokenizer / FTS5 path; that needs libicu-dev + pkg-config
       # (mirroring the test jobs). Without it those files are silently skipped.
       - name: Install cgo deps (ICU)
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Download modules
         run: |
@@ -856,10 +864,13 @@ jobs:
       # Every module linted below links core/i18n or host/i18n, whose embedded
       # gettext catalogs are build output. The compiler is a cgo build, hence
       # the ICU headers here rather than only before the Wails lint below.
+      - name: Install ICU for the catalog compiler
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
+
       - name: Compile the embedded i18n catalogs
-        run: |
-          sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
-          go run ./core/i18n/gen/catalogs
+        run: go run ./core/i18n/gen/catalogs
 
       - name: Lint platform
         uses: ./.github/actions/golangci
@@ -872,7 +883,9 @@ jobs:
           working-directory: bowrain/plugin
 
       - name: Install Linux dependencies for Wails
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Lint bowrain
         uses: ./.github/actions/golangci
@@ -894,6 +907,8 @@ jobs:
         run: ./scripts/check-abs-paths.sh
       - name: Guard — no retired framing in user-facing prose
         run: ./scripts/check-vocabulary.sh
+      - name: Guard — every local action reference resolves where its job checks out
+        run: ./scripts/check-local-actions.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
       - name: Guard — reference dataset is reproducible from this repo

@@ -60,7 +60,9 @@ jobs:
           go-version: "1.26.0"
 
       - name: Install libicu (framework cgo dependency)
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Run the demo-stub harnesses
         run: |
@@ -92,7 +94,9 @@ jobs:
           go-version: "1.26.0"
 
       - name: Install libicu (framework cgo dependency)
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Check the catalog against the providers' live model lists
         id: modelcheck
@@ -169,7 +173,9 @@ jobs:
 
       - name: Install libicu (framework cgo dependency)
         if: steps.gate.outputs.run == 'true'
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Install the claude CLI (claude-code provider + judge)
         if: steps.gate.outputs.run == 'true'
