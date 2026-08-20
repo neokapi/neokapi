@@ -11,6 +11,13 @@
  *
  * Output: one `<locale>.json` dictionary per target locale, shape
  * `{ "<block.hash>": "<flattened target>" }`.
+ *
+ * A target that does not carry its source's placeholders is left out. The
+ * runtime falls back to source for a key it cannot find, so omitting one costs
+ * a sentence its translation; shipping one costs the sentence its count, its
+ * name or its link, and says nothing about having done so. Pending target-language
+ * work is the ordinary state of this loop — a missing entry reads as exactly
+ * that, and the next convergence fills it once the translation is sound.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
@@ -23,6 +30,47 @@ import { buildReviewManifest } from "../review/manifest.ts";
 
 interface BlockRecord {
   block: Block;
+}
+
+/**
+ * The placeholder tokens a flattened string carries.
+ *
+ * Read off the flattened form rather than the runs so the comparison is made
+ * in the shape that actually ships: `flattenRuns` is the runtime's own
+ * projection, and this asks whether what a reader will be handed still has the
+ * holes their values go into.
+ *
+ * The same expression `scripts/check-derived-content.mjs` gates on, so the
+ * writer and the gate cannot disagree about what a placeholder is — the shape
+ * of bug this exists to stop is one side quietly meaning something else.
+ */
+const TOKEN = /\{\/?=?[A-Za-z_][A-Za-z0-9_.-]*\}|%[-+ #0]*[0-9.*]*[sdvqxXofFeEgGtTcpbU%]/g;
+
+function tokenCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const [tok] of text.matchAll(TOKEN)) {
+    counts.set(tok, (counts.get(tok) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Whether a target may ship: it carries its source's placeholders, each the
+ * same number of times.
+ *
+ * Counted, not just present: a plural whose target reuses one token where the
+ * source had two still loses a value. Extra tokens fail too — a token the
+ * source never had renders as a literal brace to a reader, which is how a
+ * translator's typo reaches production looking like markup.
+ */
+function carriesItsPlaceholders(sourceText: string, targetText: string): boolean {
+  const want = tokenCounts(sourceText);
+  const got = tokenCounts(targetText);
+  if (want.size !== got.size) return false;
+  for (const [tok, n] of want) {
+    if (got.get(tok) !== n) return false;
+  }
+  return true;
 }
 
 export async function runCompile(args: string[]) {
@@ -81,15 +129,30 @@ export async function runCompile(args: string[]) {
   let totalCompiled = 0;
   for (const locale of targetLocales) {
     const dict: Record<string, string> = {};
+    const holes: string[] = [];
     for (const { block } of blocks) {
       const runs = block.targets?.[locale];
       if (!runs || runs.length === 0) continue;
-      dict[block.hash] = flattenRuns(runs);
+      const text = flattenRuns(runs);
+      if (!carriesItsPlaceholders(flattenRuns(block.source), text)) {
+        holes.push(block.hash);
+        continue;
+      }
+      dict[block.hash] = text;
     }
     const outPath = join(outDir, `${locale}.json`);
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, `${JSON.stringify(dict, null, 2)}\n`);
     console.log(`Compiled ${Object.keys(dict).length} entries → ${outPath}`);
+    if (holes.length > 0) {
+      // Named, not merely counted: this is a translation that exists and was
+      // not shipped, which is a different thing from one nobody has written
+      // yet, and the difference is only actionable if the keys are sayable.
+      console.warn(
+        `  ${holes.length} target(s) left out of ${locale}: they do not carry their source's placeholders`,
+      );
+      console.warn(`  ${holes.slice(0, 10).join(" ")}${holes.length > 10 ? " …" : ""}`);
+    }
     totalCompiled += Object.keys(dict).length;
   }
 
