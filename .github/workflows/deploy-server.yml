@@ -32,6 +32,14 @@ on:
       - "terms/**"
       - "go.mod"
       - "go.sum"
+      # And the deploy path itself. #2119 rewrote the deploy step and merged
+      # without deploying, so the change went unexercised until an unrelated
+      # push happened to carry it — a bug in it would have surfaced then,
+      # attributed to that push. The reusable build workflows are listed for
+      # the same reason: they decide what image is produced.
+      - ".github/workflows/deploy-server.yml"
+      - ".github/workflows/_build-server-images.yml"
+      - ".github/workflows/_build-bravo-images.yml"
 
 permissions:
   packages: write
