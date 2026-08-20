@@ -1101,8 +1101,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// 1. Request ID (propagate/generate correlation ID)
 	// 2. Structured request logging (slog-echo, includes request_id)
 	// 3. Prometheus metrics
-	// 4. Recovery, body limit, CORS
-	// 5. Security response headers
+	// 4. Sentry transaction — after the request id it tags itself with, and
+	//    before Recover so a recovered panic is still recorded on it
+	// 5. Recovery, body limit, CORS
+	// 6. Security response headers
 	e.Use(observe.RequestIDMiddleware())
 	e.Use(slogecho.NewWithConfig(slog.Default(), slogecho.Config{
 		DefaultLevel:     slog.LevelInfo,
@@ -1120,6 +1122,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		"/api/v1/:ws/projects",
 		"/api/v1/:ws/:id/dashboard/:ref",
 	))
+	// One Sentry transaction per request. sentry-go does not auto-instrument, so
+	// without this the traces sample rate the deployment sets samples nothing —
+	// see observe/tracing.go. No-op when Sentry is unconfigured.
+	e.Use(observe.TracingMiddleware())
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))
