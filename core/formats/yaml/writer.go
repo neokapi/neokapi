@@ -537,12 +537,23 @@ func (w *Writer) flush() error {
 	return encoder.Close()
 }
 
+// A non-translatable block is the source's own bytes, whatever target it is
+// carrying. `translatable: false` is the reader's answer to "may this be
+// rewritten", derived from the collection's extraction rules, and a target on
+// such a block is leftover state — written when the rules were broader, or by a
+// pass that did not consult them — not a translation someone decided on.
+//
+// Writing it out is how `tools.case-transform.category: "text-processing"`
+// became `"tekstbehandling"` in a committed catalog: an identifier that a
+// group-by splits on and an overlay matches its master by, rewritten into
+// something that matches nothing. The extraction rule was already right and the
+// blocks were already marked correctly; nothing asked them on the way out.
 func (w *Writer) blockText(block *model.Block) string {
 	// RenderRunsWithData splices inline-code Data back into the text
 	// stream — required when the reader's codeFinder split the value
 	// into TextRun + Ph runs. plain SourceText/TargetText drops Ph
 	// runs so the placeholders would vanish on round-trip.
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+	if !w.Locale.IsEmpty() && block.Translatable && block.HasTarget(w.Locale) {
 		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
 	return model.RenderRunsWithData(block.Source)
