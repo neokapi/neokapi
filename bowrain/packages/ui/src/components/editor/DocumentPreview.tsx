@@ -84,6 +84,43 @@ function targetBlockToHTML(block: BlockInfo, locale: string): string {
 }
 
 /**
+ * The id this block answers to *inside the rendered document*.
+ *
+ * Two id spaces meet at the iframe boundary. The store mints its own id when a
+ * block is ingested and keeps the reader's as `source_id`; the document is
+ * rendered by the format's own preview builder, which marks its blocks with the
+ * reader's id. So a `<kat-block>` in the document and the block object beside it
+ * are the same content under two different names.
+ *
+ * Every message crossing that boundary has to be spoken in the document's
+ * dialect. Nothing enforces it — `postMessage` has no delivery receipt and a
+ * `querySelector` that finds nothing is not an error — so a mismatch is
+ * completely silent: the document keeps rendering its source while the surface
+ * believes it has been updated, which reads as the translation having gone
+ * missing rather than as a message that landed nowhere.
+ *
+ * The fallback is not defensive padding. A document the server built from the
+ * stored blocks themselves (`core/editor`'s generic preview, used when no reader
+ * supplied one) marks them with the store's ids and carries no `source_id`, and
+ * there the two spaces are already one.
+ */
+export function documentIdOf(block: BlockInfo): string {
+  return block.source_id || block.id;
+}
+
+/** Both directions of the block ↔ document id translation, built once. */
+export function idTranslation(blocks: BlockInfo[]) {
+  const toDocument = new Map<string, string>();
+  const toBlock = new Map<string, string>();
+  for (const b of blocks) {
+    const docId = documentIdOf(b);
+    toDocument.set(b.id, docId);
+    toBlock.set(docId, b.id);
+  }
+  return { toDocument, toBlock };
+}
+
+/**
  * The item's blocks for the preview, in one paged fetch per (item, locale) and
  * cached for as long as the surface keeps asking. The iframe covers the whole
  * document, so this is the document — never a request per block.
@@ -293,6 +330,12 @@ export function DocumentPreview({
     return [...byId.values()];
   }, [documentBlocks, blocks]);
 
+  // The block ↔ document id translation for the blocks now on screen. Rebuilt
+  // with them, because a document that changed is a document whose markers did.
+  const blockIds = useMemo(() => idTranslation(contentBlocks), [contentBlocks]);
+  const blockIdsRef = useRef(blockIds);
+  blockIdsRef.current = blockIds;
+
   // Inline mode: spacerHeight prop is provided
   const inlineMode = spacerHeight !== undefined;
 
@@ -349,7 +392,12 @@ export function DocumentPreview({
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data?.type === "kat-block-click" && e.data.blockId) {
-        onBlockSelectRef.current(e.data.blockId);
+        // The document names the block it was clicked on; the surface knows it
+        // by the store's id. Read through a ref rather than a dependency: this
+        // listener is mounted once on purpose, and re-registering it on every
+        // block change would drop clicks in the gap.
+        const clicked = e.data.blockId as string;
+        onBlockSelectRef.current(blockIdsRef.current.toBlock.get(clicked) ?? clicked);
       }
       if (e.data?.type === "kat-iframe-ready") {
         setIframeReady(true);
@@ -383,10 +431,13 @@ export function DocumentPreview({
   useEffect(() => {
     if (!iframeRef.current?.contentWindow || !selectedBlockId || !iframeReady) return;
     iframeRef.current.contentWindow.postMessage(
-      { type: "kat-select-block", blockId: selectedBlockId },
+      {
+        type: "kat-select-block",
+        blockId: blockIds.toDocument.get(selectedBlockId) ?? selectedBlockId,
+      },
       "*",
     );
-  }, [selectedBlockId, iframeReady]);
+  }, [selectedBlockId, iframeReady, blockIds]);
 
   // Tell the document who scrolls. Inline mode grows the frame to the content
   // and scrolls the surrounding page, so the document must not scroll too;
@@ -405,13 +456,17 @@ export function DocumentPreview({
 
     if (inlineMode && selectedBlockId && spacerHeight > 0) {
       cw.postMessage(
-        { type: "kat-insert-spacer", blockId: selectedBlockId, height: spacerHeight },
+        {
+          type: "kat-insert-spacer",
+          blockId: blockIds.toDocument.get(selectedBlockId) ?? selectedBlockId,
+          height: spacerHeight,
+        },
         "*",
       );
     } else {
       cw.postMessage({ type: "kat-remove-spacer" }, "*");
     }
-  }, [selectedBlockId, spacerHeight, iframeReady, inlineMode]);
+  }, [selectedBlockId, spacerHeight, iframeReady, inlineMode, blockIds]);
 
   // Push target/source/pseudo content into the iframe when the mode or the
   // blocks change. Every mode sends HTML with the block's inline codes expanded
@@ -427,7 +482,7 @@ export function DocumentPreview({
         : showTarget && getTargetText(block, targetLocale)
           ? targetBlockToHTML(block, targetLocale)
           : sourceBlockToHTML(block);
-      cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
+      cw.postMessage({ type: "kat-update-block", blockId: documentIdOf(block), html }, "*");
     }
   }, [showTarget, showPseudo, contentBlocks, targetLocale, iframeReady]);
 
