@@ -15,11 +15,12 @@ import { useLocales } from "../hooks/useLocales";
 import { useStream } from "../context/StreamContext";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionRail } from "./CollectionRail";
-import { commonItemBase, relativeItemName } from "./collections/itemBase";
+import { commonItemBase, itemDisplayPath, relativeItemName } from "./collections/itemBase";
 import { ProjectTypeBadge } from "./ProjectTypeBadge";
 import { FormattedFileName } from "./FormattedFileName";
 import { t } from "@neokapi/i18n-react/runtime";
 import { FilePreview, type ItemPreviewBinding } from "./FilePreview";
+import { useInContextItems } from "../hooks/useInContextItems";
 import { ListCapRow } from "./ListCapRow";
 import {
   ArrowRight,
@@ -27,6 +28,7 @@ import {
   Package,
   Plug,
   Upload,
+  MonitorPlay,
   MoreHorizontal,
   Pencil,
   Settings,
@@ -181,14 +183,22 @@ export function ProjectView({
   // below it — stated once above the list instead of on every row. Computed
   // over the whole collection, not the rendered page, so it does not move when
   // the cap bites.
-  const itemBase = useMemo(() => commonItemBase(items.map((i) => i.name)), [items]);
+  // Over the paths the rows SHOW, not over their names: a base computed over
+  // names prefixes none of the source paths beside them, and every row would
+  // read whole.
+  const itemBase = useMemo(
+    () => commonItemBase(items.map((i) => itemDisplayPath(i.name, i.source_path))),
+    [items],
+  );
 
   // A row reads the file; an editor is entered deliberately. Without a preview
   // binding the row keeps its older behaviour and opens the editor directly.
   const openItem = preview ? preview.onOpen : onOpenFile;
-  const previewFormat = preview
-    ? allItems.find((i) => i.name === preview.itemName)?.format
-    : undefined;
+  const previewItem = preview ? allItems.find((i) => i.name === preview.itemName) : undefined;
+  // Which of these rows have a component published beside them. Resolved once
+  // for the collection, so the row can say so and the preview can offer the
+  // reading only where it leads somewhere.
+  const inContext = useInContextItems(project.id, activeCollection?.id, activeCollection?.preview);
 
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
@@ -530,10 +540,23 @@ export function ProjectView({
                             data-testid={`open-file-${f.name}`}
                           >
                             <FormattedFileName
-                              name={relativeItemName(f.name, itemBase)}
+                              name={relativeItemName(
+                                itemDisplayPath(f.name, f.source_path),
+                                itemBase,
+                              )}
                               format={f.format}
                             />
                           </button>
+                          {/* Marked, never dimmed: a row without a story is not
+                              worse content, it is content with no component
+                              published beside it. */}
+                          {inContext.enabled && inContext.has(f.source_path) && (
+                            <MonitorPlay
+                              className="ml-1.5 inline-block size-3.5 shrink-0 align-text-bottom text-muted-foreground"
+                              aria-label="Can be read in context"
+                              data-testid="file-in-context"
+                            />
+                          )}
                         </td>
                         {!isMobile && (
                           <td className="px-4 py-2.5 text-sm">
@@ -595,7 +618,8 @@ export function ProjectView({
         <FilePreview
           projectId={project.id}
           itemName={preview.itemName}
-          format={previewFormat}
+          format={previewItem?.format}
+          sourcePath={previewItem?.source_path}
           targetLocales={preview.targetLocales ?? project.target_languages}
           onClose={preview.onClose}
           onOpenTranslate={preview.onOpenTranslate}
@@ -607,6 +631,7 @@ export function ProjectView({
           // a project-wide URL would offer each collection the other's.
           preview={activeCollection?.preview}
           collectionId={activeCollection?.id}
+          hasStory={inContext.has(previewItem?.source_path)}
         />
       )}
     </div>

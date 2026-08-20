@@ -64,3 +64,34 @@ func TestCommonItemBase(t *testing.T) {
 		})
 	}
 }
+
+// The base names what the rows SHOW. A generated catalog reads as the file it
+// was extracted from, so a base computed over item names would prefix none of
+// the paths beside it and every row would read whole.
+func TestCommonItemBaseTrimsWhatIsShown(t *testing.T) {
+	catalog := func(name, source string) store.ItemTranslationStats {
+		return store.ItemTranslationStats{ItemName: name, SourcePath: source}
+	}
+
+	t.Run("trims the source paths, not the catalog names", func(t *testing.T) {
+		got := commonItemBase([]store.ItemTranslationStats{
+			catalog(
+				"bowrain/packages/app/i18n/bowrain/packages/ui/src/ReachPanel.kbf.json",
+				"bowrain/packages/ui/src/ReachPanel.tsx",
+			),
+			catalog(
+				"bowrain/packages/app/i18n/bowrain/packages/ui/src/TrialPanel.kbf.json",
+				"bowrain/packages/ui/src/TrialPanel.tsx",
+			),
+		})
+		assert.Equal(t, "bowrain/packages/ui/src/", got)
+	})
+
+	t.Run("an item that is its own source contributes its own name", func(t *testing.T) {
+		got := commonItemBase([]store.ItemTranslationStats{
+			catalog("web/i18n/docs/intro.kbf.json", "web/docs/intro.tsx"),
+			{ItemName: "web/docs/releasing.md"},
+		})
+		assert.Equal(t, "web/docs/", got)
+	})
+}

@@ -532,6 +532,9 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 				Format:   "json", // default
 				ItemType: "file",
 			}
+			if src := itemSourcePath(blocks); src != "" {
+				item.Properties = map[string]string{store.ItemPropSourcePath: src}
+			}
 			if meta, ok := itemMetas[itemName]; ok {
 				if meta.Format != "" {
 					item.Format = meta.Format
@@ -606,6 +609,46 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 	}
 
 	return stored, itemNames, nil
+}
+
+// itemSourcePath is the file an item's content was lifted out of, when every
+// block it holds agrees on one.
+//
+// Most items are their own source: a Markdown page's name is the page. The
+// exception is a generated catalog. A KBF bundle extracted from `App.tsx` is
+// stored as `…/App.kbf.json`, and that name is the item's identity — the
+// recipe's glob claimed it, a push addresses it, the target file is keyed by it.
+// It is the courier, not the letter, and a file list showing only couriers reads
+// as a list of JSON.
+//
+// The letter is on the blocks. A reader that lifts content out of a source file
+// records that file on every block it produces, so the bundle already knows what
+// it is a bundle OF. Reading it here is what lets a surface *show* the item as
+// its source without anything being renamed — and without fetching a whole
+// document to learn one path.
+//
+// Disagreement records nothing. A bundle holding two source files has no single
+// source, and naming it after whichever block sorted first would be a guess
+// wearing the same field as a fact.
+func itemSourcePath(blocks []*model.Block) string {
+	src := ""
+	for _, b := range blocks {
+		if b == nil {
+			continue
+		}
+		file := b.Properties["file"]
+		if file == "" {
+			continue
+		}
+		if src == "" {
+			src = file
+			continue
+		}
+		if src != file {
+			return ""
+		}
+	}
+	return src
 }
 
 // keepUndeclaredProperties carries forward the block properties a stored row

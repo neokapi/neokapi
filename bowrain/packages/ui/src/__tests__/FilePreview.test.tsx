@@ -466,11 +466,34 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
   // application's content policy names exactly that origin, so without one
   // there is nothing a frame could legally load. Stated here rather than
   // assumed, because a deployment without it must offer nothing at all.
+  // The story index the collection's host publishes, served here rather than
+  // fetched. Which items have a reading is decided by what this carries, so a
+  // test that stubbed nothing would only ever be testing the absence.
+  const STORY_INDEX = {
+    entries: {
+      "components-reachpanel--default": {
+        id: "components-reachpanel--default",
+        title: "Components/ReachPanel",
+        name: "Default",
+        importPath: "./src/brand-hub/experiments/ReachPanel.stories.tsx",
+      },
+    },
+  };
+
   beforeEach(() => {
     vi.stubEnv("VITE_EMBED_ORIGIN", "https://embed.example.dev");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) =>
+        String(input).includes("/preview/index")
+          ? Promise.resolve(new Response(JSON.stringify(STORY_INDEX)))
+          : Promise.resolve(new Response("{}", { status: 404 })),
+      ),
+    );
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   const rollup = (preview: { preview_kind?: string; preview_url?: string }) => ({
@@ -483,15 +506,29 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
     ...preview,
   });
 
+  // A component catalog, because only one can have a story: the join runs on
+  // the `file` property, which one reader writes.
+  const STORIED_ITEM = "ui/src/brand-hub/experiments/ReachPanel.kbf.json";
+
+  const storiedStats: ItemTranslationStats[] = [
+    {
+      ...itemStats[0],
+      item_id: "i-2",
+      item_name: STORIED_ITEM,
+      format: "kbf",
+      source_path: "../ui/src/brand-hub/experiments/ReachPanel.tsx",
+    },
+  ];
+
   const openPreview = {
     projectId: "proj-1",
-    itemName: "docs/releasing.md",
+    itemName: STORIED_ITEM,
     onOpen: vi.fn(),
     onClose: vi.fn(),
     targetLocales: ["fr-FR"],
   };
 
-  it("offers it when the collection declares a host it can read", async () => {
+  it("offers it when a story in the collection's host renders the item", async () => {
     render(
       wrap(
         <CollectionItemsView
@@ -500,7 +537,7 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
             preview_url: "https://neokapi.github.io/storybook/bowrain/",
           })}
           title="bowrain-app"
-          itemStats={itemStats}
+          itemStats={storiedStats}
           localeStats={localeStats}
           onBack={vi.fn()}
           preview={openPreview}
@@ -518,7 +555,7 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
         <CollectionItemsView
           collection={rollup({})}
           title="neokapi-docs"
-          itemStats={itemStats}
+          itemStats={storiedStats}
           localeStats={localeStats}
           onBack={vi.fn()}
           preview={openPreview}
@@ -539,10 +576,36 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
         <CollectionItemsView
           collection={rollup({ preview_kind: "ladle", preview_url: "https://example.dev/ladle/" })}
           title="bowrain-app"
-          itemStats={itemStats}
+          itemStats={storiedStats}
           localeStats={localeStats}
           onBack={vi.fn()}
           preview={openPreview}
+        />,
+        createMockAdapter(),
+      ),
+    );
+
+    await screen.findByRole("dialog");
+    expect(screen.queryByTestId("file-preview-reading")).not.toBeInTheDocument();
+  });
+
+  // A collection declaring a host is a claim about the collection, not about
+  // every item in it. Offered here, the toggle led to "No story renders this
+  // item's components" — an offer made and then withdrawn, which reads as the
+  // feature being broken rather than as a story being unwritten.
+  it("offers nothing for an item the host publishes no story for", async () => {
+    render(
+      wrap(
+        <CollectionItemsView
+          collection={rollup({
+            preview_kind: "storybook",
+            preview_url: "https://neokapi.github.io/storybook/bowrain/",
+          })}
+          title="bowrain-app"
+          itemStats={[...storiedStats, ...itemStats]}
+          localeStats={localeStats}
+          onBack={vi.fn()}
+          preview={{ ...openPreview, itemName: itemStats[0].item_name }}
         />,
         createMockAdapter(),
       ),

@@ -10,6 +10,7 @@ import { CoordinateLine } from "../../brand-hub/profiles/Coordinates";
 import { FileProgressTable, type FileProgressPaging } from "../FileProgressTable";
 import { FilePreview, type ItemPreviewBinding } from "../FilePreview";
 import { LocaleCoverageRails } from "./LocaleCoverageRail";
+import { useInContextItems } from "../../hooks/useInContextItems";
 
 /**
  * CollectionItemsView is the overview's second level: the items of one
@@ -59,11 +60,23 @@ export function CollectionItemsView({
   className,
 }: CollectionItemsViewProps) {
   const locales = localeStats.map((l) => l.locale);
-  const previewFormat = preview
-    ? itemStats.find((i) => i.item_name === preview.itemName)?.format
-    : undefined;
+  const previewItem = preview ? itemStats.find((i) => i.item_name === preview.itemName) : undefined;
   const localeDisplayNames = Object.fromEntries(
     localeStats.filter((l) => l.display_name).map((l) => [l.locale, l.display_name!]),
+  );
+  // Where THIS collection publishes its components. Read from the rollup the
+  // view was opened with, so the offer is the same on the page a reviewer opens
+  // a file from as on the project page.
+  const collectionPreview =
+    collection?.preview_kind && collection.preview_url
+      ? { kind: collection.preview_kind, url: collection.preview_url }
+      : undefined;
+  // Resolved once for the whole collection: which of these rows have a
+  // component published beside them, before a reviewer opens one to find out.
+  const inContext = useInContextItems(
+    preview?.projectId ?? "",
+    collection?.collection_id,
+    collectionPreview,
   );
 
   return (
@@ -124,27 +137,23 @@ export function CollectionItemsView({
         itemBase={itemBase}
         paging={paging}
         onOpenItem={preview ? (item) => preview.onOpen(item.item_name) : onOpenItem}
+        inContext={inContext.enabled ? inContext.has : undefined}
       />
 
       {preview && (
         <FilePreview
           projectId={preview.projectId}
           itemName={preview.itemName}
-          format={previewFormat}
+          format={previewItem?.format}
+          sourcePath={previewItem?.source_path}
           targetLocales={preview.targetLocales ?? locales}
           onClose={preview.onClose}
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}
           onOpenPreProcess={preview.onOpenPreProcess}
-          // Where THIS collection publishes its components. Read from the
-          // rollup the view was opened with, so the offer is the same on the
-          // page a reviewer opens a file from as on the project page.
-          preview={
-            collection?.preview_kind && collection.preview_url
-              ? { kind: collection.preview_kind, url: collection.preview_url }
-              : undefined
-          }
+          preview={collectionPreview}
           collectionId={collection?.collection_id}
+          hasStory={inContext.has(previewItem?.source_path)}
         />
       )}
     </div>

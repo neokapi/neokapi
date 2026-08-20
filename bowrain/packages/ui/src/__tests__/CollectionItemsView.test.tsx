@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, within } from "@testing-library/react";
+import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import { CollectionItemsView } from "../components/collections/CollectionItemsView";
 import type {
   CollectionTranslationStats,
@@ -44,6 +46,17 @@ const items: ItemTranslationStats[] = [
     locales: localeStats,
   },
 ];
+
+/**
+ * The view asks, once per collection, which of its rows have a component
+ * published beside them — a query, so it needs a client. Retries off and no
+ * cache between tests: nothing here declares a preview host, so the question is
+ * never actually put on the wire, and a client is what lets the view ask it.
+ */
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 describe("CollectionItemsView", () => {
   it("restates which collection the items belong to", () => {

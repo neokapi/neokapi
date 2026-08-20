@@ -71,6 +71,46 @@ export function storiesForComponents(index: StoryIndex, components: string[]): S
 }
 
 /**
+ * The component basenames this index renders a non-docs story for.
+ *
+ * The same join `storiesForComponents` makes, computed once for a whole
+ * collection instead of once per opened item. That is what lets a list say
+ * which of its rows can be read in context BEFORE a reviewer clicks one — the
+ * offer stops being made and then withdrawn.
+ */
+export function storyComponents(index: StoryIndex): Set<string> {
+  const out = new Set<string>();
+  for (const entry of Object.values(index.entries ?? {})) {
+    if (entry.type === "docs") continue;
+    const name = componentOf(entry.importPath);
+    if (name) out.add(name);
+  }
+  return out;
+}
+
+/**
+ * Whether a story renders the component an item was extracted from.
+ *
+ * Asked of the item's SOURCE path, never of its name. `source_path` is the same
+ * fact `componentsOf` reads off the blocks, hoisted onto the item at ingest, so
+ * both sides of the join run the one `componentOf` over the one kind of path —
+ * and a list can ask it of 300 rows without fetching 300 documents. Deriving a
+ * component from the catalog's own name instead would be a second spelling of
+ * this rule: one that has to know what a catalog is called, and that drifts the
+ * moment the extractor names one differently.
+ *
+ * An item with no source path is not a component catalog and has no story — the
+ * `file` property this ultimately comes from is written by one reader, the JSX
+ * one. Answering "yes" for a Markdown page that happens to share a basename with
+ * a component would offer a reading `componentsOf` then declines to find.
+ */
+export function hasStoryFor(components: ReadonlySet<string>, sourcePath?: string): boolean {
+  if (components.size === 0 || !sourcePath) return false;
+  const component = componentOf(sourcePath);
+  return component !== "" && components.has(component);
+}
+
+/**
  * The URL that renders one story on its own, with no Storybook chrome around
  * it. `viewMode=story` keeps the docs page out of it even for a story whose
  * component has autodocs.

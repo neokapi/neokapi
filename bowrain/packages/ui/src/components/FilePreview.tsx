@@ -43,6 +43,16 @@ export interface FilePreviewProps {
   itemName: string | null;
   /** The item's format id, shown beside its name. */
   format?: string;
+  /**
+   * The file this item's content was lifted out of, when the item is a
+   * generated catalog rather than the source itself (`source_path`, recorded by
+   * the extractor against a declared root). Given, the sheet is titled by the
+   * source and names the catalog underneath: a reviewer opening a bundle is
+   * looking at `bowrain/apps/bowrain/frontend/src/App.tsx`, and the item's own
+   * name is what everything addresses it by — both are worth a line here, where
+   * there is room for both.
+   */
+  sourcePath?: string;
   /** The project's target locales, in the order the project declares them. */
   targetLocales?: string[];
   /** Dismiss — Escape, the close button, or a click outside. */
@@ -70,6 +80,22 @@ export interface FilePreviewProps {
    * declared host is the collection's.
    */
   collectionId?: string;
+  /**
+   * Whether THIS item has a story that renders it (`useInContextItems`).
+   *
+   * A collection declaring a host is a claim about the collection, not about
+   * every item in it: a Storybook renders what someone wrote a story for. Until
+   * the two were told apart, "In context" was offered on every item and answered
+   * "No story renders this item's components" on the ones without — an offer
+   * made and then withdrawn, which reads as the feature being broken rather than
+   * as a story being unwritten.
+   *
+   * The list resolving this already has the index in hand, so the toggle is
+   * offered only where it leads somewhere. Omitted, the toggle is offered
+   * whenever the collection has a host — the older behaviour, for a caller that
+   * cannot answer per item.
+   */
+  hasStory?: boolean;
 }
 
 /**
@@ -88,6 +114,7 @@ export function FilePreview({
   projectId,
   itemName,
   format,
+  sourcePath,
   targetLocales = [],
   onClose,
   onOpenTranslate,
@@ -95,6 +122,7 @@ export function FilePreview({
   onOpenPreProcess,
   preview,
   collectionId,
+  hasStory = true,
 }: FilePreviewProps) {
   const { getDisplayName } = useLocales();
   const [side, setSide] = useState<"source" | "target">("source");
@@ -105,15 +133,14 @@ export function FilePreview({
   // project switch must not leave the reading pinned to a locale it dropped.
   const locale = picked && targetLocales.includes(picked) ? picked : (targetLocales[0] ?? "");
   const hasTargets = targetLocales.length > 0;
-  // Both halves are needed: a host this client can resolve a view within, and
-  // the collection whose API serves that host's index.
-  // Every half must be present or the reading cannot happen: a host this client
-  // can resolve a view within, the collection whose API serves that host's index,
-  // and an embed origin to frame it through. Offering the toggle without one
-  // would put an empty frame in front of a reviewer with nothing to explain it.
-  const storybookURL = collectionId && embedOrigin() ? storybookHost(preview) : undefined;
-  // A host is only offered when this client knows how to find a view inside it
-  // — see previewHost.
+  // Every part must be present or the reading cannot happen: a host this client
+  // can resolve a view within, the collection whose API serves that host's
+  // index, an embed origin to frame it through — and a story that renders THIS
+  // item, because a collection's host is a claim about the collection and not
+  // about every file in it. Offering the toggle without one of them puts an
+  // empty frame, or an apology, in front of a reviewer who asked to read.
+  const storybookURL =
+    collectionId && embedOrigin() && hasStory ? storybookHost(preview) : undefined;
   // With one target locale the toggle names it outright; with several the
   // selector names it, and the toggle only says which side is being read.
   const targetLabel = targetLocales.length === 1 ? getDisplayName(locale) : "Target";
@@ -130,11 +157,23 @@ export function FilePreview({
       >
         <SheetHeader className="pb-0">
           <SheetTitle className="flex flex-wrap items-center gap-2 text-sm">
+            {/* The source when there is one, because that is the file a
+                reviewer recognises; the item's own name below still says what
+                is being addressed, so nothing is hidden by being demoted. */}
             <span className="min-w-0 break-all font-mono" translate="no">
-              {itemName}
+              {sourcePath || itemName}
             </span>
             {format && <Badge variant="secondary">{format}</Badge>}
           </SheetTitle>
+          {sourcePath && (
+            <p
+              className="min-w-0 break-all font-mono text-xs text-muted-foreground"
+              translate="no"
+              data-testid="file-preview-item-name"
+            >
+              {itemName}
+            </p>
+          )}
           <SheetDescription>Read the document, then open it in an editor.</SheetDescription>
         </SheetHeader>
 

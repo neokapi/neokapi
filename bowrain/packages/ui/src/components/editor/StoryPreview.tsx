@@ -205,7 +205,7 @@ function Mono({ children }: { children: React.ReactNode }) {
  * The published Storybook's story index. Cached for the session: it changes
  * when the Storybook is rebuilt, not while a reviewer works.
  */
-function useStoryIndex(
+export function useStoryIndex(
   workspaceSlug: string,
   projectId: string,
   stream: string,

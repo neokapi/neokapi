@@ -17,6 +17,31 @@
  */
 
 /**
+ * The path an item READS as.
+ *
+ * Most items are their own source, and read as themselves. The exception is a
+ * generated catalog: a KBF bundle extracted from `App.tsx` is named
+ * `…/i18n/…/App.kbf.json`, because that path is what the recipe's glob claimed,
+ * what a push addresses and what the target file is keyed by. A reviewer asked
+ * to check it is being shown the courier rather than the letter — a whole file
+ * list reads as JSON, and the part that would tell two rows apart at a glance is
+ * spelled the same way on every one of them.
+ *
+ * Nothing is reconstructed here and nothing is guessed: the extractor records
+ * the source file against a declared root, and the item carries it verbatim
+ * (`source_path`). This function only says which of the two paths a reader is
+ * shown — the name itself is untouched, stays in the row's tooltip, and is what
+ * every callback carries.
+ *
+ * Every surface that shows an item, and everything that computes a shared
+ * prefix over a list of them, must agree on this — a base computed over names
+ * prefixes none of the paths beside it.
+ */
+export function itemDisplayPath(name: string, sourcePath?: string): string {
+  return sourcePath || name;
+}
+
+/**
  * The prefix every name shares, with a trailing slash, or "" when they share
  * none. Whole segments only: "docs/api" and "docs/apps" share "docs/", not
  * "docs/ap". A single item contributes its own directory, which is what makes a
