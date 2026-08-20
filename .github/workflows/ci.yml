@@ -508,11 +508,17 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
-      # The shared setup action does not cover the plugin module (separate
-      # go.mod, not reachable from any other ./...); download it here.
+      # The shared setup action already downloads bowrain/plugin (it is in its
+      # "all" set). What is not shared is `go mod verify`: the action omits it
+      # everywhere as per-job overhead, and the plugin is the one module where
+      # it is worth paying, being a separately licensed binary shipped to users.
       - name: Download plugin modules
-        run: |
-          cd bowrain/plugin && go mod download && go mod verify
+        uses: ./.github/actions/go-mod-download
+        with:
+          modules: bowrain/plugin
+
+      - name: Verify plugin modules
+        run: cd bowrain/plugin && go mod verify
 
       - name: Run Bowrain Plugin tests
         id: run-tests
@@ -804,11 +810,9 @@ jobs:
           packages: libicu-dev pkg-config
 
       - name: Download modules
-        run: |
-          go mod download
-          cd host && go mod download
-          cd ../cli && go mod download
-          cd ../kapi && go mod download
+        uses: ./.github/actions/go-mod-download
+        with:
+          modules: ". host cli kapi"
 
       # golangci-lint compiles the module, and core/i18n / host/i18n resolve
       # `//go:embed catalogs/*.mo` against build output — the repository carries
@@ -857,9 +861,9 @@ jobs:
           mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
 
       - name: Download modules
-        run: |
-          cd bowrain/core && go mod download
-          cd ../../bowrain && go mod download
+        uses: ./.github/actions/go-mod-download
+        with:
+          modules: "bowrain/core bowrain"
 
       # Every module linted below links core/i18n or host/i18n, whose embedded
       # gettext catalogs are build output. The compiler is a cgo build, hence

@@ -1,0 +1,50 @@
+name: go mod download
+description: >-
+  Download Go modules with bounded retries, so a transient proxy.golang.org or
+  sum.golang.org failure costs a minute instead of a job.
+
+inputs:
+  modules:
+    description: Space-separated module directories, relative to the repo root.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GO_MODULES: ${{ inputs.modules }}
+      run: |
+        set -uo pipefail
+        # The module proxy and checksum database are third-party services on the
+        # critical path of every Go job, and they fail in a way that looks like a
+        # broken change:
+        #
+        #   go: cloud.google.com/go/asset@v1.22.1: verifying go.mod:
+        #     reading https://sum.golang.org/tile/8/0/x196/347:
+        #     stream error: stream ID 103; INTERNAL_ERROR; received from peer
+        #
+        # A bare `go mod download` turns that into a red PR whose diff has
+        # nothing to do with it — three times in ninety minutes on 2026-08-20,
+        # across unrelated pull requests. The retry is not papering over a
+        # flake in this repository; it is the ordinary handling any network
+        # call on a critical path needs.
+        #
+        # Bounded rather than open-ended: three attempts with a short backoff,
+        # so a genuinely unreachable proxy still fails the job promptly instead
+        # of holding a runner. A real breakage — a missing module, a bad
+        # go.sum — fails identically on every attempt and surfaces in about a
+        # minute.
+        for m in $GO_MODULES; do
+          attempt=1
+          until ( cd "$m" && go mod download ); do
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::go mod download failed in '$m' after 3 attempts"
+              exit 1
+            fi
+            echo "::warning::go mod download in '$m' failed (attempt $attempt); retrying"
+            attempt=$((attempt + 1))
+            sleep $((attempt * 5))
+          done
+        done
