@@ -404,6 +404,24 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 	return nil
 }
 
+// PruneItemBlocks emits one event for the item rather than one per removed
+// block: a prune's subject is the item, and the ids it drops name rows a
+// subscriber can no longer read. What a surface needs is to refetch the item,
+// which is what this tells it to do.
+func (s *EventEmittingStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
+	n, err := s.inner.PruneItemBlocks(ctx, projectID, stream, itemName, keep)
+	if err != nil || n == 0 {
+		return n, err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventBlockUpdated,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"item_name": itemName},
+	})
+	return n, nil
+}
+
 func (s *EventEmittingStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
 	return s.inner.GetBlock(ctx, projectID, stream, blockID)
 }

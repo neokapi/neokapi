@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
@@ -430,4 +431,54 @@ func BlockPropertyKeys(blocks []*model.Block) []string {
 	}
 	slices.Sort(keys)
 	return slices.Compact(keys)
+}
+
+// ItemBlockKeys is the complete set of block keys each item a producer read
+// holds — the sibling declaration to BlockPropertyKeys, and the same idea one
+// level up: it scopes DELETION, never transfer.
+//
+// The problem it solves is that a push carries only what changed, so what it
+// carries cannot say what an item no longer holds. A string deleted at source —
+// a paragraph removed, a `t()` call taken out — simply stops being sent, and a
+// far side that upserts what arrives and prunes nothing keeps the block for
+// good: still counted in the item's totals, still listed in its content, still
+// queued for review, still dragging the coverage a ship gate reads.
+//
+// A key set is a positive assertion — "this item holds exactly these" — and
+// that is what makes it safe to delete from. A diff against the local sync
+// cache would be the cheaper wire and the wrong answer in the case that
+// matters: the cache is not committed, so CI runs from a fresh clone with no
+// cache at all and would detect no deletion ever, in precisely the environment
+// the loop actually runs in.
+//
+// Computed over every block the producer read, and only for the items it read.
+// An item outside a scoped `kapi push <path>` is absent rather than empty, and
+// absence is silence: the far side prunes the items this producer described and
+// leaves every other one alone.
+func ItemBlockKeys(blocksByItem map[string][]*model.Block) map[string][]string {
+	if len(blocksByItem) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(blocksByItem))
+	for item, blocks := range blocksByItem {
+		if item == "" {
+			continue
+		}
+		keys := make([]string, 0, len(blocks))
+		for _, b := range blocks {
+			if b == nil {
+				continue
+			}
+			if key := convergence.BlockKey(b); key != "" {
+				keys = append(keys, key)
+			}
+		}
+		slices.Sort(keys)
+		// An item that read to nothing still declares itself, with an empty
+		// set. A file whose last translatable string was deleted is exactly the
+		// case this exists for, and dropping it here would leave the emptiest
+		// item the only one that never gets cleaned.
+		out[item] = slices.Compact(keys)
+	}
+	return out
 }

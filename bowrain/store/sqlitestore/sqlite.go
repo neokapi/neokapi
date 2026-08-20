@@ -522,6 +522,84 @@ func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, stream,
 	return s.storeBlocks(ctx, projectID, stream, itemName, blocks)
 }
 
+// PruneItemBlocks removes the blocks of one item the producer no longer
+// declares. See store.BlockStore for what it is for.
+//
+// The item's rows are loaded and diffed in Go rather than handed to SQL as a
+// NOT IN list: `keep` is one file's worth of keys, and a bound parameter per
+// key runs into SQLITE_MAX_VARIABLE_NUMBER on a large enough document.
+func (s *SQLiteStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
+	// stream is taken for symmetry with the other block verbs and deliberately
+	// not consulted: a block row belongs to (project, item) and is shared by
+	// every stream holding that item, so a pruned block is gone from all of
+	// them — and the per-stream rows describing it have to go with it, whichever
+	// stream they belong to.
+	_ = stream
+	if itemName == "" {
+		return 0, nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id, COALESCE(source_id, '') FROM blocks WHERE project_id=? AND item_name=?`,
+		projectID, itemName)
+	if err != nil {
+		return 0, fmt.Errorf("load item blocks for prune: %w", err)
+	}
+	declared := make(map[string]struct{}, len(keep))
+	for _, k := range keep {
+		declared[k] = struct{}{}
+	}
+	var stale []any
+	for rows.Next() {
+		var id, srcID string
+		if err := rows.Scan(&id, &srcID); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan item block for prune: %w", err)
+		}
+		// The producer's key for this row: what it last sent, falling back to
+		// the row id for a legacy row stored before source ids were recorded.
+		key := srcID
+		if key == "" {
+			key = id
+		}
+		if _, still := declared[key]; !still {
+			stale = append(stale, id)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("item block rows for prune: %w", err)
+	}
+	if len(stale) == 0 {
+		return 0, nil
+	}
+
+	marks := strings.TrimSuffix(strings.Repeat("?,", len(stale)), ",")
+	for _, table := range storeutil.BlockScopedTables() {
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
+		q := `DELETE FROM ` + table + ` WHERE project_id=? AND block_id IN (` + marks + `)`
+		if _, err := tx.ExecContext(ctx, q, append([]any{projectID}, stale...)...); err != nil {
+			return 0, fmt.Errorf("prune %s for item %q: %w", table, itemName, err)
+		}
+	}
+	//nolint:gosec // placeholder list, not data — every id binds below
+	del := `DELETE FROM blocks WHERE project_id=? AND id IN (` + marks + `)`
+	if _, err := tx.ExecContext(ctx, del, append([]any{projectID}, stale...)...); err != nil {
+		return 0, fmt.Errorf("prune blocks for item %q: %w", itemName, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit prune for item %q: %w", itemName, err)
+	}
+	return len(stale), nil
+}
+
 func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
 	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)

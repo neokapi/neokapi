@@ -132,6 +132,14 @@ type PushCommitRequest struct {
 	// core/venue.BlockPropertyKeys — it scopes deletion, never transfer.
 	BlockPropertyKeys []string `json:"block_property_keys,omitempty"`
 
+	// ItemBlocks declares, per item this producer read, the complete set of
+	// block keys that item holds — so the server can remove the blocks it no
+	// longer does. A push carries only what changed, so what it carries cannot
+	// say what is gone. See core/venue.ItemBlockKeys; like the keys above, it
+	// scopes deletion and never transfer, and an item absent from the map is
+	// silence rather than an empty item.
+	ItemBlocks map[string][]string `json:"item_blocks,omitempty"`
+
 	// ContentModelEpoch is the generation this push wrote, recorded on the
 	// stream once the manifest commits.
 	ContentModelEpoch int `json:"content_model_epoch,omitempty"`
@@ -149,6 +157,7 @@ type PushOption func(*pushSettings)
 type pushSettings struct {
 	expected       ref.Ref
 	propertyKeys   []string
+	itemBlocks     map[string][]string
 	allowDowngrade bool
 }
 
@@ -175,6 +184,17 @@ func AssertRef(observed ref.Ref) PushOption {
 // heard of.
 func DeclareBlockProperties(keys []string) PushOption {
 	return func(s *pushSettings) { s.propertyKeys = keys }
+}
+
+// DeclareItemBlocks tells the server which blocks each item this producer read
+// actually holds, so it can remove the ones the source no longer has. Computed
+// over every block the producer read — see core/venue.ItemBlockKeys.
+//
+// A push that declares nothing removes nothing, and an item missing from the
+// map is untouched: a scoped `kapi push <path>` says nothing about the files it
+// did not look at.
+func DeclareItemBlocks(byItem map[string][]string) PushOption {
+	return func(s *pushSettings) { s.itemBlocks = byItem }
 }
 
 // AllowModelDowngrade lets this push write content from an older model
@@ -480,6 +500,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Decisions:         decisions,
 		ExpectedRef:       settings.expected,
 		BlockPropertyKeys: settings.propertyKeys,
+		ItemBlocks:        settings.itemBlocks,
 		ContentModelEpoch: venue.ContentModelEpoch,
 	})
 	if err != nil {

@@ -74,6 +74,27 @@ type ItemStore interface {
 type BlockStore interface {
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
+	// PruneItemBlocks removes the blocks of one item whose keys `keep` does not
+	// name, and reports how many went.
+	//
+	// It is what makes a push able to say a string is GONE. A push carries only
+	// what changed, so a deleted paragraph or a removed `t()` call sends
+	// nothing at all: storing what arrives and pruning nothing left the block
+	// in place for good — counted in the item's totals, listed in its content,
+	// queued for review, dragging the coverage a ship gate reads. The producer
+	// declares what each item it read now holds (core/venue.ItemBlockKeys) and
+	// this removes the rest.
+	//
+	// `keep` holds producer keys — the ids a caller sends, which the store maps
+	// to its own — and an empty slice is a real answer: an item whose last
+	// translatable string was deleted keeps none. Callers that mean "say
+	// nothing" must not call at all.
+	//
+	// Block rows are project-scoped, shared by every stream holding an item of
+	// this name (CreateStream copies items, not blocks), so a prune reaches all
+	// of them — exactly as an edit through StoreBlocksForItem already does.
+	// The stream-scoped rows hanging off each pruned block go with it.
+	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
 	GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error)
 	GetBlocks(ctx context.Context, query BlockQuery) ([]*venue.StoredBlock, error)
 	// CountBlocks answers a BlockQuery's totals and its per-locale status

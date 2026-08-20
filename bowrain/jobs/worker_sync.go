@@ -53,6 +53,13 @@ type syncPushManifest struct {
 	// scopes deletion: a property key outside this set was written by someone
 	// this push knows nothing about, and survives it. See keepDeclaredProperties.
 	BlockPropertyKeys []string `json:"block_property_keys"`
+	// ItemBlocks is the complete block-key set the producer declared for each
+	// item it read. It scopes deletion one level up from BlockPropertyKeys: a
+	// stored block of a declared item that this set does not name is content
+	// the source no longer has, and pruneDeclaredItems removes it. An item
+	// absent from the map was not read by this push and is left alone. See
+	// core/venue.ItemBlockKeys.
+	ItemBlocks map[string][]string `json:"item_blocks"`
 }
 
 type syncChunkRef struct {
@@ -290,6 +297,13 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			return err
 		}
 	}
+
+	// Removals land AFTER every chunk, and only once they have all landed.
+	// A push is chunked, so no single chunk knows an item's whole content:
+	// pruning inside one would delete everything the others carried. And a
+	// chunk that failed returned above — a partial push must never be read as
+	// "the source dropped the rest".
+	pruneDeclaredItems(ctx, deps, job, projectID, stream, manifest.ItemBlocks)
 
 	// The decisions content type ingests AFTER the chunks, so decisions that
 	// arrived with the content they judge can resolve their rows and project
@@ -649,6 +663,53 @@ func itemSourcePath(blocks []*model.Block) string {
 		}
 	}
 	return src
+}
+
+// pruneDeclaredItems removes, from each item this push described, the blocks the
+// source no longer has.
+//
+// It is the half of the protocol that lets a push say a string is GONE. What a
+// push carries is what CHANGED, and a deleted paragraph or a removed `t()` call
+// changes nothing it can send — it simply stops being sent. So the store, which
+// upserts what arrives, kept the block for good: still counted in the item's
+// totals, still listed in its content, still queued for review, still dragging
+// the coverage a ship gate reads. The producer declares what each item it read
+// now holds (core/venue.ItemBlockKeys); this is where the rest goes.
+//
+// Silence is not deletion — the rule keepUndeclaredProperties follows one level
+// down. An item absent from the declaration was not read by this push (a scoped
+// `kapi push <path>`, an older producer that sends no declaration at all) and is
+// left entirely alone. An item present with an empty set IS an answer: its last
+// translatable string was deleted, which is the case this exists for.
+//
+// A failure here is logged and not fatal. The content of the push has already
+// landed and is correct; what has not happened is the removal of content that is
+// merely stale, and failing the whole job over that would reject a good write to
+// avoid an outdated row. The next push declares the same thing and tries again.
+func pruneDeclaredItems(ctx context.Context, deps *WorkerDeps, job *TranslationJob, projectID, stream string, itemBlocks map[string][]string) {
+	if len(itemBlocks) == 0 || deps.ContentStore == nil {
+		return
+	}
+	pruned, items := 0, 0
+	for itemName, keep := range itemBlocks {
+		if itemName == "" {
+			continue
+		}
+		n, err := deps.ContentStore.PruneItemBlocks(ctx, projectID, stream, itemName, keep)
+		if err != nil {
+			slog.Warn("pushed item could not be pruned of the blocks its source no longer has; the content this push carried is stored, and the stale blocks stay until a later push removes them",
+				"project_id", projectID, "stream", stream, "item", itemName, "error", err)
+			continue
+		}
+		if n > 0 {
+			pruned += n
+			items++
+		}
+	}
+	if pruned > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Removed %d block(s) across %d item(s) the source no longer has", pruned, items), nil)
+	}
 }
 
 // keepUndeclaredProperties carries forward the block properties a stored row
