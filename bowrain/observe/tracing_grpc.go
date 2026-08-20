@@ -21,7 +21,7 @@ import (
 // "authentication refuses everything" are both things worth being able to see.
 func GRPCTracingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		if !sentryEnabled {
+		if !sentryEnabled || isHealthProbe(info.FullMethod) {
 			return handler(ctx, req)
 		}
 		// info.FullMethod is already the shape — /neokapi.v1.NeokapiService/PushContent
@@ -39,7 +39,7 @@ func GRPCTracingUnaryInterceptor() grpc.UnaryServerInterceptor {
 // unit whose duration means something, and the one that hangs.
 func GRPCTracingStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if !sentryEnabled {
+		if !sentryEnabled || isHealthProbe(info.FullMethod) {
 			return handler(srv, ss)
 		}
 		ctx, end := grpcTransaction(ss.Context(), info.FullMethod)

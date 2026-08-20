@@ -46,7 +46,7 @@ const spanOriginBowrain = "manual.http.bowrain"
 func TracingMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if !sentryEnabled {
+			if !sentryEnabled || isHealthProbe(c.Path()) {
 				return next(c)
 			}
 
