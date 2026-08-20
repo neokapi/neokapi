@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-local-actions check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-package-licenses check-archive-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-package-licenses check-archive-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -253,6 +253,9 @@ check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\User
 
 check-local-actions: ## Guard: a workflow's local `uses: ./…` resolves where that job checked the repo out
 	@./scripts/check-local-actions.sh
+
+check-deploy-paths: ## Guard: the deploy workflow triggers on every framework dir compiled into the deployed binaries
+	@./scripts/check-deploy-paths.sh
 
 check-run-projection: ## Guard: a Run sequence is projected through a declared RunSpec, never a hand-rolled walk
 	@./scripts/check-run-projection.sh
