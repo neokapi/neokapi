@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/observe"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/structure"
@@ -332,6 +333,9 @@ func (r *FileRunner) openReader(ctx context.Context, reader format.DataFormatRea
 // non-streaming readers and the structural-grid cross-format case; streaming
 // readers feed the executor directly via feedReader instead.
 func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatReader, source io.ReadCloser, inputPath, targetLang string) (parts []*model.Part, err error) {
+	ctx, span := observe.Start(ctx, spanOpFormatRead, reader.Name())
+	defer func() { span.End(err) }()
+
 	if err := r.openReader(ctx, reader, source, inputPath, targetLang); err != nil {
 		return nil, err
 	}
@@ -407,7 +411,10 @@ func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatR
 // without buffering the document. It wires the skeleton emitter ONLY when the run
 // reconstructs output (captureSkeleton) — so a process-only/read parse does no
 // skeleton work and writes no skeleton file. The reader is consumed and closed.
-func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, rec DocumentRecorder, captureSkeleton bool) error {
+func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, rec DocumentRecorder, captureSkeleton bool) (err error) {
+	ctx, span := observe.Start(ctx, spanOpFormatRead, reader.Name())
+	defer func() { span.End(err) }()
+
 	if captureSkeleton {
 		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 			// The reader HAS structure to capture. If the recorder cannot give it
@@ -555,6 +562,11 @@ func (r *FileRunner) partCacheKey(formatName string, reconstructs bool) string {
 // pure-Go, so overlapping the read with the write is safe (no daemon "one
 // Process stream at a time" constraint).
 func (r *FileRunner) feedReader(ctx context.Context, feedCtx context.Context, reader format.DataFormatReader, skel *format.SkeletonStore, inCh chan<- *model.Part, errOut *error) {
+	// Registered before the cleanup defer so it runs after it: defers are LIFO,
+	// and *errOut is only final once the reader has closed.
+	_, span := observe.Start(ctx, spanOpFormatRead, reader.Name())
+	defer func() { span.End(*errOut) }()
+
 	defer func() {
 		close(inCh)
 		if skel != nil {
@@ -1151,7 +1163,9 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 		writerIn = tapCh
 	}
 
+	_, writeSpan := observe.Start(ctx, spanOpFormatWrite, writer.Name())
 	writeErr := writer.Write(ctx, writerIn)
+	writeSpan.End(writeErr)
 	if writeErr != nil {
 		for range writerIn { //nolint:revive // intentional drain to unblock tools
 		}

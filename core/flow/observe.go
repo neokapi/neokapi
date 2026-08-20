@@ -20,8 +20,13 @@ import (
 // One span per tool invocation, not per Part: a flow moves thousands of Parts
 // through a handful of tools, and a span each would cost more than it measures.
 
-// spanOpFlowTool is shared by every tool span so a backend can aggregate them.
-const spanOpFlowTool = "flow.tool"
+// Span operations. Each is shared by every span of its kind, so a backend
+// aggregates them into one row per kind of work rather than per document.
+const (
+	spanOpFlowTool    = "flow.tool"
+	spanOpFormatRead  = "format.read"
+	spanOpFormatWrite = "format.write"
+)
 
 // WrapWithSpans wraps each tool so its run opens a span. Returns a new slice;
 // the original is not modified.
