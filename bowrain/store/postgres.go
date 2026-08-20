@@ -911,7 +911,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 		// Record content history for changed targets so prior content can be
 		// restored (per-edit rollback). Uses the pre-upsert text captured above.
-		if err := recordTargetHistoryPg(ctx, tx, projectID, stream, internalID, oldTargetText[internalID], b.Targets); err != nil {
+		if err := recordTargetHistoryPg(ctx, tx, projectID, stream, internalID, oldTargetText[internalID], b.Targets, now); err != nil {
 			return err
 		}
 

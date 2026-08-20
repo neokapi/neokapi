@@ -108,6 +108,11 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 	blk.SetTargetText(fr, "v1")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
 
+	// Separating the three timestamps, and nothing more: the history rows, the
+	// version and the cursor are all stamped by this process, so ordering them
+	// only needs them to be distinct. They used to straddle two clocks — history
+	// on the database's NOW(), the version on this one's — and no sleep here
+	// could have fixed that; see recordTargetHistoryPg.
 	time.Sleep(5 * time.Millisecond)
 	ver, err := cs.CreateVersion(ctx, "p-pit", "main", "snap", "")
 	require.NoError(t, err)
