@@ -12,6 +12,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/crypto"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -994,7 +995,35 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	return blockFilterPg{join: join, where: strings.Join(where, " AND "), args: args}
 }
 
+// Instrumented because this is the operation class that has twice been the
+// answer: the 22-second dashboard (#2105) and the read that OOM-killed the
+// server. A transaction that says a request took 22 seconds restates the
+// request log; a span saying this ran forty times is the finding.
+
+// blockScope describes what a block query was scoped BY, never what it was
+// scoped to. A span description is a label Sentry groups on, so putting a
+// project id in it would mint a separate row per project and group nothing —
+// the same reason a transaction is named by its route and not its URL. What is
+// worth seeing is the shape: whether a read was bounded to one item, to a page,
+// or to everything.
+func blockScope(q platstore.BlockQuery) string {
+	switch {
+	case len(q.IDs) > 0:
+		return "by-id"
+	case q.ItemName != "":
+		return "item"
+	case q.AfterID != "":
+		return "page"
+	case q.Limit > 0:
+		return "limited"
+	default:
+		return "whole-stream"
+	}
+}
+
 func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
+	defer observe.StartSpan(ctx, "db.query", "store.GetBlocks "+blockScope(query))()
+
 	f := pgBlockFilter(query, true)
 
 	// Constant skeleton + rendered fragments that carry $N placeholders only;
@@ -1036,6 +1065,8 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 // CountBlocks answers the editor's progress bar with one aggregate instead of
 // a full page of hydrated blocks.
 func (s *PostgresStore) CountBlocks(ctx context.Context, query platstore.BlockQuery) (platstore.BlockCounts, error) {
+	defer observe.StartSpan(ctx, "db.query", "store.CountBlocks "+blockScope(query))()
+
 	f := pgBlockFilter(query, false)
 	bucket := "''"
 	if f.join != "" {
@@ -1130,6 +1161,8 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 }
 
 func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
+	defer observe.StartSpan(ctx, "db.query", "store.GetBlockStats")()
+
 	stream = storeutil.DefaultStream(stream)
 
 	// Get item names for the stream to scope the query.

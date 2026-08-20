@@ -47,7 +47,15 @@ func InitSentry(cfg SentryConfig) bool {
 		ServerName:       cfg.ServerName,
 		SampleRate:       sampleRate,
 		TracesSampleRate: cfg.TracesSampleRate,
-		SendDefaultPII:   false,
+		// Necessary as well as the rate, and easy to miss: sentry-go drops
+		// EVERY transaction when this is false, whatever TracesSampleRate says
+		// (tracing.go, "Dropping transaction: EnableTracing is set to false").
+		// Setting the rate alone produces a deployment that looks instrumented,
+		// reports errors normally, and silently discards every transaction —
+		// the same shape of fault as having no instrumentation at all, but
+		// harder to see because the configuration reads as correct.
+		EnableTracing:  cfg.TracesSampleRate > 0,
+		SendDefaultPII: false,
 		BeforeSend: func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
 			// Defense in depth: never ship auth material even if some SDK path
 			// attaches request data.
