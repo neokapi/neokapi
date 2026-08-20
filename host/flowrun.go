@@ -374,6 +374,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		}
 		defer cleanup()
 		tools = flow.WrapWithMetrics(tools, metrics)
+		// Outside the metrics wrapper, so the span covers the whole run.
+		tools = flow.WrapWithSpans(tools)
 
 		for _, inputPath := range group.Inputs {
 			if ctx.Err() != nil {

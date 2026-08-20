@@ -292,6 +292,8 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 	metrics := flow.NewPipelineMetrics(stepNames)
 	flowTools = flow.WrapWithMetrics(flowTools, metrics)
+	// Outside the metrics wrapper, so the span covers the whole run.
+	flowTools = flow.WrapWithSpans(flowTools)
 
 	// Start TTY progress ticker (200ms) if interactive.
 	jsonOut, _ := cmd.Flags().GetBool("json")
