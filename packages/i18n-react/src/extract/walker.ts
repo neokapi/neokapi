@@ -23,7 +23,7 @@ import {
 import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "./jsx-path.ts";
 import { collectTIdentifiers, walkTCalls } from "./messages.ts";
 import { collectHeadIdentifiers, walkHeadCalls } from "./head.ts";
-import { buildRuns } from "./runs.ts";
+import { buildRuns, tCallRuns } from "./runs.ts";
 import { getTranslatability } from "../plugin/defaults.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "./translatable.ts";
 import type { Warning, WarningCollector } from "./warnings.ts";
@@ -412,13 +412,18 @@ class BlockCollector {
     };
     if (context) properties.locNote = context;
 
+    // The runs, not the raw string: a `t()` argument is a placeholder and is
+    // carried as one, so the editor protects it and DiffRunCodes can see it.
+    // The hash above stays a function of `text` — the runs are a reading of
+    // that string, and re-reading it must never re-key it.
+    const { runs, placeholders } = tCallRuns(text);
     this.out.push({
       id: `${this.filename}:${line}:t`,
       hash,
       translatable: true,
       type: "js:t",
-      source: [{ text }] as Run[],
-      placeholders: [],
+      source: runs,
+      placeholders,
       properties,
     });
   }
