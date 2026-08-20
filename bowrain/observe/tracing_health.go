@@ -3,18 +3,22 @@ package observe
 // Health probes are traffic, not signal.
 //
 // The load balancer probes the HTTP health route and the gRPC health method
-// every 15 seconds (bowrain-infra, modules/alb/targets.tf). At one task per
-// service that is about 5,760 probes a day against roughly 7,000 real requests,
-// so tracing them would spend nearly half the transaction budget describing a
-// request whose duration is already an ALB target-health metric — and would
-// drag every aggregate toward the cheapest endpoint in the process.
+// every 15 seconds (bowrain-infra, modules/alb/targets.tf). A probe's duration
+// is already an ALB target-health metric, so a transaction per probe restates
+// what is measured elsewhere and drags every aggregate toward the cheapest
+// endpoint on the server.
+//
+// It also never arrived. No health transaction has ever appeared in Sentry,
+// although the probe returns 200 through this middleware with the traces sample
+// rate at 1 — so they were produced and discarded before storage rather than
+// stored and ignored. Not producing them reaches the same end without the work.
 //
 // The gRPC method is listed even though no health service is registered today.
 // The ALB matcher accepts UNIMPLEMENTED for exactly that reason, and grpc-go
 // answers an unregistered method without running interceptors, so the entry is
 // inert as things stand. The probe is continuous and registering the service is
-// an ordinary thing to do later; naming the method here means doing so does not
-// quietly start producing 5,760 transactions a day that nobody asked for.
+// an ordinary thing to do later; naming the method here means doing so cannot
+// quietly start producing a transaction every fifteen seconds.
 const (
 	healthRouteHTTP  = "/api/v1/health"
 	healthMethodGRPC = "/grpc.health.v1.Health/Check"
