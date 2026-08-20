@@ -12,11 +12,26 @@ on:
           - prod
   push:
     branches: [main]
+    # bowrain-server and bowrain-worker link the framework — `go list -deps`
+    # on the server names core/flow, core/observe, providers/ai and host among
+    # others — so a framework change changes the deployed binary and has to
+    # deploy it. Listing only bowrain/** meant it did not: #2120 and #2122 both
+    # altered code inside the server and shipped nothing, and would have
+    # reached production inside whatever unrelated bowrain/ change came next,
+    # recorded as that change. Prod running code no deploy accounts for is the
+    # same misattribution :latest caused, one layer up.
     paths:
       - "bowrain/**"
       - "!bowrain/apps/web/**"
       - "!bowrain/apps/keycloak-theme/**"
       - "!bowrain/plugin/**"
+      - "core/**"
+      - "host/**"
+      - "providers/**"
+      - "memory/**"
+      - "terms/**"
+      - "go.mod"
+      - "go.sum"
 
 permissions:
   packages: write
