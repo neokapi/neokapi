@@ -214,6 +214,20 @@ outside this project (MT providers, external LLM APIs) may be mocked.
 Runbooks: [regenerating docs assets](docs/internals/regenerating-docs-assets.md),
 [video revision](docs/internals/video-revision-runbook.md).
 
+## Commits, PRs and issues
+
+Titles are short, plain descriptions of intent. A reader scanning `git log` or
+a PR list wants to know what the change does before they open it.
+
+- Good: `Exclude ALB health probes from Sentry tracing`
+- Bad: `The load balancer's health probe is answered, not measured`
+
+No aphorisms, no inversions, no titles that only parse once you have read the
+diff. Keep bodies short too — what changed, why, and anything a reviewer would
+otherwise have to discover. Reasoning that belongs beside the code goes in a
+comment, not the commit message. The same applies to issue titles and PR
+descriptions.
+
 ## Writing user-facing prose
 
 Follow [brand-communication.md](docs/internals/brand-communication.md): an
