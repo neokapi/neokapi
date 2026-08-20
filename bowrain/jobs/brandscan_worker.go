@@ -146,7 +146,12 @@ func RunBrandScanWorker(ctx context.Context, deps *BrandScanWorkerDeps) error {
 			continue
 		}
 
-		processErr := processBrandScanJob(ctx, deps, jobID)
+		// One transaction per job, named by the queue so it aggregates; the job
+		// id rides as the correlation tag, which is also what puts request_id
+		// on this job's log lines.
+		traceCtx, endTrace := observe.Transaction(observe.WithRequestID(ctx, jobID), "queue.task", "brand-scan")
+		processErr := processBrandScanJob(traceCtx, deps, jobID)
+		endTrace(processErr)
 		if processErr != nil {
 			var te *transientError
 			if errors.As(processErr, &te) {

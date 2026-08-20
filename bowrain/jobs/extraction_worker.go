@@ -12,6 +12,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
@@ -114,8 +115,13 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 
 		// The loop's context gates Dequeue; the job body runs detached from
 		// the shutdown signal and bounded by the drain grace.
+		// One transaction per job, named by the queue so it aggregates; the job
+		// id rides as the correlation tag, which is also what puts request_id
+		// on this job's log lines.
 		runCtx, stopDrain := drainableJobContext(ctx, deps.drainGrace())
-		processErr := processExtractionJob(runCtx, deps, jobID)
+		traceCtx, endTrace := observe.Transaction(observe.WithRequestID(runCtx, jobID), "queue.task", "extraction")
+		processErr := processExtractionJob(traceCtx, deps, jobID)
+		endTrace(processErr)
 		stopDrain()
 		postCtx := context.WithoutCancel(ctx)
 

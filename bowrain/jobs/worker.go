@@ -284,7 +284,17 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		}
 		jobStart := time.Now()
 		observe.JobsInFlight.WithLabelValues(queueLabel).Inc()
-		processErr := processJobWithDeps(jobCtx, deps, jobID)
+		// One transaction per job. The worker carries the same traces sample
+		// rate as the server and, until this, produced nothing: a convergence
+		// run that took an hour was exactly as invisible as the 22-second
+		// dashboard that prompted instrumenting the HTTP side (#2105, #2109).
+		//
+		// Named by the QUEUE, not the job: the id is already the correlation
+		// tag Transaction reads off the context, and a per-job name would
+		// aggregate nothing.
+		traceCtx, endTrace := observe.Transaction(jobCtx, "queue.task", queueLabel)
+		processErr := processJobWithDeps(traceCtx, deps, jobID)
+		endTrace(processErr)
 		observe.JobsInFlight.WithLabelValues(queueLabel).Dec()
 		stopDrain()
 		if processErr != nil {

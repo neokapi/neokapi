@@ -86,12 +86,44 @@ func TracingMiddleware() echo.MiddlewareFunc {
 
 			err := next(c)
 
+			// Read AFTER the handler, not before: the workspace, plan and user
+			// are put on the context by the auth middleware, which runs inside
+			// this one. Tagging on the way in would find them all empty and the
+			// traces would be unfilterable — which is the failure this is here
+			// to prevent, arrived at by instrumenting in the wrong order.
+			// transaction.Context(), not the ctx captured above: that one
+			// predates the transaction and carries no span, so tagging through
+			// it silently writes nothing.
+			TagScope(transaction.Context(), echoScope(c))
+
 			status := responseStatus(c, err)
 			transaction.SetTag("http.status_code", strconv.Itoa(status))
 			transaction.SetData("http.response.status_code", status)
 			transaction.Status = spanStatus(status)
 			return err
 		}
+	}
+}
+
+// echoScope reads the request's dimensions off the Echo context.
+//
+// Every one of these is already set by middleware that runs for authenticated
+// routes — the auth middleware resolves the workspace and its plan, the router
+// binds the project id. Nothing is looked up here: an extra query per request
+// to enrich telemetry would be a fine way to make the thing measuring latency
+// a cause of it.
+func echoScope(c echo.Context) Scope {
+	str := func(key string) string {
+		v, _ := c.Get(key).(string)
+		return v
+	}
+	return Scope{
+		WorkspaceID: str("workspace_id"),
+		// :id is the project on every workspace-scoped route (AD-011).
+		ProjectID: c.Param("id"),
+		Plan:      str("workspace_plan"),
+		Feature:   FeatureFromRoute(c.Path()),
+		UserID:    str("user_id"),
 	}
 }
 

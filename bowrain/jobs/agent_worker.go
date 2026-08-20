@@ -41,7 +41,12 @@ func RunAgentWorker(ctx context.Context, deps *AgentWorkerDeps) error {
 			continue
 		}
 
-		if err := processAgentJob(ctx, deps, rawMsg); err != nil {
+		// Named by the queue; an agent conversation id would aggregate nothing
+		// and is the sort of identifier a transaction name must not carry.
+		traceCtx, endTrace := observe.Transaction(ctx, "queue.task", "agent")
+		agentErr := processAgentJob(traceCtx, deps, rawMsg)
+		endTrace(agentErr)
+		if err := agentErr; err != nil {
 			slog.Info("Agent worker: job failed", "error", err)
 			// Publish error to Redis so the client sees it.
 			convID := extractConversationID(rawMsg)

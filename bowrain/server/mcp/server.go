@@ -206,6 +206,11 @@ func NewMCPServerWithStore(brandStore coreprofile.Store, contentStore store.Cont
 		ms.registerSandboxTools()
 	}
 
+	// Every MCP method gets a span inside the HTTP request's transaction, so a
+	// slow agent call is attributable to the method rather than to "the MCP
+	// endpoint". Installed unconditionally — it is a no-op without Sentry.
+	s.AddReceivingMiddleware(ms.tracingMiddleware())
+
 	// Install analytics middleware when a tracker is configured.
 	if ms.tracker != nil {
 		s.AddReceivingMiddleware(ms.analyticsMiddleware())

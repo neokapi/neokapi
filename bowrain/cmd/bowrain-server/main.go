@@ -428,12 +428,19 @@ func run() error {
 
 	srv := server.NewServer(cfg)
 
-	// Build gRPC server with auth interceptors when JWT is configured.
-	var grpcOpts []grpc.ServerOption
+	// Build gRPC server with tracing, plus auth interceptors when JWT is
+	// configured. Tracing is chained FIRST, so it is outermost and a call
+	// refused for its credentials is still a transaction — "auth is slow" and
+	// "auth refuses everything" both matter and neither is visible from a
+	// handler that never ran.
+	grpcOpts := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(observe.GRPCTracingUnaryInterceptor()),
+		grpc.ChainStreamInterceptor(observe.GRPCTracingStreamInterceptor()),
+	}
 	if cfg.JWTSecret != "" {
 		grpcOpts = append(grpcOpts,
-			grpc.UnaryInterceptor(server.GRPCAuthUnaryInterceptor(cfg.JWTSecret)),
-			grpc.StreamInterceptor(server.GRPCAuthStreamInterceptor(cfg.JWTSecret)),
+			grpc.ChainUnaryInterceptor(server.GRPCAuthUnaryInterceptor(cfg.JWTSecret)),
+			grpc.ChainStreamInterceptor(server.GRPCAuthStreamInterceptor(cfg.JWTSecret)),
 		)
 	}
 	grpcSrv := grpc.NewServer(grpcOpts...)
