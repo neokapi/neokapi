@@ -243,6 +243,39 @@ extractors produce from React source: build artifacts, gitignored by design, so
 a run from a clean checkout would carry nothing for them. Source catalogs only —
 the target side is the loop's job, and target drift must never gate a push.
 
+### The extract root is declared, and moving it re-keys a surface
+
+A catalog records the source file it came from, and that path is two things at
+once: what a reviewer reads in bowrain, and the document's identity — it spells
+`doc.path`, `doc.id` and every block id under it.
+
+Left to the working directory it is only the first of those. A surface whose
+`--src` reaches outside its own package records
+`../../apps/bowrain/frontend/src/App.tsx`, which names a real file only to
+someone who knows where the extract ran; bowrain, holding the catalog and not
+the checkout, showed a reviewer a row reading
+`apps/bowrain/frontend/src/App.kbf.json` — a path that looks like a repository
+path and is not one. So the two surfaces whose roots cross packages declare
+`--source-root` at the repository root (`KAPI_DESKTOP_SOURCE_ROOT`,
+`BOWRAIN_APP_SOURCE_ROOT`), and every path they record means the same thing read
+from anywhere. `ctrl`, `pulse`, `emails` and `landing` scan only their own
+`src/`, where the working directory already is the root, so they declare nothing.
+
+**Declared, never derived.** A root inferred from the common ancestor of
+whatever globs matched would make every block id a function of which files
+happened to exist — add a `--src` reaching one level further up and the whole
+collection re-keys, silently. A root someone wrote down moves when they move it.
+
+Moving one is therefore a data decision, not a flag change. Every block id
+changes, and a push declares an item's key set rather than diffing ids, so the
+old ids read as removed and the new ones as added: the item is rewritten rather
+than migrated, and each block starts again with no target, no review state and
+no history. The surface's stored blocks are reset with it
+(`bowrain-infra/docs/runbooks/data-reset.md`). What does *not* move is the
+message hash — taken over the text and its descriptor, never over the path — so
+no translated catalog entry is orphaned and the loop refills from content
+memory.
+
 This is the one in-repo kapi invocation that binds the root recipe against the
 server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 

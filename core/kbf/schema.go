@@ -95,10 +95,17 @@ type Skeleton struct {
 type Document struct {
 	ID           string       `json:"id"`
 	DocumentType DocumentType `json:"documentType"`
-	Path         string       `json:"path"`
-	SourceHash   string       `json:"sourceHash,omitempty"`
-	Skeleton     *Skeleton    `json:"skeleton,omitempty"`
-	Blocks       []Block      `json:"blocks"`
+	// Path is the source file, relative to the root the extractor was given
+	// (--source-root, defaulting to its working directory). It is both the
+	// document's identity — it spells ID and every block id under it — and the
+	// path a reader is shown, which is why the root is declared rather than
+	// incidental: a path relative to wherever a build happened to run names a
+	// file only to someone who knows where that was, and a surface holding the
+	// catalog does not.
+	Path       string    `json:"path"`
+	SourceHash string    `json:"sourceHash,omitempty"`
+	Skeleton   *Skeleton `json:"skeleton,omitempty"`
+	Blocks     []Block   `json:"blocks"`
 }
 
 // GeneratorInfo identifies the extractor that produced a .kbf.json.

@@ -405,6 +405,16 @@ export interface Skeleton {
 export interface Document {
   id: string;
   documentType: DocumentType;
+  /**
+   * The source file, relative to the root the extractor was given
+   * (`--source-root`, defaulting to its working directory).
+   *
+   * Both the document's identity — it spells `id` and every block id under it —
+   * and the path a reader is shown, which is why the root is declared rather
+   * than incidental: a path relative to wherever a build happened to run names a
+   * file only to someone who knows where that was, and a surface holding the
+   * catalog does not.
+   */
   path: string;
   sourceHash?: string;
   skeleton?: Skeleton;
