@@ -87,6 +87,21 @@ in a configuration no other target used, on the same day. Check with:
 go list -tags "<your tags>" -f '{{.CgoCFLAGS}}' github.com/mattn/go-sqlite3 | grep FTS5
 ```
 
+### A piped command hides its exit code
+
+A pipeline reports only its *last* stage, so `golangci-lint ./... | tail` exits
+0 when the linter found problems. A backgrounded `cmd > log; echo EXIT=$?` has
+the same shape: the status belongs to `echo`. Both report a failed check as a
+passing one, and the only evidence is in the log nobody read.
+
+Start any command whose exit code you will act on with `set -o pipefail`, or
+redirect to a file and read `$?` before filtering:
+
+```bash
+set -o pipefail; golangci-lint run ./core/... | tail -20   # exits non-zero
+golangci-lint run ./core/... > /tmp/lint.out 2>&1; echo $?  # or capture first
+```
+
 ## Dogfooding kapi: the in-repo isolation contract
 
 This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the
