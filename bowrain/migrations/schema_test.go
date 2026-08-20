@@ -6,10 +6,12 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -136,10 +138,26 @@ func TestEverySubsystemIsRegistered(t *testing.T) {
 // Harness
 // ---------------------------------------------------------------------------
 
-// freshDatabase hands back an empty database. It drops and recreates the public
-// schema rather than creating a database per test: the migrations are written
-// against "public" unqualified, and a search_path trick would test a schema
-// production never uses.
+// freshDatabase hands back an empty database of its very own.
+//
+// It has to be a whole database, not a schema. The golden records what
+// Postgres built, and Postgres writes the schema name into what it reports —
+// every index line reads `ON public.tb_terms`. Run these migrations under a
+// schema called anything else and the golden differs on every one of them, so
+// the only ways to use a schema are to rename it back out of the snapshot
+// afterwards (a substitution that can hide a real difference) or to accept a
+// golden that says something production does not. In its own database `public`
+// is genuinely public and the snapshot needs no help.
+//
+// It also must not be the database everyone else is using, which is what it
+// was. The integration lane runs five packages against one server, four of
+// them through testutil/pgtest — which gives each test its own schema and
+// anchors the extensions those schemas share INTO public, because an extension
+// belongs to a database but installs into a schema. This package then reset
+// itself by dropping public CASCADE, taking the extensions with it, while
+// those packages were still running: `go test` runs packages in parallel, so
+// whether terms and memory found pg_trgm depended on where this package
+// happened to be. Nothing said so; the failures read as unrelated flakes.
 func freshDatabase(t *testing.T) *storage.PgDB {
 	t.Helper()
 
@@ -148,16 +166,70 @@ func freshDatabase(t *testing.T) *storage.PgDB {
 		connStr = "postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable"
 	}
 
-	db, err := storage.OpenPostgres(connStr)
+	// The connection the database is created and dropped from. It is not the
+	// one handed back: a database cannot be dropped from inside itself.
+	admin, err := storage.OpenPostgres(connStr)
 	if err != nil {
 		t.Skipf("PostgreSQL not available: %v", err)
 	}
+	t.Cleanup(func() { _ = admin.Close() })
+
+	name := scratchDatabaseName()
+	if _, err := admin.Exec(`CREATE DATABASE "` + name + `"`); err != nil {
+		require.NoError(t, err, "creating a scratch database for the schema snapshot")
+	}
+	t.Cleanup(func() {
+		// FORCE detaches anything still connected (PostgreSQL 13+). A server
+		// too old for it drops the database the ordinary way, which is enough
+		// once the pool above is closed — this cleanup runs after it.
+		if _, err := admin.Exec(`DROP DATABASE IF EXISTS "` + name + `" WITH (FORCE)`); err != nil {
+			_, _ = admin.Exec(`DROP DATABASE IF EXISTS "` + name + `"`)
+		}
+	})
+
+	scratchStr, err := withDatabase(connStr, name)
+	require.NoError(t, err)
+
+	db, err := storage.OpenPostgres(scratchStr)
+	require.NoError(t, err, "connecting to the scratch database")
 	t.Cleanup(func() { _ = db.Close() })
 
-	_, err = db.Exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO PUBLIC")
-	require.NoError(t, err, "resetting the public schema")
-
 	return db
+}
+
+// scratchDatabaseName is unique per database created, and unique per process:
+// two `go test` runs against one server (the framework module and this one, a
+// developer and CI) must not name the same database.
+func scratchDatabaseName() string {
+	scratchMu.Lock()
+	defer scratchMu.Unlock()
+	scratchSeq++
+	return fmt.Sprintf("bowrain_schema_%d_%d", os.Getpid(), scratchSeq)
+}
+
+var (
+	scratchMu  sync.Mutex
+	scratchSeq int
+)
+
+// withDatabase points a connection string at another database on the same
+// server.
+//
+// A failure here is a misconfiguration, not an absence — the URL is either the
+// package default or something the operator set — so it is reported rather
+// than skipped. A skip would read as "PostgreSQL is not available" and the
+// golden would silently stop being checked, which is the shape of failure this
+// guard exists to prevent in the first place.
+func withDatabase(connStr, name string) (string, error) {
+	u, err := url.Parse(connStr)
+	if err != nil {
+		return "", fmt.Errorf("BOWRAIN_TEST_POSTGRES_URL is not a URL: %w", err)
+	}
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return "", fmt.Errorf("BOWRAIN_TEST_POSTGRES_URL must be a postgres:// URL, got %q", u.Scheme)
+	}
+	u.Path = "/" + name
+	return u.String(), nil
 }
 
 // snapshotSchema renders the public schema as sorted, comparable text.
