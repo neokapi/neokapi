@@ -79,7 +79,7 @@ func FeatureFromRoute(route string) string {
 	if route == "" {
 		return ""
 	}
-	for _, seg := range strings.Split(route, "/") {
+	for seg := range strings.SplitSeq(route, "/") {
 		switch {
 		case seg == "", seg == "api", seg == "v1":
 			continue
