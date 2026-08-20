@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/core/model"
@@ -45,6 +46,16 @@ func (g *GRPCServer) authorizeProject(ctx context.Context, projectID string) (*s
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project not found: %v", err)
 	}
+	// Every RPC that touches a project passes through here, so it is the one
+	// place the gRPC surface can be given the same dimensions the HTTP surface
+	// gets from its auth middleware — without it a slow push is attributable to
+	// a method and to no customer.
+	observe.TagScope(ctx, observe.Scope{
+		WorkspaceID: p.WorkspaceID,
+		ProjectID:   p.ID,
+		Feature:     "grpc",
+	})
+
 	if g.srv.AuthStore == nil {
 		// Standalone / single-user mode: no workspace scoping.
 		return p, nil
@@ -53,6 +64,7 @@ func (g *GRPCServer) authorizeProject(ctx context.Context, projectID string) (*s
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "authentication required")
 	}
+	observe.TagScope(ctx, observe.Scope{UserID: claims.Subject})
 	if _, err := g.srv.AuthStore.GetMembership(ctx, p.WorkspaceID, claims.Subject); err != nil {
 		return nil, status.Error(codes.NotFound, "project not found")
 	}
