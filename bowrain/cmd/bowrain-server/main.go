@@ -41,6 +41,9 @@ func main() {
 	// Error tracking (no-op without SENTRY_DSN). Flushed at the end of run(),
 	// which returns before main's os.Exit so buffered events are not lost.
 	observe.InitSentryFromEnv("server", version.Version+"+"+version.Commit)
+	// Route the framework's own spans here too. Without this the framework
+	// measures its work and hands it to a tracer that does not exist.
+	observe.InstallFrameworkTracer()
 
 	if err := run(); err != nil {
 		slog.Error("server failed", "error", err)

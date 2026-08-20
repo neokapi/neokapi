@@ -51,9 +51,12 @@ func WrapWith(prov aiprovider.LLMProvider, reg *resilience.Registry) aiprovider.
 		return nil
 	}
 	// Never double-wrap: the provider factories are called from several layers
-	// and a stack of guards would count one call many times.
-	if g, ok := prov.(*guarded); ok {
-		return g
+	// and a stack of guards would count one call many times. Asked through
+	// Breaker rather than by asserting the outermost type, because a guard can
+	// sit underneath a decorator — a tracing wrapper, or guardedStreaming,
+	// which is not a *guarded however much it embeds one.
+	if Breaker(prov) != nil {
+		return prov
 	}
 	if reg == nil {
 		reg = resilience.Default()
@@ -63,21 +66,34 @@ func WrapWith(prov aiprovider.LLMProvider, reg *resilience.Registry) aiprovider.
 
 	// Preserve streaming when the underlying provider offers it; a guard that
 	// silently downgraded a streaming provider would disable live progress.
+	// Tracing sits outside the guard, so a call refused by an open circuit is
+	// still measured. "The model was slow" and "we never asked" are different
+	// answers and both are worth being able to see.
 	if s, ok := prov.(aiprovider.StreamingLLMProvider); ok {
-		return &guardedStreaming{guarded: g, stream: s}
+		return aiprovider.Traced(&guardedStreaming{guarded: g, stream: s})
 	}
-	return g
+	return aiprovider.Traced(g)
 }
 
 // Breaker returns the breaker guarding a provider, or nil when prov is not
 // guarded. Call sites use it to ask "is this dependency currently down?"
 // before committing to expensive setup.
 func Breaker(prov aiprovider.LLMProvider) *resilience.Breaker {
-	switch g := prov.(type) {
-	case *guardedStreaming:
-		return g.breaker
-	case *guarded:
-		return g.breaker
+	// Walks the decorator stack. The guard is not always outermost — tracing
+	// wraps it — and a call site asking "is this dependency down?" must get the
+	// same answer whether or not the provider is being measured.
+	for prov != nil {
+		switch g := prov.(type) {
+		case *guardedStreaming:
+			return g.breaker
+		case *guarded:
+			return g.breaker
+		}
+		u, ok := prov.(interface{ Unwrap() aiprovider.LLMProvider })
+		if !ok {
+			return nil
+		}
+		prov = u.Unwrap()
 	}
 	return nil
 }
