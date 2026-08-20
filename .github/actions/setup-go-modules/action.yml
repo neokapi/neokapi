@@ -87,21 +87,26 @@ runs:
       with:
         packages: libicu-dev pkg-config
 
-    - name: Download modules
+    # go.sum already guarantees integrity, and the module cache is restored from
+    # a trusted GitHub-hosted cache, so `go mod verify` (a full cache-hash walk)
+    # is pure per-job overhead and is intentionally omitted.
+    - name: Resolve module set
+      id: mods
       shell: bash
+      env:
+        REQUESTED: ${{ inputs.modules }}
       run: |
         set -euo pipefail
-        # go.sum already guarantees integrity, and the module cache is restored
-        # from a trusted GitHub-hosted cache, so `go mod verify` (a full
-        # cache-hash walk) is pure per-job overhead and is intentionally omitted.
-        if [ "${{ inputs.modules }}" = "all" ]; then
-          mods=". host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain"
+        if [ "$REQUESTED" = "all" ]; then
+          echo "value=. host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain" >> "$GITHUB_OUTPUT"
         else
-          mods="${{ inputs.modules }}"
+          echo "value=$REQUESTED" >> "$GITHUB_OUTPUT"
         fi
-        for m in $mods; do
-          ( cd "$m" && go mod download )
-        done
+
+    - name: Download modules
+      uses: ./.github/actions/go-mod-download
+      with:
+        modules: ${{ steps.mods.outputs.value }}
 
     - name: Create embed placeholders
       shell: bash
