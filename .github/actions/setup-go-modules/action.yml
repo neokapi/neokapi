@@ -83,51 +83,9 @@ runs:
 
     - name: Install ICU development libraries
       if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        set -uo pipefail
-        # apt is bounded here because an unbounded apt is how this repository
-        # loses a day of CI.
-        #
-        # The runner image resolves mirrors through /etc/apt/apt-mirrors.txt,
-        # which lists an Azure mirror first. On 2026-08-19 that mirror stopped
-        # answering and apt sat retrying it: `Ign: http://azure.archive.ubuntu
-        # .com/ubuntu noble InRelease` over and over, for fourteen minutes in
-        # the jobs that had a timeout-minutes to hit and for three hours in the
-        # ones that did not. Every Go job in the repository goes through this
-        # step, so every PR stalled, and the failure arrived as `cancelled` —
-        # GitHub's word for a timeout — which reads like an infrastructure blip
-        # rather than like apt waiting on a mirror.
-        #
-        # Three bounds, smallest first:
-        #   Acquire::*::Timeout   — give up on one unresponsive mirror in
-        #                           seconds and fall through to the next.
-        #   timeout(1)            — a ceiling apt cannot argue with, whatever
-        #                           it is doing.
-        #   the loop              — a whole update+install may still fail; on
-        #                           the second failure the Azure mirror is
-        #                           dropped so the retry uses archive.ubuntu.com.
-        #
-        # The worst case is now ~5 minutes and a clear failure, against a
-        # 6-hour hang.
-        opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-        for attempt in 1 2 3; do
-          if timeout 90 sudo apt-get $opts update &&
-             timeout 90 sudo apt-get $opts install -y libicu-dev pkg-config; then
-            exit 0
-          fi
-          echo "::warning::apt attempt $attempt failed"
-          # Only drop the Azure mirror if something else is left to use;
-          # an empty mirrorlist would turn a slow install into no install.
-          if [ "$attempt" -eq 2 ] && [ -f /etc/apt/apt-mirrors.txt ] &&
-             grep -qv 'azure\.archive\.ubuntu\.com' /etc/apt/apt-mirrors.txt; then
-            echo "::warning::dropping the Azure mirror; retrying against the rest"
-            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
-          fi
-          sleep $((attempt * 5))
-        done
-        echo "::error::apt could not install libicu-dev after 3 attempts"
-        exit 1
+      uses: ./.github/actions/apt-install
+      with:
+        packages: libicu-dev pkg-config
 
     - name: Download modules
       shell: bash

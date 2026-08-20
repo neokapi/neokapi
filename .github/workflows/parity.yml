@@ -87,7 +87,9 @@ jobs:
           go-version-file: neokapi/go.mod
 
       - name: Install ICU dev libraries
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libicu-dev pkg-config
 
       - name: Regenerate version-specific POM
         # The okapi-releases/<V>/pom.xml committed in okapi-bridge

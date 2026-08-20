@@ -1,0 +1,64 @@
+name: apt install
+description: >-
+  Install Debian packages with bounds, so a degraded Ubuntu mirror fails fast
+  instead of hanging a job until its timeout — or, in a job without one, for
+  hours.
+
+inputs:
+  packages:
+    description: Space-separated package list.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        APT_PACKAGES: ${{ inputs.packages }}
+      run: |
+        set -uo pipefail
+        # apt is bounded here because an unbounded apt is how this repository
+        # loses a day of CI.
+        #
+        # The runner image resolves mirrors through /etc/apt/apt-mirrors.txt,
+        # which lists an Azure mirror first. On 2026-08-19 that mirror stopped
+        # answering and apt sat retrying it:
+        #
+        #   Ign: http://azure.archive.ubuntu.com/ubuntu noble InRelease
+        #
+        # over and over. Jobs with a timeout-minutes burned it and were recorded
+        # as `cancelled` — GitHub's word for a timeout, which reads like an
+        # infrastructure blip rather than like apt waiting on a mirror. Jobs
+        # without one simply hung: one lint job sat in this step for five and a
+        # half hours. Every open pull request was blocked at once.
+        #
+        # Three bounds, smallest first:
+        #   Acquire::*::Timeout — give up on one unresponsive mirror in seconds
+        #                         and fall through to the next in the list.
+        #   timeout(1)          — a ceiling apt cannot argue with, whatever it
+        #                         is doing.
+        #   the loop            — a whole update+install may still fail; on the
+        #                         second failure the Azure mirror is dropped so
+        #                         the retry uses archive.ubuntu.com, which was
+        #                         answering throughout.
+        #
+        # Worst case is about five minutes and an explicit error, against a
+        # six-hour hang.
+        opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
+        for attempt in 1 2 3; do
+          if timeout 90 sudo apt-get $opts update &&
+             timeout 180 sudo apt-get $opts install -y $APT_PACKAGES; then
+            exit 0
+          fi
+          echo "::warning::apt attempt $attempt failed"
+          # Drop the Azure mirror only if the list holds something else; an
+          # empty mirrorlist turns a slow install into no install at all.
+          if [ "$attempt" -eq 2 ] && [ -f /etc/apt/apt-mirrors.txt ] &&
+             grep -qv 'azure\.archive\.ubuntu\.com' /etc/apt/apt-mirrors.txt; then
+            echo "::warning::dropping the Azure mirror; retrying against the rest"
+            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+          fi
+          sleep $((attempt * 5))
+        done
+        echo "::error::apt could not install '$APT_PACKAGES' after 3 attempts"
+        exit 1
