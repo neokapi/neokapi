@@ -43,17 +43,37 @@ fi
 # The push paths block, up to the next top-level key.
 paths=$(awk '/^  push:/{p=1} p&&/^[a-z]/{p=0} p' "$WORKFLOW")
 
-missing=""
+missing_dirs=""
 for d in $linked; do
-  grep -qE "^ *- \"$d/\*\*\"" <<<"$paths" || missing="$missing $d"
+  grep -qE "^ *- \"$d/\*\*\"" <<<"$paths" || missing_dirs="$missing_dirs $d"
 done
 
-if [ -n "$missing" ]; then
-  echo "ERROR: $WORKFLOW does not deploy on changes to:$missing" >&2
+# The deploy path also has to trigger on itself and on the reusable workflows
+# that decide what image is built — otherwise a change to how deploying works
+# is not exercised by its own merge, and surfaces inside whatever unrelated
+# push carries it. Derived from the `uses:` lines, so adding a build workflow
+# cannot quietly escape this.
+own=$(printf '%s\n' "$WORKFLOW"; grep -oE '\./\.github/workflows/[A-Za-z0-9_.-]+\.yml' "$WORKFLOW" | sed 's|^\./||' | sort -u)
+missing_wf=""
+for f in $own; do
+  grep -qF "\"$f\"" <<<"$paths" || missing_wf="$missing_wf $f"
+done
+
+rc=0
+if [ -n "$missing_dirs" ]; then
+  echo "ERROR: $WORKFLOW does not deploy on changes to:$missing_dirs" >&2
   echo "  Those directories are compiled into bowrain-server/bowrain-worker, so a" >&2
   echo "  change there changes what runs in production. Add \"<dir>/**\" to the" >&2
   echo "  workflow's push paths." >&2
-  exit 1
+  rc=1
 fi
+if [ -n "$missing_wf" ]; then
+  echo "ERROR: $WORKFLOW does not deploy on changes to:$missing_wf" >&2
+  echo "  Those files decide how the deploy runs and what image it builds, so a" >&2
+  echo "  change to one is not exercised until an unrelated push carries it. Add" >&2
+  echo "  each as a literal path entry." >&2
+  rc=1
+fi
+[ "$rc" -eq 0 ] || exit 1
 
-echo "check-deploy-paths: OK ($(tr '\n' ' ' <<<"$linked"))"
+echo "check-deploy-paths: OK ($(tr '\n' ' ' <<<"$linked")+ $(wc -w <<<"$own" | tr -d ' ') workflow files)"
