@@ -635,6 +635,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 	}
 
+	// What each scanned item holds now, declared so the server can drop what it
+	// no longer does (core/venue.ItemBlockKeys). A deletion sends no block, so
+	// it is invisible to the diff above and would otherwise never reach the
+	// server at all.
+	itemBlocks := venue.ItemBlockKeys(blockMap)
+
 	pushWords := 0
 	for _, ib := range changed {
 		pushWords += ib.block.WordCount()
@@ -690,7 +696,14 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		// blocks changed" is what used to leave the declared structure (and
 		// would leave the decision record) stranded on the developer's
 		// machine.
-		if len(changed) == 0 && !c.PushContextChanged() && !decisionsChanged {
+		// A deletion is the one source change that sends nothing: the string is
+		// simply absent from the scan, so no block is "changed" and the push
+		// would fall out here having left the server holding content the source
+		// no longer has. The cache is what this producer last told the server
+		// an item held, so a key it has that the scan does not is a removal to
+		// carry — and the declaration above is what carries it.
+		if len(changed) == 0 && !c.hasCachedBlocksMissingFrom(itemBlocks) &&
+			!c.PushContextChanged() && !decisionsChanged {
 			return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 		}
 	}
@@ -717,6 +730,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	pushOpts := []apiclient.PushOption{
 		apiclient.AssertRef(c.refs.Ref(c.stream)),
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
+		apiclient.DeclareItemBlocks(itemBlocks),
 	}
 	// --force already means "send everything, ignore the cache". It also means
 	// the one thing the server refuses on its own: writing content from an
@@ -1929,6 +1943,45 @@ func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
+// hasCachedBlocksMissingFrom reports whether the sync cache holds a block, for
+// an item this scan read, that the scan no longer produced — a removal.
+//
+// The cache is this producer's record of what it last told the server each item
+// held, so its keys are the right thing to miss against. Only items present in
+// the declaration are consulted: a scoped push says nothing about files it did
+// not look at, and a cache entry for one of those is not a deletion.
+//
+// It answers whether to push at all, never what to delete. The deletion itself
+// is decided at the far side from the declaration, which is why a fresh clone
+// with no cache — the CI case — still prunes: nothing to miss here, everything
+// to declare there.
+func (c *BowrainSourceConnector) hasCachedBlocksMissingFrom(itemBlocks map[string][]string) bool {
+	if c.cache == nil || len(itemBlocks) == 0 {
+		return false
+	}
+	for itemName, keys := range itemBlocks {
+		fc, ok := c.cache.Files[itemName]
+		if !ok {
+			continue
+		}
+		// The scan's keys are unique, so the cache cannot hold one it lacks
+		// without also being larger.
+		if len(fc.Blocks) <= len(keys) {
+			continue
+		}
+		held := make(map[string]struct{}, len(keys))
+		for _, k := range keys {
+			held[k] = struct{}{}
+		}
+		for cached := range fc.Blocks {
+			if _, still := held[cached]; !still {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (c *BowrainSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
 	fc, ok := c.cache.Files[itemName]
 	if !ok {

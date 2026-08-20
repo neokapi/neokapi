@@ -18,7 +18,7 @@
  */
 
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { glob } from "node:fs/promises";
 
 import type { Document } from "@neokapi/kapi-format";
@@ -74,7 +74,10 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     console.log(`Scanning ${files.length} files...`);
   }
 
-  const documents = extractAllDocuments(files, config, { strict: opts.strict });
+  const documents = extractAllDocuments(files, config, {
+    strict: opts.strict,
+    sourceRoot: opts.sourceRoot,
+  });
 
   if (opts.stream) {
     // NDJSON block stream on stdout — consumed by kapi's exec
@@ -167,6 +170,9 @@ interface ExtractArgs {
   srcGlobs: string[];
   ignoreGlobs: string[];
   outDir: string;
+  // --source-root: the directory every recorded source path is relative TO.
+  // Declared rather than derived; see resolveSourcePath. Empty means cwd.
+  sourceRoot: string;
   configPath: string | null;
   projectId: string;
   sourceLocale: string;
@@ -186,6 +192,7 @@ function parseArgs(args: string[]): ExtractArgs {
     srcGlobs: [],
     ignoreGlobs: [],
     outDir: "i18n",
+    sourceRoot: "",
     configPath: null,
     projectId: "app",
     sourceLocale: "en",
@@ -211,6 +218,9 @@ function parseArgs(args: string[]): ExtractArgs {
         break;
       case "--out":
         if (value) parsed.outDir = args[++i];
+        break;
+      case "--source-root":
+        if (value) parsed.sourceRoot = args[++i];
         break;
       case "--config":
         if (value) parsed.configPath = args[++i];
@@ -248,16 +258,46 @@ function loadConfig(path: string | null): ExtractConfig {
   }
 }
 
+/**
+ * The path a document is recorded under: the source file, relative to the root
+ * this run was given.
+ *
+ * One path, and it carries two jobs — identity (it spells `doc.path`, `doc.id`
+ * and every block id under it) and meaning (it is what a reviewer is shown).
+ * That is why the root is DECLARED and not incidental. Left to the working
+ * directory, a file scanned as `--src "../../apps/bowrain/frontend/src/**"`
+ * records as `../../apps/bowrain/frontend/src/App.tsx`, which names a real file
+ * only to someone who knows which directory the build ran in — and a surface
+ * holding the catalog, an ocean away from the checkout, does not. Given
+ * `--source-root ../../..` the same file records as
+ * `bowrain/apps/bowrain/frontend/src/App.tsx`, which needs no such context.
+ *
+ * Declared, never derived. A root inferred from the common ancestor of whatever
+ * `--src` globs matched would make every path — and so every block id — a
+ * function of which files happened to exist: add a root reaching one level
+ * further up and the whole collection re-keys. A root someone wrote down moves
+ * when they move it.
+ *
+ * Without the flag this is the working directory, so a surface scanning only its
+ * own `src/` records exactly what it always did.
+ */
+function resolveSourcePath(file: string, sourceRoot: string): string {
+  return relative(sourceRoot ? resolve(sourceRoot) : process.cwd(), resolve(file));
+}
+
 function extractAllDocuments(
   files: readonly string[],
   config: ExtractConfig,
-  { strict }: { strict: boolean } = { strict: false },
+  { strict, sourceRoot }: { strict: boolean; sourceRoot: string } = {
+    strict: false,
+    sourceRoot: "",
+  },
 ): Document[] {
   const out: Document[] = [];
   const warnings = createWarningCollector();
   for (const file of files) {
     const code = readFileSync(file, "utf-8");
-    const filename = relative(process.cwd(), file);
+    const filename = resolveSourcePath(file, sourceRoot);
     const doc = extractDocument(code, { filename, warnings, ...config });
     if (doc) out.push(doc);
   }
@@ -291,11 +331,13 @@ function buildKBF(doc: Document, opts: ExtractArgs) {
 function kbfFilename(doc: Document): string {
   // Keep the source file's path shape inside --out so translators
   // scanning the directory see a 1:1 reflection of the source tree.
-  // Workspace sources outside the project root (e.g. --src
-  // "../../packages/ui/src/**/*.tsx") carry leading "../" segments
-  // that would escape --out and scatter .kbf.json files into the
-  // library tree; strip them so every output lands inside the --out
-  // directory. doc.path itself keeps the original relative path.
+  //
+  // A path that still climbs above the root — a `--src` reaching outside a
+  // --source-root nobody widened to match — would escape --out and scatter
+  // .kbf.json files into the library tree. Those segments are dropped rather
+  // than honoured: a catalog written outside its own collection is worse than
+  // one whose name lost a level, and declaring the root is what keeps the
+  // situation from arising. doc.path keeps the path whole either way.
   const contained = doc.path.replace(/^(\.\.\/)+/, "");
   return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + Ext;
 }
@@ -327,6 +369,12 @@ Options:
                           "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
   --out <dir>             Output directory for .kbf.json files (default: "i18n").
+  --source-root <dir>     Directory every recorded source path is relative to
+                          (default: the working directory). Declare it wherever
+                          --src reaches outside the working directory, so a
+                          catalog names its source the same way from anywhere —
+                          it is the document's identity as well as what a
+                          reviewer reads, so changing it re-keys the catalogs.
                           Catalogs mirror the source tree, so the default
                           "src/**" glob writes them under "i18n/src/" —
                           leaving "i18n/{lang}/" free for kapi's per-locale

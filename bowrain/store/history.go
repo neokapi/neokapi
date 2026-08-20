@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
@@ -55,7 +56,18 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 // content store retain prior target content, as the SQLite store does, which is
 // the substrate for per-edit rollback. author is left empty here; the audit_log
 // captures the acting user for the corresponding block.updated event.
-func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target) error {
+//
+// now is the transaction's own timestamp, bound like every other write in it,
+// and deliberately NOT the database's NOW(). Those are two clocks, and a history
+// row is only useful beside the things it gets compared against: a
+// point-in-time restore takes its cutoff from versions.created_at or
+// change_log.logged_at — both stamped by this process — and asks which history
+// rows fall after it (ComputePointInTimeReverts). Stamped on the database's
+// clock instead, that comparison spans a skew nobody controls. Run the server a
+// little behind its database and a restore reverts nothing, because every row
+// it should roll back looks older than the version being rolled back to; run it
+// ahead and the restore blanks targets that had content.
+func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target, now time.Time) error {
 	cc := ChangeContextFromContext(ctx)
 	for key, nt := range newTargets {
 		if nt == nil {
@@ -80,9 +92,9 @@ func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, b
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO block_history
 				(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 			projectID, stream, blockID, variant, changeType, newText, coded, originText(nt.Origin),
-			cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID); err != nil {
+			cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, now); err != nil {
 			return fmt.Errorf("record block history for %s/%s: %w", blockID, variant, err)
 		}
 	}

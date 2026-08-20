@@ -1486,10 +1486,33 @@ BOWRAIN_SHELL_EXTRACT_CONFIG := --config ../../packages/app/neokapi-i18n.config.
 EMAILS_EXTRACT_CONFIG        := --config neokapi-i18n.config.json
 LANDING_EXTRACT_CONFIG       :=
 
+# The directory every recorded source path is relative to, for the two surfaces
+# whose --src roots reach outside their own package.
+#
+# Left to the working directory, a catalog records its source as
+# `../../apps/bowrain/frontend/src/App.tsx` — a path that names a real file only
+# to someone who knows which directory the extract ran in. bowrain, holding the
+# catalog and not the checkout, does not: it showed a reviewer a row reading
+# `apps/bowrain/frontend/src/App.kbf.json`, which looks like a repository path
+# and is not one. Declared at the repository root the same file records as
+# `bowrain/apps/bowrain/frontend/src/App.tsx`, which means the same thing read
+# from anywhere.
+#
+# This is the document's IDENTITY as well as what a reviewer reads — it spells
+# every block id under it — so moving a root re-keys that surface's catalogs and
+# its stored blocks. Declare it once and leave it: see
+# docs/internals/l10n-ci.md.
+#
+# ctrl, pulse, emails and landing scan only their own `src/`, where the working
+# directory is already the root, so they declare nothing and record what they
+# always did.
+KAPI_DESKTOP_SOURCE_ROOT := ../../..
+BOWRAIN_APP_SOURCE_ROOT  := ../../..
+
 # The whole argv each extract target runs, so `l10n-extract-globs` prints the
 # real invocation and the guard checks what the pipeline actually does.
-KAPI_DESKTOP_EXTRACT_FLAGS  := $(KAPI_DESKTOP_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
-BOWRAIN_APP_EXTRACT_FLAGS   := $(BOWRAIN_APP_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+KAPI_DESKTOP_EXTRACT_FLAGS  := $(KAPI_DESKTOP_EXTRACT_CONFIG) --out i18n/ --source-root $(KAPI_DESKTOP_SOURCE_ROOT) --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
+BOWRAIN_APP_EXTRACT_FLAGS   := $(BOWRAIN_APP_EXTRACT_CONFIG) --out i18n/ --source-root $(BOWRAIN_APP_SOURCE_ROOT) --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
 BOWRAIN_SHELL_EXTRACT_FLAGS := $(BOWRAIN_SHELL_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
 EMAILS_EXTRACT_FLAGS        := $(EMAILS_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(EMAILS_EXTRACT_SRC)
 LANDING_EXTRACT_FLAGS       := $(LANDING_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(LANDING_EXTRACT_SRC)

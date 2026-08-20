@@ -212,9 +212,14 @@ type SkippedFileResponse struct {
 
 // ProjectItemResponse describes an item within a project.
 type ProjectItemResponse struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Format       string `json:"format"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Format string `json:"format"`
+	// SourcePath is the file this item's content was lifted out of, when the
+	// item is a generated catalog rather than the source itself. What a list
+	// SHOWS; Name stays what everything ADDRESSES. Empty for an item that is
+	// its own source, which is most of them.
+	SourcePath   string `json:"source_path,omitempty"`
 	Type         string `json:"type"`
 	CollectionID string `json:"collection_id,omitempty"`
 	Size         int64  `json:"size"`
@@ -1441,6 +1446,7 @@ func editorBuildProjectItems(ctx context.Context, cs store.ContentStore, projID,
 			ID:           item.ID,
 			Name:         item.Name,
 			Format:       item.Format,
+			SourcePath:   item.Properties[store.ItemPropSourcePath],
 			Type:         item.ItemType,
 			CollectionID: item.CollectionID,
 			Size:         0,
@@ -2028,6 +2034,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			ItemName:       item.Name,
 			ItemID:         item.ID,
 			Format:         item.Format,
+			SourcePath:     item.Properties[store.ItemPropSourcePath],
 			CollectionID:   item.CollectionID,
 			CollectionName: collName,
 			BlockCount:     bc,
@@ -2203,8 +2210,22 @@ func (w dashboardItemWindow) itemInScope(it store.ItemTranslationStats) bool {
 	return it.CollectionID == w.collectionID
 }
 
-// commonItemBase returns the directory prefix every item name shares, with a
-// trailing slash, or "" when they share none.
+// itemDisplayPath is the path an item READS as: the file it was extracted from
+// when it is a generated catalog, otherwise the item itself.
+//
+// Mirrors itemDisplayPath in the UI's collections/itemBase.ts. Both surfaces
+// show the same path, so both must trim the same one — a base computed over
+// item names prefixes none of the source paths shown beside them, and every row
+// would read whole.
+func itemDisplayPath(it store.ItemTranslationStats) string {
+	if it.SourcePath != "" {
+		return it.SourcePath
+	}
+	return it.ItemName
+}
+
+// commonItemBase returns the directory prefix every item's displayed path
+// shares, with a trailing slash, or "" when they share none.
 //
 // Whole segments only: "docs/api" and "docs/apps" share "docs/", not "docs/ap".
 // A single item contributes its own directory, which is what makes a one-file
@@ -2218,12 +2239,12 @@ func commonItemBase(items []store.ItemTranslationStats) string {
 		segs := strings.Split(name, "/")
 		return segs[:len(segs)-1] // drop the file's own name
 	}
-	shared := dirOf(items[0].ItemName)
+	shared := dirOf(itemDisplayPath(items[0]))
 	for _, it := range items[1:] {
 		if len(shared) == 0 {
 			return ""
 		}
-		segs := dirOf(it.ItemName)
+		segs := dirOf(itemDisplayPath(it))
 		if len(segs) < len(shared) {
 			shared = shared[:len(segs)]
 		}

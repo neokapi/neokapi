@@ -221,6 +221,11 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// about. Passed through verbatim like Items — see
 		// core/venue.BlockPropertyKeys.
 		BlockPropertyKeys []string `json:"block_property_keys"`
+		// ItemBlocks declares, per item this producer read, the complete set of
+		// block keys it holds — so the worker can remove the ones it no longer
+		// does. Passed through verbatim like Items; see
+		// core/venue.ItemBlockKeys.
+		ItemBlocks map[string][]string `json:"item_blocks"`
 		// ContentModelEpoch is the generation this push wrote, recorded on the
 		// stream now that it has been accepted.
 		ContentModelEpoch int `json:"content_model_epoch"`

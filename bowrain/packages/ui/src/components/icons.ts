@@ -46,6 +46,7 @@ export {
   User,
   WifiOff,
   Monitor,
+  MonitorPlay,
   Bell,
   Code,
   KeyRound,

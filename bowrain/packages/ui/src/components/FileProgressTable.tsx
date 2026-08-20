@@ -6,6 +6,8 @@ import type { DashboardItemSort, ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
 import { ListCapRow } from "./ListCapRow";
+import { itemDisplayPath, relativeItemName } from "./collections/itemBase";
+import { MonitorPlay } from "./icons";
 
 type SortField = DashboardItemSort;
 type SortDir = "asc" | "desc";
@@ -51,6 +53,14 @@ interface FileProgressTableProps {
    * content; omitted, the table stays a read-only report.
    */
   onOpenItem?: (item: ItemTranslationStats) => void;
+  /**
+   * Which rows can be read inside the component that ships them
+   * (`useInContextItems`), asked of the item's source path. A collection
+   * declaring a preview host does not mean every item in it has a view — a
+   * Storybook renders what someone wrote a story for — so the rows that do are
+   * marked, and the rest left plain. Omitted, no row is marked.
+   */
+  inContext?: (sourcePath?: string) => boolean;
 }
 
 /** Hard render cap — large projects can hold thousands of files. */
@@ -136,6 +146,7 @@ export function FileProgressTable({
   itemBase,
   paging,
   onOpenItem,
+  inContext,
 }: FileProgressTableProps) {
   const [localSortField, setLocalSortField] = useState<SortField>("name");
   const [localSortDir, setLocalSortDir] = useState<SortDir>("asc");
@@ -184,11 +195,12 @@ export function FileProgressTable({
     return items;
   }, [itemStats, sortField, sortDir, paging]);
 
-  // A name the base does not actually prefix is left whole rather than
-  // half-trimmed — the base is a claim about the scope, and an item outside it
-  // is better shown in full than shown wrong.
-  const displayName = (name: string) =>
-    itemBase && name.startsWith(itemBase) ? name.slice(itemBase.length) : name;
+  // How a row reads: the source file when the item is a generated catalog,
+  // otherwise the item itself — under the base the whole scope shares. A
+  // reading of the name and never a change to it: `item_name` stays in the
+  // tooltip and is what every callback carries.
+  const displayName = (item: ItemTranslationStats) =>
+    relativeItemName(itemDisplayPath(item.item_name, item.source_path), itemBase ?? "");
 
   // Hard cap so a project with thousands of files never floods the DOM; the
   // ListCapRow below makes the cut honest. Server paging already bounds rows.
@@ -276,26 +288,40 @@ export function FileProgressTable({
 
                 return (
                   <tr key={item.item_id} className="border-b last:border-0">
-                    <td className="truncate py-2 pr-3 font-medium" title={item.item_name}>
-                      {onOpenItem ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenItem(item)}
-                          className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <FormattedFileName
-                            name={displayName(item.item_name)}
-                            format={item.format}
-                            iconClassName="w-3.5 h-3.5 shrink-0"
+                    <td className="py-2 pr-3 font-medium" title={item.item_name}>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {onOpenItem ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenItem(item)}
+                            className="min-w-0 flex-1 truncate text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <FormattedFileName
+                              name={displayName(item)}
+                              format={item.format}
+                              iconClassName="w-3.5 h-3.5 shrink-0"
+                            />
+                          </button>
+                        ) : (
+                          <span className="min-w-0 flex-1 truncate">
+                            <FormattedFileName
+                              name={displayName(item)}
+                              format={item.format}
+                              iconClassName="w-3.5 h-3.5 shrink-0"
+                            />
+                          </span>
+                        )}
+                        {/* Marked, never dimmed: a row without a story is not
+                            worse content, it is content with no component
+                            published beside it. */}
+                        {inContext?.(item.source_path) && (
+                          <MonitorPlay
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                            aria-label="Can be read in context"
+                            data-testid="file-in-context"
                           />
-                        </button>
-                      ) : (
-                        <FormattedFileName
-                          name={displayName(item.item_name)}
-                          format={item.format}
-                          iconClassName="w-3.5 h-3.5 shrink-0"
-                        />
-                      )}
+                        )}
+                      </span>
                     </td>
                     <td className="truncate px-2 py-2 text-muted-foreground">{item.format}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">

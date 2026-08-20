@@ -41,3 +41,16 @@ export function useWorkspace(): WorkspaceContextValue {
   if (!ctx) throw new Error("useWorkspace must be used within WorkspaceProvider");
   return ctx;
 }
+
+/**
+ * The workspace when there is one, null when there is not.
+ *
+ * For a component that works either way and only NEEDS the workspace to reach a
+ * workspace-scoped route: the desktop app and the component stories mount the
+ * same views with no provider around them, and throwing there would make a
+ * feature that simply is not offered look like a crash. A caller that cannot
+ * proceed without a workspace still uses `useWorkspace` and gets the error.
+ */
+export function useOptionalWorkspace(): WorkspaceContextValue | null {
+  return useContext(WorkspaceContext);
+}

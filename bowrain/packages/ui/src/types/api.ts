@@ -440,6 +440,13 @@ export interface ProjectItem {
   id: string;
   name: string;
   format: string;
+  /**
+   * The file this item's content was lifted out of, when the item is a
+   * generated catalog rather than the source itself. What a list SHOWS;
+   * `name` stays what everything ADDRESSES. Absent for an item that is its own
+   * source, which is most of them.
+   */
+  source_path?: string;
   type: string;
   collection_id?: string;
   size: number;
@@ -931,6 +938,14 @@ export interface ItemTranslationStats {
   item_name: string;
   item_id: string;
   format: string;
+  /**
+   * The file this item's content was lifted out of, when the item is a
+   * generated catalog rather than the source itself — a KBF bundle extracted
+   * from `App.tsx` is named `…/App.kbf.json`, because that path is its
+   * identity. What a list SHOWS; `item_name` stays what everything ADDRESSES.
+   * Absent for an item that is its own source, which is most of them.
+   */
+  source_path?: string;
   collection_id: string;
   /** Name of the collection collection_id refers to; absent when ungrouped. */
   collection_name?: string;

@@ -71,6 +71,18 @@ type Item struct {
 	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
+// Item.Properties keys this server assigns meaning to. Everything else in the
+// map is a producer's own and is stored untouched.
+const (
+	// ItemPropSourcePath is the file the item's content was lifted out of,
+	// when that is not the item itself. Set for a generated catalog — a KBF
+	// bundle extracted from `App.tsx` is named `…/App.kbf.json`, because that
+	// path is its identity — so a surface can show the item as its source
+	// without the item ever being renamed. Absent for every item that IS its
+	// own source, which is most of them.
+	ItemPropSourcePath = "source_path"
+)
+
 // BlockQuery filters blocks when listing or searching.
 type BlockQuery struct {
 	ProjectID     string
@@ -702,6 +714,12 @@ type ItemTranslationStats struct {
 	ItemID       string `json:"item_id"`
 	Format       string `json:"format"`
 	CollectionID string `json:"collection_id"`
+	// SourcePath is the file this item's content was lifted out of, when the
+	// item is a generated catalog rather than the source itself
+	// (Item.Properties[ItemPropSourcePath]). It is what a list SHOWS; ItemName
+	// stays what everything ADDRESSES. Empty for an item that is its own
+	// source, which is most of them.
+	SourcePath string `json:"source_path,omitempty"`
 	// CollectionName is the name of the collection CollectionID refers to.
 	// Empty when the item is ungrouped, or when its collection id names a row
 	// this project no longer holds.

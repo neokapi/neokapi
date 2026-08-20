@@ -70,7 +70,14 @@ const SENTINEL_CATALOGS = [
 ];
 
 // The extract flags that consume the next token. Anything else is a switch.
-const VALUED = new Set(["--config", "--out", "--target-locale", "--src", "--ignore"]);
+const VALUED = new Set([
+  "--config",
+  "--out",
+  "--source-root",
+  "--target-locale",
+  "--src",
+  "--ignore",
+]);
 
 // splitFlags tokenizes a make-expanded flag string, honouring the double
 // quotes that keep a glob away from the shell.

@@ -42,6 +42,7 @@ import type {
   TextRun,
 } from "@neokapi/kapi-format";
 
+import { hasICUSyntax } from "../runtime/icu.ts";
 import { containsJSX, dedupName, exprToName, getTagName, resolveHTMLElement } from "./ast.ts";
 import {
   isPluralElement,
@@ -572,4 +573,88 @@ function trimEdgeWhitespace(runs: Run[]): Run[] {
   }
 
   return trimmed;
+}
+
+// ─── t() argument runs ────────────────────────────────────────────
+
+/**
+ * A `t()` argument token: a brace around a member path and nothing else.
+ *
+ * Deliberately exact. The runtime substitutes by literal string match
+ * (`out.replaceAll("{" + key + "}", …)`), so a token is one only if it is
+ * spelled the way a key is spelled — `{ name }` with spaces around it
+ * substitutes nothing at render time, and lifting it into a run would quietly
+ * repair it, because a `ph` flattens back as `{equiv}`. A brace holding
+ * anything else is left as the text it is.
+ */
+const T_ARGUMENT = String.raw`\{([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\}`;
+
+/** What {@link tCallRuns} produces: the runs, and the metadata table for them. */
+export interface TCallRunsResult {
+  runs: Run[];
+  placeholders: Placeholder[];
+}
+
+/**
+ * The runs of a `t("…")` source string, with its arguments lifted out of the
+ * text as placeholder runs.
+ *
+ * A `t()` string has no AST to walk — its arguments are brace tokens the
+ * runtime substitutes by literal match. So until they were lifted they were
+ * ordinary characters in an ordinary text run, and every mechanism that
+ * protects a placeholder was reading a block that declared none: the editor
+ * drew `use {replacement}` as prose with nothing to hold onto, an AI pass got a
+ * sentence in which `{replacement}` was a word like any other, and
+ * `DiffRunCodes` — the comparison that catches a target which dropped an inline
+ * code — had no code to compare. A translation that reworded the token still
+ * rendered. It rendered `{replacement}`, literally, to the reader.
+ *
+ * Lifting them puts a `t()` argument on the footing a JSX one has always had.
+ * `jsx:var` is reused rather than a new vocabulary key invented: that entry is
+ * the *variable* rendering — chip labelled with the equiv, not deletable — and
+ * what differs between `<p>{name}</p>` and `t("{name}")` is where the extractor
+ * found the token, which is not something a reviewer's chip should say.
+ *
+ * The flattened form is unchanged: `flattenRuns` writes a `ph` back as
+ * `{equiv}`, so the compiled dictionary and the runtime lookup are byte-identical
+ * to what the single text run produced. The block hash is unaffected too — it is
+ * taken over the raw `t()` argument, never over the runs.
+ *
+ * ICU picker messages are left whole. Their braces belong to ICU, not to the
+ * substitution pass: the argument, the categories and the `#` are one structure
+ * `resolveICU` parses at render time, and placeholder-check already compares
+ * that structure argument by argument rather than token by token
+ * (core/tools/placeholders.go). Splitting a picker across runs would hand both
+ * of them half a message.
+ */
+export function tCallRuns(text: string): TCallRunsResult {
+  if (text === "") return { runs: [], placeholders: [] };
+  if (hasICUSyntax(text)) return { runs: [{ text } as TextRun], placeholders: [] };
+
+  const runs: Run[] = [];
+  const placeholders = new Map<string, Placeholder>();
+  let cursor = 0;
+
+  for (const m of text.matchAll(new RegExp(T_ARGUMENT, "g"))) {
+    const name = m[1];
+    const at = m.index;
+    if (at > cursor) runs.push({ text: text.slice(cursor, at) } as TextRun);
+    runs.push({
+      ph: {
+        id: String(runs.length + 1),
+        type: "jsx:var",
+        data: m[0],
+        equiv: name,
+      },
+    } satisfies PlaceholderRun);
+    if (!placeholders.has(name)) {
+      placeholders.set(name, { name, kind: "variable", sourceExpr: name });
+    }
+    cursor = at + m[0].length;
+  }
+
+  if (placeholders.size === 0) return { runs: [{ text } as TextRun], placeholders: [] };
+  if (cursor < text.length) runs.push({ text: text.slice(cursor) } as TextRun);
+
+  return { runs, placeholders: Array.from(placeholders.values()) };
 }
