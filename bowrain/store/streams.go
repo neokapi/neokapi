@@ -50,17 +50,82 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 		return fmt.Errorf("insert stream: %w", err)
 	}
 
-	// Copy items from the parent stream into the new stream.
+	// A branch starts as its parent: the same content, the same translations,
+	// the same approvals. Everything is copied under the new stream and KEEPS
+	// ITS IDS — that is what makes the same unit the same unit on both sides,
+	// so a diff compares by key rather than guessing by content, and a branch
+	// inherits its governance instead of starting unreviewed.
+	//
+	// Ids used to be minted per stream here, which is why the same file on two
+	// streams read as two unrelated units and why nothing could be merged.
 	parentStream := storeutil.DefaultStream(st.Parent)
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
-		 SELECT substr(md5(random()::text), 1, 8), project_id, $1, name, format, item_type, block_index, preview_html, properties, collection_id, $2, $2
-		 FROM items WHERE project_id = $3 AND stream = $4`,
-		st.Name, now, st.ProjectID, parentStream)
-	if err != nil {
-		return fmt.Errorf("copy parent items: %w", err)
+	if err := branchStreamContent(ctx, s.db.DB, st.ProjectID, parentStream, st.Name, now); err != nil {
+		return fmt.Errorf("branch %q from %q: %w", st.Name, parentStream, err)
 	}
 
+	return nil
+}
+
+// branchStreamCopies names each stream-scoped table and the columns to carry
+// across, with the stream itself supplied by the caller. Written out per table
+// rather than derived, because a column list is what a copy IS: a table that
+// gains a column and is not named here would silently drop it on every branch,
+// and the compiler cannot see into SQL.
+//
+// change_log is deliberately absent. A branch inherits content, not history:
+// its base_cursor already records where it started, and copying its parent's
+// log would make every unit read as changed on the branch the moment it was
+// created.
+// stamp names the column set to the branch time rather than copied, or "" for
+// a table with no such column. A copied row is new here, so its own clock
+// starts now; the content it carries is the parent's verbatim.
+//
+// mintID marks a table whose id is the ROW's identity rather than the unit's.
+// items and blocks keep theirs — the same unit having the same id on both sides
+// is what makes a branch comparable to its parent — but a note is its own row,
+// keyed globally, so a copy is a new note and needs a new id.
+var branchStreamCopies = []struct {
+	table, columns, stamp string
+	mintID                bool
+}{
+	{table: "items", columns: "id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at", stamp: "updated_at"},
+	{table: "blocks", columns: "id, project_id, item_name, item_id, source_id, name, type, mime_type, translatable, " +
+		"content_hash, context_hash, source_json, overlays, word_count, properties, owner_id, access, stored_at", stamp: "updated_at"},
+	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
+	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
+	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
+	{table: "block_notes", columns: "project_id, block_id, author, text, created_at", mintID: true},
+	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
+		"review_state, decided_by, decided_at, note, parked, assignee, updated", stamp: "updated_at"},
+}
+
+// branchStreamContent copies one stream's content into another, ids intact.
+// Takes an Execer so a branch (its own statement) and a fast-forward merge
+// (inside the transaction that just cleared the target) share one definition
+// of what copying a stream means.
+func branchStreamContent(ctx context.Context, ex Execer, projectID, from, to string, now time.Time) error {
+	for _, c := range branchStreamCopies {
+		cols, sel := "stream, "+c.columns, "$1, "+c.columns
+		args := []any{to}
+		next := 2
+		if c.mintID {
+			cols = "id, " + cols
+			sel = "substr(md5(random()::text || " + c.table + ".id), 1, 12), " + sel
+		}
+		if c.stamp != "" {
+			cols += ", " + c.stamp
+			sel += fmt.Sprintf(", $%d", next)
+			args = append(args, now)
+			next++
+		}
+		//nolint:gosec // table and column names are fixed literals above, never caller data
+		q := fmt.Sprintf(`INSERT INTO %s (%s) SELECT %s FROM %s WHERE project_id = $%d AND stream = $%d`,
+			c.table, cols, sel, c.table, next, next+1)
+		args = append(args, projectID, from)
+		if _, err := ex.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("copy %s: %w", c.table, err)
+		}
+	}
 	return nil
 }
 
@@ -146,28 +211,6 @@ func (s *PostgresStore) DeleteStream(ctx context.Context, projectID, name string
 		return fmt.Errorf("stream %q not found in project %s", name, projectID)
 	}
 
-	// The items this stream held, read before the rows go: their blocks are
-	// shared with other streams and can only be reclaimed once no item names
-	// them at all.
-	itemRows, err := tx.QueryContext(ctx,
-		`SELECT name FROM items WHERE project_id=$1 AND stream=$2`, projectID, name)
-	if err != nil {
-		return fmt.Errorf("list items for stream %q: %w", name, err)
-	}
-	var itemNames []string
-	for itemRows.Next() {
-		var itemName string
-		if err := itemRows.Scan(&itemName); err != nil {
-			itemRows.Close()
-			return fmt.Errorf("scan item for stream %q: %w", name, err)
-		}
-		itemNames = append(itemNames, itemName)
-	}
-	itemRows.Close()
-	if err := itemRows.Err(); err != nil {
-		return err
-	}
-
 	for _, table := range storeutil.StreamScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		if _, err := tx.ExecContext(ctx,
@@ -176,67 +219,29 @@ func (s *PostgresStore) DeleteStream(ctx context.Context, projectID, name string
 		}
 	}
 
-	if err := reclaimUnreferencedBlocksPg(ctx, tx, projectID, itemNames); err != nil {
-		return fmt.Errorf("reclaim blocks for stream %q: %w", name, err)
-	}
-
 	return tx.Commit()
-}
-
-// reclaimUnreferencedBlocksPg removes the block rows of the named items that no
-// item names any more, together with everything filed under their ids on every
-// stream. Block rows are shared across streams (CreateStream copies items, not
-// blocks), so they outlive the deletion of one stream's items — and once no
-// item names them, nothing can reach them again. Only the caller's item names
-// are considered: a project-wide sweep would reach blocks stored for an item
-// this verb never touched.
-func reclaimUnreferencedBlocksPg(ctx context.Context, tx *sql.Tx, projectID string, itemNames []string) error {
-	for _, itemName := range itemNames {
-		if itemName == "" {
-			continue
-		}
-		rows, err := tx.QueryContext(ctx,
-			`SELECT id FROM blocks
-			 WHERE project_id=$1 AND item_name=$2
-			   AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=$1 AND name=$2)`,
-			projectID, itemName)
-		if err != nil {
-			return fmt.Errorf("find blocks of item %q: %w", itemName, err)
-		}
-		var ids []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return fmt.Errorf("scan block of item %q: %w", itemName, err)
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		for _, id := range ids {
-			for _, table := range storeutil.BlockScopedTables() {
-				//nolint:gosec // table is a fixed literal from storeutil, never user input
-				if _, err := tx.ExecContext(ctx,
-					`DELETE FROM `+table+` WHERE project_id=$1 AND block_id=$2`, projectID, id); err != nil {
-					return fmt.Errorf("delete %s for block %s: %w", table, id, err)
-				}
-			}
-			if _, err := tx.ExecContext(ctx,
-				`DELETE FROM blocks WHERE project_id=$1 AND id=$2`, projectID, id); err != nil {
-				return fmt.Errorf("delete block %s: %w", id, err)
-			}
-		}
-	}
-	return nil
 }
 
 // ---------------------------------------------------------------------------
 // Stream operations
 // ---------------------------------------------------------------------------
 
+// MergeStream fast-forwards a stream's parent onto it.
+//
+// FAST-FORWARD ONLY. The parent takes the branch's state wholesale, and the
+// merge is refused if the parent has moved since the branch was taken. Nothing
+// is combined: a merge that had to choose between two edits of one unit would
+// be choosing between two people's approved wording, and doing that silently is
+// the outcome this platform exists to prevent. A diverged parent is reported so
+// a person can decide.
+//
+// The fast-forward is a copy rather than a pointer move because the store holds
+// rows, not commits: the parent's content for this stream is replaced by the
+// branch's, ids intact, so every translation and approval arrives attached to
+// the content it belongs to.
+//
+// It used to move nothing at all — it counted the change log and wrote entries
+// into the parent, reporting a MergeResult that described work no row had done.
 func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName string, opts platstore.MergeOptions) (*platstore.MergeResult, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
@@ -245,8 +250,19 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	if stream.Parent == "" {
 		return nil, fmt.Errorf("stream %q has no parent to merge into", streamName)
 	}
-
 	parentStream := storeutil.DefaultStream(stream.Parent)
+
+	// Has the parent moved since this branch was taken? base_cursor is where it
+	// stood then; anything past it is work the branch never saw.
+	parentCursor, err := s.LatestCursor(ctx, projectID, parentStream)
+	if err != nil {
+		return nil, fmt.Errorf("read parent cursor: %w", err)
+	}
+	if parentCursor != stream.BaseCursor {
+		return nil, fmt.Errorf(
+			"%q has moved since %q branched from it (branched at %d, now at %d): merge is fast-forward only, so re-branch or bring the changes across deliberately",
+			parentStream, streamName, stream.BaseCursor, parentCursor)
+	}
 
 	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
 	if err != nil {
@@ -258,7 +274,6 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	for _, c := range changes.Changes {
 		blockChanges[c.BlockID] = c.ChangeType
 	}
-
 	for blockID, changeType := range blockChanges {
 		var ct platstore.ChangeType
 		switch {
@@ -272,10 +287,7 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 			ct = platstore.ChangeModified
 			result.ModifiedBlocks++
 		}
-		result.Changes = append(result.Changes, platstore.BlockChange{
-			BlockID:    blockID,
-			ChangeType: ct,
-		})
+		result.Changes = append(result.Changes, platstore.BlockChange{BlockID: blockID, ChangeType: ct})
 	}
 	result.MergedBlocks = len(blockChanges)
 
@@ -289,10 +301,25 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	for blockID, changeType := range blockChanges {
-		if changeType == "source_removed" {
-			continue
+	// The parent becomes the branch. Its rows go first — a fast-forward
+	// replaces state rather than merging into it — and all of it is one
+	// transaction, so a failure leaves the parent exactly as it was.
+	for _, table := range storeutil.StreamScopedTables() {
+		if table == "change_log" {
+			continue // the parent's history is appended to below, not replaced
 		}
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=$1 AND stream=$2`, projectID, parentStream); err != nil {
+			return nil, fmt.Errorf("clear %s on %q: %w", table, parentStream, err)
+		}
+	}
+	now := time.Now().UTC()
+	if err := branchStreamContent(ctx, tx, projectID, streamName, parentStream, now); err != nil {
+		return nil, fmt.Errorf("fast-forward %q onto %q: %w", parentStream, streamName, err)
+	}
+
+	for blockID, changeType := range blockChanges {
 		if err := logChange(ctx, tx, projectID, parentStream, blockID, changeType, "", ""); err != nil {
 			return nil, fmt.Errorf("log merge change: %w", err)
 		}
@@ -305,46 +332,62 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	return result, nil
 }
 
+// DiffStream compares a stream against its parent, by content.
+//
+// It reads both sides rather than replaying the change log. The log records
+// what a stream DID; a diff has to answer what the two streams ARE, and those
+// stop agreeing the moment a branch edits a unit back to the value its parent
+// already held — the log has two entries and the streams have no difference.
+//
+// The comparison is by key, which is what stable ids across streams buy: the
+// same unit carries the same id on both sides, so a difference is a hash
+// inequality rather than a guess about which block corresponds to which.
 func (s *PostgresStore) DiffStream(ctx context.Context, projectID, streamName string) (*platstore.StreamDiff, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("get stream: %w", err)
 	}
-
 	parentName := storeutil.DefaultStream(stream.Parent)
 
-	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
+	diff := &platstore.StreamDiff{StreamName: streamName, ParentName: parentName}
+
+	// A full outer join over the two sides: present on one only is an add or a
+	// remove, present on both with differing content is a modification, and
+	// present on both alike contributes nothing.
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT COALESCE(b.id, p.id),
+			CASE WHEN p.id IS NULL THEN 'added'
+			     WHEN b.id IS NULL THEN 'removed'
+			     ELSE 'modified' END
+		 FROM (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2) b
+		 FULL OUTER JOIN
+		     (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$3) p
+		 ON p.id = b.id
+		 WHERE p.id IS NULL OR b.id IS NULL OR p.content_hash <> b.content_hash
+		 ORDER BY 1`,
+		projectID, streamName, parentName)
 	if err != nil {
-		return nil, fmt.Errorf("get stream changes: %w", err)
+		return nil, fmt.Errorf("diff stream %q against %q: %w", streamName, parentName, err)
 	}
+	defer rows.Close()
 
-	diff := &platstore.StreamDiff{
-		StreamName: streamName,
-		ParentName: parentName,
-	}
-
-	blockChanges := map[string]string{}
-	for _, c := range changes.Changes {
-		blockChanges[c.BlockID] = c.ChangeType
-	}
-
-	for blockID, changeType := range blockChanges {
+	for rows.Next() {
+		var blockID, kind string
+		if err := rows.Scan(&blockID, &kind); err != nil {
+			return nil, fmt.Errorf("scan stream diff: %w", err)
+		}
 		var ct platstore.ChangeType
-		switch {
-		case changeType == "source_added":
+		switch kind {
+		case "added":
 			ct = platstore.ChangeAdded
-		case changeType == "source_removed":
+		case "removed":
 			ct = platstore.ChangeRemoved
 		default:
 			ct = platstore.ChangeModified
 		}
-		diff.Changes = append(diff.Changes, platstore.BlockChange{
-			BlockID:    blockID,
-			ChangeType: ct,
-		})
+		diff.Changes = append(diff.Changes, platstore.BlockChange{BlockID: blockID, ChangeType: ct})
 	}
-
-	return diff, nil
+	return diff, rows.Err()
 }
 
 // ---------------------------------------------------------------------------

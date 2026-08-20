@@ -90,10 +90,8 @@ type BlockStore interface {
 	// translatable string was deleted keeps none. Callers that mean "say
 	// nothing" must not call at all.
 	//
-	// Block rows are project-scoped, shared by every stream holding an item of
-	// this name (CreateStream copies items, not blocks), so a prune reaches all
-	// of them — exactly as an edit through StoreBlocksForItem already does.
-	// The stream-scoped rows hanging off each pruned block go with it.
+	// Scoped to one stream. A branch holding the same item at the same ids is
+	// untouched, which is what makes a prune safe to run on a branch at all.
 	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
 	GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error)
 	GetBlocks(ctx context.Context, query BlockQuery) ([]*venue.StoredBlock, error)

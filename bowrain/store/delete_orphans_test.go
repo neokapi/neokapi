@@ -132,22 +132,25 @@ func TestDeleteStream_LeavesNoOrphans(t *testing.T) {
 		assert.NotZero(t, countRows(t, s, table, `project_id=$1 AND stream=$2`, p.ID, "main"),
 			"%s: main's rows are untouched", table)
 	}
-	// The branch's own item is gone, so its blocks — which no item names any
-	// more — are reclaimed with everything filed under them.
+	// The branch's own content went with it.
 	assert.Zero(t, countRows(t, s, "blocks", `project_id=$1 AND item_name=$2`, p.ID, "branch.json"))
 	got, err := s.GetBlock(ctx, p.ID, "main", mainFixture.blockID)
-	require.NoError(t, err, "main's shared block survives the branch delete")
+	require.NoError(t, err, "main keeps its own copy through a branch delete")
 	assert.Equal(t, "Hello", got.Block.SourceText())
 
-	// A stream created again under the same name starts empty.
+	// A stream created again under the same name starts as its PARENT, which is
+	// what branching means — and inherits nothing from the dead one. main's item
+	// comes across; the branch's does not exist anywhere to come across from.
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{ProjectID: p.ID, Name: "feature", Parent: "main"}))
-	for _, table := range storeutil.StreamScopedTables() {
-		if table == "items" {
-			continue // CreateStream copies the parent's items by design
-		}
-		assert.Zero(t, countRows(t, s, table, `project_id=$1 AND stream=$2`, p.ID, "feature"),
-			"%s: a recreated stream inherits nothing from the dead one", table)
-	}
+	assert.Zero(t, countRows(t, s, "blocks", `project_id=$1 AND stream=$2 AND item_name=$3`, p.ID, "feature", "branch.json"),
+		"the dead stream's content does not come back")
+	assert.NotZero(t, countRows(t, s, "blocks", `project_id=$1 AND stream=$2 AND item_name=$3`, p.ID, "feature", "en.json"),
+		"the parent's content does")
+	// change_log is the one thing a branch does not inherit: base_cursor records
+	// where it started, and copying the parent's log would read as every unit
+	// having changed on the branch the moment it was created.
+	assert.Zero(t, countRows(t, s, "change_log", `project_id=$1 AND stream=$2`, p.ID, "feature"),
+		"a new branch has no history of its own yet")
 }
 
 // TestDeleteProject_LeavesNoOrphans: the projects foreign key cascades most of

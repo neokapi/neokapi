@@ -503,40 +503,39 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	defer func() { _ = tx.Rollback() }()
 
 	// Remove this stream's item row first; its absence is the not-found signal.
-	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
+	// The id comes back with it, because the rows describing an item are keyed
+	// on what it IS and the name is only how this call addressed it.
+	var itemID string
+	err = tx.QueryRowContext(ctx,
+		`DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3 RETURNING id`,
+		projectID, stream, itemName).Scan(&itemID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
+	}
 	if err != nil {
 		return fmt.Errorf("delete item: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
-	}
 
-	// The block-scoped rows are per-stream, so this stream's rows for the item's
-	// blocks are orphaned now even though the shared block rows may survive for
-	// another stream. Dropping them stops a later re-push of the same block id
-	// from resurrecting stale targets, notes or proposals onto new source text.
+	// Everything describing this item on this stream goes with it. Each table
+	// is stream-scoped, and so now is blocks, so a sibling branch holding the
+	// same item at the same ids is untouched by any of it.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2
-			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND item_name=$3)`
+			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3)`
 		if _, err := tx.ExecContext(ctx, q, projectID, stream, itemName); err != nil {
 			return fmt.Errorf("delete %s for item %q: %w", table, itemName, err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
-		projectID, stream, itemName); err != nil {
+		`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3`,
+		projectID, stream, itemID); err != nil {
 		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
 	}
 
-	// Block rows are shared across streams (CreateStream copies items, not
-	// blocks), so reclaim them only when no other stream still references this
-	// item name — this stream's row is already gone.
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM blocks WHERE project_id=$1 AND item_name=$2
-		 AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=$1 AND name=$2)`,
-		projectID, itemName); err != nil {
+		`DELETE FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+		projectID, stream, itemName); err != nil {
 		return fmt.Errorf("delete item blocks: %w", err)
 	}
 
@@ -570,13 +569,9 @@ func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, strea
 // NOT IN list: `keep` is one file's worth of keys, but a NOT IN over it binds a
 // parameter per key and Postgres stops at 65535 — the same ceiling the batched
 // hash prefetch in storeBlocks exists to stay under.
+//
+// Scoped to one stream, so pruning a branch leaves its parent alone.
 func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
-	// stream is taken for symmetry with the other block verbs and deliberately
-	// not consulted: a block row belongs to (project, item) and is shared by
-	// every stream holding that item, so a pruned block is gone from all of
-	// them — and the per-stream rows describing it have to go with it, whichever
-	// stream they belong to.
-	_ = stream
 	if itemName == "" {
 		return 0, nil
 	}
@@ -588,8 +583,8 @@ func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, 
 	defer func() { _ = tx.Rollback() }()
 
 	rows, err := tx.QueryContext(ctx,
-		`SELECT id, source_id FROM blocks WHERE project_id=$1 AND item_name=$2`,
-		projectID, itemName)
+		`SELECT id, source_id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+		projectID, stream, itemName)
 	if err != nil {
 		return 0, fmt.Errorf("load item blocks for prune: %w", err)
 	}
@@ -622,18 +617,19 @@ func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, 
 		return 0, nil
 	}
 
+	args := append([]any{projectID, stream}, anyStrings(stale)...)
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
-		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND block_id IN (` +
-			placeholderList("pg", 2, len(stale)) + `)`
-		if _, err := tx.ExecContext(ctx, q, append([]any{projectID}, anyStrings(stale)...)...); err != nil {
+		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2 AND block_id IN (` +
+			placeholderList("pg", 3, len(stale)) + `)`
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 			return 0, fmt.Errorf("prune %s for item %q: %w", table, itemName, err)
 		}
 	}
 	//nolint:gosec // placeholder list, not data — every id binds below
-	del := `DELETE FROM blocks WHERE project_id=$1 AND id IN (` +
-		placeholderList("pg", 2, len(stale)) + `)`
-	if _, err := tx.ExecContext(ctx, del, append([]any{projectID}, anyStrings(stale)...)...); err != nil {
+	del := `DELETE FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
+		placeholderList("pg", 3, len(stale)) + `)`
+	if _, err := tx.ExecContext(ctx, del, args...); err != nil {
 		return 0, fmt.Errorf("prune blocks for item %q: %w", itemName, err)
 	}
 
@@ -665,10 +661,23 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	// exactly the duplication in #1527.
 	existingSourceIDs := map[string]string{} // caller/source id → internal id
 	internalSourceIDs := map[string]string{} // internal id → its source id
+	// The item's durable identity, recorded on every block so a rename moves the
+	// address and nothing else. Resolve-or-create, and through the same helper
+	// the decision ledger uses: storing blocks for an item IS the assertion that
+	// the item exists, and if the two paths minted ids independently a block and
+	// the decision about it would disagree on which file they belong to. Empty
+	// only for an item-less write.
+	var itemID string
+	if itemName != "" {
+		var err error
+		if itemID, err = resolveItemIDPg(ctx, tx, projectID, stream, itemName); err != nil {
+			return err
+		}
+	}
 	if itemName != "" {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT source_id, id FROM blocks WHERE project_id=$1 AND item_name=$2`,
-			projectID, itemName)
+			`SELECT source_id, id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+			projectID, stream, itemName)
 		if err != nil {
 			return fmt.Errorf("load source_id mapping: %w", err)
 		}
@@ -696,7 +705,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		// history heal in place, and the adopted row is picked up by the hash
 		// query below like any other item-scoped block.
 		adopt, err := tx.PrepareContext(ctx,
-			`UPDATE blocks SET item_name=$1, source_id=$2 WHERE project_id=$3 AND id=$4 AND item_name=''`)
+			`UPDATE blocks SET item_name=$1, source_id=$2 WHERE project_id=$3 AND stream=$4 AND id=$5 AND item_name=''`)
 		if err != nil {
 			return fmt.Errorf("prepare legacy adoption: %w", err)
 		}
@@ -710,7 +719,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			}
 			// The row is found by its internal id; the source_id it adopts is
 			// the caller's durable key, not that id.
-			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, b.ID)
+			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, stream, b.ID)
 			if err != nil {
 				adopt.Close()
 				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
@@ -723,10 +732,11 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	}
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, word_count, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		 ON CONFLICT(project_id, id) DO UPDATE SET
+		`INSERT INTO blocks (id, project_id, stream, item_name, item_id, source_id, name, type, mime_type, translatable,
+			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
+			item_name=EXCLUDED.item_name, item_id=EXCLUDED.item_id,
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
@@ -778,9 +788,9 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 			// The concatenated fragment is "$2,$3,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND id IN (` + //nolint:gosec // placeholder list, not data
-				placeholderList("pg", 2, len(chunk)) + `)`
-			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID}, anyStrings(chunk)...)...)
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` + //nolint:gosec // placeholder list, not data
+				placeholderList("pg", 3, len(chunk)) + `)`
+			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID, stream}, anyStrings(chunk)...)...)
 			if err != nil {
 				return fmt.Errorf("batch hash lookup: %w", err)
 			}
@@ -896,7 +906,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		}
 
 		_, err = stmt.ExecContext(ctx,
-			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
+			internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
 			identity.ContentHash, identity.ContextHash,
 			string(sourceJSON), string(propsJSON), string(overlaysJSON),
 			model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
@@ -938,7 +948,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				// source now carries applies again. The decisions themselves
 				// stay: they are facts about a text, and that history is what
 				// lets a restored text find its approval without a re-review.
-				if err := settleDecisionProjectionsPg(ctx, tx, projectID, internalID, identity.ContentHash); err != nil {
+				if err := settleDecisionProjectionsPg(ctx, tx, projectID, stream, internalID, identity.ContentHash); err != nil {
 					return err
 				}
 			}
@@ -961,15 +971,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 }
 
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
+	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, properties, overlays, stored_at, updated_at
-		 FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID)
+		 FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, blockID)
 	sb, err := scanStoredBlockPg(row)
 	if err != nil {
-		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
+		return nil, fmt.Errorf("block %s not found in project %s stream %s", blockID, projectID, stream)
 	}
-	stream = storeutil.DefaultStream(stream)
 	if err := HydrateOverlays(ctx, s.db.DB, "pg", projectID, stream, []*venue.StoredBlock{sb}); err != nil {
 		return nil, err
 	}
@@ -1024,6 +1034,11 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 		paramN++
 		return p
 	}
+
+	// A block belongs to one stream. Unfiltered, every query would read its
+	// branches' rows alongside its own — the same block id exists on each — so
+	// the scope is applied here rather than left to each caller to remember.
+	where = append(where, "b.stream = "+bind(storeutil.DefaultStream(query.Stream)))
 
 	if query.ItemName != "" {
 		where = append(where, "b.item_name = "+bind(query.ItemName))
@@ -1200,7 +1215,7 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
 		LEFT JOIN items i
 		ON i.project_id = b.project_id AND i.stream = $2 AND i.name = b.item_name
-		WHERE b.project_id = $1 AND b.translatable AND t.text <> ''
+		WHERE b.project_id = $1 AND b.stream = $2 AND b.translatable AND t.text <> ''
 		AND COALESCE(t.target_json->>'status', '') NOT IN ('reviewed', 'signed-off')%s`
 	args := []any{q.ProjectID, stream}
 	scope := ""
@@ -1256,9 +1271,9 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 
 	// Build IN clause for item names.
 	placeholders := make([]string, len(items))
-	args := []any{projectID}
+	args := []any{projectID, stream}
 	for i, item := range items {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		placeholders[i] = fmt.Sprintf("$%d", i+3)
 		args = append(args, item.Name)
 	}
 
@@ -1271,7 +1286,7 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 		`SELECT id, item_name, translatable,
 			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
 			COALESCE(word_count, -1)
-		 FROM blocks WHERE project_id = $1 AND item_name IN (%s)
+		 FROM blocks WHERE project_id = $1 AND stream = $2 AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
 
@@ -1336,35 +1351,37 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 
 	// The decision ledger keys on the block's unit identity (source_id), not its
 	// id, so read the scope before the row is gone.
-	var itemName, sourceID string
+	var itemName, sourceID, itemID string
 	err = tx.QueryRowContext(ctx,
-		`SELECT item_name, source_id FROM blocks WHERE project_id=$1 AND id=$2`,
-		projectID, blockID).Scan(&itemName, &sourceID)
+		`SELECT item_name, source_id, item_id FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, blockID).Scan(&itemName, &sourceID, &itemID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+		return fmt.Errorf("block %s not found in project %s stream %s", blockID, projectID, stream)
 	}
 	if err != nil {
 		return fmt.Errorf("look up block %s: %w", blockID, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID); err != nil {
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, blockID); err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
 
-	// A block is shared across streams and removed project-wide, so everything
-	// filed under its id goes with it in every stream — otherwise a re-push of
-	// the id resurrects them.
+	// Everything filed under the block's id on THIS stream goes with it — a
+	// branch holding the same id keeps its own rows, which is the whole point
+	// of a branch.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
-		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND block_id=$2`
-		if _, err := tx.ExecContext(ctx, q, projectID, blockID); err != nil {
+		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2 AND block_id=$3`
+		if _, err := tx.ExecContext(ctx, q, projectID, stream, blockID); err != nil {
 			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)
 		}
 	}
 	if sourceID != "" {
 		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM unit_decisions WHERE project_id=$1 AND item_name=$2 AND unit=$3`,
-			projectID, itemName, sourceID); err != nil {
+			`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4`,
+			projectID, stream, itemID, sourceID); err != nil {
 			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
 		}
 	}
@@ -1402,9 +1419,16 @@ func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, stream, la
 
 	versionID := id.New()
 	now := time.Now().UTC()
+	// A version is a point in ONE stream's history — the parameter has always
+	// said so, and the two statements below used to ignore it and snapshot the
+	// whole project. With a branch holding its own rows under the same block
+	// ids, that would count every branch's copy into main's version.
+	stream = storeutil.DefaultStream(stream)
 
 	var blockCount int
-	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM blocks WHERE project_id=$1`, projectID).Scan(&blockCount)
+	err = tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM blocks WHERE project_id=$1 AND stream=$2`,
+		projectID, stream).Scan(&blockCount)
 	if err != nil {
 		return nil, fmt.Errorf("count blocks: %w", err)
 	}
@@ -1419,8 +1443,8 @@ func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, stream, la
 
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO version_blocks (version_id, block_id, content_hash)
-		 SELECT $1, id, content_hash FROM blocks WHERE project_id=$2`,
-		versionID, projectID)
+		 SELECT $1, id, content_hash FROM blocks WHERE project_id=$2 AND stream=$3`,
+		versionID, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot blocks: %w", err)
 	}
