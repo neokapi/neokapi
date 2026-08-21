@@ -747,7 +747,7 @@ export const StallReason = {
      * StallSourceNotReady: the source itself is below the source-first gate
      * (terminology/voice/source-QA not settled, or human source review pending),
      * so the fan-out is HELD on source rather than translating an unsettled,
-     * off-brand source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
+     * non-compliant source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
      * epic 019). The run creates a source-review task and parks; settling the
      * source (or lowering `defaults.source_gate`) lets the next run translate.
      */
