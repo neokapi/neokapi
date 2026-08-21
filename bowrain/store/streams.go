@@ -118,7 +118,6 @@ func branchStreamContent(ctx context.Context, ex Execer, projectID, from, to str
 			args = append(args, now)
 			next++
 		}
-		//nolint:gosec // table and column names are fixed literals above, never caller data
 		q := fmt.Sprintf(`INSERT INTO %s (%s) SELECT %s FROM %s WHERE project_id = $%d AND stream = $%d`,
 			c.table, cols, sel, c.table, next, next+1)
 		args = append(args, projectID, from)

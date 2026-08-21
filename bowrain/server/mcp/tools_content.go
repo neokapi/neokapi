@@ -281,7 +281,11 @@ type diffStreamsInput struct {
 }
 
 func (s *MCPServer) handleDiffStreams(ctx context.Context, req *mcp.CallToolRequest, input diffStreamsInput) (*mcp.CallToolResult, store.StreamDiff, error) {
-	diff, err := s.contentStore.DiffStream(ctx, input.ProjectID, input.StreamName)
+	bs, ok := s.contentStore.(store.StreamBranchStore)
+	if !ok {
+		return nil, store.StreamDiff{}, fmt.Errorf("content store %T does not branch", s.contentStore)
+	}
+	diff, err := bs.DiffStream(ctx, input.ProjectID, input.StreamName)
 	if err != nil {
 		return nil, store.StreamDiff{}, fmt.Errorf("diff stream: %w", err)
 	}
@@ -295,7 +299,11 @@ type mergeStreamInput struct {
 }
 
 func (s *MCPServer) handleMergeStream(ctx context.Context, req *mcp.CallToolRequest, input mergeStreamInput) (*mcp.CallToolResult, store.MergeResult, error) {
-	result, err := s.contentStore.MergeStream(ctx, input.ProjectID, input.StreamName, store.MergeOptions{
+	bs, ok := s.contentStore.(store.StreamBranchStore)
+	if !ok {
+		return nil, store.MergeResult{}, fmt.Errorf("content store %T does not branch", s.contentStore)
+	}
+	result, err := bs.MergeStream(ctx, input.ProjectID, input.StreamName, store.MergeOptions{
 		DryRun: input.DryRun,
 	})
 	if err != nil {

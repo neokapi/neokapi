@@ -130,10 +130,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// "unreachable" — so a create that loses that race is not an error. One
 	// that fails for any other reason leaves the chunks below writing into a
 	// stream that does not exist, which is worth a line in the log.
-	if stream != "main" {
+	if bs, canBranch := deps.ContentStore.(store.StreamBranchStore); canBranch && stream != "main" {
 		if _, err := deps.ContentStore.GetStream(ctx, projectID, stream); err != nil {
 			baseCursor, _ := deps.ContentStore.LatestCursor(ctx, projectID, "main")
-			if cerr := deps.ContentStore.CreateStream(ctx, &store.Stream{
+			if cerr := bs.CreateStream(ctx, &store.Stream{
 				ProjectID:  projectID,
 				Name:       stream,
 				Parent:     "main",

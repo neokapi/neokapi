@@ -115,8 +115,17 @@ func (s *EventEmittingStore) ListArchivedProjects(ctx context.Context, workspace
 
 // --- Stream management ---
 
+// CreateStream forwards the optional StreamBranchStore capability. The
+// decorator satisfies the interface whether or not the store it wraps does, so
+// a caller asserting for it on the decorator gets the same answer it would get
+// from the store underneath — which is the point of asserting for a capability
+// rather than for a concrete type.
 func (s *EventEmittingStore) CreateStream(ctx context.Context, st *store.Stream) error {
-	if err := s.inner.CreateStream(ctx, st); err != nil {
+	bs, ok := s.inner.(store.StreamBranchStore)
+	if !ok {
+		return fmt.Errorf("content store %T does not branch", s.inner)
+	}
+	if err := bs.CreateStream(ctx, st); err != nil {
 		return err
 	}
 	s.publish(ctx, platev.Event{
@@ -156,7 +165,11 @@ func (s *EventEmittingStore) DeleteStream(ctx context.Context, projectID, name s
 // --- Stream operations ---
 
 func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamName string, opts store.MergeOptions) (*store.MergeResult, error) {
-	result, err := s.inner.MergeStream(ctx, projectID, streamName, opts)
+	bs, ok := s.inner.(store.StreamBranchStore)
+	if !ok {
+		return nil, fmt.Errorf("content store %T does not branch", s.inner)
+	}
+	result, err := bs.MergeStream(ctx, projectID, streamName, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +212,11 @@ func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamN
 }
 
 func (s *EventEmittingStore) DiffStream(ctx context.Context, projectID, streamName string) (*store.StreamDiff, error) {
-	return s.inner.DiffStream(ctx, projectID, streamName)
+	bs, ok := s.inner.(store.StreamBranchStore)
+	if !ok {
+		return nil, fmt.Errorf("content store %T does not branch", s.inner)
+	}
+	return bs.DiffStream(ctx, projectID, streamName)
 }
 
 // --- Stream lock ---

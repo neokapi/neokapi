@@ -158,7 +158,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		err = tx.QueryRowContext(ctx,
 			`SELECT target_json FROM translations WHERE project_id=? AND stream=? AND block_id=? AND locale=?`,
 			projectID, stream, blockID, d.Variant).Scan(&targetJSON)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {

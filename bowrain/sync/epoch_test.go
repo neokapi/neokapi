@@ -11,7 +11,11 @@ import (
 
 func seedStream(t *testing.T, cs platstore.ContentStore, projectID, name string) {
 	t.Helper()
-	require.NoError(t, cs.CreateStream(t.Context(), &platstore.Stream{
+	// Branching is an optional capability (store.StreamBranchStore) — the store
+	// under test here is the server's, which has it.
+	bs, ok := cs.(platstore.StreamBranchStore)
+	require.True(t, ok, "this test needs a store that branches")
+	require.NoError(t, bs.CreateStream(t.Context(), &platstore.Stream{
 		ProjectID: projectID,
 		Name:      name,
 	}))

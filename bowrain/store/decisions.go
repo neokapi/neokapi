@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -207,7 +208,7 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 		err = tx.QueryRowContext(ctx,
 			`SELECT target_json FROM translations WHERE project_id=$1 AND stream=$2 AND block_id=$3 AND locale=$4`,
 			projectID, stream, blockID, d.Variant).Scan(&targetJSON)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {

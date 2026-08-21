@@ -1,4 +1,4 @@
-package sqlitestore
+package store
 
 import (
 	"testing"
@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Ported from the SQLite suite when branching became server-only
+// (store.StreamBranchStore): CreateStream is what makes a stream row, so these
+// only run where branching does.
+//
 // TestStreamProperties_RoundTrip verifies the streams.properties column added
 // for stream-level bindings (e.g. the brand-voice profile) is persisted through
 // create, read, and update — the store change that makes the resolver's stream

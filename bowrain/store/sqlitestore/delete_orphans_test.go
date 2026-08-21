@@ -63,6 +63,23 @@ func seedOrphanFixture(t *testing.T, s *SQLiteStore, projectID, stream, itemName
 	return blockID
 }
 
+// blockIDForSource is the stored (internal) id of the block a producer sent
+// under sourceID. StoreBlocksForItem maps the caller's id to source_id and
+// mints its own, so the id has to be read back rather than assumed.
+func blockIDForSource(t *testing.T, s *SQLiteStore, projectID, stream, itemName, sourceID string) string {
+	t.Helper()
+	rows, err := s.GetBlocks(t.Context(), platstore.BlockQuery{
+		ProjectID: projectID, Stream: stream, ItemName: itemName, Limit: 100,
+	})
+	require.NoError(t, err)
+	for _, sb := range rows {
+		if sb.SourceID == sourceID {
+			return sb.Block.ID
+		}
+	}
+	return ""
+}
+
 func countRows(t *testing.T, s *SQLiteStore, table, where string, args ...any) int {
 	t.Helper()
 	var n int
@@ -100,39 +117,8 @@ func TestDeleteItem_LeavesNoOrphans_SQLite(t *testing.T) {
 	assert.Zero(t, countRows(t, s, "unit_decisions", `project_id=? AND item_name=?`, p.ID, "en.json"))
 }
 
-func TestDeleteStream_LeavesNoOrphans_SQLite(t *testing.T) {
-	s := newTestStore(t)
-	ctx := t.Context()
-	p := createTestProject(t, s)
-
-	mainBlockID := seedOrphanFixture(t, s, p.ID, "main", "en.json")
-	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{ProjectID: p.ID, Name: "feature", Parent: "main"}))
-	seedOrphanFixture(t, s, p.ID, "feature", "branch.json")
-
-	require.NoError(t, s.DeleteStream(ctx, p.ID, "feature"))
-
-	for _, table := range storeutil.StreamScopedTables() {
-		assert.Zero(t, countRows(t, s, table, `project_id=? AND stream=?`, p.ID, "feature"),
-			"%s: a deleted stream keeps nothing", table)
-		assert.NotZero(t, countRows(t, s, table, `project_id=? AND stream=?`, p.ID, "main"),
-			"%s: main's rows are untouched", table)
-	}
-	assert.Zero(t, countRows(t, s, "blocks", `project_id=? AND item_name=?`, p.ID, "branch.json"))
-	got, err := s.GetBlock(ctx, p.ID, "main", mainBlockID)
-	require.NoError(t, err, "main keeps its own copy through a branch delete")
-	assert.Equal(t, "Hello", got.Block.SourceText())
-
-	// A stream created again under the same name starts as its PARENT, which is
-	// what branching means — and inherits nothing from the dead one.
-	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{ProjectID: p.ID, Name: "feature", Parent: "main"}))
-	assert.Zero(t, countRows(t, s, "blocks", `project_id=? AND stream=? AND item_name=?`, p.ID, "feature", "branch.json"),
-		"the dead stream's content does not come back")
-	assert.NotZero(t, countRows(t, s, "blocks", `project_id=? AND stream=? AND item_name=?`, p.ID, "feature", "en.json"),
-		"the parent's content does")
-	assert.Zero(t, countRows(t, s, "change_log", `project_id=? AND stream=?`, p.ID, "feature"),
-		"a new branch has no history of its own yet")
-}
-
+// A deleted STREAM is covered in the Postgres suite only: making a second
+// stream is CreateStream, and branching is server-only (store.StreamBranchStore).
 func TestDeleteProject_LeavesNoOrphans_SQLite(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)

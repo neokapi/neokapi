@@ -401,7 +401,14 @@ func EnsureMainStream(ctx context.Context, cs store.ContentStore, projectID stri
 	if err == nil {
 		return nil // already exists
 	}
-	return cs.CreateStream(ctx, &store.Stream{
+	bs, ok := cs.(store.StreamBranchStore)
+	if !ok {
+		// A store that does not branch works on one stream and needs no row to
+		// name it — the desktop's local store writes everything under "main"
+		// without one.
+		return nil
+	}
+	return bs.CreateStream(ctx, &store.Stream{
 		ProjectID:  projectID,
 		Name:       "main",
 		Visibility: store.StreamPublic,

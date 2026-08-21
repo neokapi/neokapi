@@ -25,16 +25,16 @@ type ProjectStore interface {
 	ListArchivedProjects(ctx context.Context, workspaceID string) ([]*Project, error)
 }
 
-// StreamStore manages streams and their operations, locks, tags and membership.
+// StreamStore manages streams and their locks, tags and membership.
+//
+// Branching is NOT here — see StreamBranchStore. What remains is the surface a
+// store keeps whether or not it can branch: naming streams, listing them,
+// locking one, tagging it.
 type StreamStore interface {
-	CreateStream(ctx context.Context, s *Stream) error
 	GetStream(ctx context.Context, projectID, name string) (*Stream, error)
 	ListStreams(ctx context.Context, projectID string, includeArchived bool) ([]*Stream, error)
 	UpdateStream(ctx context.Context, s *Stream) error
 	DeleteStream(ctx context.Context, projectID, name string) error
-
-	MergeStream(ctx context.Context, projectID, streamName string, opts MergeOptions) (*MergeResult, error)
-	DiffStream(ctx context.Context, projectID, streamName string) (*StreamDiff, error)
 
 	LockStream(ctx context.Context, projectID, streamName, userID string) error
 	UnlockStream(ctx context.Context, projectID, streamName string) error
@@ -48,6 +48,29 @@ type StreamStore interface {
 	AddStreamMember(ctx context.Context, projectID, streamName, userID string) error
 	RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error
 	ListStreamMembers(ctx context.Context, projectID, streamName string) ([]string, error)
+}
+
+// StreamBranchStore is the optional capability behind branching: taking a
+// branch, comparing it with its parent, and merging it back.
+//
+// Optional because branching is a SERVER concern. The desktop app keeps a local
+// store for offline and cached editing and works on one stream — it hardcodes
+// "main" at every call site and calls no stream verb at all — so carrying a
+// branch implementation there would be code no caller can reach, kept in step
+// with a model it never exercises.
+//
+// Assert for it rather than for a concrete store type: a concrete-type
+// assertion dies the moment the store is wrapped, which is how the access
+// endpoint went dead on every deployment using the event-emitting decorator.
+type StreamBranchStore interface {
+	// CreateStream takes a branch: the new stream starts as its parent, with
+	// the parent's content, translations and approvals under the same ids.
+	CreateStream(ctx context.Context, s *Stream) error
+	// MergeStream fast-forwards a stream's parent onto it, or refuses because
+	// the parent has moved since the branch was taken.
+	MergeStream(ctx context.Context, projectID, streamName string, opts MergeOptions) (*MergeResult, error)
+	// DiffStream compares a stream against its parent by content.
+	DiffStream(ctx context.Context, projectID, streamName string) (*StreamDiff, error)
 }
 
 // CollectionStore manages collections (project-scoped, optionally stream-scoped).
