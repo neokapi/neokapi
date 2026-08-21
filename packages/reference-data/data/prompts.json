@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T09:15:01Z",
+  "generatedAt": "2026-08-21T22:48:05Z",
   "version": "v2",
   "prompts": [
     {
@@ -126,6 +126,33 @@
               "kind": "task",
               "origin": "framework",
               "text": "You are a voice profile analyst. Study the corpus below and infer a draft voice profile. Ground every rule in evidence from the text; do not invent rules the corpus does not support.\n\nReport:\n- tone: personality traits, formality (casual|neutral|formal|technical), emotion, humor (none|light|frequent), and short guidelines\n- style: active_voice, sentence_length (short|medium|varied), person_pov (first_plural|second|third), contractions (always|sometimes|never), and any patterns the corpus consistently avoids (as prohibited patterns)\n- vocabulary: preferred, forbidden, and competitor terms (term, replacement, note); leave lists empty when the corpus shows no evidence\n- examples: up to 3 before/after pairs (before = off-voice, after = on-voice, with an explanation)\n- evidence: for each of tone, style, vocabulary, and examples, a confidence between 0 and 1 and a short source note citing the corpus evidence"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "content corpus",
+              "text": "Corpus:\n\u003cyour content corpus\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "axis.discover",
+      "tool": "context-scan",
+      "summary": "Discover the dimensions a corpus of content varies along.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies — the coordinates a piece of this content sits at.\n\nAn axis is a dimension; its values are the positions on it. For example, a corpus might vary by:\n- brand — the brand it speaks as (acme, northwind)\n- product_line — a family of products (cloud, desktop)\n- product — one product within a line (analytics, editor)\n- market — where it is read (emea, japan)\n- audience — who it addresses (developer, buyer, operator)\n\nThose are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\nRules:\n- Report an axis only when the corpus shows content differing along it. Two documents about the same product are not a product axis.\n- An axis needs at least two distinct values in the corpus. One value is a fact about the project, not a dimension it varies along.\n- Use lower_snake_case for axis names and values, and the corpus' own terms for values.\n- Report at most 4 axes, strongest evidence first.\n- For each axis give a confidence between 0 and 1 and short quotes or references from the corpus as evidence.\n- Report nothing rather than guessing. A corpus with no internal variation has no axes, and an empty list is the correct answer."
             }
           ]
         },
