@@ -66,7 +66,7 @@ export function isGovernedRelation(type: RelationType): boolean {
 
 /**
  * A human label for a concept: a preferred term, else any English term, else the
- * first term, else the domain, else the bare id. Mirrors the brand-hub rule so
+ * first term, else the domain, else the bare id. Mirrors the context-hub rule so
  * lists and headers agree.
  */
 export function primaryName(concept: ConceptSummary): string {

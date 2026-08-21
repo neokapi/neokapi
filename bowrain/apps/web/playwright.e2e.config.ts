@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: [
-    "brand-scan-onboarding.spec.ts",
+    "context-scan-onboarding.spec.ts",
     "claim-flow.spec.ts",
     "context-explorer.spec.ts",
     "context-onboarding.spec.ts",

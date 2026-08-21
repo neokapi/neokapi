@@ -22,19 +22,19 @@ func (s *failingQuotaStore) GetUsageSummary(context.Context, string) (*UsageSumm
 	return &UsageSummary{}, nil
 }
 
-// TestRecordBrandScanUsage_MeterFailureIsObserved covers the policy at a real
+// TestRecordContextScanUsage_MeterFailureIsObserved covers the policy at a real
 // call site: a metering failure neither fails nor panics the caller, and it is
 // not silent — the discard is counted, with the quantity that went unrecorded.
-func TestRecordBrandScanUsage_MeterFailureIsObserved(t *testing.T) {
+func TestRecordContextScanUsage_MeterFailureIsObserved(t *testing.T) {
 	before := testutil.ToFloat64(observe.MeteringDiscardedTotal.WithLabelValues(observe.MeterAITokens))
 	beforeTokens := testutil.ToFloat64(
 		observe.MeteringUnrecordedTotal.WithLabelValues(observe.MeterAITokens, "tokens"))
 
-	deps := &BrandScanWorkerDeps{QuotaStore: &failingQuotaStore{err: errors.New("meter unreachable")}}
-	job := &BrandScanJob{ID: "scan-1", WorkspaceSlug: "acme", WorkspaceID: "ws-1"}
+	deps := &ContextScanWorkerDeps{QuotaStore: &failingQuotaStore{err: errors.New("meter unreachable")}}
+	job := &ContextScanJob{ID: "scan-1", WorkspaceSlug: "acme", WorkspaceID: "ws-1"}
 
 	require.NotPanics(t, func() {
-		recordBrandScanUsage(t.Context(), deps, job, "test-model",
+		recordContextScanUsage(t.Context(), deps, job, "test-model",
 			aiprovider.TokenUsage{InputTokens: 700, OutputTokens: 300}, 1000)
 	}, "a meter that is down must not take the scan down with it")
 
@@ -46,13 +46,13 @@ func TestRecordBrandScanUsage_MeterFailureIsObserved(t *testing.T) {
 		0.0001, "the unbilled tokens are counted, so 'how much' is answerable")
 }
 
-// TestRecordBrandScanUsage_NoQuotaStoreIsNotAFailure keeps the nil-store case
+// TestRecordContextScanUsage_NoQuotaStoreIsNotAFailure keeps the nil-store case
 // (self-hosted, unmetered) distinct from a meter that failed: nothing is
 // recorded and nothing is counted as lost.
-func TestRecordBrandScanUsage_NoQuotaStoreIsNotAFailure(t *testing.T) {
+func TestRecordContextScanUsage_NoQuotaStoreIsNotAFailure(t *testing.T) {
 	before := testutil.ToFloat64(observe.MeteringDiscardedTotal.WithLabelValues(observe.MeterAITokens))
 
-	recordBrandScanUsage(t.Context(), &BrandScanWorkerDeps{}, &BrandScanJob{ID: "scan-2"},
+	recordContextScanUsage(t.Context(), &ContextScanWorkerDeps{}, &ContextScanJob{ID: "scan-2"},
 		"test-model", aiprovider.TokenUsage{InputTokens: 10}, 10)
 
 	assert.Equal(t, before,

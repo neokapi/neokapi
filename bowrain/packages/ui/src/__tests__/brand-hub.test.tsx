@@ -13,10 +13,10 @@ import {
   formatRelative,
   TermStatusBadge,
   RelationBadge,
-} from "../brand-hub/shell/atoms";
-import { BrandHub } from "../brand-hub/shell/BrandHub";
-import { ExperimentsView } from "../brand-hub/experiments/ExperimentsView";
-import { RollupMatrix } from "../brand-hub/dashboard/RollupMatrix";
+} from "../context-hub/shell/atoms";
+import { ContextHub } from "../context-hub/shell/ContextHub";
+import { ExperimentsView } from "../context-hub/experiments/ExperimentsView";
+import { RollupMatrix } from "../context-hub/dashboard/RollupMatrix";
 import { sampleChangesets } from "../stories/brandHubFixtures";
 
 const workspace: Workspace = {
@@ -49,7 +49,7 @@ function renderWithProviders(ui: ReactNode, adapter: ApiAdapter) {
   );
 }
 
-describe("brand-hub atoms", () => {
+describe("context-hub atoms", () => {
   it("labels relations in plain words", () => {
     expect(relationLabel("REPLACED_BY")).toBe("replaced by");
     expect(relationLabel("COMPETITOR")).toBe("competitor");
@@ -79,12 +79,12 @@ describe("brand-hub atoms", () => {
   });
 });
 
-describe("BrandHub shell", () => {
+describe("ContextHub shell", () => {
   it("renders title, description, and actions", () => {
     render(
-      <BrandHub title="Concepts" description="Brand language" actions={<button>New</button>}>
+      <ContextHub title="Concepts" description="Brand language" actions={<button>New</button>}>
         <div>body</div>
-      </BrandHub>,
+      </ContextHub>,
     );
     expect(screen.getByRole("heading", { name: "Concepts" })).toBeInTheDocument();
     expect(screen.getByText("Brand language")).toBeInTheDocument();

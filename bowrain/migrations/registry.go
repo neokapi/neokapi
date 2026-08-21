@@ -76,7 +76,7 @@ func All() []Subsystem {
 		{Name: "quota", Table: "quota_schema_migrations", Migrations: jobs.QuotaMigrations},
 		{Name: "runner", Table: "runner_schema_migrations", Migrations: jobs.RunnerMigrations},
 		{Name: "extraction", Table: "extraction_schema_migrations", Migrations: jobs.ExtractionMigrations},
-		{Name: "brand_scan", Table: "brand_scan_schema_migrations", Migrations: jobs.BrandScanMigrations},
+		{Name: "context_scan", Table: "context_scan_schema_migrations", Migrations: jobs.ContextScanMigrations},
 		{Name: "model_sweep", Table: "model_sweep_schema_migrations", Migrations: jobs.ModelSweepMigrations},
 
 		{Name: "voice", Table: "voice_schema_migrations", Migrations: voice.Migrations},

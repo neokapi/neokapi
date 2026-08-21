@@ -136,10 +136,10 @@ import type {
   ApprovePassingResult,
   BrandCorrectionRequest,
   BrandCorrectionResult,
-  BrandScanRequest,
-  BrandScanUploadResult,
-  BrandScanJob,
-  BrandScanCheckResult,
+  ContextScanRequest,
+  ContextScanUploadResult,
+  ContextScanJob,
+  ContextScanCheckResult,
   ContextProfilesResponse,
   ChannelAliasJudgement,
   ChannelAliasProposal,
@@ -159,7 +159,7 @@ import type {
   TaskCounts,
   CreditLedgerQuery,
   CreditLedgerPage,
-  BrandScanApproveResult,
+  ContextScanApproveResult,
   ConceptStatusCounts,
   LocaleCoverageReport,
   ChangeSetCounts,
@@ -198,7 +198,7 @@ export class WailsApiAdapter implements ApiAdapter {
       build_date: v.build_date,
       // The desktop app has no brand-scan job system (the adapter's scan
       // methods throw), so the hosted-scan entry points stay hidden.
-      features: { brand_scan: false },
+      features: { context_scan: false },
     };
   }
 
@@ -1515,19 +1515,19 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Brand scan (epic 016) — a server-side worker job; the desktop app
   // does not expose the hosted scan (the local kapi Agent Skill lane covers
   // local onboarding) ---
-  async uploadBrandScanSources(_ws: string, _files: File[]): Promise<BrandScanUploadResult> {
+  async uploadContextScanSources(_ws: string, _files: File[]): Promise<ContextScanUploadResult> {
     throw new Error("not implemented in desktop app");
   }
 
-  async startBrandScan(_ws: string, _req: BrandScanRequest): Promise<{ job_id: string }> {
+  async startContextScan(_ws: string, _req: ContextScanRequest): Promise<{ job_id: string }> {
     throw new Error("not implemented in desktop app");
   }
 
-  async getBrandScan(_ws: string, _jobId: string): Promise<BrandScanJob> {
+  async getContextScan(_ws: string, _jobId: string): Promise<ContextScanJob> {
     throw new Error("not implemented in desktop app");
   }
 
-  async approveBrandScan(): Promise<BrandScanApproveResult> {
+  async approveContextScan(): Promise<ContextScanApproveResult> {
     throw new Error("not implemented in desktop app");
   }
 
@@ -1535,7 +1535,7 @@ export class WailsApiAdapter implements ApiAdapter {
     _ws: string,
     _profile: VoiceProfile,
     _text: string,
-  ): Promise<BrandScanCheckResult> {
+  ): Promise<ContextScanCheckResult> {
     throw new Error("not implemented in desktop app");
   }
 

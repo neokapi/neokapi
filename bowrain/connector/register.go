@@ -26,7 +26,7 @@ import (
 //
 // It deliberately omits the local-filesystem connectors. Server-side paths
 // that genuinely need a local checkout construct their connector directly in
-// Go with a path the server chose — see fetchBrandScanRepo in
+// Go with a path the server chose — see fetchContextScanRepo in
 // bowrain/jobs/brandscan_worker.go — which is not reachable from tenant input.
 func RegisterServer(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 	RegisterRemote(r)

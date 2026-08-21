@@ -236,11 +236,11 @@ func TestWorkerBilling_RedeliveredJobChargesOnce(t *testing.T) {
 	}
 }
 
-// TestBrandScanWorker_RetryChargesOncePerPhase is the brand-scan half of the
+// TestContextScanWorker_RetryChargesOncePerPhase is the brand-scan half of the
 // same property: its two phases carry per-phase reference ids, and a re-run
 // re-derives both.
-func TestBrandScanWorker_RetryChargesOncePerPhase(t *testing.T) {
-	f := newBrandScanFixture(t)
+func TestContextScanWorker_RetryChargesOncePerPhase(t *testing.T) {
+	f := newContextScanFixture(t)
 	bs, err := billing.NewPgBillingStore(f.db)
 	require.NoError(t, err)
 	f.deps.BillingHooks = &billing.UsageHooks{Store: bs}
@@ -252,8 +252,8 @@ func TestBrandScanWorker_RetryChargesOncePerPhase(t *testing.T) {
 	)
 	require.NoError(t, bs.GrantCredits(ctx, wsID, grant, billing.SourcePlan))
 
-	job := f.seedJob(t, wsID, BrandScanRequest{PasteText: demoPasteText})
-	require.NoError(t, processBrandScanJob(ctx, f.deps, job.ID))
+	job := f.seedJob(t, wsID, ContextScanRequest{PasteText: demoPasteText})
+	require.NoError(t, processContextScanJob(ctx, f.deps, job.ID))
 
 	remaining, err := bs.CheckCredits(ctx, wsID)
 	require.NoError(t, err)
@@ -262,7 +262,7 @@ func TestBrandScanWorker_RetryChargesOncePerPhase(t *testing.T) {
 
 	// Requeue and run it again, exactly as a redelivered queue message would.
 	f.requeueJob(t, job.ID)
-	require.NoError(t, processBrandScanJob(ctx, f.deps, job.ID))
+	require.NoError(t, processContextScanJob(ctx, f.deps, job.ID))
 
 	remaining, err = bs.CheckCredits(ctx, wsID)
 	require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestBrandScanWorker_RetryChargesOncePerPhase(t *testing.T) {
 
 	var rows int
 	require.NoError(t, f.db.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM credit_ledger WHERE workspace_id = $1 AND operation = 'brand_scan'`,
+		`SELECT COUNT(*) FROM credit_ledger WHERE workspace_id = $1 AND operation = 'context_scan'`,
 		wsID).Scan(&rows))
 	assert.Equal(t, 2, rows, "one ledger entry per phase, however many times the scan runs")
 }

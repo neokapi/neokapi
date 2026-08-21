@@ -7,7 +7,7 @@ import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
 import type { Workspace } from "../types/api";
-import { ChannelProposalsPanel } from "../brand-hub/proposals";
+import { ChannelProposalsPanel } from "../context-hub/proposals";
 import { fragmentedChannels } from "../stories/contextProfileFixtures";
 
 function workspaceAs(role: string): Workspace {

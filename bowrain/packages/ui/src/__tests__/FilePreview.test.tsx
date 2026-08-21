@@ -475,7 +475,7 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
         id: "components-reachpanel--default",
         title: "Components/ReachPanel",
         name: "Default",
-        importPath: "./src/brand-hub/experiments/ReachPanel.stories.tsx",
+        importPath: "./src/context-hub/experiments/ReachPanel.stories.tsx",
       },
     },
   };
@@ -508,7 +508,7 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
 
   // A component catalog, because only one can have a story: the join runs on
   // the `file` property, which one reader writes.
-  const STORIED_ITEM = "ui/src/brand-hub/experiments/ReachPanel.kbf.json";
+  const STORIED_ITEM = "ui/src/context-hub/experiments/ReachPanel.kbf.json";
 
   const storiedStats: ItemTranslationStats[] = [
     {
@@ -516,7 +516,7 @@ describe("CollectionItemsView — in-context reading follows the collection", ()
       item_id: "i-2",
       item_name: STORIED_ITEM,
       format: "kbf",
-      source_path: "../ui/src/brand-hub/experiments/ReachPanel.tsx",
+      source_path: "../ui/src/context-hub/experiments/ReachPanel.tsx",
     },
   ];
 

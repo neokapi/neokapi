@@ -13,23 +13,23 @@ import { hasStoryFor, storyComponents, type StoryIndex } from "../components/edi
 
 const index: StoryIndex = {
   entries: {
-    "brand-hub-reachpanel--default": {
-      id: "brand-hub-reachpanel--default",
-      title: "Brand Hub/ReachPanel",
+    "context-hub-reachpanel--default": {
+      id: "context-hub-reachpanel--default",
+      title: "Context/ReachPanel",
       name: "Default",
-      importPath: "./src/brand-hub/experiments/ReachPanel.stories.tsx",
+      importPath: "./src/context-hub/experiments/ReachPanel.stories.tsx",
     },
-    "brand-hub-reachpanel--empty": {
-      id: "brand-hub-reachpanel--empty",
-      title: "Brand Hub/ReachPanel",
+    "context-hub-reachpanel--empty": {
+      id: "context-hub-reachpanel--empty",
+      title: "Context/ReachPanel",
       name: "Empty",
-      importPath: "./src/brand-hub/experiments/ReachPanel.stories.tsx",
+      importPath: "./src/context-hub/experiments/ReachPanel.stories.tsx",
     },
-    "brand-hub-reachpanel--docs": {
-      id: "brand-hub-reachpanel--docs",
-      title: "Brand Hub/ReachPanel",
+    "context-hub-reachpanel--docs": {
+      id: "context-hub-reachpanel--docs",
+      title: "Context/ReachPanel",
       name: "Docs",
-      importPath: "./src/brand-hub/experiments/Guide.stories.mdx",
+      importPath: "./src/context-hub/experiments/Guide.stories.mdx",
       type: "docs",
     },
   },
@@ -55,7 +55,7 @@ describe("hasStoryFor", () => {
   const components = storyComponents(index);
 
   it("matches a source file to the story written beside it", () => {
-    expect(hasStoryFor(components, "../ui/src/brand-hub/experiments/ReachPanel.tsx")).toBe(true);
+    expect(hasStoryFor(components, "../ui/src/context-hub/experiments/ReachPanel.tsx")).toBe(true);
   });
 
   it("matches on the basename, not on where either file sits", () => {

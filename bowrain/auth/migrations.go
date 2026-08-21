@@ -90,10 +90,10 @@ var Migrations = []storage.Migration{
 			BEGIN
 				IF EXISTS (
 					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'workspaces' AND column_name = 'brand_voice_profile_id'
+					WHERE table_schema = current_schema() AND table_name = 'workspaces' AND column_name = 'brand_voice_profile_id'
 				) AND NOT EXISTS (
 					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'workspaces' AND column_name = 'voice_profile_id'
+					WHERE table_schema = current_schema() AND table_name = 'workspaces' AND column_name = 'voice_profile_id'
 				) THEN
 					ALTER TABLE workspaces RENAME COLUMN brand_voice_profile_id TO voice_profile_id;
 				END IF;

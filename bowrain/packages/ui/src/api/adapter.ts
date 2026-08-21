@@ -112,10 +112,10 @@ import type {
   SourceProposal,
   CreateSourceProposalRequest,
   DecideSourceProposalResult,
-  BrandScanRequest,
-  BrandScanUploadResult,
-  BrandScanJob,
-  BrandScanCheckResult,
+  ContextScanRequest,
+  ContextScanUploadResult,
+  ContextScanJob,
+  ContextScanCheckResult,
   GitHubSetupState,
   ClaimInstallationResult,
   InstallationRepo,
@@ -140,8 +140,8 @@ import type {
   TaskCounts,
   CreditLedgerQuery,
   CreditLedgerPage,
-  BrandScanApproveRequest,
-  BrandScanApproveResult,
+  ContextScanApproveRequest,
+  ContextScanApproveResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1157,26 +1157,26 @@ export interface ApiAdapter {
   // profile + candidate glossary from pasted text, fetched pages, uploaded
   // files, and repo docs; the draft is reviewed and approved by a human via
   // the ordinary createBrandProfile/createConcept surface.
-  uploadBrandScanSources(workspaceSlug: string, files: File[]): Promise<BrandScanUploadResult>;
-  startBrandScan(workspaceSlug: string, req: BrandScanRequest): Promise<{ job_id: string }>;
-  getBrandScan(workspaceSlug: string, jobId: string): Promise<BrandScanJob>;
+  uploadContextScanSources(workspaceSlug: string, files: File[]): Promise<ContextScanUploadResult>;
+  startContextScan(workspaceSlug: string, req: ContextScanRequest): Promise<{ job_id: string }>;
+  getContextScan(workspaceSlug: string, jobId: string): Promise<ContextScanJob>;
   /**
    * Apply a reviewed scan: store the edited profile and create the approved
    * terms, in one transaction. Terms land at status "proposed" and only where
    * no concept already carries them in that locale, so a retry after a
    * partially applied approval is safe.
    */
-  approveBrandScan(
+  approveContextScan(
     workspaceSlug: string,
     scanId: string,
-    req: BrandScanApproveRequest,
-  ): Promise<BrandScanApproveResult>;
+    req: ContextScanApproveRequest,
+  ): Promise<ContextScanApproveResult>;
   /** Stateless deterministic check of sample text against an in-progress draft. */
   checkBrandDraft(
     workspaceSlug: string,
     profile: VoiceProfile,
     text: string,
-  ): Promise<BrandScanCheckResult>;
+  ): Promise<ContextScanCheckResult>;
 
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;

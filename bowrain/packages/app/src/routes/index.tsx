@@ -88,11 +88,11 @@ export interface WorkspaceRouteContext {
   serverMode: "standalone" | "server";
   /**
    * Whether this deployment runs the brand-scan job system (the server's
-   * `features.brand_scan` capability bit). Gates the hosted-scan entry points
+   * `features.context_scan` capability bit). Gates the hosted-scan entry points
    * so servers without it (SQLite/standalone) do not advertise a flow that
    * would fail with "brand scan system not configured".
    */
-  brandScanAvailable: boolean;
+  contextScanAvailable: boolean;
   user: User;
   workspaces: Workspace[];
   activeWorkspace: Workspace;
@@ -386,7 +386,7 @@ const workspaceRoute = createRoute({
 
     return {
       serverMode,
-      brandScanAvailable: config.features?.brand_scan === true,
+      contextScanAvailable: config.features?.context_scan === true,
       user,
       workspaces,
       activeWorkspace,

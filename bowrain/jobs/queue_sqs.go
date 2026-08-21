@@ -19,7 +19,7 @@ import (
 const (
 	SQSTranslationQueue = "translation-jobs"
 	SQSExtractionQueue  = "extraction-jobs"
-	SQSBrandScanQueue   = "brand-scan-jobs"
+	SQSContextScanQueue = "brand-scan-jobs"
 )
 
 // sqsMaxReceiveCount mirrors the redrive policy's maxReceiveCount provisioned

@@ -547,5 +547,5 @@ export const brandHubOverrides: Partial<ApiAdapter> = {
   listBrandProfiles: async () => [],
 };
 
-/** Decorator wiring the base mock + brand-hub overrides + a wide container. */
-export const withBrandHub: Decorator = createProvidersDecorator(undefined, brandHubOverrides);
+/** Decorator wiring the base mock + context-hub overrides + a wide container. */
+export const withContextHub: Decorator = createProvidersDecorator(undefined, brandHubOverrides);

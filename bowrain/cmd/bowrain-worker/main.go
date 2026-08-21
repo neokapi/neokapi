@@ -181,17 +181,17 @@ func runWorker(dbURL string) error {
 	// Set up the brand-scan job queue (epic 016). The server's brand
 	// onboarding scan endpoint enqueues; this worker consumes. Mirrors the
 	// extraction queue selection exactly.
-	var brandScanQueue jobs.Queue
+	var contextScanQueue jobs.Queue
 	switch {
 	case jobs.SQSConfigured():
-		brandScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSBrandScanQueue)
+		contextScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSContextScanQueue)
 		if err != nil {
 			return fmt.Errorf("connect to SQS (brand scan): %w", err)
 		}
 	default:
-		brandScanQueue = jobs.NewChannelQueue(64)
+		contextScanQueue = jobs.NewChannelQueue(64)
 	}
-	defer brandScanQueue.Close()
+	defer contextScanQueue.Close()
 
 	credStore := credentials.NewStore(credentialsPath)
 
@@ -590,13 +590,13 @@ func runWorker(dbURL string) error {
 	// platform provider only and deduct credits via the same billing hooks as
 	// translation, so the wiring mirrors translationDeps: nil hooks (no
 	// STRIPE_SECRET_KEY) degrade cleanly to unmetered scans.
-	pgBSS, err := jobs.NewBrandScanJobStore(pgdb)
+	pgBSS, err := jobs.NewContextScanJobStore(pgdb)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL brand-scan job store: %w", err)
 	}
-	brandScanDeps := &jobs.BrandScanWorkerDeps{
+	contextScanDeps := &jobs.ContextScanWorkerDeps{
 		Store:            pgBSS,
-		Queue:            brandScanQueue,
+		Queue:            contextScanQueue,
 		BlobStore:        blobStore,
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
@@ -608,16 +608,16 @@ func runWorker(dbURL string) error {
 	}
 	g.Go(func() error {
 		slog.Info("starting brand-scan worker")
-		return jobs.RunBrandScanWorker(ctx, brandScanDeps)
+		return jobs.RunContextScanWorker(ctx, contextScanDeps)
 	})
 
 	// Brand-scan stale-job sweeper: same crash backstop as the translation
 	// sweeper (a worker dying between claim and completion leaves the row in
 	// 'processing' with no pending redelivery).
-	brandScanSweeper := jobs.NewStaleJobSweeper(pgBSS, brandScanQueue, 0, 0, 0)
+	contextScanSweeper := jobs.NewStaleJobSweeper(pgBSS, contextScanQueue, 0, 0, 0)
 	g.Go(func() error {
 		slog.Info("starting brand-scan stale-job sweeper")
-		return brandScanSweeper.Run(ctx)
+		return contextScanSweeper.Run(ctx)
 	})
 
 	// Brand-scan upload retention: uploaded source envelopes (customer brand
@@ -625,10 +625,10 @@ func runWorker(dbURL string) error {
 	// window. The window is what keeps Regenerate — which reuses the original
 	// upload keys — working across a review session.
 	if blobStore != nil {
-		brandScanUploadSweeper := jobs.NewBrandScanUploadSweeper(pgBSS, blobStore, 0, 0)
+		contextScanUploadSweeper := jobs.NewContextScanUploadSweeper(pgBSS, blobStore, 0, 0)
 		g.Go(func() error {
 			slog.Info("starting brand-scan upload sweeper")
-			return brandScanUploadSweeper.Run(ctx)
+			return contextScanUploadSweeper.Run(ctx)
 		})
 	}
 

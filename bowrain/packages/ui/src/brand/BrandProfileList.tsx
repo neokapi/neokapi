@@ -10,7 +10,7 @@ import {
 import { useState, useCallback, useMemo } from "react";
 import type { VoiceProfile } from "./types";
 import { BrandProfileCard } from "./BrandProfileCard";
-import { BrandScanLocalLaneCard } from "../brand-scan/BrandScanLocalLaneCard";
+import { ContextScanLocalLaneCard } from "../context-scan/ContextScanLocalLaneCard";
 import { ListCapRow } from "../components/ListCapRow";
 import { Plus, Search, Sparkles } from "../components/icons";
 
@@ -111,7 +111,7 @@ export function BrandProfileList({
               </p>
             )}
           </div>
-          <BrandScanLocalLaneCard onLearnMore={onLocalLane} className="w-full max-w-md" />
+          <ContextScanLocalLaneCard onLearnMore={onLocalLane} className="w-full max-w-md" />
         </div>
       ) : filteredProfiles.length === 0 ? (
         <div className="text-center py-12">

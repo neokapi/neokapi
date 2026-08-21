@@ -180,7 +180,7 @@ const TS = {
   brandGraph: "bowrain/packages/ui/src/types/brand-graph.ts",
   blockStatus: "bowrain/packages/ui/src/components/editor/blockStatus.ts",
   chip: "bowrain/packages/ui/src/components/ComplianceRateChip.tsx",
-  atoms: "bowrain/packages/ui/src/brand-hub/shell/atoms.tsx",
+  atoms: "bowrain/packages/ui/src/context-hub/shell/atoms.tsx",
   restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
   brandTypes: "bowrain/packages/ui/src/brand/types.ts",
   apiError: "bowrain/packages/ui/src/errors/ApiError.ts",

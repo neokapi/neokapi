@@ -297,11 +297,11 @@ type Server struct {
 	// ExtractionQueue enqueues extraction job IDs. Nil when not configured.
 	ExtractionQueue jobs.Queue
 
-	// BrandScanStore persists AI brand-scan job state (epic 016). Nil when not configured.
-	BrandScanStore jobs.BrandScanJobStore
+	// ContextScanStore persists AI brand-scan job state (epic 016). Nil when not configured.
+	ContextScanStore jobs.ContextScanJobStore
 
-	// BrandScanQueue enqueues brand-scan job IDs. Nil when not configured.
-	BrandScanQueue jobs.Queue
+	// ContextScanQueue enqueues brand-scan job IDs. Nil when not configured.
+	ContextScanQueue jobs.Queue
 
 	// dashboardCache caches translation dashboard stats per project/stream.
 	dashboardCache sync.Map // map[string]*dashboardCacheEntry
@@ -551,7 +551,7 @@ func NewServer(cfg Config) *Server {
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
 			s.ExtractionJobStore = pg.Extraction
-			s.BrandScanStore = pg.BrandScan
+			s.ContextScanStore = pg.ContextScan
 			s.QuotaStore = pg.Quota
 			s.SweepStore = pg.Sweep
 			s.wsStores.pgDB = pg.DB
@@ -626,10 +626,10 @@ func NewServer(cfg Config) *Server {
 		} else {
 			s.ExtractionQueue = eq
 		}
-		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSBrandScanQueue); err != nil {
+		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSContextScanQueue); err != nil {
 			slog.Warn("failed to connect to SQS brand-scan queue", "error", err)
 		} else {
-			s.BrandScanQueue = bq
+			s.ContextScanQueue = bq
 		}
 	}
 
@@ -1680,10 +1680,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// AI brand onboarding scans — epic 016: /:ws/brand-scans. The scan
 	// endpoint burns platform credits (QuotaGuard + the handler's 402
 	// pre-check); the draft tester is deterministic (aiLimit only).
-	g.POST("/brand-scans/uploads", s.HandleBrandScanUploads)
-	g.POST("/brand-scans", s.HandleCreateBrandScan, aiLimit, billing.QuotaGuard(s.BillingStore))
-	g.GET("/brand-scans/:id", s.HandleGetBrandScan)
-	g.POST("/brand-scans/:id/approve", s.HandleApproveBrandScan)
+	g.POST("/brand-scans/uploads", s.HandleContextScanUploads)
+	g.POST("/brand-scans", s.HandleCreateContextScan, aiLimit, billing.QuotaGuard(s.BillingStore))
+	g.GET("/brand-scans/:id", s.HandleGetContextScan)
+	g.POST("/brand-scans/:id/approve", s.HandleApproveContextScan)
 	g.POST("/brand-scans/check-draft", s.HandleCheckBrandDraft, aiLimit)
 
 	// Translation jobs — Bowrain AD-011: /:ws/jobs
@@ -2147,8 +2147,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.ExtractionQueue != nil {
 		collectErr("extraction-queue", s.ExtractionQueue.Close())
 	}
-	if s.BrandScanQueue != nil {
-		collectErr("brand-scan-queue", s.BrandScanQueue.Close())
+	if s.ContextScanQueue != nil {
+		collectErr("brand-scan-queue", s.ContextScanQueue.Close())
 	}
 	if s.PostHogClient != nil {
 		collectErr("posthog", s.PostHogClient.Close())

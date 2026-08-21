@@ -124,10 +124,10 @@ import type {
   SourceProposal,
   CreateSourceProposalRequest,
   DecideSourceProposalResult,
-  BrandScanRequest,
-  BrandScanUploadResult,
-  BrandScanJob,
-  BrandScanCheckResult,
+  ContextScanRequest,
+  ContextScanUploadResult,
+  ContextScanJob,
+  ContextScanCheckResult,
   GitHubSetupState,
   ClaimInstallationResult,
   InstallationRepo,
@@ -153,8 +153,8 @@ import type {
   TaskCounts,
   CreditLedgerQuery,
   CreditLedgerPage,
-  BrandScanApproveRequest,
-  BrandScanApproveResult,
+  ContextScanApproveRequest,
+  ContextScanApproveResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -2755,24 +2755,27 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Brand scan (AI brand onboarding — epic 016) ─────────────────────────────
 
-  private brandScanEp(ws: string) {
+  private contextScanEp(ws: string) {
     return `/api/v1/${ws}/brand-scans`;
   }
 
-  async uploadBrandScanSources(
+  async uploadContextScanSources(
     workspaceSlug: string,
     files: File[],
-  ): Promise<BrandScanUploadResult> {
+  ): Promise<ContextScanUploadResult> {
     const formData = new FormData();
     for (const file of files) {
       formData.append("files", file);
     }
-    const resp = await this.fetchImpl(`${this.baseUrl}${this.brandScanEp(workspaceSlug)}/uploads`, {
-      method: "POST",
-      headers: this.uploadHeaders(),
-      credentials: "same-origin",
-      body: formData,
-    });
+    const resp = await this.fetchImpl(
+      `${this.baseUrl}${this.contextScanEp(workspaceSlug)}/uploads`,
+      {
+        method: "POST",
+        headers: this.uploadHeaders(),
+        credentials: "same-origin",
+        body: formData,
+      },
+    );
     if (!resp.ok) {
       const body = await resp.text();
       throw httpError(resp, body);
@@ -2780,24 +2783,27 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.json();
   }
 
-  async startBrandScan(workspaceSlug: string, req: BrandScanRequest): Promise<{ job_id: string }> {
-    return this.fetchJSON(this.brandScanEp(workspaceSlug), {
+  async startContextScan(
+    workspaceSlug: string,
+    req: ContextScanRequest,
+  ): Promise<{ job_id: string }> {
+    return this.fetchJSON(this.contextScanEp(workspaceSlug), {
       method: "POST",
       body: JSON.stringify(req),
     });
   }
 
-  async getBrandScan(workspaceSlug: string, jobId: string): Promise<BrandScanJob> {
-    return this.fetchJSON(`${this.brandScanEp(workspaceSlug)}/${encodeURIComponent(jobId)}`);
+  async getContextScan(workspaceSlug: string, jobId: string): Promise<ContextScanJob> {
+    return this.fetchJSON(`${this.contextScanEp(workspaceSlug)}/${encodeURIComponent(jobId)}`);
   }
 
-  async approveBrandScan(
+  async approveContextScan(
     workspaceSlug: string,
     scanId: string,
-    req: BrandScanApproveRequest,
-  ): Promise<BrandScanApproveResult> {
+    req: ContextScanApproveRequest,
+  ): Promise<ContextScanApproveResult> {
     return this.fetchJSON(
-      `${this.brandScanEp(workspaceSlug)}/${encodeURIComponent(scanId)}/approve`,
+      `${this.contextScanEp(workspaceSlug)}/${encodeURIComponent(scanId)}/approve`,
       { method: "POST", body: JSON.stringify(req) },
     );
   }
@@ -2806,8 +2812,8 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     profile: VoiceProfile,
     text: string,
-  ): Promise<BrandScanCheckResult> {
-    return this.fetchJSON(`${this.brandScanEp(workspaceSlug)}/check-draft`, {
+  ): Promise<ContextScanCheckResult> {
+    return this.fetchJSON(`${this.contextScanEp(workspaceSlug)}/check-draft`, {
       method: "POST",
       body: JSON.stringify({ profile, text }),
     });
@@ -3360,7 +3366,7 @@ export class RestApiAdapter implements ApiAdapter {
       bravoMessages: byOp.bravo_message ?? 0,
       bravoContainer: byOp.bravo_container ?? 0,
       // The total is the sum of everything charged, not of the four named rows —
-      // a new operation type (brand_scan, say) must land in the total rather than
+      // a new operation type (context_scan, say) must land in the total rather than
       // vanish from it.
       total,
     };

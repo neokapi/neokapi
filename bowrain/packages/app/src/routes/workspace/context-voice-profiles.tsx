@@ -12,7 +12,7 @@ import type { WorkspaceRouteContext } from "..";
 export function ContextVoiceProfilesRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
-  const { activeWorkspace, brandScanAvailable } = useRouteContext({
+  const { activeWorkspace, contextScanAvailable } = useRouteContext({
     strict: false,
   }) as WorkspaceRouteContext;
 
@@ -86,7 +86,7 @@ export function ContextVoiceProfilesRoute() {
       onReview={handleReview}
       // Only servers running the brand-scan job system get the hosted-scan
       // CTA; the local lane (kapi Agent Skill) is always available.
-      onScanBrand={brandScanAvailable ? handleScanBrand : undefined}
+      onScanBrand={contextScanAvailable ? handleScanBrand : undefined}
       onLocalLane={handleLocalLane}
     />
   );

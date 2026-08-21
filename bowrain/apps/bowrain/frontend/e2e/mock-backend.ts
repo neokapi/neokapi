@@ -1326,7 +1326,7 @@ export async function injectMockBackend(page: Page) {
           version: "e2e",
           commit: "e2e",
           build_date: "",
-          features: { brand_scan: false },
+          features: { context_scan: false },
           provider_types: [],
         }),
       ],

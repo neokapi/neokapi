@@ -45,7 +45,7 @@ describe("multipart uploads in cookie (BFF) mode", () => {
   const uploads: Array<[string, (a: RestApiAdapter) => Promise<unknown>]> = [
     ["uploadFiles", (a) => a.uploadFiles("acme", "p1", [file()])],
     ["uploadToCollection", (a) => a.uploadToCollection("acme", "p1", "c1", [file()])],
-    ["uploadBrandScanSources", (a) => a.uploadBrandScanSources("acme", [file()])],
+    ["uploadContextScanSources", (a) => a.uploadContextScanSources("acme", [file()])],
   ];
 
   for (const [name, call] of uploads) {

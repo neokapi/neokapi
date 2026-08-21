@@ -113,18 +113,18 @@ export const TEST_IDS = {
     githubOpenProject: "github-setup-open-project",
   },
 
-  // ── Brand scan (AI brand onboarding — epic 016) ──────────────────
-  brandScan: {
-    input: "brand-scan-input",
-    urlInput: "brand-scan-url-input",
-    fileDrop: "brand-scan-file-drop",
-    start: "brand-scan-start",
-    progress: "brand-scan-progress",
-    review: "brand-scan-review",
-    fieldConfidence: "brand-scan-field-confidence",
-    termRow: "brand-scan-term-row",
-    liveTester: "brand-scan-live-tester",
-    approve: "brand-scan-approve",
+  // ── Context scan (AI context onboarding — epic 016) ──────────────────
+  contextScan: {
+    input: "context-scan-input",
+    urlInput: "context-scan-url-input",
+    fileDrop: "context-scan-file-drop",
+    start: "context-scan-start",
+    progress: "context-scan-progress",
+    review: "context-scan-review",
+    fieldConfidence: "context-scan-field-confidence",
+    termRow: "context-scan-term-row",
+    liveTester: "context-scan-live-tester",
+    approve: "context-scan-approve",
   },
 
   // ── Settings ──────────────────────────────────────────────────────

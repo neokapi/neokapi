@@ -50,7 +50,7 @@ func TestInfoEndpoint(t *testing.T) {
 	assert.NotEmpty(t, resp.Locales)
 	// The default (SQLite/standalone) server has no brand-scan job system, so
 	// the web app must be told to hide the hosted-scan entry points.
-	assert.False(t, resp.Features["brand_scan"])
+	assert.False(t, resp.Features["context_scan"])
 
 	// Provider types are served from the framework registry so the settings UI
 	// never hardcodes them. The configurable set is present; the two special
