@@ -1150,6 +1150,16 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	var decisions []venue.UnitDecision
 	var served *ref.Ref
 
+	// The assets each item holds, as the venue already listed them.
+	//
+	// A pull response has always carried these — the server lists them per
+	// affected item while assembling the page — and the loop below used to drop
+	// them on the floor. The write-out then asked for the same list again, once
+	// per item and once per locale, over the network. Keeping what was already
+	// sent is the whole of the saving: no wire shape changes, and nothing new is
+	// computed on either side.
+	mediaByItem := map[string][]apiclient.SyncMedia{}
+
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
 		if err != nil {
@@ -1169,6 +1179,9 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		}
 		if resp.Ref != nil {
 			served = resp.Ref
+		}
+		for _, m := range resp.Media {
+			mediaByItem[m.ItemName] = append(mediaByItem[m.ItemName], m)
 		}
 		cursor = resp.Cursor
 
@@ -1227,6 +1240,17 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			}
 			if !hasTargets {
 				continue
+			}
+
+			// An item's assets and their variants do not vary by target
+			// language — the variant list carries every locale and the filter
+			// below picks one — so both are read once, here, rather than once
+			// per locale inside the loop.
+			var itemAssets []apiclient.SyncMedia
+			var itemVariants map[string][]apiclient.AssetVariantResponse
+			if c.project.Recipe.AssetsEnabled() {
+				itemAssets = mediaByItem[itemName]
+				itemVariants = c.listMediaVariants(ctx, itemAssets)
 			}
 
 			// Write a translated file for each target locale.
@@ -1298,8 +1322,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				// Fetch locale-variant media for this item (Bowrain AD-007).
 				var mediaRepl []MediaReplacement
 				cleanupMedia := func() {}
-				if c.project.Recipe.AssetsEnabled() {
-					mediaRepl, cleanupMedia = c.fetchMediaReplacements(ctx, itemName, loc)
+				if len(itemAssets) > 0 {
+					mediaRepl, cleanupMedia = c.fetchMediaReplacements(ctx, itemAssets, itemVariants, loc)
 				}
 
 				werr := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
@@ -1881,20 +1905,46 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	return writer.Close()
 }
 
-// fetchMediaReplacements downloads approved locale-variant media files for a
-// given item and locale, materializing each variant to a temp file and
-// returning MediaReplacement entries that reference it by path (so the writer
-// streams the asset rather than buffering it). The returned cleanup removes the
-// temp files and must be called once the writer is done with them.
-func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, itemName, locale string) ([]MediaReplacement, func()) {
-	noop := func() {}
-	if c.client == nil {
-		return nil, noop
+// listMediaVariants reads the variants of an item's assets, once.
+//
+// A variant list is locale-INDEPENDENT: the endpoint answers with every variant
+// an asset has and the caller filters. Asking inside the per-locale loop
+// therefore fetched the same list once per target language and threw all but
+// one row away each time — three locales, three identical round trips per
+// asset. Hoisting it here is the whole saving, and it needs no new endpoint.
+//
+// A download URL is minted by this call, and expires. Listing here rather than
+// with the pull keeps it close to its use: an expired URL is a variant silently
+// missing from a written file, so the gap between minting and downloading is
+// the thing worth keeping short.
+func (c *BowrainSourceConnector) listMediaVariants(ctx context.Context, assets []apiclient.SyncMedia) map[string][]apiclient.AssetVariantResponse {
+	if c.client == nil || len(assets) == 0 {
+		return nil
 	}
+	out := make(map[string][]apiclient.AssetVariantResponse, len(assets))
+	for _, asset := range assets {
+		variants, err := c.client.ListAssetVariants(ctx, asset.ID)
+		if err != nil {
+			continue
+		}
+		out[asset.ID] = variants
+	}
+	return out
+}
 
-	// Fetch assets for this item.
-	assets, err := c.client.ListAssets(ctx, itemName)
-	if err != nil || len(assets) == 0 {
+// fetchMediaReplacements materializes the approved variants for one locale to
+// temp files and returns MediaReplacement entries that reference them by path
+// (so the writer streams the asset rather than buffering it). The returned
+// cleanup removes the temp files and must be called once the writer is done
+// with them.
+func (c *BowrainSourceConnector) fetchMediaReplacements(
+	ctx context.Context,
+	assets []apiclient.SyncMedia,
+	variantsByAsset map[string][]apiclient.AssetVariantResponse,
+	locale string,
+) ([]MediaReplacement, func()) {
+	noop := func() {}
+	if c.client == nil || len(assets) == 0 {
 		return nil, noop
 	}
 
@@ -1907,11 +1957,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, ite
 
 	var replacements []MediaReplacement
 	for _, asset := range assets {
-		// Fetch variants for this asset.
-		variants, err := c.client.ListAssetVariants(ctx, asset.ID)
-		if err != nil {
-			continue
-		}
+		variants := variantsByAsset[asset.ID]
 
 		for _, v := range variants {
 			if v.Locale != locale || v.Status != "approved" {
