@@ -23,7 +23,7 @@ export const Dimension = {
     DimensionStyle: "style",
     DimensionVocabulary: "vocabulary",
     DimensionClarity: "clarity",
-    DimensionBrand: "brand_compliance",
+    DimensionCompliance: "compliance",
 };
 
 /**

@@ -208,7 +208,7 @@ describe("BrandFindingsList", () => {
   // response carries, so this chip was empty for every real finding.
   it("names the category the server grouped the finding under", () => {
     render(<BrandFindingsList findings={[makeFinding({ category: "compliance" })]} />);
-    expect(screen.getByText("brand compliance")).toBeInTheDocument();
+    expect(screen.getByText("compliance")).toBeInTheDocument();
   });
 
   it("shows empty message when no findings", () => {
