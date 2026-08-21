@@ -280,7 +280,14 @@ const (
 	// straight to object storage. No request handler is in the path, so the API
 	// imposes nothing; what remains is the producer's own memory, since a
 	// window of chunks is held while it uploads in parallel.
-	maxDirectChunkMarshaledBytes = 12 * 1024 * 1024 // 12 MiB
+	//
+	// Sized from object-storage guidance, which puts useful part sizes at
+	// 16–64 MB: below that band the per-request overhead starts to dominate,
+	// above it a failure costs more to retry than it saves. This is the bottom
+	// of the band on purpose — the bound is on the MARSHALED bytes, which are
+	// then compressed, so the object that lands is smaller again, and the
+	// window holds several of them at once.
+	maxDirectChunkMarshaledBytes = 16 * 1024 * 1024 // 16 MiB
 )
 
 // Push performs a complete push: init → diff → upload chunks → commit.
