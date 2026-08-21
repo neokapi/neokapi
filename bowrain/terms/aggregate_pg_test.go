@@ -12,12 +12,12 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 
-	pgtb "github.com/neokapi/neokapi/bowrain/terms"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 )
 
 // aggregateFixture is the same shape the pure helpers are pinned to: en-US in
 // every concept, de-DE and fr-FR in one each, one concept with no terms.
-func aggregateFixture(t *testing.T, tb *pgtb.PostgresStore) {
+func aggregateFixture(t *testing.T, tb *pgterms.PostgresStore) {
 	t.Helper()
 	add := func(id string, locales ...model.LocaleID) {
 		cp := terms.Concept{ID: id, Domain: "commerce"}
@@ -46,10 +46,10 @@ func TestPgConceptLocaleCoverageMatchesGoAggregate(t *testing.T) {
 
 	all, err := tb.Concepts(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, pgtb.CoverageFromConcepts(all), got)
+	assert.Equal(t, pgterms.CoverageFromConcepts(all), got)
 
 	require.NotEmpty(t, got)
-	assert.Equal(t, pgtb.LocaleCoverage{Locale: "en-US", Present: 3, Total: 4, Pct: 75}, got[0])
+	assert.Equal(t, pgterms.LocaleCoverage{Locale: "en-US", Present: 3, Total: 4, Pct: 75}, got[0])
 }
 
 // TestPgConceptCountsMatchesGoAggregate pins the status breakdown to the same
@@ -63,7 +63,7 @@ func TestPgConceptCountsMatchesGoAggregate(t *testing.T) {
 
 	all, err := tb.Concepts(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, pgtb.CountsFromConcepts(all), got)
+	assert.Equal(t, pgterms.CountsFromConcepts(all), got)
 
 	assert.Equal(t, 4, got.Total)
 	assert.Equal(t, 3, got.ByStatus[model.TermPreferred])

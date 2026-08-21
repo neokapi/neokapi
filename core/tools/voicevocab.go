@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/terms"
 )
 
 // VoiceVocabConfig holds configuration for the voice vocabulary check tool.
 type VoiceVocabConfig struct {
-	Profile *profile.VoiceProfile `schema:"description=Voice profile containing vocabulary rules"`
+	Profile *coreprofile.VoiceProfile `schema:"description=Voice profile containing vocabulary rules"`
 }
 
 func (c *VoiceVocabConfig) ToolName() string { return "voice-vocab-check" }
@@ -24,11 +24,11 @@ func (c *VoiceVocabConfig) Validate() error  { return nil }
 // This is a rule-based check that runs before the LLM-based voice-check.
 type VoiceVocabCheckTool struct {
 	tool.BaseTool
-	profile     *profile.VoiceProfile
-	terminology terms.Terminology       // optional — the project's decided vocabulary
-	resolver    profile.ProfileResolver // optional: lazy profile resolution
-	rc          profile.ResolveContext  // context for resolver
-	resolved    bool                    // true after first resolution attempt
+	profile     *coreprofile.VoiceProfile
+	terminology terms.Terminology           // optional — the project's decided vocabulary
+	resolver    coreprofile.ProfileResolver // optional: lazy profile resolution
+	rc          coreprofile.ResolveContext  // context for resolver
+	resolved    bool                        // true after first resolution attempt
 	// sourceLocale is the language the terms lookup asks in when a block carries
 	// no locale of its own. Most readers stamp the locale on the document layer
 	// rather than on every block, so without it a caller with a terms store bound
@@ -45,7 +45,7 @@ func (t *VoiceVocabCheckTool) InSourceLocale(loc model.LocaleID) *VoiceVocabChec
 }
 
 // NewVoiceVocabCheckTool creates a new voice vocabulary check tool.
-func NewVoiceVocabCheckTool(profile *profile.VoiceProfile, tb terms.Terminology) *VoiceVocabCheckTool {
+func NewVoiceVocabCheckTool(profile *coreprofile.VoiceProfile, tb terms.Terminology) *VoiceVocabCheckTool {
 	t := &VoiceVocabCheckTool{
 		profile:     profile,
 		terminology: tb,
@@ -59,7 +59,7 @@ func NewVoiceVocabCheckTool(profile *profile.VoiceProfile, tb terms.Terminology)
 
 // NewVoiceVocabCheckToolWithResolver creates a voice vocabulary check tool that
 // lazily resolves its profile from the organizational context hierarchy.
-func NewVoiceVocabCheckToolWithResolver(resolver profile.ProfileResolver, rc profile.ResolveContext, tb terms.Terminology) *VoiceVocabCheckTool {
+func NewVoiceVocabCheckToolWithResolver(resolver coreprofile.ProfileResolver, rc coreprofile.ResolveContext, tb terms.Terminology) *VoiceVocabCheckTool {
 	t := &VoiceVocabCheckTool{
 		terminology: tb,
 		resolver:    resolver,
@@ -151,13 +151,13 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	sourceRuns := v.SourceRuns()
 
-	// The profile's whole deterministic gate (profile.Findings): forbidden and
+	// The profile's whole deterministic gate (coreprofile.Findings): forbidden and
 	// competitor terms, matched whole-word and Unicode-aware (check.FindTerm) so
 	// "use" never matches inside "user", plus the prohibited style patterns
 	// matched as authored. The same entry point backs the /check endpoint, the
 	// check_vocabulary MCP tool and the desktop inspector, so none of these paths
-	// enforces half a profile.
-	findings := profile.Findings(t.profile, sourceText, sourceRuns)
+	// enforces half a coreprofile.
+	findings := coreprofile.Findings(t.profile, sourceText, sourceRuns)
 
 	// The bound terms store, when there is one: the vocabulary the project
 	// DECIDED, enforced alongside the profile's own lists.
@@ -196,20 +196,20 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 			}
 		}
 		for _, m := range matches {
-			var f profile.VoiceFinding
+			var f coreprofile.VoiceFinding
 			switch {
 			case m.Term.CompetitorTerm:
-				f = profile.VoiceFinding{
-					Category:     string(profile.DimensionVocabulary),
-					Severity:     profile.SeverityCritical,
+				f = coreprofile.VoiceFinding{
+					Category:     string(coreprofile.DimensionVocabulary),
+					Severity:     coreprofile.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in terms", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
 			case m.Term.Status == model.TermForbidden:
-				f = profile.VoiceFinding{
-					Category:     string(profile.DimensionVocabulary),
-					Severity:     profile.SeverityMajor,
+				f = coreprofile.VoiceFinding{
+					Category:     string(coreprofile.DimensionVocabulary),
+					Severity:     coreprofile.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in terms", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
@@ -220,9 +220,9 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				// retrieval surface already reports it as ("discouraged — say X").
 				// Minor keeps `--strict` from turning every legacy spelling in a
 				// corpus into a build failure the day a term is retired.
-				f = profile.VoiceFinding{
-					Category:     string(profile.DimensionVocabulary),
-					Severity:     profile.SeverityMinor,
+				f = coreprofile.VoiceFinding{
+					Category:     string(coreprofile.DimensionVocabulary),
+					Severity:     coreprofile.SeverityMinor,
 					Message:      fmt.Sprintf("Retired term %q found in terms", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
@@ -258,12 +258,12 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	if len(findings) > 0 {
 		// Add the voice annotation (which carries the findings + score).
-		score := profile.CalculateScore(findings)
+		score := coreprofile.CalculateScore(findings)
 		profileID := ""
 		if t.profile != nil {
 			profileID = t.profile.ID
 		}
-		v.Annotate("voice", &profile.VoiceAnnotation{
+		v.Annotate("voice", &coreprofile.VoiceAnnotation{
 			ProfileID: profileID,
 			Score:     score.Overall,
 			Findings:  findings,

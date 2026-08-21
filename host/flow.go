@@ -21,7 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
@@ -30,9 +30,9 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
-	sqltm "github.com/neokapi/neokapi/memory"
+	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
-	sqltb "github.com/neokapi/neokapi/terms"
+	sqlterms "github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"golang.org/x/sync/errgroup"
 )
@@ -1390,11 +1390,11 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 					return nil, nil, err
 				} else if tb != nil {
 					qaTools = append(qaTools,
-						sqltb.NewTermLookupTool(tb, sqltb.TermLookupConfig{
+						sqlterms.NewTermLookupTool(tb, sqlterms.TermLookupConfig{
 							SourceLocale: model.LocaleID(a.SourceLocale()),
 							TargetLocale: model.LocaleID(a.TargetLang),
 						}),
-						sqltb.NewTermEnforceTool(tb, sqltb.TermEnforceConfig{
+						sqlterms.NewTermEnforceTool(tb, sqlterms.TermEnforceConfig{
 							SourceLocale: model.LocaleID(a.SourceLocale()),
 							TargetLocale: model.LocaleID(a.TargetLang),
 						}),
@@ -1497,7 +1497,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 // store holds NO concepts: the vocabulary tables exist from the store's first
 // open, so their presence stopped meaning anything and emptiness is what "there
 // is nothing to enforce" looks like now.
-func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
+func (a *App) openTerms(cmd ...Command) (*sqlterms.SQLiteStore, func(), error) {
 	noop := func() {}
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
@@ -1527,7 +1527,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 			return nil, noop, nil
 		}
 	}
-	tb, err := sqltb.NewSQLiteStore(sel.Path)
+	tb, err := sqlterms.NewSQLiteStore(sel.Path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open terms %q: %w", sel.Path, err)
 	}
@@ -1593,7 +1593,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 		}
 	}
 
-	tm, err := sqltm.NewSQLiteStore(memoryPath)
+	tm, err := sqlmemory.NewSQLiteStore(memoryPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open content memory %q: %w", memoryPath, err)
 	}
@@ -1605,7 +1605,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 type ProjectBindings struct {
 	// profile is the resolved voice profile (defaults.voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
-	profile *profile.VoiceProfile
+	profile *coreprofile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
 	// (defaults.terms_source), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
@@ -1669,7 +1669,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 	if err != nil {
 		return nil, err
 	}
-	at := sqltm.NewPoint(gov.Profile, gov.Channel, "")
+	at := sqlmemory.NewPoint(gov.Profile, gov.Channel, "")
 
 	if profile == nil && len(glossary) == 0 && at == "" &&
 		len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
@@ -1835,7 +1835,7 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point pr
 //
 // point scopes the resolution to the terms binding governing there; the zero
 // point is the project-wide answer.
-func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqltb.Concept, error) {
+func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, error) {
 	explicitStore := false
 	if cmd != nil {
 		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
@@ -1885,7 +1885,7 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 			if ktb.IsBundlePath(sel.Path) {
 				return conceptsFromKTB(sel.Path)
 			}
-			tb, err := sqltb.NewSQLiteStore(sel.Path)
+			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
 				return nil, fmt.Errorf("open terms %q: %w", sel.Path, err)
 			}
@@ -1903,7 +1903,7 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 // conceptsFromKTB decodes the committed .terms.json terms serialization into
 // concepts — the read-only fast path a check gate uses to validate the
 // committed source of truth without materializing the SQLite working index.
-func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
+func conceptsFromKTB(path string) ([]sqlterms.Concept, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open terms source %q: %w", path, err)

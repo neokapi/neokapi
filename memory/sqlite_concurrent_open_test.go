@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	sqltm "github.com/neokapi/neokapi/memory"
+	sqlmemory "github.com/neokapi/neokapi/memory"
 )
 
 // TestNewSQLiteMemory_ConcurrentFirstOpen: converge workers all open the project
@@ -20,7 +20,7 @@ func TestNewSQLiteMemory_ConcurrentFirstOpen(t *testing.T) {
 		errs := make(chan error, 4)
 		for range 4 {
 			wg.Go(func() {
-				tm, err := sqltm.NewSQLiteStore(path)
+				tm, err := sqlmemory.NewSQLiteStore(path)
 				if err != nil {
 					errs <- err
 					return

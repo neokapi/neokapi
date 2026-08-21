@@ -14,7 +14,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	sqltb "github.com/neokapi/neokapi/bowrain/terms"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -281,8 +281,8 @@ type ConceptStatusCountsResponse struct {
 // LocaleCoverageResponse is per-locale concept coverage over the whole
 // workspace, most complete locale first.
 type LocaleCoverageResponse struct {
-	Total   int                    `json:"total"`
-	Locales []sqltb.LocaleCoverage `json:"locales"`
+	Total   int                       `json:"total"`
+	Locales []sqlterms.LocaleCoverage `json:"locales"`
 }
 
 // HandleGetConceptStatusCounts returns the workspace's concept total and the
@@ -301,20 +301,20 @@ func (s *Server) HandleGetConceptStatusCounts(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	var counts sqltb.ConceptCounts
-	if agg, ok := tb.(sqltb.ConceptAggregates); ok {
+	var counts sqlterms.ConceptCounts
+	if agg, ok := tb.(sqlterms.ConceptAggregates); ok {
 		counts, err = agg.ConceptCounts(ctx)
 	} else {
 		var all []terms.Concept
 		all, err = tb.Concepts(ctx)
-		counts = sqltb.CountsFromConcepts(all)
+		counts = sqlterms.CountsFromConcepts(all)
 	}
 	if err != nil {
 		return serverErr(c, err)
 	}
 
-	byStatus := make(map[string]int, len(sqltb.TermStatusOrder))
-	for _, status := range sqltb.TermStatusOrder {
+	byStatus := make(map[string]int, len(sqlterms.TermStatusOrder))
+	for _, status := range sqlterms.TermStatusOrder {
 		byStatus[string(status)] = counts.ByStatus[status]
 	}
 	return c.JSON(http.StatusOK, ConceptStatusCountsResponse{Total: counts.Total, ByStatus: byStatus})
@@ -336,13 +336,13 @@ func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	var coverage []sqltb.LocaleCoverage
-	if agg, ok := tb.(sqltb.ConceptAggregates); ok {
+	var coverage []sqlterms.LocaleCoverage
+	if agg, ok := tb.(sqlterms.ConceptAggregates); ok {
 		coverage, err = agg.ConceptLocaleCoverage(ctx)
 	} else {
 		var all []terms.Concept
 		all, err = tb.Concepts(ctx)
-		coverage = sqltb.CoverageFromConcepts(all)
+		coverage = sqlterms.CoverageFromConcepts(all)
 	}
 	if err != nil {
 		return serverErr(c, err)
@@ -355,7 +355,7 @@ func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	if coverage == nil {
-		coverage = []sqltb.LocaleCoverage{}
+		coverage = []sqlterms.LocaleCoverage{}
 	}
 	return c.JSON(http.StatusOK, LocaleCoverageResponse{Total: total, Locales: coverage})
 }
@@ -363,7 +363,7 @@ func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
 // searchConceptsByRecency pages concepts newest-updated first, in the database
 // when the store can order there and over the requested page otherwise.
 func searchConceptsByRecency(ctx context.Context, tb terms.Store, query string, locale model.LocaleID, offset, limit int) ([]terms.Concept, int, error) {
-	if rs, ok := tb.(sqltb.RecentSearcher); ok {
+	if rs, ok := tb.(sqlterms.RecentSearcher); ok {
 		return rs.SearchRecent(ctx, query, locale, "", offset, limit)
 	}
 	return tb.Search(ctx, query, locale, "", offset, limit)

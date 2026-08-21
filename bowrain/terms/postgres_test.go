@@ -12,13 +12,13 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	storage "github.com/neokapi/neokapi/bowrain/storage"
-	pgtb "github.com/neokapi/neokapi/bowrain/terms"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func openTestPostgresTerms(t *testing.T) *pgtb.PostgresStore {
+func openTestPostgresTerms(t *testing.T) *pgterms.PostgresStore {
 	t.Helper()
 	connStr := os.Getenv("BOWRAIN_TEST_POSTGRES_URL")
 	if connStr == "" {
@@ -29,7 +29,7 @@ func openTestPostgresTerms(t *testing.T) *pgtb.PostgresStore {
 		t.Skipf("PostgreSQL not available: %v", err)
 	}
 	wsID := fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano())
-	tb, err := pgtb.NewPostgresStoreFromDB(db, wsID)
+	tb, err := pgterms.NewPostgresStoreFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM tb_terms WHERE workspace_id = $1", wsID)

@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	tbschema "github.com/neokapi/neokapi/terms/schema"
+	termsschema "github.com/neokapi/neokapi/terms/schema"
 )
 
 // ErrConceptIDRequired is returned when a concept is added without an ID.
@@ -72,17 +72,17 @@ var tbMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "terms schema with project/stream support and FTS5 indexes",
-		SQL:         tbschema.RenderTermsSQLiteV1(),
+		SQL:         termsschema.RenderTermsSQLiteV1(),
 	},
 	{
 		Version:     2,
 		Description: "add source column to concepts and competitor_term column to terms",
-		SQL:         tbschema.RenderTermsSQLiteV2(),
+		SQL:         termsschema.RenderTermsSQLiteV2(),
 	},
 	{
 		Version:     3,
 		Description: "persisted concept relations and term validity columns",
-		SQL:         tbschema.RenderTermsSQLiteV3(),
+		SQL:         termsschema.RenderTermsSQLiteV3(),
 	},
 }
 

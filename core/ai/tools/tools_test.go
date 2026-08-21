@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretool "github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
@@ -154,11 +154,11 @@ func TestAITranslateToolInjectsVoiceProfile(t *testing.T) {
 		return &aiprovider.TranslateResponse{Translation: "Bonjour", Confidence: 0.9, Model: "test"}, nil
 	}
 
-	profile := &profile.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		Name: "Friendly",
-		Tone: profile.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
-		Vocabulary: profile.VocabularyRules{
-			ForbiddenTerms: []profile.TermRule{{Term: "utilize", Replacement: "use"}},
+		Tone: coreprofile.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{

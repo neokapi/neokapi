@@ -5,7 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/terms"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
@@ -63,7 +63,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 
 	// Real Postgres terms (workspace-keyed, like the server's getTerms) with a
 	// preferred fr rendering.
-	tb, err := sqltb.NewPostgresStoreFromDB(db, wsSlug)
+	tb, err := sqlterms.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(ctx, fwterms.Concept{
 		ID: "c-dashboard",
@@ -80,7 +80,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
 		VoiceStore:    bs,
 		TermsResolver: TermsResolverFunc(func(slug string) (fwterms.Terminology, error) {
-			return sqltb.NewPostgresStoreFromDB(db, slug)
+			return sqlterms.NewPostgresStoreFromDB(db, slug)
 		}),
 	}
 
