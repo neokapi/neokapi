@@ -42,7 +42,7 @@ type TreeResponse struct {
 	Ref *ref.Ref `json:"ref,omitempty"`
 	// RootHash folds the whole tree, so a caller holding a warm mirror can ask
 	// whether anything moved without reading it back.
-	RootHash string `json:"root_hash"`
+	RootHash string     `json:"root_hash"`
 	Items    []TreeItem `json:"items"`
 }
 
