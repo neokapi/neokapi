@@ -915,6 +915,16 @@ func (a *App) applyRecipeEntry(cmd Command, e changeEntry) assetResult {
 // is deliberate: it bounds apply to the safe, structured recipe surface a fix
 // loop legitimately edits and keeps every set type-checked.
 func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage) (bool, error) {
+	// defaults.coordinates.<axis> is the one settable path with a variable
+	// tail: the axis set is open by design, so it cannot be enumerated here
+	// the way the fixed fields below are.
+	if axis, ok := strings.CutPrefix(path, "defaults.coordinates."); ok {
+		return setDefaultCoordinate(proj, path, axis, raw)
+	}
+	if path == "defaults.coordinates" {
+		return false, errors.New(`recipe: set one axis at a time, as "defaults.coordinates.<axis>"`)
+	}
+
 	switch path {
 	case "name":
 		var v string
@@ -989,6 +999,48 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 	default:
 		return false, fmt.Errorf("recipe: unknown or unsettable path %q", path)
 	}
+}
+
+// setDefaultCoordinate sets one axis of the project's default point. An empty
+// value removes the axis, so a change-set can withdraw a coordinate as well as
+// declare one and the operation stays total.
+//
+// The structural axes are refused. product and channel are DERIVED from a
+// collection's `channel:`, which is why Defaults.Coordinates documents itself
+// as declared axes only: writing one here would state a point the recipe also
+// computes, and the two would be free to disagree.
+func setDefaultCoordinate(proj *project.KapiProject, path, axis string, raw json.RawMessage) (bool, error) {
+	if axis == "" {
+		return false, errors.New(`recipe: empty axis in "defaults.coordinates."`)
+	}
+	if axis == project.ProductAxis || axis == project.ChannelAxis {
+		return false, fmt.Errorf("recipe: %q is derived from a collection's channel, not declared: remove it from the point or set the collection's channel instead", axis)
+	}
+
+	var v string
+	if err := decodeRecipeValue(path, raw, &v); err != nil {
+		return false, err
+	}
+
+	if v == "" {
+		if _, present := proj.Defaults.Coordinates[axis]; !present {
+			return false, nil
+		}
+		delete(proj.Defaults.Coordinates, axis)
+		if len(proj.Defaults.Coordinates) == 0 {
+			proj.Defaults.Coordinates = nil
+		}
+		return true, nil
+	}
+
+	if proj.Defaults.Coordinates[axis] == v {
+		return false, nil
+	}
+	if proj.Defaults.Coordinates == nil {
+		proj.Defaults.Coordinates = map[string]string{}
+	}
+	proj.Defaults.Coordinates[axis] = v
+	return true, nil
 }
 
 // decodeRecipeValue JSON-decodes a recipe value into dst, wrapping the error
