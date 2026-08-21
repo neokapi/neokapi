@@ -297,6 +297,10 @@ type Server struct {
 	// ExtractionQueue enqueues extraction job IDs. Nil when not configured.
 	ExtractionQueue jobs.Queue
 
+	// RecipeChangeStore holds recipe fields an approval wants set, waiting for
+	// a pull to write them into a working tree. Nil when not configured.
+	RecipeChangeStore RecipeChangeStore
+
 	// ContextScanStore persists AI brand-scan job state (epic 016). Nil when not configured.
 	ContextScanStore jobs.ContextScanJobStore
 
@@ -552,6 +556,9 @@ func NewServer(cfg Config) *Server {
 			s.JobStore = pg.Job
 			s.ExtractionJobStore = pg.Extraction
 			s.ContextScanStore = pg.ContextScan
+			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
+				s.RecipeChangeStore = pgStore
+			}
 			s.QuotaStore = pg.Quota
 			s.SweepStore = pg.Sweep
 			s.wsStores.pgDB = pg.DB
@@ -1672,6 +1679,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/brand-profiles/:id/reject-rule", s.HandleRejectSuggestedRule)
 	g.POST("/brand-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
+
+	// Recipe changes an approval is waiting to put in a working tree. An
+	// approved axis is not a coordinate until kapi.yaml says so and a push
+	// carries it, so these three endpoints are the hand-off: propose, read what
+	// is pending, settle it once a pull has taken it.
+	g.POST("/projects/:id/axes", s.HandleApproveAxis)
+	g.GET("/projects/:id/recipe-changes", s.HandleListPendingRecipeChanges)
+	g.POST("/projects/:id/recipe-changes/:changeID/applied", s.HandleMarkRecipeChangeApplied)
 
 	// Workspace brand-compliance rollup — the all-surfaces board aggregating
 	// every project's stored scores/trends into one matrix: /:ws/brand-voice/rollup
