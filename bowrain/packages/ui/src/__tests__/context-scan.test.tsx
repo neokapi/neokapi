@@ -16,6 +16,7 @@ import { contextScanPollInterval } from "../hooks/useContextScanApi";
 import { createMockAdapter, sampleContextScanDraft } from "../stories/mock-adapter";
 import type { MockAdapter } from "../stories/mock-adapter";
 import { TEST_IDS } from "../test-ids";
+import { scanVoice } from "../context-scan/artefacts";
 
 const workspace: Workspace = {
   id: "ws-1",
@@ -41,6 +42,10 @@ function renderWithProviders(ui: ReactNode, adapter: ApiAdapter) {
 // ---------------------------------------------------------------------------
 // ContextScanInput
 // ---------------------------------------------------------------------------
+
+// The fixture is a list of artefacts at points, so these tests read it the way
+// the component does — by kind — rather than by position.
+const sampleScanProfile = scanVoice(sampleContextScanDraft)!.profile;
 
 describe("ContextScanInput", () => {
   it("requires at least one source before the scan can start", async () => {
@@ -186,7 +191,7 @@ describe("ContextScanReview", () => {
   } {
     const adapter = createMockAdapter();
     const created: VoiceProfile = {
-      ...sampleContextScanDraft.profile,
+      ...sampleScanProfile,
       id: "prof-created",
       name: "Edited Voice",
     };
@@ -244,7 +249,7 @@ describe("ContextScanReview", () => {
     const [ws, request] = createBrandProfile.mock.calls[0];
     expect(ws).toBe("demo");
     expect(request.name).toBe("Edited Voice");
-    expect(request.vocabulary).toEqual(sampleContextScanDraft.profile.vocabulary);
+    expect(request.vocabulary).toEqual(sampleScanProfile.vocabulary);
 
     // Only the still-selected terms become concepts.
     expect(createConcept).toHaveBeenCalledTimes(2);
@@ -278,7 +283,7 @@ describe("ContextScanLiveTester", () => {
     const user = userEvent.setup();
     const adapter = createMockAdapter();
     renderWithProviders(
-      <ContextScanLiveTester profile={sampleContextScanDraft.profile} debounceMs={50} />,
+      <ContextScanLiveTester profile={sampleScanProfile} debounceMs={50} />,
       adapter,
     );
 

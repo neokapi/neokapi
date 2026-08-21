@@ -25,6 +25,7 @@ import {
   contractionsSpectrum,
 } from "../brand/data/tone-spectrums";
 import { ContextScanLiveTester } from "./ContextScanLiveTester";
+import { scanTerms, scanVoice } from "./artefacts";
 import { TEST_IDS } from "../test-ids";
 import { Loader2, Wand2 } from "../components/icons";
 
@@ -75,36 +76,68 @@ function FieldEvidence({ evidence }: { evidence?: ContextScanFieldEvidence }) {
  * governed terms); a live tester scores sample copy against the current
  * edits. Nothing persists until Approve.
  */
-export function ContextScanReview({
+
+/**
+ * Decides whether there is anything to review, before any hook runs.
+ *
+ * A scan that read a corpus and proposed no voice is a real outcome — an empty
+ * or unreadable corpus, most often. Saying so beats an editor full of blank
+ * fields that looks like a loaded draft, and deciding here rather than inside
+ * the editor means the editor can take a voice as a fact instead of inventing
+ * defaults for tone, formality and the rest to satisfy its state hooks.
+ */
+export function ContextScanReview(props: ContextScanReviewProps) {
+  const voice = scanVoice(props.draft);
+  if (!voice) {
+    return (
+      <div data-testid={TEST_IDS.contextScan.review} className="space-y-2">
+        <h2 className="text-sm font-semibold">Nothing to review</h2>
+        <p className="text-xs text-muted-foreground">
+          The scan finished but proposed no voice. That usually means the sources held too little
+          readable text. Add pasted text, pages, or files and scan again.
+        </p>
+      </div>
+    );
+  }
+  return <ContextScanReviewEditor {...props} voice={voice} />;
+}
+
+function ContextScanReviewEditor({
   draft,
+  voice,
   onApproved,
   onRegenerate,
   testerDebounceMs,
-}: ContextScanReviewProps) {
+}: ContextScanReviewProps & { voice: NonNullable<ReturnType<typeof scanVoice>> }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
   const termLocale = activeWorkspace?.languages?.[0] ?? "en";
 
-  const [name, setName] = useState(draft.profile.name);
-  const [description, setDescription] = useState(draft.profile.description ?? "");
-  const [tone, setTone] = useState<ToneProfile>(draft.profile.tone);
-  const [style, setStyle] = useState<StyleRules>(draft.profile.style);
-  const [vocabulary, setVocabulary] = useState<VocabularyRules>(draft.profile.vocabulary);
-  const [examples, setExamples] = useState<VoiceExample[]>(draft.profile.examples ?? []);
+  // The vocabulary is read by kind rather than by position, so a kind added
+  // later cannot quietly become "the terms" here.
+  const proposedProfile = voice.profile;
+  const proposedTerms = useMemo(() => scanTerms(draft), [draft]);
+
+  const [name, setName] = useState(proposedProfile.name);
+  const [description, setDescription] = useState(proposedProfile.description ?? "");
+  const [tone, setTone] = useState<ToneProfile>(proposedProfile.tone);
+  const [style, setStyle] = useState<StyleRules>(proposedProfile.style);
+  const [vocabulary, setVocabulary] = useState<VocabularyRules>(proposedProfile.vocabulary);
+  const [examples, setExamples] = useState<VoiceExample[]>(proposedProfile.examples ?? []);
   const [selectedTerms, setSelectedTerms] = useState<Set<number>>(
-    () => new Set(draft.terms.map((_, i) => i)),
+    () => new Set(proposedTerms.map((_, i) => i)),
   );
   const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const evidence = draft.evidence?.fields ?? {};
+  const evidence = voice.evidence?.fields ?? {};
 
   /** The draft as currently edited — fed to the live tester and to Approve. */
   const editedProfile = useMemo<VoiceProfile>(
-    () => ({ ...draft.profile, name, description, tone, style, vocabulary, examples }),
-    [draft.profile, name, description, tone, style, vocabulary, examples],
+    () => ({ ...proposedProfile, name, description, tone, style, vocabulary, examples }),
+    [proposedProfile, name, description, tone, style, vocabulary, examples],
   );
 
   const toggleTerm = useCallback((index: number) => {
@@ -129,7 +162,7 @@ export function ContextScanReview({
         vocabulary,
         examples,
       });
-      const terms: ContextScanTerm[] = draft.terms.filter((_, i) => selectedTerms.has(i));
+      const terms: ContextScanTerm[] = proposedTerms.filter((_, i) => selectedTerms.has(i));
       for (const term of terms) {
         // Candidates enter curation as "proposed": creating a term directly as
         // preferred/forbidden is a governed transition that requires a
@@ -158,7 +191,7 @@ export function ContextScanReview({
     style,
     vocabulary,
     examples,
-    draft.terms,
+    proposedTerms,
     selectedTerms,
     termLocale,
     approving,
@@ -314,17 +347,17 @@ export function ContextScanReview({
         </Card>
 
         {/* Candidate terms */}
-        {draft.terms.length > 0 && (
+        {proposedTerms.length > 0 && (
           <Card className="p-5 space-y-3">
             <div>
               <h2 className="text-sm font-semibold">Candidate terms</h2>
               <p className="text-xs text-muted-foreground mt-1">
                 Terms the scan found in your material. Checked terms are created as concepts when
-                you approve — {selectedTerms.size} of {draft.terms.length} selected.
+                you approve — {selectedTerms.size} of {proposedTerms.length} selected.
               </p>
             </div>
             <ul className="divide-y divide-border/50">
-              {draft.terms.map((term, i) => (
+              {proposedTerms.map((term, i) => (
                 <li
                   key={`${term.term}-${i}`}
                   data-testid={TEST_IDS.contextScan.termRow}

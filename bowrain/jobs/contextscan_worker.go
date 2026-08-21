@@ -373,11 +373,21 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 
 	// Persist the result. Skipped sources appear with zero runes so the review
 	// UI can attribute what was (and was not) read.
+	// One corpus, one point: this scan reads a project's own sources, so both
+	// artefacts are proposed at the default point — an empty At, which resolves
+	// to whatever defaults.coordinates says. A scan that can tell the corpus
+	// apart by axis will propose them at narrower points instead; nothing here
+	// assumes there is only ever one.
 	result := ContextScanResult{
-		Profile:   draft,
-		Evidence:  evidence,
-		Terms:     terms,
+		Artefacts: []ArtefactProposal{
+			{Kind: ArtefactVoice, Voice: draft, Evidence: evidence},
+		},
 		Truncated: corpus.Truncated,
+	}
+	if len(terms) > 0 {
+		result.Artefacts = append(result.Artefacts, ArtefactProposal{
+			Kind: ArtefactTerms, Terms: terms,
+		})
 	}
 	for _, s := range corpus.Sources {
 		result.Sources = append(result.Sources, ContextScanSource{
