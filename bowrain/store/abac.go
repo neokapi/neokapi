@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
 // Block access states (ABAC attribute on content). This is ACCESS CONTROL —
@@ -45,9 +47,10 @@ func NormalizeBlockAccess(v string) string {
 
 // GetBlockAccess returns a block's access state and owner. A missing block
 // reports open/empty (so callers treat unknown content as freely editable).
-func (s *PostgresStore) GetBlockAccess(ctx context.Context, projectID, blockID string) (access, ownerID string, err error) {
+func (s *PostgresStore) GetBlockAccess(ctx context.Context, projectID, stream, blockID string) (access, ownerID string, err error) {
 	err = s.db.QueryRowContext(ctx,
-		`SELECT access, owner_id FROM blocks WHERE project_id = $1 AND id = $2`, projectID, blockID).
+		`SELECT access, owner_id FROM blocks WHERE project_id = $1 AND stream = $2 AND id = $3`,
+		projectID, storeutil.DefaultStream(stream), blockID).
 		Scan(&access, &ownerID)
 	if err == sql.ErrNoRows {
 		return BlockAccessOpen, "", nil
@@ -64,12 +67,12 @@ func (s *PostgresStore) GetBlockAccess(ctx context.Context, projectID, blockID s
 // GetLastEditor returns the author of the most recent content change to a block
 // (the translator), used to enforce separation of duties at review/approval.
 // Returns "" if no attributed history exists.
-func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, blockID string) (string, error) {
+func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error) {
 	var author string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT author FROM block_history
-		 WHERE project_id = $1 AND block_id = $2 AND author <> ''
-		 ORDER BY id DESC LIMIT 1`, projectID, blockID).Scan(&author)
+		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND author <> ''
+		 ORDER BY id DESC LIMIT 1`, projectID, storeutil.DefaultStream(stream), blockID).Scan(&author)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
@@ -81,17 +84,18 @@ func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, blockID st
 
 // SetBlockAccess updates a block's access state and (when non-empty) its
 // owner. Returns an error if the block does not exist.
-func (s *PostgresStore) SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error {
+func (s *PostgresStore) SetBlockAccess(ctx context.Context, projectID, stream, blockID, access, ownerID string) error {
+	stream = storeutil.DefaultStream(stream)
 	var res sql.Result
 	var err error
 	if ownerID != "" {
 		res, err = s.db.ExecContext(ctx,
-			`UPDATE blocks SET access = $1, owner_id = $2, updated_at = NOW() WHERE project_id = $3 AND id = $4`,
-			access, ownerID, projectID, blockID)
+			`UPDATE blocks SET access = $1, owner_id = $2, updated_at = NOW() WHERE project_id = $3 AND stream = $4 AND id = $5`,
+			access, ownerID, projectID, stream, blockID)
 	} else {
 		res, err = s.db.ExecContext(ctx,
-			`UPDATE blocks SET access = $1, updated_at = NOW() WHERE project_id = $2 AND id = $3`,
-			access, projectID, blockID)
+			`UPDATE blocks SET access = $1, updated_at = NOW() WHERE project_id = $2 AND stream = $3 AND id = $4`,
+			access, projectID, stream, blockID)
 	}
 	if err != nil {
 		return fmt.Errorf("set block access: %w", err)

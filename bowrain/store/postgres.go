@@ -736,7 +736,12 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
-			item_name=EXCLUDED.item_name, item_id=EXCLUDED.item_id,
+			-- An item-less write (StoreBlocks — the editor saving one target)
+			-- carries no item, and must not be read as the block having lost the
+			-- one it has. Blank means unsaid, exactly as it does one level up in
+			-- keepUndeclaredProperties.
+			item_name=CASE WHEN EXCLUDED.item_name <> '' THEN EXCLUDED.item_name ELSE blocks.item_name END,
+			item_id=CASE WHEN EXCLUDED.item_id <> '' THEN EXCLUDED.item_id ELSE blocks.item_id END,
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,

@@ -26,7 +26,7 @@ func (s *Server) requireEditableStatus(c echo.Context, projectID, blockID, local
 	if !ok {
 		return nil // access ABAC only enforced on stores that keep the ladder
 	}
-	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, blockID)
+	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, refParam(c), blockID)
 	if err != nil {
 		return nil // don't block edits on an access-lookup error
 	}
@@ -52,7 +52,7 @@ func (s *Server) blockEditAllowed(c echo.Context, projectID, blockID, locale str
 	if !ok {
 		return true
 	}
-	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, blockID)
+	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, refParam(c), blockID)
 	if err != nil {
 		return true
 	}
@@ -110,7 +110,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 	// The store already separates the cases — a missing row comes back as
 	// open with a nil error — so an error here is a real fault, and the gate
 	// fails closed on it.
-	cur, _, err := as.GetBlockAccess(ctx, pid, bid)
+	cur, _, err := as.GetBlockAccess(ctx, pid, refParam(c), bid)
 	if err != nil {
 		return serverErr(c, fmt.Errorf("read block access for the permission gate: %w", err))
 	}
@@ -134,7 +134,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 		// discarded error here disables the four-eyes check rather than
 		// tightening it. The store returns ("", nil) when there genuinely is no
 		// attributed history; anything else is a fault worth refusing on.
-		author, err := as.GetLastEditor(ctx, pid, bid)
+		author, err := as.GetLastEditor(ctx, pid, refParam(c), bid)
 		if err != nil {
 			return serverErr(c, fmt.Errorf("read last editor for separation of duties: %w", err))
 		}
@@ -144,7 +144,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 		}
 	}
 
-	if err := as.SetBlockAccess(ctx, pid, bid, req.Status, req.OwnerID); err != nil {
+	if err := as.SetBlockAccess(ctx, pid, refParam(c), bid, req.Status, req.OwnerID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 

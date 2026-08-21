@@ -59,7 +59,7 @@ func (s *PostgresStore) ShipGateRollup(ctx context.Context, q platstore.ShipGate
 		), held AS (
 			SELECT t.block_id, t.locale, v.fails, COALESCE(i.collection_id, '') AS collection_id
 			FROM translations t
-			JOIN blocks b ON b.project_id = t.project_id AND b.id = t.block_id
+			JOIN blocks b ON b.project_id = t.project_id AND b.stream = t.stream AND b.id = t.block_id
 			JOIN ship_verdicts v ON v.project_id = t.project_id AND v.stream = t.stream
 				AND v.block_id = t.block_id AND v.locale = t.locale
 			LEFT JOIN items i ON i.project_id = b.project_id AND i.stream = t.stream AND i.name = b.item_name
@@ -101,7 +101,7 @@ func (s *PostgresStore) ShipGateRollup(ctx context.Context, q platstore.ShipGate
 	const staleSQL = `
 		SELECT t.block_id, t.locale, ` + pgShipBasis + `
 		FROM translations t
-		JOIN blocks b ON b.project_id = t.project_id AND b.id = t.block_id
+		JOIN blocks b ON b.project_id = t.project_id AND b.stream = t.stream AND b.id = t.block_id
 		LEFT JOIN ship_verdicts v ON v.project_id = t.project_id AND v.stream = t.stream
 			AND v.block_id = t.block_id AND v.locale = t.locale AND v.gate = $4
 		WHERE t.project_id = $1 AND t.stream = $2 AND b.translatable AND t.locale = ANY($3)
@@ -151,7 +151,7 @@ func (s *PostgresStore) PutShipGateVerdicts(ctx context.Context, projectID, stre
 		INSERT INTO ship_verdicts (project_id, stream, block_id, locale, gate, basis, fails, updated_at)
 		SELECT $1, $2, p.block_id, p.locale, $3, p.basis, p.fails, NOW()
 		FROM unnest($4::text[], $5::text[], $6::text[], $7::bool[]) AS p(block_id, locale, basis, fails)
-		JOIN blocks b ON b.project_id = $1 AND b.id = p.block_id
+		JOIN blocks b ON b.project_id = $1 AND b.stream = $2 AND b.id = p.block_id
 		JOIN translations t ON t.project_id = $1 AND t.stream = $2
 			AND t.block_id = p.block_id AND t.locale = p.locale
 		WHERE ` + pgShipBasis + ` = p.basis

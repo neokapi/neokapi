@@ -695,7 +695,12 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
-			item_name=excluded.item_name, item_id=excluded.item_id,
+			-- An item-less write (StoreBlocks — the editor saving one target)
+			-- carries no item, and must not be read as the block having lost the
+			-- one it has. Blank means unsaid, exactly as it does one level up in
+			-- keepUndeclaredProperties.
+			item_name=CASE WHEN excluded.item_name <> '' THEN excluded.item_name ELSE blocks.item_name END,
+			item_id=CASE WHEN excluded.item_id <> '' THEN excluded.item_id ELSE blocks.item_id END,
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,

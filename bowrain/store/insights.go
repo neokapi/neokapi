@@ -31,8 +31,8 @@ func (s *PostgresStore) ContextFunnelCounts(ctx context.Context, projectID, stre
 	// and structure; counting them would inflate the denominator with content
 	// no profile could ever govern.
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT count(*) FROM blocks WHERE project_id = $1 AND translatable = TRUE`,
-		projectID).Scan(&c.Indexed); err != nil {
+		`SELECT count(*) FROM blocks WHERE project_id = $1 AND stream = $2 AND translatable = TRUE`,
+		projectID, stream).Scan(&c.Indexed); err != nil {
 		return c, fmt.Errorf("insights: count indexed blocks: %w", err)
 	}
 

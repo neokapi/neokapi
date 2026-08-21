@@ -595,30 +595,30 @@ func (s *EventEmittingStore) TallyDecisionBasis(ctx context.Context, projectID, 
 }
 
 // GetBlockAccess forwards the optional BlockAccessStore capability.
-func (s *EventEmittingStore) GetBlockAccess(ctx context.Context, projectID, blockID string) (string, string, error) {
+func (s *EventEmittingStore) GetBlockAccess(ctx context.Context, projectID, stream, blockID string) (string, string, error) {
 	as, ok := s.inner.(store.BlockAccessStore)
 	if !ok {
 		return "", "", fmt.Errorf("content store %T keeps no access ladder", s.inner)
 	}
-	return as.GetBlockAccess(ctx, projectID, blockID)
+	return as.GetBlockAccess(ctx, projectID, stream, blockID)
 }
 
 // SetBlockAccess forwards the optional BlockAccessStore capability.
-func (s *EventEmittingStore) SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error {
+func (s *EventEmittingStore) SetBlockAccess(ctx context.Context, projectID, stream, blockID, access, ownerID string) error {
 	as, ok := s.inner.(store.BlockAccessStore)
 	if !ok {
 		return fmt.Errorf("content store %T keeps no access ladder", s.inner)
 	}
-	return as.SetBlockAccess(ctx, projectID, blockID, access, ownerID)
+	return as.SetBlockAccess(ctx, projectID, stream, blockID, access, ownerID)
 }
 
 // GetLastEditor forwards the optional BlockAccessStore capability.
-func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, blockID string) (string, error) {
+func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error) {
 	as, ok := s.inner.(store.BlockAccessStore)
 	if !ok {
 		return "", fmt.Errorf("content store %T keeps no access ladder", s.inner)
 	}
-	return as.GetLastEditor(ctx, projectID, blockID)
+	return as.GetLastEditor(ctx, projectID, stream, blockID)
 }
 
 // UpsertChannelAliasProposals forwards the optional ChannelAliasStore

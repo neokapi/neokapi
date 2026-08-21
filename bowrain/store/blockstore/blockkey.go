@@ -38,14 +38,18 @@ func (s *session) resolveBlockRow(key string) (string, error) {
 		query string
 		args  []any
 	)
+	// Scoped to the session's stream. Unscoped, a content-hash match could
+	// resolve to a sibling branch's row — the same content sits on every branch
+	// that holds it — and the overlay would be written against another stream's
+	// block.
 	if s.opts.Dialect == SQLiteDialect {
-		query = `SELECT id FROM blocks WHERE project_id = ? AND (id = ? OR content_hash = ?)
+		query = `SELECT id FROM blocks WHERE project_id = ? AND stream = ? AND (id = ? OR content_hash = ?)
 			ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, id LIMIT 1`
-		args = []any{s.opts.ProjectID, key, key, key}
+		args = []any{s.opts.ProjectID, s.opts.Stream, key, key, key}
 	} else {
-		query = `SELECT id FROM blocks WHERE project_id = $1 AND (id = $2 OR content_hash = $2)
-			ORDER BY CASE WHEN id = $2 THEN 0 ELSE 1 END, id LIMIT 1`
-		args = []any{s.opts.ProjectID, key}
+		query = `SELECT id FROM blocks WHERE project_id = $1 AND stream = $2 AND (id = $3 OR content_hash = $3)
+			ORDER BY CASE WHEN id = $3 THEN 0 ELSE 1 END, id LIMIT 1`
+		args = []any{s.opts.ProjectID, s.opts.Stream, key}
 	}
 	var id string
 	if err := s.opts.DB.QueryRowContext(s.ctx, query, args...).Scan(&id); err != nil {
@@ -99,22 +103,23 @@ func (s *session) blockKeysByRow(rowIDs []string) (map[string]string, error) {
 	}
 	for start := 0; start < len(rowIDs); start += chunk {
 		batch := rowIDs[start:min(start+chunk, len(rowIDs))]
-		args := make([]any, 0, len(batch)+1)
-		args = append(args, s.opts.ProjectID)
+		args := make([]any, 0, len(batch)+2)
+		args = append(args, s.opts.ProjectID, s.opts.Stream)
 		marks := make([]string, len(batch))
 		for i, id := range batch {
 			args = append(args, id)
 			if s.opts.Dialect == SQLiteDialect {
 				marks[i] = "?"
 			} else {
-				marks[i] = fmt.Sprintf("$%d", i+2)
+				marks[i] = fmt.Sprintf("$%d", i+3)
 			}
 		}
-		project := "$1"
+		project, stream := "$1", "$2"
 		if s.opts.Dialect == SQLiteDialect {
-			project = "?"
+			project, stream = "?", "?"
 		}
 		query := `SELECT id, content_hash FROM blocks WHERE project_id = ` + project +
+			` AND stream = ` + stream +
 			` AND id IN (` + strings.Join(marks, ", ") + `)`
 		rows, err := s.opts.DB.QueryContext(s.ctx, query, args...)
 		if err != nil {
