@@ -77,15 +77,74 @@ type ContextScanSource struct {
 	Runes int    `json:"runes"`
 }
 
-// ContextScanResult is the result payload persisted on a completed brand-scan
-// job: the draft voice profile, its per-field evidence sidecar, candidate
-// glossary terms, and the per-source corpus accounting.
+// ArtefactKind names what a proposed artefact is. The set is deliberately
+// small: these are the two things a corpus can be read for today. It is open by
+// intent — gates and redaction rules are governance bound at a point in exactly
+// the same way — but a kind arrives with the inference that produces it, never
+// before it.
+type ArtefactKind string
+
+const (
+	// ArtefactVoice is a draft voice profile with its per-field evidence.
+	ArtefactVoice ArtefactKind = "voice"
+	// ArtefactTerms is a set of candidate concepts for the vocabulary.
+	ArtefactTerms ArtefactKind = "terms"
+)
+
+// ArtefactProposal is one thing a scan proposes, and the point it would govern.
+//
+// At is that point as an axis map — the same open shape
+// SyncContextEntry.coordinates carries. An EMPTY At means the project's default
+// point, whatever defaults.coordinates resolves to: a scan that finds no
+// structure proposes one voice for the project, which is the onboarding path
+// and stays a single click.
+//
+// Only the fields matching Kind are populated.
+type ArtefactProposal struct {
+	At   map[string]string `json:"at,omitempty"`
+	Kind ArtefactKind      `json:"kind"`
+
+	// voice
+	Voice    *coreprofile.VoiceProfile `json:"voice,omitempty"`
+	Evidence *tools.DraftEvidence      `json:"evidence,omitempty"`
+
+	// terms
+	Terms []tools.TermEntry `json:"terms,omitempty"`
+}
+
+// ContextScanResult is the result payload persisted on a completed scan: what
+// the corpus proposed, and the per-source accounting of what was read.
+//
+// Artefacts are proposed AT POINTS rather than as one profile, so a later scan
+// against a new corpus can refine what sits at a point instead of producing a
+// rival profile beside it.
 type ContextScanResult struct {
-	Profile   *coreprofile.VoiceProfile `json:"profile"`
-	Evidence  *tools.DraftEvidence      `json:"evidence"`
-	Terms     []tools.TermEntry         `json:"terms"`
-	Sources   []ContextScanSource       `json:"sources"`
-	Truncated bool                      `json:"truncated"`
+	Artefacts []ArtefactProposal  `json:"artefacts"`
+	Sources   []ContextScanSource `json:"sources"`
+	Truncated bool                `json:"truncated"`
+}
+
+// Voice returns the first proposed voice profile and its evidence — what a
+// single-point scan produces. Callers read through this rather than walking
+// Artefacts, so adding a kind cannot silently change what they see.
+func (r ContextScanResult) Voice() (*coreprofile.VoiceProfile, *tools.DraftEvidence) {
+	for _, a := range r.Artefacts {
+		if a.Kind == ArtefactVoice {
+			return a.Voice, a.Evidence
+		}
+	}
+	return nil, nil
+}
+
+// Terms returns the candidate concepts across every proposed terms artefact.
+func (r ContextScanResult) Terms() []tools.TermEntry {
+	var out []tools.TermEntry
+	for _, a := range r.Artefacts {
+		if a.Kind == ArtefactTerms {
+			out = append(out, a.Terms...)
+		}
+	}
+	return out
 }
 
 // ContextScanUploadEnvelope is the blob payload written by the brand-scan

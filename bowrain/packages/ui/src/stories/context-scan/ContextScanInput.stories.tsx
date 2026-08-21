@@ -4,7 +4,7 @@ import { ContextScanInput } from "../../context-scan/ContextScanInput";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof ContextScanInput> = {
-  title: "Brand Scan/ContextScanInput",
+  title: "Context Scan/ContextScanInput",
   component: ContextScanInput,
   tags: ["autodocs"],
   decorators: [

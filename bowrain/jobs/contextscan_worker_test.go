@@ -141,28 +141,47 @@ func TestContextScanWorker_DemoPipeline(t *testing.T) {
 	var result ContextScanResult
 	require.NoError(t, json.Unmarshal(got.Result, &result))
 
-	require.NotNil(t, result.Profile, "the draft profile is the scan's core output")
-	assert.Equal(t, "Acme Voice", result.Profile.Name)
-	assert.NotEmpty(t, result.Profile.Tone.Personality)
-	assert.NotEmpty(t, result.Profile.Tone.Formality)
+	// A scan of one project's own sources proposes at the default point, so
+	// every artefact carries an empty At. That is what keeps onboarding a
+	// single click: no axis to choose before a voice can be approved.
+	require.NotEmpty(t, result.Artefacts, "a completed scan proposes something")
+	for _, a := range result.Artefacts {
+		assert.Empty(t, a.At, "a single-corpus scan proposes at the default point")
+	}
 
-	require.NotNil(t, result.Evidence)
+	profile, evidence := result.Voice()
+	require.NotNil(t, profile, "the draft voice profile is the scan's core output")
+	assert.Equal(t, "Acme Voice", profile.Name)
+	assert.NotEmpty(t, profile.Tone.Personality)
+	assert.NotEmpty(t, profile.Tone.Formality)
+
+	require.NotNil(t, evidence)
 	for _, field := range []string{"tone", "style", "vocabulary", "examples"} {
-		ev, ok := result.Evidence.Fields[field]
+		ev, ok := evidence.Fields[field]
 		require.True(t, ok, "evidence must cover %s", field)
 		assert.GreaterOrEqual(t, ev.Confidence, 0.0)
 		assert.LessOrEqual(t, ev.Confidence, 1.0)
 		assert.NotEmpty(t, ev.Source)
 	}
 
-	assert.NotEmpty(t, result.Terms, "recurring product terms must surface as glossary candidates")
+	terms := result.Terms()
+	assert.NotEmpty(t, terms, "recurring product terms must surface as vocabulary candidates")
 	var hasBowrain bool
-	for _, term := range result.Terms {
+	for _, term := range terms {
 		if term.Term == "Bowrain" {
 			hasBowrain = true
 		}
 	}
 	assert.True(t, hasBowrain, "the corpus' recurring capitalized term must be a candidate")
+
+	// The voice and the vocabulary are separate artefacts at the same point,
+	// which is what lets a reviewer take one without the other.
+	kinds := map[ArtefactKind]int{}
+	for _, a := range result.Artefacts {
+		kinds[a.Kind]++
+	}
+	assert.Equal(t, 1, kinds[ArtefactVoice])
+	assert.Equal(t, 1, kinds[ArtefactTerms])
 
 	require.Len(t, result.Sources, 1)
 	assert.Equal(t, "paste", result.Sources[0].Kind)

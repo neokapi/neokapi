@@ -5,7 +5,7 @@ import { withProviders } from "../decorators";
 import { sampleContextScanDraft } from "../mock-adapter";
 
 const meta: Meta<typeof ContextScanReview> = {
-  title: "Brand Scan/ContextScanReview",
+  title: "Context Scan/ContextScanReview",
   component: ContextScanReview,
   tags: ["autodocs"],
   decorators: [
@@ -34,6 +34,19 @@ export const CompletedDraft: Story = {
 export const TruncatedCorpus: Story = {
   args: {
     draft: { ...sampleContextScanDraft, truncated: true },
+    onApproved: fn(),
+    onRegenerate: fn(),
+  },
+};
+
+/**
+ * A scan can finish having proposed nothing — an empty or unreadable corpus is
+ * the usual cause. The surface says so rather than rendering an editor full of
+ * blank fields that looks like a loaded draft.
+ */
+export const NoVoiceProposed: Story = {
+  args: {
+    draft: { ...sampleContextScanDraft, artefacts: [] },
     onApproved: fn(),
     onRegenerate: fn(),
   },

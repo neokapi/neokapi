@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { ContextScanProgress } from "../../context-scan/ContextScanProgress";
 
 const meta: Meta<typeof ContextScanProgress> = {
-  title: "Brand Scan/ContextScanProgress",
+  title: "Context Scan/ContextScanProgress",
   component: ContextScanProgress,
   tags: ["autodocs"],
   decorators: [

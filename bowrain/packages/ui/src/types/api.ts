@@ -2579,11 +2579,37 @@ export interface ContextScanSource {
   runes: number;
 }
 
-/** The reviewable output of a completed brand scan. */
+/**
+ * What a scan proposes. Open by intent — gates and redaction rules are
+ * governance bound at a point in the same way — but a kind arrives with the
+ * inference that produces it, so this is the set that exists today.
+ */
+export type ContextScanArtefactKind = "voice" | "terms";
+
+/**
+ * One thing a scan proposes, and the point it would govern.
+ *
+ * `at` is that point as an axis map, the same open shape a sync context entry
+ * carries. An ABSENT or EMPTY `at` means the project's default point — whatever
+ * `defaults.coordinates` resolves to — which is the onboarding case: a scan
+ * that finds no structure proposes one voice for the project.
+ *
+ * Only the fields matching `kind` are populated. Mirrors jobs.ArtefactProposal.
+ */
+export interface ContextScanArtefact {
+  at?: Record<string, string>;
+  kind: ContextScanArtefactKind;
+  /** kind === "voice" */
+  voice?: VoiceProfile;
+  /** kind === "voice" */
+  evidence?: ContextScanEvidence;
+  /** kind === "terms" */
+  terms?: ContextScanTerm[];
+}
+
+/** The reviewable output of a completed context scan. Mirrors jobs.ContextScanResult. */
 export interface ContextScanDraft {
-  profile: VoiceProfile;
-  evidence: ContextScanEvidence;
-  terms: ContextScanTerm[];
+  artefacts: ContextScanArtefact[];
   sources: ContextScanSource[];
   truncated: boolean;
 }

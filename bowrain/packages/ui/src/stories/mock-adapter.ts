@@ -348,32 +348,43 @@ export const sampleContextScanProfile: VoiceProfile = {
   updated_at: "2026-07-01T00:00:00Z",
 };
 
-/** Deterministic completed brand-scan draft (profile + evidence + terms). */
+/**
+ * Deterministic completed scan: a voice and a vocabulary, both proposed at the
+ * default point — the empty `at` a single-corpus scan produces.
+ */
 export const sampleContextScanDraft: ContextScanDraft = {
-  profile: sampleContextScanProfile,
-  evidence: {
-    fields: {
-      tone: { confidence: 0.82, source: "Consistent register across brand-guide.docx" },
-      style: { confidence: 0.71, source: "Short imperative sentences on the landing pages" },
-      vocabulary: { confidence: 0.9, source: "Glossary section in brand-guide.docx" },
-      examples: { confidence: 0.55, source: "Rewrites derived from the blog posts" },
-    },
-  },
-  terms: [
+  artefacts: [
     {
-      term: "workspace",
-      definition: "The shared container for projects and members.",
-      domain: "product",
+      kind: "voice",
+      voice: sampleContextScanProfile,
+      evidence: {
+        fields: {
+          tone: { confidence: 0.82, source: "Consistent register across brand-guide.docx" },
+          style: { confidence: 0.71, source: "Short imperative sentences on the landing pages" },
+          vocabulary: { confidence: 0.9, source: "Glossary section in brand-guide.docx" },
+          examples: { confidence: 0.55, source: "Rewrites derived from the blog posts" },
+        },
+      },
     },
     {
-      term: "stream",
-      definition: "A named line of content development within a project.",
-      domain: "product",
-    },
-    {
-      term: "convergence",
-      definition: "The process that settles translations against checks.",
-      domain: "product",
+      kind: "terms",
+      terms: [
+        {
+          term: "workspace",
+          definition: "The shared container for projects and members.",
+          domain: "product",
+        },
+        {
+          term: "stream",
+          definition: "A named line of content development within a project.",
+          domain: "product",
+        },
+        {
+          term: "convergence",
+          definition: "The process that settles translations against checks.",
+          domain: "product",
+        },
+      ],
     },
   ],
   sources: [
