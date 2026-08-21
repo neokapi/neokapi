@@ -76,6 +76,14 @@ func (a pushApply) ListUnitDecisions(ctx context.Context, projectID, stream stri
 	return listUnitDecisionsTx(ctx, a.tx, projectID, stream)
 }
 
+func (a pushApply) RenameItem(ctx context.Context, projectID, stream, itemID, newName string) error {
+	return renameItemTx(ctx, a.tx, projectID, stream, itemID, newName)
+}
+
+func (a pushApply) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
+	return deleteItemTx(ctx, a.tx, projectID, stream, itemName)
+}
+
 func (a pushApply) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
 	row := a.tx.QueryRowContext(ctx,
 		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at

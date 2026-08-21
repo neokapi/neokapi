@@ -225,11 +225,20 @@ func applyStagedPush(
 	job *TranslationJob,
 	projectID, stream string,
 	staged []stagedGroup,
-	itemBlocks map[string][]string,
+	plan *identityPlan,
+	declared venue.Tree,
 	decisions []venue.UnitDecision,
 	expected ref.Ref,
 ) (*pushOutcome, error) {
 	out := &pushOutcome{}
+
+	// Identity first, before any content lands. A file that moved keeps the
+	// item that carries its approvals, so its blocks are written to that item
+	// rather than minting a second one at the new path.
+	if err := plan.applyRenames(ctx, tx, projectID, stream); err != nil {
+		return nil, err
+	}
+	out.Renamed = len(plan.Renames)
 
 	for _, g := range staged {
 		if g.ItemName == "" {
@@ -260,9 +269,18 @@ func applyStagedPush(
 	// Removals land after every chunk's blocks, and inside the same
 	// transaction. A push is chunked, so no single chunk knows an item's whole
 	// content: pruning against one would delete everything the others carried.
-	if _, err := pruneDeclaredItems(ctx, tx, deps, job, projectID, stream, itemBlocks); err != nil {
+	if _, err := pruneDeclaredItems(ctx, tx, deps, job, projectID, stream, declared.BlockKeys()); err != nil {
 		return nil, err
 	}
+
+	// And then the items the declaration does not mention at all. Last, so an
+	// item this push emptied is removed for what the declaration says rather
+	// than for the order two statements ran in.
+	removed, err := plan.applyRemovals(ctx, tx, projectID, stream)
+	if err != nil {
+		return nil, err
+	}
+	out.Removed = removed
 
 	// The decisions ledger settles last, so decisions that arrived with the
 	// content they judge can resolve their rows and project their status. The
@@ -288,6 +306,8 @@ func applyStagedPush(
 type pushOutcome struct {
 	Stored    int
 	ItemNames []string
+	Removed   int
+	Renamed   int
 	Decisions int
 }
 

@@ -106,10 +106,10 @@ func TestClientServerRouteSurface(t *testing.T) {
 		"POST /api/v1/projects/claim",     // ClaimProject
 		"POST /api/v1/auth/refresh",       // RefreshToken
 		"GET /api/v1/:ws/:id/sync/:ref/pull",
+		"GET /api/v1/:ws/:id/sync/:ref/tree",
 		"GET /api/v1/:ws/:id/sync/:ref/status",
 		"GET /api/v1/:ws/:id/sync/:ref/blocks",
 		"POST /api/v1/:ws/:id/sync/:ref/push/init",
-		"POST /api/v1/:ws/:id/sync/:ref/push/diff",
 		"POST /api/v1/:ws/:id/sync/:ref/push/commit",
 		"GET /api/v1/:ws/:id/streams",
 		"POST /api/v1/:ws/:id/streams",

@@ -80,6 +80,18 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			Cursor: rs.published.Content, HasMore: false, Ref: &current,
 		})
 	})
+	// A venue that holds nothing: every block the scan reads is missing, so the
+	// push uploads. The producer diffs against this rather than against its own
+	// cache, which is why the route has to exist for a push to behave at all.
+	mux.HandleFunc(base+"/sync/main/tree", func(w http.ResponseWriter, _ *http.Request) {
+		current := rs.published
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ref": current, "root_hash": "", "items": []any{},
+		})
+	})
+	mux.HandleFunc(base+"/sync/main/push/chunks/", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.HandleFunc(base+"/sync/main/push/init", func(w http.ResponseWriter, _ *http.Request) {
 		current := rs.published
 		status := "diff_computed"

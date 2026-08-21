@@ -38,10 +38,6 @@ func TestPushUsesCorrectSyncPathsAndChunkHash(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(PushInitResponse{
 				UploadID: "up1", Status: "diff_computed", NewItems: []string{"locales/en.json"},
 			})
-		case strings.HasSuffix(r.URL.Path, "/push/diff"):
-			// Needed echoes the durable identity the diff was keyed on
-			// (convergence.BlockKey — the structural name, not the reader id).
-			_ = json.NewEncoder(w).Encode(PushDiffResponse{Needed: []string{"greeting"}, Transport: "proxy"})
 		case strings.Contains(r.URL.Path, "/push/chunks/"):
 			uploadedChunk, _ = io.ReadAll(r.Body)
 			w.WriteHeader(http.StatusOK)

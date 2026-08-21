@@ -37,8 +37,6 @@ func commitCapture(t *testing.T, got *PushCommitRequest) *httptest.Server {
 			_ = json.NewEncoder(w).Encode(PushInitResponse{
 				UploadID: "up1", Status: "diff_computed", NewItems: []string{"src/App.jsx"},
 			})
-		case strings.HasSuffix(r.URL.Path, "/push/diff"):
-			_ = json.NewEncoder(w).Encode(PushDiffResponse{Needed: []string{"b1"}, Transport: "proxy"})
 		case strings.HasSuffix(r.URL.Path, "/push/commit"):
 			_ = json.NewDecoder(r.Body).Decode(got)
 			_ = json.NewEncoder(w).Encode(map[string]string{"push_id": "p1", "status": "queued"})

@@ -71,11 +71,31 @@ func (d Document) Identify() DocUnit {
 // scope means moving a file costs nothing: its blocks reconcile in exactly the
 // context they did before.
 func Documents(current []Document, prior []DocUnit) []DocResult {
-	out := make([]DocResult, len(current))
 	units := make([]DocUnit, len(current))
 	for i, d := range current {
 		units[i] = d.Identify()
-		out[i] = DocResult{Path: d.Path}
+	}
+	return DocumentUnits(units, prior)
+}
+
+// DocumentUnits is Documents for a caller that already holds the units.
+//
+// The distinction matters where the documents are not in hand. A venue holding
+// a project's content knows each document as a path and a list of content
+// hashes — which is a DocUnit exactly — and reducing that back into blocks so
+// it could be reduced again would mean loading every block of every unchanged
+// file to answer a question about names. A producer declaring what it read
+// sends the same shape over the wire for the same reason.
+//
+// Identity is resolved here, on the side that holds the prior, because a
+// rename grafts one document's approvals onto another: it is a claim about
+// what content IS, and the party that owns the content has to be the one
+// making it.
+func DocumentUnits(current []DocUnit, prior []DocUnit) []DocResult {
+	out := make([]DocResult, len(current))
+	units := current
+	for i, u := range current {
+		out[i] = DocResult{Path: u.Path}
 	}
 
 	claimed := map[string]bool{}

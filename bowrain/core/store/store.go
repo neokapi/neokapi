@@ -214,6 +214,17 @@ type PushApplier interface {
 	GetItem(ctx context.Context, projectID, stream, itemName string) (*Item, error)
 	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
 	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)
+
+	// The identity verbs. A push declares a tree; which document each entry IS
+	// is resolved against what the venue holds, and acted on before any content
+	// lands — so a renamed file's blocks are written to the item that already
+	// carries its approvals rather than to a freshly minted one.
+	//
+	// RenameItem moves an item to a new path, keeping its id and everything
+	// hanging from it. DeleteItem removes an item the declared scope covers and
+	// the declared tree does not mention.
+	RenameItem(ctx context.Context, projectID, stream, itemID, newName string) error
+	DeleteItem(ctx context.Context, projectID, stream, itemName string) error
 }
 
 // PushApplyStore is the optional capability of applying a whole push as one
