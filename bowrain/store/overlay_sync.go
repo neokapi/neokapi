@@ -548,10 +548,26 @@ func SplitTargetStates(states []TargetLocaleState) (locales, approved []string) 
 	return locales, approved
 }
 
-// Querier abstracts *sql.DB and *sql.Tx so the overlay-sync helpers
-// work against both transaction-scoped and pooled connections.
+// Querier abstracts *sql.DB and *sql.Tx so the overlay-sync helpers work
+// against both transaction-scoped and pooled connections. Reads only, and
+// deliberately the narrowest thing those helpers need: a caller holding nothing
+// more than a query method can still use them.
 type Querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+// Runner is everything a *sql.DB and a *sql.Tx both do.
+//
+// It is what lets one body serve two callers: a verb invoked on its own, which
+// opens a transaction of its own, and the same verb invoked as one step of a
+// larger transition that has to land whole. Without it every write owns its
+// transaction, which is exactly why a push used to apply in pieces — one per
+// chunk, one per item, and more again after the loop.
+type Runner interface {
+	Execer
+	Querier
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
 // VariantKeyText renders a VariantKey to its canonical text form for use as a
