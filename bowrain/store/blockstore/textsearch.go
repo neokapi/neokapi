@@ -168,6 +168,10 @@ func (s *pgStore) textCandidates(
 
 	where := []string{
 		"b.project_id = " + project,
+		// One stream's text. The same block id sits on every branch holding it,
+		// so an unscoped search returns a hit per branch and the caller cannot
+		// tell which one it found.
+		"b.stream = " + stream,
 		"(" + strings.Join(match, " OR ") + ")",
 	}
 	if collection != "" {

@@ -888,14 +888,17 @@ type ChannelAliasStore interface {
 // dies the moment the store is wrapped, which is exactly how the access
 // endpoint went dead on every deployment that wraps its store in the
 // event-emitting decorator.
+// Every verb here names a stream: a block belongs to one, and the same id sits
+// on every branch that holds it, so who may edit it is a question about a
+// branch and not about a project.
 type BlockAccessStore interface {
 	// GetBlockAccess returns a block's access state and owner; a missing
 	// block reports open/empty.
-	GetBlockAccess(ctx context.Context, projectID, blockID string) (access, ownerID string, err error)
+	GetBlockAccess(ctx context.Context, projectID, stream, blockID string) (access, ownerID string, err error)
 	// SetBlockAccess updates a block's access state and (when non-empty) its
 	// owner.
-	SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error
+	SetBlockAccess(ctx context.Context, projectID, stream, blockID, access, ownerID string) error
 	// GetLastEditor returns the author of the most recent attributed content
 	// change (separation of duties at approval).
-	GetLastEditor(ctx context.Context, projectID, blockID string) (string, error)
+	GetLastEditor(ctx context.Context, projectID, stream, blockID string) (string, error)
 }

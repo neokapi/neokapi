@@ -85,7 +85,11 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 		Properties: req.Properties,
 	}
 
-	if err := s.ContentStore.CreateStream(c.Request().Context(), st); err != nil {
+	bs, ok := s.ContentStore.(store.StreamBranchStore)
+	if !ok {
+		return c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "this deployment's store does not branch"})
+	}
+	if err := bs.CreateStream(c.Request().Context(), st); err != nil {
 		return serverErr(c, err)
 	}
 
@@ -219,7 +223,11 @@ func (s *Server) HandleMergeStream(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	result, err := s.ContentStore.MergeStream(c.Request().Context(), projectID, streamName, store.MergeOptions{
+	bs, ok := s.ContentStore.(store.StreamBranchStore)
+	if !ok {
+		return c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "this deployment's store does not branch"})
+	}
+	result, err := bs.MergeStream(c.Request().Context(), projectID, streamName, store.MergeOptions{
 		DryRun: req.DryRun,
 	})
 	if err != nil {
@@ -239,7 +247,11 @@ func (s *Server) HandleDiffStream(c echo.Context) error {
 	projectID := c.Param("id")
 	streamName := c.Param("stream")
 
-	diff, err := s.ContentStore.DiffStream(c.Request().Context(), projectID, streamName)
+	bs, ok := s.ContentStore.(store.StreamBranchStore)
+	if !ok {
+		return c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "this deployment's store does not branch"})
+	}
+	diff, err := bs.DiffStream(c.Request().Context(), projectID, streamName)
 	if err != nil {
 		return serverErr(c, err)
 	}

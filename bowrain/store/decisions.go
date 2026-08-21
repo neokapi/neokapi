@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
@@ -24,6 +26,44 @@ import (
 // Freshness is derived at the point of use, never stored: a decision whose
 // TargetHash no longer matches the current translation is stale, and a source
 // edit demotes the projection (storeBlocks, "decision.stale").
+
+// resolveItemIDPg is the item a decision names, by identity rather than address.
+//
+// Decisions arrive keyed by item NAME — that is the vocabulary of the producer
+// that read the file — and are stored keyed by the item's id, so a rename moves
+// the address and the approvals stay put.
+//
+// A name this stream does not hold yet gets a row. The ledger is allowed to
+// arrive before the content it judges ("stays ledger-only and heals when the
+// content arrives"), and a decision that names a file is itself the assertion
+// that the file exists. Minting the row is what gives the key something stable
+// to point at; without it every ungrounded decision would key on the empty
+// string and collide with every other one.
+func resolveItemIDPg(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string) (string, error) {
+	if itemName == "" {
+		return "", nil
+	}
+	var itemID string
+	err := tx.QueryRowContext(ctx,
+		`SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`,
+		projectID, stream, itemName).Scan(&itemID)
+	if err == nil {
+		return itemID, nil
+	}
+	if err != sql.ErrNoRows {
+		return "", fmt.Errorf("resolve item %q: %w", itemName, err)
+	}
+	itemID = id.New()
+	if err := tx.QueryRowContext(ctx,
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, created_at, updated_at)
+		 VALUES ($1,$2,$3,$4,'','file',NOW(),NOW())
+		 ON CONFLICT (project_id, stream, name) DO UPDATE SET name=EXCLUDED.name
+		 RETURNING id`,
+		itemID, projectID, stream, itemName).Scan(&itemID); err != nil {
+		return "", fmt.Errorf("record item %q for its decisions: %w", itemName, err)
+	}
+	return itemID, nil
+}
 
 // deciderRole classifies a decision identity for the audit trail: "" (plain
 // human), "ai/<model>" (autonomous), "agent/<client>" (acting for a person).
@@ -77,13 +117,18 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 			continue
 		}
 
+		itemID, err := resolveItemIDPg(ctx, tx, projectID, stream, d.ItemName)
+		if err != nil {
+			return changed, err
+		}
+
 		var old venue.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
 			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
 			 FROM unit_decisions
-			 WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4 AND variant=$5`,
-			projectID, stream, d.ItemName, d.Unit, d.Variant)
+			 WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4 AND variant=$5`,
+			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
 			&old.DecidedAt, &old.Note, &old.Parked, &old.Assignee, &old.Updated); {
 		case err == nil:
@@ -105,16 +150,17 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_name, unit, variant, status, target_hash, content_hash, review_state,
+				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash, review_state,
 				 decided_by, decided_at, note, parked, assignee, updated, updated_at)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-			 ON CONFLICT (project_id, stream, item_name, unit, variant) DO UPDATE SET
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
+				item_name=EXCLUDED.item_name,
 				status=EXCLUDED.status, target_hash=EXCLUDED.target_hash,
 				content_hash=EXCLUDED.content_hash,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
 				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, parked=EXCLUDED.parked,
 				assignee=EXCLUDED.assignee, updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
-			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
+			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
 			d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
@@ -126,8 +172,8 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 		var blockID, blockHash string
 		if d.ItemName != "" {
 			err := tx.QueryRowContext(ctx,
-				`SELECT id, content_hash FROM blocks WHERE project_id=$1 AND item_name=$2 AND source_id=$3`,
-				projectID, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
+				`SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND source_id=$4`,
+				projectID, stream, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
 			if err != nil && err != sql.ErrNoRows {
 				return changed, fmt.Errorf("resolve decision block %s/%s: %w", d.ItemName, d.Unit, err)
 			}
@@ -159,10 +205,10 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 			continue
 		}
 		var targetJSON string
-		err := tx.QueryRowContext(ctx,
+		err = tx.QueryRowContext(ctx,
 			`SELECT target_json FROM translations WHERE project_id=$1 AND stream=$2 AND block_id=$3 AND locale=$4`,
 			projectID, stream, blockID, d.Variant).Scan(&targetJSON)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {
@@ -230,7 +276,8 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0)
 		 FROM unit_decisions d
 		 JOIN blocks b ON b.project_id = d.project_id
-			AND b.item_name = d.item_name
+			AND b.stream = d.stream
+			AND b.item_id = d.item_id
 			AND b.source_id = d.unit
 		 WHERE d.project_id=$1 AND d.stream=$2 AND b.translatable
 		 GROUP BY d.item_name, d.variant
@@ -336,14 +383,15 @@ func TargetTextFromJSON(targetJSON string) string {
 
 // settleDecisionProjectionsPg re-derives the projected statuses of every target
 // of a block whose SOURCE content just changed, against the decision ledger.
-// Runs inside the storeBlocks transaction, on EVERY stream — the block row is
-// stream-global — and only when the content hash actually moved.
-func settleDecisionProjectionsPg(ctx context.Context, tx *sql.Tx, projectID, blockID, contentHash string) error {
+// Runs inside the storeBlocks transaction, scoped to the stream whose source
+// moved, and only when the content hash actually moved. A branch holding the
+// same block id at its own content is judged by its own ledger.
+func settleDecisionProjectionsPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, contentHash string) error {
 	// The ledger keys on the unit identity (item + source_id), not the block id.
-	var itemName, unit string
+	var itemID, unit string
 	if err := tx.QueryRowContext(ctx,
-		`SELECT item_name, source_id FROM blocks WHERE project_id=$1 AND id=$2`,
-		projectID, blockID).Scan(&itemName, &unit); err != nil {
+		`SELECT item_id, source_id FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, blockID).Scan(&itemID, &unit); err != nil {
 		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
 	}
 
@@ -353,9 +401,9 @@ func settleDecisionProjectionsPg(ctx context.Context, tx *sql.Tx, projectID, blo
 		 FROM translations t
 		 LEFT JOIN unit_decisions d
 			ON d.project_id=t.project_id AND d.stream=t.stream
-			AND d.item_name=$3 AND d.unit=$4 AND d.variant=t.locale
-		 WHERE t.project_id=$1 AND t.block_id=$2`,
-		projectID, blockID, itemName, unit)
+			AND d.item_id=$4 AND d.unit=$5 AND d.variant=t.locale
+		 WHERE t.project_id=$1 AND t.stream=$2 AND t.block_id=$3`,
+		projectID, stream, blockID, itemID, unit)
 	if err != nil {
 		return fmt.Errorf("read projections for block %s: %w", blockID, err)
 	}

@@ -68,6 +68,10 @@ func BlockScopedTables() []string {
 func StreamScopedTables() []string {
 	return []string{
 		"items",
+		// A stream owns its blocks. Before it did, deleting a stream had to
+		// leave block rows behind and sweep for ones no surviving item named —
+		// a reclaim pass that existed only because two streams shared a row.
+		"blocks",
 		"translations",
 		"annotations",
 		"overlays_ext",
