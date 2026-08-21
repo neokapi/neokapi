@@ -32,15 +32,30 @@ import (
 // profile and a channel may each *carry* a concept for display; resolution
 // never looks at it.
 
-// The two axes of the context space, as they travel on the sync wire. The
-// framework names them because both are structural: a profile IS the product
-// value and a channel IS the channel value, so neither is a taxonomy a recipe
-// gets to invent.
+// The axes of the context space, as they travel on the sync wire.
+//
+// Two of them are STRUCTURAL and the framework names them, because a recipe
+// does not get to invent them: a profile IS the product value and a channel IS
+// the channel value, both derived from one `channel:` key.
+//
+// The rest are DECLARED. The coordinate map is open — the wire carries
+// map<string,string>, the entry hash folds whatever it finds in sorted order,
+// and the graph writes each axis as a property — so a project names the
+// dimensions its content actually varies along. Brand is the one that comes up
+// first and often enough to have a constant, but nothing here is a closed set.
 const (
 	// ProductAxis carries the profile name.
 	ProductAxis = "product"
 	// ChannelAxis carries the collection's channel.
 	ChannelAxis = "channel"
+	// BrandAxis carries the brand a point sits under. Coarser than product: a
+	// workspace has brands, a brand has products, a product ships channels.
+	//
+	// It is an axis rather than a subsystem. Content sits AT a brand the way it
+	// sits at a product; what GOVERNS it there — a voice profile, terms, gates —
+	// is bound at the point rather than being part of it. Named here so the
+	// spelling is one thing rather than each recipe's own.
+	BrandAxis = "brand"
 )
 
 // slugRule describes the shape of a profile name and of a channel, for the
@@ -206,6 +221,34 @@ func (r ChannelRef) Coordinates() map[string]string {
 	}
 	if r.Channel != "" {
 		out[ChannelAxis] = r.Channel
+	}
+	return out
+}
+
+// MergeCoordinates is a collection's point: the project defaults, overlaid with
+// what its `channel:` derives, overlaid with whatever it declares itself.
+//
+// Most specific wins, per axis. The order is the whole rule — a project states
+// its brand once under `defaults:` and every collection inherits it, while a
+// collection that genuinely sits elsewhere says so and only that axis moves.
+// Repeating an axis on every entry is how a declared axis becomes boilerplate
+// and then drifts.
+//
+// A nil result means the default point, which is a real place: the graph writes
+// a coordinate node for it, and content governed by nothing but the project's
+// own defaults sits there.
+func MergeCoordinates(defaults, derived, declared map[string]string) map[string]string {
+	out := make(map[string]string, len(defaults)+len(derived)+len(declared))
+	for _, layer := range []map[string]string{defaults, derived, declared} {
+		for axis, value := range layer {
+			if axis == "" || value == "" {
+				continue
+			}
+			out[axis] = value
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }

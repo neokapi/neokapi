@@ -107,7 +107,15 @@ func (c *BowrainSourceConnector) recipeDivergesFrom(ctx context.Context, e *pb.S
 		return nil
 	}
 	var parts []string
-	if !maps.Equal(normalizeCoordinates(ref.Coordinates()), normalizeCoordinates(e.Coordinates)) {
+	// The same merge the push carries, or every collection with a declared axis
+	// would read as diverged forever: the entry on the server holds the merged
+	// point and this compared it against the structural axes alone.
+	point := coreproj.MergeCoordinates(
+		c.project.Recipe.Defaults.Coordinates,
+		ref.Coordinates(),
+		declared.Coordinates,
+	)
+	if !maps.Equal(normalizeCoordinates(point), normalizeCoordinates(e.Coordinates)) {
 		parts = append(parts, "point")
 	}
 	if ref.Channel != e.Channel {

@@ -211,6 +211,19 @@ type Defaults struct {
 	// which is a platform-level policy with collection scoping.
 	Voice *VoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
 
+	// Coordinates is the project's default point in the context space: the axes
+	// every collection sits at unless it says otherwise.
+	//
+	// It exists because most axes default. A project has one brand far more
+	// often than one per collection, so stating it per entry is noise that
+	// drifts — the same reason Voice above is a default with a per-collection
+	// override rather than a field repeated on every entry.
+	//
+	// The structural axes (product, channel) are NOT written here: they are
+	// derived from a collection's `channel:`, and a default that could shadow
+	// them would let a recipe contradict its own point. Declared axes only.
+	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
+
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
 	// authored, reviewable form: `kapi apply` edits the .terms.json here and then
@@ -541,6 +554,14 @@ type Collection struct {
 	// project's default point governs it. Named collections only: a point is
 	// resolved by collection name, so an unnamed entry has nothing to resolve.
 	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
+
+	// Coordinates places this collection on the DECLARED axes — the ones a
+	// project names for itself, brand among them. It overlays
+	// `defaults.coordinates`, per axis, so a collection moves on the one axis
+	// it differs on and inherits the rest.
+	//
+	// The structural axes come from `channel:` above and are not written here.
+	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
