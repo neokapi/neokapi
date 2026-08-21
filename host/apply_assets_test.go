@@ -381,3 +381,76 @@ func TestUpsertTerm_ReplacementIsNeverDeclaredTwice(t *testing.T) {
 	assert.Equal(t, terms.ReplacementNote("berth"), got[1].Terms[0].Note,
 		"and the decision is still recorded on the term it was made about")
 }
+
+func TestApplyRecipeEntry_setDefaultCoordinate(t *testing.T) {
+	a, cmd, _, recipe := newApplyAssetProject(t)
+	ctx := context.Background()
+
+	set := func(axis string, value any) assetResult {
+		val, err := json.Marshal(value)
+		require.NoError(t, err)
+		return a.applyAssetEntry(ctx, cmd, changeEntry{
+			Kind: kindRecipe, Op: "set", Path: "defaults.coordinates." + axis, Value: val,
+		})
+	}
+
+	res := set(project.BrandAxis, "acme")
+	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{project.BrandAxis: "acme"}, proj.Defaults.Coordinates)
+
+	// A second axis joins the point rather than replacing it.
+	require.Equal(t, "applied", set("market", "emea").Status)
+	proj, err = project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{project.BrandAxis: "acme", "market": "emea"}, proj.Defaults.Coordinates)
+
+	// Idempotent.
+	assert.Equal(t, "skipped", set(project.BrandAxis, "acme").Status)
+
+	// An empty value withdraws the axis, so a change-set can retract a
+	// coordinate as well as declare one.
+	require.Equal(t, "applied", set("market", "").Status)
+	proj, err = project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{project.BrandAxis: "acme"}, proj.Defaults.Coordinates)
+	assert.Equal(t, "skipped", set("market", "").Status, "withdrawing an absent axis changes nothing")
+}
+
+// product and channel are computed from a collection's `channel:`. Declaring
+// one as a default would state a point the recipe also derives, and the two
+// would be free to disagree — so apply refuses them rather than letting a
+// change-set author a contradiction.
+func TestApplyRecipeEntry_refusesDerivedAxes(t *testing.T) {
+	a, cmd, _, _ := newApplyAssetProject(t)
+	ctx := context.Background()
+
+	for _, axis := range []string{project.ProductAxis, project.ChannelAxis} {
+		val, err := json.Marshal("anything")
+		require.NoError(t, err)
+		res := a.applyAssetEntry(ctx, cmd, changeEntry{
+			Kind: kindRecipe, Op: "set", Path: "defaults.coordinates." + axis, Value: val,
+		})
+		assert.Equal(t, "error", res.Status, "axis %q must be refused", axis)
+		assert.Contains(t, res.Detail, "derived")
+	}
+
+	// The whole map is not settable at once: one axis per entry, so a
+	// change-set says which axis it is changing.
+	val, err := json.Marshal(map[string]string{project.BrandAxis: "acme"})
+	require.NoError(t, err)
+	res := a.applyAssetEntry(ctx, cmd, changeEntry{
+		Kind: kindRecipe, Op: "set", Path: "defaults.coordinates", Value: val,
+	})
+	assert.Equal(t, "error", res.Status)
+	assert.Contains(t, res.Detail, "one axis at a time")
+
+	// An empty axis is a precise error rather than a silent no-op.
+	res = a.applyAssetEntry(ctx, cmd, changeEntry{
+		Kind: kindRecipe, Op: "set", Path: "defaults.coordinates.", Value: val,
+	})
+	assert.Equal(t, "error", res.Status)
+	assert.Contains(t, res.Detail, "empty axis")
+}
