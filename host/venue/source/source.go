@@ -623,16 +623,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}
 	_, _ = mediaHashMap, mediaMap // used below after block push
 
-	// What this scan read, and what it is authoritative over. The tree says
-	// what each item holds now; the scope says which items this push speaks
-	// for. Together they are how a push says a string, or a whole file, is
-	// GONE — a deletion sends no block, so a payload of changes cannot express
-	// one.
-	localTree := venue.TreeFromBlocks(blockMap)
+	// What this push is authoritative over.
 	scope := c.pushScope(opts.Paths)
 
-	// Fetch the venue's tree, once, and diff against THAT rather than the local
-	// cache.
+	// Fetch the venue's tree, once. It answers two different questions, and
+	// both used to be answered from local state instead.
 	//
 	// The cache is this producer's record of what it last sent, and it is not
 	// committed: a fresh clone has none, and another machine may have pushed
@@ -642,10 +637,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// is what the commit asserts, so a tree that went stale between fetch and
 	// push is refused rather than acted on.
 	//
-	// A fetch that fails is not fatal: the push falls back to the cache, which
-	// is the behaviour that existed before there were trees.
+	// It is fetched even under --force. Force means "send everything regardless
+	// of the diff", never "re-key everything": without priors, resolution below
+	// would mint a fresh unit for every block and the declared tree would ask
+	// the venue to drop every translation it holds.
 	var serverTree *apiclient.TreeResponse
-	if c.client != nil && !opts.Force {
+	if c.client != nil {
 		if fetched, terr := c.client.Tree(ctx, scope); terr == nil {
 			serverTree = fetched
 		} else {
@@ -654,9 +651,35 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 	}
 
+	// Resolve each block's durable identity against what the venue holds.
+	//
+	// A reader names blocks by structure, and structure shifts: delete the
+	// first paragraph of a section and every name below it is re-addressed, so
+	// the venue would prune the last one's row — with its translation and its
+	// approval — and land its text on its neighbour's. Resolution files content
+	// under a key that is matched rather than named, so that stops happening.
+	//
+	// It runs BEFORE the declared tree is built, because the tree's keys are
+	// what the venue prunes against, and after the fetch, because the priors
+	// are the venue's. With no priors there is nothing to match against, and
+	// resolution is skipped entirely rather than minting: an unresolved block
+	// keys on its name, exactly as it did before any of this existed.
+	if serverTree != nil {
+		fetched := serverTree.Tree()
+		host.ResolveIdentity(blockMap, host.Priors{
+			Documents: fetched.Units(),
+			Units:     fetched.Priors(),
+		})
+	}
+
+	// What this scan read, keyed by the identity just resolved. Together with
+	// the scope this is how a push says a string, or a whole file, is GONE — a
+	// deletion sends no block, so a payload of changes cannot express one.
+	localTree := venue.TreeFromBlocks(blockMap)
+
 	var changed []itemBlock
 	var held map[string]struct{}
-	if serverTree != nil {
+	if serverTree != nil && !opts.Force {
 		held = serverTree.Records()
 	}
 	for itemName, blocks := range blockMap {

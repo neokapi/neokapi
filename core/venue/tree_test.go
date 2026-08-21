@@ -81,14 +81,14 @@ func TestTreeRecordsAreGlobal(t *testing.T) {
 // the identity it had — which is what carries its approvals across.
 func TestTreeUnitsResolveARename(t *testing.T) {
 	prior := Tree{
-		"old/name.json": {Path: "old/name.json", Content: []string{"c1", "c2", "c3", "c4"}},
-	}.Units(func(p string) string { return "item-42" })
+		"old/name.json": {Path: "old/name.json", ID: "item-42", Content: []string{"c1", "c2", "c3", "c4"}},
+	}.Units()
 
 	current := Tree{
 		// Same content at a new path, with one string edited: a rename and an
 		// edit in the same revision is ordinary.
 		"new/name.json": {Path: "new/name.json", Content: []string{"c1", "c2", "c3", "cX"}},
-	}.Units(nil)
+	}.Units()
 
 	got := reconcile.DocumentUnits(current, prior)
 	require.Len(t, got, 1)
@@ -101,13 +101,13 @@ func TestTreeUnitsResolveARename(t *testing.T) {
 // an inheritance.
 func TestTreeUnitsSeparateEditsFromArrivals(t *testing.T) {
 	prior := Tree{
-		"a.json": {Path: "a.json", Content: []string{"c1", "c2"}},
-	}.Units(func(p string) string { return "item-a" })
+		"a.json": {Path: "a.json", ID: "item-a", Content: []string{"c1", "c2"}},
+	}.Units()
 
 	current := Tree{
 		"a.json": {Path: "a.json", Content: []string{"c1", "cZ"}},
 		"b.json": {Path: "b.json", Content: []string{"q1", "q2"}},
-	}.Units(nil)
+	}.Units()
 
 	got := reconcile.DocumentUnits(current, prior)
 	require.Len(t, got, 2)

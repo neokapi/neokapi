@@ -62,6 +62,7 @@ func KitchenSinkBlock() *model.Block {
 	b := &model.Block{
 		ID:                 "ks-1",
 		Name:               "kitchen.sink",
+		Unit:               "u-0123456789abcdef",
 		Type:               "text",
 		MimeType:           "text/plain",
 		Translatable:       true,

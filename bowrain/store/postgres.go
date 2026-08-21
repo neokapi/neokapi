@@ -1680,6 +1680,11 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	// Lift the folded source-authoring status back onto the block (source-first
 	// gate). Symmetric with PropsForStore on the write side.
 	platstore.ApplySourceStatusFromProps(sb.Block)
+	// The stored source id IS the block's durable unit — it is what a decision,
+	// a translation and a history entry are filed under here. Reading it back
+	// onto the block is what makes a pull round-trip the identity rather than
+	// hand back a block whose key would be re-derived from its name.
+	sb.Block.Unit = sb.SourceID
 	// Targets + Annotations are hydrated separately via hydrateOverlays
 	// after all rows are scanned — see GetBlock / GetBlocks. Leave
 	// empty here.

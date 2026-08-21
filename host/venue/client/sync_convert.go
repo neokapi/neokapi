@@ -31,6 +31,7 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 		ID:                 b.ID,
 		ItemName:           sb.ItemName,
 		Name:               b.Name,
+		Unit:               b.Unit,
 		Type:               b.Type,
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
@@ -182,6 +183,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	b := &model.Block{
 		ID:                 sb.ID,
 		Name:               sb.Name,
+		Unit:               sb.Unit,
 		Type:               sb.Type,
 		MimeType:           sb.MimeType,
 		Translatable:       sb.Translatable,

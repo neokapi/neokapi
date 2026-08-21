@@ -68,15 +68,12 @@ func planIdentity(
 	// The venue's whole tree, not the scope's: a file moved INTO the scope from
 	// outside it is still the same document, and a scoped read would see only
 	// its arrival.
-	stored, itemIDs, err := diffEngine.LoadTree(ctx, projectID, stream, nil)
+	stored, err := diffEngine.LoadTree(ctx, projectID, stream, nil)
 	if err != nil {
 		return nil, fmt.Errorf("read the project tree to resolve identity: %w", err)
 	}
 
-	resolved := reconcile.DocumentUnits(
-		declared.Units(nil),
-		stored.Units(func(p string) string { return itemIDs[p] }),
-	)
+	resolved := reconcile.DocumentUnits(declared.Units(), stored.Units())
 
 	claimed := map[string]bool{}
 	for _, r := range resolved {
@@ -100,8 +97,8 @@ func planIdentity(
 	//
 	// An item claimed by a rename is not a removal — it is the same document,
 	// now at another path, and its old path is vacated by the rename itself.
-	for path, id := range itemIDs {
-		if declared[path].Path != "" || claimed[id] {
+	for path, ti := range stored {
+		if declared[path].Path != "" || claimed[ti.ID] {
 			continue
 		}
 		if !scope.Covers(path) {

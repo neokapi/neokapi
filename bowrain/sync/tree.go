@@ -23,14 +23,13 @@ import (
 // The item's stored id rides along as the key: identity is the venue's to
 // assign, and a producer's declaration is compared against these units to
 // decide what was renamed.
-func (d *DiffEngine) LoadTree(ctx context.Context, projectID, stream string, scope venue.Scope) (venue.Tree, map[string]string, error) {
+func (d *DiffEngine) LoadTree(ctx context.Context, projectID, stream string, scope venue.Scope) (venue.Tree, error) {
 	items, err := d.contentStore.ListItems(ctx, projectID, stream)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tree := make(venue.Tree, len(items))
-	itemIDs := make(map[string]string, len(items))
 	for _, item := range items {
 		if item == nil || item.Name == "" {
 			continue
@@ -43,12 +42,12 @@ func (d *DiffEngine) LoadTree(ctx context.Context, projectID, stream string, sco
 		}
 		ti, err := d.loadTreeItem(ctx, projectID, stream, item.Name)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
+		ti.ID = item.ID
 		tree[item.Name] = ti
-		itemIDs[item.Name] = item.ID
 	}
-	return tree, itemIDs, nil
+	return tree, nil
 }
 
 // loadTreeItem reduces one item's stored blocks to its tree entry.
@@ -80,6 +79,7 @@ func (d *DiffEngine) loadTreeItem(ctx context.Context, projectID, stream, itemNa
 		}
 		ti.Keys = append(ti.Keys, key)
 		ti.Content = append(ti.Content, sb.ContentHash)
+		ti.Context = append(ti.Context, sb.ContextHash)
 		ti.Record = append(ti.Record, model.ComputeRecordHash(sb.ContentHash, sb.ContextHash))
 	}
 	return ti, nil
