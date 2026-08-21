@@ -58,7 +58,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 29.
+// repaired. Retired numbers are never reused; the next migration is version 30.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict
@@ -1325,6 +1325,46 @@ var Migrations = []storage.Migration{
 			-- pass finds nothing left to update.
 			UPDATE activities    SET type = 'voice.drift' WHERE type = 'brand.drift';
 			UPDATE notifications SET type = 'voice.drift' WHERE type = 'brand.drift';
+		`,
+	},
+	{
+		Version:     29,
+		Description: "pending recipe changes: a proposal in flight to the working tree",
+		SQL: `
+			-- A coordinate is minted by the recipe and by nothing else, so an
+			-- approved axis becomes real only once kapi.yaml says so and a push
+			-- carries it. This table holds the proposal in between: one row per
+			-- recipe field an approval wants set, waiting for the next pull to
+			-- write it into the working tree where git reviews it.
+			--
+			-- It is deliberately NOT a registry of axes. A row exists to become
+			-- a recipe line and is spent when applied; nothing reads it to
+			-- decide what a project's context space is. That question is
+			-- answered from the collections a push reconciled, which is the
+			-- recipe's own account of itself.
+			CREATE TABLE IF NOT EXISTS pending_recipe_changes (
+				id           TEXT PRIMARY KEY,
+				workspace_id TEXT NOT NULL,
+				project_id   TEXT NOT NULL,
+				-- The dotted recipe path and its JSON value, exactly as a
+				-- kapi apply recipe entry carries them: the client hands
+				-- these to the same setRecipeField the local fix loop uses,
+				-- so there is one allowlist and one writer, not two.
+				path         TEXT NOT NULL,
+				value        TEXT NOT NULL,
+				status       TEXT NOT NULL DEFAULT 'pending',
+				created_by   TEXT NOT NULL DEFAULT '',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				applied_at   TIMESTAMPTZ
+			);
+			-- The pull asks one question — what is pending for this project —
+			-- so that is the index.
+			CREATE INDEX IF NOT EXISTS idx_pending_recipe_changes_project
+				ON pending_recipe_changes(project_id, status);
+			-- One pending row per path: approving the same axis twice restates
+			-- the same recipe line rather than queueing it again.
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_recipe_changes_path
+				ON pending_recipe_changes(project_id, path) WHERE status = 'pending';
 		`,
 	},
 }

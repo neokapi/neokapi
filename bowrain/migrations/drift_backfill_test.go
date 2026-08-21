@@ -31,7 +31,12 @@ func TestDriftRowsCarryTheVoiceSpelling(t *testing.T) {
 
 	// Re-applying the baseline set is how a deploy reaches an existing
 	// database; the backfill must be part of what that does.
-	_, err = db.ExecContext(ctx, `DELETE FROM store_schema_migrations WHERE version = 28`)
+	// Rewind the ledger to before the backfill so the next Apply replays it.
+	// Every version at or above it is dropped rather than just the backfill's
+	// own: the loop skips anything at or below the current version, so removing
+	// one row in the middle would leave the backfill unreachable the moment a
+	// later migration exists. The replayed migrations are idempotent by design.
+	_, err = db.ExecContext(ctx, `DELETE FROM store_schema_migrations WHERE version >= 28`)
 	require.NoError(t, err)
 	require.NoError(t, migrations.Apply(db, nil))
 
