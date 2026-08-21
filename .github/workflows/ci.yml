@@ -40,6 +40,7 @@ jobs:
       framework: ${{ github.event_name == 'push' || steps.filter.outputs.framework }}
       cli: ${{ github.event_name == 'push' || steps.filter.outputs.cli }}
       platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
+      migrations: ${{ github.event_name == 'push' || steps.filter.outputs.migrations }}
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
       bowrain_plugin: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_plugin }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
@@ -96,6 +97,9 @@ jobs:
           check_paths framework '^(core|kpz|memory|terms|providers)/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
           check_paths cli       '^(cli|host)/'
           check_paths platform  '^bowrain/core/'
+          # A baseline edit is the one change that can take production down
+          # while every PR check passes, so it gets its own filter.
+          check_paths migrations '^bowrain/[a-z_]+/migrations\.go$' '^bowrain/migrations/'
           # kapi: anything under kapi/
           if echo "$CHANGED" | grep -E '^kapi/' | grep -q .; then
             echo "kapi=true" >> "$GITHUB_OUTPUT"
@@ -712,6 +716,51 @@ jobs:
 
       - name: Run the integration lane
         run: make test-integration
+
+  # ── The schema a baseline builds, on PRs that edit one ───────────────────
+  # TestBaselineSchemaMatchesGolden states what schema the migrations build, so
+  # a baseline edit that changes it has to say so in the diff. It lives in the
+  # integration lane above, which is push-only — and a baseline edit is exactly
+  # the change that can pass every PR check and still take production down.
+  #
+  # It did. #2143 renamed workspaces.brand_voice_profile_id inside a CREATE
+  # TABLE IF NOT EXISTS without bumping the baseline version, so the column
+  # moved for a database built after the rename and stayed put for the one
+  # running, while all seven queries moved. Every workspace request 500ed with
+  # `column w.voice_profile_id does not exist`. The golden had been failing
+  # since that PR; nothing on either PR ran it.
+  #
+  # This is not the whole integration lane moved to PRs — that policy is
+  # deliberate and the wall stays fast. It is one test, on the one path where
+  # being wrong is an outage, and only when a migration file changed.
+  migration-schema:
+    name: Migration schema
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bowrain
+          POSTGRES_PASSWORD: bowrain
+          POSTGRES_DB: bowrain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bowrain -d bowrain_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BOWRAIN_TEST_POSTGRES_URL: postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+      - name: The schema the baselines build matches the golden
+        run: go test -tags "fts5,integration" ./migrations/ -run 'TestBaselineSchemaMatchesGolden|TestBaselineVersionsSitAboveRetiredOnes' -v
+        working-directory: bowrain
 
   # ── Race pass over changed packages (PR only) ─────────────────────────────
   # The PR test wall deliberately drops -race (Makefile fast profile) and main
