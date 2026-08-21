@@ -1146,7 +1146,6 @@ export interface ApiAdapter {
     judgement: ChannelAliasJudgement,
   ): Promise<ChannelAliasProposal>;
 
-  listStarterPacks(): Promise<{ name: string; description: string }[]>;
   createProfileFromStarter(
     workspaceSlug: string,
     pack: string,

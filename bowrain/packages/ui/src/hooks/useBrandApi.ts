@@ -217,16 +217,6 @@ export function useBrandDrift(
   });
 }
 
-export function useStarterPacks() {
-  const api = useApi();
-
-  return useQuery({
-    queryKey: ["brand-starter-packs"],
-    queryFn: () => api.listStarterPacks(),
-    staleTime: 300_000,
-  });
-}
-
 export function useCreateFromStarter() {
   const api = useApi();
   const { activeWorkspace } = useWorkspace();

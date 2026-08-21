@@ -103,7 +103,6 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "getBrandProfile",
   "getBrandScores",
   "getBrandTrends",
-  "listStarterPacks",
   "listBrandCandidates",
   "promoteBrandRule",
   "rejectBrandRule",
