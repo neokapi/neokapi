@@ -39,7 +39,7 @@ func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope 
 	if s.contentStore != nil {
 		projectID = s.resolveProjectID(ctx, scope.ProjectID)
 	}
-	profile, err := brandscope.Resolve(ctx, s.contentStore, s.wsDefault, s.brandStore, brandscope.Scope{
+	profile, err := brandscope.Resolve(ctx, s.contentStore, s.wsDefault, s.voiceStore, brandscope.Scope{
 		ExplicitProfileID: profileID,
 		ProjectID:         projectID,
 		Stream:            scope.Stream,
@@ -57,15 +57,15 @@ func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope 
 	return profile, nil
 }
 
-// Phase 2 tools: score_brand_compliance, suggest_corrections, rewrite_in_voice.
+// Phase 2 tools: score_voice_compliance, suggest_corrections, rewrite_in_voice.
 
 // registerPhase2Tools registers the advanced scoring and rewriting tools.
 func (s *MCPServer) registerPhase2Tools() {
-	// score_brand_compliance — full vocabulary + AI check with scores.
+	// score_voice_compliance — full vocabulary + AI check with scores.
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name:        "score_brand_compliance",
-		Description: "Run a full brand compliance check on text, returning an overall score (0-100), per-dimension scores (tone, style, vocabulary, clarity, brand_compliance), and detailed findings with severity levels.",
-	}, s.handleScoreBrandCompliance)
+		Name:        "score_voice_compliance",
+		Description: "Run a full voice compliance check on text, returning an overall score (0-100), per-dimension scores (tone, style, vocabulary, clarity, compliance), and detailed findings with severity levels.",
+	}, s.handleScoreVoiceCompliance)
 
 	// suggest_corrections — generate rewrites for findings.
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -80,23 +80,23 @@ func (s *MCPServer) registerPhase2Tools() {
 	}, s.handleRewriteInVoice)
 }
 
-// scoreBrandComplianceInput is the input for the score_brand_compliance tool.
-type scoreBrandComplianceInput struct {
+// scoreVoiceComplianceInput is the input for the score_voice_compliance tool.
+type scoreVoiceComplianceInput struct {
 	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the brand voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
 	Text            string `json:"text" jsonschema:"the text to score"`
 	Locale          string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
 	brandScopeInput `json:",inline"`
 }
 
-// scoreBrandComplianceOutput is the output for the score_brand_compliance tool.
-type scoreBrandComplianceOutput struct {
+// scoreVoiceComplianceOutput is the output for the score_voice_compliance tool.
+type scoreVoiceComplianceOutput struct {
 	Score coreprofile.ComplianceScore `json:"score"`
 }
 
-func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreBrandComplianceInput) (*mcp.CallToolResult, scoreBrandComplianceOutput, error) {
+func (s *MCPServer) handleScoreVoiceCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreVoiceComplianceInput) (*mcp.CallToolResult, scoreVoiceComplianceOutput, error) {
 	profile, err := s.resolveProfile(ctx, input.ProfileID, input.brandScopeInput, input.Locale, "")
 	if err != nil {
-		return nil, scoreBrandComplianceOutput{}, err
+		return nil, scoreVoiceComplianceOutput{}, err
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
@@ -105,7 +105,7 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 	score.ProfileID = profile.ID
 	score.WordCount = model.CountWords(input.Text)
 
-	return nil, scoreBrandComplianceOutput{Score: score}, nil
+	return nil, scoreVoiceComplianceOutput{Score: score}, nil
 }
 
 // suggestCorrectionsInput is the input for the suggest_corrections tool.

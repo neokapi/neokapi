@@ -31,11 +31,11 @@ type BrandCorrectionRequest struct {
 
 // HandleCreateBrandVoiceCorrection records a user correction to a brand voice finding.
 func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 
@@ -61,7 +61,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 		CorrectedAt:   time.Now().UTC(),
 	}
 
-	if err := s.BrandStore.StoreCorrection(c.Request().Context(), correction); err != nil {
+	if err := s.VoiceStore.StoreCorrection(c.Request().Context(), correction); err != nil {
 		return serverErr(c, err)
 	}
 
@@ -70,7 +70,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 	// a hiccup here never fails the correction that was already stored.
 	wsID, _ := c.Get("workspace_id").(string)
 	resp := map[string]any{"correction": correction}
-	if profile, err := s.BrandStore.GetProfile(c.Request().Context(), req.ProfileID); err == nil {
+	if profile, err := s.VoiceStore.GetProfile(c.Request().Context(), req.ProfileID); err == nil {
 		if term, promoted := s.maybeAutoPromote(c, profile, wsID, userID, correction); promoted {
 			resp["auto_promoted"] = term
 		}
@@ -80,7 +80,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 
 // HandleGetSuggestedRules returns vocabulary rules suggested from repeated corrections.
 func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 
@@ -92,7 +92,7 @@ func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
 		}
 	}
 
-	rules, err := s.BrandStore.GetSuggestedRules(c.Request().Context(), wsID, minCount)
+	rules, err := s.VoiceStore.GetSuggestedRules(c.Request().Context(), wsID, minCount)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -114,10 +114,10 @@ type PromoteRuleRequest struct {
 // a correction a team made becomes a deterministic check on every future
 // generation.
 func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 
@@ -158,7 +158,7 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 		rule.ConceptID = conceptID
 	}
 
-	profile, changed, err := coreprofile.PromoteAndSave(c.Request().Context(), s.BrandStore, profileID, rule)
+	profile, changed, err := coreprofile.PromoteAndSave(c.Request().Context(), s.VoiceStore, profileID, rule)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -166,7 +166,7 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 	if changed {
 		// Record the decision so the candidate leaves the review list and the
 		// promotion is traceable to the profile version it landed in.
-		_ = s.BrandStore.RecordRuleDecision(c.Request().Context(), &coreprofile.RuleDecision{
+		_ = s.VoiceStore.RecordRuleDecision(c.Request().Context(), &coreprofile.RuleDecision{
 			ProfileID:       profileID,
 			Term:            req.Term,
 			Replacement:     req.Replacement,
@@ -194,14 +194,14 @@ type DemoteRuleRequest struct {
 
 // HandleDemoteSuggestedRule removes a previously promoted rule from a brand
 // profile (the inverse of promote — promoted rules are no longer append-only).
-// Requires PermManageBrand.
+// Requires PermManageVoice.
 //
 // POST /:ws/brand-profiles/:id/demote-rule  { "term": "utilize" }
 func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 
@@ -214,7 +214,7 @@ func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
 	}
 
 	profileID := c.Param("id")
-	profile, changed, err := coreprofile.DemoteAndSave(c.Request().Context(), s.BrandStore, profileID, req.Term)
+	profile, changed, err := coreprofile.DemoteAndSave(c.Request().Context(), s.VoiceStore, profileID, req.Term)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}

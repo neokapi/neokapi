@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
-	"github.com/neokapi/neokapi/bowrain/brand"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -16,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -40,7 +40,7 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 	require.NoError(t, err)
 	as, err := auth.NewAuthStoreFromDB(db)
 	require.NoError(t, err)
-	bs, err := brand.NewPostgresBrandStore(db)
+	bs, err := voice.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
 
 	reg := platconn.NewRegistry()
@@ -55,7 +55,7 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 		ToolRegistry:        toolReg,
 		ContentStore:        cs,
 		AuthStore:           as,
-		BrandStore:          bs,
+		VoiceStore:          bs,
 		EventBus:            bus,
 		TaskStore:           bstore.NewTaskStore(db.DB),
 		ConvergenceRunStore: bstore.NewConvergenceRunStore(db.DB),
@@ -330,7 +330,7 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, s.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
 
 	// b1's target contains the just-promoted "utiliser"; b2's contains only the
 	// older "ancien". Both approved.

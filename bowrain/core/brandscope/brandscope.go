@@ -2,7 +2,7 @@
 // (core/brand) to the bowrain platform's organizational scopes. It reads the
 // brand-voice binding that a project, stream, or collection carries in its
 // Properties/ConnectorConfig map, plus the workspace-level default, and feeds
-// them to brand.ResolveProfileFromContext so a surface resolves the most
+// them to coreprofile.ResolveProfileFromContext so a surface resolves the most
 // specific profile without the caller knowing a profile ID.
 //
 // The resolution ladder (most specific wins) is:
@@ -10,7 +10,7 @@
 //	explicit → collection → stream → project → workspace
 //
 // See core/brand/resolve.go for the ladder itself; this package only populates
-// the brand.ResolveContext from the store types.
+// the coreprofile.ResolveContext from the store types.
 package brandscope
 
 import (
@@ -18,7 +18,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // Scope identifies the organizational-hierarchy positions a brand check runs
@@ -66,7 +66,7 @@ type WorkspaceDefault interface {
 	WorkspaceBrandProfileID(ctx context.Context, workspaceID string) (string, error)
 }
 
-// Resolve populates a brand.ResolveContext from the given scopes and resolves
+// Resolve populates a coreprofile.ResolveContext from the given scopes and resolves
 // the effective profile through the hierarchical ladder. An explicit profile ID
 // short-circuits the store reads and always wins; otherwise the project,
 // stream, and collection bindings and the workspace default are consulted in
@@ -76,8 +76,8 @@ type WorkspaceDefault interface {
 // Store-read failures for a scope are non-fatal: that rung is simply skipped,
 // so a missing stream or an unreadable collection degrades to the next-broader
 // binding rather than failing the check.
-func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.Store, sc Scope) (*brand.VoiceProfile, error) {
-	rc := brand.ResolveContext{
+func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs coreprofile.Store, sc Scope) (*coreprofile.VoiceProfile, error) {
+	rc := coreprofile.ResolveContext{
 		ExplicitProfileID: sc.ExplicitProfileID,
 		Locale:            sc.Locale,
 	}
@@ -85,14 +85,14 @@ func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.S
 		populateContext(ctx, cs, wd, &rc, sc)
 	}
 
-	profile, err := brand.ResolveProfileFromContext(ctx, rc, bs)
+	profile, err := coreprofile.ResolveProfileFromContext(ctx, rc, bs)
 	if err != nil || profile == nil {
 		return profile, err
 	}
 	// An explicit per-call channel/persona wins over anything bound via
 	// properties. Persona is applied after channel, inside the brand guardrails.
 	if sc.Channel != "" || sc.Persona != "" {
-		profile = brand.ResolveProfile(profile, "", sc.Channel, sc.Persona)
+		profile = coreprofile.ResolveProfile(profile, "", sc.Channel, sc.Persona)
 	}
 	return profile, nil
 }
@@ -101,7 +101,7 @@ func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.S
 // default from the stores. The project is read first so its WorkspaceID can
 // stand in for an unspecified Scope.WorkspaceID (the common case in surfaces
 // that only know the project).
-func populateContext(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, rc *brand.ResolveContext, sc Scope) {
+func populateContext(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, rc *coreprofile.ResolveContext, sc Scope) {
 	workspaceID := sc.WorkspaceID
 
 	if cs != nil && sc.ProjectID != "" {

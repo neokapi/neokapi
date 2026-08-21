@@ -137,9 +137,7 @@ function skipReasons(result: ApprovePassingResult): string {
 /** Resolve the bound brand profile from the active stream, if any. */
 function resolveBrandProfile(project: ProjectInfo, stream: string): string | undefined {
   const s = project.streams?.find((x) => x.name === stream);
-  return (
-    s?.properties?.brand_voice_profile_id || project.properties?.brand_voice_profile_id || undefined
-  );
+  return s?.properties?.voice_profile_id || project.properties?.voice_profile_id || undefined;
 }
 
 /** Per-locale on-brand context for the reviewer header, from the dashboard. */

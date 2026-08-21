@@ -92,7 +92,7 @@ func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, st
 		return nil, err
 	}
 	gate := s.resolveTermGate(ctx, proj, stream, proj.WorkspaceID)
-	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, gate, stats); err != nil {
+	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return nil, err
 	}
 	s.dashboardCache.Store(key, &dashboardCacheEntry{stats: stats, expiresAt: time.Now().Add(dashboardCacheTTL)})

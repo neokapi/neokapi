@@ -11,7 +11,7 @@ import (
 
 func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 	ctx := context.Background()
-	store := &memBrandStore{
+	store := &memVoiceStore{
 		profiles: []*coreprofile.VoiceProfile{
 			{ID: "p1", Scope: "ws1", Name: "Voice"},
 		},

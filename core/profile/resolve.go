@@ -15,9 +15,9 @@ import (
 // Resolution order (most specific wins):
 //  1. ExplicitProfileID (from tool config or MCP parameter)
 //  2. Collection-level: CollectionProfile (already loaded — a kapi recipe's
-//     `profiles:` match), else CollectionConfig["brand_voice_profile_id"]
-//  3. Stream-level: StreamProperties["brand_voice_profile_id"]
-//  4. Project-level: ProjectProperties["brand_voice_profile_id"]
+//     `profiles:` match), else CollectionConfig["voice_profile_id"]
+//  3. Stream-level: StreamProperties["voice_profile_id"]
+//  4. Project-level: ProjectProperties["voice_profile_id"]
 //  5. Root-level: RootProfileID
 //
 // This is the single chain: a recipe-governed project and a server-governed one

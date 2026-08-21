@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
@@ -27,9 +27,9 @@ func setupBrandLoopServer(t *testing.T) *Server {
 	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv) // ContentStore + shared test DB (skips if no container)
 	db := pgtest.NewTestDB(t)
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	srv.BrandStore = bs
+	srv.VoiceStore = bs
 	return srv
 }
 
@@ -46,7 +46,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	const wsID = "ws-loop-e2e"
 	const userID = "u-loop-e2e"
 	profile := &coreprofile.VoiceProfile{ID: "p-loop-e2e", Scope: wsID, Name: "Loop E2E"}
-	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
 	// correct posts a correction through the handler and returns the decoded body.
 	correct := func(term, replacement string) map[string]any {
@@ -122,11 +122,11 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	rec := decide(srv.HandlePromoteSuggestedRule, "utilize", "use")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Nil(t, find(candidates(false), "utilize"), "promoted candidate should leave the review list")
-	got, err := srv.BrandStore.GetProfile(ctx, profile.ID)
+	got, err := srv.VoiceStore.GetProfile(ctx, profile.ID)
 	require.NoError(t, err)
 	require.Len(t, got.Vocabulary.ForbiddenTerms, 1)
 	assert.Equal(t, "utilize", got.Vocabulary.ForbiddenTerms[0].Term)
-	d, err := srv.BrandStore.GetRuleDecision(ctx, profile.ID, "utilize")
+	d, err := srv.VoiceStore.GetRuleDecision(ctx, profile.ID, "utilize")
 	require.NoError(t, err)
 	require.NotNil(t, d)
 	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
@@ -146,12 +146,12 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 
 	// ── progressive autonomy → auto-promote at threshold ───────────────
 	got.Autonomy = coreprofile.AutonomyConfig{AutoPromoteAtCount: 2}
-	require.NoError(t, srv.BrandStore.UpdateProfile(ctx, got))
+	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, got))
 	first := correct("synergy", "teamwork")
 	assert.Nil(t, first["auto_promoted"], "one correction is below the threshold")
 	second := correct("synergy", "teamwork")
 	assert.Equal(t, "synergy", second["auto_promoted"], "second correction crosses the threshold and auto-promotes")
-	d, err = srv.BrandStore.GetRuleDecision(ctx, profile.ID, "synergy")
+	d, err = srv.VoiceStore.GetRuleDecision(ctx, profile.ID, "synergy")
 	require.NoError(t, err)
 	require.NotNil(t, d)
 	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
@@ -165,13 +165,13 @@ func TestPhase4_BrandRuleDemote(t *testing.T) {
 	e := srv.GetEcho()
 	ctx := context.Background()
 	profile := &coreprofile.VoiceProfile{ID: "p-demote", Scope: "ws-d", Name: "D"}
-	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
-	_, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profile.ID,
+	_, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profile.ID,
 		coreprofile.SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	got, _ := srv.BrandStore.GetProfile(ctx, profile.ID)
+	got, _ := srv.VoiceStore.GetProfile(ctx, profile.ID)
 	require.Len(t, got.Vocabulary.ForbiddenTerms, 1)
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"term":"utilize"}`))
@@ -184,7 +184,7 @@ func TestPhase4_BrandRuleDemote(t *testing.T) {
 	require.NoError(t, srv.HandleDemoteSuggestedRule(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	got, _ = srv.BrandStore.GetProfile(ctx, profile.ID)
+	got, _ = srv.VoiceStore.GetProfile(ctx, profile.ID)
 	assert.Empty(t, got.Vocabulary.ForbiddenTerms, "demote should remove the promoted rule")
 }
 
@@ -198,7 +198,7 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 
 	const wsID = "ws-blast"
 	profile := &coreprofile.VoiceProfile{ID: "p-blast", Scope: wsID, Name: "Blast"}
-	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
 	const projectID = "proj-blast"
 	require.NoError(t, srv.ContentStore.CreateProject(ctx, &platstore.Project{
@@ -243,7 +243,7 @@ func TestBrandLoop_Drift(t *testing.T) {
 	const projectID = "proj-drift"
 	now := time.Now().UTC()
 	store := func(seq, day, score int) {
-		require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+		require.NoError(t, srv.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ID:        fmt.Sprintf("s-%d", seq),
 			ProjectID: projectID,
 			Stream:    "main",

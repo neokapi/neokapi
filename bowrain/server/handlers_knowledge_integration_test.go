@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -45,9 +45,9 @@ func kgIntegrationServer(t *testing.T) *Server {
 	require.NoError(t, err)
 	srv.KnowledgeStore = ks
 
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	srv.BrandStore = bs
+	srv.VoiceStore = bs
 
 	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}

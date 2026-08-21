@@ -39,7 +39,7 @@ func (s *Server) knowledgeEngineFor(wsSlug string) (*knowledge.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	return knowledge.NewEngine(s.ContentStore, tb, s.BrandStore, s.KnowledgeStore), nil
+	return knowledge.NewEngine(s.ContentStore, tb, s.VoiceStore, s.KnowledgeStore), nil
 }
 
 // publishKnowledgeEvents publishes the domain events a knowledge-graph mutation

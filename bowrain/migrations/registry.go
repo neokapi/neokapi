@@ -26,7 +26,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
-	"github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/memory"
@@ -34,6 +33,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/voice"
 )
 
 // Subsystem is one migration ledger: a set of migrations and the bookkeeping
@@ -79,7 +79,7 @@ func All() []Subsystem {
 		{Name: "brand_scan", Table: "brand_scan_schema_migrations", Migrations: jobs.BrandScanMigrations},
 		{Name: "model_sweep", Table: "model_sweep_schema_migrations", Migrations: jobs.ModelSweepMigrations},
 
-		{Name: "brand", Table: "brand_schema_migrations", Migrations: brand.Migrations},
+		{Name: "voice", Table: "voice_schema_migrations", Migrations: voice.Migrations},
 		{Name: "knowledge", Table: "knowledge_schema_migrations", Migrations: knowledge.Migrations},
 		{Name: "agent", Table: "agent_schema_migrations", Migrations: agent.Migrations},
 		{Name: "billing", Table: "billing_schema_migrations", Migrations: billing.Migrations},

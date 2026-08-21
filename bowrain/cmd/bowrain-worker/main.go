@@ -20,7 +20,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -37,6 +36,7 @@ import (
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	fwmemory "github.com/neokapi/neokapi/memory"
@@ -250,10 +250,10 @@ func runWorker(dbURL string) error {
 	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology glossary. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
-	if bs, err := brandpg.NewPostgresBrandStore(pgdb); err != nil {
+	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
 		slog.Warn("brand store unavailable; translation jobs run without brand voice", "error", err)
 	} else {
-		translationDeps.BrandStore = bs
+		translationDeps.VoiceStore = bs
 	}
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
@@ -714,7 +714,7 @@ func (a *workerWorkspaceDefault) WorkspaceBrandProfileID(ctx context.Context, wo
 	if err != nil || ws == nil {
 		return "", err
 	}
-	return ws.BrandVoiceProfileID, nil
+	return ws.VoiceProfileID, nil
 }
 
 // newWorkerTermsResolver returns a per-workspace terms resolver backed by the

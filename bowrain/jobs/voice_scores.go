@@ -5,11 +5,11 @@ import (
 	"log/slog"
 
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // persistDraftVoiceScores runs the profile's deterministic gate
-// (brand.Findings — the same zero-AI vocabulary and pattern matching behind
+// (coreprofile.Findings — the same zero-AI vocabulary and pattern matching behind
 // every HTTP scoring surface) over freshly persisted draft targets and stores one brand voice
 // score per block. This is what makes the dashboard's on-brand rate
 // voice-informed without any extra AI spend: every server-side draft the
@@ -21,8 +21,8 @@ import (
 // translation job. A store error is logged and abandons the remainder of the
 // batch — the dashboard then falls back to checks-only for the unscored
 // blocks.
-func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *TranslationJob, profile *brand.VoiceProfile, blocks []*model.Block, locale model.LocaleID) {
-	if deps == nil || deps.BrandStore == nil || profile == nil || job == nil {
+func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *TranslationJob, profile *coreprofile.VoiceProfile, blocks []*model.Block, locale model.LocaleID) {
+	if deps == nil || deps.VoiceStore == nil || profile == nil || job == nil {
 		return
 	}
 	stored := 0
@@ -37,9 +37,9 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 		// Anchor findings to a single synthetic text run over the checked text,
 		// exactly like the HTTP check surfaces (HandleCheckBrandVoice).
 		runs := []model.Run{{Text: &model.TextRun{Text: text}}}
-		findings := brand.Findings(profile, text, runs)
-		score := brand.CalculateScore(findings)
-		err := deps.BrandStore.StoreScore(ctx, &brand.StoredScore{
+		findings := coreprofile.Findings(profile, text, runs)
+		score := coreprofile.CalculateScore(findings)
+		err := deps.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID:      job.ProjectID,
 			Stream:         "main",
 			BlockID:        b.ID,

@@ -258,14 +258,14 @@ func newProfileBinder(deps *WorkerDeps, workspaceID, actorID string) *profileBin
 // never seen, and the collection is better ungoverned than governed by a
 // same-named profile nobody meant.
 func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (string, error) {
-	if e.VoiceProfile == "" || b.workspaceID == "" || b.deps.BrandStore == nil {
+	if e.VoiceProfile == "" || b.workspaceID == "" || b.deps.VoiceStore == nil {
 		return "", nil
 	}
 	if cached, ok := b.byName[e.VoiceProfile]; ok {
 		return cached, nil
 	}
 
-	profiles, err := b.deps.BrandStore.ListProfiles(ctx, b.workspaceID)
+	profiles, err := b.deps.VoiceStore.ListProfiles(ctx, b.workspaceID)
 	if err != nil {
 		return "", fmt.Errorf("list brand profiles: %w", err)
 	}
@@ -311,7 +311,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if err := b.deps.BrandStore.CreateProfile(ctx, &created); err != nil {
+		if err := b.deps.VoiceStore.CreateProfile(ctx, &created); err != nil {
 			return "", fmt.Errorf("create brand profile %q: %w", name, err)
 		}
 		return created.ID, nil
@@ -335,7 +335,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Personas = pushed.Personas
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if err := b.deps.BrandStore.UpdateProfile(ctx, &updated); err != nil {
+	if err := b.deps.VoiceStore.UpdateProfile(ctx, &updated); err != nil {
 		return "", fmt.Errorf("update brand profile %q: %w", name, err)
 	}
 	return updated.ID, nil

@@ -48,7 +48,7 @@ func (a *mcpWorkspaceDefaultAdapter) WorkspaceBrandProfileID(ctx context.Context
 	if err != nil || ws == nil {
 		return "", err
 	}
-	return ws.BrandVoiceProfileID, nil
+	return ws.VoiceProfileID, nil
 }
 
 // memoryResolverAdapter bridges workspaceStores → MCPServer.MemoryResolver.

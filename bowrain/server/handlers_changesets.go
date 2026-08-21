@@ -29,8 +29,8 @@ import (
 // Permissions follow the data-model note: reads gate on workspace membership
 // (view_content); drafting and editing a change-set, its ops, and its pilots
 // gate on manage_terms; authoring a brand-voice op additionally requires
-// manage_brand; approving, rejecting, and merging a governed change-set require
-// manage_brand and enforce separation of duties (the reviewer/approver must not
+// manage_voice; approving, rejecting, and merging a governed change-set require
+// manage_voice and enforce separation of duties (the reviewer/approver must not
 // be the change-set's author). It reuses s.knowledgeEngineFor (blast radius,
 // merge, pilots), s.publishKnowledgeEvents (event-bus + audit chain), and
 // s.KnowledgeStore (the governance store) from the concept stage.
@@ -328,7 +328,7 @@ func (s *Server) HandleUpdateChangeSet(c echo.Context) error {
 
 // HandleAddChangeSetOp appends one validated op to a draft change-set. A
 // brand-voice op (voice.rule.add/remove) is a governed brand edit and so
-// additionally requires manage_brand to author.
+// additionally requires manage_voice to author.
 func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
@@ -366,7 +366,7 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 	}
 	// Authoring a brand-voice op is a governed brand action.
 	if isVoiceOpType(op.Op) {
-		if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 			return err
 		}
 	}
@@ -538,7 +538,7 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 // evaporates the moment a second eligible reviewer exists; nothing is cached,
 // and the check runs on every attempt.
 func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewVerdict) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	if s.KnowledgeStore == nil {
@@ -617,7 +617,7 @@ func reviewPastTense(v knowledge.ReviewVerdict) string {
 
 // HandleMergeChangeSet merges a change-set into the workspace graph and brand
 // profiles. An ordinary change-set (no governed op) merges directly from draft by
-// anyone with manage_terms; a governed change-set requires manage_brand and an
+// anyone with manage_terms; a governed change-set requires manage_voice and an
 // approval from a reviewer other than its author (the engine's separation-of-duties
 // gate). A stale-draft conflict aborts the merge with the per-op conflict list and
 // 409; nothing is applied.
@@ -646,7 +646,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 	}
 	// A governed change-set is a brand action; escalate the permission gate.
 	if governed {
-		if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 			return err
 		}
 	}
@@ -1007,7 +1007,7 @@ func pilotStreams(pilots []*knowledge.Pilot) map[string][]string {
 }
 
 // isVoiceOpType reports whether an op type targets a brand-voice profile (and is
-// therefore a governed brand edit requiring manage_brand to author).
+// therefore a governed brand edit requiring manage_voice to author).
 func isVoiceOpType(o knowledge.OpType) bool {
 	return o == knowledge.OpVoiceRuleAdd || o == knowledge.OpVoiceRuleRemove
 }

@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import (
 	"testing"
@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
-	// Compile-time check that PostgresBrandStore satisfies BrandStore.
-	var _ coreprofile.Store = (*PostgresBrandStore)(nil)
+func TestPostgresVoiceStore_ImplementsInterface(t *testing.T) {
+	// Compile-time check that PostgresVoiceStore satisfies VoiceStore.
+	var _ coreprofile.Store = (*PostgresVoiceStore)(nil)
 }
 
 func TestScanProfile_Roundtrip(t *testing.T) {
@@ -56,24 +56,40 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 	assert.Len(t, profile.Personas, 1)
 }
 
-func TestBrandMigrations_SingleBaseline(t *testing.T) {
-	// The brand schema is one consolidated baseline. This test used to assert
+func TestVoiceMigrations_SingleBaseline(t *testing.T) {
+	// The voice schema is one consolidated baseline. This test used to assert
 	// the opposite — that personas must NOT be in the baseline, because a live
 	// database would never re-run it and so would never gain the column. That
 	// reasoning held while migrations were bare CREATE/ALTER and a baseline was
 	// applied at most once. The baseline is now idempotent and numbered above
 	// every version ever issued, so a live database DOES re-run it, and
 	// declaring personas in the CREATE is how the column arrives.
-	require.Len(t, Migrations, 1, "the brand schema is a single consolidated baseline")
+	require.Len(t, Migrations, 1, "the voice schema is a single consolidated baseline")
 	assert.Equal(t, 4, Migrations[0].Version, "baseline sits above versions 1-3, which it folds")
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL
 
+	// The tables this subsystem carried under its former name are dropped by the
+	// baseline, not carried across: pre-live, reset beats migrate, and a
+	// renamed ledger replays the baseline against a database that still has
+	// them.
+	for _, gone := range []string{
+		"DROP TABLE IF EXISTS brand_profiles;",
+		"DROP TABLE IF EXISTS brand_profile_versions;",
+		"DROP TABLE IF EXISTS brand_profile_tags;",
+		"DROP TABLE IF EXISTS brand_voice_scores;",
+		"DROP TABLE IF EXISTS brand_voice_corrections;",
+		"DROP TABLE IF EXISTS brand_rule_decisions;",
+		"DROP TABLE IF EXISTS brand_schema_migrations;",
+	} {
+		assert.Contains(t, sql, gone, "the baseline must clear the ground the rename left behind")
+	}
+
 	// The correction-learning loop's schema, the personas column folded in from
 	// version 2, and the on-brand bar from version 4 are all in the one baseline.
 	for _, want := range []string{
-		"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions",
+		"voice_rule_decisions", "voice_corrections", "voice_profile_versions",
 		"autonomy", "personas", "min_score",
 	} {
 		assert.Contains(t, sql, want)
@@ -82,7 +98,7 @@ func TestBrandMigrations_SingleBaseline(t *testing.T) {
 	// A column the baseline only DECLARES never reaches a database that already
 	// has the table: CREATE ... IF NOT EXISTS is a no-op there. Every column
 	// added after the table existed needs its own idempotent ALTER beside it.
-	assert.Contains(t, sql, "ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS min_score",
+	assert.Contains(t, sql, "ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS min_score",
 		"a live database gains min_score by ALTER, not by re-reading the CREATE")
 
 	// Idempotent throughout: a baseline that is re-applied must not fail on

@@ -152,7 +152,7 @@ test.describe("Governance chrome", () => {
     expect(detail.governed, "a forbidden transition is governed").toBe(true);
     expect(
       detail.solo_review,
-      "the only member holding manage_brand is the author, so a verdict is admitted on the solo-owner basis",
+      "the only member holding manage_voice is the author, so a verdict is admitted on the solo-owner basis",
     ).toBe(true);
 
     const approved = await api.approveChangeset(wsSlug, cs.id, "Reads better.");

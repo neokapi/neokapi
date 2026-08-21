@@ -20,7 +20,7 @@ const (
 	PermManageAutomation                        // Create/edit automation rules
 	PermManageMembers                           // Add/remove project members
 	PermManageProject                           // Edit project settings, archive
-	PermManageBrand                             // Edit brand voice profiles
+	PermManageVoice                             // Edit brand voice profiles
 	PermManageAssets                            // Upload/delete media assets
 	PermAuditRead                               // Read the audit log
 	PermRollbackChanges                         // Roll back / restore content to a prior state
@@ -57,7 +57,7 @@ var permNames = [permCount]string{
 	"manage_automation",
 	"manage_members",
 	"manage_project",
-	"manage_brand",
+	"manage_voice",
 	"manage_assets",
 	"audit_read",
 	"rollback_changes",

@@ -44,7 +44,7 @@ func TestPermissionLanguageScoped(t *testing.T) {
 		PermViewContent, PermEditSource, PermManageTerms, PermManageMemory,
 		PermRunFlows, PermManageFiles, PermManageStreams, PermManageConnectors,
 		PermManageAutomation, PermManageMembers, PermManageProject,
-		PermManageBrand, PermManageAssets, PermAuditRead, PermRollbackChanges,
+		PermManageVoice, PermManageAssets, PermAuditRead, PermRollbackChanges,
 	}
 	for _, p := range notScoped {
 		assert.False(t, p.LanguageScoped(), "%s should not be language-scoped", p)
@@ -64,7 +64,7 @@ func TestPermissionStrings(t *testing.T) {
 			"view_content", "edit_source", "translate", "review",
 			"manage_terms", "manage_tm", "run_flows", "manage_files",
 			"manage_streams", "manage_connectors", "manage_automation",
-			"manage_members", "manage_project", "manage_brand", "manage_assets",
+			"manage_members", "manage_project", "manage_voice", "manage_assets",
 			"audit_read", "rollback_changes",
 		}},
 	}
@@ -133,7 +133,7 @@ func TestPermAll(t *testing.T) {
 		PermViewContent, PermEditSource, PermTranslate, PermReview,
 		PermManageTerms, PermManageMemory, PermRunFlows, PermManageFiles,
 		PermManageStreams, PermManageConnectors, PermManageAutomation,
-		PermManageMembers, PermManageProject, PermManageBrand, PermManageAssets,
+		PermManageMembers, PermManageProject, PermManageVoice, PermManageAssets,
 		PermAuditRead, PermRollbackChanges,
 	}
 	require.Len(t, all, 17, "expected 17 individual permissions")

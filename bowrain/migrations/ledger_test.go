@@ -39,7 +39,7 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 	// lease bookkeeping.
 	highestEverIssued := map[string]int{
 		"store": 21, "auth": 8, "jobs": 9, "quota": 3, "runner": 1,
-		"extraction": 2, "brand_scan": 1, "model_sweep": 1, "brand": 2,
+		"extraction": 2, "brand_scan": 1, "model_sweep": 1, "voice": 2,
 		"knowledge": 4, "agent": 1, "billing": 7, "platform_config": 1,
 		"terms": 4, "memory": 5,
 	}

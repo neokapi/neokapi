@@ -61,7 +61,7 @@ func TestBrandScanInfoFeature(t *testing.T) {
 }
 
 // TestBrandScanCreate_Authz: a non-member is rejected by workspace access
-// resolution, and a plain member (no PermManageBrand) by the permission guard.
+// resolution, and a plain member (no PermManageVoice) by the permission guard.
 func TestBrandScanCreate_Authz(t *testing.T) {
 	s, _ := newTestServer(t)
 	wireBrandScan(t, s)
@@ -76,10 +76,10 @@ func TestBrandScanCreate_Authz(t *testing.T) {
 	assert.True(t, code == http.StatusForbidden || code == http.StatusNotFound,
 		"non-member must be rejected, got %d", code)
 
-	// Member without PermManageBrand.
+	// Member without PermManageVoice.
 	memberToken := addWorkspaceMember(t, s, "bs-member", "bs-member@example.com", platauth.RoleMember)
 	code = do(t, s, http.MethodPost, "/api/v1/test/brand-scans", memberToken, body)
-	assert.Equal(t, http.StatusForbidden, code, "a plain member lacks PermManageBrand")
+	assert.Equal(t, http.StatusForbidden, code, "a plain member lacks PermManageVoice")
 }
 
 // TestBrandScanCreate_RequiresSource: an empty request is a 400, not a queued
@@ -406,7 +406,7 @@ func TestBrandScanUploads_Caps(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 }
 
-// TestBrandScanUploads_RequiresPermission: without PermManageBrand the upload
+// TestBrandScanUploads_RequiresPermission: without PermManageVoice the upload
 // endpoint denies (fail-closed permission context).
 func TestBrandScanUploads_RequiresPermission(t *testing.T) {
 	blobs, err := bloblocal.New(t.TempDir())

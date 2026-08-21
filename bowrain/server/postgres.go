@@ -8,7 +8,6 @@ import (
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
-	platbrand "github.com/neokapi/neokapi/bowrain/brand"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
@@ -17,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	platvoice "github.com/neokapi/neokapi/bowrain/voice"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
@@ -74,7 +74,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		return nil, fmt.Errorf("init PostgreSQL quota store: %w", err)
 	}
 
-	bs, err := platbrand.NewPostgresBrandStore(db)
+	bs, err := platvoice.NewPostgresVoiceStore(db)
 	if err != nil {
 		slog.Warn("failed to init brand store (brand voice features disabled)", "error", err)
 	}

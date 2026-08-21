@@ -23,7 +23,7 @@ func newTestContentStore(t *testing.T) store.ContentStore {
 
 func newTestMCPServerWithContent(t *testing.T) *MCPServer {
 	t.Helper()
-	bs := &memBrandStore{}
+	bs := &memVoiceStore{}
 	cs := newTestContentStore(t)
 	ms, err := NewMCPServerWithStore(bs, cs, Config{})
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestHandleUpdateBlock(t *testing.T) {
 }
 
 func TestHandleSandboxExecuteScript(t *testing.T) {
-	bs := &memBrandStore{}
+	bs := &memVoiceStore{}
 	_ = bs.CreateProfile(t.Context(), &coreprofile.VoiceProfile{ID: "p1"})
 
 	sandbox := &mockSandbox{}
@@ -125,7 +125,7 @@ func TestHandleSandboxExecuteScript(t *testing.T) {
 }
 
 func TestHandleSandboxExecuteScript_InvalidLanguage(t *testing.T) {
-	bs := &memBrandStore{}
+	bs := &memVoiceStore{}
 	sandbox := &mockSandbox{}
 	ms, err := NewMCPServerWithStore(bs, nil, Config{}, WithSandbox(sandbox))
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestHandleSandboxExecuteScript_InvalidLanguage(t *testing.T) {
 }
 
 func TestHandleSandboxNotConfigured(t *testing.T) {
-	bs := &memBrandStore{}
+	bs := &memVoiceStore{}
 	ms, err := NewMCPServer(bs, Config{})
 	require.NoError(t, err)
 

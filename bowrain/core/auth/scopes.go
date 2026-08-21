@@ -16,7 +16,7 @@ const (
 	ScopeTranslate ScopeAction = "translate"
 	// ScopeContribute is the machine's share of the convergence loop: push and
 	// pull content, seed memory, run flows, and PROPOSE governed terminology —
-	// without the permissions that decide a review (review, manage_brand). A
+	// without the permissions that decide a review (review, manage_voice). A
 	// CI token on this scope structurally cannot approve what it proposed.
 	ScopeContribute ScopeAction = "contribute"
 	ScopeReview     ScopeAction = "review"

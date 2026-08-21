@@ -31,7 +31,7 @@ var migrations = []storage.Migration{
 		Version:     1,
 		Description: "voice profile store schema (baseline)",
 		SQL: `
-		CREATE TABLE IF NOT EXISTS brand_profiles (
+		CREATE TABLE IF NOT EXISTS voice_profiles (
 			id TEXT PRIMARY KEY,
 			workspace_id TEXT NOT NULL,
 			name TEXT NOT NULL,
@@ -50,7 +50,7 @@ var migrations = []storage.Migration{
 			UNIQUE (workspace_id, name)
 		);
 
-		CREATE TABLE IF NOT EXISTS brand_voice_scores (
+		CREATE TABLE IF NOT EXISTS voice_scores (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
 			stream TEXT NOT NULL DEFAULT 'main',
@@ -64,7 +64,7 @@ var migrations = []storage.Migration{
 			checked_at TEXT NOT NULL
 		);
 
-		CREATE TABLE IF NOT EXISTS brand_voice_corrections (
+		CREATE TABLE IF NOT EXISTS voice_corrections (
 			id TEXT PRIMARY KEY,
 			profile_id TEXT NOT NULL,
 			block_id TEXT NOT NULL,
@@ -76,7 +76,7 @@ var migrations = []storage.Migration{
 			corrected_at TEXT NOT NULL
 		);
 
-		CREATE TABLE IF NOT EXISTS brand_profile_versions (
+		CREATE TABLE IF NOT EXISTS voice_profile_versions (
 			profile_id TEXT NOT NULL,
 			version INTEGER NOT NULL,
 			snapshot TEXT NOT NULL,
@@ -86,7 +86,7 @@ var migrations = []storage.Migration{
 			PRIMARY KEY (profile_id, version)
 		);
 
-		CREATE TABLE IF NOT EXISTS brand_profile_tags (
+		CREATE TABLE IF NOT EXISTS voice_profile_tags (
 			profile_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			version INTEGER NOT NULL,
@@ -95,7 +95,7 @@ var migrations = []storage.Migration{
 			PRIMARY KEY (profile_id, name)
 		);
 
-		CREATE TABLE IF NOT EXISTS brand_rule_decisions (
+		CREATE TABLE IF NOT EXISTS voice_rule_decisions (
 			profile_id TEXT NOT NULL,
 			term TEXT NOT NULL,
 			replacement TEXT NOT NULL DEFAULT '',
@@ -114,7 +114,7 @@ var migrations = []storage.Migration{
 		Version:     2,
 		Description: "author personas on voice profiles",
 		SQL: `
-		ALTER TABLE brand_profiles ADD COLUMN personas TEXT NOT NULL DEFAULT '{}';
+		ALTER TABLE voice_profiles ADD COLUMN personas TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
 	{
@@ -126,7 +126,7 @@ var migrations = []storage.Migration{
 		// The ship gate and bulk approve-passing read it through
 		// VoiceProfile.ComplianceBar.
 		SQL: `
-		ALTER TABLE brand_profiles ADD COLUMN min_score INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE voice_profiles ADD COLUMN min_score INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
 }
@@ -217,7 +217,7 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (`+profileColumns+`)
+		`INSERT INTO voice_profiles (`+profileColumns+`)
 		 VALUES (`+profileValues+`)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
@@ -239,7 +239,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 
 	err := s.db.QueryRowContext(ctx,
 		`SELECT `+profileColumns+`
-		 FROM brand_profiles WHERE id = ?`, id).
+		 FROM voice_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.Scope, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
 			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
@@ -300,7 +300,7 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 	snapshotJSON, _ := json.Marshal(existing)
 	now := time.Now()
 	_, _ = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO brand_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
+		`INSERT OR IGNORE INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		existing.ID, existing.Version, string(snapshotJSON),
 		profile.VersionNote, existing.CreatedBy, now.Format(time.RFC3339))
@@ -317,7 +317,7 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE brand_profiles SET `+profileAssignments+`
+		`UPDATE voice_profiles SET `+profileAssignments+`
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
@@ -335,7 +335,7 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 }
 
 func (s *SQLiteStore) DeleteProfile(ctx context.Context, id string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM brand_profiles WHERE id = ?`, id)
+	result, err := s.db.ExecContext(ctx, `DELETE FROM voice_profiles WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete profile: %w", err)
 	}
@@ -351,7 +351,7 @@ func (s *SQLiteStore) ListProfiles(ctx context.Context, scope string) ([]*corepr
 	// SQLite :memory: databases use a single connection, so a nested query
 	// while rows are open would deadlock.
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id FROM brand_profiles WHERE workspace_id = ? ORDER BY name`, scope)
+		`SELECT id FROM voice_profiles WHERE workspace_id = ? ORDER BY name`, scope)
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}
@@ -384,7 +384,7 @@ func (s *SQLiteStore) StoreScore(ctx context.Context, score *coreprofile.StoredS
 	findings, _ := json.Marshal(score.Findings)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
+		`INSERT INTO voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		score.ID, score.ProjectID, score.Stream, score.BlockID,
 		score.ProfileID, score.ProfileVersion, string(locale.Normalize(score.Locale)), score.Score,
@@ -401,11 +401,11 @@ func (s *SQLiteStore) StoreScore(ctx context.Context, score *coreprofile.StoredS
 // brand rollup use — not "rows stored with an empty locale".
 func (s *SQLiteStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	query := `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`
+		 FROM voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`
 	args := []any{projectID, string(locale.Normalize(loc))}
 	if loc == "" {
 		query = `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = ? ORDER BY checked_at DESC`
+		 FROM voice_scores WHERE project_id = ? ORDER BY checked_at DESC`
 		args = []any{projectID}
 	}
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -444,7 +444,7 @@ func (s *SQLiteStore) GetScores(ctx context.Context, projectID string, loc model
 func (s *SQLiteStore) GetScoreTrends(ctx context.Context, projectID string, days int) ([]*coreprofile.ScoreTrend, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT DATE(checked_at) as date, AVG(score) as avg_score, COUNT(*) as count
-		 FROM brand_voice_scores
+		 FROM voice_scores
 		 WHERE project_id = ? AND checked_at >= DATE('now', '-' || ? || ' days')
 		 GROUP BY DATE(checked_at) ORDER BY date`, projectID, days)
 	if err != nil {
@@ -468,7 +468,7 @@ func (s *SQLiteStore) GetScoreTrends(ctx context.Context, projectID string, days
 
 func (s *SQLiteStore) StoreCorrection(ctx context.Context, correction *coreprofile.Correction) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_corrections (id, profile_id, block_id, dimension, original_text, corrected_text, finding_id, corrected_by, corrected_at)
+		`INSERT INTO voice_corrections (id, profile_id, block_id, dimension, original_text, corrected_text, finding_id, corrected_by, corrected_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		correction.ID, correction.ProfileID, correction.BlockID,
 		string(correction.Dimension), correction.OriginalText, correction.CorrectedText,
@@ -483,8 +483,8 @@ func (s *SQLiteStore) StoreCorrection(ctx context.Context, correction *coreprofi
 func (s *SQLiteStore) GetSuggestedRules(ctx context.Context, scope string, minCount int) ([]*coreprofile.SuggestedRule, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.original_text, c.corrected_text, COUNT(*) as cnt, c.dimension
-		 FROM brand_voice_corrections c
-		 JOIN brand_profiles p ON c.profile_id = p.id
+		 FROM voice_corrections c
+		 JOIN voice_profiles p ON c.profile_id = p.id
 		 WHERE p.workspace_id = ?
 		 GROUP BY c.original_text, c.corrected_text, c.dimension
 		 HAVING cnt >= ?
@@ -516,7 +516,7 @@ func (s *SQLiteStore) RecordRuleDecision(ctx context.Context, d *coreprofile.Rul
 		auto = 1
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_rule_decisions
+		`INSERT INTO voice_rule_decisions
 		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(profile_id, term) DO UPDATE SET
@@ -539,7 +539,7 @@ func (s *SQLiteStore) RecordRuleDecision(ctx context.Context, d *coreprofile.Rul
 func (s *SQLiteStore) GetRuleDecision(ctx context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
-		 FROM brand_rule_decisions WHERE profile_id = ? AND term = ? COLLATE NOCASE`, profileID, term)
+		 FROM voice_rule_decisions WHERE profile_id = ? AND term = ? COLLATE NOCASE`, profileID, term)
 	d, err := scanRuleDecision(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -553,7 +553,7 @@ func (s *SQLiteStore) GetRuleDecision(ctx context.Context, profileID, term strin
 func (s *SQLiteStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
-		 FROM brand_rule_decisions WHERE profile_id = ? ORDER BY decided_at DESC`, profileID)
+		 FROM voice_rule_decisions WHERE profile_id = ? ORDER BY decided_at DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list rule decisions: %w", err)
 	}
@@ -597,7 +597,7 @@ func scanRuleDecision(sc scanner) (*coreprofile.RuleDecision, error) {
 func (s *SQLiteStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
-		 FROM brand_profile_versions WHERE profile_id = ? ORDER BY version DESC`, profileID)
+		 FROM voice_profile_versions WHERE profile_id = ? ORDER BY version DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile versions: %w", err)
 	}
@@ -630,7 +630,7 @@ func (s *SQLiteStore) GetProfileVersion(ctx context.Context, profileID string, v
 	var snapshotJSON, createdStr string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
-		 FROM brand_profile_versions WHERE profile_id = ? AND version = ?`, profileID, version).
+		 FROM voice_profile_versions WHERE profile_id = ? AND version = ?`, profileID, version).
 		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
@@ -650,7 +650,7 @@ func (s *SQLiteStore) GetProfileVersion(ctx context.Context, profileID string, v
 func (s *SQLiteStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*coreprofile.VoiceProfile, error) {
 	var version int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT version FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName).
+		`SELECT version FROM voice_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName).
 		Scan(&version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
@@ -671,7 +671,7 @@ func (s *SQLiteStore) CreateProfileTag(ctx context.Context, tag *coreprofile.Pro
 		tag.CreatedAt = time.Now()
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profile_tags (profile_id, name, version, created_by, created_at)
+		`INSERT INTO voice_profile_tags (profile_id, name, version, created_by, created_at)
 		 VALUES (?, ?, ?, ?, ?)`,
 		tag.ProfileID, tag.Name, tag.Version, tag.CreatedBy,
 		tag.CreatedAt.Format(time.RFC3339))
@@ -684,7 +684,7 @@ func (s *SQLiteStore) CreateProfileTag(ctx context.Context, tag *coreprofile.Pro
 func (s *SQLiteStore) ListProfileTags(ctx context.Context, profileID string) ([]*coreprofile.ProfileTag, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, name, version, created_by, created_at
-		 FROM brand_profile_tags WHERE profile_id = ? ORDER BY name`, profileID)
+		 FROM voice_profile_tags WHERE profile_id = ? ORDER BY name`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile tags: %w", err)
 	}
@@ -711,7 +711,7 @@ func (s *SQLiteStore) ListProfileTags(ctx context.Context, profileID string) ([]
 
 func (s *SQLiteStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
 	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName)
+		`DELETE FROM voice_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName)
 	if err != nil {
 		return fmt.Errorf("delete profile tag: %w", err)
 	}
@@ -725,7 +725,7 @@ func (s *SQLiteStore) DeleteProfileTag(ctx context.Context, profileID, tagName s
 func (s *SQLiteStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = ? AND stream = ? ORDER BY checked_at DESC`, projectID, stream)
+		 FROM voice_scores WHERE project_id = ? AND stream = ? ORDER BY checked_at DESC`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("query scores by stream: %w", err)
 	}

@@ -7,21 +7,21 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// fakeBrandStore resolves profiles by ID from a fixed set. Embedding the
+// fakeVoiceStore resolves profiles by ID from a fixed set. Embedding the
 // interface means only GetProfile is implemented — the resolution path uses
 // nothing else.
-type fakeBrandStore struct {
-	brand.Store
-	profiles map[string]*brand.VoiceProfile
+type fakeVoiceStore struct {
+	coreprofile.Store
+	profiles map[string]*coreprofile.VoiceProfile
 }
 
-func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*brand.VoiceProfile, error) {
+func (f *fakeVoiceStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	if p, ok := f.profiles[id]; ok {
 		return p, nil
 	}
@@ -130,16 +130,16 @@ func TestResolveJobGlossary_DegradesGracefully(t *testing.T) {
 // ladder: no project/stream binding, but the workspace carries a default
 // profile — the job gets it, with the target locale's override applied.
 func TestResolveJobBrandProfile_WorkspaceDefault(t *testing.T) {
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:   "bp-1",
 		Name: "Acme Voice",
-		Tone: brand.ToneProfile{Formality: "neutral"},
-		Locales: map[model.LocaleID]brand.LocaleOverride{
+		Tone: coreprofile.ToneProfile{Formality: "neutral"},
+		Locales: map[model.LocaleID]coreprofile.LocaleOverride{
 			"fr": {Formality: "formal"},
 		},
 	}
 	deps := &WorkerDeps{
-		BrandStore:       &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{"bp-1": profile}},
+		VoiceStore:       &fakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: fakeWorkspaceDefault{id: "bp-1"},
 	}
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", ProjectID: "p", TargetLocale: "fr"}
@@ -155,10 +155,10 @@ func TestResolveJobBrandProfile_WorkspaceDefault(t *testing.T) {
 func TestResolveJobBrandProfile_DegradesGracefully(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", ProjectID: "p", TargetLocale: "fr"}
 
-	assert.Nil(t, resolveJobBrandProfile(t.Context(), &WorkerDeps{}, job), "no BrandStore → bare")
+	assert.Nil(t, resolveJobBrandProfile(t.Context(), &WorkerDeps{}, job), "no VoiceStore → bare")
 
 	unbound := &WorkerDeps{
-		BrandStore:       &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{}},
+		VoiceStore:       &fakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{}},
 		WorkspaceDefault: fakeWorkspaceDefault{id: ""},
 	}
 	assert.Nil(t, resolveJobBrandProfile(t.Context(), unbound, job), "nothing bound anywhere → bare")
@@ -190,19 +190,19 @@ func TestJobTranslateConfig_BareWithoutBrandDeps(t *testing.T) {
 // text) and the terms store-derived glossary — the exact fields the AI translate
 // tool injects into every prompt.
 func TestJobTranslateConfig_CarriesBrandContext(t *testing.T) {
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:   "bp-1",
 		Name: "Acme Voice",
-		Tone: brand.ToneProfile{Formality: "casual", Guidelines: "Address the reader as a peer"},
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
+		Tone: coreprofile.ToneProfile{Formality: "casual", Guidelines: "Address the reader as a peer"},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
 	tb := terms.NewInMemoryStore()
 	seedConcept(t, tb, "c1", "", "dashboard", "tableau de bord", model.TermPreferred)
 
 	deps := &WorkerDeps{
-		BrandStore:       &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{"bp-1": profile}},
+		VoiceStore:       &fakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: fakeWorkspaceDefault{id: "bp-1"},
 		TermsResolver:    TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil }),
 	}
@@ -212,7 +212,7 @@ func TestJobTranslateConfig_CarriesBrandContext(t *testing.T) {
 	cfg := jobTranslateConfig(t.Context(), deps, job, proj)
 
 	require.NotNil(t, cfg.Profile)
-	guide := brand.RenderVoiceGuideCompact(cfg.Profile)
+	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, "Address the reader as a peer")
 	assert.Contains(t, guide, `"utilize" → "use"`)

@@ -53,7 +53,7 @@ import (
 // each decision's recorded basis to the block's current source hash. It runs
 // unbounded by the coverage gate because a stale unit withholds a scope at any
 // coverage, and it is one grouped query rather than a per-block read.
-func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore coreprofile.Store, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
+func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore coreprofile.Store, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
 	}
@@ -107,7 +107,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 			// Drives both the term-compliance predicate and the basis note.
 			termActive[localeStr] = gate.active(ctx, model.LocaleID(localeStr))
 		}
-		rollup, err = deriveShipGate(ctx, cs, brandStore, projectID, stream, gate, locales, collByItem)
+		rollup, err = deriveShipGate(ctx, cs, voiceStore, projectID, stream, gate, locales, collByItem)
 		if err != nil {
 			return err
 		}
@@ -170,13 +170,13 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 func deriveShipGate(
 	ctx context.Context,
 	cs store.ContentStore,
-	brandStore coreprofile.Store,
+	voiceStore coreprofile.Store,
 	projectID, stream string,
 	gate *termGate,
 	locales []string,
 	collByItem map[string]string,
 ) (store.ShipGateRollup, error) {
-	scores := latestVoiceScores(ctx, brandStore, projectID, stream)
+	scores := latestVoiceScores(ctx, voiceStore, projectID, stream)
 
 	// Per-locale governance and voice scores resolve once, outside any walk:
 	// they are indexed by locale, not by block, and re-resolving them per batch
@@ -506,12 +506,12 @@ type scoredBlock struct {
 // Best-effort by design: a nil brand store or a read failure yields an empty
 // map, degrading the on-brand rate to checks-only rather than failing the
 // dashboard.
-func latestVoiceScores(ctx context.Context, brandStore coreprofile.Store, projectID, stream string) map[string]map[string]scoredBlock {
+func latestVoiceScores(ctx context.Context, voiceStore coreprofile.Store, projectID, stream string) map[string]map[string]scoredBlock {
 	out := map[string]map[string]scoredBlock{}
-	if brandStore == nil {
+	if voiceStore == nil {
 		return out
 	}
-	scores, err := brandStore.GetScoresByStream(ctx, projectID, stream)
+	scores, err := voiceStore.GetScoresByStream(ctx, projectID, stream)
 	if err != nil {
 		slog.WarnContext(ctx, "voice scores unavailable; on-brand rate falls back to checks-only",
 			"project_id", projectID, "error", err)
@@ -522,7 +522,7 @@ func latestVoiceScores(ctx context.Context, brandStore coreprofile.Store, projec
 		if b, ok := bars[profileID]; ok {
 			return b
 		}
-		profile, err := brandStore.GetProfile(ctx, profileID)
+		profile, err := voiceStore.GetProfile(ctx, profileID)
 		if err != nil {
 			profile = nil // deleted profile: apply the default bar to its scores
 		}

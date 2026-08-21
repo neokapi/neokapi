@@ -6,7 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -37,7 +37,7 @@ func (f TermsResolverFunc) GetTB(workspaceSlug string) (terms.Terminology, error
 
 // resolveJobBrandProfile resolves the brand voice profile a translation job
 // should carry, via the platform's hierarchical binding ladder (brandscope):
-// an explicit collection/stream/project binding (brand_voice_profile_id in
+// an explicit collection/stream/project binding (voice_profile_id in
 // Properties) wins over the workspace-level default profile, and nothing bound
 // at any level means no profile — the same resolution the editor and MCP
 // scoring surfaces use. The job's target locale selects the profile's locale
@@ -45,11 +45,11 @@ func (f TermsResolverFunc) GetTB(workspaceSlug string) (terms.Terminology, error
 //
 // Returns nil (and logs) on any resolution failure: brand voice must never
 // fail a translation job.
-func resolveJobBrandProfile(ctx context.Context, deps *WorkerDeps, job *TranslationJob) *brand.VoiceProfile {
-	if deps == nil || deps.BrandStore == nil {
+func resolveJobBrandProfile(ctx context.Context, deps *WorkerDeps, job *TranslationJob) *coreprofile.VoiceProfile {
+	if deps == nil || deps.VoiceStore == nil {
 		return nil
 	}
-	profile, err := brandscope.Resolve(ctx, deps.ContentStore, deps.WorkspaceDefault, deps.BrandStore, brandscope.Scope{
+	profile, err := brandscope.Resolve(ctx, deps.ContentStore, deps.WorkspaceDefault, deps.VoiceStore, brandscope.Scope{
 		WorkspaceID: job.WorkspaceID,
 		ProjectID:   job.ProjectID,
 		Stream:      "main",

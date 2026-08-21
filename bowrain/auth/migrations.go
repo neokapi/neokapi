@@ -70,7 +70,7 @@ var Migrations = []storage.Migration{
 				pulse_term_sources   TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}',
 				pulse_access_key     TEXT NOT NULL DEFAULT '',
 				preferred_model      TEXT NOT NULL DEFAULT '',
-				brand_voice_profile_id TEXT NOT NULL DEFAULT '',
+				voice_profile_id TEXT NOT NULL DEFAULT '',
 				created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);

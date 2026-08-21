@@ -386,10 +386,10 @@ func cloneCoordinates(coords map[string]string) map[string]string {
 // cards show, keyed by id.
 func (s *Server) contextProfileVoices(ctx context.Context, wsID string) map[string]*ContextProfileVoice {
 	out := map[string]*ContextProfileVoice{}
-	if s.BrandStore == nil || wsID == "" {
+	if s.VoiceStore == nil || wsID == "" {
 		return out
 	}
-	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
+	profiles, err := s.VoiceStore.ListProfiles(ctx, wsID)
 	if err != nil {
 		return out
 	}
@@ -483,7 +483,7 @@ func (s *Server) countPendingVoiceChanges(ctx context.Context, wsID string, prof
 func (s *Server) attachCheckStanding(
 	ctx context.Context, projects []*store.Project, wsID string, profiles []ContextProfile,
 ) {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return
 	}
 	type acc struct {
@@ -500,7 +500,7 @@ func (s *Server) attachCheckStanding(
 			break
 		}
 		scanned++
-		scores, err := s.BrandStore.GetScores(ctx, p.ID, "")
+		scores, err := s.VoiceStore.GetScores(ctx, p.ID, "")
 		if err != nil {
 			continue
 		}

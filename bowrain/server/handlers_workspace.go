@@ -33,11 +33,11 @@ type WorkspaceRequest struct {
 	// the platform default. Honored only when the admin has enabled customer
 	// model choice and the model is in the enabled set.
 	PreferredModel *string `json:"preferred_model,omitempty"`
-	// BrandVoiceProfileID is the workspace-level default brand-voice profile —
+	// VoiceProfileID is the workspace-level default brand-voice profile —
 	// the base rung of the hierarchical resolver that a project/stream/collection
 	// binding overrides. A pointer so an omitted field is untouched; an explicit
 	// "" clears the default.
-	BrandVoiceProfileID *string `json:"brand_voice_profile_id,omitempty"`
+	VoiceProfileID *string `json:"voice_profile_id,omitempty"`
 }
 
 // MemberRequest is the request body for adding a member to a workspace.
@@ -271,8 +271,8 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		}
 		w.PreferredModel = pref
 	}
-	if req.BrandVoiceProfileID != nil {
-		w.BrandVoiceProfileID = *req.BrandVoiceProfileID
+	if req.VoiceProfileID != nil {
+		w.VoiceProfileID = *req.VoiceProfileID
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
 		return serverErr(c, fmt.Errorf("update workspace: %w", err))

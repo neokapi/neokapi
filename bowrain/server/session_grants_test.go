@@ -17,7 +17,7 @@ func TestModePermissionCeiling(t *testing.T) {
 	}{
 		{"ask mode is read-only", platauth.AgentModeAsk, platauth.PermViewContent},
 		{"coworker mode is full access", platauth.AgentModeCoworker, platauth.PermAll},
-		{"voice mode is content+brand+review", platauth.AgentModeVoice, platauth.PermViewContent | platauth.PermManageBrand | platauth.PermReview},
+		{"voice mode is content+brand+review", platauth.AgentModeVoice, platauth.PermViewContent | platauth.PermManageVoice | platauth.PermReview},
 		{"unknown mode defaults to view only", platauth.AgentMode("unknown"), platauth.PermViewContent},
 	}
 	for _, tt := range tests {
@@ -48,12 +48,12 @@ func TestCreateSessionGrantForMode(t *testing.T) {
 	})
 
 	t.Run("voice mode intersects with user permissions", func(t *testing.T) {
-		// User has translate but NOT manage_brand — voice ceiling includes manage_brand
+		// User has translate but NOT manage_voice — voice ceiling includes manage_voice
 		// but intersection should exclude it since user doesn't have it.
 		userPerms := platauth.PermViewContent | platauth.PermTranslate
 		grant := CreateSessionGrantForMode("sess-3", "user-3", platauth.AgentModeVoice, userPerms, nil)
 
-		// Voice ceiling: view_content | manage_brand | review
+		// Voice ceiling: view_content | manage_voice | review
 		// User: view_content | translate
 		// Intersection: view_content
 		assert.Equal(t, platauth.PermViewContent, grant.Permissions)
@@ -62,7 +62,7 @@ func TestCreateSessionGrantForMode(t *testing.T) {
 	t.Run("voice mode with full user permissions", func(t *testing.T) {
 		grant := CreateSessionGrantForMode("sess-4", "user-4", platauth.AgentModeVoice, platauth.PermAll, nil)
 
-		expected := platauth.PermViewContent | platauth.PermManageBrand | platauth.PermReview
+		expected := platauth.PermViewContent | platauth.PermManageVoice | platauth.PermReview
 		assert.Equal(t, expected, grant.Permissions)
 	})
 }

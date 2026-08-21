@@ -603,7 +603,7 @@ func TestSessionGrantMiddleware(t *testing.T) {
 
 		perms := c.Get("project_permissions").(platauth.Permission)
 		assert.True(t, perms.Has(platauth.PermViewContent))
-		assert.True(t, perms.Has(platauth.PermManageBrand))
+		assert.True(t, perms.Has(platauth.PermManageVoice))
 		assert.True(t, perms.Has(platauth.PermReview))
 		assert.False(t, perms.Has(platauth.PermTranslate))
 		assert.False(t, perms.Has(platauth.PermManageFiles))

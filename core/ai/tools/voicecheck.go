@@ -140,7 +140,7 @@ func voiceFindingsSchema() aiprovider.JSONSchema {
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
-							"dimension":  map[string]any{"type": "string", "enum": []string{"tone", "style", "clarity", "brand_compliance"}},
+							"dimension":  map[string]any{"type": "string", "enum": []string{"tone", "style", "clarity", "compliance"}},
 							"severity":   map[string]any{"type": "string", "enum": []string{"neutral", "minor", "major", "critical"}},
 							"message":    map[string]any{"type": "string"},
 							"suggestion": map[string]any{"type": "string"},

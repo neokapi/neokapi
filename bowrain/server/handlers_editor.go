@@ -724,7 +724,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	// Bind the project's standing brand context from the server's own stores —
 	// the same instances the brand and terminology surfaces use. Everything in
 	// it is optional: missing stores mean a bare translation, never an error.
-	brandCtx := editorBrandContext{Brand: s.BrandStore, Stores: s.wsStores}
+	brandCtx := editorBrandContext{Brand: s.VoiceStore, Stores: s.wsStores}
 	if s.AuthStore != nil {
 		brandCtx.WorkspaceDefault = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 	}
@@ -1355,7 +1355,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	// resolves the workspace terms snapshot + per-locale brand profile once
 	// (never per block) — a nil gate (no terms, no brand store) is a no-op.
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
-	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, gate, stats); err != nil {
+	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return serverErr(c, err)
 	}
 

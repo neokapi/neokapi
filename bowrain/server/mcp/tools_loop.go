@@ -54,11 +54,11 @@ func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, _ *mcp.CallTool
 	if minCount <= 0 {
 		minCount = 3
 	}
-	suggestions, err := s.brandStore.GetSuggestedRules(ctx, input.WorkspaceID, minCount)
+	suggestions, err := s.voiceStore.GetSuggestedRules(ctx, input.WorkspaceID, minCount)
 	if err != nil {
 		return nil, getSuggestedRulesOutput{}, fmt.Errorf("get suggested rules: %w", err)
 	}
-	decisions, err := s.brandStore.ListRuleDecisions(ctx, input.ProfileID)
+	decisions, err := s.voiceStore.ListRuleDecisions(ctx, input.ProfileID)
 	if err != nil {
 		return nil, getSuggestedRulesOutput{}, fmt.Errorf("list rule decisions: %w", err)
 	}
@@ -82,13 +82,13 @@ func (s *MCPServer) handlePromoteRule(ctx context.Context, _ *mcp.CallToolReques
 		return nil, promoteRuleOutput{}, errors.New("term is required")
 	}
 	rule := coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
-	profile, changed, err := coreprofile.PromoteAndSave(ctx, s.brandStore, input.ProfileID, rule)
+	profile, changed, err := coreprofile.PromoteAndSave(ctx, s.voiceStore, input.ProfileID, rule)
 	if err != nil {
 		return nil, promoteRuleOutput{}, fmt.Errorf("promote rule: %w", err)
 	}
 	out := promoteRuleOutput{Promoted: changed, Version: profile.Version}
 	if changed {
-		_ = s.brandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+		_ = s.voiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 			ProfileID:       input.ProfileID,
 			Term:            input.Term,
 			Replacement:     input.Replacement,
@@ -115,7 +115,7 @@ func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolReque
 	if input.Term == "" || input.ProjectID == "" {
 		return nil, coreprofile.BlastRadius{}, errors.New("term and project_id are required")
 	}
-	baseline, err := s.brandStore.GetProfile(ctx, input.ProfileID)
+	baseline, err := s.voiceStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {
 		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get profile: %w", err)
 	}

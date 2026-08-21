@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockVoiceStore is a minimal BrandStore for testing profile resolution.
+// mockVoiceStore is a minimal VoiceStore for testing profile resolution.
 type mockVoiceStore struct {
 	profiles map[string]*VoiceProfile
 }

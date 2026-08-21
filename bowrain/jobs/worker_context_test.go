@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	brandstore "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	brandstore "github.com/neokapi/neokapi/bowrain/voice"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
@@ -27,9 +27,9 @@ func newContextTestDeps(t *testing.T) *WorkerDeps {
 	require.NoError(t, err)
 	bs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)
-	brand, err := brandstore.NewPostgresBrandStore(db)
+	brand, err := brandstore.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	return &WorkerDeps{ContentStore: cs, BlobStore: bs, BrandStore: brand}
+	return &WorkerDeps{ContentStore: cs, BlobStore: bs, VoiceStore: brand}
 }
 
 // contextEntry builds a declared collection entry with its content hash
@@ -88,7 +88,7 @@ func TestReconcileContext_CreatesCollectionWithGovernance(t *testing.T) {
 	require.NotEmpty(t, profileID, "the resolved profile id must be bound on the collection")
 	assert.Equal(t, "docs", col.ConnectorConfig[coreprofile.PropertyChannel])
 
-	stored, err := deps.BrandStore.GetProfile(ctx, profileID)
+	stored, err := deps.VoiceStore.GetProfile(ctx, profileID)
 	require.NoError(t, err)
 	assert.Equal(t, "Acme Voice", stored.Name)
 	assert.Equal(t, "neutral", stored.Tone.Formality)
@@ -136,7 +136,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 		"an unchanged recipe must not churn UpdatedAt: was %s, now %s", before.UpdatedAt, after.UpdatedAt)
 
 	// The voice was upserted once, not versioned on every push.
-	profiles, err := deps.BrandStore.ListProfiles(ctx, "ws1")
+	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	assert.Equal(t, 1, profiles[0].Version, "an unedited voice must not manufacture a version")
@@ -266,13 +266,13 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	profiles, err := deps.BrandStore.ListProfiles(ctx, "ws1")
+	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
 	require.NoError(t, err)
 	require.Len(t, profiles, 1, "the voice is matched by name, not duplicated")
 	assert.Equal(t, "formal", profiles[0].Tone.Formality)
 	assert.Equal(t, 2, profiles[0].Version, "an edited voice lands as a new version")
 
-	versions, err := deps.BrandStore.ListProfileVersions(ctx, profiles[0].ID)
+	versions, err := deps.VoiceStore.ListProfileVersions(ctx, profiles[0].ID)
 	require.NoError(t, err)
 	assert.NotEmpty(t, versions, "the superseded state is archived, not lost")
 }
@@ -295,7 +295,7 @@ func TestReconcileContext_NoBrandCarriesStructureOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, col.ConnectorConfig, coreprofile.PropertyProfileID)
 
-	profiles, err := deps.BrandStore.ListProfiles(ctx, "ws1")
+	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
 	require.NoError(t, err)
 	assert.Empty(t, profiles)
 }

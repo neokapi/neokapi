@@ -204,7 +204,7 @@ type channelProposalJudgement struct {
 // next push from raising the pair again — the upsert leaves a judged row's
 // status alone, so a re-sighting refreshes where it was seen and nothing more.
 func (s *Server) HandleJudgeChannelAliasProposal(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	aliases, ok := s.ContentStore.(platstore.ChannelAliasStore)

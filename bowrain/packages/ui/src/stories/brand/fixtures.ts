@@ -190,7 +190,7 @@ export const sampleFindings: BrandVoiceFinding[] = [
     position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 280 },
   },
   {
-    category: "brand_compliance",
+    category: "compliance",
     severity: "major",
     message: "Competitor name mentioned directly.",
     suggestion: "Use a generic reference instead.",
@@ -208,7 +208,7 @@ export const sampleDimensions: DimensionScore[] = [
   { dimension: "style", score: 62, penalty: 38, issues: 3 },
   { dimension: "vocabulary", score: 45, penalty: 55, issues: 4 },
   { dimension: "clarity", score: 90, penalty: 10, issues: 1 },
-  { dimension: "brand_compliance", score: 72, penalty: 28, issues: 2 },
+  { dimension: "compliance", score: 72, penalty: 28, issues: 2 },
 ];
 
 export const excellentDimensions: DimensionScore[] = [
@@ -216,7 +216,7 @@ export const excellentDimensions: DimensionScore[] = [
   { dimension: "style", score: 92, penalty: 8, issues: 1 },
   { dimension: "vocabulary", score: 88, penalty: 12, issues: 1 },
   { dimension: "clarity", score: 97, penalty: 3, issues: 0 },
-  { dimension: "brand_compliance", score: 94, penalty: 6, issues: 0 },
+  { dimension: "compliance", score: 94, penalty: 6, issues: 0 },
 ];
 
 export const poorDimensions: DimensionScore[] = [
@@ -224,7 +224,7 @@ export const poorDimensions: DimensionScore[] = [
   { dimension: "style", score: 25, penalty: 75, issues: 8 },
   { dimension: "vocabulary", score: 18, penalty: 82, issues: 12 },
   { dimension: "clarity", score: 40, penalty: 60, issues: 4 },
-  { dimension: "brand_compliance", score: 22, penalty: 78, issues: 6 },
+  { dimension: "compliance", score: 22, penalty: 78, issues: 6 },
 ];
 
 // ---------------------------------------------------------------------------

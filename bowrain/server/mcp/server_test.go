@@ -15,18 +15,18 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// memBrandStore is a minimal in-memory BrandStore for testing.
-type memBrandStore struct {
+// memVoiceStore is a minimal in-memory VoiceStore for testing.
+type memVoiceStore struct {
 	profiles  []*coreprofile.VoiceProfile
 	decisions map[string]*coreprofile.RuleDecision
 	suggested []*coreprofile.SuggestedRule
 }
 
-func (m *memBrandStore) CreateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
+func (m *memVoiceStore) CreateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	m.profiles = append(m.profiles, p)
 	return nil
 }
-func (m *memBrandStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
+func (m *memVoiceStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	for _, p := range m.profiles {
 		if p.ID == id {
 			return p, nil
@@ -34,11 +34,11 @@ func (m *memBrandStore) GetProfile(_ context.Context, id string) (*coreprofile.V
 	}
 	return nil, assert.AnError
 }
-func (m *memBrandStore) UpdateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
+func (m *memVoiceStore) UpdateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	return nil
 }
-func (m *memBrandStore) DeleteProfile(_ context.Context, id string) error { return nil }
-func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*coreprofile.VoiceProfile, error) {
+func (m *memVoiceStore) DeleteProfile(_ context.Context, id string) error { return nil }
+func (m *memVoiceStore) ListProfiles(_ context.Context, wsID string) ([]*coreprofile.VoiceProfile, error) {
 	var result []*coreprofile.VoiceProfile
 	for _, p := range m.profiles {
 		if p.Scope == wsID {
@@ -47,30 +47,30 @@ func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*corepro
 	}
 	return result, nil
 }
-func (m *memBrandStore) StoreScore(_ context.Context, _ *coreprofile.StoredScore) error { return nil }
-func (m *memBrandStore) GetScores(_ context.Context, _ string, _ model.LocaleID) ([]*coreprofile.StoredScore, error) {
+func (m *memVoiceStore) StoreScore(_ context.Context, _ *coreprofile.StoredScore) error { return nil }
+func (m *memVoiceStore) GetScores(_ context.Context, _ string, _ model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetScoreTrends(_ context.Context, _ string, _ int) ([]*coreprofile.ScoreTrend, error) {
+func (m *memVoiceStore) GetScoreTrends(_ context.Context, _ string, _ int) ([]*coreprofile.ScoreTrend, error) {
 	return nil, nil
 }
-func (m *memBrandStore) StoreCorrection(_ context.Context, _ *coreprofile.Correction) error {
+func (m *memVoiceStore) StoreCorrection(_ context.Context, _ *coreprofile.Correction) error {
 	return nil
 }
-func (m *memBrandStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*coreprofile.SuggestedRule, error) {
+func (m *memVoiceStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*coreprofile.SuggestedRule, error) {
 	return m.suggested, nil
 }
-func (m *memBrandStore) RecordRuleDecision(_ context.Context, d *coreprofile.RuleDecision) error {
+func (m *memVoiceStore) RecordRuleDecision(_ context.Context, d *coreprofile.RuleDecision) error {
 	if m.decisions == nil {
 		m.decisions = map[string]*coreprofile.RuleDecision{}
 	}
 	m.decisions[d.ProfileID+"|"+strings.ToLower(d.Term)] = d
 	return nil
 }
-func (m *memBrandStore) GetRuleDecision(_ context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
+func (m *memVoiceStore) GetRuleDecision(_ context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
 	return m.decisions[profileID+"|"+strings.ToLower(term)], nil
 }
-func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
+func (m *memVoiceStore) ListRuleDecisions(_ context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
 	var out []*coreprofile.RuleDecision
 	for _, d := range m.decisions {
 		if d.ProfileID == profileID {
@@ -79,26 +79,26 @@ func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) (
 	}
 	return out, nil
 }
-func (m *memBrandStore) ListProfileVersions(_ context.Context, _ string) ([]*coreprofile.ProfileVersion, error) {
+func (m *memVoiceStore) ListProfileVersions(_ context.Context, _ string) ([]*coreprofile.ProfileVersion, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetProfileVersion(_ context.Context, _ string, _ int) (*coreprofile.ProfileVersion, error) {
+func (m *memVoiceStore) GetProfileVersion(_ context.Context, _ string, _ int) (*coreprofile.ProfileVersion, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetProfileAtTag(_ context.Context, _, _ string) (*coreprofile.VoiceProfile, error) {
+func (m *memVoiceStore) GetProfileAtTag(_ context.Context, _, _ string) (*coreprofile.VoiceProfile, error) {
 	return nil, nil
 }
-func (m *memBrandStore) CreateProfileTag(_ context.Context, _ *coreprofile.ProfileTag) error {
+func (m *memVoiceStore) CreateProfileTag(_ context.Context, _ *coreprofile.ProfileTag) error {
 	return nil
 }
-func (m *memBrandStore) ListProfileTags(_ context.Context, _ string) ([]*coreprofile.ProfileTag, error) {
+func (m *memVoiceStore) ListProfileTags(_ context.Context, _ string) ([]*coreprofile.ProfileTag, error) {
 	return nil, nil
 }
-func (m *memBrandStore) DeleteProfileTag(_ context.Context, _, _ string) error { return nil }
-func (m *memBrandStore) GetScoresByStream(_ context.Context, _, _ string) ([]*coreprofile.StoredScore, error) {
+func (m *memVoiceStore) DeleteProfileTag(_ context.Context, _, _ string) error { return nil }
+func (m *memVoiceStore) GetScoresByStream(_ context.Context, _, _ string) ([]*coreprofile.StoredScore, error) {
 	return nil, nil
 }
-func (m *memBrandStore) Close() error { return nil }
+func (m *memVoiceStore) Close() error { return nil }
 
 func testProfile() *coreprofile.VoiceProfile {
 	return &coreprofile.VoiceProfile{
@@ -142,10 +142,10 @@ func testProfile() *coreprofile.VoiceProfile {
 	}
 }
 
-func setupTestMCPServer(t *testing.T) (*httptest.Server, *memBrandStore) {
+func setupTestMCPServer(t *testing.T) (*httptest.Server, *memVoiceStore) {
 	t.Helper()
 
-	store := &memBrandStore{}
+	store := &memVoiceStore{}
 	_ = store.CreateProfile(t.Context(), testProfile())
 
 	ms, err := NewMCPServer(store, Config{}) // no auth for testing
@@ -206,7 +206,7 @@ func TestMCPServerListTools(t *testing.T) {
 	assert.Contains(t, toolNames, "check_vocabulary")
 	assert.Contains(t, toolNames, "list_profiles")
 	assert.Contains(t, toolNames, "get_voice_guide")
-	assert.Contains(t, toolNames, "score_brand_compliance")
+	assert.Contains(t, toolNames, "score_voice_compliance")
 	assert.Contains(t, toolNames, "suggest_corrections")
 	assert.Contains(t, toolNames, "rewrite_in_voice")
 }

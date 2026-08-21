@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
@@ -21,7 +21,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // baseline" no longer holds: a re-run is now the mechanism, not the hazard.
 //
 // Retired numbers are never reused; the next migration is version 5. Version 4
-// added brand_profiles.min_score — the profile's own on-brand bar, which the
+// added voice_profiles.min_score — the profile's own on-brand bar, which the
 // API accepted and the store then dropped, pinning every workspace profile to
 // the default bar no matter what was authored.
 var Migrations = []storage.Migration{
@@ -29,7 +29,7 @@ var Migrations = []storage.Migration{
 		Version:     4,
 		Description: "brand voice baseline (folds 1-3) + the profile's own on-brand bar",
 		SQL: `
-			CREATE TABLE IF NOT EXISTS brand_profiles (
+			CREATE TABLE IF NOT EXISTS voice_profiles (
 				id           TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				name         TEXT NOT NULL,
@@ -52,13 +52,13 @@ var Migrations = []storage.Migration{
 				created_by   TEXT NOT NULL DEFAULT '',
 				UNIQUE (workspace_id, name)
 			);
-			CREATE INDEX IF NOT EXISTS idx_brand_profiles_workspace ON brand_profiles(workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_voice_profiles_workspace ON voice_profiles(workspace_id);
 			-- The CREATE above serves an empty database; this serves one that
 			-- already has the table, where CREATE ... IF NOT EXISTS is a no-op
 			-- and would leave the new column missing. Both are idempotent.
-			ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS min_score INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS min_score INTEGER NOT NULL DEFAULT 0;
 
-			CREATE TABLE IF NOT EXISTS brand_profile_versions (
+			CREATE TABLE IF NOT EXISTS voice_profile_versions (
 				profile_id TEXT NOT NULL,
 				version    INTEGER NOT NULL,
 				snapshot   JSONB NOT NULL,
@@ -68,7 +68,7 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (profile_id, version)
 			);
 
-			CREATE TABLE IF NOT EXISTS brand_profile_tags (
+			CREATE TABLE IF NOT EXISTS voice_profile_tags (
 				profile_id TEXT NOT NULL,
 				name       TEXT NOT NULL,
 				version    INTEGER NOT NULL,
@@ -77,7 +77,7 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (profile_id, name)
 			);
 
-			CREATE TABLE IF NOT EXISTS brand_voice_scores (
+			CREATE TABLE IF NOT EXISTS voice_scores (
 				id              TEXT PRIMARY KEY,
 				project_id      TEXT NOT NULL,
 				stream          TEXT NOT NULL DEFAULT 'main',
@@ -90,11 +90,11 @@ var Migrations = []storage.Migration{
 				findings        JSONB NOT NULL,
 				checked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX IF NOT EXISTS idx_bvs_project_stream ON brand_voice_scores(project_id, stream);
-			CREATE INDEX IF NOT EXISTS idx_bvs_profile_score ON brand_voice_scores(profile_id, score);
-			CREATE INDEX IF NOT EXISTS idx_bvs_project_locale ON brand_voice_scores(project_id, locale);
+			CREATE INDEX IF NOT EXISTS idx_bvs_project_stream ON voice_scores(project_id, stream);
+			CREATE INDEX IF NOT EXISTS idx_bvs_profile_score ON voice_scores(profile_id, score);
+			CREATE INDEX IF NOT EXISTS idx_bvs_project_locale ON voice_scores(project_id, locale);
 
-			CREATE TABLE IF NOT EXISTS brand_voice_corrections (
+			CREATE TABLE IF NOT EXISTS voice_corrections (
 				id             TEXT PRIMARY KEY,
 				profile_id     TEXT NOT NULL,
 				block_id       TEXT NOT NULL,
@@ -105,9 +105,9 @@ var Migrations = []storage.Migration{
 				corrected_by   TEXT NOT NULL,
 				corrected_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX IF NOT EXISTS idx_bvc_profile_dim ON brand_voice_corrections(profile_id, dimension);
+			CREATE INDEX IF NOT EXISTS idx_bvc_profile_dim ON voice_corrections(profile_id, dimension);
 
-			CREATE TABLE IF NOT EXISTS brand_rule_decisions (
+			CREATE TABLE IF NOT EXISTS voice_rule_decisions (
 				profile_id       TEXT NOT NULL,
 				term             TEXT NOT NULL,
 				replacement      TEXT NOT NULL DEFAULT '',
@@ -121,6 +121,33 @@ var Migrations = []storage.Migration{
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)
 			);
+
+			-- This subsystem was renamed from brand to voice, and its tables with
+			-- it. Renaming the ledger table means Migrate replays from scratch
+			-- against an empty voice_schema_migrations, so the CREATEs above
+			-- build the new tables — and the old ones would otherwise sit there
+			-- holding rows nothing reads.
+			--
+			-- Dropping rather than copying across is the standing pre-live
+			-- decision: reset beats migrate while we are the only customer, and
+			-- what a project declares is re-created by its next push. A voice
+			-- authored only in the UI and never pushed is the one thing this
+			-- loses, which is the trade that decision already makes.
+			--
+			-- It belongs in the baseline rather than in a version of its own.
+			-- The baseline is idempotent and re-applied by design, which is
+			-- exactly what a DROP ... IF EXISTS needs: it runs once against a
+			-- database that has them and is a no-op on every database created
+			-- after the rename.
+			DROP TABLE IF EXISTS brand_rule_decisions;
+			DROP TABLE IF EXISTS brand_voice_corrections;
+			DROP TABLE IF EXISTS brand_voice_scores;
+			DROP TABLE IF EXISTS brand_profile_tags;
+			DROP TABLE IF EXISTS brand_profile_versions;
+			DROP TABLE IF EXISTS brand_profiles;
+			-- And the bookkeeping that tracked them: left behind, it would claim
+			-- a subsystem that no longer exists is at version 4.
+			DROP TABLE IF EXISTS brand_schema_migrations;
 		`,
 	},
 }

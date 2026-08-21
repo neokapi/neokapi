@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,11 +20,11 @@ func sweepStored(id, text string) *venue.StoredBlock {
 
 func sweepTestContext() *SweepContext {
 	return &SweepContext{
-		Profile: &brand.VoiceProfile{
+		Profile: &coreprofile.VoiceProfile{
 			ID: "prof-1", Name: "Voice", Version: 3,
-			Vocabulary: brand.VocabularyRules{
-				CompetitorTerms: []brand.TermRule{{Term: "Localizely"}},
-				ForbiddenTerms:  []brand.TermRule{{Term: "utilize", Replacement: "use"}},
+			Vocabulary: coreprofile.VocabularyRules{
+				CompetitorTerms: []coreprofile.TermRule{{Term: "Localizely"}},
+				ForbiddenTerms:  []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 			},
 		},
 		Glossary: map[string]string{"save": "enregistrer"},

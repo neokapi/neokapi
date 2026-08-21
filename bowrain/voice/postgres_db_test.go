@@ -1,8 +1,8 @@
-package brand
+package voice
 
-// Real Postgres-backed coverage for PostgresBrandStore. These exercise the
+// Real Postgres-backed coverage for PostgresVoiceStore. These exercise the
 // store against a throwaway postgres:16-alpine testcontainer (pgtest), applying
-// the brand migrations via NewPostgresBrandStore, and pin four behaviours the
+// the brand migrations via NewPostgresVoiceStore, and pin four behaviours the
 // thin marshaling tests never touched: profile version archiving, the
 // rule-decision promotion round-trip, profile tags, and GetScores' empty-locale
 // contract. Skipped in -short unless BOWRAIN_TEST_POSTGRES_URL is set.
@@ -19,12 +19,12 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// newBrandStore returns a PostgresBrandStore on a fresh, isolated schema with
-// the brand migrations already applied (NewPostgresBrandStore runs them).
-func newBrandStore(t *testing.T) *PostgresBrandStore {
+// newVoiceStore returns a PostgresVoiceStore on a fresh, isolated schema with
+// the brand migrations already applied (NewPostgresVoiceStore runs them).
+func newVoiceStore(t *testing.T) *PostgresVoiceStore {
 	t.Helper()
 	db := pgtest.NewTestDB(t) // skips under -short without BOWRAIN_TEST_POSTGRES_URL
-	store, err := NewPostgresBrandStore(db)
+	store, err := NewPostgresVoiceStore(db)
 	require.NoError(t, err)
 	return store
 }
@@ -44,11 +44,11 @@ func newTestProfile(ws, name string) *coreprofile.VoiceProfile {
 	}
 }
 
-// TestPostgresBrandStore_ProfileVersioning pins that UpdateProfile archives the
+// TestPostgresVoiceStore_ProfileVersioning pins that UpdateProfile archives the
 // pre-edit state as an immutable ProfileVersion and bumps the live version, and
 // that the archived row carries the note describing the edit that superseded it.
-func TestPostgresBrandStore_ProfileVersioning(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	p := newTestProfile("ws-ver", "Acme")
@@ -119,15 +119,15 @@ func TestPostgresBrandStore_ProfileVersioning(t *testing.T) {
 	require.Error(t, err, "UpdateProfile of an unknown profile fails at the versioning read")
 }
 
-// TestPostgresBrandStore_MinScoreRoundTrips pins the profile's own on-brand bar
+// TestPostgresVoiceStore_MinScoreRoundTrips pins the profile's own on-brand bar
 // onto every read the store answers. min_score was declared on the model, sent
 // on the wire, and read by four UI surfaces, but the store's column list never
 // carried it: every profile came back with the zero value, so ComplianceBar
 // answered the default 80 for every workspace no matter what was authored, and
 // the ship gate judged a min_score-90 profile at 80. A missing column does not
 // fail a scan — it just returns a zero — so only a round-trip catches it.
-func TestPostgresBrandStore_MinScoreRoundTrips(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_MinScoreRoundTrips(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	p := newTestProfile("ws-bar", "Strict")
@@ -168,12 +168,12 @@ func TestPostgresBrandStore_MinScoreRoundTrips(t *testing.T) {
 	assert.Zero(t, got.MinScore)
 }
 
-// TestPostgresBrandStore_RuleDecisions pins the rule-decision persistence
+// TestPostgresVoiceStore_RuleDecisions pins the rule-decision persistence
 // contract: RecordRuleDecision upserts on (profile_id, term), GetRuleDecision
 // matches the term case-insensitively and returns (nil, nil) when absent, and
 // ListRuleDecisions is ordered newest-decision-first.
-func TestPostgresBrandStore_RuleDecisions(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_RuleDecisions(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	p := newTestProfile("ws-dec", "Acme")
@@ -245,13 +245,13 @@ func TestPostgresBrandStore_RuleDecisions(t *testing.T) {
 	assert.Equal(t, "Utilize", list[1].Term)
 }
 
-// TestPostgresBrandStore_PromotionClosedLoop drives the full correction→promotion
+// TestPostgresVoiceStore_PromotionClosedLoop drives the full correction→promotion
 // round-trip through the real store: corrections aggregate into a suggested rule,
 // PromoteAndSave applies it (bumping the profile version and archiving the prior),
 // the decision is recorded at that version, and GetSuggestedRules back-fills the
 // concept a promoted/decided term already denotes.
-func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_PromotionClosedLoop(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	p := newTestProfile("ws-loop", "Acme")
@@ -320,12 +320,12 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 	assert.Equal(t, "concept-42", suggestions[0].ConceptID, "GetSuggestedRules back-fills the term's concept")
 }
 
-// TestPostgresBrandStore_Tags pins the profile-tag CRUD and its dependency on an
+// TestPostgresVoiceStore_Tags pins the profile-tag CRUD and its dependency on an
 // archived version: a tag names a specific ProfileVersion, GetProfileAtTag
 // resolves it to that snapshot, duplicate/missing tags error, and a tag pointing
 // at a version that was never archived surfaces "profile version not found".
-func TestPostgresBrandStore_Tags(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_Tags(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	p := newTestProfile("ws-tag", "Acme")
@@ -378,7 +378,7 @@ func TestPostgresBrandStore_Tags(t *testing.T) {
 
 // storeScore is a small helper that persists one StoredScore with explicit id,
 // locale, and checked_at so ordering and locale filtering are deterministic.
-func storeScore(t *testing.T, store *PostgresBrandStore, project, id, locale string, checkedAt time.Time) {
+func storeScore(t *testing.T, store *PostgresVoiceStore, project, id, locale string, checkedAt time.Time) {
 	t.Helper()
 	require.NoError(t, store.StoreScore(t.Context(), &coreprofile.StoredScore{
 		ID:        id,
@@ -395,14 +395,14 @@ func storeScore(t *testing.T, store *PostgresBrandStore, project, id, locale str
 	}))
 }
 
-// TestPostgresBrandStore_GetScoresEmptyLocale pins the recently-fixed empty-locale
+// TestPostgresVoiceStore_GetScoresEmptyLocale pins the recently-fixed empty-locale
 // contract: GetScores with an empty locale means ALL locales (the project-wide
 // read), newest-first — including a row that happens to be stored with an empty
 // locale — and is NOT "only rows stored with an empty locale". A non-empty locale
 // filters (case-insensitively, at the normalized boundary), and results are
 // scoped to the project.
-func TestPostgresBrandStore_GetScoresEmptyLocale(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_GetScoresEmptyLocale(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	base := time.Now().UTC().Truncate(time.Second)
@@ -453,11 +453,11 @@ func TestPostgresBrandStore_GetScoresEmptyLocale(t *testing.T) {
 	assert.Equal(t, "b1", other[0].ID)
 }
 
-// TestPostgresBrandStore_ScoresByStreamAndTrends exercises the stream default and
+// TestPostgresVoiceStore_ScoresByStreamAndTrends exercises the stream default and
 // the trend aggregation on real rows: StoreScore defaults an empty stream to
 // "main", GetScoresByStream filters by stream, and GetScoreTrends buckets by day.
-func TestPostgresBrandStore_ScoresByStreamAndTrends(t *testing.T) {
-	store := newBrandStore(t)
+func TestPostgresVoiceStore_ScoresByStreamAndTrends(t *testing.T) {
+	store := newVoiceStore(t)
 	ctx := t.Context()
 
 	now := time.Now().UTC()

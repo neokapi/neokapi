@@ -10,7 +10,7 @@ import (
 // Stream.Properties, and Collection.ConnectorConfig maps. The key strings are
 // persisted in platform stores and stay as written.
 const (
-	PropertyProfileID = "brand_voice_profile_id"
+	PropertyProfileID = "voice_profile_id"
 	PropertyChannel   = "brand_voice_channel"
 	PropertyPersona   = "brand_voice_persona"
 )

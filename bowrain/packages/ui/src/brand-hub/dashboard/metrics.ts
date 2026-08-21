@@ -7,7 +7,7 @@ import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import type { DimensionScore, StoredScore } from "../../brand/types";
 
 /** Canonical dimension order so breakdowns read the same everywhere. */
-const DIMENSION_ORDER = ["tone", "style", "vocabulary", "clarity", "brand_compliance"];
+const DIMENSION_ORDER = ["tone", "style", "vocabulary", "clarity", "compliance"];
 
 /** averageScore is the rounded mean of stored brand-check scores, or null when empty. */
 export function averageScore(scores: StoredScore[]): number | null {

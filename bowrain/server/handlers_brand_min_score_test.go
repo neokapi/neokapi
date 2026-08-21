@@ -63,14 +63,14 @@ func TestBrandProfile_MinScoreRoundTripsThroughCreateAndUpdate(t *testing.T) {
 	assert.Equal(t, 90, created.MinScore, "the create request's bar must reach the stored profile")
 	assert.Equal(t, 90, created.ComplianceBar())
 
-	stored, err := srv.BrandStore.GetProfile(ctx, created.ID)
+	stored, err := srv.VoiceStore.GetProfile(ctx, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 90, stored.MinScore, "the bar must survive the store, not just the response")
 
 	rec = brandProfileWrite(t, srv, srv.HandleUpdateBrandProfile, http.MethodPut, wsID, created.ID,
 		`{"name":"Acme Voice","tone":{"formality":"neutral"},"min_score":95}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	stored, err = srv.BrandStore.GetProfile(ctx, created.ID)
+	stored, err = srv.VoiceStore.GetProfile(ctx, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 95, stored.MinScore, "an update must be able to raise the bar")
 
@@ -80,7 +80,7 @@ func TestBrandProfile_MinScoreRoundTripsThroughCreateAndUpdate(t *testing.T) {
 	rec = brandProfileWrite(t, srv, srv.HandleUpdateBrandProfile, http.MethodPut, wsID, created.ID,
 		`{"name":"Acme Voice","tone":{"formality":"neutral"}}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	stored, err = srv.BrandStore.GetProfile(ctx, created.ID)
+	stored, err = srv.VoiceStore.GetProfile(ctx, created.ID)
 	require.NoError(t, err)
 	assert.Zero(t, stored.MinScore, "an omitted bar clears back to the default")
 	assert.Equal(t, coreprofile.DefaultMinScore, stored.ComplianceBar())
@@ -214,7 +214,7 @@ func TestBrandProfile_EveryAuthoredFieldSurvivesTheWrite(t *testing.T) {
 	var body coreprofile.VoiceProfile
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 
-	stored, err := srv.BrandStore.GetProfile(ctx, body.ID)
+	stored, err := srv.VoiceStore.GetProfile(ctx, body.ID)
 	require.NoError(t, err)
 	assertProfileCarriesRequest(t, created, stored)
 
@@ -224,7 +224,7 @@ func TestBrandProfile_EveryAuthoredFieldSurvivesTheWrite(t *testing.T) {
 	rec = brandProfileWrite(t, srv, srv.HandleUpdateBrandProfile, http.MethodPut, wsID, body.ID, string(payload))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	stored, err = srv.BrandStore.GetProfile(ctx, body.ID)
+	stored, err = srv.VoiceStore.GetProfile(ctx, body.ID)
 	require.NoError(t, err)
 	assertProfileCarriesRequest(t, updated, stored)
 }

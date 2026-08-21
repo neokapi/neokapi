@@ -15,7 +15,7 @@ const dimensionLabels: Record<string, string> = {
   style: "Style",
   vocabulary: "Vocabulary",
   clarity: "Clarity",
-  brand_compliance: "Brand",
+  compliance: "Brand",
 };
 
 export function BrandDimensionBreakdown({

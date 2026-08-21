@@ -46,13 +46,13 @@ func (f fakeWorkspaceDefault) WorkspaceBrandProfileID(_ context.Context, _ strin
 	return f.id, nil
 }
 
-// fakeBrandStore resolves profiles by ID from a fixed set.
-type fakeBrandStore struct {
+// fakeVoiceStore resolves profiles by ID from a fixed set.
+type fakeVoiceStore struct {
 	profile.Store // embed so we only implement GetProfile
 	profiles      map[string]*profile.VoiceProfile
 }
 
-func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*profile.VoiceProfile, error) {
+func (f *fakeVoiceStore) GetProfile(_ context.Context, id string) (*profile.VoiceProfile, error) {
 	p, ok := f.profiles[id]
 	if !ok {
 		return nil, errors.New("profile not found: " + id)
@@ -60,8 +60,8 @@ func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*profile.Voic
 	return p, nil
 }
 
-func newBrandStore() *fakeBrandStore {
-	return &fakeBrandStore{profiles: map[string]*profile.VoiceProfile{
+func newVoiceStore() *fakeVoiceStore {
+	return &fakeVoiceStore{profiles: map[string]*profile.VoiceProfile{
 		"explicit":  {ID: "explicit", Name: "Explicit"},
 		"project":   {ID: "project", Name: "Project"},
 		"stream":    {ID: "stream", Name: "Stream"},
@@ -73,7 +73,7 @@ func TestResolve_ExplicitWins(t *testing.T) {
 	cs := &fakeScopeStore{
 		project: &store.Project{Properties: map[string]string{profile.PropertyProfileID: "project"}},
 	}
-	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newBrandStore(), Scope{
+	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newVoiceStore(), Scope{
 		ExplicitProfileID: "explicit",
 		WorkspaceID:       "ws1",
 		ProjectID:         "p1",
@@ -90,7 +90,7 @@ func TestResolve_ProjectBeatsWorkspaceDefault(t *testing.T) {
 			Properties:  map[string]string{profile.PropertyProfileID: "project"},
 		},
 	}
-	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newBrandStore(), Scope{
+	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newVoiceStore(), Scope{
 		ProjectID: "p1",
 	})
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestResolve_StreamBeatsProject(t *testing.T) {
 		project: &store.Project{Properties: map[string]string{profile.PropertyProfileID: "project"}},
 		stream:  &store.Stream{Properties: map[string]string{profile.PropertyProfileID: "stream"}},
 	}
-	got, err := Resolve(t.Context(), cs, nil, newBrandStore(), Scope{
+	got, err := Resolve(t.Context(), cs, nil, newVoiceStore(), Scope{
 		ProjectID: "p1",
 		Stream:    "v2",
 	})
@@ -116,7 +116,7 @@ func TestResolve_UnsetFallsThroughToWorkspaceDefault(t *testing.T) {
 	cs := &fakeScopeStore{
 		project: &store.Project{WorkspaceID: "ws1"}, // no brand binding
 	}
-	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newBrandStore(), Scope{
+	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newVoiceStore(), Scope{
 		ProjectID: "p1",
 	})
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestResolve_WorkspaceDefaultFromProjectWorkspaceID(t *testing.T) {
 		seen = id
 		return "workspace", nil
 	})
-	got, err := Resolve(t.Context(), cs, wd, newBrandStore(), Scope{ProjectID: "p1"})
+	got, err := Resolve(t.Context(), cs, wd, newVoiceStore(), Scope{ProjectID: "p1"})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "workspace", got.ID)
@@ -144,7 +144,7 @@ func TestResolve_WorkspaceDefaultFromProjectWorkspaceID(t *testing.T) {
 
 func TestResolve_NothingBound(t *testing.T) {
 	cs := &fakeScopeStore{project: &store.Project{}}
-	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: ""}, newBrandStore(), Scope{
+	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: ""}, newVoiceStore(), Scope{
 		ProjectID: "p1",
 	})
 	require.NoError(t, err)

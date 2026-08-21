@@ -25,7 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -725,7 +725,7 @@ func extractBrandScanTerms(ctx context.Context, prov aiprovider.LLMProvider, cor
 // mergeBrandScanTerms folds the drafted vocabulary's preferred terms into the
 // candidate glossary (they are product/brand vocabulary the corpus itself
 // evidenced) and deduplicates case-insensitively, keeping first occurrence.
-func mergeBrandScanTerms(terms []tools.TermEntry, draft *brand.VoiceProfile, domain string) []tools.TermEntry {
+func mergeBrandScanTerms(terms []tools.TermEntry, draft *coreprofile.VoiceProfile, domain string) []tools.TermEntry {
 	if draft != nil {
 		for _, rule := range draft.Vocabulary.PreferredTerms {
 			terms = append(terms, tools.TermEntry{

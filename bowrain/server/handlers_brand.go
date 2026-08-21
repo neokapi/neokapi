@@ -81,11 +81,11 @@ type CreateFromStarterRequest struct {
 
 // HandleListBrandProfiles lists all brand voice profiles in a workspace.
 func (s *Server) HandleListBrandProfiles(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	profiles, err := s.BrandStore.ListProfiles(c.Request().Context(), wsID)
+	profiles, err := s.VoiceStore.ListProfiles(c.Request().Context(), wsID)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -94,10 +94,10 @@ func (s *Server) HandleListBrandProfiles(c echo.Context) error {
 
 // HandleCreateBrandProfile creates a new brand voice profile.
 func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -135,7 +135,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		CreatedBy:   userID,
 	}
 
-	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
+	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
@@ -159,10 +159,10 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 // from a stale local profile never reverts a promotion; demoting a rule stays
 // a server-side, governed act.
 func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -227,7 +227,7 @@ type brandProfileUpsert struct {
 // The caller emits any audit event: the same upsert is reached from a push and
 // from a brand-scan approval, and those are not the same act.
 func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, req BrandProfileRequest, versionNote string) (brandProfileUpsert, error) {
-	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
+	profiles, err := s.VoiceStore.ListProfiles(ctx, wsID)
 	if err != nil {
 		return brandProfileUpsert{}, err
 	}
@@ -259,7 +259,7 @@ func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, re
 			UpdatedAt:   now,
 			CreatedBy:   userID,
 		}
-		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
+		if err := s.VoiceStore.CreateProfile(ctx, profile); err != nil {
 			return brandProfileUpsert{}, err
 		}
 		return brandProfileUpsert{Profile: profile, Action: brandUpsertCreated}, nil
@@ -299,7 +299,7 @@ func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, re
 
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the incoming change lands as a new version.
-	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
+	if err := s.VoiceStore.UpdateProfile(ctx, existing); err != nil {
 		return brandProfileUpsert{}, err
 	}
 	return brandProfileUpsert{Profile: existing, Action: brandUpsertUpdated, BeforeVersion: beforeVersion}, nil
@@ -377,7 +377,7 @@ func brandContentOf(c brandProfileContent) brandProfileContent {
 // (profile.ApplySuggestedRule), so only that list needs folding. Returns the
 // number of preserved rules.
 func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofile.VoiceProfile, vocab *coreprofile.VocabularyRules) int {
-	decisions, err := s.BrandStore.ListRuleDecisions(ctx, existing.ID)
+	decisions, err := s.VoiceStore.ListRuleDecisions(ctx, existing.ID)
 	if err != nil || len(decisions) == 0 {
 		return 0
 	}
@@ -406,7 +406,7 @@ func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofil
 }
 
 // profileInRequestWorkspace reports whether the brand profile belongs to the
-// workspace the request is scoped to. BrandStore.GetProfile/UpdateProfile/
+// workspace the request is scoped to. VoiceStore.GetProfile/UpdateProfile/
 // DeleteProfile take only a GLOBAL profile id and ignore VoiceProfile.Scope,
 // so without this check an owner/admin of workspace A could read, update, or
 // delete workspace B's brand profile by addressing it through their own
@@ -421,11 +421,11 @@ func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile
 
 // HandleGetBrandProfile returns a single brand voice profile by ID.
 func (s *Server) HandleGetBrandProfile(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
-	profile, err := s.BrandStore.GetProfile(c.Request().Context(), c.Param("id"))
+	profile, err := s.VoiceStore.GetProfile(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
@@ -437,10 +437,10 @@ func (s *Server) HandleGetBrandProfile(c echo.Context) error {
 
 // HandleUpdateBrandProfile updates an existing brand voice profile.
 func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -453,7 +453,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
@@ -475,7 +475,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.Version++
 	profile.UpdatedAt = time.Now().UTC()
 
-	if err := s.BrandStore.UpdateProfile(ctx, profile); err != nil {
+	if err := s.VoiceStore.UpdateProfile(ctx, profile); err != nil {
 		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
@@ -491,24 +491,24 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 
 // HandleDeleteBrandProfile deletes a brand voice profile.
 func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	// Fetch first to assert workspace ownership: DeleteProfile takes a global id,
 	// so an unscoped delete would let a caller destroy another tenant's profile.
 	ctx := c.Request().Context()
-	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if !profileInRequestWorkspace(c, profile) {
 		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
-	if err := s.BrandStore.DeleteProfile(ctx, profile.ID); err != nil {
+	if err := s.VoiceStore.DeleteProfile(ctx, profile.ID); err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -516,7 +516,7 @@ func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
 
 // HandleCheckBrandVoice checks text against a brand voice profile and returns findings and score.
 func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -529,7 +529,7 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
@@ -581,10 +581,10 @@ func (s *Server) HandleListStarterPacks(c echo.Context) error {
 
 // HandleCreateFromStarter creates a brand voice profile from a starter pack template.
 func (s *Server) HandleCreateFromStarter(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -616,7 +616,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 		profile.Name = req.Name
 	}
 
-	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
+	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
@@ -624,12 +624,12 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 
 // HandleGetBrandVoiceScores returns brand compliance scores for a project.
 func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	projectID := c.Param("id")
-	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, "")
+	scores, err := s.VoiceStore.GetScores(c.Request().Context(), projectID, "")
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -638,13 +638,13 @@ func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
 
 // HandleGetBrandVoiceScoresByLocale returns brand compliance scores filtered by locale.
 func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	projectID := c.Param("id")
 	locale := model.LocaleID(c.Param("locale"))
-	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, locale)
+	scores, err := s.VoiceStore.GetScores(c.Request().Context(), projectID, locale)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -653,7 +653,7 @@ func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 
 // HandleGetBrandVoiceTrends returns brand compliance score trends for a project.
 func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
@@ -665,7 +665,7 @@ func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
 		}
 	}
 
-	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	trends, err := s.VoiceStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
 		return serverErr(c, err)
 	}

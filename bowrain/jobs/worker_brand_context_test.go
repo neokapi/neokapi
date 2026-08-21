@@ -3,13 +3,13 @@ package jobs
 import (
 	"testing"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,14 +37,14 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 	)
 
 	// Real Postgres brand store with a profile the project binds explicitly.
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		Scope: "ws-1",
 		Name:  "Acme Voice",
-		Tone:  brand.ToneProfile{Formality: "casual", Personality: []string{"friendly"}},
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
+		Tone:  coreprofile.ToneProfile{Formality: "casual", Personality: []string{"friendly"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
@@ -55,7 +55,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr"},
 		WorkspaceID:           "ws-1",
-		Properties:            map[string]string{brand.PropertyProfileID: profile.ID},
+		Properties:            map[string]string{coreprofile.PropertyProfileID: profile.ID},
 	}))
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{
 		model.NewBlock("b1", "Open the dashboard"),
@@ -78,7 +78,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		ContentStore:  cs,
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
 		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
-		BrandStore:    bs,
+		VoiceStore:    bs,
 		TermsResolver: TermsResolverFunc(func(slug string) (fwterms.Terminology, error) {
 			return sqltb.NewPostgresStoreFromDB(db, slug)
 		}),
@@ -102,7 +102,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 	cfg := jobTranslateConfig(ctx, deps, job, proj)
 	require.NotNil(t, cfg.Profile, "the project-bound profile must resolve")
 	assert.Equal(t, "Acme Voice", cfg.Profile.Name)
-	guide := brand.RenderVoiceGuideCompact(cfg.Profile)
+	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "personality: friendly")
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, `"utilize" → "use"`)

@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import (
 	"context"
@@ -16,21 +16,21 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// PostgresBrandStore implements profile.Store using PostgreSQL.
-type PostgresBrandStore struct {
+// PostgresVoiceStore implements profile.Store using PostgreSQL.
+type PostgresVoiceStore struct {
 	db *storage.PgDB
 }
 
-// NewPostgresBrandStore creates a new PostgreSQL-backed brand store.
-func NewPostgresBrandStore(db *storage.PgDB) (*PostgresBrandStore, error) {
-	if err := storage.MigratePostgresNS(db, "brand_schema_migrations", Migrations); err != nil {
+// NewPostgresVoiceStore creates a new PostgreSQL-backed brand store.
+func NewPostgresVoiceStore(db *storage.PgDB) (*PostgresVoiceStore, error) {
+	if err := storage.MigratePostgresNS(db, "voice_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("brand migration: %w", err)
 	}
-	return &PostgresBrandStore{db: db}, nil
+	return &PostgresVoiceStore{db: db}, nil
 }
 
 // Close is a no-op; the caller owns the database connection.
-func (s *PostgresBrandStore) Close() error {
+func (s *PostgresVoiceStore) Close() error {
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (s *PostgresBrandStore) Close() error {
 const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples,
 	locales, channels, personas, autonomy, min_score, version, created_at, updated_at, created_by`
 
-func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
+func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	if profile.ID == "" {
 		profile.ID = id.New()
 	}
@@ -89,7 +89,7 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corepro
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (`+profileColumns+`)
+		`INSERT INTO voice_profiles (`+profileColumns+`)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
@@ -101,14 +101,14 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corepro
 	return nil
 }
 
-func (s *PostgresBrandStore) GetProfile(ctx context.Context, profileID string) (*coreprofile.VoiceProfile, error) {
+func (s *PostgresVoiceStore) GetProfile(ctx context.Context, profileID string) (*coreprofile.VoiceProfile, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT `+profileColumns+`
-		 FROM brand_profiles WHERE id = $1`, profileID)
+		 FROM voice_profiles WHERE id = $1`, profileID)
 	return scanProfile(row)
 }
 
-func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
+func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	// Archive the current state as an immutable ProfileVersion before applying the edit.
 	existing, err := s.GetProfile(ctx, profile.ID)
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corepro
 
 	snapshotJSON, _ := json.Marshal(existing)
 	_, _ = s.db.ExecContext(ctx,
-		`INSERT INTO brand_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
+		`INSERT INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
 		 VALUES ($1, $2, $3, $4, $5, NOW())
 		 ON CONFLICT DO NOTHING`,
 		existing.ID, existing.Version, string(snapshotJSON),
@@ -161,7 +161,7 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corepro
 	}
 
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE brand_profiles
+		`UPDATE voice_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
 		     locales=$7, channels=$8, personas=$9, autonomy=$10, min_score=$11,
 		     version=$12, updated_at=$13
@@ -180,8 +180,8 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corepro
 	return nil
 }
 
-func (s *PostgresBrandStore) DeleteProfile(ctx context.Context, profileID string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM brand_profiles WHERE id=$1`, profileID)
+func (s *PostgresVoiceStore) DeleteProfile(ctx context.Context, profileID string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM voice_profiles WHERE id=$1`, profileID)
 	if err != nil {
 		return fmt.Errorf("delete brand profile: %w", err)
 	}
@@ -192,10 +192,10 @@ func (s *PostgresBrandStore) DeleteProfile(ctx context.Context, profileID string
 	return nil
 }
 
-func (s *PostgresBrandStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
+func (s *PostgresVoiceStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT `+profileColumns+`
-		 FROM brand_profiles WHERE workspace_id = $1 ORDER BY name`, workspaceID)
+		 FROM voice_profiles WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list brand profiles: %w", err)
 	}
@@ -216,7 +216,7 @@ func (s *PostgresBrandStore) ListProfiles(ctx context.Context, workspaceID strin
 // Score storage
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *coreprofile.StoredScore) error {
+func (s *PostgresVoiceStore) StoreScore(ctx context.Context, score *coreprofile.StoredScore) error {
 	if score.ID == "" {
 		score.ID = id.New()
 	}
@@ -239,7 +239,7 @@ func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *coreprofile.
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
+		`INSERT INTO voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		score.ID, score.ProjectID, stream, score.BlockID, score.ProfileID,
 		score.ProfileVersion, string(locale.Normalize(score.Locale)), score.Score, string(dims), string(findings), score.CheckedAt)
@@ -252,14 +252,14 @@ func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *coreprofile.
 // GetScores returns the persisted scores for a project, newest first. An empty
 // locale means ALL locales — the project-wide read the score endpoints and the
 // brand rollup use — not "rows stored with an empty locale".
-func (s *PostgresBrandStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
+func (s *PostgresVoiceStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	query := `SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = $1 AND locale = $2
+		 FROM voice_scores WHERE project_id = $1 AND locale = $2
 		 ORDER BY checked_at DESC`
 	args := []any{projectID, string(locale.Normalize(loc))}
 	if loc == "" {
 		query = `SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = $1
+		 FROM voice_scores WHERE project_id = $1
 		 ORDER BY checked_at DESC`
 		args = []any{projectID}
 	}
@@ -280,10 +280,10 @@ func (s *PostgresBrandStore) GetScores(ctx context.Context, projectID string, lo
 	return result, rows.Err()
 }
 
-func (s *PostgresBrandStore) GetScoreTrends(ctx context.Context, projectID string, days int) ([]*coreprofile.ScoreTrend, error) {
+func (s *PostgresVoiceStore) GetScoreTrends(ctx context.Context, projectID string, days int) ([]*coreprofile.ScoreTrend, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT DATE(checked_at) AS d, AVG(score)::int, COUNT(*)
-		 FROM brand_voice_scores
+		 FROM voice_scores
 		 WHERE project_id = $1 AND checked_at >= NOW() - MAKE_INTERVAL(days => $2)
 		 GROUP BY d ORDER BY d`, projectID, days)
 	if err != nil {
@@ -306,7 +306,7 @@ func (s *PostgresBrandStore) GetScoreTrends(ctx context.Context, projectID strin
 // Correction storage
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) StoreCorrection(ctx context.Context, correction *coreprofile.Correction) error {
+func (s *PostgresVoiceStore) StoreCorrection(ctx context.Context, correction *coreprofile.Correction) error {
 	if correction.ID == "" {
 		correction.ID = id.New()
 	}
@@ -315,7 +315,7 @@ func (s *PostgresBrandStore) StoreCorrection(ctx context.Context, correction *co
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_corrections (id, profile_id, block_id, dimension, original_text, corrected_text, finding_id, corrected_by, corrected_at)
+		`INSERT INTO voice_corrections (id, profile_id, block_id, dimension, original_text, corrected_text, finding_id, corrected_by, corrected_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		correction.ID, correction.ProfileID, correction.BlockID,
 		string(correction.Dimension), correction.OriginalText, correction.CorrectedText,
@@ -326,11 +326,11 @@ func (s *PostgresBrandStore) StoreCorrection(ctx context.Context, correction *co
 	return nil
 }
 
-func (s *PostgresBrandStore) GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*coreprofile.SuggestedRule, error) {
+func (s *PostgresVoiceStore) GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*coreprofile.SuggestedRule, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.original_text, c.corrected_text, COUNT(*) AS cnt, c.dimension
-		 FROM brand_voice_corrections c
-		 JOIN brand_profiles p ON p.id = c.profile_id
+		 FROM voice_corrections c
+		 JOIN voice_profiles p ON p.id = c.profile_id
 		 WHERE p.workspace_id = $1
 		 GROUP BY c.original_text, c.corrected_text, c.dimension
 		 HAVING COUNT(*) >= $2
@@ -381,7 +381,7 @@ func (s *PostgresBrandStore) GetSuggestedRules(ctx context.Context, workspaceID 
 // decisions (which retain a promoted term's concept even after it is demoted and
 // the live profile no longer carries it) and the live profiles' enforced
 // vocabulary (the current truth, which wins on conflict).
-func (s *PostgresBrandStore) conceptIDsByTerm(ctx context.Context, workspaceID string) (map[string]string, error) {
+func (s *PostgresVoiceStore) conceptIDsByTerm(ctx context.Context, workspaceID string) (map[string]string, error) {
 	byTerm := map[string]string{}
 	if err := s.collectDecisionConcepts(ctx, workspaceID, byTerm); err != nil {
 		return nil, err
@@ -395,11 +395,11 @@ func (s *PostgresBrandStore) conceptIDsByTerm(ctx context.Context, workspaceID s
 // collectDecisionConcepts records each promoted term's concept from the durable
 // rule-decision log into byTerm (keyed lower-cased), covering terms that were
 // later demoted out of the live profile.
-func (s *PostgresBrandStore) collectDecisionConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
+func (s *PostgresVoiceStore) collectDecisionConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT d.term, d.concept_id
-		 FROM brand_rule_decisions d
-		 JOIN brand_profiles p ON p.id = d.profile_id
+		 FROM voice_rule_decisions d
+		 JOIN voice_profiles p ON p.id = d.profile_id
 		 WHERE p.workspace_id = $1 AND d.concept_id <> ''`, workspaceID)
 	if err != nil {
 		return fmt.Errorf("load rule-decision concepts: %w", err)
@@ -417,9 +417,9 @@ func (s *PostgresBrandStore) collectDecisionConcepts(ctx context.Context, worksp
 
 // collectVocabConcepts overlays the concept IDs carried by the live profiles'
 // forbidden and competitor terms — the current, authoritative link — onto byTerm.
-func (s *PostgresBrandStore) collectVocabConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
+func (s *PostgresVoiceStore) collectVocabConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT vocabulary FROM brand_profiles WHERE workspace_id = $1`, workspaceID)
+		`SELECT vocabulary FROM voice_profiles WHERE workspace_id = $1`, workspaceID)
 	if err != nil {
 		return fmt.Errorf("load profile vocabularies: %w", err)
 	}
@@ -448,12 +448,12 @@ func (s *PostgresBrandStore) collectVocabConcepts(ctx context.Context, workspace
 // Rule decisions (review/approve/reject/promote of candidate rules)
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *coreprofile.RuleDecision) error {
+func (s *PostgresVoiceStore) RecordRuleDecision(ctx context.Context, d *coreprofile.RuleDecision) error {
 	if d.DecidedAt.IsZero() {
 		d.DecidedAt = time.Now().UTC()
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_rule_decisions
+		`INSERT INTO voice_rule_decisions
 		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		 ON CONFLICT (profile_id, term) DO UPDATE SET
@@ -474,10 +474,10 @@ func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *coreprof
 	return nil
 }
 
-func (s *PostgresBrandStore) GetRuleDecision(ctx context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
+func (s *PostgresVoiceStore) GetRuleDecision(ctx context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at
-		 FROM brand_rule_decisions WHERE profile_id = $1 AND LOWER(term) = LOWER($2)`, profileID, term)
+		 FROM voice_rule_decisions WHERE profile_id = $1 AND LOWER(term) = LOWER($2)`, profileID, term)
 	var d coreprofile.RuleDecision
 	var dim, status string
 	if err := row.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
@@ -492,10 +492,10 @@ func (s *PostgresBrandStore) GetRuleDecision(ctx context.Context, profileID, ter
 	return &d, nil
 }
 
-func (s *PostgresBrandStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
+func (s *PostgresVoiceStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, concept_id, decided_by, decided_at
-		 FROM brand_rule_decisions WHERE profile_id = $1 ORDER BY decided_at DESC`, profileID)
+		 FROM voice_rule_decisions WHERE profile_id = $1 ORDER BY decided_at DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list rule decisions: %w", err)
 	}
@@ -519,10 +519,10 @@ func (s *PostgresBrandStore) ListRuleDecisions(ctx context.Context, profileID st
 // Profile versioning
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
+func (s *PostgresVoiceStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
-		 FROM brand_profile_versions WHERE profile_id = $1 ORDER BY version DESC`, profileID)
+		 FROM voice_profile_versions WHERE profile_id = $1 ORDER BY version DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile versions: %w", err)
 	}
@@ -543,12 +543,12 @@ func (s *PostgresBrandStore) ListProfileVersions(ctx context.Context, profileID 
 	return versions, rows.Err()
 }
 
-func (s *PostgresBrandStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*coreprofile.ProfileVersion, error) {
+func (s *PostgresVoiceStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*coreprofile.ProfileVersion, error) {
 	var v coreprofile.ProfileVersion
 	var snapshotJSON string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
-		 FROM brand_profile_versions WHERE profile_id = $1 AND version = $2`, profileID, version).
+		 FROM voice_profile_versions WHERE profile_id = $1 AND version = $2`, profileID, version).
 		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
@@ -562,10 +562,10 @@ func (s *PostgresBrandStore) GetProfileVersion(ctx context.Context, profileID st
 	return &v, nil
 }
 
-func (s *PostgresBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*coreprofile.VoiceProfile, error) {
+func (s *PostgresVoiceStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*coreprofile.VoiceProfile, error) {
 	var version int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT version FROM brand_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName).
+		`SELECT version FROM voice_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName).
 		Scan(&version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
@@ -585,12 +585,12 @@ func (s *PostgresBrandStore) GetProfileAtTag(ctx context.Context, profileID, tag
 // Profile tags
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) CreateProfileTag(ctx context.Context, tag *coreprofile.ProfileTag) error {
+func (s *PostgresVoiceStore) CreateProfileTag(ctx context.Context, tag *coreprofile.ProfileTag) error {
 	if tag.CreatedAt.IsZero() {
 		tag.CreatedAt = time.Now().UTC()
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profile_tags (profile_id, name, version, created_by, created_at)
+		`INSERT INTO voice_profile_tags (profile_id, name, version, created_by, created_at)
 		 VALUES ($1, $2, $3, $4, $5)`,
 		tag.ProfileID, tag.Name, tag.Version, tag.CreatedBy, tag.CreatedAt)
 	if err != nil {
@@ -599,10 +599,10 @@ func (s *PostgresBrandStore) CreateProfileTag(ctx context.Context, tag *coreprof
 	return nil
 }
 
-func (s *PostgresBrandStore) ListProfileTags(ctx context.Context, profileID string) ([]*coreprofile.ProfileTag, error) {
+func (s *PostgresVoiceStore) ListProfileTags(ctx context.Context, profileID string) ([]*coreprofile.ProfileTag, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, name, version, created_by, created_at
-		 FROM brand_profile_tags WHERE profile_id = $1 ORDER BY name`, profileID)
+		 FROM voice_profile_tags WHERE profile_id = $1 ORDER BY name`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile tags: %w", err)
 	}
@@ -619,9 +619,9 @@ func (s *PostgresBrandStore) ListProfileTags(ctx context.Context, profileID stri
 	return tags, rows.Err()
 }
 
-func (s *PostgresBrandStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
+func (s *PostgresVoiceStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM brand_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName)
+		`DELETE FROM voice_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName)
 	if err != nil {
 		return fmt.Errorf("delete profile tag: %w", err)
 	}
@@ -636,10 +636,10 @@ func (s *PostgresBrandStore) DeleteProfileTag(ctx context.Context, profileID, ta
 // Scores by stream
 // ---------------------------------------------------------------------------
 
-func (s *PostgresBrandStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
+func (s *PostgresVoiceStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = $1 AND stream = $2
+		 FROM voice_scores WHERE project_id = $1 AND stream = $2
 		 ORDER BY checked_at DESC`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("query scores by stream: %w", err)

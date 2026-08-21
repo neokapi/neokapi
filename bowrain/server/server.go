@@ -181,8 +181,8 @@ type Server struct {
 	// Backed by Redis when configured, otherwise in-memory.
 	SessionStore SessionStateStore
 
-	// BrandStore manages brand voice profiles. Nil when not configured.
-	BrandStore coreprofile.Store
+	// VoiceStore manages brand voice profiles. Nil when not configured.
+	VoiceStore coreprofile.Store
 
 	// KnowledgeStore persists the governance and collaboration layer of the
 	// brand knowledge graph (AD-021): markets, observations, comments, concept
@@ -584,7 +584,7 @@ func NewServer(cfg Config) *Server {
 			s.ConvergenceRunStore = bstore.NewConvergenceRunStore(pgSQL)
 			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewDigestStore(pgSQL)
-			s.BrandStore = pg.Brand
+			s.VoiceStore = pg.Brand
 			s.KnowledgeStore = pg.Knowledge
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
@@ -858,7 +858,7 @@ func NewServer(cfg Config) *Server {
 	s.subscribeContextGraphOnPush()
 
 	// Initialize MCP server for brand voice + agent tools when stores are available.
-	if s.BrandStore != nil {
+	if s.VoiceStore != nil {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
@@ -896,7 +896,7 @@ func NewServer(cfg Config) *Server {
 		if s.PostHogClient != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithEventTracker(&eventTrackerAdapter{client: s.PostHogClient}))
 		}
-		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
+		ms, err := mcpserver.NewMCPServerWithStore(s.VoiceStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			slog.Warn("failed to initialize MCP server", "error", err)
 		} else {

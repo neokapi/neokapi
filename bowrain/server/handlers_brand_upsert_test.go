@@ -61,7 +61,7 @@ func TestBrandUpsert_CreateThenIdempotentRepush(t *testing.T) {
 	assert.Equal(t, res.Profile.ID, res2.Profile.ID, "re-push must match the existing profile by name")
 	assert.Equal(t, 1, res2.Profile.Version, "an unchanged re-push must not bump the version")
 
-	versions, err := srv.BrandStore.ListProfileVersions(ctx, res.Profile.ID)
+	versions, err := srv.VoiceStore.ListProfileVersions(ctx, res.Profile.ID)
 	require.NoError(t, err)
 	assert.Empty(t, versions, "an unchanged re-push must not archive a snapshot")
 }
@@ -88,18 +88,18 @@ func TestBrandUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 	profileID := res.Profile.ID
 
 	// Server-side edit 1: a reviewer refines the description → v2 (v1 archived).
-	live, err := srv.BrandStore.GetProfile(ctx, profileID)
+	live, err := srv.VoiceStore.GetProfile(ctx, profileID)
 	require.NoError(t, err)
 	live.Description = "Refined on the server."
-	require.NoError(t, srv.BrandStore.UpdateProfile(ctx, live))
+	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, live))
 
 	// Server-side edit 2: the correction loop promotes "synergy" → v3, with a
 	// recorded promoted decision (mirroring HandlePromoteSuggestedRule).
-	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profileID,
+	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profileID,
 		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
 		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
 	}))
@@ -130,7 +130,7 @@ func TestBrandUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 
 	// The server-edited state is archived, not lost: v3's snapshot carries the
 	// refined description.
-	v3, err := srv.BrandStore.GetProfileVersion(ctx, profileID, 3)
+	v3, err := srv.VoiceStore.GetProfileVersion(ctx, profileID, 3)
 	require.NoError(t, err)
 	assert.Equal(t, "Refined on the server.", v3.Snapshot.Description,
 		"the pre-push server state must be recoverable from the version history")
@@ -157,15 +157,15 @@ func TestBrandUpsert_DemotedRuleStaysGone(t *testing.T) {
 
 	// Promote then demote "synergy" server-side; the decision row stays
 	// promoted (it durably records the promotion) but the live rule is gone.
-	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profileID,
+	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profileID,
 		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
 		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
 	}))
-	_, demoted, err := coreprofile.DemoteAndSave(ctx, srv.BrandStore, profileID, "synergy")
+	_, demoted, err := coreprofile.DemoteAndSave(ctx, srv.VoiceStore, profileID, "synergy")
 	require.NoError(t, err)
 	require.True(t, demoted)
 
