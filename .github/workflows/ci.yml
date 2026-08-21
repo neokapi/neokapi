@@ -217,6 +217,51 @@ jobs:
       - name: Kapi Desktop Wails bindings are fresh
         run: make check-kapi-desktop-bindings
 
+  # ── Desktop bindings, for the changes the desktop jobs cannot see ────────
+  # The two desktop jobs run their own freshness gate, but they are path-gated
+  # on the app and UI directories — so a change to a Go type the bindings are
+  # DERIVED from does not reach either of them. The Kapi Desktop job's comment
+  # names the consequence and accepts it: drift originating in core/ or host/
+  # "is still caught post-merge". Post-merge means main is red, and the pull
+  # request that caused it has already gone.
+  #
+  # That happened: #2144 added Coordinates to project.Defaults and
+  # project.Collection, the committed bindings were not regenerated, and main
+  # stayed red on the gate until an unrelated pull request happened to touch
+  # apps/kapi-desktop and finally ran it.
+  #
+  # So the same gate runs on the changes that can cause the drift: the Go
+  # toolchain, node for the id map, and the wails3 CLI — no frontend build and
+  # neither desktop job's test wall.
+  #
+  # The system libraries are for BUILDING the wails3 CLI, not for running it.
+  # Binding generation is cgo-off, but `go install .../cmd/wails3` compiles
+  # wails itself, and on Linux that needs the GTK and WebKit headers — which is
+  # why both desktop jobs install them before the same step.
+  desktop-bindings:
+    name: Desktop bindings
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-ui
+      - uses: ./.github/actions/setup-go-modules
+      - name: Install Wails system dependencies (Linux)
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: Install wails3 CLI (pinned to the app's wails module)
+        run: make wails3-cli
+      - name: Kapi Desktop Wails bindings are fresh
+        run: make check-kapi-desktop-bindings
+      - name: Bowrain Desktop Wails bindings are fresh
+        run: make check-bowrain-desktop-bindings
+
   # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
   bowrain-desktop:
     name: Bowrain Desktop
