@@ -121,6 +121,33 @@ var Migrations = []storage.Migration{
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)
 			);
+
+			-- This subsystem was renamed from brand to voice, and its tables with
+			-- it. Renaming the ledger table means Migrate replays from scratch
+			-- against an empty voice_schema_migrations, so the CREATEs above
+			-- build the new tables — and the old ones would otherwise sit there
+			-- holding rows nothing reads.
+			--
+			-- Dropping rather than copying across is the standing pre-live
+			-- decision: reset beats migrate while we are the only customer, and
+			-- what a project declares is re-created by its next push. A voice
+			-- authored only in the UI and never pushed is the one thing this
+			-- loses, which is the trade that decision already makes.
+			--
+			-- It belongs in the baseline rather than in a version of its own.
+			-- The baseline is idempotent and re-applied by design, which is
+			-- exactly what a DROP ... IF EXISTS needs: it runs once against a
+			-- database that has them and is a no-op on every database created
+			-- after the rename.
+			DROP TABLE IF EXISTS brand_rule_decisions;
+			DROP TABLE IF EXISTS brand_voice_corrections;
+			DROP TABLE IF EXISTS brand_voice_scores;
+			DROP TABLE IF EXISTS brand_profile_tags;
+			DROP TABLE IF EXISTS brand_profile_versions;
+			DROP TABLE IF EXISTS brand_profiles;
+			-- And the bookkeeping that tracked them: left behind, it would claim
+			-- a subsystem that no longer exists is at version 4.
+			DROP TABLE IF EXISTS brand_schema_migrations;
 		`,
 	},
 }
