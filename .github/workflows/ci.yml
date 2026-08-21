@@ -230,9 +230,14 @@ jobs:
   # stayed red on the gate until an unrelated pull request happened to touch
   # apps/kapi-desktop and finally ran it.
   #
-  # So the same gate runs on the changes that can cause the drift. Generation is
-  # cgo-off, so this needs the Go toolchain, node for the id map, and the wails3
-  # CLI — no GTK, no frontend build, neither desktop job's wall.
+  # So the same gate runs on the changes that can cause the drift: the Go
+  # toolchain, node for the id map, and the wails3 CLI — no frontend build and
+  # neither desktop job's test wall.
+  #
+  # The system libraries are for BUILDING the wails3 CLI, not for running it.
+  # Binding generation is cgo-off, but `go install .../cmd/wails3` compiles
+  # wails itself, and on Linux that needs the GTK and WebKit headers — which is
+  # why both desktop jobs install them before the same step.
   desktop-bindings:
     name: Desktop bindings
     runs-on: ubuntu-latest
@@ -246,6 +251,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
       - uses: ./.github/actions/setup-go-modules
+      - name: Install Wails system dependencies (Linux)
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: Install wails3 CLI (pinned to the app's wails module)
         run: make wails3-cli
       - name: Kapi Desktop Wails bindings are fresh
