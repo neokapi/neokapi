@@ -152,13 +152,18 @@ type SyncTermTranslation struct {
 
 // SyncMedia carries media asset metadata through the sync boundary.
 type SyncMedia struct {
-	ID            string            `json:"id"`
-	ItemName      string            `json:"item_name"`
-	MimeType      string            `json:"mime_type"`
-	Filename      string            `json:"filename"`
-	AltText       string            `json:"alt_text,omitempty"`
-	SizeBytes     int64             `json:"size_bytes"`
-	BlobKey       string            `json:"blob_key,omitempty"`
+	ID        string `json:"id"`
+	ItemName  string `json:"item_name"`
+	MimeType  string `json:"mime_type"`
+	Filename  string `json:"filename"`
+	AltText   string `json:"alt_text,omitempty"`
+	SizeBytes int64  `json:"size_bytes"`
+	BlobKey   string `json:"blob_key,omitempty"`
+	// SourceID is the asset's durable name within its item — for a packaged
+	// format, the path inside the archive the asset replaces. A write-out reads
+	// it to know WHERE the variant goes, so a pull that carried everything else
+	// about an asset and not this one still could not use what it was sent.
+	SourceID      string            `json:"source_id,omitempty"`
 	Locale        string            `json:"locale,omitempty"`
 	SourceMediaID string            `json:"source_media_id,omitempty"`
 	Properties    map[string]string `json:"properties,omitempty"`

@@ -125,6 +125,7 @@ func AssetToSyncMedia(a *venue.Asset) SyncMedia {
 		AltText:    a.AltText,
 		SizeBytes:  a.SizeBytes,
 		BlobKey:    a.BlobKey,
+		SourceID:   a.SourceID,
 		Properties: a.Properties,
 	}
 }
