@@ -46,7 +46,7 @@ const (
 	// Quality
 	ActivityGatePassed ActivityType = "gate.passed"
 	ActivityGateFailed ActivityType = "gate.failed"
-	ActivityBrandDrift ActivityType = "brand.drift"
+	ActivityVoiceDrift ActivityType = "voice.drift"
 
 	// Review queue
 	ActivityReviewAssigned ActivityType = "review.assigned"

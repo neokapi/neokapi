@@ -20,7 +20,7 @@ import (
 // the server actually judges on. Approve-passing applies three bars — QA checks,
 // terminology, and the brand voice bar — but the queue payload carried only the
 // blocks, so a surface could bucket on check findings alone and call "passing"
-// a set the server then refused. #1771 removed the dead `onBrand` bucket rather
+// a set the server then refused. #1771 removed the dead `compliant` bucket rather
 // than guess; these cases pin the evidence that replaces the guess.
 
 // pendingFrBlock builds a translatable block whose fr target is a pending
@@ -135,7 +135,7 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 			block := storedBlockByID(t, s, projID, e.BlockID)
 			fromEvidence := e.TermCompliance != platstore.TermComplianceViolation &&
 				(e.VoiceScore == nil || *e.VoiceScore >= *e.VoiceBar)
-			fromServer := blockOnBrandAndPassing(ctx, block, "fr", scores, gate)
+			fromServer := blockCompliantAndPassing(ctx, block, "fr", scores, gate)
 			assert.Equal(t, fromServer, fromEvidence,
 				"block %s: the queue's evidence and the server's predicate disagree", e.BlockID)
 		}

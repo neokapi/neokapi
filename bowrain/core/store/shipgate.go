@@ -26,7 +26,7 @@ import "context"
 // basis would invalidate every verdict each time the loop ran — which is to say
 // it would put the whole-project read back. A voice score cannot change whether
 // a block FAILS the gate (that is checks and terms); it can only withhold an
-// otherwise-clean block from the on-brand count, and that adjustment is applied
+// otherwise-clean block from the compliant count, and that adjustment is applied
 // over the scored set, which the pass already holds.
 
 // ShipGateRef names one (block, locale) pair.
@@ -57,7 +57,7 @@ type ShipGateVerdict struct {
 
 // ShipGateScore is one scored (block, locale) pair as the brand voice store
 // holds it, reduced to the only question the rollup asks of it: whether the
-// score clears the scoring profile's on-brand bar.
+// score clears the scoring profile's compliance bar.
 type ShipGateScore struct {
 	ShipGateRef
 	BelowBar bool
@@ -72,11 +72,11 @@ type ShipGateCounts struct {
 	// Clean counts translated blocks whose stored verdict passes it.
 	Clean int
 	// Scored counts clean-or-failing blocks the pass supplied a voice score
-	// for, which is what makes the on-brand basis able to say voice informed
+	// for, which is what makes the compliance basis able to say voice informed
 	// the rate in this scope.
 	Scored int
 	// CleanBelowBar counts blocks that pass the gate but whose supplied voice
-	// score sits under the profile's bar — the ones the on-brand count
+	// score sits under the profile's bar — the ones the compliant count
 	// withholds.
 	CleanBelowBar int
 }

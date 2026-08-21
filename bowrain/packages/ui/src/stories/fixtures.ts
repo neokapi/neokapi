@@ -20,7 +20,7 @@ import type {
   AutomationHistoryEntry,
   TranslationDashboardStats,
   LocaleTranslationStats,
-  OnBrandBasis,
+  ComplianceBasis,
   RoleTemplate,
   ShipState,
 } from "../types/api";
@@ -1716,12 +1716,12 @@ export const shipStateDashboardStats: TranslationDashboardStats = (() => {
 })();
 
 /**
- * Ship-state dashboard with the derived on-brand fields: voice-informed for
+ * Ship-state dashboard with the derived compliance fields: voice-informed for
  * fr-FR (worker draft scoring has run), checks-only elsewhere — the newest
- * server shape behind the on-brand rate chip in the ship-readiness band.
+ * server shape behind the compliance rate chip in the ship-readiness band.
  */
-export const onBrandDashboardStats: TranslationDashboardStats = (() => {
-  const basisFor: Record<string, OnBrandBasis> = { "fr-FR": "voice+checks" };
+export const complianceDashboardStats: TranslationDashboardStats = (() => {
+  const basisFor: Record<string, ComplianceBasis> = { "fr-FR": "voice+checks" };
   const rateFor: Record<string, number> = { "fr-FR": 0.92, "de-DE": 1, "ja-JP": 0.5 };
 
   const stamp = (l: LocaleTranslationStats): LocaleTranslationStats => {
@@ -1729,9 +1729,9 @@ export const onBrandDashboardStats: TranslationDashboardStats = (() => {
     const rate = rateFor[l.locale] ?? 1;
     return {
       ...l,
-      on_brand_blocks: Math.round(l.translated_blocks * rate),
-      on_brand_rate: rate,
-      on_brand_basis: basisFor[l.locale] ?? "checks",
+      compliant_blocks: Math.round(l.translated_blocks * rate),
+      compliance_rate: rate,
+      compliance_basis: basisFor[l.locale] ?? "checks",
     };
   };
 

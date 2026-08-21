@@ -210,7 +210,7 @@ export default function CheckEval(): ReactElement {
               The loop&rsquo;s premise is that a correction made repeatedly should become a check
               that catches the mistake. This measures exactly that: a simulated correction stream is
               aggregated and promoted through the real promotion path, then the resulting brand
-              check is run on every correction&rsquo;s original (the off-brand phrasing the team
+              check is run on every correction&rsquo;s original (the non-compliant phrasing the team
               kept fixing) and its corrected form. A promoted rule must{" "}
               <strong>flag the original</strong> and <strong>never flag the fix</strong>; a
               below-threshold correction must stay silent. Swap the simulated stream for an export

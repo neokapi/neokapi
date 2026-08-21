@@ -163,7 +163,7 @@ func (c *BowrainSourceConnector) voiceDivergesFrom(ctx context.Context, collecti
 // voiceStoreName is the project-local voice store the push resolves a bound
 // profile through; the pull must read the same one or the two halves of a
 // round trip would disagree about what the recipe binds.
-const voiceStoreName = "brand.db"
+const voiceStoreName = "voice.db"
 
 // declaredCollection finds the recipe's collection of that name, or nil.
 func (c *BowrainSourceConnector) declaredCollection(name string) *coreproj.Collection {

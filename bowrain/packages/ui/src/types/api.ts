@@ -677,7 +677,7 @@ export interface ApprovePassingRequest {
 export interface ApprovePassingResult {
   /** Blocks promoted to reviewed. */
   approved: number;
-  /** Pending blocks left untouched (failing checks / off-brand). */
+  /** Pending blocks left untouched (failing checks / non-compliant). */
   skipped: number;
   /**
    * Which bar each skipped block missed. A block missing more than one is
@@ -903,12 +903,12 @@ export interface WordCountResult {
 export type ShipState = "governed" | "ai_shippable" | "pending";
 
 /**
- * Evidence behind a derived on-brand rate (store.OnBrandBasis). QA checks
+ * Evidence behind a derived compliance rate (store.ComplianceBasis). QA checks
  * always inform it; `+terms` is added when term governance was active for the
  * scope, and `voice` when at least one block's persisted voice score, measured
  * against its profile's minimum bar, also informed it.
  */
-export type OnBrandBasis = "checks" | "checks+terms" | "voice+checks" | "voice+checks+terms";
+export type ComplianceBasis = "checks" | "checks+terms" | "voice+checks" | "voice+checks+terms";
 
 /** Per-locale translation progress */
 export interface LocaleTranslationStats {
@@ -925,12 +925,12 @@ export interface LocaleTranslationStats {
   failing_checks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
-  /** Translated blocks counting as on-brand (checks pass + voice bar where scored). */
-  on_brand_blocks?: number;
-  /** on_brand_blocks / translated_blocks in [0,1]; absent when not derived. */
-  on_brand_rate?: number;
-  /** What informed on_brand_rate; absent when the server did not derive it. */
-  on_brand_basis?: OnBrandBasis;
+  /** Translated blocks counting as compliant (checks pass + voice bar where scored). */
+  compliant_blocks?: number;
+  /** compliant_blocks / translated_blocks in [0,1]; absent when not derived. */
+  compliance_rate?: number;
+  /** What informed compliance_rate; absent when the server did not derive it. */
+  compliance_basis?: ComplianceBasis;
 }
 
 /** Per-file translation progress */
@@ -1668,7 +1668,7 @@ export interface PendingReviewEntry {
   term_compliance?: TermCompliance;
   /**
    * The latest persisted brand voice score for this block+locale, and the
-   * on-brand bar of the profile that produced it. Absent together for a block
+   * compliance bar of the profile that produced it. Absent together for a block
    * that has never been scored; the server applies no voice bar to one either.
    */
   voice_score?: number;

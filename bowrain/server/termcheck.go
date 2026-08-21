@@ -16,7 +16,7 @@ import (
 )
 
 // This file holds the ONE terms-aware term-compliance predicate the ship /
-// on-brand surfaces and the RV-E review re-check oracle share, so they can never
+// compliant surfaces and the RV-E review re-check oracle share, so they can never
 // disagree on whether a target respects the project's terminology governance.
 //
 // The predicate combines the two complementary directions the review loop already
@@ -35,13 +35,13 @@ import (
 // The checks are deterministic and offline — no DB or LLM call is made per block.
 // The terms store is snapshotted in-memory once per (workspace) and the brand profile
 // resolved once per (workspace, locale) by the caller (see termGate), then reused
-// across every block of the ship/on-brand pass.
+// across every block of the ship/compliant pass.
 
 // blockTermCompliant reports whether a block's committed target for tgtLoc
 // respects the project's terminology governance: it neither USES a
 // forbidden/competitor term (presence) nor OMITS a mandated preferred/approved
 // rendering its source concept requires (absence). It is the single per-block
-// predicate the dashboard ship-state pass, the on-brand-rate derivation, the bulk
+// predicate the dashboard ship-state pass, the compliant-rate derivation, the bulk
 // approve-passing endpoint, and the RV-E concept re-check oracle all call.
 //
 // tb is an in-memory terms snapshot resolved once by the caller (nil = the
@@ -141,7 +141,7 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 	return false
 }
 
-// termGate carries the terminology-governance context for one ship/on-brand pass:
+// termGate carries the terminology-governance context for one ship/compliant pass:
 // an in-memory terms snapshot (resolved once) and a per-locale brand-profile
 // resolver (resolved at most once per locale, then cached). It is the caller-side
 // wrapper that keeps the shared blockTermCompliant predicate bounded — the pass
@@ -208,7 +208,7 @@ func (g *termGate) fingerprint(ctx context.Context, locales []string) string {
 
 // profileFor resolves (and caches) the brand voice profile for one target locale.
 // The resolver runs at most once per locale across the whole pass — never per
-// block — so the ship/on-brand pass adds no per-block store reads.
+// block — so the ship/compliant pass adds no per-block store reads.
 func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
 	if g == nil || g.resolve == nil {
 		return nil
@@ -234,7 +234,7 @@ func (g *termGate) compliant(ctx context.Context, block *model.Block, tgtLoc mod
 
 // active reports whether the gate has any terminology governance to enforce for
 // tgtLoc — a non-empty terms snapshot, or a brand profile carrying forbidden /
-// competitor vocabulary. It drives the honest on_brand_basis: term checks are
+// competitor vocabulary. It drives the honest compliance_basis: term checks are
 // noted as contributing only where they actually ran against something.
 func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
 	if g == nil {
@@ -248,11 +248,11 @@ func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
 }
 
 // resolveTermGate builds the terminology-governance gate for a project's
-// ship/on-brand pass: an in-memory snapshot of the workspace terms (one read,
+// ship/compliant pass: an in-memory snapshot of the workspace terms (one read,
 // reused across every block and locale) plus a per-locale brand-profile resolver
 // (resolved at most once per locale). The gate is deterministic and offline — no
 // per-block DB or LLM call. Returns nil when the project has neither a terms store
-// nor a brand store, so the term check is a no-op and the derived ship/on-brand
+// nor a brand store, so the term check is a no-op and the derived ship/compliant
 // numbers stay byte-identical to the pre-term behavior.
 func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, stream, wsID string) *termGate {
 	if proj == nil {
@@ -297,7 +297,7 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 }
 
 // snapshotTerms reads every concept from a workspace terms and indexes them
-// in a fresh in-memory terms, so the ship/on-brand pass can run LookupAll per
+// in a fresh in-memory terms, so the ship/compliant pass can run LookupAll per
 // block offline. Returns nil for an empty terms or a read failure (the caller
 // then skips the terms store half of the predicate). Relations are not copied: the
 // shared predicate does not follow USE_INSTEAD / REPLACED_BY redirection, matching
@@ -317,7 +317,7 @@ func snapshotTerms(ctx context.Context, tb terms.Store) (terms.Terminology, stri
 	h := sha256.New()
 	for _, c := range concepts {
 		// A concept that does not make it into the snapshot is a term the
-		// on-brand gate then fails to enforce, silently and for that check
+		// compliant gate then fails to enforce, silently and for that check
 		// only. Nothing here can repair it mid-snapshot, so it is logged and
 		// the gate runs on what it has.
 		if err := mem.AddConcept(ctx, c); err != nil {

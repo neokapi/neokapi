@@ -1,7 +1,7 @@
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats } from "../../types/api";
 import { localeDisplayName } from "../LanguageLabel";
-import { OnBrandRateChip } from "../OnBrandRateChip";
+import { ComplianceRateChip } from "../ComplianceRateChip";
 import { ShipStateBadge } from "../ShipStateBadge";
 
 /**
@@ -22,8 +22,8 @@ export interface LocaleCoverageRailProps {
   stats: LocaleTranslationStats;
   /** Show the ship state badge (hidden where the server derived none). */
   showShipState?: boolean;
-  /** Show the on-brand rate chip where the server derived one. */
-  showOnBrand?: boolean;
+  /** Show the compliance rate chip where the server derived one. */
+  showCompliance?: boolean;
   className?: string;
 }
 
@@ -35,7 +35,7 @@ function pct(part: number, whole: number): number {
 export function LocaleCoverageRail({
   stats,
   showShipState = true,
-  showOnBrand = true,
+  showCompliance = true,
   className,
 }: LocaleCoverageRailProps) {
   const total = stats.total_blocks;
@@ -84,11 +84,11 @@ export function LocaleCoverageRail({
       <span className="w-9 shrink-0 text-right tabular-nums text-muted-foreground">
         {coverage}%
       </span>
-      {showOnBrand && stats.on_brand_rate !== undefined && stats.on_brand_basis && (
-        <OnBrandRateChip
-          rate={stats.on_brand_rate}
-          basis={stats.on_brand_basis}
-          onBrandBlocks={stats.on_brand_blocks}
+      {showCompliance && stats.compliance_rate !== undefined && stats.compliance_basis && (
+        <ComplianceRateChip
+          rate={stats.compliance_rate}
+          basis={stats.compliance_basis}
+          compliantBlocks={stats.compliant_blocks}
           translatedBlocks={stats.translated_blocks}
         />
       )}

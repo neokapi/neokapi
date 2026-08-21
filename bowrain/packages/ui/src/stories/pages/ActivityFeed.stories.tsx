@@ -73,7 +73,7 @@ const sampleActivities: ActivityInfo[] = [
     project_id: "proj-1",
     actor_id: "system",
     actor_name: "System",
-    type: "brand.drift",
+    type: "voice.drift",
     entity_type: "brand",
     summary: "brand voice drift detected",
     created_at: ago(300),

@@ -267,9 +267,9 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 
 	// The voice at the point, composed with the overrides that apply there —
 	// the same resolution `kapi voice guide` and a translating run take.
-	storePath, serr := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, serr := resolveResourcePath(cmd, "voice", "voice.db")
 	if serr != nil {
-		storePath = filepath.Join(root, "brand.db")
+		storePath = filepath.Join(root, "voice.db")
 	}
 	voice, vsrc, found, verr := a.resolveVoiceForGovernance(ctx, root, storePath, rc, VoiceResolveOptions{
 		Locale: string(req.Locale),
@@ -316,7 +316,7 @@ func (a *App) adHocVoice(ctx context.Context, cmd Command, src *ContextPointSour
 		return "no kapi project is in scope and no profile was named, so there is no point to answer for"
 	}
 
-	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err == nil {
 		if p, lerr := lookupStoreProfileAt(ctx, storePath, req.Profile); lerr == nil {
 			src.Voice = coreprofile.ResolveProfile(p, req.Locale, "", "")

@@ -645,7 +645,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
 					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
 				// Score the recycled drafts against the standing voice profile
-				// (deterministic vocabulary check, zero AI) so the on-brand
+				// (deterministic vocabulary check, zero AI) so the compliant
 				// rate covers content memory output too.
 				persistDraftVoiceScores(ctx, deps, job, draftProfile(), res.filled, tgtLocale)
 			}
@@ -811,7 +811,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				return fmt.Errorf("store blocks: %w", err)
 			}
 			// Score the AI drafts against the standing voice profile (deterministic
-			// vocabulary check, zero AI) so the dashboard's on-brand rate is
+			// vocabulary check, zero AI) so the dashboard's compliance rate is
 			// voice-informed for every drafted block.
 			persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
 			// AI drafts do NOT enter the content memory. The corpus has one door

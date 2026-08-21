@@ -1645,7 +1645,7 @@ type ProjectBindings struct {
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
-	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err != nil {
 		return nil, err
 	}

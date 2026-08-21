@@ -44,7 +44,7 @@ type VoiceProfile struct {
 	Scope    string         `json:"workspace_id" yaml:"workspace_id,omitempty"`
 	Autonomy AutonomyConfig `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
 	// MinScore is the minimum voice-compliance score (0–100) a block must reach
-	// to count as on-brand in roll-ups (e.g. the dashboard's on-brand rate). 0
+	// to count as compliant in roll-ups (e.g. the dashboard's compliance rate). 0
 	// (unset) uses DefaultMinScore; see ComplianceBar.
 	MinScore    int       `json:"min_score,omitempty" yaml:"min_score,omitempty"`
 	Version     int       `json:"version" yaml:"version,omitempty"`
@@ -54,12 +54,12 @@ type VoiceProfile struct {
 	CreatedBy   string    `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
-// DefaultMinScore is the on-brand bar applied when a profile does not set its
+// DefaultMinScore is the compliance bar applied when a profile does not set its
 // own MinScore: one critical vocabulary hit (25-point penalty) already drops a
 // block below it, while a handful of minor issues does not.
 const DefaultMinScore = 80
 
-// ComplianceBar returns the profile's effective minimum on-brand score: MinScore
+// ComplianceBar returns the profile's effective minimum compliant score: MinScore
 // when set (capped at 100), DefaultMinScore otherwise. A nil profile also
 // answers the default, so roll-ups can apply one bar to persisted scores whose
 // profile is no longer readable.

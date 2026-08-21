@@ -10,8 +10,8 @@ import { complianceBar, DEFAULT_MIN_SCORE } from "../brand/complianceBar";
 import { minScoreFieldValue, parseMinScore } from "../brand/minScore";
 import type { VoiceProfile } from "../brand/types";
 
-// `min_score` is the profile's own on-brand bar: the server excludes a block
-// scoring below it from the on-brand rate and refuses to auto-approve it. The
+// `min_score` is the profile's own compliance bar: the server excludes a block
+// scoring below it from the compliance rate and refuses to auto-approve it. The
 // surfaces have READ it since #1771, but the create/update request omitted it,
 // so the only bar anyone could actually apply was the default. These cases pin
 // the field onto both profile editors and the parse it goes through.
@@ -67,7 +67,7 @@ describe("parseMinScore", () => {
   });
 });
 
-describe("BrandProfileWizard on-brand bar", () => {
+describe("BrandProfileWizard compliance bar", () => {
   it("carries the authored bar into the save payload", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
@@ -132,7 +132,7 @@ describe("BrandProfileWizard on-brand bar", () => {
   });
 });
 
-describe("BrandProfileEditor on-brand bar", () => {
+describe("BrandProfileEditor compliance bar", () => {
   it("carries the authored bar into the save payload", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
@@ -189,7 +189,7 @@ describe("the write request mirrors the Go request body", () => {
     ).toEqual([]);
   });
 
-  it("can set the on-brand bar it reads", () => {
+  it("can set the compliance bar it reads", () => {
     expect(goJSONTags(goSource, "BrandProfileRequest")).toContain("min_score");
     expect(tsInterfaceFields(tsSource, "VoiceProfile")).toContain("min_score");
     expect(tsInterfaceFields(tsSource, "CreateVoiceProfileRequest")).toContain("min_score");

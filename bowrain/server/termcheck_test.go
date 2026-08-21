@@ -108,7 +108,7 @@ func seedTermUnificationConcepts(t *testing.T, tb terms.Store) (useID, appID str
 // TestTermAwareShipPredicateUnification is the unification-agreement proof: over
 // ONE set of governed (reviewed) fr targets — one using a forbidden term
 // (PRESENCE), one missing a mandated rendering (ABSENCE), one clean — the shared
-// term predicate, the dashboard ship-state pass, the on-brand-rate derivation,
+// term predicate, the dashboard ship-state pass, the compliant-rate derivation,
 // the bulk approve-passing predicate, and the RV-E concept re-check oracle all
 // AGREE on which blocks are non-compliant. They can no longer disagree because
 // they all call blockTermCompliant.
@@ -140,20 +140,20 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	assert.False(t, gate.compliant(ctx, missBlock, "fr"), "predicate: missing-mandated-term target is non-compliant")
 	assert.True(t, gate.compliant(ctx, okBlock, "fr"), "predicate: clean target is compliant")
 
-	// (2) Dashboard ship-state + on-brand pass agrees: both violators fail the
-	// ship gate (pending, not governed/ai_shippable) and count against on-brand.
+	// (2) Dashboard ship-state + compliant pass agrees: both violators fail the
+	// ship gate (pending, not governed/ai_shippable) and count against compliant.
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 	require.NoError(t, err)
 	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", gate, stats))
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "ship: term violations block the ship gate")
 	assert.Equal(t, 2, fr.FailingChecks, "ship: exactly the two term-violating blocks fail")
-	assertOnBrand(t, fr, 1, 1.0/3.0, platstore.OnBrandBasisChecksTerms)
+	assertCompliant(t, fr, 1, 1.0/3.0, platstore.ComplianceBasisChecksTerms)
 
 	// (3) Bulk approve-passing predicate agrees.
-	assert.False(t, blockOnBrandAndPassing(ctx, badBlock, "fr", nil, gate), "bulk: forbidden-term block excluded")
-	assert.False(t, blockOnBrandAndPassing(ctx, missBlock, "fr", nil, gate), "bulk: missing-mandated block excluded")
-	assert.True(t, blockOnBrandAndPassing(ctx, okBlock, "fr", nil, gate), "bulk: clean block kept")
+	assert.False(t, blockCompliantAndPassing(ctx, badBlock, "fr", nil, gate), "bulk: forbidden-term block excluded")
+	assert.False(t, blockCompliantAndPassing(ctx, missBlock, "fr", nil, gate), "bulk: missing-mandated block excluded")
+	assert.True(t, blockCompliantAndPassing(ctx, okBlock, "fr", nil, gate), "bulk: clean block kept")
 
 	// (4) RV-E oracle agrees: the concept events demote exactly the same two
 	// blocks (PRESENCE via c-use, ABSENCE via c-app) and leave the clean one.
@@ -177,7 +177,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	}, 20*time.Second, 50*time.Millisecond, "RV-E demotes the missing-mandated target")
 
 	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, okID),
-		"RV-E leaves the clean target alone — the same block ship/on-brand/bulk kept")
+		"RV-E leaves the clean target alone — the same block ship/compliant/bulk kept")
 }
 
 // TestApprovePassingExcludesTermViolations drives the real bulk approve-passing
@@ -210,7 +210,7 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 }
 
 // TestResolveTermGateNoTermsNoOp proves the byte-stable no-op: a project with
-// no terms concepts and no bound brand profile derives ship/on-brand numbers
+// no terms concepts and no bound brand profile derives ship/compliant numbers
 // identical to the pre-term behavior (checks-only basis, no spurious failures).
 func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
@@ -240,7 +240,7 @@ func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "a clean approved locale stays governed")
 	assert.Equal(t, 0, fr.FailingChecks)
-	assertOnBrand(t, fr, 1, 1.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, fr, 1, 1.0, platstore.ComplianceBasisChecks)
 	assert.Equal(t, localeByCode(t, withoutGate.LocaleStats, "fr"), fr, "gate vs nil-gate derive identically")
 }
 

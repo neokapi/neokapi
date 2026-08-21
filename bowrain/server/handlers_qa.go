@@ -118,7 +118,7 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 // The tool runs against a scratch copy with a private annotation surface:
 // findings ACCUMULATE on the block's unified FindingsAnnotation by design
 // (check.Annotate), so running the checks for several locales over the same
-// in-memory block — the dashboard ship-state/on-brand pass and convergence's
+// in-memory block — the dashboard ship-state/compliant pass and convergence's
 // countFailingBlocks both do — would otherwise leak one locale's findings into
 // every later locale's read (findings carry no locale), and mutate a shared
 // block as a side effect of a read.

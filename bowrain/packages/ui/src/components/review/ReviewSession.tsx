@@ -18,7 +18,7 @@ import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/block
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw, FileText } from "../icons";
 import { ReviewQueueList } from "./ReviewQueueList";
-import { FocusedReviewer, type ReviewerOnBrand } from "./FocusedReviewer";
+import { FocusedReviewer, type ReviewerCompliance } from "./FocusedReviewer";
 import { MarkSourceTermDialog } from "./MarkSourceTermDialog";
 import { SuggestBrandRuleDialog } from "./SuggestBrandRuleDialog";
 import { ProposeSourceChangeDialog } from "./ProposeSourceChangeDialog";
@@ -140,19 +140,19 @@ function resolveBrandProfile(project: ProjectInfo, stream: string): string | und
   return s?.properties?.voice_profile_id || project.properties?.voice_profile_id || undefined;
 }
 
-/** Per-locale on-brand context for the reviewer header, from the dashboard. */
-function onBrandForLocale(
+/** Per-locale compliance context for the reviewer header, from the dashboard. */
+function complianceForLocale(
   stats: TranslationDashboardStats,
   locale: string,
-): ReviewerOnBrand | undefined {
+): ReviewerCompliance | undefined {
   const ls: LocaleTranslationStats | undefined = stats.locale_stats.find(
     (l) => l.locale === locale,
   );
-  if (!ls || ls.on_brand_rate == null || ls.on_brand_basis == null) return undefined;
+  if (!ls || ls.compliance_rate == null || ls.compliance_basis == null) return undefined;
   return {
-    rate: ls.on_brand_rate,
-    basis: ls.on_brand_basis,
-    onBrandBlocks: ls.on_brand_blocks,
+    rate: ls.compliance_rate,
+    basis: ls.compliance_basis,
+    compliantBlocks: ls.compliant_blocks,
     translatedBlocks: ls.translated_blocks,
   };
 }
@@ -517,7 +517,7 @@ export function ReviewSession({
   );
 
   // Bulk "Approve all passing": server promotes every pending block passing
-  // checks + the on-brand bar. review_completed → the queue emptied and
+  // checks + the compliance bar. review_completed → the queue emptied and
   // delivery kicked off.
   const [confirmBulk, setConfirmBulk] = useState(false);
   const runBulkApprove = useCallback(async () => {
@@ -795,7 +795,7 @@ export function ReviewSession({
               sourceLocale={sourceLocale}
               position={{ index: currentIndex + 1, total: visible.length }}
               localeName={localeName}
-              onBrand={onBrandForLocale(dashboardStats, current.locale)}
+              compliance={complianceForLocale(dashboardStats, current.locale)}
               editing={editing}
               busy={busy}
               reChecking={recheckingId === current.id}

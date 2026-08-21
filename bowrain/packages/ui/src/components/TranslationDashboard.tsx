@@ -3,7 +3,7 @@ import type { LocaleTranslationStats, TranslationDashboardStats } from "../types
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
 import { LanguageLabel } from "./LanguageLabel";
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
-import { OnBrandRateChip } from "./OnBrandRateChip";
+import { ComplianceRateChip } from "./ComplianceRateChip";
 import { ShipStateBadge } from "./ShipStateBadge";
 import { WordCountChart } from "./WordCountChart";
 import { CollectionOverview, type CollectionScope } from "./collections/CollectionOverview";
@@ -71,11 +71,11 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
-                {l.on_brand_rate !== undefined && l.on_brand_basis && (
-                  <OnBrandRateChip
-                    rate={l.on_brand_rate}
-                    basis={l.on_brand_basis}
-                    onBrandBlocks={l.on_brand_blocks}
+                {l.compliance_rate !== undefined && l.compliance_basis && (
+                  <ComplianceRateChip
+                    rate={l.compliance_rate}
+                    basis={l.compliance_basis}
+                    compliantBlocks={l.compliant_blocks}
                     translatedBlocks={l.translated_blocks}
                   />
                 )}

@@ -42,7 +42,7 @@ type BrandProfileUpsert struct {
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
 	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
-	// MinScore is the profile's own on-brand bar (0–100); 0 means the default.
+	// MinScore is the profile's own compliance bar (0–100); 0 means the default.
 	// It is authored content — a recipe that raises the bar carries the raised
 	// bar into the workspace rather than leaving the server on the default.
 	MinScore int `json:"min_score,omitempty"`

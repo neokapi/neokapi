@@ -40,7 +40,7 @@ recipe's hooks: block, which is a different (and unimplemented) mechanism.`,
 // project's `kapi check --ship` gates and, when they fail, tells Claude to keep
 // working (with the findings) instead of finishing. This turns the verify gate
 // into a hard guardrail — the assistant cannot end a turn with a project that
-// is off-brand, off-terminology, or with broken placeholders.
+// is non-compliant, off-terminology, or with broken placeholders.
 func newHookStopCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",

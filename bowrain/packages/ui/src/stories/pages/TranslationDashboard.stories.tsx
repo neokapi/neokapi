@@ -6,7 +6,7 @@ import {
   sampleDashboardStats,
   largeDashboardStats,
   shipStateDashboardStats,
-  onBrandDashboardStats,
+  complianceDashboardStats,
 } from "../fixtures";
 
 const meta: Meta<typeof TranslationDashboard> = {
@@ -63,13 +63,13 @@ export const WithShipStates: Story = {
 };
 
 /**
- * Server-derived on-brand rates beside each ship-state badge: fr-FR is
+ * Server-derived compliance rates beside each ship-state badge: fr-FR is
  * voice-informed (worker draft scoring has run), the others are checks-only —
  * the tooltip states the basis so the number is never over-read.
  */
-export const WithOnBrandRates: Story = {
+export const WithComplianceRates: Story = {
   args: {
-    stats: onBrandDashboardStats,
+    stats: complianceDashboardStats,
     projectName: "Demo App",
   },
 };

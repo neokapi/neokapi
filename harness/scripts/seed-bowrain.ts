@@ -452,7 +452,7 @@ async function main(): Promise<void> {
   const joined = await ensureMember(ws, aliceToken, bobToken);
 
   // Voice profile + Project 2 "Marketing Site" (the correction-loop dropdown
-  // needs a SECOND project) + off-brand content + correction stream.
+  // needs a SECOND project) + non-compliant content + correction stream.
   const profileId = await ensureBrandProfile(ws, aliceToken, "Acme Voice");
   const marketingId = await ensureProject(ws, aliceToken, "Marketing Site", "en", ["fr", "de"]);
   await uploadIfAbsent(ws, marketingId, aliceToken, "marketing.html", MARKETING_HTML);

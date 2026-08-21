@@ -225,7 +225,7 @@ type contextFingerprints struct {
 }
 
 func newContextFingerprints(a *App, cmd Command, proj *project.KapiProject, root string) (*contextFingerprints, error) {
-	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err != nil {
 		return nil, err
 	}

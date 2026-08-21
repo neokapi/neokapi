@@ -63,7 +63,7 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	}
 
 	kapiProject := &proj.Recipe.KapiProject
-	storePath := filepath.Join(proj.Root, "brand.db")
+	storePath := filepath.Join(proj.Root, "voice.db")
 
 	// Profiles are carried once per distinct name: several collections
 	// governed by one voice cost one copy of it on the wire, and the entries

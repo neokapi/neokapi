@@ -26,7 +26,7 @@ const (
 
 	// Quality notifications
 	NotificationGateFailed NotificationType = "quality.gate.failed"
-	NotificationBrandDrift NotificationType = "brand.drift"
+	NotificationVoiceDrift NotificationType = "voice.drift"
 
 	// Social notifications
 	NotificationMention NotificationType = "mention"

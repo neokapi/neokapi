@@ -1,10 +1,10 @@
 import { DEFAULT_MIN_SCORE } from "./complianceBar";
 
 /**
- * Reading the authored on-brand bar out of a profile-editor field.
+ * Reading the authored compliance bar out of a profile-editor field.
  *
  * `min_score` is the one governance number a voice profile carries: the server
- * excludes a block scoring below it from the on-brand rate and refuses to
+ * excludes a block scoring below it from the compliance rate and refuses to
  * auto-approve it (core/profile's ComplianceBar, mirrored by `complianceBar`).
  * The editors expose it as free text so "unset" stays expressible — a blank
  * field is the default bar, not the number zero — and this module is the one
@@ -13,7 +13,7 @@ import { DEFAULT_MIN_SCORE } from "./complianceBar";
 
 /** Help text under the bar field; it names the default a blank field means. */
 export const MIN_SCORE_HELP =
-  `Blocks scoring below this bar are not on-brand and are never auto-approved. ` +
+  `Blocks scoring below this bar are not compliant and are never auto-approved. ` +
   `Leave blank for the default (${DEFAULT_MIN_SCORE}).`;
 
 /** An authored bar, and whether the text it came from was a legal one. */

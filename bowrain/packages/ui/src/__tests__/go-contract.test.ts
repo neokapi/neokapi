@@ -179,7 +179,7 @@ const TS = {
   api: "bowrain/packages/ui/src/types/api.ts",
   brandGraph: "bowrain/packages/ui/src/types/brand-graph.ts",
   blockStatus: "bowrain/packages/ui/src/components/editor/blockStatus.ts",
-  chip: "bowrain/packages/ui/src/components/OnBrandRateChip.tsx",
+  chip: "bowrain/packages/ui/src/components/ComplianceRateChip.tsx",
   atoms: "bowrain/packages/ui/src/brand-hub/shell/atoms.tsx",
   restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
   brandTypes: "bowrain/packages/ui/src/brand/types.ts",
@@ -254,21 +254,21 @@ describe("TermStatus mirrors model.TermStatus", () => {
   });
 });
 
-describe("OnBrandBasis mirrors store.OnBrandBasis", () => {
-  const members = goConstValues(src.storeTypes, "OnBrandBasis");
+describe("ComplianceBasis mirrors store.ComplianceBasis", () => {
+  const members = goConstValues(src.storeTypes, "ComplianceBasis");
 
   it("enumerates every basis the server can send", () => {
     expect(members.size).toBe(4);
     expectSameMembers(
-      "OnBrandBasis",
+      "ComplianceBasis",
       { path: GO.storeTypes, members },
-      { path: TS.api, members: tsUnionMembers(src.api, "OnBrandBasis") },
+      { path: TS.api, members: tsUnionMembers(src.api, "ComplianceBasis") },
     );
   });
 
   it("has a tooltip explanation for every basis", () => {
     expectSameMembers(
-      "OnBrandBasis explanations",
+      "ComplianceBasis explanations",
       { path: GO.storeTypes, members },
       { path: TS.chip, members: tsObjectKeys(src.chip, "const basisExplanations") },
     );

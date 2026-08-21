@@ -164,7 +164,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	//
 	// Every source is consulted, not just the voice vocabulary. A term decision
 	// lands in the terminology source (`kapi apply` writes concepts there), so a
-	// brand-vocabulary-only filter enforced a source nothing writes to and
+	// voice-vocabulary-only filter enforced a source nothing writes to and
 	// ignored the one everything writes to — retrieval reported a word as retired
 	// while every gate passed it.
 	if t.terminology != nil {

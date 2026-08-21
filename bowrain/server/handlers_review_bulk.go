@@ -23,7 +23,7 @@ type ApprovePassingRequest struct {
 
 // ApprovePassingResponse reports what the bulk pass did. RemainingPending is the
 // count of targets still awaiting review after the pass (the excluded
-// failing/off-brand blocks). ReviewCompleted is true when this pass emptied the
+// failing/non-compliant blocks). ReviewCompleted is true when this pass emptied the
 // project's whole review queue and kicked off the completing convergence run →
 // delivery, so a surface can show "all approved · delivering…".
 //
@@ -44,7 +44,7 @@ type ApprovePassingResponse struct {
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
 // awaiting review AND clears the ship bar — passes the project's QA checks with
-// no error-severity finding AND meets the brand on-brand bar (the same #1365
+// no error-severity finding AND meets the brand compliance bar (the same #1365
 // shipstate predicate the dashboard aggregates). Blocks that fail checks or fall
 // below the bar are EXCLUDED and left pending for a person. Approved blocks are
 // promoted to reviewed; the locales that clear their review queue have their
@@ -101,9 +101,9 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	}
 
 	scores := latestVoiceScores(ctx, s.VoiceStore, pid, stream)
-	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
+	// The same terminology gate the dashboard ship/compliant pass uses, resolved
 	// once (workspace terms snapshot + per-locale brand profile): a pending
-	// draft that uses a forbidden term or misses a mandated one is off-brand and
+	// draft that uses a forbidden term or misses a mandated one is non-compliant and
 	// must not be auto-approved. Nil gate (no terms/brand store) is a no-op.
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
@@ -148,7 +148,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						touchedSet[loc] = true
 						modified = true
 					} else {
-						// Failing/off-brand: left pending for a person, and named
+						// Failing/non-compliant: left pending for a person, and named
 						// by the bar it missed rather than lumped into one count.
 						skipped++
 						skippedBy[blocker]++
@@ -165,7 +165,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 				}
 			}
 
-			// What this batch leaves pending: the excluded (failing/off-brand)
+			// What this batch leaves pending: the excluded (failing/non-compliant)
 			// targets. Counted after the promotion above, over the same blocks,
 			// so an approval in this pass is not also reported as outstanding.
 			for _, sb := range batch {

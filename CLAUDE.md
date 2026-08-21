@@ -265,13 +265,21 @@ that bite most often:
   **Voice is the mechanism; brand is one use of it.** The context type is the
   **voice profile**: the recipe key is `defaults.voice`, the command family is
   `kapi voice`, the check gate is `--voice`, the tools are `voice-vocab-check` /
-  `voice-check` / `voice-infer`, the annotation type is `voice`, and the store
-  package is `host/storage/voice`. *Brand voice* stays only where the prose
-  describes the common use case, never as the name of the mechanism. What stays
-  behind the rename boundary: the `manage_brand` permission id, the `brand_*`
-  tables and columns, the sync wire's brand fields, analytics event ids, the
-  `brand` migration-ledger table, the on-disk `brand.db` / `brands/` store
-  names, and bowrain's own top-level `brand_voice:` platform extension.
+  `voice-check` / `voice-infer`, the annotation type is `voice`, the store
+  packages are `host/storage/voice` and `bowrain/voice`, the permission is
+  `manage_voice`, the tables are `voice_*` under `voice_schema_migrations`, the
+  on-disk store is `voice/voice.db` (beside `memory/memory.db` and
+  `terms/terms.db`), the scoring dimension is `compliance`, and the MCP tool is
+  `score_voice_compliance`. *Brand voice* belongs in prose describing the common
+  use case, never as the name of the mechanism. A `brand`-named identifier is a
+  leftover.
+
+  **Brand is a coordinate, not a subsystem.** `core/project.BrandAxis` sits
+  beside `ProductAxis` and `ChannelAxis`; a recipe declares it under
+  `defaults.coordinates` — inherited by every collection — or on a collection
+  that sits elsewhere. Content sits AT a brand the way it sits at a product;
+  what governs it there (a voice profile, terms, gates) is bound at the point
+  rather than being part of it. See `strategy/context-axes.md`.
 
   **The terms-store selector is `--termstore`, not `--terms`.** `--tm` became
   `--memory` (#1520), but `--termbase` became `--termstore` (#1505) rather than

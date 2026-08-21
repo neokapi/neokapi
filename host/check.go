@@ -770,7 +770,7 @@ func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for voice: %w", lerr)
 	}
-	storePath, serr := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, serr := resolveResourcePath(cmd, "voice", "voice.db")
 	if serr != nil {
 		return nil, serr
 	}

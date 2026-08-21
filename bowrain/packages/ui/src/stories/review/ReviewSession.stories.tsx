@@ -51,9 +51,9 @@ const localeStat = (over: Record<string, unknown>) => ({
   approved_blocks: 0,
   failing_checks: 0,
   ship_state: "pending" as const,
-  on_brand_rate: 0.82,
-  on_brand_basis: "voice+checks" as const,
-  on_brand_blocks: 2,
+  compliance_rate: 0.82,
+  compliance_basis: "voice+checks" as const,
+  compliant_blocks: 2,
   ...over,
 });
 

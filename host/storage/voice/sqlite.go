@@ -119,8 +119,8 @@ var migrations = []storage.Migration{
 	},
 	{
 		Version:     3,
-		Description: "the profile's own on-brand bar",
-		// min_score is the score a block must reach to count as on-brand: 0
+		Description: "the profile's own compliance bar",
+		// min_score is the score a block must reach to count as compliant: 0
 		// means the default (core/profile.DefaultMinScore), which is what every
 		// profile in an existing database answered while the column was absent.
 		// The ship gate and bulk approve-passing read it through

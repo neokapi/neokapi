@@ -41,7 +41,7 @@ type EvalOptions struct {
 	Streams []string
 
 	// Locales restricts which locales each block is evaluated in. When empty,
-	// each block is evaluated in its own source locale — the canonical, on-brand
+	// each block is evaluated in its own source locale — the canonical, compliant
 	// source text — which is what brand vocabulary and terminology enforcement
 	// match against. When set, each block is evaluated in every listed locale
 	// for which it has text (Block.Text): the source locale uses the source

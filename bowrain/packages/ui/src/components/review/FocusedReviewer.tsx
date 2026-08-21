@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Button, Badge, cn, directionAttrs } from "@neokapi/ui-primitives";
-import type { EntityInfo, OnBrandBasis } from "../../types/api";
-import { OnBrandRateChip } from "../OnBrandRateChip";
+import type { EntityInfo, ComplianceBasis } from "../../types/api";
+import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/HighlightedSource";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
@@ -28,11 +28,11 @@ import {
   type ReviewQueueVerdict,
 } from "./reviewQueue";
 
-/** Locale-level on-brand context for the reviewer header chip. */
-export interface ReviewerOnBrand {
+/** Locale-level compliance context for the reviewer header chip. */
+export interface ReviewerCompliance {
   rate: number;
-  basis: OnBrandBasis;
-  onBrandBlocks?: number;
+  basis: ComplianceBasis;
+  compliantBlocks?: number;
   translatedBlocks?: number;
 }
 
@@ -45,8 +45,8 @@ export interface FocusedReviewerProps {
   position: { index: number; total: number };
   /** Locale display-name resolver. */
   localeName?: (locale: string) => string;
-  /** Locale-level on-brand context; renders the header chip when present. */
-  onBrand?: ReviewerOnBrand;
+  /** Locale-level compliance context; renders the header chip when present. */
+  compliance?: ReviewerCompliance;
   /** In edit mode the target column shows the inline-code editor. */
   editing: boolean;
   /** Disables the action buttons while a decision is in flight. */
@@ -100,7 +100,7 @@ const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string
  * FocusedReviewer is the review session's right pane: one pending block shown
  * source-vs-target, both sides rendered by the same cell primitive the
  * translation editor uses (inline codes as chips, entity marks, formatting
- * applied), with its checks and on-brand signal inline. Review is
+ * applied), with its checks and compliance signal inline. Review is
  * bidirectional — the reviewer can act on the target (approve / reject / edit →
  * re-check, and turn a fix into a brand rule) and on the source (select a span
  * → mark a term or suggest a brand rule). All actions are emitted to the parent
@@ -111,7 +111,7 @@ export function FocusedReviewer({
   sourceLocale,
   position,
   localeName,
-  onBrand,
+  compliance,
   editing,
   busy,
   reChecking,
@@ -155,7 +155,7 @@ export function FocusedReviewer({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="focused-reviewer">
-      {/* Header: identity, position, status, on-brand */}
+      {/* Header: identity, position, status, compliance */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="truncate text-sm font-semibold" title={entry.itemName}>
           {entry.itemName}
@@ -200,17 +200,17 @@ export function FocusedReviewer({
           <span
             className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground"
             data-testid="reviewer-voice-score"
-            title="The block's latest voice score against its profile's on-brand bar"
+            title="The block's latest voice score against its profile's compliance bar"
           >
             Voice {entry.voiceScore}/{entry.voiceBar}
           </span>
         )}
-        {onBrand && (
-          <OnBrandRateChip
-            rate={onBrand.rate}
-            basis={onBrand.basis}
-            onBrandBlocks={onBrand.onBrandBlocks}
-            translatedBlocks={onBrand.translatedBlocks}
+        {compliance && (
+          <ComplianceRateChip
+            rate={compliance.rate}
+            basis={compliance.basis}
+            compliantBlocks={compliance.compliantBlocks}
+            translatedBlocks={compliance.translatedBlocks}
           />
         )}
         <div className="flex-1" />
@@ -380,7 +380,7 @@ export function FocusedReviewer({
           </section>
         </div>
 
-        {/* Checks + on-brand, inline: why this block is flagged (or why it passed) */}
+        {/* Checks + compliance, inline: why this block is flagged (or why it passed) */}
         <section className="mt-4 space-y-2" data-testid="reviewer-checks">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

@@ -529,7 +529,7 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	assert.Equal(t, "leverage", updated.Personas["jordan"].Avoided[0].Term)
 }
 
-// TestProfileMinScoreRoundTrip holds the profile's own on-brand bar across
+// TestProfileMinScoreRoundTrip holds the profile's own compliance bar across
 // every path a profile takes through this store. A column the store does not
 // select comes back as a zero rather than failing the scan, so a write that
 // reads back at the default bar is silent — only a round-trip sees it, and the

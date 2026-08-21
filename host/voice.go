@@ -192,10 +192,10 @@ examples:
 // ---------------------------------------------------------------------------
 
 // OpenVoiceStore opens the local SQLite voice store using the standard
-// --name/--local/--file resource flags (default ./brand.db), mirroring the
+// --name/--local/--file resource flags (default ./voice.db), mirroring the
 // terms/tm pattern.
 func (a *App) OpenVoiceStore(cmd Command) (*voicestore.SQLiteStore, string, error) {
-	dbPath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	dbPath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err != nil {
 		return nil, "", err
 	}
@@ -352,9 +352,9 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 	}
 
 	// The local voice store from the standard --name/--local/--file resource
-	// flags; commands without those flags fall through to the ./brand.db
+	// flags; commands without those flags fall through to the ./voice.db
 	// default, exactly as before.
-	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -394,7 +394,7 @@ type VoiceResolveOptions struct {
 	Channel string
 	Persona string
 	// StorePath is the local SQLite voice store consulted when the recipe
-	// binds defaults.voice.profile. Empty means "brand.db" relative to
+	// binds defaults.voice.profile. Empty means "voice.db" relative to
 	// the project root (the CLI's flag-free default resolves against the
 	// working directory instead, via its resource flags).
 	StorePath string
@@ -519,7 +519,7 @@ func voiceStorePath(storePath, root string) string {
 	if storePath != "" {
 		return storePath
 	}
-	return filepath.Join(root, "brand.db")
+	return filepath.Join(root, "voice.db")
 }
 
 // loadVoiceAtGovernance loads the voice profile an already-resolved governance
@@ -646,7 +646,7 @@ func loadProfileFile(path string) (*coreprofile.VoiceProfile, error) {
 // lookupStoreProfile finds a profile in the local store by ID or by name,
 // resolving the store from the standard resource flags.
 func (a *App) lookupStoreProfile(cmd Command, name string) (*coreprofile.VoiceProfile, error) {
-	dbPath, err := resolveResourcePath(cmd, "brands", "brand.db")
+	dbPath, err := resolveResourcePath(cmd, "voice", "voice.db")
 	if err != nil {
 		return nil, err
 	}

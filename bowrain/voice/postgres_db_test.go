@@ -119,7 +119,7 @@ func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
 	require.Error(t, err, "UpdateProfile of an unknown profile fails at the versioning read")
 }
 
-// TestPostgresVoiceStore_MinScoreRoundTrips pins the profile's own on-brand bar
+// TestPostgresVoiceStore_MinScoreRoundTrips pins the profile's own compliance bar
 // onto every read the store answers. min_score was declared on the model, sent
 // on the wire, and read by four UI surfaces, but the store's column list never
 // carried it: every profile came back with the zero value, so ComplianceBar

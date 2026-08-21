@@ -15,7 +15,7 @@ import (
 )
 
 // Workspace brand-compliance rollup — the all-surfaces board that answers "how
-// on-brand is every project right now?" in one matrix. It is a pure aggregation
+// compliant is every project right now?" in one matrix. It is a pure aggregation
 // over already-stored per-project scores and trends (the same numbers the
 // per-project ComplianceOverview shows): nothing is re-scored here.
 

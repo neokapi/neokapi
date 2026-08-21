@@ -22,7 +22,7 @@ import { getBlockStatus, getTargetText } from "../editor/blockStatus";
  * carried; the server applies two further bars (terminology and the brand voice
  * score), so a "no failing checks" bucket over-counted by exactly the blocks
  * approve-passing then refused. The entries now carry all three, and this
- * mirrors shipstate.blockOnBrandAndPassing over them.
+ * mirrors shipstate.blockCompliantAndPassing over them.
  */
 export type ReviewQueueVerdict = "failing" | "passing";
 
@@ -161,7 +161,7 @@ export function entryBlockers(entry: ReviewEntry): ReviewBlocker[] {
 /**
  * The bucket for an entry: `passing` when it clears every bar the server
  * applies on approve, `failing` otherwise. The mirror of
- * shipstate.blockOnBrandAndPassing over the evidence the queue payload carries.
+ * shipstate.blockCompliantAndPassing over the evidence the queue payload carries.
  */
 export function entryVerdict(entry: ReviewEntry): ReviewQueueVerdict {
   return entryBlockers(entry).length === 0 ? "passing" : "failing";

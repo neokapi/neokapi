@@ -70,24 +70,8 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 
 	sql := Migrations[0].SQL
 
-	// The tables this subsystem carried under its former name are dropped by the
-	// baseline, not carried across: pre-live, reset beats migrate, and a
-	// renamed ledger replays the baseline against a database that still has
-	// them.
-	for _, gone := range []string{
-		"DROP TABLE IF EXISTS brand_profiles;",
-		"DROP TABLE IF EXISTS brand_profile_versions;",
-		"DROP TABLE IF EXISTS brand_profile_tags;",
-		"DROP TABLE IF EXISTS brand_voice_scores;",
-		"DROP TABLE IF EXISTS brand_voice_corrections;",
-		"DROP TABLE IF EXISTS brand_rule_decisions;",
-		"DROP TABLE IF EXISTS brand_schema_migrations;",
-	} {
-		assert.Contains(t, sql, gone, "the baseline must clear the ground the rename left behind")
-	}
-
 	// The correction-learning loop's schema, the personas column folded in from
-	// version 2, and the on-brand bar from version 4 are all in the one baseline.
+	// version 2, and the compliance bar from version 4 are all in the one baseline.
 	for _, want := range []string{
 		"voice_rule_decisions", "voice_corrections", "voice_profile_versions",
 		"autonomy", "personas", "min_score",

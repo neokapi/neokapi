@@ -1183,7 +1183,7 @@ var Migrations = []storage.Migration{
 			-- One row per (block, locale) whose target has been judged against
 			-- the ship gate: fails is true where the target carries an
 			-- error-severity check finding or breaches terminology governance.
-			-- The dashboard's failing and on-brand counts are aggregates over
+			-- The dashboard's failing and compliant counts are aggregates over
 			-- this table, so a load costs two grouped queries rather than a
 			-- read of every block the customer has.
 			--

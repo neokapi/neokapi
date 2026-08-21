@@ -49,7 +49,7 @@ export function ComplianceOverview() {
   const dimensions = aggregateDimensions(recentScores);
   const hasData = recentScores.length > 0 || trendSeries.length > 0;
   // Scores name the profile that produced them, so the bar comes from that
-  // profile — the same pairing the server makes when aggregating on-brand.
+  // profile — the same pairing the server makes when aggregating compliance.
   const bar = barForProfile(profiles, recentScores[0]?.profile_id);
 
   return (

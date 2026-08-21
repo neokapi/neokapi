@@ -75,7 +75,7 @@ type Story = StoryObj<typeof FocusedReviewer>;
 export const Passing: Story = {
   args: {
     entry: entry({ termCompliance: "compliant", voiceScore: 94, voiceBar: 80 }),
-    onBrand: { rate: 0.94, basis: "voice+checks", onBrandBlocks: 47, translatedBlocks: 50 },
+    compliance: { rate: 0.94, basis: "voice+checks", compliantBlocks: 47, translatedBlocks: 50 },
   },
 };
 
@@ -86,7 +86,12 @@ export const Passing: Story = {
 export const TermViolation: Story = {
   args: {
     entry: entry({ termCompliance: "violation", voiceScore: 91, voiceBar: 80 }),
-    onBrand: { rate: 0.81, basis: "voice+checks+terms", onBrandBlocks: 40, translatedBlocks: 50 },
+    compliance: {
+      rate: 0.81,
+      basis: "voice+checks+terms",
+      compliantBlocks: 40,
+      translatedBlocks: 50,
+    },
   },
 };
 
@@ -94,7 +99,12 @@ export const TermViolation: Story = {
 export const BelowVoiceBar: Story = {
   args: {
     entry: entry({ termCompliance: "compliant", voiceScore: 62, voiceBar: 90 }),
-    onBrand: { rate: 0.66, basis: "voice+checks+terms", onBrandBlocks: 33, translatedBlocks: 50 },
+    compliance: {
+      rate: 0.66,
+      basis: "voice+checks+terms",
+      compliantBlocks: 33,
+      translatedBlocks: 50,
+    },
   },
 };
 
@@ -111,7 +121,7 @@ export const FailingChecks: Story = {
         { type: "length", severity: "warning", message: "Target is much longer than the source." },
       ],
     }),
-    onBrand: { rate: 0.7, basis: "checks", onBrandBlocks: 35, translatedBlocks: 50 },
+    compliance: { rate: 0.7, basis: "checks", compliantBlocks: 35, translatedBlocks: 50 },
   },
 };
 
@@ -162,6 +172,6 @@ export const WithBrandProfile: Story = {
   args: {
     entry: entry({}),
     brandProfileId: "prof-1",
-    onBrand: { rate: 0.88, basis: "voice+checks", onBrandBlocks: 44, translatedBlocks: 50 },
+    compliance: { rate: 0.88, basis: "voice+checks", compliantBlocks: 44, translatedBlocks: 50 },
   },
 };
