@@ -18,7 +18,7 @@ import type { StreamInfo, StreamVisibility } from "../types/api";
 import type { VoiceProfile } from "../brand/types";
 
 /** Binding key stored inside a stream's properties map. */
-const BRAND_VOICE_KEY = "brand_voice_profile_id";
+const BRAND_VOICE_KEY = "voice_profile_id";
 
 export interface StreamEditDialogProps {
   stream: StreamInfo | null;

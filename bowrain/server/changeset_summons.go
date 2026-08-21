@@ -28,7 +28,7 @@ import (
 // Separation of duties is the reason the reach is computed rather than assumed:
 // HandleApproveChangeSet refuses the author, so a summons that reached only the
 // author would be a summons to nobody. changeSetReviewers therefore returns the
-// members who hold manage_brand — the approve/reject gate — minus the author.
+// members who hold manage_voice — the approve/reject gate — minus the author.
 
 // changeSetReviewPath is the web hub's route for one change-set. The sub-nav
 // calls the surface "Changes", and the URL names the destination the sub-nav
@@ -38,7 +38,7 @@ func changeSetReviewPath(wsSlug, changesetID string) string {
 }
 
 // changeSetReviewers lists the workspace members eligible to review a governed
-// change-set: those whose effective workspace permissions include manage_brand
+// change-set: those whose effective workspace permissions include manage_voice
 // (the gate on approve and reject), excluding the change-set's author, who
 // separation of duties bars from reviewing their own work.
 //
@@ -60,7 +60,7 @@ func (s *Server) changeSetReviewers(ctx context.Context, wsID, authorID string) 
 		if m == nil || m.UserID == "" || m.UserID == authorID {
 			continue
 		}
-		if s.workspaceRolePermissions(ctx, wsID, m.Role).Has(platauth.PermManageBrand) {
+		if s.workspaceRolePermissions(ctx, wsID, m.Role).Has(platauth.PermManageVoice) {
 			out = append(out, m.UserID)
 		}
 	}
@@ -106,7 +106,7 @@ func (s *Server) summonChangeSetReviewers(c echo.Context, cs *knowledge.ChangeSe
 	if len(reviewers) == 0 {
 		// Not an error: a solo workspace has nobody but the author, and the task
 		// still lands unassigned in the queue. Worth a line, because it is also
-		// what a workspace with no manage_brand member other than the author
+		// what a workspace with no manage_voice member other than the author
 		// looks like, and that one is a configuration problem.
 		slog.InfoContext(ctx, "change-set submitted with no eligible reviewer; the review task is unassigned",
 			"workspace_id", cs.WorkspaceID, "change_set_id", cs.ID, "author", cs.CreatedBy)

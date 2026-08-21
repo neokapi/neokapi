@@ -192,7 +192,7 @@ func TestSubmitChangeSetSkipsAuthorAndNonReviewers(t *testing.T) {
 		recipients = append(recipients, m.to)
 	}
 	assert.Equal(t, []string{"owner@acme.test"}, recipients,
-		"the author cannot approve their own change-set, and a member has no manage_brand")
+		"the author cannot approve their own change-set, and a member has no manage_voice")
 	assert.Contains(t, h.openTasks(t)[0].Title, "1 change", "one change reads as singular")
 }
 

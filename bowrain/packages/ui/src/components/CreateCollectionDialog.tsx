@@ -14,7 +14,7 @@ import type { VoiceProfile } from "../brand/types";
 import { Upload, Plug } from "./icons";
 
 /** Binding key stored inside a collection's connector_config map. */
-const BRAND_VOICE_KEY = "brand_voice_profile_id";
+const BRAND_VOICE_KEY = "voice_profile_id";
 
 export interface CreateCollectionDialogProps {
   open: boolean;

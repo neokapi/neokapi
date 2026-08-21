@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import (
 	"testing"
@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
-	// Compile-time check that PostgresBrandStore satisfies BrandStore.
-	var _ coreprofile.Store = (*PostgresBrandStore)(nil)
+func TestPostgresVoiceStore_ImplementsInterface(t *testing.T) {
+	// Compile-time check that PostgresVoiceStore satisfies VoiceStore.
+	var _ coreprofile.Store = (*PostgresVoiceStore)(nil)
 }
 
 func TestScanProfile_Roundtrip(t *testing.T) {
@@ -73,7 +73,7 @@ func TestBrandMigrations_SingleBaseline(t *testing.T) {
 	// The correction-learning loop's schema, the personas column folded in from
 	// version 2, and the on-brand bar from version 4 are all in the one baseline.
 	for _, want := range []string{
-		"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions",
+		"voice_rule_decisions", "voice_corrections", "voice_profile_versions",
 		"autonomy", "personas", "min_score",
 	} {
 		assert.Contains(t, sql, want)
@@ -82,7 +82,7 @@ func TestBrandMigrations_SingleBaseline(t *testing.T) {
 	// A column the baseline only DECLARES never reaches a database that already
 	// has the table: CREATE ... IF NOT EXISTS is a no-op there. Every column
 	// added after the table existed needs its own idempotent ALTER beside it.
-	assert.Contains(t, sql, "ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS min_score",
+	assert.Contains(t, sql, "ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS min_score",
 		"a live database gains min_score by ALTER, not by re-reading the CREATE")
 
 	// Idempotent throughout: a baseline that is re-applied must not fail on

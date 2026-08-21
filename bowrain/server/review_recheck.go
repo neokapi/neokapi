@@ -196,10 +196,10 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 // brand-vocabulary matcher (core/profile.MatchVocabulary — the single source the
 // voice-vocab-check tool and the blast radius both call) as the oracle.
 func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) error {
-	if s.BrandStore == nil || profileID == "" {
+	if s.VoiceStore == nil || profileID == "" {
 		return nil
 	}
-	profile, err := s.BrandStore.GetProfile(ctx, profileID)
+	profile, err := s.VoiceStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return fmt.Errorf("read voice profile %s: %w", profileID, err)
 	}

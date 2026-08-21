@@ -138,7 +138,7 @@ function skipReasons(result: ApprovePassingResult): string {
 function resolveBrandProfile(project: ProjectInfo, stream: string): string | undefined {
   const s = project.streams?.find((x) => x.name === stream);
   return (
-    s?.properties?.brand_voice_profile_id || project.properties?.brand_voice_profile_id || undefined
+    s?.properties?.voice_profile_id || project.properties?.voice_profile_id || undefined
   );
 }
 

@@ -61,7 +61,7 @@ type BrandRollupResponse struct {
 // ?drop_points,?days). Gated only by workspace membership, matching the existing
 // per-project brand reads.
 func (s *Server) HandleGetBrandVoiceRollup(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	if s.Services == nil || s.Services.Project == nil {
@@ -138,7 +138,7 @@ func (s *Server) brandRollupEntry(
 	// Effective bound profile via the resolution ladder (collection → stream →
 	// project → workspace default). Best-effort: an unresolved profile just
 	// leaves the column blank.
-	if profile, err := brandscope.Resolve(ctx, cs, wd, s.BrandStore, brandscope.Scope{
+	if profile, err := brandscope.Resolve(ctx, cs, wd, s.VoiceStore, brandscope.Scope{
 		ProjectID:   p.ID,
 		WorkspaceID: wsID,
 	}); err == nil && profile != nil {
@@ -148,7 +148,7 @@ func (s *Server) brandRollupEntry(
 
 	// Overall score + per-dimension breakdown from the stored per-block checks —
 	// the same rounded-mean aggregation the per-project ComplianceOverview shows.
-	if scores, err := s.BrandStore.GetScores(ctx, p.ID, ""); err == nil && len(scores) > 0 {
+	if scores, err := s.VoiceStore.GetScores(ctx, p.ID, ""); err == nil && len(scores) > 0 {
 		overall := rollupAverageScore(scores)
 		entry.Overall = &overall
 		entry.Dimensions = rollupAggregateDimensions(scores)
@@ -157,7 +157,7 @@ func (s *Server) brandRollupEntry(
 	}
 
 	// Trend direction + drift from the daily score trend.
-	if trends, err := s.BrandStore.GetScoreTrends(ctx, p.ID, days); err == nil && len(trends) > 0 {
+	if trends, err := s.VoiceStore.GetScoreTrends(ctx, p.ID, days); err == nil && len(trends) > 0 {
 		drift := coreprofile.AnalyzeDrift(trends, cfg)
 		entry.Drift = &drift
 		entry.Trend = rollupTrend(drift)
@@ -216,7 +216,7 @@ var rollupDimensionOrder = []coreprofile.Dimension{
 	coreprofile.DimensionStyle,
 	coreprofile.DimensionVocabulary,
 	coreprofile.DimensionClarity,
-	coreprofile.DimensionBrand,
+	coreprofile.DimensionCompliance,
 }
 
 // rollupAggregateDimensions averages each dimension's score and penalty across

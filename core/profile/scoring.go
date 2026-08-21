@@ -12,7 +12,7 @@ const (
 	DimensionStyle      Dimension = "style"
 	DimensionVocabulary Dimension = "vocabulary"
 	DimensionClarity    Dimension = "clarity"
-	DimensionBrand      Dimension = "brand_compliance"
+	DimensionCompliance Dimension = "compliance"
 )
 
 // Severity re-exports the framework severity scale so voice findings share one
@@ -65,7 +65,7 @@ func CalculateScore(findings []VoiceFinding) ComplianceScore {
 		counts[Dimension(f.Category)]++
 	}
 
-	allDims := []Dimension{DimensionTone, DimensionStyle, DimensionVocabulary, DimensionClarity, DimensionBrand}
+	allDims := []Dimension{DimensionTone, DimensionStyle, DimensionVocabulary, DimensionClarity, DimensionCompliance}
 	dimensions := make([]DimensionScore, 0, len(allDims))
 	total := 0
 	for _, dim := range allDims {

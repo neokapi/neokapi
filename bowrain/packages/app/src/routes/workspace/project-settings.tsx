@@ -152,10 +152,10 @@ export function ProjectSettingsRoute() {
             </div>
             <select
               className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              value={project.properties?.brand_voice_profile_id ?? ""}
+              value={project.properties?.voice_profile_id ?? ""}
               onChange={async (e) => {
                 await adapter.updateProject(ws, project.id, {
-                  properties: { brand_voice_profile_id: e.target.value },
+                  properties: { voice_profile_id: e.target.value },
                 });
                 invalidateProject();
               }}

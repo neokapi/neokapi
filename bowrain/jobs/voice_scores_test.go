@@ -3,10 +3,10 @@ package jobs
 import (
 	"testing"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,20 +17,20 @@ import (
 // store are safe no-ops.
 func TestPersistDraftVoiceScores(t *testing.T) {
 	db := pgtest.NewTestDB(t)
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
 	ctx := t.Context()
 
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		Scope: "ws-1",
 		Name:  "Voice",
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{{Term: "synergy", Replacement: "teamwork", Severity: "critical"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy", Replacement: "teamwork", Severity: "critical"}},
 		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
 
-	deps := &WorkerDeps{BrandStore: bs}
+	deps := &WorkerDeps{VoiceStore: bs}
 	job := &TranslationJob{ID: "job-vs", ProjectID: "proj-vs", TargetLocale: "fr"}
 
 	clean := model.NewBlock("b-clean", "Hello")
@@ -47,7 +47,7 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 
 	scores, err := bs.GetScores(ctx, "proj-vs", "fr")
 	require.NoError(t, err)
-	byBlock := map[string]*brand.StoredScore{}
+	byBlock := map[string]*coreprofile.StoredScore{}
 	for _, sc := range scores {
 		byBlock[sc.BlockID] = sc
 	}
@@ -59,7 +59,7 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 
 	off := byBlock["b-off"]
 	require.NotNil(t, off)
-	assert.Less(t, off.Score, brand.DefaultMinScore,
+	assert.Less(t, off.Score, coreprofile.DefaultMinScore,
 		"a critical vocabulary hit drops the draft below the default on-brand bar")
 	assert.NotEmpty(t, off.Findings, "the persisted score carries the findings behind it")
 

@@ -107,7 +107,7 @@ describe("BrandDimensionBreakdown", () => {
     makeDimension({ dimension: "style", score: 72, issues: 2 }),
     makeDimension({ dimension: "vocabulary", score: 55, issues: 3 }),
     makeDimension({ dimension: "clarity", score: 40, issues: 1 }),
-    makeDimension({ dimension: "brand_compliance", score: 88, issues: 0 }),
+    makeDimension({ dimension: "compliance", score: 88, issues: 0 }),
   ];
 
   it("renders dimension labels", () => {
@@ -207,7 +207,7 @@ describe("BrandFindingsList", () => {
   // The wire field is `category`; the list read `dimension`, which no server
   // response carries, so this chip was empty for every real finding.
   it("names the category the server grouped the finding under", () => {
-    render(<BrandFindingsList findings={[makeFinding({ category: "brand_compliance" })]} />);
+    render(<BrandFindingsList findings={[makeFinding({ category: "compliance" })]} />);
     expect(screen.getByText("brand compliance")).toBeInTheDocument();
   });
 

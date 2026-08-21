@@ -52,7 +52,7 @@ func (s *PostgresStore) ContextFunnelCounts(ctx context.Context, projectID, stre
 	// Checked: distinct blocks with at least one recorded score. DISTINCT
 	// matters — a block scored in six locales is one checked block, not six.
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT count(DISTINCT block_id) FROM brand_voice_scores
+		`SELECT count(DISTINCT block_id) FROM voice_scores
 		  WHERE project_id = $1 AND stream = $2`,
 		projectID, stream).Scan(&c.Checked); err != nil {
 		return c, fmt.Errorf("insights: count checked blocks: %w", err)

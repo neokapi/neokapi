@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // BrandScanJobStatus represents the lifecycle state of a brand-scan job.
@@ -81,11 +81,11 @@ type BrandScanSource struct {
 // job: the draft voice profile, its per-field evidence sidecar, candidate
 // glossary terms, and the per-source corpus accounting.
 type BrandScanResult struct {
-	Profile   *brand.VoiceProfile  `json:"profile"`
-	Evidence  *tools.DraftEvidence `json:"evidence"`
-	Terms     []tools.TermEntry    `json:"terms"`
-	Sources   []BrandScanSource    `json:"sources"`
-	Truncated bool                 `json:"truncated"`
+	Profile   *coreprofile.VoiceProfile `json:"profile"`
+	Evidence  *tools.DraftEvidence      `json:"evidence"`
+	Terms     []tools.TermEntry         `json:"terms"`
+	Sources   []BrandScanSource         `json:"sources"`
+	Truncated bool                      `json:"truncated"`
 }
 
 // BrandScanUploadEnvelope is the blob payload written by the brand-scan

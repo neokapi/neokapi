@@ -18,7 +18,7 @@ const dimensions = [
   { dimension: "style", score: 79, penalty: 9, issues: 3 },
   { dimension: "vocabulary", score: 72, penalty: 14, issues: 5 },
   { dimension: "clarity", score: 84, penalty: 6, issues: 2 },
-  { dimension: "brand_compliance", score: 81, penalty: 8, issues: 2 },
+  { dimension: "compliance", score: 81, penalty: 8, issues: 2 },
 ];
 
 const storedScores = Array.from({ length: 14 }).map((_, i) => ({

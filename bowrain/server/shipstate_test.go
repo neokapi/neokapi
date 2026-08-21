@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/state"
@@ -193,8 +193,8 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	require.NoError(t, err)
 	pid := seedShipStateProject(t, cs)
 
-	brandDB := pgtest.NewTestDB(t)
-	bs, err := brandpg.NewPostgresBrandStore(brandDB)
+	voiceDB := pgtest.NewTestDB(t)
+	bs, err := voicepg.NewPostgresVoiceStore(voiceDB)
 	require.NoError(t, err)
 
 	ctx := t.Context()

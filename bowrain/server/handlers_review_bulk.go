@@ -100,7 +100,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		locales = append(locales, loc)
 	}
 
-	scores := latestVoiceScores(ctx, s.BrandStore, pid, stream)
+	scores := latestVoiceScores(ctx, s.VoiceStore, pid, stream)
 	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
 	// once (workspace terms snapshot + per-locale brand profile): a pending
 	// draft that uses a forbidden term or misses a mandated one is off-brand and

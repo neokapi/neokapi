@@ -474,7 +474,7 @@ func TestGetProfileMalformedJSON(t *testing.T) {
 	// failure rather than silently returning a half-populated profile, matching
 	// the Postgres sibling.
 	_, err := store.db.ExecContext(ctx,
-		`UPDATE brand_profiles SET tone = ? WHERE id = ?`, "{not json", "p1")
+		`UPDATE voice_profiles SET tone = ? WHERE id = ?`, "{not json", "p1")
 	require.NoError(t, err)
 
 	_, err = store.GetProfile(ctx, "p1")

@@ -178,7 +178,7 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 
 // TestConceptPermissionGating proves the concept and change-set handlers fail
 // closed: a context lacking the required permission is rejected with 403, and the
-// approve gate requires manage_brand specifically (manage_terms is insufficient).
+// approve gate requires manage_voice specifically (manage_terms is insufficient).
 func TestConceptPermissionGating(t *testing.T) {
 	h := newKGHarness(t)
 
@@ -203,7 +203,7 @@ func TestConceptPermissionGating(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
-	t.Run("approve change-set needs manage_brand not manage_terms", func(t *testing.T) {
+	t.Run("approve change-set needs manage_voice not manage_terms", func(t *testing.T) {
 		c, rec := h.req(http.MethodPost, "/", "", platauth.PermViewContent|platauth.PermManageTerms, "id", "anything")
 		err := h.srv.HandleApproveChangeSet(c)
 		require.Error(t, err)
@@ -451,7 +451,7 @@ func TestChangesetSeparationOfDuties(t *testing.T) {
 
 	const author = "alice"
 	const reviewer = "bob"
-	const manage = platauth.PermViewContent | platauth.PermManageTerms | platauth.PermManageBrand
+	const manage = platauth.PermViewContent | platauth.PermManageTerms | platauth.PermManageVoice
 
 	seedInReview := func(id string) {
 		require.NoError(t, h.fake.CreateChangeSet(ctx, &knowledge.ChangeSet{

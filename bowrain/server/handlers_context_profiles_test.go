@@ -169,9 +169,9 @@ func TestAttachCheckStanding(t *testing.T) {
 		},
 	}
 	for _, sc := range scores {
-		require.NoError(t, srv.BrandStore.StoreScore(ctx, sc))
+		require.NoError(t, srv.VoiceStore.StoreScore(ctx, sc))
 	}
-	require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+	require.NoError(t, srv.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 		ID: "s3", ProjectID: other.ID, Stream: "main", BlockID: "b3",
 		ProfileID: "v-app", Score: 10, CheckedAt: checked,
 	}))

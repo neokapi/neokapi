@@ -137,7 +137,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 	// the queue's verdict is the predicate the bulk pass will actually apply.
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, streamParam(c), wsID)
-	scores := latestVoiceScores(ctx, s.BrandStore, pid, streamParam(c))
+	scores := latestVoiceScores(ctx, s.VoiceStore, pid, streamParam(c))
 
 	entries := make([]pendingReviewEntry, 0, len(refs))
 	for _, r := range refs {

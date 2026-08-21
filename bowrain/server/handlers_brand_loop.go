@@ -31,7 +31,7 @@ const (
 // still needing a human (pending/approved) are returned; ?all=true includes the
 // full history.
 func (s *Server) HandleListCandidates(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	profileID := c.Param("id")
@@ -46,11 +46,11 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 	includeResolved := boolParam(c, "all")
 
 	ctx := c.Request().Context()
-	suggestions, err := s.BrandStore.GetSuggestedRules(ctx, wsID, minCount)
+	suggestions, err := s.VoiceStore.GetSuggestedRules(ctx, wsID, minCount)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	decisions, err := s.BrandStore.ListRuleDecisions(ctx, profileID)
+	decisions, err := s.VoiceStore.ListRuleDecisions(ctx, profileID)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -62,10 +62,10 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 // correction-derived candidate. The rejection persists so the same term stops
 // re-surfacing in the candidate list, and emits brand.voice.rule_rejected.
 func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	var req PromoteRuleRequest
@@ -89,7 +89,7 @@ func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
 		DecidedBy:       userID,
 		DecidedAt:       time.Now().UTC(),
 	}
-	if err := s.BrandStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
+	if err := s.VoiceStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
 		return serverErr(c, err)
 	}
 	s.publishBrandRuleEvent(EventBrandVoiceRuleRejected, wsID, userID, profileID, req.Term, req.Replacement, 0)
@@ -111,10 +111,10 @@ type EvaluateRuleRequest struct {
 // flag, what it resolves, and the per-item breakdown — the number a reviewer sees
 // before the rule lands. Nothing is persisted.
 func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil || s.ContentStore == nil {
+	if s.VoiceStore == nil || s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice or content store not configured"})
 	}
 	var req EvaluateRuleRequest
@@ -126,7 +126,7 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	baseline, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
+	baseline, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -218,12 +218,12 @@ func driftConfigFromQuery(c echo.Context) (coreprofile.DriftConfig, int) {
 // for a project — the recent vs. baseline average and whether compliance has
 // drifted. Safe/read-only: it never fires an alert (use drift-check for that).
 func (s *Server) HandleGetBrandVoiceDrift(c echo.Context) error {
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	projectID := c.Param("id")
 	cfg, days := driftConfigFromQuery(c)
-	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	trends, err := s.VoiceStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -235,15 +235,15 @@ func (s *Server) HandleGetBrandVoiceDrift(c echo.Context) error {
 // This is the action a scheduled job (or a dashboard "check now") invokes; the
 // GET variant is the safe read.
 func (s *Server) HandleRunBrandVoiceDriftCheck(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	projectID := c.Param("id")
 	cfg, days := driftConfigFromQuery(c)
-	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	trends, err := s.VoiceStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -280,7 +280,7 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 		return "", false
 	}
 	rctx := ctx.Request().Context()
-	suggestions, err := s.BrandStore.GetSuggestedRules(rctx, wsID, profile.Autonomy.AutoPromoteAtCount)
+	suggestions, err := s.VoiceStore.GetSuggestedRules(rctx, wsID, profile.Autonomy.AutoPromoteAtCount)
 	if err != nil {
 		return "", false
 	}
@@ -292,7 +292,7 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			return "", false
 		}
 		// Skip if a human (or a prior auto-run) already decided this term.
-		if existing, _ := s.BrandStore.GetRuleDecision(rctx, profile.ID, sug.Term); existing != nil {
+		if existing, _ := s.VoiceStore.GetRuleDecision(rctx, profile.ID, sug.Term); existing != nil {
 			return "", false
 		}
 
@@ -312,11 +312,11 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			rule.ConceptID = conceptID
 		}
 
-		updated, changed, err := coreprofile.PromoteAndSave(rctx, s.BrandStore, profile.ID, rule)
+		updated, changed, err := coreprofile.PromoteAndSave(rctx, s.VoiceStore, profile.ID, rule)
 		if err != nil || !changed {
 			return "", false
 		}
-		_ = s.BrandStore.RecordRuleDecision(rctx, &coreprofile.RuleDecision{
+		_ = s.VoiceStore.RecordRuleDecision(rctx, &coreprofile.RuleDecision{
 			ProfileID:       profile.ID,
 			Term:            sug.Term,
 			Replacement:     sug.Replacement,

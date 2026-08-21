@@ -144,7 +144,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	// ship gate (pending, not governed/ai_shippable) and count against on-brand.
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.BrandStore, projID, "main", gate, stats))
+	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", gate, stats))
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "ship: term violations block the ship gate")
 	assert.Equal(t, 2, fr.FailingChecks, "ship: exactly the two term-violating blocks fail")
@@ -231,11 +231,11 @@ func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	// Deriving with the gate matches deriving with a nil gate exactly.
 	withGate, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.BrandStore, projID, "main", gate, withGate))
+	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", gate, withGate))
 
 	withoutGate, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.BrandStore, projID, "main", nil, withoutGate))
+	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", nil, withoutGate))
 
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "a clean approved locale stays governed")

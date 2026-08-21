@@ -32,7 +32,7 @@ func TestHandleCheckBrandVoice_WholeWordAndConceptID(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
 	check := func(text string) BrandCheckResponse {
 		body := fmt.Sprintf(`{"text":%q}`, text)
@@ -82,18 +82,18 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
 	// A concept-backed promotion that was later demoted keeps its concept on the
 	// durable decision even though the live profile no longer carries the term.
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profile.ID, Term: "legacy", Replacement: "current",
 		Status: coreprofile.RuleDecisionPromoted, ConceptID: "c-legacy",
 		DecidedAt: time.Now().UTC(),
 	}))
 
 	store := func(term, repl string) {
-		require.NoError(t, srv.BrandStore.StoreCorrection(ctx, &coreprofile.Correction{
+		require.NoError(t, srv.VoiceStore.StoreCorrection(ctx, &coreprofile.Correction{
 			ProfileID: profile.ID, Dimension: coreprofile.DimensionVocabulary,
 			OriginalText: term, CorrectedText: repl, CorrectedBy: "u1",
 		}))
@@ -104,7 +104,7 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 		store("plain", "simple")   // concept-less
 	}
 
-	rules, err := srv.BrandStore.GetSuggestedRules(ctx, wsID, 3)
+	rules, err := srv.VoiceStore.GetSuggestedRules(ctx, wsID, 3)
 	require.NoError(t, err)
 	byTerm := map[string]*coreprofile.SuggestedRule{}
 	for _, r := range rules {

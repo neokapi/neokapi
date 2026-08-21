@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,13 +46,13 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 
 	// Brand voice profile bound at the project rung: a competitor term makes
 	// vocabulary measurable; the profile itself is part of the fixture digest.
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		Scope: wsID,
 		Name:  "Acme Voice",
-		Vocabulary: brand.VocabularyRules{
-			CompetitorTerms: []brand.TermRule{{Term: "Localizely"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			CompetitorTerms: []coreprofile.TermRule{{Term: "Localizely"}},
 		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
@@ -64,7 +64,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		TargetLanguages:       []model.LocaleID{"fr"},
 		WorkspaceID:           wsID,
 		Properties: map[string]string{
-			brand.PropertyProfileID: profile.ID,
+			coreprofile.PropertyProfileID: profile.ID,
 			// The enforced do-not-translate product name — a real-word brand
 			// name ("Send", like Slack or Sonos) is exactly the DNT case: any
 			// translator, the demo stub's lexicon included, will happily render
@@ -110,7 +110,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		QuotaStore:    quota,
 		SweepStore:    sweeps,
 		SweepSettings: settings,
-		BrandStore:    bs,
+		VoiceStore:    bs,
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
 		TermsResolver: TermsResolverFunc(func(slug string) (fwterms.Terminology, error) {
 			return sqltb.NewPostgresStoreFromDB(db, slug)

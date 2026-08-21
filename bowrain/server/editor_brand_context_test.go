@@ -16,15 +16,15 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// editorFakeBrandStore resolves profiles by ID from a fixed set. Embedding the
+// editorFakeVoiceStore resolves profiles by ID from a fixed set. Embedding the
 // interface means only GetProfile is implemented — the resolution path uses
 // nothing else.
-type editorFakeBrandStore struct {
+type editorFakeVoiceStore struct {
 	coreprofile.Store
 	profiles map[string]*coreprofile.VoiceProfile
 }
 
-func (f *editorFakeBrandStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
+func (f *editorFakeVoiceStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	if p, ok := f.profiles[id]; ok {
 		return p, nil
 	}
@@ -82,7 +82,7 @@ func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBran
 		},
 	}
 	brandCtx := editorBrandContext{
-		Brand:            &editorFakeBrandStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
+		Brand:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "bp-1"},
 		Stores:           wsStores,
 	}
@@ -166,7 +166,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 
 	brandCtx := editorBrandContext{
 		// The workspace default names a profile the store cannot resolve.
-		Brand:            &editorFakeBrandStore{profiles: map[string]*coreprofile.VoiceProfile{}},
+		Brand:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "gone"},
 		// No pgDB and no factory: getTerms fails.
 		Stores: newWorkspaceStores(),

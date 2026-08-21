@@ -124,7 +124,7 @@ func TestSoloReviewOverride(t *testing.T) {
 		{
 			name: "a member without review rights is not a reviewer",
 			store: func() *fakeGovAuthStore {
-				// RoleMember's defaults carry no manage_brand, so this
+				// RoleMember's defaults carry no manage_voice, so this
 				// workspace still has exactly one person who could review.
 				return newFakeGovAuthStore().
 					add(ws, author, platauth.RoleOwner).
@@ -141,7 +141,7 @@ func TestSoloReviewOverride(t *testing.T) {
 				f := newFakeGovAuthStore().
 					add(ws, author, platauth.RoleOwner).
 					add(ws, "member-1", platauth.RoleMember)
-				f.overrides[platauth.RoleMember] = platauth.PermViewContent | platauth.PermManageBrand
+				f.overrides[platauth.RoleMember] = platauth.PermViewContent | platauth.PermManageVoice
 				return f
 			},
 			actor: author,
@@ -196,7 +196,7 @@ func TestSoloReviewOverride(t *testing.T) {
 // The override through the handlers
 // ---------------------------------------------------------------------------
 
-const govPerms = platauth.PermViewContent | platauth.PermManageTerms | platauth.PermManageBrand
+const govPerms = platauth.PermViewContent | platauth.PermManageTerms | platauth.PermManageVoice
 
 // TestSoloReviewerCanApproveOwnChangeSet proves the audited override end to end:
 // the sole owner's verdict is accepted, the review row says it was a solo

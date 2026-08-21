@@ -14,7 +14,7 @@ import (
 // glossary + DNT) and recommends the winner. Sweeps are platform QC — they run
 // on the platform provider and never deduct customer credits.
 //
-// Trigger surface: (a) the explicit refresh POST below (PermManageBrand,
+// Trigger surface: (a) the explicit refresh POST below (PermManageVoice,
 // gated on model_sweeps.enabled); (c) the platform's weekly cron can dispatch
 // per-project sweeps through the same enqueue path later. A brand.profile.
 // updated event exists, but resolving which projects (and locales) a profile
@@ -106,14 +106,14 @@ func (s *Server) HandleGetModelRecommendations(c echo.Context) error {
 }
 
 // HandleRefreshModelRecommendations enqueues one model sweep job per target
-// locale for the project. Requires PermManageBrand and the instance-wide
+// locale for the project. Requires PermManageVoice and the instance-wide
 // model_sweeps.enabled flag (default OFF). Sweeps ride the translation job
 // queue as sentinel jobs (__model_sweep__) and are platform QC: no credit
 // pre-check and no credit deduction.
 //
 // POST /api/v1/:ws/:id/model-recommendations/refresh
 func (s *Server) HandleRefreshModelRecommendations(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	if !s.PlatformConfig.ModelSweepsEnabled() {

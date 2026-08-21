@@ -101,7 +101,7 @@ var Migrations = []storage.Migration{
 				locked_at   TIMESTAMPTZ,
 				-- Extensible key/value metadata, like projects and items carry —
 				-- most immediately the stream-level brand-voice binding
-				-- (brand_voice_profile_id), a rung in the hierarchical profile
+				-- (voice_profile_id), a rung in the hierarchical profile
 				-- resolver.
 				properties  TEXT NOT NULL DEFAULT '{}',
 				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -930,7 +930,7 @@ var Migrations = []storage.Migration{
 			-- ---- folded from version 6: stream properties (extensible metadata, incl. brand voice binding) ----
 			-- Streams carry extensible key/value metadata like projects and items
 			-- do — most immediately the stream-level brand-voice binding
-			-- (brand_voice_profile_id), a rung in the hierarchical profile
+			-- (voice_profile_id), a rung in the hierarchical profile
 			-- resolver. Stored as a JSON TEXT map, matching items.properties.
 
 			-- ---- folded from version 7: convergence run loop-observability columns (stall_reason, stage, activity) ----

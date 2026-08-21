@@ -57,7 +57,7 @@ type brandScanSkippedEntry struct {
 // keys); the worker's BrandScanUploadSweeper removes them once their job has
 // been terminal for the retention window.
 func (s *Server) HandleBrandScanUploads(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	if s.BlobStore == nil {
@@ -158,11 +158,11 @@ func (s *Server) HandleBrandScanUploads(c echo.Context) error {
 // POST /api/v1/:ws/brand-scans
 //
 // Route middleware applies the per-IP AI throttle and billing.QuotaGuard; the
-// handler additionally requires PermManageBrand and refuses a scan up front
+// handler additionally requires PermManageVoice and refuses a scan up front
 // when the workspace has no spendable platform credits (402) — scans always
 // run on the platform key, and deduction is post-hoc.
 func (s *Server) HandleCreateBrandScan(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	if s.BrandScanStore == nil || s.BrandScanQueue == nil {
@@ -307,13 +307,13 @@ type BrandScanApproveResponse struct {
 // or preferred is a governed transition that must travel through a change-set,
 // and a scan never bypasses that.
 func (s *Server) HandleApproveBrandScan(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
 	if s.BrandScanStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand scan system not configured"})
 	}
-	if s.BrandStore == nil {
+	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 	if s.wsStores == nil {

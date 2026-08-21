@@ -67,7 +67,7 @@ func (s *MCPServer) handleReadProfile(ctx context.Context, req *mcp.ReadResource
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(ctx, profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -86,7 +86,7 @@ func (s *MCPServer) handleReadVocabulary(ctx context.Context, req *mcp.ReadResou
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(ctx, profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -105,7 +105,7 @@ func (s *MCPServer) handleReadExamples(ctx context.Context, req *mcp.ReadResourc
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(ctx, profileID)
+	profile, err := s.voiceStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -124,7 +124,7 @@ func (s *MCPServer) handleReadTerminology(ctx context.Context, req *mcp.ReadReso
 	if workspaceID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profiles, err := s.brandStore.ListProfiles(ctx, workspaceID)
+	profiles, err := s.voiceStore.ListProfiles(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}

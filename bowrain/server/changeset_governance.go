@@ -64,7 +64,7 @@ func onBehalfOf(c echo.Context) string {
 // governed change-set. It is the same gate HandleApproveChangeSet applies to
 // the caller, so "eligible reviewer" means the same thing on both sides of the
 // question.
-const reviewPermission = platauth.PermManageBrand
+const reviewPermission = platauth.PermManageVoice
 
 // soloReviewOverride reports whether actor may review their own change-set
 // because there is nobody else in the workspace who could.

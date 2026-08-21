@@ -271,13 +271,13 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 	// Brand-profile resolver: the same hierarchical binding ladder the editor and
 	// worker resolve through (brandscope.Resolve), scoped per target locale.
 	var resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
-	if s.BrandStore != nil {
+	if s.VoiceStore != nil {
 		var wd brandscope.WorkspaceDefault
 		if s.AuthStore != nil {
 			wd = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 		}
 		resolve = func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
-			profile, err := brandscope.Resolve(ctx, s.ContentStore, wd, s.BrandStore, brandscope.Scope{
+			profile, err := brandscope.Resolve(ctx, s.ContentStore, wd, s.VoiceStore, brandscope.Scope{
 				WorkspaceID: wsID,
 				ProjectID:   proj.ID,
 				Stream:      stream,

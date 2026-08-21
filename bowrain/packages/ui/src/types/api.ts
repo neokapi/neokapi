@@ -216,7 +216,7 @@ export interface StreamInfo {
   created_at: string;
   created_by: string;
   shared_with?: string[];
-  /** Extensible metadata, e.g. the stream-level brand-voice binding under `brand_voice_profile_id`. */
+  /** Extensible metadata, e.g. the stream-level brand-voice binding under `voice_profile_id`. */
   properties?: Record<string, string>;
 }
 
@@ -249,7 +249,7 @@ export interface CreateStreamRequest {
   parent?: string;
   visibility?: StreamVisibility;
   description?: string;
-  /** Extensible metadata, e.g. `brand_voice_profile_id` for the stream-level brand-voice binding. */
+  /** Extensible metadata, e.g. `voice_profile_id` for the stream-level brand-voice binding. */
   properties?: Record<string, string>;
 }
 
@@ -2300,7 +2300,7 @@ export type PermissionName =
   | "manage_automation"
   | "manage_members"
   | "manage_project"
-  | "manage_brand"
+  | "manage_voice"
   | "manage_assets";
 
 /** All available permissions in display order */
@@ -2318,7 +2318,7 @@ export const ALL_PERMISSIONS: readonly PermissionName[] = [
   "manage_automation",
   "manage_members",
   "manage_project",
-  "manage_brand",
+  "manage_voice",
   "manage_assets",
 ] as const;
 
@@ -2337,7 +2337,7 @@ export const PERMISSION_LABELS: Record<PermissionName, string> = {
   manage_automation: "Manage automation",
   manage_members: "Manage members",
   manage_project: "Manage project",
-  manage_brand: "Manage brand voice",
+  manage_voice: "Manage brand voice",
   manage_assets: "Manage assets",
 };
 

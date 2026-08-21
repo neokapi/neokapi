@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +95,7 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 
 // TestCrossTenantBrandProfileIDOR proves an owner/admin of one workspace cannot
 // read, update, or delete another workspace's brand profile by addressing it
-// through their own workspace slug. BrandStore.GetProfile/UpdateProfile/
+// through their own workspace slug. VoiceStore.GetProfile/UpdateProfile/
 // DeleteProfile resolve by GLOBAL id, so the handlers assert the profile's
 // WorkspaceID matches the request workspace and 404 (anti-enumeration) otherwise.
 func TestCrossTenantBrandProfileIDOR(t *testing.T) {
@@ -104,9 +104,9 @@ func TestCrossTenantBrandProfileIDOR(t *testing.T) {
 
 	// Wire a real brand store (its own schema on the shared container).
 	db := pgtest.NewTestDB(t)
-	bs, err := brandpg.NewPostgresBrandStore(db)
+	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	s.BrandStore = bs
+	s.VoiceStore = bs
 
 	ctx := t.Context()
 	victim := &coreprofile.VoiceProfile{ID: "victim-bp", Scope: "test-ws", Name: "Victim"}
@@ -203,13 +203,13 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 	})
 
 	t.Run("brand-profiles/:id reaches handler for the workspace owner", func(t *testing.T) {
-		// BrandStore is not wired by initTestStores; attach a real one (its own
+		// VoiceStore is not wired by initTestStores; attach a real one (its own
 		// schema on the shared container, mirroring setupBrandLoopServer) so the
 		// handler can return a profile rather than 503.
 		db := pgtest.NewTestDB(t)
-		bs, err := brandpg.NewPostgresBrandStore(db)
+		bs, err := voicepg.NewPostgresVoiceStore(db)
 		require.NoError(t, err)
-		s.BrandStore = bs
+		s.VoiceStore = bs
 
 		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", Scope: "test-ws", Name: "Sib"}
 		require.NoError(t, bs.CreateProfile(ctx, profile))

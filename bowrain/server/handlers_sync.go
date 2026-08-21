@@ -534,8 +534,8 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 		if pid := col.ConnectorConfig[coreprofile.PropertyProfileID]; pid != "" {
 			name, cached := profileNames[pid]
 			if !cached {
-				if s.BrandStore != nil {
-					if p, perr := s.BrandStore.GetProfile(ctx, pid); perr == nil && p != nil {
+				if s.VoiceStore != nil {
+					if p, perr := s.VoiceStore.GetProfile(ctx, pid); perr == nil && p != nil {
 						name = p.Name
 					}
 				}

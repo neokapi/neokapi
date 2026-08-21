@@ -74,7 +74,7 @@ func TestCalculateScore_ClampAtZero(t *testing.T) {
 	findings := make([]VoiceFinding, 5)
 	for i := range findings {
 		findings[i] = VoiceFinding{
-			Category: string(DimensionBrand),
+			Category: string(DimensionCompliance),
 			Severity: SeverityCritical,
 			Message:  "critical issue",
 			Position: model.RunRange{StartOffset: i * 10, EndOffset: i*10 + 5},
@@ -87,7 +87,7 @@ func TestCalculateScore_ClampAtZero(t *testing.T) {
 
 	// Brand dimension should also clamp to 0
 	for _, dim := range score.Dimensions {
-		if dim.Dimension == DimensionBrand {
+		if dim.Dimension == DimensionCompliance {
 			assert.Equal(t, 0, dim.Score)
 			assert.Equal(t, 125, dim.Penalty)
 			assert.Equal(t, 5, dim.Issues)
@@ -107,5 +107,5 @@ func TestCalculateScore_AllDimensionsPresent(t *testing.T) {
 	assert.True(t, dims[DimensionStyle])
 	assert.True(t, dims[DimensionVocabulary])
 	assert.True(t, dims[DimensionClarity])
-	assert.True(t, dims[DimensionBrand])
+	assert.True(t, dims[DimensionCompliance])
 }

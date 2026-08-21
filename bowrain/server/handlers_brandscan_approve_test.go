@@ -126,7 +126,7 @@ func TestBrandScanApprove_RetryIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, count, "a retry must not create the same concepts again")
 
-	profiles, err := srv.BrandStore.ListProfiles(t.Context(), approveWSID)
+	profiles, err := srv.VoiceStore.ListProfiles(t.Context(), approveWSID)
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
 }
@@ -141,7 +141,7 @@ func TestBrandScanApprove_ValidatesBeforeWriting(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
-	profiles, err := srv.BrandStore.ListProfiles(t.Context(), approveWSID)
+	profiles, err := srv.VoiceStore.ListProfiles(t.Context(), approveWSID)
 	require.NoError(t, err)
 	assert.Empty(t, profiles, "nothing is written when the request does not validate")
 

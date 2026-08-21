@@ -19,7 +19,7 @@ import (
 	diffcache "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/venue"
@@ -89,10 +89,10 @@ type WorkerDeps struct {
 	// back to the previous AI-only behavior. Mirrors the server's per-workspace
 	// workspaceStores.getMemory.
 	MemoryResolver MemoryResolver
-	// BrandStore reads brand voice profiles so a translation job carries the
+	// VoiceStore reads brand voice profiles so a translation job carries the
 	// project's brand voice into the AI prompt — parity with the CLI flow's
 	// brand binding. Optional; nil translates without brand voice.
-	BrandStore brand.Store
+	VoiceStore coreprofile.Store
 	// WorkspaceDefault resolves the workspace-level default brand-voice
 	// profile — the base rung of the brandscope resolution ladder that a
 	// project/stream/collection binding overrides. Optional; nil skips the
@@ -612,9 +612,9 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Lazily resolve the standing brand voice profile once for draft scoring
 	// (persistDraftVoiceScores) — resolved only when a draft actually persists,
 	// so a job with nothing to score costs no extra store reads.
-	var voiceProfile *brand.VoiceProfile
+	var voiceProfile *coreprofile.VoiceProfile
 	voiceProfileResolved := false
-	draftProfile := func() *brand.VoiceProfile {
+	draftProfile := func() *coreprofile.VoiceProfile {
 		if !voiceProfileResolved {
 			voiceProfile = resolveJobBrandProfile(ctx, deps, job)
 			voiceProfileResolved = true

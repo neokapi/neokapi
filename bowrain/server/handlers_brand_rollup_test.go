@@ -120,7 +120,7 @@ func TestBrandRollup_AggregatesAndIsolates(t *testing.T) {
 	charlie := mkProject("Charlie", wsB) // other workspace — must not leak
 
 	storeScore := func(projectID string, s int, at time.Time, dims ...coreprofile.DimensionScore) {
-		require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+		require.NoError(t, srv.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID:  projectID,
 			BlockID:    id.New(),
 			ProfileID:  "vp-1",

@@ -82,11 +82,11 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 	// A scoring profile with a raised bar, and two scores against it: one below
 	// the bar, one above. Only scored blocks carry a voice verdict.
 	profile := &coreprofile.VoiceProfile{ID: "p-queue", Scope: wsID, Name: "Queue Voice", MinScore: 90}
-	require.NoError(t, s.BrandStore.CreateProfile(ctx, profile))
+	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
 	lowID, okID := ids["Save the app"], ids["Close the app"]
 	badID, missID := ids["Use the app"], ids["Open the app"]
 	score := func(blockID string, value int) {
-		require.NoError(t, s.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+		require.NoError(t, s.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID: projID, Stream: "main", BlockID: blockID, ProfileID: profile.ID,
 			Locale: "fr", Score: value, CheckedAt: time.Now().UTC(),
 		}))
@@ -129,7 +129,7 @@ func TestPendingReview_EntriesCarryTermAndVoiceEvidence(t *testing.T) {
 		proj, err := s.ContentStore.GetProject(ctx, projID)
 		require.NoError(t, err)
 		gate := s.resolveTermGate(ctx, proj, "main", wsID)
-		scores := latestVoiceScores(ctx, s.BrandStore, projID, "main")["fr"]
+		scores := latestVoiceScores(ctx, s.VoiceStore, projID, "main")["fr"]
 
 		for _, e := range page.Entries {
 			block := storedBlockByID(t, s, projID, e.BlockID)
@@ -180,8 +180,8 @@ func TestApprovePassing_SkipsAreNamedByTheBarTheyMissed(t *testing.T) {
 	seedTermUnificationConcepts(t, tb)
 
 	profile := &coreprofile.VoiceProfile{ID: "p-bulk", Scope: wsID, Name: "Bulk Voice", MinScore: 90}
-	require.NoError(t, s.BrandStore.CreateProfile(ctx, profile))
-	require.NoError(t, s.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
+	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
+	require.NoError(t, s.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 		ProjectID: projID, Stream: "main", BlockID: ids["Save the app"], ProfileID: profile.ID,
 		Locale: "fr", Score: 62, CheckedAt: time.Now().UTC(),
 	}))

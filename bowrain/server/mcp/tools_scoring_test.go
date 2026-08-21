@@ -43,7 +43,7 @@ func (f wsDefaultFunc) WorkspaceBrandProfileID(ctx context.Context, workspaceID 
 
 func scoringTestServer(cs store.ContentStore, wsDefaultID string) *MCPServer {
 	return &MCPServer{
-		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{
+		voiceStore: &memVoiceStore{profiles: []*coreprofile.VoiceProfile{
 			{ID: "hex1", Name: "Explicit", Scope: "ws1"},
 			{ID: "hex2", Name: "ProjectBound", Scope: "ws1"},
 			{ID: "hex3", Name: "WorkspaceDefault", Scope: "ws1"},
@@ -55,14 +55,14 @@ func scoringTestServer(cs store.ContentStore, wsDefaultID string) *MCPServer {
 	}
 }
 
-func TestScoreBrandCompliance_ExplicitProfileWins(t *testing.T) {
+func TestScoreVoiceCompliance_ExplicitProfileWins(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{
 		WorkspaceID: "ws1",
 		Properties:  map[string]string{coreprofile.PropertyProfileID: "hex2"},
 	}}
 	ms := scoringTestServer(cs, "hex3")
 
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hex1",
 		Text:            "hello world",
 		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
@@ -71,14 +71,14 @@ func TestScoreBrandCompliance_ExplicitProfileWins(t *testing.T) {
 	assert.Equal(t, "hex1", out.Score.ProfileID, "explicit profile_id wins over the project binding")
 }
 
-func TestScoreBrandCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) {
+func TestScoreVoiceCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{
 		WorkspaceID: "ws1",
 		Properties:  map[string]string{coreprofile.PropertyProfileID: "hex2"},
 	}}
 	ms := scoringTestServer(cs, "hex3")
 
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
 		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
 	})
@@ -86,11 +86,11 @@ func TestScoreBrandCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) 
 	assert.Equal(t, "hex2", out.Score.ProfileID, "the project binding wins when no explicit profile is given")
 }
 
-func TestScoreBrandCompliance_FallsThroughToWorkspaceDefault(t *testing.T) {
+func TestScoreVoiceCompliance_FallsThroughToWorkspaceDefault(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{WorkspaceID: "ws1"}} // no binding
 	ms := scoringTestServer(cs, "hex3")
 
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
 		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
 	})
@@ -98,11 +98,11 @@ func TestScoreBrandCompliance_FallsThroughToWorkspaceDefault(t *testing.T) {
 	assert.Equal(t, "hex3", out.Score.ProfileID, "with no scope binding, the workspace default is used")
 }
 
-func TestScoreBrandCompliance_NoProfileAnywhere(t *testing.T) {
+func TestScoreVoiceCompliance_NoProfileAnywhere(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{WorkspaceID: "ws1"}}
 	ms := scoringTestServer(cs, "") // no workspace default either
 
-	_, _, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, _, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
 		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
 	})
@@ -126,7 +126,7 @@ func findingForTerm(findings []coreprofile.VoiceFinding, term string) bool {
 // scope resolution.
 func personaScoringServer() *MCPServer {
 	return &MCPServer{
-		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{{
+		voiceStore: &memVoiceStore{profiles: []*coreprofile.VoiceProfile{{
 			ID:    "hexP",
 			Name:  "WithPersona",
 			Scope: "ws1",
@@ -140,11 +140,11 @@ func personaScoringServer() *MCPServer {
 	}
 }
 
-func TestScoreBrandCompliance_PersonaRespected(t *testing.T) {
+func TestScoreVoiceCompliance_PersonaRespected(t *testing.T) {
 	ms := personaScoringServer()
 
 	// With the persona, its avoided term is flagged on top of the brand's own.
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hexP",
 		Text:            "utilize synergy today",
 		brandScopeInput: brandScopeInput{Persona: "jordan"},
@@ -154,10 +154,10 @@ func TestScoreBrandCompliance_PersonaRespected(t *testing.T) {
 	assert.True(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is flagged when the persona is applied")
 }
 
-func TestScoreBrandCompliance_NoPersonaDoesNotApplyPersonaVocab(t *testing.T) {
+func TestScoreVoiceCompliance_NoPersonaDoesNotApplyPersonaVocab(t *testing.T) {
 	ms := personaScoringServer()
 
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID: "hexP",
 		Text:      "utilize synergy today",
 	})
@@ -166,11 +166,11 @@ func TestScoreBrandCompliance_NoPersonaDoesNotApplyPersonaVocab(t *testing.T) {
 	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is not flagged without the persona")
 }
 
-func TestScoreBrandCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T) {
+func TestScoreVoiceCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T) {
 	ms := personaScoringServer()
 
 	// An unknown persona is not an error: it leaves the base profile in force.
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hexP",
 		Text:            "utilize synergy today",
 		brandScopeInput: brandScopeInput{Persona: "nobody"},
@@ -180,7 +180,7 @@ func TestScoreBrandCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T)
 	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "an unknown persona adds nothing")
 }
 
-func TestScoreBrandCompliance_StreamBindingBeatsProject(t *testing.T) {
+func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
 	cs := &scopeContentStore{
 		project: &store.Project{
 			WorkspaceID: "ws1",
@@ -190,7 +190,7 @@ func TestScoreBrandCompliance_StreamBindingBeatsProject(t *testing.T) {
 	}
 	ms := scoringTestServer(cs, "")
 
-	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
 		brandScopeInput: brandScopeInput{ProjectID: "hex-proj", Stream: "v2"},
 	})

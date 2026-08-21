@@ -13,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -107,7 +107,7 @@ const (
 // translation job (#1334), captured once so both arms and the digest see one
 // consistent snapshot.
 type SweepContext struct {
-	Profile  *brand.VoiceProfile
+	Profile  *coreprofile.VoiceProfile
 	Glossary map[string]string // source term → mandated target rendering
 	DNT      []string          // do-not-translate terms
 }
@@ -126,7 +126,7 @@ func (c *SweepContext) Empty() bool {
 //   - glossary traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts the profile's forbidden/competitor
-//     vocabulary (brand.MatchVocabulary against the source — a model that
+//     vocabulary (coreprofile.MatchVocabulary against the source — a model that
 //     carries the term over is off-brand) or matches a mechanical prohibited
 //     style pattern;
 //   - dnt traps: the source carries a do-not-translate term whose verbatim
@@ -229,11 +229,11 @@ func containsAnyTerm(text string, terms []string) bool {
 // rules (a forbidden/competitor term present in the source is likely to be
 // carried into a target unless steered) or matches a mechanical prohibited
 // style pattern.
-func isVoiceTrap(text string, profile *brand.VoiceProfile) bool {
+func isVoiceTrap(text string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {
 		return false
 	}
-	return len(brand.MatchVocabulary(profile, text)) > 0 || len(brand.MatchPatterns(profile, text)) > 0
+	return len(coreprofile.MatchVocabulary(profile, text)) > 0 || len(coreprofile.MatchPatterns(profile, text)) > 0
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
@@ -301,8 +301,8 @@ func (s sweepArmScore) Rate() float64 {
 //   - dnt-check (core/tools): every DNT term present in the source must
 //     survive verbatim into the target — read back from the tool's
 //     do-not-translate findings on the unified quality.findings annotation;
-//   - brand vocabulary: brand.MatchVocabulary over the target plus the
-//     profile's on-brand bar (brand.CalculateScore ≥ ComplianceBar) — the same
+//   - brand vocabulary: coreprofile.MatchVocabulary over the target plus the
+//     profile's on-brand bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
 //     zero-AI matcher behind persistDraftVoiceScores and every HTTP scoring
 //     surface.
 //
@@ -387,12 +387,12 @@ func countDNTFindings(b *model.Block) int {
 // sweepVoiceAdherent applies the voice bar: the target's deterministic score —
 // vocabulary and prohibited style patterns — must clear the profile's on-brand
 // bar. A nil profile always passes (there is no voice to violate).
-func sweepVoiceAdherent(target string, profile *brand.VoiceProfile) bool {
+func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {
 		return true
 	}
-	findings := brand.Findings(profile, target, []model.Run{{Text: &model.TextRun{Text: target}}})
-	return brand.CalculateScore(findings).Overall >= profile.ComplianceBar()
+	findings := coreprofile.Findings(profile, target, []model.Run{{Text: &model.TextRun{Text: target}}})
+	return coreprofile.CalculateScore(findings).Overall >= profile.ComplianceBar()
 }
 
 // resolveSweepContext captures the project's standing brand context for a

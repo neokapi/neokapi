@@ -17,7 +17,7 @@ func TestContributeScopeProposesButNeverDecides(t *testing.T) {
 	for _, p := range grants {
 		assert.NotZero(t, rs.Permissions&p, "contribute must grant %v", p)
 	}
-	denies := []Permission{PermReview, PermManageBrand, PermManageProject, PermManageMembers, PermManageConnectors, PermManageAutomation, PermRollbackChanges}
+	denies := []Permission{PermReview, PermManageVoice, PermManageProject, PermManageMembers, PermManageConnectors, PermManageAutomation, PermRollbackChanges}
 	for _, p := range denies {
 		assert.Zero(t, rs.Permissions&p, "contribute must not grant %v", p)
 	}
