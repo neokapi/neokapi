@@ -290,45 +290,6 @@ blocks.translatable boolean NOT NULL DEFAULT true
 blocks.type text NOT NULL DEFAULT ''::text
 blocks.updated_at timestamp with time zone NOT NULL DEFAULT now()
 blocks.word_count integer NULL
-brand_profile_tags.created_at timestamp with time zone NOT NULL DEFAULT now()
-brand_profile_tags.created_by text NOT NULL DEFAULT ''::text
-brand_profile_tags.name text NOT NULL
-brand_profile_tags.profile_id text NOT NULL
-brand_profile_tags.version integer NOT NULL
-brand_profile_versions.created_at timestamp with time zone NOT NULL DEFAULT now()
-brand_profile_versions.created_by text NOT NULL DEFAULT ''::text
-brand_profile_versions.note text NOT NULL DEFAULT ''::text
-brand_profile_versions.profile_id text NOT NULL
-brand_profile_versions.snapshot jsonb NOT NULL
-brand_profile_versions.version integer NOT NULL
-brand_profiles.autonomy jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.channels jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.created_at timestamp with time zone NOT NULL DEFAULT now()
-brand_profiles.created_by text NOT NULL DEFAULT ''::text
-brand_profiles.description text NOT NULL DEFAULT ''::text
-brand_profiles.examples jsonb NOT NULL DEFAULT '[]'::jsonb
-brand_profiles.id text NOT NULL
-brand_profiles.locales jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.min_score integer NOT NULL DEFAULT 0
-brand_profiles.name text NOT NULL
-brand_profiles.personas jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
-brand_profiles.version integer NOT NULL DEFAULT 1
-brand_profiles.vocabulary jsonb NOT NULL DEFAULT '{}'::jsonb
-brand_profiles.workspace_id text NOT NULL
-brand_rule_decisions.auto boolean NOT NULL DEFAULT false
-brand_rule_decisions.concept_id text NOT NULL DEFAULT ''::text
-brand_rule_decisions.correction_count integer NOT NULL DEFAULT 0
-brand_rule_decisions.decided_at timestamp with time zone NOT NULL DEFAULT now()
-brand_rule_decisions.decided_by text NOT NULL DEFAULT ''::text
-brand_rule_decisions.dimension text NOT NULL DEFAULT ''::text
-brand_rule_decisions.profile_id text NOT NULL
-brand_rule_decisions.promoted_version integer NOT NULL DEFAULT 0
-brand_rule_decisions.replacement text NOT NULL DEFAULT ''::text
-brand_rule_decisions.status text NOT NULL
-brand_rule_decisions.term text NOT NULL
 brand_scan_jobs.attempts integer NOT NULL DEFAULT 0
 brand_scan_jobs.claim_epoch bigint NOT NULL DEFAULT 0
 brand_scan_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -346,29 +307,6 @@ brand_scan_jobs.workspace_slug text NOT NULL DEFAULT ''::text
 brand_scan_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 brand_scan_schema_migrations.description text NOT NULL
 brand_scan_schema_migrations.version integer NOT NULL
-brand_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
-brand_schema_migrations.description text NOT NULL
-brand_schema_migrations.version integer NOT NULL
-brand_voice_corrections.block_id text NOT NULL
-brand_voice_corrections.corrected_at timestamp with time zone NOT NULL DEFAULT now()
-brand_voice_corrections.corrected_by text NOT NULL
-brand_voice_corrections.corrected_text text NOT NULL
-brand_voice_corrections.dimension text NOT NULL
-brand_voice_corrections.finding_id text NOT NULL DEFAULT ''::text
-brand_voice_corrections.id text NOT NULL
-brand_voice_corrections.original_text text NOT NULL
-brand_voice_corrections.profile_id text NOT NULL
-brand_voice_scores.block_id text NOT NULL
-brand_voice_scores.checked_at timestamp with time zone NOT NULL DEFAULT now()
-brand_voice_scores.dimensions jsonb NOT NULL
-brand_voice_scores.findings jsonb NOT NULL
-brand_voice_scores.id text NOT NULL
-brand_voice_scores.locale text NOT NULL
-brand_voice_scores.profile_id text NOT NULL
-brand_voice_scores.profile_version integer NOT NULL DEFAULT 0
-brand_voice_scores.project_id text NOT NULL
-brand_voice_scores.score integer NOT NULL
-brand_voice_scores.stream text NOT NULL DEFAULT 'main'::text
 change_log.block_id text NOT NULL
 change_log.change_type text NOT NULL
 change_log.content_hash text NULL
@@ -1153,6 +1091,68 @@ versions.description text NOT NULL DEFAULT ''::text
 versions.id text NOT NULL
 versions.label text NOT NULL
 versions.project_id text NOT NULL
+voice_corrections.block_id text NOT NULL
+voice_corrections.corrected_at timestamp with time zone NOT NULL DEFAULT now()
+voice_corrections.corrected_by text NOT NULL
+voice_corrections.corrected_text text NOT NULL
+voice_corrections.dimension text NOT NULL
+voice_corrections.finding_id text NOT NULL DEFAULT ''::text
+voice_corrections.id text NOT NULL
+voice_corrections.original_text text NOT NULL
+voice_corrections.profile_id text NOT NULL
+voice_profile_tags.created_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profile_tags.created_by text NOT NULL DEFAULT ''::text
+voice_profile_tags.name text NOT NULL
+voice_profile_tags.profile_id text NOT NULL
+voice_profile_tags.version integer NOT NULL
+voice_profile_versions.created_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profile_versions.created_by text NOT NULL DEFAULT ''::text
+voice_profile_versions.note text NOT NULL DEFAULT ''::text
+voice_profile_versions.profile_id text NOT NULL
+voice_profile_versions.snapshot jsonb NOT NULL
+voice_profile_versions.version integer NOT NULL
+voice_profiles.autonomy jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.channels jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.created_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profiles.created_by text NOT NULL DEFAULT ''::text
+voice_profiles.description text NOT NULL DEFAULT ''::text
+voice_profiles.examples jsonb NOT NULL DEFAULT '[]'::jsonb
+voice_profiles.id text NOT NULL
+voice_profiles.locales jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.min_score integer NOT NULL DEFAULT 0
+voice_profiles.name text NOT NULL
+voice_profiles.personas jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profiles.version integer NOT NULL DEFAULT 1
+voice_profiles.vocabulary jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.workspace_id text NOT NULL
+voice_rule_decisions.auto boolean NOT NULL DEFAULT false
+voice_rule_decisions.concept_id text NOT NULL DEFAULT ''::text
+voice_rule_decisions.correction_count integer NOT NULL DEFAULT 0
+voice_rule_decisions.decided_at timestamp with time zone NOT NULL DEFAULT now()
+voice_rule_decisions.decided_by text NOT NULL DEFAULT ''::text
+voice_rule_decisions.dimension text NOT NULL DEFAULT ''::text
+voice_rule_decisions.profile_id text NOT NULL
+voice_rule_decisions.promoted_version integer NOT NULL DEFAULT 0
+voice_rule_decisions.replacement text NOT NULL DEFAULT ''::text
+voice_rule_decisions.status text NOT NULL
+voice_rule_decisions.term text NOT NULL
+voice_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+voice_schema_migrations.description text NOT NULL
+voice_schema_migrations.version integer NOT NULL
+voice_scores.block_id text NOT NULL
+voice_scores.checked_at timestamp with time zone NOT NULL DEFAULT now()
+voice_scores.dimensions jsonb NOT NULL
+voice_scores.findings jsonb NOT NULL
+voice_scores.id text NOT NULL
+voice_scores.locale text NOT NULL
+voice_scores.profile_id text NOT NULL
+voice_scores.profile_version integer NOT NULL DEFAULT 0
+voice_scores.project_id text NOT NULL
+voice_scores.score integer NOT NULL
+voice_scores.stream text NOT NULL DEFAULT 'main'::text
 workspace_invites.code text NOT NULL
 workspace_invites.created_at timestamp with time zone NOT NULL DEFAULT now()
 workspace_invites.created_by text NOT NULL
@@ -1179,7 +1179,6 @@ workspace_slug_reservations.created_at timestamp with time zone NOT NULL DEFAULT
 workspace_slug_reservations.reserved_until timestamp with time zone NOT NULL
 workspace_slug_reservations.slug text NOT NULL
 workspace_slug_reservations.workspace_id text NOT NULL
-workspaces.brand_voice_profile_id text NOT NULL DEFAULT ''::text
 workspaces.created_at timestamp with time zone NOT NULL DEFAULT now()
 workspaces.dashboard_visibility text NOT NULL DEFAULT 'private'::text
 workspaces.description text NOT NULL DEFAULT ''::text
@@ -1195,6 +1194,7 @@ workspaces.slug text NOT NULL
 workspaces.stripe_customer_id text NULL
 workspaces.type text NOT NULL DEFAULT 'team'::text
 workspaces.updated_at timestamp with time zone NOT NULL DEFAULT now()
+workspaces.voice_profile_id text NOT NULL DEFAULT ''::text
 
 # constraints: table constraint definition
 activities activities_pkey PRIMARY KEY (id)
@@ -1252,16 +1252,8 @@ block_history block_history_pkey PRIMARY KEY (id)
 block_notes block_notes_pkey PRIMARY KEY (id)
 blocks blocks_pkey PRIMARY KEY (project_id, stream, id)
 blocks blocks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-brand_profile_tags brand_profile_tags_pkey PRIMARY KEY (profile_id, name)
-brand_profile_versions brand_profile_versions_pkey PRIMARY KEY (profile_id, version)
-brand_profiles brand_profiles_pkey PRIMARY KEY (id)
-brand_profiles brand_profiles_workspace_id_name_key UNIQUE (workspace_id, name)
-brand_rule_decisions brand_rule_decisions_pkey PRIMARY KEY (profile_id, term)
 brand_scan_jobs brand_scan_jobs_pkey PRIMARY KEY (id)
 brand_scan_schema_migrations brand_scan_schema_migrations_pkey PRIMARY KEY (version)
-brand_schema_migrations brand_schema_migrations_pkey PRIMARY KEY (version)
-brand_voice_corrections brand_voice_corrections_pkey PRIMARY KEY (id)
-brand_voice_scores brand_voice_scores_pkey PRIMARY KEY (id)
 change_log change_log_pkey PRIMARY KEY (seq)
 change_log_archive change_log_archive_pkey PRIMARY KEY (seq)
 channel_alias_proposals channel_alias_proposals_pkey PRIMARY KEY (workspace_id, profile, proposed_channel, existing_channel)
@@ -1415,6 +1407,14 @@ version_blocks version_blocks_pkey PRIMARY KEY (version_id, block_id)
 version_blocks version_blocks_version_id_fkey FOREIGN KEY (version_id) REFERENCES versions(id) ON DELETE CASCADE
 versions versions_pkey PRIMARY KEY (id)
 versions versions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+voice_corrections voice_corrections_pkey PRIMARY KEY (id)
+voice_profile_tags voice_profile_tags_pkey PRIMARY KEY (profile_id, name)
+voice_profile_versions voice_profile_versions_pkey PRIMARY KEY (profile_id, version)
+voice_profiles voice_profiles_pkey PRIMARY KEY (id)
+voice_profiles voice_profiles_workspace_id_name_key UNIQUE (workspace_id, name)
+voice_rule_decisions voice_rule_decisions_pkey PRIMARY KEY (profile_id, term)
+voice_schema_migrations voice_schema_migrations_pkey PRIMARY KEY (version)
+voice_scores voice_scores_pkey PRIMARY KEY (id)
 workspace_invites workspace_invites_code_key UNIQUE (code)
 workspace_invites workspace_invites_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id)
 workspace_invites workspace_invites_pkey PRIMARY KEY (id)
@@ -1485,14 +1485,13 @@ CREATE INDEX idx_blocks_content_hash ON public.blocks USING btree (content_hash)
 CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, stream, item_name)
 CREATE INDEX idx_blocks_item_id ON public.blocks USING btree (project_id, stream, item_id)
 CREATE INDEX idx_blocks_project ON public.blocks USING btree (project_id)
-CREATE INDEX idx_brand_profiles_workspace ON public.brand_profiles USING btree (workspace_id)
 CREATE INDEX idx_brand_scan_jobs_processing_updated ON public.brand_scan_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
 CREATE INDEX idx_brand_scan_jobs_status ON public.brand_scan_jobs USING btree (status)
 CREATE INDEX idx_brand_scan_jobs_workspace ON public.brand_scan_jobs USING btree (workspace_slug, created_at DESC)
-CREATE INDEX idx_bvc_profile_dim ON public.brand_voice_corrections USING btree (profile_id, dimension)
-CREATE INDEX idx_bvs_profile_score ON public.brand_voice_scores USING btree (profile_id, score)
-CREATE INDEX idx_bvs_project_locale ON public.brand_voice_scores USING btree (project_id, locale)
-CREATE INDEX idx_bvs_project_stream ON public.brand_voice_scores USING btree (project_id, stream)
+CREATE INDEX idx_bvc_profile_dim ON public.voice_corrections USING btree (profile_id, dimension)
+CREATE INDEX idx_bvs_profile_score ON public.voice_scores USING btree (profile_id, score)
+CREATE INDEX idx_bvs_project_locale ON public.voice_scores USING btree (project_id, locale)
+CREATE INDEX idx_bvs_project_stream ON public.voice_scores USING btree (project_id, stream)
 CREATE INDEX idx_changelog_archive_project ON public.change_log_archive USING btree (project_id, seq)
 CREATE INDEX idx_changelog_correlation ON public.change_log USING btree (project_id, correlation_id)
 CREATE INDEX idx_changelog_project_locale ON public.change_log USING btree (project_id, locale, seq)
@@ -1591,6 +1590,7 @@ CREATE INDEX idx_unit_decisions_item ON public.unit_decisions USING btree (proje
 CREATE INDEX idx_unit_decisions_project ON public.unit_decisions USING btree (project_id, stream)
 CREATE INDEX idx_users_oidc_sub ON public.users USING btree (oidc_sub)
 CREATE INDEX idx_versions_project ON public.versions USING btree (project_id)
+CREATE INDEX idx_voice_profiles_workspace ON public.voice_profiles USING btree (workspace_id)
 CREATE INDEX overlays_ext_p0_project_id_stream_block_id_idx ON public.overlays_ext_p0 USING btree (project_id, stream, block_id)
 CREATE INDEX overlays_ext_p0_project_id_stream_kind_idx ON public.overlays_ext_p0 USING btree (project_id, stream, kind)
 CREATE INDEX overlays_ext_p1_project_id_stream_block_id_idx ON public.overlays_ext_p1 USING btree (project_id, stream, block_id)
@@ -1661,16 +1661,8 @@ CREATE UNIQUE INDEX block_asset_refs_pkey ON public.block_asset_refs USING btree
 CREATE UNIQUE INDEX block_history_pkey ON public.block_history USING btree (id)
 CREATE UNIQUE INDEX block_notes_pkey ON public.block_notes USING btree (id)
 CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, stream, id)
-CREATE UNIQUE INDEX brand_profile_tags_pkey ON public.brand_profile_tags USING btree (profile_id, name)
-CREATE UNIQUE INDEX brand_profile_versions_pkey ON public.brand_profile_versions USING btree (profile_id, version)
-CREATE UNIQUE INDEX brand_profiles_pkey ON public.brand_profiles USING btree (id)
-CREATE UNIQUE INDEX brand_profiles_workspace_id_name_key ON public.brand_profiles USING btree (workspace_id, name)
-CREATE UNIQUE INDEX brand_rule_decisions_pkey ON public.brand_rule_decisions USING btree (profile_id, term)
 CREATE UNIQUE INDEX brand_scan_jobs_pkey ON public.brand_scan_jobs USING btree (id)
 CREATE UNIQUE INDEX brand_scan_schema_migrations_pkey ON public.brand_scan_schema_migrations USING btree (version)
-CREATE UNIQUE INDEX brand_schema_migrations_pkey ON public.brand_schema_migrations USING btree (version)
-CREATE UNIQUE INDEX brand_voice_corrections_pkey ON public.brand_voice_corrections USING btree (id)
-CREATE UNIQUE INDEX brand_voice_scores_pkey ON public.brand_voice_scores USING btree (id)
 CREATE UNIQUE INDEX change_log_archive_pkey ON public.change_log_archive USING btree (seq)
 CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
 CREATE UNIQUE INDEX channel_alias_proposals_pkey ON public.channel_alias_proposals USING btree (workspace_id, profile, proposed_channel, existing_channel)
@@ -1788,6 +1780,14 @@ CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
 CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
 CREATE UNIQUE INDEX version_blocks_pkey ON public.version_blocks USING btree (version_id, block_id)
 CREATE UNIQUE INDEX versions_pkey ON public.versions USING btree (id)
+CREATE UNIQUE INDEX voice_corrections_pkey ON public.voice_corrections USING btree (id)
+CREATE UNIQUE INDEX voice_profile_tags_pkey ON public.voice_profile_tags USING btree (profile_id, name)
+CREATE UNIQUE INDEX voice_profile_versions_pkey ON public.voice_profile_versions USING btree (profile_id, version)
+CREATE UNIQUE INDEX voice_profiles_pkey ON public.voice_profiles USING btree (id)
+CREATE UNIQUE INDEX voice_profiles_workspace_id_name_key ON public.voice_profiles USING btree (workspace_id, name)
+CREATE UNIQUE INDEX voice_rule_decisions_pkey ON public.voice_rule_decisions USING btree (profile_id, term)
+CREATE UNIQUE INDEX voice_schema_migrations_pkey ON public.voice_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX voice_scores_pkey ON public.voice_scores USING btree (id)
 CREATE UNIQUE INDEX workspace_invites_code_key ON public.workspace_invites USING btree (code)
 CREATE UNIQUE INDEX workspace_invites_pkey ON public.workspace_invites USING btree (id)
 CREATE UNIQUE INDEX workspace_members_pkey ON public.workspace_members USING btree (workspace_id, user_id)

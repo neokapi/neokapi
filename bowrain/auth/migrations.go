@@ -15,6 +15,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	6  workspace default brand-voice profile (hierarchical resolver base)
 //	7  user locale preference (locale-aware transactional emails)
 //	8  auth baseline (folded 1-7)
+//	9  auth baseline (folds 1-8) + api token machine identity
 //
 // Versions 2, 4 and 6 were catch-ups: PR #428 had already added their columns
 // and tables to the v1 baseline, so they existed only to roll forward
@@ -27,19 +28,23 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // built from this baseline has no such tokens, and every token minted since
 // carries a family_id from the code.
 //
-// Baseline is version 9 — above every number issued, so an existing database
+// Baseline is version 10 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 10.
+// repaired. Retired numbers are never reused; the next migration is version 11.
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 9 added api_tokens.agent_name — the machine
-// author identity a governed change-set is attributed to when a CI runner or an
-// agent-driven kapi proposed it.
+// bumping its version. Version 10 renames workspaces.brand_voice_profile_id to
+// voice_profile_id, finishing a rename that reached the CREATE and stopped
+// there: the column moved for a database built after it and stayed put for
+// every database built before, while all seven workspace queries moved. Only
+// the version bump makes an existing database read this baseline again — the
+// rename shipped without one, and every workspace query in production failed
+// with `column w.voice_profile_id does not exist` until it landed.
 var Migrations = []storage.Migration{
 	{
-		Version:     9,
-		Description: "auth baseline (folds 1-8) + api token machine identity",
+		Version:     10,
+		Description: "auth baseline (folds 1-9) + workspace voice profile column rename",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS users (
 				id            TEXT PRIMARY KEY,
@@ -70,10 +75,29 @@ var Migrations = []storage.Migration{
 				pulse_term_sources   TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}',
 				pulse_access_key     TEXT NOT NULL DEFAULT '',
 				preferred_model      TEXT NOT NULL DEFAULT '',
-				voice_profile_id TEXT NOT NULL DEFAULT '',
+				voice_profile_id     TEXT NOT NULL DEFAULT '',
 				created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			-- The CREATE above serves an empty database; this serves one that
+			-- already has workspaces, where CREATE ... IF NOT EXISTS is a no-op
+			-- and would leave the column under its former name while every
+			-- query in postgres.go asks for the new one.
+			--
+			-- RENAME COLUMN takes no IF EXISTS, so the guard is explicit: rename
+			-- only where the old name is still there and the new one is not.
+			DO $$
+			BEGIN
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'workspaces' AND column_name = 'brand_voice_profile_id'
+				) AND NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'workspaces' AND column_name = 'voice_profile_id'
+				) THEN
+					ALTER TABLE workspaces RENAME COLUMN brand_voice_profile_id TO voice_profile_id;
+				END IF;
+			END $$;
 
 			CREATE TABLE IF NOT EXISTS workspace_members (
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
