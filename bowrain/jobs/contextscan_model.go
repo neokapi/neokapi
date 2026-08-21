@@ -119,9 +119,13 @@ type ArtefactProposal struct {
 // against a new corpus can refine what sits at a point instead of producing a
 // rival profile beside it.
 type ContextScanResult struct {
-	Artefacts []ArtefactProposal  `json:"artefacts"`
-	Sources   []ContextScanSource `json:"sources"`
-	Truncated bool                `json:"truncated"`
+	// Axes are the dimensions the corpus varies along. Empty is the ordinary
+	// answer for a project whose content is uniform, and for a first scan of one
+	// small site — not a failure, and not a reason to withhold the artefacts.
+	Axes      []tools.AxisProposal `json:"axes,omitempty"`
+	Artefacts []ArtefactProposal   `json:"artefacts"`
+	Sources   []ContextScanSource  `json:"sources"`
+	Truncated bool                 `json:"truncated"`
 }
 
 // Voice returns the first proposed voice profile and its evidence — what a

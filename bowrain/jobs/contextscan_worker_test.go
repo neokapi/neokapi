@@ -235,12 +235,18 @@ func TestContextScanWorker_MeteringPerPhase(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ContextScanStatusCompleted, got.Status, "error: %s", got.Error)
 
+	// Three provider phases, three deductions, each with its own ref id: a scan
+	// bills for drafting the voice, extracting the vocabulary, and discovering
+	// the axes. The ref ids are what makes a partial retry chargeable once per
+	// phase rather than once per job.
 	deductions := ledger.all()
-	require.Len(t, deductions, 2, "exactly one deduction per phase")
-	assert.Equal(t, "context_scan", deductions[0].op)
-	assert.Equal(t, "context_scan", deductions[1].op)
+	require.Len(t, deductions, 3, "exactly one deduction per phase")
+	for _, d := range deductions {
+		assert.Equal(t, "context_scan", d.op)
+	}
 	assert.Equal(t, job.ID+":infer", deductions[0].refID)
 	assert.Equal(t, job.ID+":terms", deductions[1].refID)
+	assert.Equal(t, job.ID+":axes", deductions[2].refID)
 	for _, d := range deductions {
 		assert.Equal(t, "ws-billed", d.workspaceID)
 		assert.Positive(t, d.amount)
@@ -326,7 +332,7 @@ func TestContextScanWorker_RecordsAbuseUsage(t *testing.T) {
 	require.Equal(t, ContextScanStatusCompleted, got.Status, "error: %s", got.Error)
 
 	records := quota.all()
-	require.Len(t, records, 2, "one abuse-cap record per phase (infer, terms)")
+	require.Len(t, records, 3, "one abuse-cap record per phase (infer, terms, axes)")
 	for _, rec := range records {
 		assert.Equal(t, "context_scan", rec.Operation)
 		assert.Equal(t, "acme", rec.WorkspaceSlug)

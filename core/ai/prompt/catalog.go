@@ -80,6 +80,61 @@ func (p VoiceInfer) Turns(corpus string) []Turn {
 	}
 }
 
+// AxisDiscover reads a corpus for the dimensions its content varies along.
+//
+// The axis set is OPEN. A project's context space is whatever that project
+// actually distinguishes — one has product lines, another has regional markets,
+// another has audiences — so the prompt teaches by example rather than offering
+// a list to choose from. Enumerating axes would cap discovery at what we
+// happened to think of, and the whole point of an open map on the wire is that
+// it does not need to be.
+type AxisDiscover struct {
+	// Known are axes the project already declares, so the model proposes VALUES
+	// on them rather than proposing the axis again under a synonym.
+	Known []string
+	// Domain is an optional subject-domain hint ("medical", "developer tools").
+	Domain string
+	// MaxAxes caps how many axes to report, so a corpus with weak structure
+	// yields the few strongest rather than a long tail of noise.
+	MaxAxes int
+}
+
+func (p AxisDiscover) Turns(corpus string) []Turn {
+	var b strings.Builder
+	b.WriteString("You are a content strategist. Read the corpus below and report the dimensions along which its content genuinely varies — the coordinates a piece of this content sits at.\n\n")
+	b.WriteString("An axis is a dimension; its values are the positions on it. For example, a corpus might vary by:\n")
+	b.WriteString("- brand — the brand it speaks as (acme, northwind)\n")
+	b.WriteString("- product_line — a family of products (cloud, desktop)\n")
+	b.WriteString("- product — one product within a line (analytics, editor)\n")
+	b.WriteString("- market — where it is read (emea, japan)\n")
+	b.WriteString("- audience — who it addresses (developer, buyer, operator)\n\n")
+	b.WriteString("Those are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\n")
+	b.WriteString("Rules:\n")
+	b.WriteString("- Report an axis only when the corpus shows content differing along it. Two documents about the same product are not a product axis.\n")
+	b.WriteString("- An axis needs at least two distinct values in the corpus. One value is a fact about the project, not a dimension it varies along.\n")
+	b.WriteString("- Use lower_snake_case for axis names and values, and the corpus' own terms for values.\n")
+	fmt.Fprintf(&b, "- Report at most %d axes, strongest evidence first.\n", p.MaxAxes)
+	b.WriteString("- For each axis give a confidence between 0 and 1 and short quotes or references from the corpus as evidence.\n")
+	b.WriteString("- Report nothing rather than guessing. A corpus with no internal variation has no axes, and an empty list is the correct answer.")
+	if len(p.Known) > 0 {
+		fmt.Fprintf(&b, "\n\nThis project already declares these axes: %s. Propose additional VALUES on them where the corpus shows them, and do not re-propose the same dimension under a different name.", strings.Join(p.Known, ", "))
+	}
+	if d := strings.TrimSpace(p.Domain); d != "" {
+		fmt.Fprintf(&b, "\n\nThe content is in the %s domain.", d)
+	}
+
+	system := []Section{{Kind: KindTask, Origin: "framework", Text: b.String()}}
+
+	return []Turn{
+		System(system...),
+		User(Section{
+			Kind:   KindContent,
+			Origin: "content corpus",
+			Text:   strings.TrimPrefix(CorpusDelimiter, "\n") + corpus,
+		}),
+	}
+}
+
 // QualityCheck asks the model to find issues in a finished translation.
 type QualityCheck struct {
 	SourceLocale model.LocaleID
@@ -441,6 +496,12 @@ func Catalog() []CatalogEntry {
 			Tool:    "voice-infer",
 			Summary: "Draft a voice profile from a corpus of your existing content.",
 			Turns:   VoiceInfer{MaxExamples: 3}.Turns("<your content corpus>"),
+		},
+		{
+			ID:      IDAxisDiscover,
+			Tool:    "context-scan",
+			Summary: "Discover the dimensions a corpus of content varies along.",
+			Turns:   AxisDiscover{MaxAxes: 4}.Turns("<your content corpus>"),
 		},
 		{
 			ID:      IDQualityCheck,

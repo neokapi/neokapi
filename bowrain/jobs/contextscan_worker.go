@@ -89,7 +89,8 @@ const (
 	contextScanProgressReading    = 10
 	contextScanProgressAssembling = 40
 	contextScanProgressDrafting   = 60
-	contextScanProgressTerms      = 80
+	contextScanProgressTerms      = 70
+	contextScanProgressAxes       = 85
 )
 
 // contextScanTermChunkRunes bounds how much corpus text a single term-extract
@@ -371,6 +372,40 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 		totalTokens += termTokens
 	}
 
+	// Phase: discover the axes the corpus varies along. A failure here costs
+	// the axes and nothing else — the voice and the vocabulary are already
+	// drafted, and a scan that proposes them at the default point is exactly
+	// what a corpus with no internal variation should produce anyway.
+	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressAxes, "discovering-axes")
+	axisRecorder := &usageRecordingProvider{LLMProvider: prov}
+	axes, axisUsage, axisErr := tools.InferAxes(ctx, axisRecorder, corpus.Text, tools.AxisOptions{
+		Domain: req.Domain,
+	})
+	if axisErr != nil {
+		slog.WarnContext(ctx, "context-scan axis discovery failed; proposing at the default point only",
+			"job_id", job.ID, "error", axisErr)
+		emitContextScanLog(deps, job.ID, "warn", "Axis discovery failed: "+axisErr.Error(), nil)
+		axes = nil
+	}
+
+	if axisTokens := axisUsage.TotalTokens(); axisTokens > 0 {
+		owner, lerr := deps.Store.RenewLease(ctx, job.ID, epoch)
+		if lerr != nil {
+			return fmt.Errorf("renew lease: %w", lerr)
+		}
+		if !owner {
+			return errLeaseLost
+		}
+		recordContextScanUsage(ctx, deps, job, usageModel, axisUsage, axisTokens)
+		if deps.BillingHooks != nil && job.WorkspaceID != "" {
+			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, axisTokens, "context_scan", job.ID+":axes")
+		}
+		if terr := deps.Store.AddContextScanTokens(ctx, job.ID, epoch, axisTokens); terr != nil {
+			slog.WarnContext(ctx, "context-scan token bookkeeping failed", "job_id", job.ID, "error", terr)
+		}
+		totalTokens += axisTokens
+	}
+
 	// Persist the result. Skipped sources appear with zero runes so the review
 	// UI can attribute what was (and was not) read.
 	// One corpus, one point: this scan reads a project's own sources, so both
@@ -379,6 +414,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 	// apart by axis will propose them at narrower points instead; nothing here
 	// assumes there is only ever one.
 	result := ContextScanResult{
+		Axes: axes,
 		Artefacts: []ArtefactProposal{
 			{Kind: ArtefactVoice, Voice: draft, Evidence: evidence},
 		},
