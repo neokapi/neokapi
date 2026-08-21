@@ -1185,14 +1185,6 @@ export function ListProviderConfigs() {
 }
 
 /**
- * ListStarterPacks returns the available brand-voice starter packs.
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function ListStarterPacks() {
-    return $Call.ByID(295812143);
-}
-
-/**
  * ListStoreProjects returns all projects in the content store.
  * @returns {$CancellablePromise<(store$0.Project | null)[]>}
  */
