@@ -24,10 +24,18 @@ function ConfigBlock({ title, config }: { title: string; config: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(config).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard
+      .writeText(config)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        // The clipboard can refuse — no permission, an insecure origin, a
+        // browser that only allows it inside a user gesture. Saying "Copied"
+        // over an empty clipboard is worse than not saying it.
+        setCopied(false);
+      });
   }, [config]);
 
   return (

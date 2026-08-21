@@ -57,10 +57,17 @@ const useCopyToClipboard = ({
   const copyToClipboard = (value: string) => {
     if (!value) return;
 
-    navigator.clipboard.writeText(value).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), copiedDuration);
-    });
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), copiedDuration);
+      })
+      .catch(() => {
+        // See BrandMCPGuide: a refused clipboard write must not leave the
+        // button claiming it succeeded.
+        setIsCopied(false);
+      });
   };
 
   return { isCopied, copyToClipboard };

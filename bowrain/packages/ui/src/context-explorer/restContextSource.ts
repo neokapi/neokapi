@@ -196,7 +196,7 @@ export function createRestContextSource(api: ApiAdapter, workspaceSlug: string):
         const profiles = await api.listContextProfiles(workspaceSlug);
         const collections = profiles.profiles.flatMap((profile) =>
           profile.collections
-            .filter((c) => !q.scope.coordinate || pointOf(profile) === q.scope.coordinate)
+            .filter(() => !q.scope.coordinate || pointOf(profile) === q.scope.coordinate)
             .map((c) => ({
               id: c.id,
               name: c.name,

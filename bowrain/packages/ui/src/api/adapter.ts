@@ -134,7 +134,6 @@ import type {
   BulkApplyMemoryRequest,
   BulkApplyMemoryResult,
   BulkDeleteResult,
-  GovernedRefusal,
   ConnectorStatusBatch,
   AutomationHistoryPage,
   TaskQuery,
