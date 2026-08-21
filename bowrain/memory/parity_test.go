@@ -27,7 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 
-	pgtm "github.com/neokapi/neokapi/bowrain/memory"
+	pgmemory "github.com/neokapi/neokapi/bowrain/memory"
 	pgstorage "github.com/neokapi/neokapi/bowrain/storage"
 
 	"github.com/stretchr/testify/require"
@@ -81,7 +81,7 @@ func maybePostgresMemory(t *testing.T) (memory.Store, bool) {
 		return nil, false
 	}
 	wsID := fmt.Sprintf("parity-%s-%d", t.Name(), time.Now().UnixNano())
-	tm, err := pgtm.NewPostgresStoreFromDB(db, wsID)
+	tm, err := pgmemory.NewPostgresStoreFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1", wsID)

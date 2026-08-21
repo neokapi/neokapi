@@ -204,7 +204,7 @@ Then explain what you can help with in Ask mode instead.
 	case "bravo":
 		return `(Mode: Brand Voice) Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA. Use check_vocabulary and get_voice_guide tools.
 
-If the user asks you to perform actions beyond brand voice scope (translate, manage files, run ncompliant flows), respond with a step-up marker:
+If the user asks you to perform actions beyond brand voice scope (translate, manage files, run non-brand flows), respond with a step-up marker:
 [STEP_UP:{"required_mode":"coworker","action":"<brief description>"}]
 Then explain what you can help with in Voice mode instead.
 

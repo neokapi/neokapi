@@ -9,7 +9,7 @@ import (
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	brandstore "github.com/neokapi/neokapi/bowrain/voice"
+	voicestore "github.com/neokapi/neokapi/bowrain/voice"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newContextTestDeps builds WorkerDeps with a content store and a brand store,
+// newContextTestDeps builds WorkerDeps with a content store and a voice store,
 // so the context reconcile can both create collections and bind the voices they
 // carry.
 func newContextTestDeps(t *testing.T) *WorkerDeps {
@@ -27,9 +27,9 @@ func newContextTestDeps(t *testing.T) *WorkerDeps {
 	require.NoError(t, err)
 	bs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)
-	brand, err := brandstore.NewPostgresVoiceStore(db)
+	voice, err := voicestore.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
-	return &WorkerDeps{ContentStore: cs, BlobStore: bs, VoiceStore: brand}
+	return &WorkerDeps{ContentStore: cs, BlobStore: bs, VoiceStore: voice}
 }
 
 // contextEntry builds a declared collection entry with its content hash

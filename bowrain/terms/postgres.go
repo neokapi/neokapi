@@ -13,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	fw "github.com/neokapi/neokapi/terms"
-	tbschema "github.com/neokapi/neokapi/terms/schema"
+	termsschema "github.com/neokapi/neokapi/terms/schema"
 )
 
 // PostgresStore is a persistent terms backed by PostgreSQL.
@@ -59,7 +59,7 @@ var Migrations = []storage.Migration{
 	{
 		Version:     5,
 		Description: "terms baseline (folds 1-4)",
-		SQL:         tbschema.RenderTermsPostgresBaseline("workspace_id"),
+		SQL:         termsschema.RenderTermsPostgresBaseline("workspace_id"),
 	},
 }
 

@@ -11,14 +11,14 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 
-	pgtm "github.com/neokapi/neokapi/bowrain/memory"
+	pgmemory "github.com/neokapi/neokapi/bowrain/memory"
 	storage "github.com/neokapi/neokapi/bowrain/storage"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func openTestPostgresMemory(t *testing.T) *pgtm.PostgresStore {
+func openTestPostgresMemory(t *testing.T) *pgmemory.PostgresStore {
 	t.Helper()
 	connStr := os.Getenv("BOWRAIN_TEST_POSTGRES_URL")
 	if connStr == "" {
@@ -29,7 +29,7 @@ func openTestPostgresMemory(t *testing.T) *pgtm.PostgresStore {
 		t.Skipf("PostgreSQL not available: %v", err)
 	}
 	wsID := fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano())
-	tm, err := pgtm.NewPostgresStoreFromDB(db, wsID)
+	tm, err := pgmemory.NewPostgresStoreFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1", wsID)

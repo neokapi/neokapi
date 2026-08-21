@@ -43,7 +43,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	storage "github.com/neokapi/neokapi/bowrain/storage"
-	pgtb "github.com/neokapi/neokapi/bowrain/terms"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 
 	"github.com/stretchr/testify/require"
 )
@@ -112,7 +112,7 @@ func maybePostgresTB(t *testing.T) (terms.Terminology, bool) {
 		return nil, false
 	}
 	wsID := fmt.Sprintf("parity-%s-%d", t.Name(), time.Now().UnixNano())
-	tb, err := pgtb.NewPostgresStoreFromDB(db, wsID)
+	tb, err := pgterms.NewPostgresStoreFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM tb_terms WHERE workspace_id = $1", wsID)

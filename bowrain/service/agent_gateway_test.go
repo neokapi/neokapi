@@ -100,6 +100,14 @@ func TestModePrefix_BravoBrandVoice(t *testing.T) {
 	prefix := modePrefix("bravo")
 	assert.Contains(t, prefix, "brand voice")
 	assert.Contains(t, prefix, "check_vocabulary")
+
+	// The prefix is prose the model reads, so the sentence that decides when
+	// Bravo hands over has to be asserted as a sentence. Spot-checking a
+	// keyword elsewhere in the prompt passes while this one is unreadable:
+	// a rename once turned "non-brand" into "ncompliant" here and every
+	// assertion above still held.
+	assert.Contains(t, prefix, "beyond brand voice scope (translate, manage files, run non-brand flows)")
+	assert.Contains(t, prefix, `[STEP_UP:{"required_mode":"coworker"`)
 }
 
 func TestStreamFromGateway_ServerError(t *testing.T) {

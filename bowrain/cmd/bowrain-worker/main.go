@@ -27,7 +27,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	sqltm "github.com/neokapi/neokapi/bowrain/memory"
+	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/resilience"
@@ -35,7 +35,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/terms"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
@@ -692,7 +692,7 @@ func newWorkerMemoryResolver(pgdb *storage.PgDB) jobs.MemoryResolver {
 		if v, ok := cache.Load(workspaceSlug); ok {
 			return v.(fwmemory.Store), nil
 		}
-		tm, err := sqltm.NewPostgresStoreFromDB(pgdb, workspaceSlug)
+		tm, err := sqlmemory.NewPostgresStoreFromDB(pgdb, workspaceSlug)
 		if err != nil {
 			return nil, err
 		}
@@ -729,7 +729,7 @@ func newWorkerTermsResolver(pgdb *storage.PgDB) jobs.TermsResolver {
 		if v, ok := cache.Load(workspaceSlug); ok {
 			return v.(fwterms.Terminology), nil
 		}
-		tb, err := sqltb.NewPostgresStoreFromDB(pgdb, workspaceSlug)
+		tb, err := sqlterms.NewPostgresStoreFromDB(pgdb, workspaceSlug)
 		if err != nil {
 			return nil, err
 		}

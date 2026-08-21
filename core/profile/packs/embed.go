@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 //go:embed *.yaml
@@ -31,12 +31,12 @@ func List() ([]string, error) {
 }
 
 // Load loads a starter pack by name and returns a VoiceProfile.
-func Load(name string) (*profile.VoiceProfile, error) {
+func Load(name string) (*coreprofile.VoiceProfile, error) {
 	data, err := packsFS.ReadFile(name + ".yaml")
 	if err != nil {
 		return nil, fmt.Errorf("reading pack %q: %w", name, err)
 	}
-	profile, err := profile.LoadProfileYAML(bytes.NewReader(data))
+	profile, err := coreprofile.LoadProfileYAML(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("pack %q: %w", name, err)
 	}
@@ -44,12 +44,12 @@ func Load(name string) (*profile.VoiceProfile, error) {
 }
 
 // LoadAll loads all starter packs.
-func LoadAll() ([]*profile.VoiceProfile, error) {
+func LoadAll() ([]*coreprofile.VoiceProfile, error) {
 	names, err := List()
 	if err != nil {
 		return nil, err
 	}
-	var profiles []*profile.VoiceProfile
+	var profiles []*coreprofile.VoiceProfile
 	for _, name := range names {
 		p, err := Load(name)
 		if err != nil {

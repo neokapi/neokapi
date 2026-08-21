@@ -11,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -374,7 +374,7 @@ func TestAITranslate_StampsGoverningProfile(t *testing.T) {
 	ctx := context.Background()
 	mock, _ := newTranslateMock(t)
 	cfg := singleBlockConfig()
-	cfg.Profile = &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7}
+	cfg.Profile = &coreprofile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7}
 	tl := tools.NewAITranslateTool(mock, cfg)
 
 	sess, err := store.Begin(ctx)
@@ -425,7 +425,7 @@ func TestAITranslate_UnversionedProfileStampsIDOnly(t *testing.T) {
 	ctx := context.Background()
 	mock, _ := newTranslateMock(t)
 	cfg := singleBlockConfig()
-	cfg.Profile = &profile.VoiceProfile{ID: "draft-profile", Name: "Draft"}
+	cfg.Profile = &coreprofile.VoiceProfile{ID: "draft-profile", Name: "Draft"}
 	tl := tools.NewAITranslateTool(mock, cfg)
 
 	sess, err := store.Begin(ctx)
@@ -468,7 +468,7 @@ func stampedFingerprint(t *testing.T, cfg tools.AITranslateConfig) string {
 // context moves, and must NOT move when only the engine does: a stamp that
 // changed on a model swap would be useless as a statement about governance.
 func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
-	profile := &profile.VoiceProfile{ID: "help", Name: "Help", Version: 3}
+	profile := &coreprofile.VoiceProfile{ID: "help", Name: "Help", Version: 3}
 
 	base := singleBlockConfig()
 	base.Profile = profile

@@ -21,13 +21,13 @@ func TestList(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	profile, err := Load("professional-b2b")
+	p, err := Load("professional-b2b")
 	require.NoError(t, err)
-	assert.Equal(t, "Professional B2B", profile.Name)
-	assert.NotEmpty(t, profile.Tone.Personality)
-	assert.Equal(t, "formal", profile.Tone.Formality)
-	assert.NotEmpty(t, profile.Examples)
-	assert.NotEmpty(t, profile.Vocabulary.ForbiddenTerms)
+	assert.Equal(t, "Professional B2B", p.Name)
+	assert.NotEmpty(t, p.Tone.Personality)
+	assert.Equal(t, "formal", p.Tone.Formality)
+	assert.NotEmpty(t, p.Examples)
+	assert.NotEmpty(t, p.Vocabulary.ForbiddenTerms)
 }
 
 func TestLoadAll(t *testing.T) {

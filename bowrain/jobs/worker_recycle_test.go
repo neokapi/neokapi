@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	sqltm "github.com/neokapi/neokapi/bowrain/memory"
+	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
@@ -44,7 +44,7 @@ func TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder(t *testing.T) {
 	}))
 
 	// Seed the project content memory (workspace-scoped) with the "Hello" pair.
-	tm, err := sqltm.NewPostgresStoreFromDB(db, wsSlug)
+	tm, err := sqlmemory.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
 	require.NoError(t, tm.Add(ctx, fwmemory.Entry{
 		ID: "e-hello",
@@ -61,7 +61,7 @@ func TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder(t *testing.T) {
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
 		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
 		MemoryResolver: MemoryResolverFunc(func(slug string) (fwmemory.Store, error) {
-			return sqltm.NewPostgresStoreFromDB(db, slug)
+			return sqlmemory.NewPostgresStoreFromDB(db, slug)
 		}),
 	}
 
