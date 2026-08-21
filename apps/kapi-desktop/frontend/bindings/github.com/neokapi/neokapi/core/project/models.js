@@ -144,6 +144,19 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Coordinates places this collection on the DECLARED axes — the ones a
+             * project names for itself, brand among them. It overlays
+             * `defaults.coordinates`, per axis, so a collection moves on the one axis
+             * it differs on and inherits the rest.
+             * 
+             * The structural axes come from `channel:` above and are not written here.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -176,7 +189,8 @@ export class Collection {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
-        const $$createField7_0 = $$createType4;
+        const $$createField6_0 = $$createType3;
+        const $$createField8_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -184,8 +198,11 @@ export class Collection {
         if ("content" in $$parsedSource) {
             $$parsedSource["content"] = $$createField3_0($$parsedSource["content"]);
         }
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
+        }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField7_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField8_0($$parsedSource["format"]);
         }
         return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
     }
@@ -274,9 +291,9 @@ export class ContentItem {
      * @returns {ContentItem}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType5;
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType6;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -356,7 +373,7 @@ export class Defaults {
              * SourceGate is the source-first convergence gate: the SourceStatus a
              * source block must reach before its translations are produced. Source-first
              * convergence settles the source (terminology + voice + source-QA) and gates
-             * the fan-out on it, so an unsettled, off-brand, un-term-checked source is
+             * the fan-out on it, so an unsettled, non-compliant, un-term-checked source is
              * never translated into N locales only to be redone when it changes
              * (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
              * 
@@ -474,6 +491,24 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Coordinates is the project's default point in the context space: the axes
+             * every collection sits at unless it says otherwise.
+             * 
+             * It exists because most axes default. A project has one brand far more
+             * often than one per collection, so stating it per entry is noise that
+             * drifts — the same reason Voice above is a default with a per-collection
+             * override rather than a field repeated on every entry.
+             * 
+             * The structural axes (product, channel) are NOT written here: they are
+             * derived from a collection's `channel:`, and a default that could shadow
+             * them would let a recipe contradict its own point. Declared axes only.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * TermsSource binds the committed, git-tracked native source artifact
              * (a .terms.json document) the project terms store is compiled from. This is the
              * authored, reviewable form: `kapi apply` edits the .terms.json here and then
@@ -537,15 +572,16 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField10_0 = $$createType8;
-        const $$createField11_0 = $$createType9;
-        const $$createField12_0 = $$createType10;
-        const $$createField13_0 = $$createType11;
-        const $$createField14_0 = $$createType12;
-        const $$createField15_0 = $$createType6;
-        const $$createField16_0 = $$createType14;
-        const $$createField19_0 = $$createType16;
-        const $$createField20_0 = $$createType18;
+        const $$createField10_0 = $$createType9;
+        const $$createField11_0 = $$createType10;
+        const $$createField12_0 = $$createType11;
+        const $$createField13_0 = $$createType12;
+        const $$createField14_0 = $$createType13;
+        const $$createField15_0 = $$createType7;
+        const $$createField16_0 = $$createType15;
+        const $$createField17_0 = $$createType3;
+        const $$createField20_0 = $$createType17;
+        const $$createField21_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -571,11 +607,14 @@ export class Defaults {
         if ("voice" in $$parsedSource) {
             $$parsedSource["voice"] = $$createField16_0($$parsedSource["voice"]);
         }
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField17_0($$parsedSource["coordinates"]);
+        }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField19_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField20_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -682,7 +721,7 @@ export class FormatDefaults {
      * @returns {FormatDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
@@ -740,7 +779,7 @@ export class FormatSpec {
      * @returns {FormatSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType15;
+        const $$createField2_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
@@ -786,7 +825,7 @@ export class GateRef {
      * @returns {GateRef}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType19;
+        const $$createField1_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Inline" in $$parsedSource) {
             $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
@@ -962,18 +1001,18 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType22;
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType25;
-        const $$createField6_0 = $$createType28;
-        const $$createField7_0 = $$createType30;
-        const $$createField8_0 = $$createType19;
-        const $$createField9_0 = $$createType32;
-        const $$createField10_0 = $$createType33;
-        const $$createField11_0 = $$createType19;
-        const $$createField12_0 = $$createType32;
-        const $$createField13_0 = $$createType19;
-        const $$createField14_0 = $$createType34;
+        const $$createField2_0 = $$createType23;
+        const $$createField3_0 = $$createType24;
+        const $$createField4_0 = $$createType26;
+        const $$createField6_0 = $$createType29;
+        const $$createField7_0 = $$createType31;
+        const $$createField8_0 = $$createType20;
+        const $$createField9_0 = $$createType33;
+        const $$createField10_0 = $$createType34;
+        const $$createField11_0 = $$createType20;
+        const $$createField12_0 = $$createType33;
+        const $$createField13_0 = $$createType20;
+        const $$createField14_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -1044,7 +1083,7 @@ export class LocaleDefaults {
      * @returns {LocaleDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType16;
+        const $$createField0_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -1355,7 +1394,7 @@ export class Profile {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType39;
-        const $$createField1_0 = $$createType14;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
             $$parsedSource["channels"] = $$createField0_0($$parsedSource["channels"]);
@@ -1422,7 +1461,7 @@ export class RedactionSpec {
      * @returns {RedactionSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType9;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detectors" in $$parsedSource) {
             $$parsedSource["detectors"] = $$createField2_0($$parsedSource["detectors"]);
@@ -1589,49 +1628,49 @@ export class VoiceBinding {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ContentItem.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = FormatSpec.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = RedactionSpec.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = FormatDefaults.createFrom;
-const $$createType8 = $Create.Map($Create.Any, $$createType7);
-const $$createType9 = $Create.Array($Create.Any);
-const $$createType10 = MergeDefaults.createFrom;
-const $$createType11 = MemoryDefaults.createFrom;
-const $$createType12 = SegmentationDefaults.createFrom;
-const $$createType13 = VoiceBinding.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = $Create.Map($Create.Any, $$createType15);
-const $$createType17 = LocaleDefaults.createFrom;
-const $$createType18 = $Create.Map($Create.Any, $$createType17);
-var $$createType19 = /** @type {(...args: any[]) => any} */(function $$initCreateType19(...args) {
-    if ($$createType19 === $$initCreateType19) {
-        $$createType19 = $$createType20;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = FormatSpec.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = RedactionSpec.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = FormatDefaults.createFrom;
+const $$createType9 = $Create.Map($Create.Any, $$createType8);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = MergeDefaults.createFrom;
+const $$createType12 = MemoryDefaults.createFrom;
+const $$createType13 = SegmentationDefaults.createFrom;
+const $$createType14 = VoiceBinding.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType18 = LocaleDefaults.createFrom;
+const $$createType19 = $Create.Map($Create.Any, $$createType18);
+var $$createType20 = /** @type {(...args: any[]) => any} */(function $$initCreateType20(...args) {
+    if ($$createType20 === $$initCreateType20) {
+        $$createType20 = $$createType21;
     }
-    return $$createType19(...args);
+    return $$createType20(...args);
 });
-const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = PluginSpec.createFrom;
-const $$createType22 = $Create.Map($Create.Any, $$createType21);
-const $$createType23 = Defaults.createFrom;
-const $$createType24 = Collection.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = flow$0.StepsSpec.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = $Create.Map($Create.Any, $$createType27);
-const $$createType29 = Profile.createFrom;
-const $$createType30 = $Create.Map($Create.Any, $$createType29);
-const $$createType31 = ShipGateRule.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = $Create.Map($Create.Any, $$createType19);
-var $$createType34 = /** @type {(...args: any[]) => any} */(function $$initCreateType34(...args) {
-    if ($$createType34 === $$initCreateType34) {
-        $$createType34 = $$createType35;
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = PluginSpec.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $$createType22);
+const $$createType24 = Defaults.createFrom;
+const $$createType25 = Collection.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = flow$0.StepsSpec.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = $Create.Map($Create.Any, $$createType28);
+const $$createType30 = Profile.createFrom;
+const $$createType31 = $Create.Map($Create.Any, $$createType30);
+const $$createType32 = ShipGateRule.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = $Create.Map($Create.Any, $$createType20);
+var $$createType35 = /** @type {(...args: any[]) => any} */(function $$initCreateType35(...args) {
+    if ($$createType35 === $$initCreateType35) {
+        $$createType35 = $$createType3;
     }
-    return $$createType34(...args);
+    return $$createType35(...args);
 });
-const $$createType35 = $Create.Map($Create.Any, $Create.Any);
 const $$createType36 = PluginIssue.createFrom;
 const $$createType37 = $Create.Array($$createType36);
 const $$createType38 = Channel.createFrom;

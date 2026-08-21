@@ -29,7 +29,7 @@
  *     appears in Blocks that actually contain a plural or select.
  *     Simple blocks have perfectly flat `Run[]` with no recursion.
  *
- * THE RULE: neoneokapi-i18n extracts Blocks. kapi / neokapi stores,
+ * THE RULE: neokapi-i18n extracts Blocks. kapi / neokapi stores,
  * processes, and renders them. Runs are the wire-level content
  * representation; internal processing is free to materialize a
  * coded-string form with PUA markers on demand for hot-path text

@@ -6,7 +6,7 @@ function t(code: string, options: Partial<PluginOptions> = {}): string | null {
   return transform(code, "Test.tsx", { mode: "runtime", ...options })?.code ?? null;
 }
 
-describe("neoneokapi-i18n SWC transform", () => {
+describe("neokapi-i18n SWC transform", () => {
   describe("dev mode (no-op)", () => {
     it("returns null when no locale or mode set", () => {
       const result = transform("<h1>Hello</h1>", "Test.tsx", {});

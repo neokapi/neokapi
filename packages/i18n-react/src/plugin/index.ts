@@ -105,7 +105,7 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
   }
 
   return {
-    name: "neoneokapi-i18n",
+    name: "neokapi-i18n",
     enforce: "pre" as const,
 
     buildStart() {
@@ -201,10 +201,10 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
     webpack(compiler: any) {
       if (options.mode !== "runtime" && !options.review) return;
       const { webpack } = compiler;
-      compiler.hooks.thisCompilation.tap("neoneokapi-i18n", (compilation: any) => {
+      compiler.hooks.thisCompilation.tap("neokapi-i18n", (compilation: any) => {
         compilation.hooks.processAssets.tap(
           {
-            name: "neoneokapi-i18n",
+            name: "neokapi-i18n",
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
           () => {
