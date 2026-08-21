@@ -43,7 +43,7 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
-	tree, itemIDs, err := diffEngine.LoadTree(ctx, projectID, stream, scope)
+	tree, err := diffEngine.LoadTree(ctx, projectID, stream, scope)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -66,13 +66,9 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 	// A list rather than a map, in path order, so the body is byte-identical
 	// for identical content and the ETag means what it claims.
 	paths := bowsync.SortedPaths(tree)
-	items := make([]treeItemResponse, 0, len(paths))
+	items := make([]venue.TreeItem, 0, len(paths))
 	for _, p := range paths {
-		ti := tree[p]
-		items = append(items, treeItemResponse{
-			ID:       itemIDs[p],
-			TreeItem: ti,
-		})
+		items = append(items, tree[p])
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -80,15 +76,6 @@ func (s *Server) HandleSyncTree(c echo.Context) error {
 		"root_hash": root,
 		"items":     items,
 	})
-}
-
-// treeItemResponse is a tree entry plus the venue's own name for it. The id is
-// the venue's, never the producer's: a rename grafts one document's approvals
-// onto another, so which document this IS is a claim only the side holding the
-// content gets to make.
-type treeItemResponse struct {
-	venue.TreeItem
-	ID string `json:"id"`
 }
 
 // etagMatches compares a request's If-None-Match against the tag served,

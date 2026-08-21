@@ -133,6 +133,13 @@ type Unit struct {
 // is the key the document cache, the overlays, and the state store all address a
 // unit by.
 func BlockKey(b *model.Block) string {
+	// A resolved unit wins, because it is the one of the three that is matched
+	// rather than named — it survives a sibling being deleted, which is the
+	// case the other two cannot answer. Absent, the reader's name is the best
+	// available key, and the reader's id the last resort.
+	if b.Unit != "" {
+		return b.Unit
+	}
 	if b.Name != "" {
 		return b.Name
 	}

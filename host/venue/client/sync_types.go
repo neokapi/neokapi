@@ -12,9 +12,13 @@ import (
 // Unlike BlockContent which only carries plain text, SyncBlock preserves structured
 // segments with inline spans, annotations, skeleton, display hints, and metadata.
 type SyncBlock struct {
-	ID           string                   `json:"id"`
-	ItemName     string                   `json:"item_name"`
-	Name         string                   `json:"name"`
+	ID       string `json:"id"`
+	ItemName string `json:"item_name"`
+	Name     string `json:"name"`
+	// Unit is the block's durable identity (model.Block.Unit) — what a decision
+	// and a translation are filed under. Distinct from Name, which is the
+	// format's own structural address and shifts when a sibling is deleted.
+	Unit         string                   `json:"unit,omitempty"`
 	Type         string                   `json:"type,omitempty"`
 	MimeType     string                   `json:"mime_type,omitempty"`
 	Translatable bool                     `json:"translatable"`

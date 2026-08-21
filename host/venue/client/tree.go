@@ -42,14 +42,8 @@ type TreeResponse struct {
 	Ref *ref.Ref `json:"ref,omitempty"`
 	// RootHash folds the whole tree, so a caller holding a warm mirror can ask
 	// whether anything moved without reading it back.
-	RootHash string     `json:"root_hash"`
-	Items    []TreeItem `json:"items"`
-}
-
-// TreeItem is one item's entry plus the venue's id for it.
-type TreeItem struct {
-	venue.TreeItem
-	ID string `json:"id"`
+	RootHash string           `json:"root_hash"`
+	Items    []venue.TreeItem `json:"items"`
 }
 
 // Tree returns the venue's tree for the stream, optionally narrowed to a scope.
@@ -119,7 +113,7 @@ func (t *TreeResponse) Tree() venue.Tree {
 		return out
 	}
 	for _, item := range t.Items {
-		out[item.Path] = item.TreeItem
+		out[item.Path] = item
 	}
 	return out
 }

@@ -884,7 +884,13 @@ type SyncBlock struct {
 	// Source authoring locale — the locale of the source runs (Block.SourceLocale).
 	SourceLocale string `protobuf:"bytes,20,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	// Whether this block is referenced by a skeleton (Block.IsReferent).
-	IsReferent    bool `protobuf:"varint,21,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
+	IsReferent bool `protobuf:"varint,21,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
+	// The block's durable identity (Block.Unit) — the key a decision, a
+	// translation and a history entry are filed under, and what a venue stores as
+	// the block's source id. Distinct from `name`, which is the format's own
+	// structural address and shifts when a sibling is deleted. Empty when nothing
+	// has resolved one, in which case `name` is the key.
+	Unit          string `protobuf:"bytes,22,opt,name=unit,proto3" json:"unit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1064,6 +1070,13 @@ func (x *SyncBlock) GetIsReferent() bool {
 		return x.IsReferent
 	}
 	return false
+}
+
+func (x *SyncBlock) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
 }
 
 // SyncSegmentList wraps a locale's segments so SyncBlock.targets can map
@@ -2116,7 +2129,7 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	" \x03(\v2\x1a.neokapi.sync.v1.SyncBlockR\x06blocks\x12/\n" +
 	"\x05terms\x18\v \x03(\v2\x19.neokapi.sync.v1.SyncTermR\x05terms\x12G\n" +
 	"\x0ememory_entries\x18\f \x03(\v2 .neokapi.sync.v1.SyncMemoryEntryR\rmemoryEntries\x120\n" +
-	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\"\xe7\b\n" +
+	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\"\xfb\b\n" +
 	"\tSyncBlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\titem_name\x18\x02 \x01(\tR\bitemName\x12\x12\n" +
@@ -2143,7 +2156,8 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\boverlays\x18\x13 \x03(\v2\".neokapi.content.v1.OverlayMessageR\boverlays\x12#\n" +
 	"\rsource_locale\x18\x14 \x01(\tR\fsourceLocale\x12\x1f\n" +
 	"\vis_referent\x18\x15 \x01(\bR\n" +
-	"isReferent\x1a\\\n" +
+	"isReferent\x12\x12\n" +
+	"\x04unit\x18\x16 \x01(\tR\x04unit\x1a\\\n" +
 	"\fTargetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
 	"\x05value\x18\x02 \x01(\v2 .neokapi.sync.v1.SyncSegmentListR\x05value:\x028\x01\x1a=\n" +

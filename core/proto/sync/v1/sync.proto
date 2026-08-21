@@ -288,6 +288,13 @@ message SyncBlock {
 
   // Whether this block is referenced by a skeleton (Block.IsReferent).
   bool is_referent = 21;
+
+  // The block's durable identity (Block.Unit) — the key a decision, a
+  // translation and a history entry are filed under, and what a venue stores as
+  // the block's source id. Distinct from `name`, which is the format's own
+  // structural address and shifts when a sibling is deleted. Empty when nothing
+  // has resolved one, in which case `name` is the key.
+  string unit = 22;
 }
 
 // SyncSegmentList wraps a locale's segments so SyncBlock.targets can map

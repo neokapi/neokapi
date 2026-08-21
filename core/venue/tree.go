@@ -38,6 +38,16 @@ import (
 // map of hashes has no order to compare.
 type TreeItem struct {
 	Path string `json:"path"`
+	// ID is the venue's identity for this item — its name is only the address
+	// the item currently sits at. Served by a venue; a producer leaves it empty,
+	// because which document an entry IS is the venue's to say.
+	//
+	// It is the scope block identity resolves under, and that is why it has to
+	// travel. Scoping by PATH would undo document resolution: a renamed file
+	// would find no priors under its new path and every block inside it would
+	// mint a fresh unit — the exact orphaning that resolving documents first
+	// exists to prevent.
+	ID string `json:"id,omitempty"`
 	// Keys are the durable block keys (what the venue stores as source_id),
 	// which is what a prune is expressed in.
 	Keys []string `json:"keys"`
@@ -50,6 +60,15 @@ type TreeItem struct {
 	// producer's declaration, which the venue reads for identity rather than
 	// for transfer.
 	Record []string `json:"record,omitempty"`
+	// Context is each block's context hash — its name, type and properties.
+	// Served by a venue, omitted by a producer.
+	//
+	// It is here so a producer can resolve block identity against what the
+	// venue holds rather than against its own uncommitted local state. Content
+	// and context are the two signals reconciliation grades independently, so
+	// both have to travel; Record cannot stand in for Context because it is a
+	// fold, and a fold cannot be taken apart.
+	Context []string `json:"context,omitempty"`
 }
 
 // Tree is a stream's items, keyed by path.
@@ -90,25 +109,27 @@ func TreeFromBlocks(blocksByItem map[string][]*model.Block) Tree {
 // Units renders the tree as the prior/current shape document reconciliation
 // speaks, in path order so two runs over one tree resolve identically.
 //
-// keyOf names each item — the venue passes the item's stored id, a producer
-// passes nothing, since a producer's declaration is the "current" side and has
-// no identity to offer. Identity is the venue's to assign.
-func (t Tree) Units(keyOf func(path string) string) []reconcile.DocUnit {
-	paths := make([]string, 0, len(t))
-	for p := range t {
-		paths = append(paths, p)
-	}
-	slices.Sort(paths)
-
-	units := make([]reconcile.DocUnit, 0, len(paths))
-	for _, p := range paths {
-		u := reconcile.DocUnit{Path: p, Content: t[p].Content}
-		if keyOf != nil {
-			u.Key = keyOf(p)
-		}
-		units = append(units, u)
+// A venue's tree carries an id per item and so yields keyed priors; a
+// producer's declaration carries none and yields the unkeyed "current" side.
+// Identity is the venue's to assign, and the shape says so.
+func (t Tree) Units() []reconcile.DocUnit {
+	units := make([]reconcile.DocUnit, 0, len(t))
+	for _, p := range t.paths() {
+		units = append(units, reconcile.DocUnit{
+			Key: t[p].ID, Path: p, Content: t[p].Content,
+		})
 	}
 	return units
+}
+
+// paths is the tree's paths in a stable order.
+func (t Tree) paths() []string {
+	out := make([]string, 0, len(t))
+	for p := range t {
+		out = append(out, p)
+	}
+	slices.Sort(out)
+	return out
 }
 
 // Records is every transfer hash the tree holds, across all items.
@@ -124,6 +145,43 @@ func (t Tree) Records() map[string]struct{} {
 			if r != "" {
 				out[r] = struct{}{}
 			}
+		}
+	}
+	return out
+}
+
+// Priors renders the tree as the prior set block reconciliation matches against.
+//
+// This is the point of serving context hashes. A producer resolving identity
+// needs to know what the venue already holds, and the honest source for that is
+// the venue — not the producer's own cache, which a fresh clone does not have
+// and another machine's push invalidates. Fetched priors make a cold checkout
+// and a warm one resolve to the same units.
+//
+// The scope is the item's path, which is what qualifies a context match: a
+// block's name is only unique inside its own document.
+func (t Tree) Priors() []reconcile.Unit {
+	var out []reconcile.Unit
+	for _, p := range t.paths() {
+		ti := t[p]
+		// The document's identity, not its address — see TreeItem.ID.
+		scope := ti.ID
+		if scope == "" {
+			scope = p
+		}
+		for i, key := range ti.Keys {
+			if i >= len(ti.Content) || i >= len(ti.Context) {
+				// A venue too old to serve context hashes offers no priors to
+				// match on. Resolution then mints, which is the same answer a
+				// producer reached before it could ask at all.
+				break
+			}
+			out = append(out, reconcile.Unit{
+				Key:         key,
+				Scope:       scope,
+				ContentHash: ti.Content[i],
+				ContextHash: ti.Context[i],
+			})
 		}
 	}
 	return out

@@ -32,7 +32,6 @@
 package reconcile
 
 import (
-	"maps"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -43,7 +42,11 @@ import (
 // reads — including units whose blocks are not in the current read, since that
 // is what lets a removed block return to its own history later.
 type Unit struct {
-	Key         string
+	Key string
+	// Scope is the document the unit belongs to. It qualifies context matching
+	// and nothing else — see Identify for why it is carried beside the hashes
+	// rather than folded into them.
+	Scope       string
 	ContentHash string
 	ContextHash string
 }
@@ -95,22 +98,26 @@ type Result struct {
 // file could claim the history of an unrelated paragraph in another, which in a
 // project of a few hundred documents is not an edge case but the common case.
 //
-// Scope binds the CONTEXT hash only. The content hash stays document-free on
-// purpose, so text moved from one file to another is still recognised as the
+// Scope qualifies the CONTEXT match only. The content match stays document-free
+// on purpose, so text moved from one file to another is still recognised as the
 // same words and keeps its translation.
+//
+// It is carried BESIDE the hashes rather than folded into them, so that the two
+// hashes here are the same two a block carries everywhere else
+// (model.ComputeIdentity — what the sync wire sends and a venue stores). Folded
+// in, they were not: the same block had one context hash for reconciliation and
+// a different one for transfer, which made a venue's stored hashes unusable as
+// a prior set and left the difference waiting to be discovered. The scope now
+// appears in the pool's lookup keys, which is the only place it ever meant
+// anything.
 func Identify(scope string, b *model.Block) Unit {
-	props := make(map[string]string, len(b.Properties)+1)
-	maps.Copy(props, b.Properties)
-	props[scopeProp] = scope
+	id := model.ComputeIdentity(b)
 	return Unit{
-		ContentHash: model.ComputeContentHash(b.SourceText()),
-		ContextHash: model.ComputeContextHash(b.Name, b.Type, props),
+		Scope:       scope,
+		ContentHash: id.ContentHash,
+		ContextHash: id.ContextHash,
 	}
 }
-
-// scopeProp carries the document into the context hash. It is namespaced so it
-// cannot be confused with a property a format actually produced.
-const scopeProp = "\x00reconcile.scope"
 
 // Blocks resolves each block in current to a stable key, in the order given.
 //
@@ -134,7 +141,7 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	// Strongest signal first, so an exact match is never stolen by a weaker one.
 	// Both passes below run over the blocks left unresolved by the pass above.
 	resolve(out, ids, func(id Unit) (string, bool) {
-		return pool.take(bothKey(id.ContentHash, id.ContextHash))
+		return pool.take(bothKey(id.Scope, id.ContentHash, id.ContextHash))
 	}, Unchanged)
 
 	// Content before context, because the two signals are not equally strong. A
@@ -157,7 +164,7 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	}, Moved)
 
 	resolve(out, ids, func(id Unit) (string, bool) {
-		return pool.take(ctxKey(id.ContextHash))
+		return pool.take(ctxKey(id.Scope, id.ContextHash))
 	}, Edited)
 
 	mint(out, ids)
@@ -185,7 +192,11 @@ func mint(out []Result, ids []Unit) {
 		if out[i].Key != "" {
 			continue
 		}
-		key := "u-" + model.ComputeContentHash(ids[i].ContentHash + "|" + ids[i].ContextHash)[:16]
+		// The scope is part of the mint for the reason it is part of the context
+		// lookup: two identical paragraphs in two documents are two units, and a
+		// key derived from content and context alone would give them one.
+		key := "u-" + model.ComputeContentHash(
+			ids[i].Scope + "|" + ids[i].ContentHash + "|" + ids[i].ContextHash)[:16]
 		seen[key]++
 		if n := seen[key]; n > 1 {
 			key += "-" + strconv.Itoa(n)
@@ -203,9 +214,12 @@ type pool struct {
 func newPool(prior []Unit) *pool {
 	p := &pool{byKey: map[string][]string{}, taken: map[string]bool{}}
 	for _, u := range prior {
-		p.byKey[bothKey(u.ContentHash, u.ContextHash)] = append(p.byKey[bothKey(u.ContentHash, u.ContextHash)], u.Key)
-		p.byKey[ctxKey(u.ContextHash)] = append(p.byKey[ctxKey(u.ContextHash)], u.Key)
-		p.byKey[contentKey(u.ContentHash)] = append(p.byKey[contentKey(u.ContentHash)], u.Key)
+		both := bothKey(u.Scope, u.ContentHash, u.ContextHash)
+		ctx := ctxKey(u.Scope, u.ContextHash)
+		content := contentKey(u.ContentHash)
+		p.byKey[both] = append(p.byKey[both], u.Key)
+		p.byKey[ctx] = append(p.byKey[ctx], u.Key)
+		p.byKey[content] = append(p.byKey[content], u.Key)
 	}
 	return p
 }
@@ -227,6 +241,12 @@ func (p *pool) take(lookup string) (string, bool) {
 	return "", false
 }
 
-func bothKey(content, context string) string { return "b:" + content + "|" + context }
-func ctxKey(context string) string           { return "x:" + context }
-func contentKey(content string) string       { return "c:" + content }
+// The lookup keys. Scope qualifies the two that involve context, because a
+// block's name is only unique inside its own document; the content lookup is
+// deliberately scope-free, which is what lets text moved between files keep its
+// identity.
+func bothKey(scope, content, context string) string {
+	return "b:" + scope + "|" + content + "|" + context
+}
+func ctxKey(scope, context string) string { return "x:" + scope + "|" + context }
+func contentKey(content string) string    { return "c:" + content }
