@@ -918,6 +918,11 @@ jobs:
         run: ./scripts/check-deploy-paths.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
+      # The docs jobs build two sites in two locales and sit late in CI, so an
+      # unresolvable doc id costs a full round trip to learn. This says it in a
+      # second, on every PR, for both sidebars at once.
+      - name: Guard — every sidebar doc id resolves to a page
+        run: ./scripts/check-sidebar-ids.sh
       - name: Guard — reference dataset is reproducible from this repo
         run: ./scripts/check-reference-provenance.sh
       - name: Guard — publishable packages declare a license and ship its text
