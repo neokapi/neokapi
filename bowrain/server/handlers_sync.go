@@ -141,53 +141,6 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	})
 }
 
-// HandleSyncPushDiff handles block-level diff negotiation for a single item.
-// POST /sync/push/diff
-func (s *Server) HandleSyncPushDiff(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
-		return err
-	}
-
-	var req struct {
-		UploadID    string            `json:"upload_id"`
-		ItemName    string            `json:"item_name"`
-		BlockHashes map[string]string `json:"block_hashes"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return apiErr(c, http.StatusBadRequest, err.Error())
-	}
-
-	projectID := c.Param("id")
-	stream := refParam(c)
-
-	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
-
-	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
-	if err != nil {
-		return serverErr(c, err)
-	}
-
-	// Generate chunk upload URLs if blob store supports it.
-	var chunkURLs []string
-	transport := "proxy"
-	if chunkedStore, ok := s.BlobStore.(storage.ChunkedBlobStore); ok {
-		estimatedChunks := (len(blockDiff.Needed) / 500) + 1
-		urls, err := chunkedStore.GenerateChunkUploadURLs(c.Request().Context(), req.UploadID, estimatedChunks, storage.SignOptions{})
-		if err == nil && len(urls) > 0 {
-			chunkURLs = urls
-			transport = "direct"
-		}
-	}
-
-	return c.JSON(http.StatusOK, map[string]any{
-		"needed":     blockDiff.Needed,
-		"deleted":    blockDiff.Deleted,
-		"conflicts":  blockDiff.Conflicts,
-		"chunk_urls": chunkURLs,
-		"transport":  transport,
-	})
-}
-
 // HandleSyncPushCommit finalizes a push by validating the manifest and enqueuing the worker job.
 // POST /sync/push/commit
 func (s *Server) HandleSyncPushCommit(c echo.Context) error {
@@ -221,11 +174,14 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// about. Passed through verbatim like Items — see
 		// core/venue.BlockPropertyKeys.
 		BlockPropertyKeys []string `json:"block_property_keys"`
-		// ItemBlocks declares, per item this producer read, the complete set of
-		// block keys it holds — so the worker can remove the ones it no longer
-		// does. Passed through verbatim like Items; see
-		// core/venue.ItemBlockKeys.
-		ItemBlocks map[string][]string `json:"item_blocks"`
+		// Scope is the set of paths this push is authoritative over, and Tree
+		// is what the producer read within it — per item, the block keys it
+		// holds and the content hash of each. Together they are how a push says
+		// what is GONE: a deletion sends no block, so the payload cannot say
+		// it, and absence is only an answer inside a declared scope. Passed
+		// through verbatim like Items; see core/venue.Tree and core/venue.Scope.
+		Scope venue.Scope `json:"scope"`
+		Tree  venue.Tree  `json:"tree"`
 		// ContentModelEpoch is the generation this push wrote, recorded on the
 		// stream now that it has been accepted.
 		ContentModelEpoch int `json:"content_model_epoch"`

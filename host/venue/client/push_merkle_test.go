@@ -65,11 +65,15 @@ func TestPushItemHashesCoverSentSubset(t *testing.T) {
 		"init must send the root hash over exactly the changed subset")
 }
 
-// TestPushIgnoresServerReportedDeletions verifies the non-destructive invariant
-// of #43: a server that (wrongly, given partial hashes) reports DeletedItems in
-// init and Deleted blocks in diff must have NO effect on the client — it never
-// removes anything locally and proceeds to upload only the needed blocks. The
-// only chunks uploaded are for the items/blocks the server marked needed.
+// The non-destructive invariant of #43, restated for a push that no longer
+// negotiates: a venue that reports items or blocks as deleted must have no
+// effect on the client. It uploads what it was given and nothing else.
+//
+// The verdicts themselves are now vestigial — a push declares a tree and a
+// scope, and the venue computes the transition from those. What matters here is
+// that a client hearing "these are deleted" does not act on it, because the
+// party that reads a deletion is the one holding the content, not the one
+// sending it.
 func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 	blocksByItem := map[string][]*model.Block{
 		"locales/en.json": {
@@ -77,7 +81,6 @@ func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 		},
 	}
 
-	var diffRequests []PushDiffRequest
 	var uploadedChunkPaths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -88,16 +91,6 @@ func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 				Status:       "diff_computed",
 				NewItems:     []string{"locales/en.json"},
 				DeletedItems: []string{"locales/fr.json", "locales/de.json"},
-			})
-		case strings.HasSuffix(r.URL.Path, "/push/diff"):
-			var req PushDiffRequest
-			_ = json.NewDecoder(r.Body).Decode(&req)
-			diffRequests = append(diffRequests, req)
-			// Bogus block deletions alongside the genuinely needed block.
-			_ = json.NewEncoder(w).Encode(PushDiffResponse{
-				Needed:    []string{"b1"},
-				Deleted:   []string{"b-phantom-1", "b-phantom-2"},
-				Transport: "proxy",
 			})
 		case strings.Contains(r.URL.Path, "/push/chunks/"):
 			uploadedChunkPaths = append(uploadedChunkPaths, r.URL.Path)
@@ -116,13 +109,8 @@ func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	// The client diffed only the item it actually sent — never the phantom
-	// "deleted" items.
-	require.Len(t, diffRequests, 1)
-	assert.Equal(t, "locales/en.json", diffRequests[0].ItemName)
-
-	// Exactly one chunk uploaded (the single needed block). Phantom deletions
-	// produced no extra requests and no destructive action.
+	// Exactly one chunk uploaded, for the one item actually sent. Phantom
+	// deletions produced no extra requests and no destructive action.
 	assert.Len(t, uploadedChunkPaths, 1,
-		"server-reported deletions must not trigger any extra/destructive requests")
+		"venue-reported deletions must not trigger any extra or destructive request")
 }

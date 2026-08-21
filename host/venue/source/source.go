@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"maps"
 	"net/http"
 	"os"
@@ -622,24 +623,63 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}
 	_, _ = mediaHashMap, mediaMap // used below after block push
 
-	// Diff against cache to find changed blocks, keeping item association.
-	var changed []itemBlock
-	for itemName, blocks := range blockMap {
-		fileHashes := hashMap[itemName]
-		for _, b := range blocks {
-			hash := fileHashes[convergence.BlockKey(b)]
-			cachedHash, inCache := c.lookupCachedHashForItem(itemName, convergence.BlockKey(b))
-			if opts.Force || !inCache || cachedHash != hash {
-				changed = append(changed, itemBlock{itemName: itemName, block: b})
-			}
+	// What this scan read, and what it is authoritative over. The tree says
+	// what each item holds now; the scope says which items this push speaks
+	// for. Together they are how a push says a string, or a whole file, is
+	// GONE — a deletion sends no block, so a payload of changes cannot express
+	// one.
+	localTree := venue.TreeFromBlocks(blockMap)
+	scope := c.pushScope(opts.Paths)
+
+	// Fetch the venue's tree, once, and diff against THAT rather than the local
+	// cache.
+	//
+	// The cache is this producer's record of what it last sent, and it is not
+	// committed: a fresh clone has none, and another machine may have pushed
+	// since. Trusting it made a reset venue and a cold CI runner two different
+	// kinds of wrong — one pushed nothing and reported success, the other
+	// pushed everything. One fetch answers for both, and the ref it comes with
+	// is what the commit asserts, so a tree that went stale between fetch and
+	// push is refused rather than acted on.
+	//
+	// A fetch that fails is not fatal: the push falls back to the cache, which
+	// is the behaviour that existed before there were trees.
+	var serverTree *apiclient.TreeResponse
+	if c.client != nil && !opts.Force {
+		if fetched, terr := c.client.Tree(ctx, scope); terr == nil {
+			serverTree = fetched
+		} else {
+			slog.Warn("could not fetch the venue's tree; falling back to the local cache, so this push sends what this machine last recorded rather than what the venue lacks",
+				"stream", c.stream, "error", terr)
 		}
 	}
 
-	// What each scanned item holds now, declared so the server can drop what it
-	// no longer does (core/venue.ItemBlockKeys). A deletion sends no block, so
-	// it is invisible to the diff above and would otherwise never reach the
-	// server at all.
-	itemBlocks := venue.ItemBlockKeys(blockMap)
+	var changed []itemBlock
+	var held map[string]struct{}
+	if serverTree != nil {
+		held = serverTree.Records()
+	}
+	for itemName, blocks := range blockMap {
+		fileHashes := hashMap[itemName]
+		for _, b := range blocks {
+			key := convergence.BlockKey(b)
+			switch {
+			case opts.Force:
+				changed = append(changed, itemBlock{itemName: itemName, block: b})
+			case held != nil:
+				// Content-addressed and global: a block that moved between
+				// files is content the venue already holds, and asking per item
+				// would upload it again under the new name.
+				if _, have := held[model.ComputeIdentity(b).RecordHash()]; !have {
+					changed = append(changed, itemBlock{itemName: itemName, block: b})
+				}
+			default:
+				if cachedHash, inCache := c.lookupCachedHashForItem(itemName, key); !inCache || cachedHash != fileHashes[key] {
+					changed = append(changed, itemBlock{itemName: itemName, block: b})
+				}
+			}
+		}
+	}
 
 	pushWords := 0
 	for _, ib := range changed {
@@ -671,41 +711,21 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}, nil
 	}
 
-	if len(changed) == 0 {
-		// Verify server still has our data. If the server was reset/rebuilt,
-		// the cached cursor will be stale and we need to force re-push.
-		if c.client != nil && len(blockMap) > 0 {
-			cursor := c.refs.Ref(c.stream).Content
-			if cursor > 0 {
-				// Quick probe: pull with cursor=0, limit=1 to check if server has data.
-				resp, err := c.client.Pull(ctx, 0, nil, 1)
-				if err == nil && resp.Cursor == 0 {
-					// Server is empty but cache says we've pushed — re-push everything.
-					for itemName, blocks := range blockMap {
-						for _, b := range blocks {
-							changed = append(changed, itemBlock{itemName: itemName, block: b})
-						}
-					}
-				}
-			}
-		}
-
-		// A recipe change moves no content and still has to reach the server:
-		// a collection added, a coordinate moved, a voice rebound — and now a
-		// decision committed since the last push. Falling out here on "no
-		// blocks changed" is what used to leave the declared structure (and
-		// would leave the decision record) stranded on the developer's
-		// machine.
-		// A deletion is the one source change that sends nothing: the string is
-		// simply absent from the scan, so no block is "changed" and the push
-		// would fall out here having left the server holding content the source
-		// no longer has. The cache is what this producer last told the server
-		// an item held, so a key it has that the scan does not is a removal to
-		// carry — and the declaration above is what carries it.
-		if len(changed) == 0 && !c.hasCachedBlocksMissingFrom(itemBlocks) &&
-			!c.PushContextChanged() && !decisionsChanged {
-			return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
-		}
+	// A recipe change moves no content and still has to reach the venue: a
+	// collection added, a coordinate moved, a voice rebound, a decision
+	// committed. Falling out on "no blocks changed" is what used to leave the
+	// declared structure stranded on the developer's machine.
+	//
+	// A deletion is the one source change that sends nothing at all — the
+	// string is simply absent from the scan — so the tree, not the payload, is
+	// what carries it. A venue holding an item or a block this scan did not
+	// produce, inside the scope this push declares, is exactly that case, and
+	// comparing the two trees is how it is seen. A push whose tree fetch failed
+	// cannot make that comparison and does not pretend to: it stays additive,
+	// as it was before there were trees.
+	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
+		!c.PushContextChanged() && !decisionsChanged {
+		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
 	// Generate per-item editor metadata (BlockIndex + PreviewHTML) for changed items.
@@ -730,7 +750,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	pushOpts := []apiclient.PushOption{
 		apiclient.AssertRef(c.refs.Ref(c.stream)),
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
-		apiclient.DeclareItemBlocks(itemBlocks),
+		apiclient.DeclareTree(scope, localTree),
 	}
 	// --force already means "send everything, ignore the cache". It also means
 	// the one thing the server refuses on its own: writing content from an
@@ -1942,39 +1962,89 @@ func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 	return locales
 }
 
-// lookupCachedHashForItem finds a block's cached hash for a specific item.
-// hasCachedBlocksMissingFrom reports whether the sync cache holds a block, for
-// an item this scan read, that the scan no longer produced — a removal.
+// pushScope is what this push is authoritative over.
 //
-// The cache is this producer's record of what it last told the server each item
-// held, so its keys are the right thing to miss against. Only items present in
-// the declaration are consulted: a scoped push says nothing about files it did
-// not look at, and a cache entry for one of those is not a deletion.
+// It is stated as PATTERNS, never as the paths the scan resolved, and the
+// difference is the whole point: a deleted file matches no glob, so a scope
+// built from what the scan found could never contain the file whose absence it
+// is supposed to explain. The recipe's globs say "I speak for everything that
+// looks like this", which covers the file that used to.
+//
+// The recipe's exclusions ride along negated, because a directory swept into a
+// glob and then excluded is not content the source deleted.
+//
+// A scoped `kapi push <path>` narrows it to those paths: a directory names
+// everything beneath it, a file names itself. That is what makes the scoped
+// push safe by construction rather than by nobody looking — the files outside
+// it are out of scope by the same rule that governs the rest, and the venue
+// enforces it.
+func (c *BowrainSourceConnector) pushScope(paths []string) venue.Scope {
+	recipe := c.project.Recipe
+
+	var scope venue.Scope
+	if len(paths) == 0 {
+		for _, it := range recipe.IterateContent() {
+			lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
+			if pattern := coreproj.ResolvePathPattern(it.Item.Path, lang); pattern != "" {
+				scope = append(scope, pattern)
+			}
+		}
+	} else {
+		for _, p := range paths {
+			rel, err := filepath.Rel(c.project.Root, c.project.ResolvePath(p))
+			if err != nil || strings.HasPrefix(rel, "..") {
+				// A path outside the project is not something this push can
+				// speak for. Declaring it would claim authority over content
+				// this producer never reads.
+				continue
+			}
+			scope = append(scope, filepath.ToSlash(rel))
+		}
+	}
+	if len(scope) == 0 {
+		return nil
+	}
+	for _, ex := range recipe.Defaults.Exclude {
+		if ex != "" {
+			scope = append(scope, "!"+ex)
+		}
+	}
+	return scope
+}
+
+// lookupCachedHashForItem finds a block's cached hash for a specific item.
+// venueHoldsMoreThan reports whether the venue holds an item, or a block within
+// one, that this scan did not produce — inside the scope this push declares.
 //
 // It answers whether to push at all, never what to delete. The deletion itself
-// is decided at the far side from the declaration, which is why a fresh clone
-// with no cache — the CI case — still prunes: nothing to miss here, everything
-// to declare there.
-func (c *BowrainSourceConnector) hasCachedBlocksMissingFrom(itemBlocks map[string][]string) bool {
-	if c.cache == nil || len(itemBlocks) == 0 {
+// is decided at the far side, from the declared tree and scope, which is why a
+// fresh clone with no cache still prunes: there is nothing local to miss
+// against here, and everything to declare there.
+//
+// It reads the venue's tree rather than the local cache for the same reason the
+// diff does. The cache is what THIS machine last sent; the tree is what the
+// venue actually holds, and a deletion made on another machine — or a push that
+// half-landed — is only visible in the second.
+func venueHoldsMoreThan(serverTree *apiclient.TreeResponse, localTree venue.Tree, scope venue.Scope) bool {
+	if serverTree == nil {
 		return false
 	}
-	for itemName, keys := range itemBlocks {
-		fc, ok := c.cache.Files[itemName]
-		if !ok {
+	for _, item := range serverTree.Items {
+		if len(scope) > 0 && !scope.Covers(item.Path) {
 			continue
 		}
-		// The scan's keys are unique, so the cache cannot hold one it lacks
-		// without also being larger.
-		if len(fc.Blocks) <= len(keys) {
-			continue
+		local, scanned := localTree[item.Path]
+		if !scanned {
+			// The venue holds a file this scan did not read. Inside a declared
+			// scope that is a deletion; with no scope declared it is silence.
+			return len(scope) > 0
 		}
-		held := make(map[string]struct{}, len(keys))
-		for _, k := range keys {
-			held[k] = struct{}{}
+		have := make(map[string]struct{}, len(local.Keys))
+		for _, k := range local.Keys {
+			have[k] = struct{}{}
 		}
-		for cached := range fc.Blocks {
-			if _, still := held[cached]; !still {
+		for _, k := range item.Keys {
+			if _, still := have[k]; !still {
 				return true
 			}
 		}

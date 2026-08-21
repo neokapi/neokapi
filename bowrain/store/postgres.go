@@ -502,18 +502,28 @@ func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string)
 }
 
 func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
-	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := deleteItemTx(ctx, tx, projectID, stream, itemName); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// deleteItemTx is the work, on whatever executor the caller brings — its own
+// transaction, or the one a whole push is landing in.
+func deleteItemTx(ctx context.Context, tx Runner, projectID, stream, itemName string) error {
+	stream = storeutil.DefaultStream(stream)
+
 	// Remove this stream's item row first; its absence is the not-found signal.
 	// The id comes back with it, because the rows describing an item are keyed
 	// on what it IS and the name is only how this call addressed it.
 	var itemID string
-	err = tx.QueryRowContext(ctx,
+	err := tx.QueryRowContext(ctx,
 		`DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3 RETURNING id`,
 		projectID, stream, itemName).Scan(&itemID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -527,7 +537,6 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	// is stream-scoped, and so now is blocks, so a sibling branch holding the
 	// same item at the same ids is untouched by any of it.
 	for _, table := range storeutil.BlockScopedTables() {
-		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2
 			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3)`
 		if _, err := tx.ExecContext(ctx, q, projectID, stream, itemName); err != nil {
@@ -545,8 +554,52 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 		projectID, stream, itemName); err != nil {
 		return fmt.Errorf("delete item blocks: %w", err)
 	}
+	return nil
+}
 
-	return tx.Commit()
+// renameItemTx moves an item to a new path, keeping its identity.
+//
+// The rows describing an item hang off its id, so the rename is one UPDATE
+// there. Blocks are the exception: they carry item_name as their address, so
+// they move with it. Nothing about a block's identity changes — which is the
+// point. A rename that minted new blocks would orphan every approval on the
+// file, and "delete the old, create the new" is exactly what did that.
+func renameItemTx(ctx context.Context, tx Runner, projectID, stream, itemID, newName string) error {
+	stream = storeutil.DefaultStream(stream)
+
+	var oldName string
+	err := tx.QueryRowContext(ctx,
+		`SELECT name FROM items WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, itemID).Scan(&oldName)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("rename item %s: not found in project %s", itemID, projectID)
+	}
+	if err != nil {
+		return fmt.Errorf("read item %s for rename: %w", itemID, err)
+	}
+	if oldName == newName {
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE items SET name=$4, updated_at=NOW() WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, itemID, newName); err != nil {
+		return fmt.Errorf("rename item %s to %q: %w", itemID, newName, err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE blocks SET item_name=$4 WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+		projectID, stream, oldName, newName); err != nil {
+		return fmt.Errorf("move blocks of %q to %q: %w", oldName, newName, err)
+	}
+	// The decision ledger keys on the item id and carries the name only as a
+	// label; a label left behind would report approvals against a path that no
+	// longer exists.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE unit_decisions SET item_name=$4 WHERE project_id=$1 AND stream=$2 AND item_id=$3`,
+		projectID, stream, itemID, newName); err != nil {
+		return fmt.Errorf("relabel decisions of %q: %w", newName, err)
+	}
+	return nil
 }
 
 func (s *PostgresStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {

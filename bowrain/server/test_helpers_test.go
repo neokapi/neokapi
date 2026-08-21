@@ -20,6 +20,7 @@ import (
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
@@ -130,8 +131,9 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 	for itemName, blocks := range blocksByItem {
 		blockHashes := map[string]string{}
 		for _, b := range blocks {
-			// The transfer hash, as a real client sends it.
-			blockHashes[b.ID] = model.ComputeIdentity(b).RecordHash()
+			// The transfer hash, keyed on the durable identity, as a real
+			// client sends it.
+			blockHashes[convergence.BlockKey(b)] = model.ComputeIdentity(b).RecordHash()
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
@@ -162,47 +164,40 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 
 	uploadID := initResp["upload_id"].(string)
 
-	// Collect items that need uploading (changed + new).
-	var diffItems []string
-	if changed, ok := initResp["changed_items"].([]any); ok {
-		for _, v := range changed {
-			diffItems = append(diffItems, v.(string))
-		}
+	// 2. Fetch the venue's tree and work out what is missing, here, rather
+	// than asking per item. This is what the real producer does — the helper
+	// mirrors it so a route change that broke the flow shows up in these tests.
+	req = httptest.NewRequest(http.MethodGet, basePath+"/sync/main/tree", nil)
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, "tree should return 200")
+
+	var treeResp struct {
+		Items []struct {
+			Path   string   `json:"path"`
+			Record []string `json:"record"`
+		} `json:"items"`
 	}
-	if newItems, ok := initResp["new_items"].([]any); ok {
-		for _, v := range newItems {
-			diffItems = append(diffItems, v.(string))
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &treeResp))
+	held := map[string]bool{}
+	for _, item := range treeResp.Items {
+		for _, r := range item.Record {
+			held[r] = true
 		}
 	}
 
-	// 2. Diff each changed/new item.
 	allNeeded := map[string]map[string]bool{}
-	for _, itemName := range diffItems {
-		hashes := blockHashesByItem[itemName]
-		if hashes == nil {
-			continue
-		}
-		diffBody, _ := json.Marshal(map[string]any{
-			"upload_id":    uploadID,
-			"item_name":    itemName,
-			"block_hashes": hashes,
-		})
-		req = httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/diff", bytes.NewReader(diffBody))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", authHeader)
-		rec = httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusOK, rec.Code, "push diff should return 200")
-
-		var diffResp map[string]any
-		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &diffResp))
+	for itemName, hashes := range blockHashesByItem {
 		needed := map[string]bool{}
-		if neededList, ok := diffResp["needed"].([]any); ok {
-			for _, v := range neededList {
-				needed[v.(string)] = true
+		for key, recordHash := range hashes {
+			if !held[recordHash] {
+				needed[key] = true
 			}
 		}
-		allNeeded[itemName] = needed
+		if len(needed) > 0 {
+			allNeeded[itemName] = needed
+		}
 	}
 
 	// 3. Upload protobuf chunks via proxy.
@@ -220,7 +215,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 		blocks := blocksByItem[itemName]
 		var syncBlocks []*pb.SyncBlock
 		for _, b := range blocks {
-			if !neededIDs[b.ID] {
+			if !neededIDs[convergence.BlockKey(b)] {
 				continue
 			}
 			syncBlocks = append(syncBlocks, venue.BlockToProto(b, itemName))

@@ -80,18 +80,30 @@ func TestSyncPushE2E(t *testing.T) {
 	uploadID := initResp["upload_id"].(string)
 	require.NotEmpty(t, uploadID)
 
-	// 4. Diff — send block hashes for en.json.
-	diffBody, _ := json.Marshal(map[string]any{
-		"upload_id":    uploadID,
-		"item_name":    "en.json",
-		"block_hashes": blockHashes,
-	})
-	resp = apiRequest(t, http.MethodPost, basePath+"/sync/main/push/diff", token, string(diffBody))
+	// 4. Fetch the tree and work out what is missing here, rather than asking
+	// the server per item. A project that holds nothing is missing everything.
+	resp = apiRequest(t, http.MethodGet, basePath+"/sync/main/tree", token, "")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	diffResp := readJSON(t, resp)
-	needed := diffResp["needed"].([]any)
-	t.Logf("Diff response: %d blocks needed, transport=%s", len(needed), diffResp["transport"])
-	assert.Len(t, needed, 2, "both blocks should be needed")
+	treeResp := readJSON(t, resp)
+	items, _ := treeResp["items"].([]any)
+	assert.Empty(t, items, "a project with no content holds no tree")
+
+	held := map[string]bool{}
+	for _, raw := range items {
+		item, _ := raw.(map[string]any)
+		records, _ := item["record"].([]any)
+		for _, r := range records {
+			held[r.(string)] = true
+		}
+	}
+	needed := 0
+	for _, recordHash := range blockHashes {
+		if !held[recordHash] {
+			needed++
+		}
+	}
+	t.Logf("Tree: %d item(s) held, %d block(s) missing", len(items), needed)
+	assert.Equal(t, 2, needed, "both blocks should be missing")
 
 	// 5. Upload chunk via proxy.
 	var syncBlocks []*pb.SyncBlock

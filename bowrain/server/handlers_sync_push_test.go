@@ -112,23 +112,24 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 	uploadID := initResp["upload_id"].(string)
 	assert.NotEmpty(t, uploadID)
 
-	// 2. Diff — all blocks are new.
-	diffBody, _ := json.Marshal(map[string]any{
-		"upload_id":    uploadID,
-		"item_name":    "en.json",
-		"block_hashes": map[string]string{"b1": "hash1", "b2": "hash2"},
-	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/diff", bytes.NewReader(diffBody))
-	req.Header.Set("Content-Type", "application/json")
+	// 2. Fetch the tree — a new project holds nothing, so everything the
+	// producer read is missing and it works that out for itself.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/tree", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var diffResp map[string]any
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &diffResp))
-	needed := diffResp["needed"].([]any)
-	assert.Len(t, needed, 2) // both blocks are new
+	var treeResp struct {
+		RootHash string `json:"root_hash"`
+		Items    []struct {
+			Path   string   `json:"path"`
+			Record []string `json:"record"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &treeResp))
+	assert.Empty(t, treeResp.Items, "a new project holds nothing")
+	assert.NotEmpty(t, rec.Header().Get("ETag"), "the tree is served with a tag a warm client can revalidate against")
 
 	// 3. Upload chunk via proxy.
 	b1 := &model.Block{ID: "b1", Translatable: true}

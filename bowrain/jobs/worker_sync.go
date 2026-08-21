@@ -50,13 +50,22 @@ type syncPushManifest struct {
 	// scopes deletion: a property key outside this set was written by someone
 	// this push knows nothing about, and survives it. See keepDeclaredProperties.
 	BlockPropertyKeys []string `json:"block_property_keys"`
-	// ItemBlocks is the complete block-key set the producer declared for each
-	// item it read. It scopes deletion one level up from BlockPropertyKeys: a
-	// stored block of a declared item that this set does not name is content
-	// the source no longer has, and pruneDeclaredItems removes it. An item
-	// absent from the map was not read by this push and is left alone. See
-	// core/venue.ItemBlockKeys.
-	ItemBlocks map[string][]string `json:"item_blocks"`
+	// Scope is the set of paths this push is authoritative over: the recipe's
+	// globs (with its exclusions negated), or the resolved paths of a scoped
+	// push. Within it the declared tree is exactly what the project holds;
+	// outside it nothing is touched. A push declaring no scope removes no
+	// item — an older producer makes no claim about what is missing.
+	Scope venue.Scope `json:"scope"`
+
+	// Tree is what the producer read: per item, the block keys it holds now and
+	// the content hash of each, in document order.
+	//
+	// It carries both halves of what a payload cannot say. The keys say which
+	// blocks an item still has, so the rest can go. The content hashes say what
+	// a document IS, so a file that moved is recognised as the same document
+	// and keeps the approvals hanging off it rather than being read as one file
+	// deleted and another created.
+	Tree venue.Tree `json:"tree"`
 }
 
 type syncChunkRef struct {
@@ -229,6 +238,15 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		return err
 	}
 
+	// Which document each declared entry IS, resolved against what the project
+	// holds now. It reads pre-push state alongside the staging checks, and the
+	// transition acts on it.
+	plan, err := planIdentity(ctx, deps, projectID, stream, manifest.Scope, manifest.Tree)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
+
 	// A malformed decisions payload fails the push — decisions are authored
 	// state, and dropping them silently is the exact failure shape this protocol
 	// keeps having to confess. A payload that decodes to nothing, on the other
@@ -257,7 +275,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
 		var aerr error
 		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
-			staged, manifest.ItemBlocks, decisions, manifest.ExpectedRef)
+			staged, plan, manifest.Tree, decisions, manifest.ExpectedRef)
 		return aerr
 	}); err != nil {
 		markJobFailed(ctx, deps, job.ID, err.Error())
@@ -268,6 +286,14 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	if outcome.Decisions > 0 {
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Recorded %d decision(s) in the ledger", outcome.Decisions), nil)
+	}
+	if outcome.Renamed > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Followed %d file(s) to a new path, keeping their translations and approvals", outcome.Renamed), nil)
+	}
+	if outcome.Removed > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Removed %d file(s) the source no longer has", outcome.Removed), nil)
 	}
 
 	// The corpus follows the decisions, once they have committed: approvals

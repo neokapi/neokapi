@@ -73,12 +73,6 @@ func collectUploadedChunks(t *testing.T, c *BowrainClient, blocksByItem map[stri
 			_ = json.NewEncoder(w).Encode(PushInitResponse{
 				UploadID: "up1", Status: "diff_computed", NewItems: newItems,
 			})
-		case strings.HasSuffix(r.URL.Path, "/push/diff"):
-			var req PushDiffRequest
-			_ = json.NewDecoder(r.Body).Decode(&req)
-			_ = json.NewEncoder(w).Encode(PushDiffResponse{
-				Needed: needed[req.ItemName], Transport: "proxy",
-			})
 		case strings.Contains(r.URL.Path, "/push/chunks/"):
 			body, _ := io.ReadAll(r.Body)
 			bodies = append(bodies, body)

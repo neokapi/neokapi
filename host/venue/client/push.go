@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -80,22 +81,6 @@ type PushInitResponse struct {
 	Ref *ref.Ref `json:"ref,omitempty"`
 }
 
-// PushDiffRequest sends block-level hashes for one item.
-type PushDiffRequest struct {
-	UploadID    string            `json:"upload_id"`
-	ItemName    string            `json:"item_name"`
-	BlockHashes map[string]string `json:"block_hashes"`
-}
-
-// PushDiffResponse lists needed blocks and transport info.
-type PushDiffResponse struct {
-	Needed    []string `json:"needed"`
-	Deleted   []string `json:"deleted"`
-	Conflicts []string `json:"conflicts"`
-	ChunkURLs []string `json:"chunk_urls"`
-	Transport string   `json:"transport"` // "direct" or "proxy"
-}
-
 // PushCommitRequest finalizes the push.
 type PushCommitRequest struct {
 	UploadID      string          `json:"upload_id"`
@@ -132,13 +117,18 @@ type PushCommitRequest struct {
 	// core/venue.BlockPropertyKeys — it scopes deletion, never transfer.
 	BlockPropertyKeys []string `json:"block_property_keys,omitempty"`
 
-	// ItemBlocks declares, per item this producer read, the complete set of
-	// block keys that item holds — so the server can remove the blocks it no
-	// longer does. A push carries only what changed, so what it carries cannot
-	// say what is gone. See core/venue.ItemBlockKeys; like the keys above, it
-	// scopes deletion and never transfer, and an item absent from the map is
-	// silence rather than an empty item.
-	ItemBlocks map[string][]string `json:"item_blocks,omitempty"`
+	// Scope is the set of paths this push is authoritative over: the recipe's
+	// globs, or the resolved paths of a scoped push. Within it the declared
+	// tree is exactly what the project holds; outside it nothing is touched.
+	// A push declaring no scope removes no item — see core/venue.Scope.
+	Scope venue.Scope `json:"scope,omitempty"`
+
+	// Tree declares, per item this producer read, the block keys it holds and
+	// the content hash of each — so the venue can remove what the source no
+	// longer has, and can recognise a file that moved by what is inside it. A
+	// push carries only what changed, so what it carries cannot say what is
+	// gone; this is what says it. See core/venue.Tree.
+	Tree venue.Tree `json:"tree,omitempty"`
 
 	// ContentModelEpoch is the generation this push wrote, recorded on the
 	// stream once the manifest commits.
@@ -157,7 +147,8 @@ type PushOption func(*pushSettings)
 type pushSettings struct {
 	expected       ref.Ref
 	propertyKeys   []string
-	itemBlocks     map[string][]string
+	scope          venue.Scope
+	tree           venue.Tree
 	allowDowngrade bool
 }
 
@@ -186,15 +177,27 @@ func DeclareBlockProperties(keys []string) PushOption {
 	return func(s *pushSettings) { s.propertyKeys = keys }
 }
 
-// DeclareItemBlocks tells the server which blocks each item this producer read
-// actually holds, so it can remove the ones the source no longer has. Computed
-// over every block the producer read — see core/venue.ItemBlockKeys.
+// DeclareTree tells the venue what this producer read: the scope it is
+// authoritative over, and every item within it, with the block keys and content
+// hashes each holds now.
 //
-// A push that declares nothing removes nothing, and an item missing from the
-// map is untouched: a scoped `kapi push <path>` says nothing about the files it
-// did not look at.
-func DeclareItemBlocks(byItem map[string][]string) PushOption {
-	return func(s *pushSettings) { s.itemBlocks = byItem }
+// The two together are what let a push say what is GONE. A payload of changed
+// blocks cannot: a removed string simply stops being sent, and a venue that
+// upserts what arrives keeps it forever. The tree says what each item holds,
+// and the scope says which items this push speaks for — so absence inside the
+// scope is an answer, and absence outside it is silence.
+//
+// The scope is also what makes a scoped push safe by construction rather than
+// by nobody looking: `kapi push <subdir>` declares that subdir, and every file
+// outside it is out of scope by the same rule that governs the rest.
+//
+// A push that declares no scope removes no item — an older producer makes no
+// claim about what is missing, so its push stays purely additive.
+func DeclareTree(scope venue.Scope, tree venue.Tree) PushOption {
+	return func(s *pushSettings) {
+		s.scope = scope
+		s.tree = tree
+	}
 }
 
 // AllowModelDowngrade lets this push write content from an older model
@@ -309,21 +312,20 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	if c == nil {
 		return nil, errors.New("bowrain: project is not connected to a server — run 'kapi init --server <url>' to connect")
 	}
-	// 1. Compute Merkle hashes over the changed subset only (additive-only
-	//    contract above): these are change indicators, not authoritative roots.
+	// 1. Hashes over the blocks being sent, for init's fast path only. They are
+	//    change indicators, not authoritative roots — what this push claims
+	//    about the project's whole content is the declared tree, and what it is
+	//    authoritative over is the declared scope.
 	itemHashes := make(map[string]string)
-	blockHashesByItem := make(map[string]map[string]string)
 	for itemName, blocks := range blocksByItem {
 		blockHashes := make(map[string]string, len(blocks))
 		for _, b := range blocks {
-			identity := model.ComputeIdentity(b)
-			// Keyed on the DURABLE identity, matching what the server stores as
+			// Keyed on the DURABLE identity, matching what the venue stores as
 			// source_id. Keyed on the reader's id instead, deleting a paragraph
 			// renumbered every block below it and the push reported an untouched
 			// file as wholly changed.
-			blockHashes[convergence.BlockKey(b)] = identity.RecordHash()
+			blockHashes[convergence.BlockKey(b)] = model.ComputeIdentity(b).RecordHash()
 		}
-		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
 	}
 	rootHash := venue.ComputeRootHash(itemHashes)
@@ -368,69 +370,42 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		return commitResp, nil
 	}
 
+	// initResp's item verdicts are not read at all any more. They were the
+	// venue's answer to a question the producer now answers for itself, and the
+	// deletion half of them was never actionable: without a declared scope, an
+	// item absent from a push means "not looked at" as readily as "removed".
+	// The declared tree and scope carry both halves honestly.
+	//
 	// The context reconcile is skipped when the server already holds this
 	// context — the fast path's whole point. The entries are dropped from the
 	// manifest rather than sent and ignored, so an unedited recipe costs
 	// nothing beyond the hash it negotiated on.
 	contexts := pushCtx.entriesIfChanged(initResp.ContextChanged)
 
-	// 3. For each changed/new item, send block-level diff and collect needed blocks.
-	//
-	// We act ONLY on ChangedItems + NewItems. initResp.DeletedItems is
-	// deliberately ignored: per the additive-only contract, ItemHashes covers
-	// only the changed subset, so an item the server flags "deleted" merely
-	// reflects items absent from this push, not items the user removed. Acting
-	// on it would be data loss.
-	allNeeded := map[string]map[string]struct{}{} // item → set of needed block IDs
-	diffItems := make([]string, 0, len(initResp.ChangedItems)+len(initResp.NewItems))
-	diffItems = append(diffItems, initResp.ChangedItems...)
-	diffItems = append(diffItems, initResp.NewItems...)
+	// 3. The blocks to send were decided before this call: the producer fetched
+	// the venue's tree and diffed its scan against it locally, which is what
+	// replaced a negotiation that descended one item at a time. What arrives
+	// here IS the pack.
 	transport := "proxy"
-
-	for _, itemName := range diffItems {
-		hashes := blockHashesByItem[itemName]
-		if hashes == nil {
-			continue
-		}
-		diffResp, err := c.pushDiff(ctx, PushDiffRequest{
-			UploadID:    initResp.UploadID,
-			ItemName:    itemName,
-			BlockHashes: hashes,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("push diff for %s: %w", itemName, err)
-		}
-		needed := map[string]struct{}{}
-		for _, id := range diffResp.Needed {
-			needed[id] = struct{}{}
-		}
-		// diffResp.Deleted is deliberately ignored — same additive-only reason
-		// as initResp.DeletedItems above: BlockHashes covers only the changed
-		// subset, so a "deleted" block is just one not present in this push.
-		allNeeded[itemName] = needed
-		if diffResp.Transport != "" {
-			transport = diffResp.Transport
-		}
-	}
 
 	// 4. Build and upload chunks (only needed blocks).
 	var chunks []ChunkRef
 	chunkIndex := 0
 
-	for itemName, neededIDs := range allNeeded {
+	// Sorted, so a push's chunks are the same bytes on every run and a retry
+	// re-uploads to the same content-addressed keys.
+	sendItems := make([]string, 0, len(blocksByItem))
+	for itemName := range blocksByItem {
+		sendItems = append(sendItems, itemName)
+	}
+	sort.Strings(sendItems)
+
+	for _, itemName := range sendItems {
 		blocks := blocksByItem[itemName]
 		var chunkBlocks []*pb.SyncBlock
 		chunkBytes := 0
 
 		for _, b := range blocks {
-			// The needed set answers the diff, and the diff was keyed on the
-			// durable identity — so the lookup must be too. Keyed on b.ID here,
-			// no needed key ever matched a reader id, and a push that had
-			// negotiated 75k missing blocks uploaded zero chunks and reported
-			// success.
-			if _, ok := neededIDs[convergence.BlockKey(b)]; !ok {
-				continue
-			}
 			sb := venue.BlockToProto(b, itemName)
 			// Skeleton is format scaffolding that belongs at the connector edge,
 			// not durably in the content store — the standing invariant keeps it
@@ -500,7 +475,8 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Decisions:         decisions,
 		ExpectedRef:       settings.expected,
 		BlockPropertyKeys: settings.propertyKeys,
-		ItemBlocks:        settings.itemBlocks,
+		Scope:             settings.scope,
+		Tree:              settings.tree,
 		ContentModelEpoch: venue.ContentModelEpoch,
 	})
 	if err != nil {
@@ -561,30 +537,6 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 		return nil, NewStatusError("push init", resp.StatusCode, b)
 	}
 	var result PushInitResponse
-	return &result, json.NewDecoder(resp.Body).Decode(&result)
-}
-
-func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*PushDiffResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal push diff request: %w", err)
-	}
-	u := c.streamPrefix() + "/push/diff"
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, NewStatusError("push diff", resp.StatusCode, b)
-	}
-	var result PushDiffResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
 }
 
