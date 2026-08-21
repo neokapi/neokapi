@@ -364,12 +364,3 @@ func (a *App) GetBrandRollup(workspaceSlug string, args BrandRollupArgs) (BrandR
 	}
 	return out, nil
 }
-
-// ListStarterPacks returns the available brand-voice starter packs.
-func (a *App) ListStarterPacks() (json.RawMessage, error) {
-	var out json.RawMessage
-	if err := a.govRequest(http.MethodGet, "/api/v1/brand-voice/starter-packs", nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}

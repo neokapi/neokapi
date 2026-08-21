@@ -212,15 +212,6 @@ func TestBrandGovernanceRoutes(t *testing.T) {
 			wantMethod: http.MethodGet,
 			wantPath:   "/api/v1/acme/brand-profiles",
 		},
-		{
-			name: "starter packs",
-			call: func(a *App) error {
-				_, err := a.ListStarterPacks()
-				return err
-			},
-			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/brand-voice/starter-packs",
-		},
 	}
 
 	for _, tt := range tests {

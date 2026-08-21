@@ -1371,22 +1371,6 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       recent_days: 7,
       recent_count: 0,
     }),
-    listStarterPacks: async () => [
-      {
-        name: "professional-b2b",
-        description: "Formal, authoritative voice for B2B",
-      },
-      {
-        name: "friendly-dtc",
-        description: "Casual, warm voice for DTC brands",
-      },
-      { name: "marketing-blog", description: "Conversational voice for blogs" },
-      { name: "customer-support", description: "Empathetic voice for support" },
-      {
-        name: "technical-docs",
-        description: "Precise voice for documentation",
-      },
-    ],
     createProfileFromStarter: notImpl,
 
     // --- Brand scan (epic 016) -------------------------------------------

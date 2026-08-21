@@ -58,7 +58,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 24 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 28.
+// repaired. Retired numbers are never reused; the next migration is version 29.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict
@@ -1306,6 +1306,25 @@ var Migrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD PRIMARY KEY (project_id, stream, item_id, unit, variant);
 			CREATE INDEX IF NOT EXISTS idx_unit_decisions_item
 				ON unit_decisions(project_id, stream, item_id);
+		`,
+	},
+	{
+		Version:     28,
+		Description: "drift activity and notifications carry the voice spelling",
+		SQL: `
+			-- The drift activity and notification types were renamed with the
+			-- subsystem, identifier AND stored value. Both columns are plain
+			-- TEXT with no CHECK, so rows written before the rename keep the
+			-- former spelling and the two coexist indefinitely: nothing errors,
+			-- and nothing today reads the value exactly — the feed matches on
+			-- "drift" being present and preferences key on the category. The
+			-- first consumer that does match exactly would silently miss every
+			-- historical row.
+			--
+			-- One statement each, and idempotent by construction: the second
+			-- pass finds nothing left to update.
+			UPDATE activities    SET type = 'voice.drift' WHERE type = 'brand.drift';
+			UPDATE notifications SET type = 'voice.drift' WHERE type = 'brand.drift';
 		`,
 	},
 }

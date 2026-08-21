@@ -1375,6 +1375,14 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Brand Voice (proxied to the server's REST governance endpoints) ---
+  async createProfileFromStarter(
+    _ws: string,
+    _pack: string,
+    _name?: string,
+  ): Promise<VoiceProfile> {
+    throw new Error("Creating brand profiles is not available in the desktop app");
+  }
+
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
     return Backend.ListBrandProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
   }
@@ -1435,17 +1443,6 @@ export class WailsApiAdapter implements ApiAdapter {
     })) as BrandRollup;
     return { projects: out.projects ?? [], total: out.total, limit: out.limit, offset: out.offset };
   }
-  async listStarterPacks(): Promise<{ name: string; description: string }[]> {
-    return Backend.ListStarterPacks() as Promise<{ name: string; description: string }[]>;
-  }
-  async createProfileFromStarter(
-    _ws: string,
-    _pack: string,
-    _name?: string,
-  ): Promise<VoiceProfile> {
-    throw new Error("Creating brand profiles is not available in the desktop app");
-  }
-
   // --- Correction-learning loop (AD-019, proxied to the server's REST endpoints) ---
   async listBrandCandidates(
     workspaceSlug: string,

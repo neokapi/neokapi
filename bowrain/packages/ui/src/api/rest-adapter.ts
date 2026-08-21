@@ -2738,10 +2738,6 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async listStarterPacks(): Promise<{ name: string; description: string }[]> {
-    return this.fetchJSON("/api/v1/brand-voice/starter-packs");
-  }
-
   async createProfileFromStarter(
     workspaceSlug: string,
     pack: string,
