@@ -1,15 +1,15 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
-  BrandScanProgress,
-  BrandScanReview,
+  ContextScanProgress,
+  ContextScanReview,
   DashboardSkeleton,
   useApi,
-  useBrandScanJob,
+  useContextScanJob,
 } from "@neokapi/ui";
-import type { BrandScanRequest, VoiceProfile } from "@neokapi/ui";
+import type { ContextScanRequest, VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { brandScanRequestKey, rememberBrandScanRequest } from "./context-scan";
+import { contextScanRequestKey, rememberContextScanRequest } from "./context-scan";
 
 export function ContextScanJobRoute() {
   const navigate = useNavigate();
@@ -24,16 +24,16 @@ export function ContextScanJobRoute() {
     }
   }, [activeWorkspace]);
 
-  const { data: job, isLoading } = useBrandScanJob(jobId);
+  const { data: job, isLoading } = useContextScanJob(jobId);
 
   /** Re-enqueue with the request that produced this job; if it is no longer
    * in sessionStorage, fall back to the scan input page. */
   const handleRegenerate = useCallback(async () => {
-    let request: BrandScanRequest | null = null;
+    let request: ContextScanRequest | null = null;
     if (jobId) {
       try {
-        const raw = sessionStorage.getItem(brandScanRequestKey(jobId));
-        if (raw) request = JSON.parse(raw) as BrandScanRequest;
+        const raw = sessionStorage.getItem(contextScanRequestKey(jobId));
+        if (raw) request = JSON.parse(raw) as ContextScanRequest;
       } catch {
         request = null;
       }
@@ -45,8 +45,8 @@ export function ContextScanJobRoute() {
       });
       return;
     }
-    const { job_id } = await api.startBrandScan(ws, request);
-    rememberBrandScanRequest(job_id, request);
+    const { job_id } = await api.startContextScan(ws, request);
+    rememberContextScanRequest(job_id, request);
     void navigate({
       to: "/$workspace/context/scan/$jobId",
       params: { workspace: workspace ?? "", jobId: job_id },
@@ -78,7 +78,7 @@ export function ContextScanJobRoute() {
             terms.
           </p>
         </div>
-        <BrandScanReview
+        <ContextScanReview
           draft={job.draft}
           onApproved={handleApproved}
           onRegenerate={() => void handleRegenerate()}
@@ -89,7 +89,7 @@ export function ContextScanJobRoute() {
 
   return (
     <div className="max-w-xl mx-auto pt-8">
-      <BrandScanProgress
+      <ContextScanProgress
         job={job}
         onRetry={job.status === "failed" ? () => void handleRegenerate() : undefined}
       />

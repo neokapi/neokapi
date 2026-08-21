@@ -11,7 +11,7 @@ import { ContextExplorer, ScopeProvider } from "@neokapi/context-explorer";
 import type { ContextDataSource, Dimension, ScopeTuple } from "@neokapi/context-explorer";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import { BrandHub } from "../brand-hub/shell/BrandHub";
+import { ContextHub } from "../context-hub/shell/ContextHub";
 import { createRestContextSource } from "./restContextSource";
 
 /** The workspace is where the reader already is; everything below it moves. */
@@ -34,7 +34,7 @@ export function ExplorerSection({ scope, onScopeChange, source }: ExplorerSectio
   const at = useMemo<ScopeTuple>(() => ({ workspace: ws, ...scope }), [ws, scope]);
 
   return (
-    <BrandHub
+    <ContextHub
       title="Explorer"
       description="Stand at a point in the workspace and ask what governs there, what lives there, and how it relates."
       width="wide"
@@ -42,6 +42,6 @@ export function ExplorerSection({ scope, onScopeChange, source }: ExplorerSectio
       <ScopeProvider source={client} pinned={PINNED} scope={at} onScopeChange={onScopeChange}>
         <ContextExplorer />
       </ScopeProvider>
-    </BrandHub>
+    </ContextHub>
   );
 }

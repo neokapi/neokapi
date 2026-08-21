@@ -73,27 +73,27 @@ type BrandProfileUpsertResult struct {
 	Profile *coreprofile.VoiceProfile `json:"profile"`
 }
 
-// BrandScanApprovedTerm is one candidate term a reviewer kept on a brand scan.
+// ContextScanApprovedTerm is one candidate term a reviewer kept on a brand scan.
 // Locale falls back to the request's Locale, then to "en".
-type BrandScanApprovedTerm struct {
+type ContextScanApprovedTerm struct {
 	Term       string `json:"term"`
 	Definition string `json:"definition,omitempty"`
 	Domain     string `json:"domain,omitempty"`
 	Locale     string `json:"locale,omitempty"`
 }
 
-// BrandScanApproval is the reviewed outcome of a brand scan: the edited draft
+// ContextScanApproval is the reviewed outcome of a brand scan: the edited draft
 // profile and the terms that survived review, applied in one request.
-type BrandScanApproval struct {
-	Profile BrandProfileUpsert      `json:"profile"`
-	Terms   []BrandScanApprovedTerm `json:"terms,omitempty"`
-	Locale  string                  `json:"locale,omitempty"`
+type ContextScanApproval struct {
+	Profile BrandProfileUpsert        `json:"profile"`
+	Terms   []ContextScanApprovedTerm `json:"terms,omitempty"`
+	Locale  string                    `json:"locale,omitempty"`
 }
 
-// BrandScanApprovalResult reports what the approval applied: the stored profile
+// ContextScanApprovalResult reports what the approval applied: the stored profile
 // and which action produced it, plus the concepts created and the ones already
 // present.
-type BrandScanApprovalResult struct {
+type ContextScanApprovalResult struct {
 	Profile          *coreprofile.VoiceProfile `json:"profile"`
 	ProfileAction    string                    `json:"profile_action"`
 	ConceptsCreated  int                       `json:"concepts_created"`
@@ -101,13 +101,13 @@ type BrandScanApprovalResult struct {
 	ConceptIDs       []string                  `json:"concept_ids"`
 }
 
-// ApproveBrandScan applies a reviewed brand scan — profile and approved terms —
+// ApproveContextScan applies a reviewed brand scan — profile and approved terms —
 // in one request (POST /api/v1/:ws/brand-scans/:id/approve). It is idempotent
 // by content: the profile upserts by name, and a term is created only when the
 // workspace has no concept carrying it in that locale, so a retry after a
 // partial failure converges rather than duplicating. A 403 surfaces as
 // ErrForbidden.
-func (c *BowrainClient) ApproveBrandScan(ctx context.Context, scanID string, req BrandScanApproval) (*BrandScanApprovalResult, error) {
+func (c *BowrainClient) ApproveContextScan(ctx context.Context, scanID string, req ContextScanApproval) (*ContextScanApprovalResult, error) {
 	if c.workspace == "" {
 		return nil, errors.New("brand scans are workspace-scoped (use NewWorkspaceBowrainClient)")
 	}
@@ -132,7 +132,7 @@ func (c *BowrainClient) ApproveBrandScan(ctx context.Context, scanID string, req
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated:
-		var out BrandScanApprovalResult
+		var out ContextScanApprovalResult
 		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 			return nil, fmt.Errorf("decode brand-scan approval response: %w", err)
 		}

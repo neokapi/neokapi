@@ -134,7 +134,7 @@ export type BrandSeverity = "neutral" | "minor" | "major" | "critical";
  * Two fields used to be described wrongly, and both failed silently. The
  * grouping field is `category` on the wire, not `dimension`: the findings list
  * read `finding.dimension` and rendered an empty chip for every server-sourced
- * finding, and `BrandScanLiveTester` carried a normaliser to paper over it on
+ * finding, and `ContextScanLiveTester` carried a normaliser to paper over it on
  * the one path it knew about. And `position` is a run-anchored
  * {@link RunRange}, not `{start, end}` character offsets — a consumer that
  * believed the declaration would have indexed into the wrong thing.

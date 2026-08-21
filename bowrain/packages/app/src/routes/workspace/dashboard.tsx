@@ -49,7 +49,7 @@ export function ProjectDashboardRoute() {
   const platform = usePlatform();
   const { capture } = useAnalytics();
   const queryClient = useQueryClient();
-  const { activeWorkspace, brandScanAvailable } = useRouteContext({
+  const { activeWorkspace, contextScanAvailable } = useRouteContext({
     strict: false,
   }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -311,7 +311,7 @@ export function ProjectDashboardRoute() {
         onArchiveProject={setArchiveProjectId}
         workspaceLanguages={activeWorkspace.languages}
         // Hosted-scan CTA only where the server runs the brand-scan job system.
-        onScanBrand={brandScanAvailable ? handleScanBrand : undefined}
+        onScanBrand={contextScanAvailable ? handleScanBrand : undefined}
         onInviteTeam={handleInviteTeam}
         serverUrl={platform.kind === "web" ? window.location.origin : undefined}
         loopStatus={loopStatus}

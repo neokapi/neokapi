@@ -6,7 +6,7 @@ import type {
   LocaleTranslationStats,
 } from "../../types/api";
 import { ArrowLeft } from "../icons";
-import { CoordinateLine } from "../../brand-hub/profiles/Coordinates";
+import { CoordinateLine } from "../../context-hub/profiles/Coordinates";
 import { FileProgressTable, type FileProgressPaging } from "../FileProgressTable";
 import { FilePreview, type ItemPreviewBinding } from "../FilePreview";
 import { LocaleCoverageRails } from "./LocaleCoverageRail";

@@ -564,11 +564,11 @@ export interface ConfigResponse {
   commit: string;
   build_date: string;
   /**
-   * Deployment-level capabilities the app gates UI on. `brand_scan` is true
+   * Deployment-level capabilities the app gates UI on. `context_scan` is true
    * only when the server runs the brand-scan job system (PostgreSQL store +
    * queue); without it the hosted-scan entry points are hidden.
    */
-  features?: { brand_scan?: boolean };
+  features?: { context_scan?: boolean };
   /**
    * AI providers a workspace admin can configure with credentials, sourced from
    * the framework provider registry (GET /api/v1/info) so the settings UI never
@@ -2523,7 +2523,7 @@ export interface PostHogDemandResponse {
  * Request body for POST /api/v1/{ws}/brand-scans. At least one source
  * (paste_text, urls, repo_url, or upload_keys) is required.
  */
-export interface BrandScanRequest {
+export interface ContextScanRequest {
   /** Freeform pasted text, used as-is. */
   paste_text?: string;
   /** Public https pages to fetch (max 5). */
@@ -2539,21 +2539,21 @@ export interface BrandScanRequest {
 }
 
 /** One stored upload from POST /api/v1/{ws}/brand-scans/uploads. */
-export interface BrandScanUpload {
+export interface ContextScanUpload {
   key: string;
   filename: string;
   size: number;
 }
 
 /** Response of the brand-scan upload endpoint. */
-export interface BrandScanUploadResult {
-  uploads: BrandScanUpload[];
+export interface ContextScanUploadResult {
+  uploads: ContextScanUpload[];
   /** Files that were not stored (disallowed type, oversize, deferred pdf/pptx). */
   skipped?: SkippedFile[];
 }
 
 /** Model confidence and source rationale for one inferred profile field. */
-export interface BrandScanFieldEvidence {
+export interface ContextScanFieldEvidence {
   /** 0–1 confidence in the inference for the field. */
   confidence: number;
   /** Short note describing the corpus evidence the inference rests on. */
@@ -2561,49 +2561,49 @@ export interface BrandScanFieldEvidence {
 }
 
 /** Evidence sidecar keyed by field name (tone, style, vocabulary, examples). */
-export interface BrandScanEvidence {
-  fields: Record<string, BrandScanFieldEvidence>;
+export interface ContextScanEvidence {
+  fields: Record<string, ContextScanFieldEvidence>;
 }
 
 /** One candidate glossary term extracted from the corpus. */
-export interface BrandScanTerm {
+export interface ContextScanTerm {
   term: string;
   definition: string;
   domain: string;
 }
 
 /** One corpus source that contributed to the scan. */
-export interface BrandScanSource {
+export interface ContextScanSource {
   kind: string;
   label: string;
   runes: number;
 }
 
 /** The reviewable output of a completed brand scan. */
-export interface BrandScanDraft {
+export interface ContextScanDraft {
   profile: VoiceProfile;
-  evidence: BrandScanEvidence;
-  terms: BrandScanTerm[];
-  sources: BrandScanSource[];
+  evidence: ContextScanEvidence;
+  terms: ContextScanTerm[];
+  sources: ContextScanSource[];
   truncated: boolean;
 }
 
-export type BrandScanStatus = "queued" | "processing" | "completed" | "failed";
+export type ContextScanStatus = "queued" | "processing" | "completed" | "failed";
 
 /** State of a brand-scan job from GET /api/v1/{ws}/brand-scans/{id}. */
-export interface BrandScanJob {
+export interface ContextScanJob {
   id: string;
-  status: BrandScanStatus;
+  status: ContextScanStatus;
   progress: number;
   message: string;
   tokens_used: number;
   error?: string;
   /** Present only when status is "completed". */
-  draft?: BrandScanDraft;
+  draft?: ContextScanDraft;
 }
 
 /** One candidate term a reviewer kept, on approval. */
-export interface BrandScanApprovedTerm {
+export interface ContextScanApprovedTerm {
   term: string;
   definition?: string;
   domain?: string;
@@ -2615,9 +2615,9 @@ export interface BrandScanApprovedTerm {
  * The reviewed outcome of a brand scan: the edited draft profile and the
  * candidate terms that survived review, applied in one transaction.
  */
-export interface BrandScanApproveRequest {
+export interface ContextScanApproveRequest {
   profile: VoiceProfile;
-  terms?: BrandScanApprovedTerm[];
+  terms?: ContextScanApprovedTerm[];
   /** Locale approved terms are created in when a term does not name its own. */
   locale?: string;
 }
@@ -2628,7 +2628,7 @@ export interface BrandScanApproveRequest {
  * status "proposed", and only where no concept already carries them in that
  * locale — so a retry after a partial application is safe.
  */
-export interface BrandScanApproveResult {
+export interface ContextScanApproveResult {
   profile: VoiceProfile;
   profile_action: "created" | "updated" | "unchanged";
   concepts_created: number;
@@ -2637,7 +2637,7 @@ export interface BrandScanApproveResult {
 }
 
 /** Result of the stateless draft check (live tester). */
-export interface BrandScanCheckResult {
+export interface ContextScanCheckResult {
   /** core/brand.BrandComplianceScore — the roll-up plus per-dimension detail. */
   score: { overall: number; dimensions?: unknown[]; word_count?: number };
   /** core/check.Finding, the same shape the profile check and stored scores emit. */

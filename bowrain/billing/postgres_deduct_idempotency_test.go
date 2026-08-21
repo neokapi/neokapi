@@ -44,13 +44,13 @@ func TestPgDeduct_DistinctReferencesEachCharge(t *testing.T) {
 		require.NoError(t, store.DeductCredits(ctx, ws, 10_000, "ai_translation", ref))
 	}
 	// Same reference, different operation: a distinct charge.
-	require.NoError(t, store.DeductCredits(ctx, ws, 10_000, "brand_scan", "job-a:0"))
+	require.NoError(t, store.DeductCredits(ctx, ws, 10_000, "context_scan", "job-a:0"))
 
 	balance, err := store.CheckCredits(ctx, ws)
 	require.NoError(t, err)
 	assert.Equal(t, int64(60_000), balance)
 	assert.Equal(t, 3, countLedger(t, store, ws, "ai_translation"))
-	assert.Equal(t, 1, countLedger(t, store, ws, "brand_scan"))
+	assert.Equal(t, 1, countLedger(t, store, ws, "context_scan"))
 }
 
 // TestPgDeduct_UnreferencedChargesStayIndependent keeps the guard off the

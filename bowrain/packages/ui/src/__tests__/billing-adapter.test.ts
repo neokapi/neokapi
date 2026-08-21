@@ -101,7 +101,7 @@ describe("billingGetUsage", () => {
         ai_translation: 80_000,
         bravo_message: 25_000,
         // An operation the breakdown has no named row for must still be counted.
-        brand_scan: 3_683,
+        context_scan: 3_683,
       },
     });
 

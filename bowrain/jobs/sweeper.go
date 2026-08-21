@@ -18,7 +18,7 @@ const (
 // StaleSweepStore is the store surface the sweeper drives: sweeping stalled
 // 'processing' rows back to 'queued' (or failing them), and rolling back a
 // requeue whose re-enqueue failed. Both the translation JobStore and the
-// BrandScanJobStore satisfy it, so one sweeper implementation recovers every
+// ContextScanJobStore satisfy it, so one sweeper implementation recovers every
 // leased job type.
 type StaleSweepStore interface {
 	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)

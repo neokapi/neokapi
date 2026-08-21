@@ -33,7 +33,7 @@ type InfoResponse struct {
 	BuildDate string `json:"build_date"`
 	// Features reports deployment-level capabilities the web app gates UI on
 	// (distinct from the per-workspace plan entitlements in the workspace
-	// response): "brand_scan" is true only when the brand-scan job system
+	// response): "context_scan" is true only when the brand-scan job system
 	// (PostgreSQL store + queue) is configured, so SQLite/standalone servers
 	// hide the hosted-scan entry points instead of surfacing a 503.
 	Features       map[string]bool     `json:"features"`
@@ -350,7 +350,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 		Commit:    version.Commit,
 		BuildDate: version.BuildDate,
 		Features: map[string]bool{
-			"brand_scan": s.BrandScanStore != nil && s.BrandScanQueue != nil,
+			"context_scan": s.ContextScanStore != nil && s.ContextScanQueue != nil,
 		},
 		Formats:        formats,
 		Tools:          tools,

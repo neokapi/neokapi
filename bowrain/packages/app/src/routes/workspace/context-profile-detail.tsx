@@ -7,7 +7,7 @@ import type { WorkspaceRouteContext } from "..";
 export function ContextProfileDetailRoute() {
   const navigate = useNavigate();
   const { workspace, slug } = useParams({ strict: false });
-  const { activeWorkspace, brandScanAvailable } = useRouteContext({
+  const { activeWorkspace, contextScanAvailable } = useRouteContext({
     strict: false,
   }) as WorkspaceRouteContext;
 
@@ -34,7 +34,7 @@ export function ContextProfileDetailRoute() {
       onOpenVoice={(profileId) => go("/$workspace/context/voice/$profileId", { profileId })}
       onOpenTerms={() => go("/$workspace/context/concepts")}
       onOpenChanges={() => go("/$workspace/context/changes")}
-      onScanBrand={brandScanAvailable ? () => go("/$workspace/context/scan") : undefined}
+      onScanBrand={contextScanAvailable ? () => go("/$workspace/context/scan") : undefined}
     />
   );
 }

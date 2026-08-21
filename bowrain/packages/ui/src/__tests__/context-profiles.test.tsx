@@ -6,9 +6,9 @@ import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
 import type { Workspace } from "../types/api";
-import { ProfilesView } from "../brand-hub/profiles/ProfilesView";
-import { ProfileDetailView } from "../brand-hub/profiles/ProfileDetailView";
-import { CoordinateReadout } from "../brand-hub/profiles/Coordinates";
+import { ProfilesView } from "../context-hub/profiles/ProfilesView";
+import { ProfileDetailView } from "../context-hub/profiles/ProfileDetailView";
+import { CoordinateReadout } from "../context-hub/profiles/Coordinates";
 import {
   emptyProfiles,
   governedButUndeclared,
@@ -178,7 +178,7 @@ describe("ProfileDetailView", () => {
       adapterFor(populatedProfiles),
     );
 
-    await waitFor(() => expect(screen.getByText("Brand scan")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Context scan")).toBeInTheDocument());
     expect(screen.getByText(/covers the whole workspace/)).toBeInTheDocument();
   });
 
@@ -189,7 +189,7 @@ describe("ProfileDetailView", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Coordinates")).toBeInTheDocument());
-    expect(screen.queryByText("Brand scan")).not.toBeInTheDocument();
+    expect(screen.queryByText("Context scan")).not.toBeInTheDocument();
   });
 
   it("says a scan has never run rather than showing nothing", async () => {
@@ -198,7 +198,7 @@ describe("ProfileDetailView", () => {
       adapterFor(emptyProfiles),
     );
 
-    await waitFor(() => expect(screen.getByText("Brand scan")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Context scan")).toBeInTheDocument());
     expect(screen.getByText(/No scan yet/)).toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
-import { ReachPanel } from "../brand-hub/experiments/ReachPanel";
+import { ReachPanel } from "../context-hub/experiments/ReachPanel";
 import type { ChangeSetImpact, Reach, ReachClass } from "../types/brand-graph";
 
 const cls = (over: Partial<ReachClass> = {}): ReachClass => ({

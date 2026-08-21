@@ -25,16 +25,16 @@ import type {
   BlockHistoryEntry,
   QAIssue,
   FileQAResult,
-  BrandScanRequest,
-  BrandScanUploadResult,
-  BrandScanCheckResult,
-  BrandScanDraft,
-  BrandScanJob,
+  ContextScanRequest,
+  ContextScanUploadResult,
+  ContextScanCheckResult,
+  ContextScanDraft,
+  ContextScanJob,
   ModelRecommendationsResponse,
   BlockQueryOptions,
   BlockStatusCounts,
   AutomationHistoryPage,
-  BrandScanApproveResult,
+  ContextScanApproveResult,
   PendingReviewOptions,
   TermCompliance,
 } from "../types/api";
@@ -235,18 +235,18 @@ export interface MockAdapter extends ApiAdapter {
   sourceProposals: SourceProposal[];
   /** `recordBrandCorrection` invocations in call order. */
   recordBrandCorrectionCalls: BrandCorrectionRequest[];
-  /** `startBrandScan` invocations in call order. */
-  startBrandScanCalls: BrandScanRequest[];
-  /** `uploadBrandScanSources` invocations — filenames per call. */
-  uploadBrandScanSourcesCalls: string[][];
+  /** `startContextScan` invocations in call order. */
+  startContextScanCalls: ContextScanRequest[];
+  /** `uploadContextScanSources` invocations — filenames per call. */
+  uploadContextScanSourcesCalls: string[][];
   /** `checkBrandDraft` invocations in call order. */
   checkBrandDraftCalls: { profileName: string; text: string }[];
   /**
-   * States returned by successive `getBrandScan` calls: each call consumes
+   * States returned by successive `getContextScan` calls: each call consumes
    * the next entry; the last entry repeats. Tests overwrite this to simulate
    * queued → processing → completed/failed progressions.
    */
-  brandScanJobStates: BrandScanJob[];
+  contextScanJobStates: ContextScanJob[];
   /**
    * Which item each block belongs to (block id → item name). A block absent
    * from the map is in "messages.json", the single-item default.
@@ -314,7 +314,7 @@ export const sampleModelRecommendations: ModelRecommendationsResponse = {
 // ---------------------------------------------------------------------------
 
 /** Deterministic drafted profile for the brand-scan review fixtures. */
-export const sampleBrandScanProfile: VoiceProfile = {
+export const sampleContextScanProfile: VoiceProfile = {
   id: "",
   name: "Acme Brand Voice",
   description: "Drafted from 3 sources by the brand scan.",
@@ -349,8 +349,8 @@ export const sampleBrandScanProfile: VoiceProfile = {
 };
 
 /** Deterministic completed brand-scan draft (profile + evidence + terms). */
-export const sampleBrandScanDraft: BrandScanDraft = {
-  profile: sampleBrandScanProfile,
+export const sampleContextScanDraft: ContextScanDraft = {
+  profile: sampleContextScanProfile,
   evidence: {
     fields: {
       tone: { confidence: 0.82, source: "Consistent register across brand-guide.docx" },
@@ -385,13 +385,13 @@ export const sampleBrandScanDraft: BrandScanDraft = {
 };
 
 /** A completed brand-scan job carrying the sample draft. */
-export const sampleBrandScanJob: BrandScanJob = {
+export const sampleContextScanJob: ContextScanJob = {
   id: "scan-1",
   status: "completed",
   progress: 100,
   message: "done",
   tokens_used: 12840,
-  draft: sampleBrandScanDraft,
+  draft: sampleContextScanDraft,
 };
 
 /** File extensions the mock brand-scan upload endpoint accepts. */
@@ -521,11 +521,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   const promoteEntityToConceptCalls: { itemName: string; blockId: string; entityKey: string }[] =
     [];
   const recordBrandCorrectionCalls: BrandCorrectionRequest[] = [];
-  const startBrandScanCalls: BrandScanRequest[] = [];
-  const uploadBrandScanSourcesCalls: string[][] = [];
+  const startContextScanCalls: ContextScanRequest[] = [];
+  const uploadContextScanSourcesCalls: string[][] = [];
   const checkBrandDraftCalls: { profileName: string; text: string }[] = [];
   const pendingReviewCalls: (PendingReviewOptions | undefined)[] = [];
-  let brandScanPollIndex = 0;
+  let contextScanPollIndex = 0;
 
   const adapter: MockAdapter = {
     // --- Test hooks -------------------------------------------------------
@@ -537,10 +537,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     promoteEntityToConceptCalls,
     sourceProposals: [],
     recordBrandCorrectionCalls,
-    startBrandScanCalls,
-    uploadBrandScanSourcesCalls,
+    startContextScanCalls,
+    uploadContextScanSourcesCalls,
     checkBrandDraftCalls,
-    brandScanJobStates: [sampleBrandScanJob],
+    contextScanJobStates: [sampleContextScanJob],
     itemNames: {},
     itemCollections: {},
     blockEvidence: {},
@@ -553,7 +553,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       commit: "storybook",
       build_date: "unknown",
       // The mock backend answers every brand-scan call, so the capability is on.
-      features: { brand_scan: true },
+      features: { context_scan: true },
     }),
     getPublicPlatformConfig: async () => ({
       signups_open: true,
@@ -1390,9 +1390,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     createProfileFromStarter: notImpl,
 
     // --- Brand scan (epic 016) -------------------------------------------
-    uploadBrandScanSources: async (_ws, files): Promise<BrandScanUploadResult> => {
-      uploadBrandScanSourcesCalls.push(files.map((f) => f.name));
-      const uploads: BrandScanUploadResult["uploads"] = [];
+    uploadContextScanSources: async (_ws, files): Promise<ContextScanUploadResult> => {
+      uploadContextScanSourcesCalls.push(files.map((f) => f.name));
+      const uploads: ContextScanUploadResult["uploads"] = [];
       const skipped: SkippedFile[] = [];
       for (const f of files) {
         const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
@@ -1409,25 +1409,25 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       }
       return skipped.length > 0 ? { uploads, skipped } : { uploads };
     },
-    startBrandScan: async (_ws, req) => {
-      startBrandScanCalls.push(req);
-      brandScanPollIndex = 0;
-      return { job_id: sampleBrandScanJob.id };
+    startContextScan: async (_ws, req) => {
+      startContextScanCalls.push(req);
+      contextScanPollIndex = 0;
+      return { job_id: sampleContextScanJob.id };
     },
-    approveBrandScan: async (_ws, _scanId, req): Promise<BrandScanApproveResult> => ({
+    approveContextScan: async (_ws, _scanId, req): Promise<ContextScanApproveResult> => ({
       profile: req.profile,
       profile_action: "created",
       concepts_created: req.terms?.length ?? 0,
       concepts_existing: 0,
       concept_ids: (req.terms ?? []).map((t) => `concept-${t.term}`),
     }),
-    getBrandScan: async (_ws, jobId): Promise<BrandScanJob> => {
-      const states = adapter.brandScanJobStates;
-      const state = states[Math.min(brandScanPollIndex, states.length - 1)];
-      brandScanPollIndex++;
+    getContextScan: async (_ws, jobId): Promise<ContextScanJob> => {
+      const states = adapter.contextScanJobStates;
+      const state = states[Math.min(contextScanPollIndex, states.length - 1)];
+      contextScanPollIndex++;
       return { ...state, id: jobId };
     },
-    checkBrandDraft: async (_ws, profile, text): Promise<BrandScanCheckResult> => {
+    checkBrandDraft: async (_ws, profile, text): Promise<ContextScanCheckResult> => {
       checkBrandDraftCalls.push({ profileName: profile.name, text });
       // Deterministic: forbidden/competitor terms in the sample text lower
       // the score and surface findings, mirroring the vocabulary matcher.
@@ -1800,7 +1800,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
 
     // --- Concepts -----------------------------------------------------------
-    // The brand-hub stories drive these from `brandHubOverrides`, which carries
+    // The context-hub stories drive these from `brandHubOverrides`, which carries
     // the fixture graph. Here they answer emptily but truthfully, so a story
     // that renders the surface without opting into that graph gets an empty
     // state rather than a crash.

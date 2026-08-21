@@ -193,7 +193,7 @@ func (s *Server) HandleListContextProfiles(c echo.Context) error {
 		Profiles:  points.profiles(voices),
 		Axes:      points.axes(),
 		Terms:     ContextProfileTerms{ConceptCount: s.workspaceConceptCount(ctx, wsSlug)},
-		Scan:      s.latestBrandScan(ctx, wsSlug),
+		Scan:      s.latestContextScan(ctx, wsSlug),
 		ScanScope: "workspace",
 	}
 	resp.Profiles = append(resp.Profiles, unboundVoiceProfiles(voices, points.boundVoiceIDs)...)
@@ -583,13 +583,13 @@ func (s *Server) workspaceConceptCount(ctx context.Context, wsSlug string) int {
 	return total
 }
 
-// latestBrandScan returns the workspace's most recent scan, or nil when none has
+// latestContextScan returns the workspace's most recent scan, or nil when none has
 // run. A scan carries no coordinates, so this is the whole workspace's answer.
-func (s *Server) latestBrandScan(ctx context.Context, wsSlug string) *ContextProfileScan {
-	if s.BrandScanStore == nil || wsSlug == "" {
+func (s *Server) latestContextScan(ctx context.Context, wsSlug string) *ContextProfileScan {
+	if s.ContextScanStore == nil || wsSlug == "" {
 		return nil
 	}
-	jobs, err := s.BrandScanStore.ListBrandScanJobs(ctx, wsSlug, 1)
+	jobs, err := s.ContextScanStore.ListContextScanJobs(ctx, wsSlug, 1)
 	if err != nil || len(jobs) == 0 {
 		return nil
 	}

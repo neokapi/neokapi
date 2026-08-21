@@ -12,12 +12,12 @@ import { WorkspaceProvider } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
 import type { Workspace } from "../types/api";
 import type { ChangeSet } from "../types/brand-graph";
-import { VocabularyByStatus, LocaleCoveragePanel } from "../brand-hub/dashboard/CoveragePanel";
-import { PendingDecisions } from "../brand-hub/dashboard/PendingDecisions";
-import { BrandDashboardView } from "../brand-hub/dashboard/BrandDashboardView";
-import { PendingConceptChanges } from "../brand-hub/concepts/PendingConceptChanges";
-import { ActivityView } from "../brand-hub/activity/ActivityView";
-import { OpBuilder } from "../brand-hub/experiments/OpBuilder";
+import { VocabularyByStatus, LocaleCoveragePanel } from "../context-hub/dashboard/CoveragePanel";
+import { PendingDecisions } from "../context-hub/dashboard/PendingDecisions";
+import { BrandDashboardView } from "../context-hub/dashboard/BrandDashboardView";
+import { PendingConceptChanges } from "../context-hub/concepts/PendingConceptChanges";
+import { ActivityView } from "../context-hub/activity/ActivityView";
+import { OpBuilder } from "../context-hub/experiments/OpBuilder";
 import { sampleActivities, sampleConcepts } from "../stories/brandHubFixtures";
 
 const workspace: Workspace = {

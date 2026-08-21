@@ -815,43 +815,43 @@ export {
 
 // Brand scan (AI brand onboarding — epic 016)
 export {
-  BrandScanInput,
-  BrandScanProgress,
-  BrandScanReview,
-  BrandScanLiveTester,
-  BrandScanLocalLaneCard,
+  ContextScanInput,
+  ContextScanProgress,
+  ContextScanReview,
+  ContextScanLiveTester,
+  ContextScanLocalLaneCard,
   MAX_SCAN_URLS,
   MAX_SCAN_FILES,
-} from "./brand-scan";
+} from "./context-scan";
 export type {
-  BrandScanInputProps,
-  BrandScanProgressProps,
-  BrandScanReviewProps,
-  BrandScanLiveTesterProps,
-  BrandScanLocalLaneCardProps,
-} from "./brand-scan";
+  ContextScanInputProps,
+  ContextScanProgressProps,
+  ContextScanReviewProps,
+  ContextScanLiveTesterProps,
+  ContextScanLocalLaneCardProps,
+} from "./context-scan";
 export {
-  useUploadBrandScanSources,
-  useStartBrandScan,
-  useBrandScanJob,
+  useUploadContextScanSources,
+  useStartContextScan,
+  useContextScanJob,
   useCheckBrandDraft,
-  brandScanPollInterval,
-} from "./hooks/useBrandScanApi";
+  contextScanPollInterval,
+} from "./hooks/useContextScanApi";
 export type {
-  BrandScanRequest,
-  BrandScanUpload,
-  BrandScanUploadResult,
-  BrandScanFieldEvidence,
-  BrandScanEvidence,
-  BrandScanTerm,
-  BrandScanSource,
-  BrandScanDraft,
-  BrandScanStatus,
-  BrandScanJob,
-  BrandScanCheckResult,
-  BrandScanApprovedTerm,
-  BrandScanApproveRequest,
-  BrandScanApproveResult,
+  ContextScanRequest,
+  ContextScanUpload,
+  ContextScanUploadResult,
+  ContextScanFieldEvidence,
+  ContextScanEvidence,
+  ContextScanTerm,
+  ContextScanSource,
+  ContextScanDraft,
+  ContextScanStatus,
+  ContextScanJob,
+  ContextScanCheckResult,
+  ContextScanApprovedTerm,
+  ContextScanApproveRequest,
+  ContextScanApproveResult,
 } from "./types/api";
 
 // Brand knowledge graph (AD-021) — concepts, graph, markets, change-sets
@@ -902,7 +902,7 @@ export {
 // under, and the Concepts/Voice/Changes/Activity/Dashboard sections beneath
 // them, built on the profile/concept/graph/change-set hooks.
 export {
-  BrandHub,
+  ContextHub,
   // Profiles section — the hub's landing: one card per coordinate point.
   ProfilesView,
   ProfilesSkeleton,
@@ -925,7 +925,7 @@ export {
   changeSetStatusLabel,
   RelationBadge,
   relationLabel,
-  EmptyState as BrandHubEmptyState,
+  EmptyState as ContextHubEmptyState,
   formatDate as brandHubFormatDate,
   formatRelative as brandHubFormatRelative,
   // Concepts section — framework concept UI (R4) on @neokapi/concept-ui.
@@ -943,9 +943,9 @@ export {
   ActivityView,
   BrandDashboardView,
   RollupMatrix,
-} from "./brand-hub";
+} from "./context-hub";
 export type {
-  BrandHubProps,
+  ContextHubProps,
   ProfilesViewProps,
   ContextOnboardingProps,
   ProfileDetailViewProps,
@@ -959,7 +959,7 @@ export type {
   ExperimentDetailViewProps,
   ActivityViewProps,
   BrandDashboardViewProps,
-} from "./brand-hub";
+} from "./context-hub";
 
 // Context explorer — the framework component set (@neokapi/context-explorer)
 // with the dimensions free, over the workspace's own endpoints.
