@@ -21,7 +21,7 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi extract -p kapi.yaml --no-tm",
+      command: "kapi extract -p kapi.yaml --no-memory",
       narration:
         "Extract emits a bilingual XLIFF per target locale. This step runs live in the embed below — inspect the emitted file in the files pane.",
     },
