@@ -1250,7 +1250,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			var itemVariants map[string][]apiclient.AssetVariantResponse
 			if c.project.Recipe.AssetsEnabled() {
 				itemAssets = mediaByItem[itemName]
-				itemVariants = c.listMediaVariants(ctx, itemAssets)
+				var listErrs []error
+				itemVariants, listErrs = c.listMediaVariants(ctx, itemAssets)
+				for _, err := range listErrs {
+					writeErrs = append(writeErrs, fmt.Errorf("%s: %w", itemName, err))
+				}
 			}
 
 			// Write a translated file for each target locale.
@@ -1323,7 +1327,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				var mediaRepl []MediaReplacement
 				cleanupMedia := func() {}
 				if len(itemAssets) > 0 {
-					mediaRepl, cleanupMedia = c.fetchMediaReplacements(ctx, itemAssets, itemVariants, loc)
+					var mediaErrs []error
+					mediaRepl, cleanupMedia, mediaErrs = c.fetchMediaReplacements(ctx, itemAssets, itemVariants, loc)
+					for _, err := range mediaErrs {
+						writeErrs = append(writeErrs, fmt.Errorf("%s (%s): %w", itemName, loc, err))
+					}
 				}
 
 				werr := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
@@ -1917,19 +1925,21 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 // with the pull keeps it close to its use: an expired URL is a variant silently
 // missing from a written file, so the gap between minting and downloading is
 // the thing worth keeping short.
-func (c *BowrainSourceConnector) listMediaVariants(ctx context.Context, assets []apiclient.SyncMedia) map[string][]apiclient.AssetVariantResponse {
+func (c *BowrainSourceConnector) listMediaVariants(ctx context.Context, assets []apiclient.SyncMedia) (map[string][]apiclient.AssetVariantResponse, []error) {
 	if c.client == nil || len(assets) == 0 {
-		return nil
+		return nil, nil
 	}
 	out := make(map[string][]apiclient.AssetVariantResponse, len(assets))
+	var errs []error
 	for _, asset := range assets {
 		variants, err := c.client.ListAssetVariants(ctx, asset.ID)
 		if err != nil {
+			errs = append(errs, fmt.Errorf("list variants of asset %s (%s): %w", asset.Filename, asset.ID, err))
 			continue
 		}
 		out[asset.ID] = variants
 	}
-	return out
+	return out, errs
 }
 
 // fetchMediaReplacements materializes the approved variants for one locale to
@@ -1937,16 +1947,23 @@ func (c *BowrainSourceConnector) listMediaVariants(ctx context.Context, assets [
 // (so the writer streams the asset rather than buffering it). The returned
 // cleanup removes the temp files and must be called once the writer is done
 // with them.
+//
+// A variant that cannot be fetched is REPORTED, not skipped. Every one of these
+// used to be a bare `continue`: the file was written without its media and the
+// pull exited zero, which is the failure shape a written file cannot show you.
+// The errors join the write failures, so the cursor is held and the next pull
+// tries again — the same contract an unreadable format already has.
 func (c *BowrainSourceConnector) fetchMediaReplacements(
 	ctx context.Context,
 	assets []apiclient.SyncMedia,
 	variantsByAsset map[string][]apiclient.AssetVariantResponse,
 	locale string,
-) ([]MediaReplacement, func()) {
+) ([]MediaReplacement, func(), []error) {
 	noop := func() {}
 	if c.client == nil || len(assets) == 0 {
-		return nil, noop
+		return nil, noop, nil
 	}
+	var errs []error
 
 	var tmpDir string
 	cleanup := func() {
@@ -1964,6 +1981,13 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 				continue
 			}
 			if v.DownloadURL == "" {
+				// The venue holds the bytes and will not say where. On a
+				// deployment whose blob store cannot presign this was every
+				// variant, every time, and the file was written without its
+				// media and reported as a success.
+				errs = append(errs, fmt.Errorf(
+					"variant %s of %s (%s): the venue returned no download location",
+					v.Locale, asset.Filename, asset.ID))
 				continue
 			}
 
@@ -1972,17 +1996,21 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 			// variant's bytes in memory.
 			data, err := c.client.DownloadBlob(ctx, v.DownloadURL)
 			if err != nil {
+				errs = append(errs, fmt.Errorf(
+					"download variant %s of %s: %w", v.Locale, asset.Filename, err))
 				continue
 			}
 			if tmpDir == "" {
 				tmpDir, err = os.MkdirTemp("", "bowrain-media-*")
 				if err != nil {
 					cleanup()
-					return nil, noop
+					return nil, noop, append(errs, fmt.Errorf("create a temp dir for media: %w", err))
 				}
 			}
 			variantPath := filepath.Join(tmpDir, fmt.Sprintf("%s-%s", asset.ID, v.Locale))
 			if err := os.WriteFile(variantPath, data, 0o644); err != nil {
+				errs = append(errs, fmt.Errorf(
+					"materialize variant %s of %s: %w", v.Locale, asset.Filename, err))
 				continue
 			}
 
@@ -1997,7 +2025,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 		}
 	}
 
-	return replacements, cleanup
+	return replacements, cleanup, errs
 }
 
 // fetchAndCacheMetadata fetches project metadata from the server and caches it.
