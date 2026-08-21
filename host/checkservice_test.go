@@ -367,7 +367,7 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		_, _, _, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found in local store")
-		_, statErr := os.Stat(filepath.Join(root, "brand.db"))
+		_, statErr := os.Stat(filepath.Join(root, "voice.db"))
 		assert.True(t, os.IsNotExist(statErr), "a missing store must not be created by a lookup")
 	})
 }

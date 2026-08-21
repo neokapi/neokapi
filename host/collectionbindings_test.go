@@ -404,7 +404,7 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's channel selects the platform profile")
 
 	// A real store holding what the tiers under (and over) the collection name.
-	store, err := openVoiceStoreAt(filepath.Join(root, "brand.db"))
+	store, err := openVoiceStoreAt(filepath.Join(root, "voice.db"))
 	require.NoError(t, err)
 	defer store.Close()
 	for _, p := range []*profile.VoiceProfile{
