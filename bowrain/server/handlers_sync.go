@@ -104,6 +104,12 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		currentRef = ref.Ref{}
 	}
 
+	// How this venue takes chunks, decided once and stated here so the producer
+	// knows before it chunks: the 2 MiB bound that shaped chunking is this
+	// server's request limit, and nothing imposes it on a write that never
+	// reaches this server.
+	transport := s.chunkTransport(c.Request().Context())
+
 	// Fast path: root hash comparison. Only "unchanged" when the declared
 	// context matches too — otherwise the push proceeds carrying no chunks and
 	// a manifest that is nothing but the context.
@@ -115,6 +121,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"status":                 "unchanged",
 				"context_changed":        false,
 				"undeclared_collections": ctxDiff.Undeclared,
+				"transport":              transport,
 				"ref":                    currentRef,
 			})
 		}
@@ -137,6 +144,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"unchanged_item_count":   itemDiff.UnchangedCount,
 		"context_changed":        ctxDiff.Changed,
 		"undeclared_collections": ctxDiff.Undeclared,
+		"transport":              transport,
 		"ref":                    currentRef,
 	})
 }

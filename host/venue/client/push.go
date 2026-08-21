@@ -3,8 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -73,6 +71,13 @@ type PushInitResponse struct {
 	// where content lives, so dropping one on a recipe edit would take the
 	// server-side content grouped under it with it.
 	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
+
+	// Transport is how this venue takes chunks: "direct" when it can grant
+	// presigned PUTs to object storage, "proxy" when the bytes have to come
+	// through the API. Stated at init because it decides how large a chunk may
+	// be — the 2 MiB cap that shaped chunking is the API's request limit, and
+	// nothing imposes it on a write that never reaches the API.
+	Transport string `json:"transport,omitempty"`
 
 	// Ref is the server's freshness ref for the stream, as of this
 	// negotiation. It is what the commit that follows asserts, so a push does
@@ -254,11 +259,12 @@ const (
 	// maxChunkRecords caps the number of blocks per chunk regardless of size.
 	maxChunkRecords = 500
 
-	// maxChunkMarshaledBytes bounds the *marshaled* (uncompressed) size of a
-	// single chunk's blocks. The proxy upload path reads the request body with
-	// io.LimitReader(body, 2 MiB) and silently truncates anything larger, which
-	// would make the client-computed chunk hash diverge from the stored bytes
-	// and fail the commit's BlobStore.Exists check.
+	// maxProxyChunkMarshaledBytes bounds the *marshaled* (uncompressed) size of
+	// a single chunk's blocks when the chunk travels through the API. The proxy
+	// upload path reads the request body with io.LimitReader(body, 2 MiB) and
+	// silently truncates anything larger, which would make the client-computed
+	// chunk hash diverge from the stored bytes and fail the commit's
+	// BlobStore.Exists check.
 	//
 	// The 2 MiB cap applies to the *compressed* chunk. zstd never expands
 	// real-world content, so a marshaled chunk kept under this threshold stays
@@ -268,7 +274,13 @@ const (
 	// accounts for source text, targets, annotations, skeleton, runs — the
 	// whole serialized block) — rather than from SourceText alone — is what
 	// prevents oversized chunks from slipping through.
-	maxChunkMarshaledBytes = 1536 * 1024 // 1.5 MiB
+	maxProxyChunkMarshaledBytes = 1536 * 1024 // 1.5 MiB
+
+	// maxDirectChunkMarshaledBytes is the same bound when the chunk goes
+	// straight to object storage. No request handler is in the path, so the API
+	// imposes nothing; what remains is the producer's own memory, since a
+	// window of chunks is held while it uploads in parallel.
+	maxDirectChunkMarshaledBytes = 12 * 1024 * 1024 // 12 MiB
 )
 
 // Push performs a complete push: init → diff → upload chunks → commit.
@@ -386,9 +398,15 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	// the venue's tree and diffed its scan against it locally, which is what
 	// replaced a negotiation that descended one item at a time. What arrives
 	// here IS the pack.
-	transport := "proxy"
+	//
+	// How it travels is the venue's to say. A deployment whose blob store is a
+	// directory has no presigning, and its pushes proxy exactly as before.
+	transport := initResp.Transport
+	if transport == "" {
+		transport = TransportProxy
+	}
 
-	// 4. Build and upload chunks (only needed blocks).
+	// 4. Stage and write the pack.
 	var chunks []ChunkRef
 	chunkIndex := 0
 
@@ -399,6 +417,38 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		sendItems = append(sendItems, itemName)
 	}
 	sort.Strings(sendItems)
+
+	// Chunks are staged into a window and written a window at a time: the
+	// window bounds how much of the pack is in memory at once, and is the unit
+	// one grant of presigned URLs covers and one round of parallel PUTs writes.
+	chunkLimit := maxProxyChunkMarshaledBytes
+	if transport == TransportDirect {
+		chunkLimit = maxDirectChunkMarshaledBytes
+	}
+	var window []*stagedChunk
+
+	flushWindow := func() error {
+		refs, err := c.uploadWindowOfChunks(ctx, initResp.UploadID, window)
+		if err != nil {
+			return err
+		}
+		chunks = append(chunks, refs...)
+		window = nil
+		return nil
+	}
+
+	seal := func(blocks []*pb.SyncBlock) error {
+		staged, err := c.stageChunk(chunkIndex, "blocks", blocks)
+		if err != nil {
+			return fmt.Errorf("stage chunk %d: %w", chunkIndex, err)
+		}
+		chunkIndex++
+		window = append(window, staged)
+		if len(window) >= uploadWindow {
+			return flushWindow()
+		}
+		return nil
+	}
 
 	for _, itemName := range sendItems {
 		blocks := blocksByItem[itemName]
@@ -416,18 +466,14 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			sb.SkeletonJson = nil
 			// Estimate the boundary from the block's full marshaled proto size
 			// (source + targets + annotations + runs), not from SourceText alone.
-			// Seal the current chunk *before* appending a block that would push the
-			// marshaled size over the safe threshold, so the chunk never exceeds
-			// the proxy upload's 2 MiB cap (#27). A single block larger than the
-			// threshold still rides in its own chunk.
+			// Seal the current chunk *before* appending a block that would push
+			// the marshaled size over the threshold. A single block larger than
+			// the threshold still rides in its own chunk.
 			sbSize := proto.Size(sb)
-			if len(chunkBlocks) > 0 && chunkBytes+sbSize > maxChunkMarshaledBytes {
-				ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)
-				if err != nil {
-					return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
+			if len(chunkBlocks) > 0 && chunkBytes+sbSize > chunkLimit {
+				if err := seal(chunkBlocks); err != nil {
+					return nil, err
 				}
-				chunks = append(chunks, *ref)
-				chunkIndex++
 				chunkBlocks = nil
 				chunkBytes = 0
 			}
@@ -437,12 +483,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 
 			// Also cap by record count to keep chunks bounded for tiny blocks.
 			if len(chunkBlocks) >= maxChunkRecords {
-				ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)
-				if err != nil {
-					return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
+				if err := seal(chunkBlocks); err != nil {
+					return nil, err
 				}
-				chunks = append(chunks, *ref)
-				chunkIndex++
 				chunkBlocks = nil
 				chunkBytes = 0
 			}
@@ -450,13 +493,13 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 
 		// Flush remaining blocks.
 		if len(chunkBlocks) > 0 {
-			ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)
-			if err != nil {
-				return nil, fmt.Errorf("upload chunk %d: %w", chunkIndex, err)
+			if err := seal(chunkBlocks); err != nil {
+				return nil, err
 			}
-			chunks = append(chunks, *ref)
-			chunkIndex++
 		}
+	}
+	if err := flushWindow(); err != nil {
+		return nil, err
 	}
 
 	// 5. Commit.
@@ -538,58 +581,6 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 	}
 	var result PushInitResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
-}
-
-func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index int, contentType string, blocks []*pb.SyncBlock, transport string) (*ChunkRef, error) {
-	chunk := &pb.SyncChunk{
-		ContentType: contentType,
-		RecordCount: int32(len(blocks)),
-		Blocks:      blocks,
-	}
-	data, err := proto.Marshal(chunk)
-	if err != nil {
-		return nil, fmt.Errorf("marshal chunk: %w", err)
-	}
-
-	// Compress with zstd.
-	if c.compressor != nil {
-		data, err = c.compressor.Compress(data)
-		if err != nil {
-			return nil, fmt.Errorf("compress chunk: %w", err)
-		}
-	}
-
-	// Upload via proxy (local dev) — direct SAS upload can be added later.
-	u := c.streamPrefix() + fmt.Sprintf("/push/chunks/%s/%d", uploadID, index)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	httpReq.Header.Set("Content-Type", "application/octet-stream")
-	resp, err := c.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("chunk upload HTTP %d", resp.StatusCode)
-	}
-
-	// Compute the chunk's content-addressed key for the manifest. This MUST
-	// match how the blob store keys uploaded bytes (plain SHA-256 of the exact
-	// bytes uploaded) so the worker can Download(chunk.Hash). Do NOT use
-	// model.ComputeContentHash here — it TrimSpace-normalizes its input, which
-	// corrupts the hash of binary (compressed) chunk data.
-	sum := sha256.Sum256(data)
-	hash := hex.EncodeToString(sum[:])
-
-	return &ChunkRef{
-		Index:       index,
-		ContentType: contentType,
-		Hash:        hash,
-		RecordCount: len(blocks),
-		ByteSize:    int64(len(data)),
-	}, nil
 }
 
 func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (*SyncPushResponse, error) {

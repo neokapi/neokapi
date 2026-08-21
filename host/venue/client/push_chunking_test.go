@@ -139,7 +139,7 @@ func TestPushChunkSizeBoundedByMarshaledSize(t *testing.T) {
 		// block may still tip it over the line). This proves the boundary is
 		// computed from the full marshaled size, not SourceText.
 		marshaled := proto.Size(chunk)
-		assert.LessOrEqualf(t, marshaled, maxChunkMarshaledBytes+blockPayload*2,
+		assert.LessOrEqualf(t, marshaled, maxProxyChunkMarshaledBytes+blockPayload*2,
 			"chunk %d marshaled size %d not bounded by marshaled-size threshold", i, marshaled)
 	}
 	assert.Equal(t, blockCount, totalBlocks, "every needed block must be uploaded exactly once")

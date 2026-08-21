@@ -1314,6 +1314,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatSyncGroup.GET("/status", s.HandleSyncPushStatus)
 			flatSyncGroup.GET("/tree", s.HandleSyncTree)
 			flatSyncGroup.POST("/push/init", s.HandleSyncPushInit)
+			flatSyncGroup.POST("/push/uploads", s.HandleSyncPushUploads)
 			flatSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
 
@@ -1894,6 +1895,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/sync/:ref/status", s.HandleSyncPushStatus)
 	g.GET("/:id/sync/:ref/tree", s.HandleSyncTree)
 	g.POST("/:id/sync/:ref/push/init", s.HandleSyncPushInit)
+	g.POST("/:id/sync/:ref/push/uploads", s.HandleSyncPushUploads)
 	g.POST("/:id/sync/:ref/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
