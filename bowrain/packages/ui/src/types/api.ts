@@ -2642,6 +2642,12 @@ export interface ContextScanApprovedTerm {
  * candidate terms that survived review, applied in one transaction.
  */
 export interface ContextScanApproveRequest {
+  /**
+   * The point the approved artefacts would govern, as an axis map. Absent or
+   * empty is the project's default point. The server refuses a point whose
+   * axes the workspace declares no content on, with a 409.
+   */
+  at?: Record<string, string>;
   profile: VoiceProfile;
   terms?: ContextScanApprovedTerm[];
   /** Locale approved terms are created in when a term does not name its own. */
