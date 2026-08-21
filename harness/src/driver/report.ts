@@ -69,7 +69,7 @@ function renderBrand(data: any): string {
        <div class="gauge" style="background:conic-gradient(${gaugeColor(score)} ${score * 3.6}deg, rgba(255,255,255,0.08) 0)">
          <div class="gauge" style="width:108px;height:108px;background:#0c1020;flex-direction:column">
            <div class="num">${score}</div><div class="den">/ 100</div></div></div>
-       <div><div class="label">on-brand score</div>
+       <div><div class="label">compliant score</div>
          <div style="font-size:20px;margin-top:6px">${
            score >= 85 ? "On brand ✓" : score >= 60 ? "Needs a pass" : "Off brand"
          }</div>

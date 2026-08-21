@@ -198,7 +198,7 @@ export type { ReviewSessionProps } from "./components/review/ReviewSession";
 export { ReviewQueueList } from "./components/review/ReviewQueueList";
 export type { ReviewQueueListProps } from "./components/review/ReviewQueueList";
 export { FocusedReviewer } from "./components/review/FocusedReviewer";
-export type { FocusedReviewerProps, ReviewerOnBrand } from "./components/review/FocusedReviewer";
+export type { FocusedReviewerProps, ReviewerCompliance } from "./components/review/FocusedReviewer";
 export { ReviewInbox } from "./components/review/ReviewInbox";
 export type {
   ReviewInboxProps,
@@ -250,7 +250,7 @@ export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";
 export { ProjectTypeBadge, type ProjectTypeBadgeProps } from "./components/ProjectTypeBadge";
-export { OnBrandRateChip, type OnBrandRateChipProps } from "./components/OnBrandRateChip";
+export { ComplianceRateChip, type ComplianceRateChipProps } from "./components/ComplianceRateChip";
 export {
   DeliveryPanel,
   type DeliveryPanelProps,
@@ -608,7 +608,7 @@ export type {
   TranslationDashboardItemOpts,
   DashboardItemSort,
   ShipState,
-  OnBrandBasis,
+  ComplianceBasis,
   LocaleTranslationStats,
   ItemTranslationStats,
   CollectionTranslationStats,

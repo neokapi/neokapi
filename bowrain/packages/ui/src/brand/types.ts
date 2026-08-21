@@ -90,7 +90,7 @@ export interface VoiceProfile {
   workspace_id: string;
   /**
    * The minimum voice-compliance score (0–100) a block must reach to count as
-   * on-brand. Absent or 0 means the default bar (complianceBar / core/profile's
+   * compliant. Absent or 0 means the default bar (complianceBar / core/profile's
    * DefaultMinScore).
    */
   min_score?: number;
@@ -211,10 +211,10 @@ export interface CreateVoiceProfileRequest {
   examples: VoiceExample[];
   personas?: Record<string, PersonaOverride>;
   /**
-   * The profile's own on-brand bar (0–100); omitted or 0 means the default
+   * The profile's own compliant bar (0–100); omitted or 0 means the default
    * (complianceBar / core/profile's DefaultMinScore). Authored content, not
    * server-managed metadata: the bar decides which blocks the ship gate and
-   * bulk approve-passing count as on-brand, so every write surface carries it.
+   * bulk approve-passing count as compliant, so every write surface carries it.
    */
   min_score?: number;
 }

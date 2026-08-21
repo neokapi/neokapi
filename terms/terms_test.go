@@ -519,7 +519,7 @@ func TestCSVImportMonolingual(t *testing.T) {
 	// A concept/voice-vocabulary list with a term + definition and no target column.
 	csvContent := `term,definition
 Bowrain,The localization platform
-on-brand,Consistent with the brand voice
+compliant,Consistent with the brand voice
 `
 
 	tb := terms.NewInMemoryStore()

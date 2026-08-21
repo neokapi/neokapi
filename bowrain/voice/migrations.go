@@ -2,13 +2,13 @@ package voice
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// Migrations is the brand-voice schema as a single consolidated baseline.
+// Migrations is the voice schema as a single consolidated baseline.
 //
 // LEDGER — every version this subsystem has ever issued, now folded in:
 //
-//	1  brand voice schema (baseline)
-//	2  author personas on brand profiles
-//	3  brand voice baseline (folds 1-2)
+//	1  voice schema (baseline)
+//	2  author personas on voice profiles
+//	3  voice baseline (folds 1-2)
 //
 // The columns later versions added by ALTER (personas, min_score) are declared
 // in the CREATE below as well: the CREATE serves an empty database, the ALTER
@@ -21,13 +21,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // baseline" no longer holds: a re-run is now the mechanism, not the hazard.
 //
 // Retired numbers are never reused; the next migration is version 5. Version 4
-// added voice_profiles.min_score — the profile's own on-brand bar, which the
+// added voice_profiles.min_score — the profile's own compliance bar, which the
 // API accepted and the store then dropped, pinning every workspace profile to
 // the default bar no matter what was authored.
 var Migrations = []storage.Migration{
 	{
 		Version:     4,
-		Description: "brand voice baseline (folds 1-3) + the profile's own on-brand bar",
+		Description: "voice baseline (folds 1-3) + the profile's own compliance bar",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS voice_profiles (
 				id           TEXT PRIMARY KEY,
@@ -42,7 +42,7 @@ var Migrations = []storage.Migration{
 				channels     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
 				personas     JSONB NOT NULL DEFAULT '{}',
-				-- The profile's own on-brand bar (0-100); 0 means the default
+				-- The profile's own compliance bar (0-100); 0 means the default
 				-- (core/profile.DefaultMinScore). The ship gate and bulk
 				-- approve-passing read it through VoiceProfile.ComplianceBar.
 				min_score    INTEGER NOT NULL DEFAULT 0,
@@ -121,33 +121,6 @@ var Migrations = []storage.Migration{
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)
 			);
-
-			-- This subsystem was renamed from brand to voice, and its tables with
-			-- it. Renaming the ledger table means Migrate replays from scratch
-			-- against an empty voice_schema_migrations, so the CREATEs above
-			-- build the new tables — and the old ones would otherwise sit there
-			-- holding rows nothing reads.
-			--
-			-- Dropping rather than copying across is the standing pre-live
-			-- decision: reset beats migrate while we are the only customer, and
-			-- what a project declares is re-created by its next push. A voice
-			-- authored only in the UI and never pushed is the one thing this
-			-- loses, which is the trade that decision already makes.
-			--
-			-- It belongs in the baseline rather than in a version of its own.
-			-- The baseline is idempotent and re-applied by design, which is
-			-- exactly what a DROP ... IF EXISTS needs: it runs once against a
-			-- database that has them and is a no-op on every database created
-			-- after the rename.
-			DROP TABLE IF EXISTS brand_rule_decisions;
-			DROP TABLE IF EXISTS brand_voice_corrections;
-			DROP TABLE IF EXISTS brand_voice_scores;
-			DROP TABLE IF EXISTS brand_profile_tags;
-			DROP TABLE IF EXISTS brand_profile_versions;
-			DROP TABLE IF EXISTS brand_profiles;
-			-- And the bookkeeping that tracked them: left behind, it would claim
-			-- a subsystem that no longer exists is at version 4.
-			DROP TABLE IF EXISTS brand_schema_migrations;
 		`,
 	},
 }

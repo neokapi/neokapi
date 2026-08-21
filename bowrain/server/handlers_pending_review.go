@@ -30,7 +30,7 @@ type pendingReviewEntry struct {
 	// bucketed on checks alone called blocks passing that the server refuses.
 	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
 	// VoiceScore is the latest persisted brand voice score for this block and
-	// locale, and VoiceBar the on-brand bar of the profile that produced it
+	// locale, and VoiceBar the compliant bar of the profile that produced it
 	// (VoiceProfile.ComplianceBar). Both are absent together when the block has
 	// never been scored — the server then applies no voice bar to it either.
 	VoiceScore *int `json:"voice_score,omitempty"`

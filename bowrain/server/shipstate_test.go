@@ -163,31 +163,31 @@ func TestApplyShipStates(t *testing.T) {
 	assert.Equal(t, 1, itB.FailingChecks, "the failing block is attributed to its collection")
 
 	// On-brand rates (no brand store → checks-only basis everywhere derived).
-	assertOnBrand(t, fr, 2, 1.0, platstore.OnBrandBasisChecks)
-	assertOnBrand(t, de, 2, 1.0, platstore.OnBrandBasisChecks)
-	assertOnBrand(t, es, 1, 1.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, fr, 2, 1.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, de, 2, 1.0, platstore.ComplianceBasisChecks)
+	assertCompliant(t, es, 1, 1.0, platstore.ComplianceBasisChecks)
 	itStats := localeByCode(t, stats.LocaleStats, "it")
-	assertOnBrand(t, itStats, 1, 0.5, platstore.OnBrandBasisChecks)
-	assertOnBrand(t, itB, 0, 0.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, itStats, 1, 0.5, platstore.ComplianceBasisChecks)
+	assertCompliant(t, itB, 0, 0.0, platstore.ComplianceBasisChecks)
 	esB := localeByCode(t, colB.Locales, "es")
-	assert.Nil(t, esB.OnBrandRate, "nothing translated in col-b/es → no rate")
-	assert.Empty(t, esB.OnBrandBasis)
+	assert.Nil(t, esB.ComplianceRate, "nothing translated in col-b/es → no rate")
+	assert.Empty(t, esB.ComplianceBasis)
 }
 
-// assertOnBrand checks the derived on-brand triple on one locale scope.
-func assertOnBrand(t *testing.T, ls platstore.LocaleTranslationStats, blocks int, rate float64, basis platstore.OnBrandBasis) {
+// assertCompliant checks the derived compliant triple on one locale scope.
+func assertCompliant(t *testing.T, ls platstore.LocaleTranslationStats, blocks int, rate float64, basis platstore.ComplianceBasis) {
 	t.Helper()
-	assert.Equal(t, blocks, ls.OnBrandBlocks, "%s: on-brand blocks", ls.Locale)
-	require.NotNil(t, ls.OnBrandRate, "%s: rate must be derived", ls.Locale)
-	assert.InDelta(t, rate, *ls.OnBrandRate, 0.0001, "%s: on-brand rate", ls.Locale)
-	assert.Equal(t, basis, ls.OnBrandBasis, "%s: basis", ls.Locale)
+	assert.Equal(t, blocks, ls.CompliantBlocks, "%s: compliant blocks", ls.Locale)
+	require.NotNil(t, ls.ComplianceRate, "%s: rate must be derived", ls.Locale)
+	assert.InDelta(t, rate, *ls.ComplianceRate, 0.0001, "%s: compliance rate", ls.Locale)
+	assert.Equal(t, basis, ls.ComplianceBasis, "%s: basis", ls.Locale)
 }
 
-// TestApplyShipStates_OnBrandVoiceScores covers the voice-informed half of the
-// on-brand rate: a persisted voice score below the profile's min bar demotes a
+// TestApplyShipStates_ComplianceVoiceScores covers the voice-informed half of the
+// compliance rate: a persisted voice score below the profile's min bar demotes a
 // checks-passing block, the latest score per block+locale wins, and the basis
 // flips to voice+checks only in the scopes a score actually informed.
-func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
+func TestApplyShipStates_ComplianceVoiceScores(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
@@ -234,24 +234,24 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", nil, stats))
 
 	fr := localeByCode(t, stats.LocaleStats, "fr")
-	assertOnBrand(t, fr, 2, 1.0, platstore.OnBrandBasisVoice)
+	assertCompliant(t, fr, 2, 1.0, platstore.ComplianceBasisVoice)
 	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "voice scores do not disturb ship states")
 
 	de := localeByCode(t, stats.LocaleStats, "de")
-	assertOnBrand(t, de, 1, 0.5, platstore.OnBrandBasisVoice)
+	assertCompliant(t, de, 1, 0.5, platstore.ComplianceBasisVoice)
 	assert.Equal(t, platstore.ShipStateAIShippable, de.ShipState, "a sub-bar voice score does not demote the ship state")
 	assert.Equal(t, 0, de.FailingChecks)
 
 	// Unscored locales keep the checks-only basis.
 	es := localeByCode(t, stats.LocaleStats, "es")
-	assertOnBrand(t, es, 1, 1.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, es, 1, 1.0, platstore.ComplianceBasisChecks)
 
 	// Per-collection basis: the de score lives on b1 (col-a); col-b/de has no
 	// scored block and stays checks-only.
 	colA := collByID(t, stats.CollectionStats, "col-a")
-	assertOnBrand(t, localeByCode(t, colA.Locales, "de"), 0, 0.0, platstore.OnBrandBasisVoice)
+	assertCompliant(t, localeByCode(t, colA.Locales, "de"), 0, 0.0, platstore.ComplianceBasisVoice)
 	colB := collByID(t, stats.CollectionStats, "col-b")
-	assertOnBrand(t, localeByCode(t, colB.Locales, "de"), 1, 1.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, localeByCode(t, colB.Locales, "de"), 1, 1.0, platstore.ComplianceBasisChecks)
 }
 
 // TestApplyShipStates_StaleBasisWithholdsLocale is #1957's regression, over the
@@ -487,11 +487,11 @@ func TestTranslationDashboardShipStateWire(t *testing.T) {
 	assert.True(t, strings.Contains(body, `"ship_state":"pending"`), "wire carries ship_state: %s", body)
 	assert.True(t, strings.Contains(body, `"approved_blocks":1`), "wire carries approved_blocks: %s", body)
 	assert.True(t, strings.Contains(body, `"failing_checks":0`), "wire carries failing_checks: %s", body)
-	assert.True(t, strings.Contains(body, `"on_brand_basis":"checks"`), "wire carries on_brand_basis: %s", body)
+	assert.True(t, strings.Contains(body, `"compliance_basis":"checks"`), "wire carries compliance_basis: %s", body)
 
 	stats := getDashboard(t, srv, token, pid, "")
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "1 of 3 blocks translated → pending")
 	assert.Equal(t, 1, fr.ApprovedBlocks)
-	assertOnBrand(t, fr, 1, 1.0, platstore.OnBrandBasisChecks)
+	assertCompliant(t, fr, 1, 1.0, platstore.ComplianceBasisChecks)
 }

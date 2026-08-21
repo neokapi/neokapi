@@ -30,7 +30,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	// No --target-locale / --framework: the default is an on-brand content project.
+	// No --target-locale / --framework: the default is an compliant content project.
 	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app", "--source-locale", "en"})
 	require.NoError(t, cmd.Execute())
 
@@ -53,7 +53,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	require.NotNil(t, state)
 	assert.Equal(t, "my-app", state.Project.ID)
 
-	// Default init scaffolds an on-brand content project: source language set,
+	// Default init scaffolds an compliant content project: source language set,
 	// no target languages, a brand-voice pack bound under defaults:, and a check
 	// flow on the deterministic voice-vocabulary check. Terminology needs no
 	// binding — the vocabulary lives in the project's own store.

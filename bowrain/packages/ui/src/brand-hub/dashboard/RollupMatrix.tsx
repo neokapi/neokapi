@@ -1,5 +1,5 @@
 // The all-surfaces brand-compliance rollup (AD-021): one matrix answering "how
-// on-brand is every project right now?" — a row per project with its effective
+// compliant is every project right now?" — a row per project with its effective
 // voice profile, latest score, per-dimension low point, trend, drift flag, and
 // last activity. It reads the workspace rollup endpoint (a pure aggregation of
 // stored scores) and complements the per-project ComplianceOverview drill-down.

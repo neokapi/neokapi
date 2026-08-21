@@ -115,7 +115,7 @@ type TranslateRequest struct {
 	Glossary       map[string]string `json:"glossary,omitempty"`
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
 	// VoiceGuide is voice profile guidance (rendered from a VoiceProfile) that the
-	// model should apply while translating, so output is on-brand at generation
+	// model should apply while translating, so output is compliant at generation
 	// time rather than only checked afterwards. Empty when no profile is bound.
 	VoiceGuide string `json:"voice_guide,omitempty"`
 	// Instruction is a caller-supplied directive the model should apply while

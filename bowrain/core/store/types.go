@@ -627,65 +627,65 @@ type LocaleTranslationStats struct {
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
-	// OnBrandBlocks counts translated blocks that pass the project's QA checks
+	// CompliantBlocks counts translated blocks that pass the project's QA checks
 	// with no error-severity finding, are term-compliant for the locale (no
 	// forbidden/competitor term, no missing mandated rendering), AND — where a
 	// persisted brand voice score exists for the block+locale — carry a score at
 	// or above the scoring profile's minimum bar. Additive: producers that do not
-	// derive the on-brand rate leave it 0 (omitted from JSON).
-	OnBrandBlocks int `json:"on_brand_blocks,omitempty"`
-	// OnBrandRate is OnBrandBlocks / TranslatedBlocks, in [0,1]. Nil when the
+	// derive the compliance rate leave it 0 (omitted from JSON).
+	CompliantBlocks int `json:"compliant_blocks,omitempty"`
+	// ComplianceRate is CompliantBlocks / TranslatedBlocks, in [0,1]. Nil when the
 	// producer did not derive it or the scope has no translated blocks.
-	OnBrandRate *float64 `json:"on_brand_rate,omitempty"`
-	// OnBrandBasis states what informed OnBrandRate (see OnBrandBasisFor): QA
+	ComplianceRate *float64 `json:"compliance_rate,omitempty"`
+	// ComplianceBasis states what informed ComplianceRate (see ComplianceBasisFor): QA
 	// checks always, plus "+terms" when term governance was active for the scope
 	// and plus "voice" when at least one block's persisted voice score also
 	// informed it. Empty when the rate was not derived — consumers hide the
 	// metric then.
-	OnBrandBasis OnBrandBasis `json:"on_brand_basis,omitempty"`
+	ComplianceBasis ComplianceBasis `json:"compliance_basis,omitempty"`
 }
 
-// OnBrandBasis names the evidence behind a derived on-brand rate, so consumers
+// ComplianceBasis names the evidence behind a derived compliance rate, so consumers
 // can present the number honestly: a checks-only rate says nothing about voice.
 // QA checks always inform the rate; terms and voice are added when they were
 // actually applied to the scope (term governance active / a persisted voice
 // score present), so the basis never claims evidence that did not contribute.
-type OnBrandBasis string
+type ComplianceBasis string
 
 const (
-	// OnBrandBasisChecks — the rate reflects QA check results only; no term
+	// ComplianceBasisChecks — the rate reflects QA check results only; no term
 	// governance was active and no brand voice scores existed for the scope.
-	OnBrandBasisChecks OnBrandBasis = "checks"
-	// OnBrandBasisChecksTerms — QA checks plus deterministic terminology
+	ComplianceBasisChecks ComplianceBasis = "checks"
+	// ComplianceBasisChecksTerms — QA checks plus deterministic terminology
 	// compliance (forbidden/competitor presence, mandated-rendering absence).
-	OnBrandBasisChecksTerms OnBrandBasis = "checks+terms"
-	// OnBrandBasisVoice — QA checks plus persisted brand voice scores measured
+	ComplianceBasisChecksTerms ComplianceBasis = "checks+terms"
+	// ComplianceBasisVoice — QA checks plus persisted brand voice scores measured
 	// against the scoring profile's minimum bar.
-	OnBrandBasisVoice OnBrandBasis = "voice+checks"
-	// OnBrandBasisVoiceTerms — QA checks plus terminology compliance plus
+	ComplianceBasisVoice ComplianceBasis = "voice+checks"
+	// ComplianceBasisVoiceTerms — QA checks plus terminology compliance plus
 	// persisted brand voice scores: the fullest basis.
-	OnBrandBasisVoiceTerms OnBrandBasis = "voice+checks+terms"
+	ComplianceBasisVoiceTerms ComplianceBasis = "voice+checks+terms"
 )
 
-// OnBrandBasisFor names the evidence behind a derived on-brand rate from whether
+// ComplianceBasisFor names the evidence behind a derived compliance rate from whether
 // a persisted voice score and active term governance informed it. QA checks are
 // always part of the basis; terms and voice are added when they contributed.
-func OnBrandBasisFor(voice, terms bool) OnBrandBasis {
+func ComplianceBasisFor(voice, terms bool) ComplianceBasis {
 	switch {
 	case voice && terms:
-		return OnBrandBasisVoiceTerms
+		return ComplianceBasisVoiceTerms
 	case voice:
-		return OnBrandBasisVoice
+		return ComplianceBasisVoice
 	case terms:
-		return OnBrandBasisChecksTerms
+		return ComplianceBasisChecksTerms
 	default:
-		return OnBrandBasisChecks
+		return ComplianceBasisChecks
 	}
 }
 
 // TermCompliance is one target's terminology verdict, as a review surface
 // receives it per (block, locale). It is the per-block half of what
-// OnBrandBasis names in aggregate: the deterministic, offline check that the
+// ComplianceBasis names in aggregate: the deterministic, offline check that the
 // target uses no forbidden or competitor term and omits no mandated rendering
 // its source concept requires.
 //

@@ -25,8 +25,8 @@ const (
 	NotificationTaskCompleted NotificationType = "task.completed"
 
 	// Quality notifications
-	NotificationGateFailed NotificationType = "quality.gate.failed"
-	NotificationBrandDrift NotificationType = "brand.drift"
+	NotificationGateFailed   NotificationType = "quality.gate.failed"
+	NotificaticompliantDrift NotificationType = "brand.drift"
 
 	// Social notifications
 	NotificationMention NotificationType = "mention"

@@ -20,7 +20,7 @@ type InitOptions struct {
 	// SourceLocale is the BCP-47 source language. Empty defaults to "en".
 	SourceLocale string
 	// TargetLocales, when non-empty (or when Framework is set), opts into the
-	// translation scaffold rather than the on-brand content scaffold.
+	// translation scaffold rather than the compliant content scaffold.
 	TargetLocales []string
 	// Framework pre-fills the content mapping for a known stack (a preset name)
 	// and scaffolds a translation project.

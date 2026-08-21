@@ -1349,7 +1349,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	// Derive per-locale + per-collection ship states and on-brand rates
+	// Derive per-locale + per-collection ship states and compliance rates
 	// (bounded QA pass + deterministic term compliance + persisted voice scores)
 	// so the cached result carries them for every paged slice. The term gate
 	// resolves the workspace terms snapshot + per-locale brand profile once

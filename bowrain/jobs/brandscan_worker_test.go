@@ -114,7 +114,7 @@ func (f *brandScanFixture) uploadEnvelope(t *testing.T, filename, contentType st
 // provider's vocabulary heuristic yields preferred-term candidates),
 // contractions, and first-person-plural voice.
 const demoPasteText = "We're building Bowrain for teams that care about voice. " +
-	"Bowrain keeps your copy on-brand across every locale. " +
+	"Bowrain keeps your copy compliant across every locale. " +
 	"With Bowrain, we ship faster and we don't compromise on tone!"
 
 // TestBrandScanWorker_DemoPipeline drives the full worker pipeline (claim →

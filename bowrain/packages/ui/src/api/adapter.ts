@@ -781,7 +781,7 @@ export interface ApiAdapter {
 
   /**
    * Bulk "Approve all passing": promote to reviewed every pending block that
-   * passes checks + the on-brand bar, leaving flagged ones. When this empties
+   * passes checks + the compliant bar, leaving flagged ones. When this empties
    * the project's review queue the server starts the completing convergence
    * run + delivery (`review_completed: true`). The solo-founder fast path.
    */

@@ -24,7 +24,7 @@ type Translate struct {
 	// a reviewer's "keep it informal", or the findings a fix pass must resolve.
 	Instruction string
 	// VoiceGuide is voice profile guidance rendered from a VoiceProfile, so output
-	// is on-brand at generation time rather than only corrected afterwards.
+	// is compliant at generation time rather than only corrected afterwards.
 	VoiceGuide string
 	// Glossary pins the translation of specific terms.
 	Glossary map[string]string

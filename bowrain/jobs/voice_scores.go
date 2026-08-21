@@ -11,7 +11,7 @@ import (
 // persistDraftVoiceScores runs the profile's deterministic gate
 // (coreprofile.Findings — the same zero-AI vocabulary and pattern matching behind
 // every HTTP scoring surface) over freshly persisted draft targets and stores one brand voice
-// score per block. This is what makes the dashboard's on-brand rate
+// score per block. This is what makes the dashboard's compliance rate
 // voice-informed without any extra AI spend: every server-side draft the
 // convergence loop produces (content memory-recycled or AI-translated) leaves a measured
 // score behind it, and later passes overwrite staleness by appending a newer
@@ -51,7 +51,7 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 			Findings:       findings,
 		})
 		if err != nil {
-			slog.WarnContext(ctx, "voice score persist failed; on-brand rate falls back to checks for the unscored drafts",
+			slog.WarnContext(ctx, "voice score persist failed; compliance rate falls back to checks for the unscored drafts",
 				"job_id", job.ID, "block_id", b.ID, "error", err)
 			return
 		}

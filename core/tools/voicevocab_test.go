@@ -502,7 +502,7 @@ func TestVoiceVocabCheckAddsAnnotation(t *testing.T) {
 
 // TestVoiceVocabCheckTermsStatuses: the vocabulary the project decided is
 // enforced from whichever source recorded it, and a retired term is a finding
-// carrying the preferred word as its fix. A brand-vocabulary-only filter
+// carrying the preferred word as its fix. A voice-vocabulary-only filter
 // enforced a source `kapi apply` never writes to, so a term decision was visible
 // to retrieval and invisible to every gate.
 func TestVoiceVocabCheckTermsStatuses(t *testing.T) {
@@ -517,7 +517,7 @@ func TestVoiceVocabCheckTermsStatuses(t *testing.T) {
 		wantMessage  string
 	}{
 		{
-			name: "forbidden brand term", status: model.TermForbidden,
+			name: "forbidden voice term", status: model.TermForbidden,
 			source:      terms.TermSourceBrandVocabulary,
 			wantFinding: true, wantSeverity: coreprofile.SeverityMajor, wantMessage: "Forbidden term",
 		},

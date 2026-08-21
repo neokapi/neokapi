@@ -6,7 +6,7 @@ interface PendingMediaProps {
   kind: "video" | "screenshot";
   /**
    * Repo-relative path to the scene script that will produce the asset
-   * (e.g. `web/walkthroughs/keep-source-on-brand.scene.yaml`). Rendered as a
+   * (e.g. `web/walkthroughs/keep-source-compliant.scene.yaml`). Rendered as a
    * link to the file on GitHub so a reviewer can read the script.
    */
   scene?: string;

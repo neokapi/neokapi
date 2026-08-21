@@ -595,7 +595,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Source-first gate (epic 019): translate only the blocks whose source has
 	// settled to (or above) the project's source gate. A block held below the
 	// gate is skipped here — never translated into this locale — so a partially
-	// settled item translates only its ready segments and an off-brand /
+	// settled item translates only its ready segments and an non-compliant /
 	// un-term-checked source is not fanned out. The orchestrator already refuses
 	// to spawn a job for an item with nothing producible; this is the per-block
 	// enforcement that also protects the direct auto-translate path.
@@ -645,7 +645,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
 					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
 				// Score the recycled drafts against the standing voice profile
-				// (deterministic vocabulary check, zero AI) so the on-brand
+				// (deterministic vocabulary check, zero AI) so the compliant
 				// rate covers content memory output too.
 				persistDraftVoiceScores(ctx, deps, job, draftProfile(), res.filled, tgtLocale)
 			}
@@ -811,7 +811,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				return fmt.Errorf("store blocks: %w", err)
 			}
 			// Score the AI drafts against the standing voice profile (deterministic
-			// vocabulary check, zero AI) so the dashboard's on-brand rate is
+			// vocabulary check, zero AI) so the dashboard's compliance rate is
 			// voice-informed for every drafted block.
 			persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
 			// AI drafts do NOT enter the content memory. The corpus has one door

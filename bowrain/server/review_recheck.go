@@ -178,7 +178,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	}
 	// A target violates the concept when it is NOT term-compliant against a
 	// terms holding only this concept — the SAME predicate the dashboard
-	// ship/on-brand pass and bulk approve-passing run (blockTermCompliant), so the
+	// ship/compliant pass and bulk approve-passing run (blockTermCompliant), so the
 	// re-check oracle and the ship gate can never disagree. Scoping to cTB (this
 	// one concept) keeps the re-check from sweeping up targets that only trip an
 	// OLDER, unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions

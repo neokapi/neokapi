@@ -127,7 +127,7 @@ func (c *SweepContext) Empty() bool {
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts the profile's forbidden/competitor
 //     vocabulary (coreprofile.MatchVocabulary against the source — a model that
-//     carries the term over is off-brand) or matches a mechanical prohibited
+//     carries the term over is non-compliant) or matches a mechanical prohibited
 //     style pattern;
 //   - dnt traps: the source carries a do-not-translate term whose verbatim
 //     survival dnt-check verifies.
@@ -302,7 +302,7 @@ func (s sweepArmScore) Rate() float64 {
 //     survive verbatim into the target — read back from the tool's
 //     do-not-translate findings on the unified quality.findings annotation;
 //   - brand vocabulary: coreprofile.MatchVocabulary over the target plus the
-//     profile's on-brand bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
+//     profile's compliant bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
 //     zero-AI matcher behind persistDraftVoiceScores and every HTTP scoring
 //     surface.
 //
@@ -385,7 +385,7 @@ func countDNTFindings(b *model.Block) int {
 }
 
 // sweepVoiceAdherent applies the voice bar: the target's deterministic score —
-// vocabulary and prohibited style patterns — must clear the profile's on-brand
+// vocabulary and prohibited style patterns — must clear the profile's compliant
 // bar. A nil profile always passes (there is no voice to violate).
 func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {

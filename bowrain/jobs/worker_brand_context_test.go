@@ -121,7 +121,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 	assert.NotEmpty(t, stored[0].Block.TargetText("fr"), "the job must still produce a translation")
 
 	// The drafted target leaves a deterministic voice score behind it (the
-	// dashboard's on-brand rate feeds on these): scored against the bound
+	// dashboard's compliance rate feeds on these): scored against the bound
 	// profile at draft time, zero AI.
 	scores, err := bs.GetScores(ctx, projectID, "fr")
 	require.NoError(t, err)

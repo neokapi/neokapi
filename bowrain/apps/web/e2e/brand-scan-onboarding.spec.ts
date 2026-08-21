@@ -34,7 +34,7 @@ let wsSlug: string;
  */
 const PASTE_TEXT =
   "We're building Bowrain for teams that care about voice. " +
-  "Bowrain keeps your copy on-brand across every locale. " +
+  "Bowrain keeps your copy compliant across every locale. " +
   "With Bowrain, we ship faster and we don't compromise on tone!";
 
 const MD_FILE = "voice-guide.md";
@@ -194,7 +194,7 @@ test.describe("Brand scan onboarding", () => {
     const checked = page.waitForResponse(
       (r) => r.url().includes("/brand-scans/check-draft") && r.ok(),
     );
-    await tester.locator("textarea").fill("We ship fast and we keep your copy on-brand.");
+    await tester.locator("textarea").fill("We ship fast and we keep your copy compliant.");
     await checked;
     await expect(tester.getByText(/No rule violations|against the draft rules/)).toBeVisible();
 

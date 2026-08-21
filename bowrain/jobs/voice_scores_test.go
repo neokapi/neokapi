@@ -13,7 +13,7 @@ import (
 
 // TestPersistDraftVoiceScores covers the worker's zero-AI draft scoring: only
 // translatable blocks with a target are scored, a forbidden-vocabulary hit
-// drops the score below the default on-brand bar, and nil profile / nil brand
+// drops the score below the default compliant bar, and nil profile / nil brand
 // store are safe no-ops.
 func TestPersistDraftVoiceScores(t *testing.T) {
 	db := pgtest.NewTestDB(t)
@@ -60,7 +60,7 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 	off := byBlock["b-off"]
 	require.NotNil(t, off)
 	assert.Less(t, off.Score, coreprofile.DefaultMinScore,
-		"a critical vocabulary hit drops the draft below the default on-brand bar")
+		"a critical vocabulary hit drops the draft below the default compliant bar")
 	assert.NotEmpty(t, off.Findings, "the persisted score carries the findings behind it")
 
 	// Empty locale reads project-wide (all locales) — the shape the score

@@ -158,7 +158,7 @@ type Defaults struct {
 	// SourceGate is the source-first convergence gate: the SourceStatus a
 	// source block must reach before its translations are produced. Source-first
 	// convergence settles the source (terminology + voice + source-QA) and gates
-	// the fan-out on it, so an unsettled, off-brand, un-term-checked source is
+	// the fan-out on it, so an unsettled, non-compliant, un-term-checked source is
 	// never translated into N locales only to be redone when it changes
 	// (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 	//

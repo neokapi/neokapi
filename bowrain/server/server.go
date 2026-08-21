@@ -1169,7 +1169,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/projects/:id/ship.json", s.HandlePublicShipManifest)
 
 	// Pulse public activity dashboard (Bowrain AD-017). Unmounted by default —
-	// the platform's public surface is on-brand authoring, not l10n
+	// the platform's public surface is compliant authoring, not l10n
 	// gamification. BOWRAIN_PULSE_ENABLED=true re-mounts the routes (and their
 	// access middleware); the handlers and cache stay in the tree so the OSS
 	// program can revive the surface.

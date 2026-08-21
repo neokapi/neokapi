@@ -20,7 +20,7 @@ import (
 func TestTermsImport_Monolingual(t *testing.T) {
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "vocab.csv")
-	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The context graph across projects\non-brand,Consistent with the voice profile\n"), 0o644))
+	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The context graph across projects\ncompliant,Consistent with the voice profile\n"), 0o644))
 
 	a := &App{TermsBackend: terms.NewInMemoryStore()}
 	cmd := newTermsImportCmd(a)

@@ -1087,7 +1087,7 @@ var errStallNoTargetLocales = &stallError{
 
 // errStallSourceNotReady is the typed hold a locale returns when every block it
 // would translate is below the source-first gate: rather than fan an unsettled,
-// off-brand, un-term-checked source out to N locales (only to redo it when the
+// non-compliant, un-term-checked source out to N locales (only to redo it when the
 // source changes), the run HOLDS on source and routes to source review. This is
 // a first-class outcome — no AI is spent, no work is discarded — distinct from
 // an out-of-credits stall (strategy 2026-07-dogfood doc 07 / roadmap epic 019).

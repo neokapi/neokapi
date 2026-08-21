@@ -155,7 +155,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Bowrain — the context graph your people and agents plug into: record and steer the coordinates for content, so what you ship is on-brand and on-profile for the audience it was written for"
+      description="Bowrain — the context graph your people and agents plug into: record and steer the coordinates for content, so what you ship is compliant and on-profile for the audience it was written for"
     >
       <HomepageHeader />
       <main>

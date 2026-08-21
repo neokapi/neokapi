@@ -342,7 +342,7 @@ describe("BrandProfileList", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The on-brand bar (core/profile.ComplianceBar)
+// The compliant bar (core/profile.ComplianceBar)
 // ---------------------------------------------------------------------------
 
 describe("complianceBar", () => {

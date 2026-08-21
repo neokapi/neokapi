@@ -77,7 +77,7 @@ func TestTermsStoreSourcingChangesCheckBehaviour(t *testing.T) {
 	require.Len(t, hits, 2)
 	scoreBefore := profile.CalculateScore(profile.HitsToFindings(profile.MatchVocabulary(handAuthored, sample), sample, nil))
 	scoreAfter := profile.CalculateScore(profile.HitsToFindings(hits, sample, nil))
-	t.Logf("sample score: %d before, %d after (on-brand bar %d)",
+	t.Logf("sample score: %d before, %d after (compliant bar %d)",
 		scoreBefore.Overall, scoreAfter.Overall, sourced.ComplianceBar())
 	assert.Equal(t, 100, scoreBefore.Overall)
 	assert.Less(t, scoreAfter.Overall, scoreBefore.Overall)

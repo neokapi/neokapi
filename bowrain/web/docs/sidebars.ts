@@ -99,7 +99,7 @@ const sidebars: SidebarsConfig = {
         "server/connectors/figma",
         "server/connectors/github",
         "server/connectors/kapi",
-        "server/publish-on-brand",
+        "server/publish-compliant",
         "server/flows",
         "server/automation",
       ],

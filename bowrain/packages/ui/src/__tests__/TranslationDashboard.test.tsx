@@ -5,7 +5,7 @@ import { TranslationDashboard } from "../components/TranslationDashboard";
 import {
   sampleDashboardStats,
   shipStateDashboardStats,
-  onBrandDashboardStats,
+  complianceDashboardStats,
 } from "../stories/fixtures";
 import type { TranslationDashboardStats } from "../types/api";
 
@@ -174,37 +174,37 @@ describe("TranslationDashboard", () => {
     expect(within(overview).getAllByTestId("ship-state-pending").length).toBeGreaterThan(0);
   });
 
-  it("renders an on-brand rate chip per locale when the server derives it", () => {
-    render(<TranslationDashboard stats={onBrandDashboardStats} />);
+  it("renders an compliance rate chip per locale when the server derives it", () => {
+    render(<TranslationDashboard stats={complianceDashboardStats} />);
     const card = screen.getByTestId("ship-readiness");
-    const chips = within(card).getAllByTestId("on-brand-rate");
+    const chips = within(card).getAllByTestId("compliant-rate");
     // Every locale in the fixture has translated blocks, so every row gets a chip.
-    expect(chips.length).toBe(onBrandDashboardStats.locale_stats.length);
-    expect(within(card).getByText("92% on-brand")).toBeInTheDocument();
+    expect(chips.length).toBe(complianceDashboardStats.locale_stats.length);
+    expect(within(card).getByText("92% compliant")).toBeInTheDocument();
     // The basis rides on the chip so tests (and analytics) can tell voice-informed
     // rates from checks-only ones.
     expect(chips.some((c) => c.dataset.basis === "voice+checks")).toBe(true);
     expect(chips.some((c) => c.dataset.basis === "checks")).toBe(true);
   });
 
-  it("hides the on-brand rate chip when servers do not send the field", () => {
+  it("hides the compliance rate chip when servers do not send the field", () => {
     render(<TranslationDashboard stats={shipStateDashboardStats} />);
-    expect(screen.queryByTestId("on-brand-rate")).toBeNull();
+    expect(screen.queryByTestId("compliant-rate")).toBeNull();
   });
 
-  it("explains the on-brand basis in the chip tooltip", async () => {
+  it("explains the compliant basis in the chip tooltip", async () => {
     const user = userEvent.setup();
-    render(<TranslationDashboard stats={onBrandDashboardStats} />);
+    render(<TranslationDashboard stats={complianceDashboardStats} />);
     const card = screen.getByTestId("ship-readiness");
     const voiceChip = within(card)
-      .getAllByTestId("on-brand-rate")
+      .getAllByTestId("compliant-rate")
       .find((c) => c.dataset.basis === "voice+checks")!;
     await user.hover(voiceChip);
     // SimpleTooltip renders duplicate (trigger + portal) content.
     expect(
       (await screen.findAllByText(/brand voice scores measured against/i)).length,
     ).toBeGreaterThan(0);
-    expect((await screen.findAllByText(/translated blocks on-brand/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/translated blocks compliant/i)).length).toBeGreaterThan(0);
   });
 
   it("renders the delivery slot next to ship readiness", () => {
