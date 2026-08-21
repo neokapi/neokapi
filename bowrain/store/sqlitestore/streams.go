@@ -59,22 +59,71 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 		return fmt.Errorf("insert stream: %w", err)
 	}
 
-	// Copy items from the parent stream into the new stream.
+	// A branch starts as its parent: the same content, the same translations,
+	// the same approvals, all under the new stream and KEEPING THEIR IDS. See
+	// the Postgres twin in bowrain/store/streams.go for why the ids matter.
 	parentStream := storeutil.DefaultStream(st.Parent)
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
-		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, block_index, preview_html, properties, collection_id, ?, ?
-		 FROM items WHERE project_id = ? AND stream = ?`,
-		st.Name, now.Format(time.RFC3339), now.Format(time.RFC3339),
-		st.ProjectID, parentStream)
-	if err != nil {
-		return fmt.Errorf("copy parent items: %w", err)
+	if err := branchStreamContentSQLite(ctx, s.db, st.ProjectID, parentStream, st.Name, now); err != nil {
+		return fmt.Errorf("branch %q from %q: %w", st.Name, parentStream, err)
 	}
 
 	return nil
 }
 
 // GetStream returns a stream by project and name.
+// branchStreamCopiesSQLite mirrors branchStreamCopies in the Postgres store:
+// one definition of what copying a stream means, per backend, written out per
+// table because a column list is what a copy IS.
+//
+// change_log is deliberately absent — a branch inherits content, not history.
+// block_notes mints a fresh id: a note is a row, not a unit.
+var branchStreamCopiesSQLite = []struct {
+	table, columns, stamp string
+	mintID                bool
+}{
+	{table: "items", columns: "id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at", stamp: "updated_at"},
+	{table: "blocks", columns: "id, project_id, item_name, item_id, source_id, name, type, mime_type, translatable, " +
+		"content_hash, context_hash, source_json, overlays, word_count, properties, stored_at", stamp: "updated_at"},
+	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
+	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
+	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
+	{table: "block_notes", columns: "project_id, block_id, author, text, created_at", mintID: true},
+	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
+		"review_state, decided_by, decided_at, note, parked, assignee, updated", stamp: "updated_at"},
+}
+
+// branchStreamContentSQLite copies one stream's content into another, ids intact.
+func branchStreamContentSQLite(ctx context.Context, ex sqliteExecer, projectID, from, to string, now time.Time) error {
+	stamp := now.Format(time.RFC3339)
+	for _, c := range branchStreamCopiesSQLite {
+		cols, sel := "stream, "+c.columns, "?, "+c.columns
+		args := []any{to}
+		if c.mintID {
+			cols = "id, " + cols
+			sel = "lower(hex(randomblob(6))), " + sel
+		}
+		if c.stamp != "" {
+			cols += ", " + c.stamp
+			sel += ", ?"
+			args = append(args, stamp)
+		}
+		//nolint:gosec // table and column names are fixed literals above, never caller data
+		q := "INSERT INTO " + c.table + " (" + cols + ") SELECT " + sel + " FROM " + c.table +
+			" WHERE project_id = ? AND stream = ?"
+		args = append(args, projectID, from)
+		if _, err := ex.ExecContext(ctx, q, args...); err != nil {
+			return fmt.Errorf("copy %s: %w", c.table, err)
+		}
+	}
+	return nil
+}
+
+// sqliteExecer is what both a database and a transaction can do, so a branch
+// and a fast-forward merge share one copy definition.
+type sqliteExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 func (s *SQLiteStore) GetStream(ctx context.Context, projectID, name string) (*platstore.Stream, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
@@ -174,28 +223,6 @@ func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) 
 		return fmt.Errorf("stream %q not found in project %s", name, projectID)
 	}
 
-	// The items this stream held, read before the rows go: their blocks are
-	// shared with other streams and can only be reclaimed once no item names
-	// them at all.
-	itemRows, err := tx.QueryContext(ctx,
-		`SELECT name FROM items WHERE project_id=? AND stream=?`, projectID, name)
-	if err != nil {
-		return fmt.Errorf("list items for stream %q: %w", name, err)
-	}
-	var itemNames []string
-	for itemRows.Next() {
-		var itemName string
-		if err := itemRows.Scan(&itemName); err != nil {
-			itemRows.Close()
-			return fmt.Errorf("scan item for stream %q: %w", name, err)
-		}
-		itemNames = append(itemNames, itemName)
-	}
-	itemRows.Close()
-	if err := itemRows.Err(); err != nil {
-		return err
-	}
-
 	for _, table := range storeutil.StreamScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		if _, err := tx.ExecContext(ctx,
@@ -204,57 +231,7 @@ func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) 
 		}
 	}
 
-	if err := reclaimUnreferencedBlocks(ctx, tx, projectID, itemNames); err != nil {
-		return fmt.Errorf("reclaim blocks for stream %q: %w", name, err)
-	}
-
 	return tx.Commit()
-}
-
-// reclaimUnreferencedBlocks removes the block rows of the named items that no
-// item names any more, together with everything filed under their ids on every
-// stream — the SQLite mirror of reclaimUnreferencedBlocksPg.
-func reclaimUnreferencedBlocks(ctx context.Context, tx *sql.Tx, projectID string, itemNames []string) error {
-	for _, itemName := range itemNames {
-		if itemName == "" {
-			continue
-		}
-		rows, err := tx.QueryContext(ctx,
-			`SELECT id FROM blocks
-			 WHERE project_id=? AND item_name=?
-			   AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=? AND name=?)`,
-			projectID, itemName, projectID, itemName)
-		if err != nil {
-			return fmt.Errorf("find blocks of item %q: %w", itemName, err)
-		}
-		var ids []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return fmt.Errorf("scan block of item %q: %w", itemName, err)
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		for _, id := range ids {
-			for _, table := range storeutil.BlockScopedTables() {
-				//nolint:gosec // table is a fixed literal from storeutil, never user input
-				if _, err := tx.ExecContext(ctx,
-					`DELETE FROM `+table+` WHERE project_id=? AND block_id=?`, projectID, id); err != nil {
-					return fmt.Errorf("delete %s for block %s: %w", table, id, err)
-				}
-			}
-			if _, err := tx.ExecContext(ctx,
-				`DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, id); err != nil {
-				return fmt.Errorf("delete block %s: %w", id, err)
-			}
-		}
-	}
-	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +239,8 @@ func reclaimUnreferencedBlocks(ctx context.Context, tx *sql.Tx, projectID string
 // ---------------------------------------------------------------------------
 
 // MergeStream applies a stream's changes to its parent stream.
+// MergeStream fast-forwards a stream's parent onto it — the SQLite mirror of
+// the Postgres MergeStream, and see that one for why fast-forward only.
 func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName string, opts platstore.MergeOptions) (*platstore.MergeResult, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
@@ -270,23 +249,28 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 	if stream.Parent == "" {
 		return nil, fmt.Errorf("stream %q has no parent to merge into", streamName)
 	}
-
 	parentStream := storeutil.DefaultStream(stream.Parent)
 
-	// Get all change log entries for this stream since the base cursor.
-	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
+	parentCursor, err := s.LatestCursor(ctx, projectID, parentStream)
+	if err != nil {
+		return nil, fmt.Errorf("read parent cursor: %w", err)
+	}
+	if parentCursor != stream.BaseCursor {
+		return nil, fmt.Errorf(
+			"%q has moved since %q branched from it (branched at %d, now at %d): merge is fast-forward only, so re-branch or bring the changes across deliberately",
+			parentStream, streamName, stream.BaseCursor, parentCursor)
+	}
+
+	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, platstore.DefaultBlockLimit)
 	if err != nil {
 		return nil, fmt.Errorf("get stream changes: %w", err)
 	}
 
 	result := &platstore.MergeResult{}
-
-	// Collect unique block IDs and categorize changes.
-	blockChanges := map[string]string{} // blockID -> latest change type
+	blockChanges := map[string]string{}
 	for _, c := range changes.Changes {
 		blockChanges[c.BlockID] = c.ChangeType
 	}
-
 	for blockID, changeType := range blockChanges {
 		var ct platstore.ChangeType
 		switch {
@@ -300,10 +284,7 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 			ct = platstore.ChangeModified
 			result.ModifiedBlocks++
 		}
-		result.Changes = append(result.Changes, platstore.BlockChange{
-			BlockID:    blockID,
-			ChangeType: ct,
-		})
+		result.Changes = append(result.Changes, platstore.BlockChange{BlockID: blockID, ChangeType: ct})
 	}
 	result.MergedBlocks = len(blockChanges)
 
@@ -311,33 +292,28 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 		return result, nil
 	}
 
-	// Apply changes: copy block targets from stream to parent.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	for _, table := range storeutil.StreamScopedTables() {
+		if table == "change_log" {
+			continue // the parent's history is appended to below, not replaced
+		}
+		//nolint:gosec // table is a fixed literal from storeutil, never user input
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=? AND stream=?`, projectID, parentStream); err != nil {
+			return nil, fmt.Errorf("clear %s on %q: %w", table, parentStream, err)
+		}
+	}
+	now := time.Now().UTC()
+	if err := branchStreamContentSQLite(ctx, tx, projectID, streamName, parentStream, now); err != nil {
+		return nil, fmt.Errorf("fast-forward %q onto %q: %w", parentStream, streamName, err)
+	}
+
 	for blockID, changeType := range blockChanges {
-		if changeType == "source_removed" {
-			continue
-		}
-
-		// Verify the block exists. The former path pulled targets_json
-		// for existence; targets now live in the translations table so
-		// we probe the id column directly.
-		var exists string
-		err := tx.QueryRowContext(ctx,
-			`SELECT id FROM blocks WHERE project_id = ? AND id = ?`,
-			projectID, blockID).Scan(&exists)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			return nil, fmt.Errorf("get block: %w", err)
-		}
-
-		// Log the change in the parent stream.
 		if err := logChange(ctx, tx, projectID, parentStream, blockID, changeType, "", ""); err != nil {
 			return nil, fmt.Errorf("log merge change: %w", err)
 		}
@@ -350,56 +326,55 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 	return result, nil
 }
 
-// DiffStream compares a stream's blocks against its parent's state at the branch point.
+// DiffStream compares a stream against its parent by content — the SQLite
+// mirror of the Postgres DiffStream. SQLite has no FULL OUTER JOIN, so the
+// three cases are a union of two LEFT JOINs.
 func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName string) (*platstore.StreamDiff, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("get stream: %w", err)
 	}
-
 	parentName := storeutil.DefaultStream(stream.Parent)
 
-	// Get all changes in this stream since the base cursor.
-	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
+	diff := &platstore.StreamDiff{StreamName: streamName, ParentName: parentName}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT b.id, CASE WHEN p.id IS NULL THEN 'added' ELSE 'modified' END
+		   FROM blocks b LEFT JOIN blocks p
+		     ON p.project_id = b.project_id AND p.stream = ? AND p.id = b.id
+		  WHERE b.project_id = ? AND b.stream = ?
+		    AND (p.id IS NULL OR p.content_hash <> b.content_hash)
+		 UNION ALL
+		 SELECT p.id, 'removed'
+		   FROM blocks p LEFT JOIN blocks b
+		     ON b.project_id = p.project_id AND b.stream = ? AND b.id = p.id
+		  WHERE p.project_id = ? AND p.stream = ? AND b.id IS NULL
+		 ORDER BY 1`,
+		parentName, projectID, streamName,
+		streamName, projectID, parentName)
 	if err != nil {
-		return nil, fmt.Errorf("get stream changes: %w", err)
+		return nil, fmt.Errorf("diff stream %q against %q: %w", streamName, parentName, err)
 	}
+	defer rows.Close()
 
-	diff := &platstore.StreamDiff{
-		StreamName: streamName,
-		ParentName: parentName,
-	}
-
-	// Deduplicate by block ID, keeping the latest change type.
-	blockChanges := map[string]string{}
-	for _, c := range changes.Changes {
-		blockChanges[c.BlockID] = c.ChangeType
-	}
-
-	for blockID, changeType := range blockChanges {
+	for rows.Next() {
+		var blockID, kind string
+		if err := rows.Scan(&blockID, &kind); err != nil {
+			return nil, fmt.Errorf("scan stream diff: %w", err)
+		}
 		var ct platstore.ChangeType
-		switch {
-		case changeType == "source_added":
+		switch kind {
+		case "added":
 			ct = platstore.ChangeAdded
-		case changeType == "source_removed":
+		case "removed":
 			ct = platstore.ChangeRemoved
 		default:
 			ct = platstore.ChangeModified
 		}
-		diff.Changes = append(diff.Changes, platstore.BlockChange{
-			BlockID:    blockID,
-			ChangeType: ct,
-		})
+		diff.Changes = append(diff.Changes, platstore.BlockChange{BlockID: blockID, ChangeType: ct})
 	}
-
-	return diff, nil
+	return diff, rows.Err()
 }
-
-// ---------------------------------------------------------------------------
-// Stream membership
-// ---------------------------------------------------------------------------
-
-// AddStreamMember adds a user to a stream's member list.
 func (s *SQLiteStore) AddStreamMember(ctx context.Context, projectID, streamName, userID string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.ExecContext(ctx,

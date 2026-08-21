@@ -820,4 +820,138 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE collections ADD COLUMN preview_url  TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     20,
+		Description: "a stream owns its content, and a file is identified by what it is",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 27. One contract, two
+			-- backends — and unlike the server's, this database belongs to
+			-- whoever installed the desktop app, so it is migrated rather than
+			-- reset.
+			--
+			-- SQLite cannot alter a primary key, so the three tables whose key
+			-- moves are rebuilt beside themselves and renamed into place. The
+			-- columns are spelled out because a rebuild is only as complete as
+			-- its column list.
+
+			-- ---- items: the id becomes the key, the path becomes an address ----
+			UPDATE items SET id = lower(hex(randomblob(6))) WHERE id = '';
+
+			CREATE TABLE items_rekeyed (
+				project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name          TEXT NOT NULL,
+				id            TEXT NOT NULL,
+				stream        TEXT NOT NULL DEFAULT 'main',
+				format        TEXT NOT NULL DEFAULT '',
+				item_type     TEXT NOT NULL DEFAULT 'file',
+				block_index   TEXT NOT NULL DEFAULT '{}',
+				preview_html  TEXT NOT NULL DEFAULT '',
+				properties    TEXT NOT NULL DEFAULT '{}',
+				collection_id TEXT NOT NULL DEFAULT '',
+				created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, id)
+			);
+			INSERT INTO items_rekeyed
+				(project_id, name, id, stream, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
+				SELECT project_id, name, id, stream, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
+				FROM items;
+			DROP TABLE items;
+			ALTER TABLE items_rekeyed RENAME TO items;
+			CREATE INDEX idx_items_project ON items(project_id);
+			CREATE INDEX idx_items_project_stream ON items(project_id, stream);
+			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
+			-- A path still addresses at most one item within a stream. It is a
+			-- constraint on the address, no longer the identity.
+			CREATE UNIQUE INDEX idx_items_stream_name ON items(project_id, stream, name);
+
+			-- ---- blocks: per stream, and pointing at the item's id ----
+			CREATE TABLE blocks_rekeyed (
+				id           TEXT NOT NULL,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				item_name    TEXT NOT NULL DEFAULT '',
+				item_id      TEXT NOT NULL DEFAULT '',
+				source_id    TEXT NOT NULL DEFAULT '',
+				name         TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL DEFAULT '',
+				mime_type    TEXT NOT NULL DEFAULT '',
+				translatable BOOLEAN NOT NULL DEFAULT TRUE,
+				content_hash TEXT NOT NULL DEFAULT '',
+				context_hash TEXT NOT NULL DEFAULT '',
+				source_json  TEXT NOT NULL DEFAULT '[]',
+				overlays     TEXT NOT NULL DEFAULT '[]',
+				word_count   INTEGER,
+				properties   TEXT NOT NULL DEFAULT '{}',
+				stored_at    TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, id)
+			);
+			-- Every block written before this migration belongs to main: the
+			-- stream column did not exist, and neither did a way for a branch to
+			-- hold content of its own.
+			INSERT INTO blocks_rekeyed
+				(id, project_id, stream, item_name, item_id, source_id, name, type, mime_type, translatable,
+				 content_hash, context_hash, source_json, overlays, word_count, properties, stored_at, updated_at)
+				SELECT b.id, b.project_id, 'main', b.item_name,
+				       COALESCE((SELECT i.id FROM items i
+				                 WHERE i.project_id = b.project_id AND i.stream = 'main' AND i.name = b.item_name), ''),
+				       b.source_id, b.name, b.type, b.mime_type, b.translatable,
+				       b.content_hash, b.context_hash, b.source_json, b.overlays, b.word_count, b.properties,
+				       b.stored_at, b.updated_at
+				FROM blocks b;
+			DROP TABLE blocks;
+			ALTER TABLE blocks_rekeyed RENAME TO blocks;
+			CREATE INDEX idx_blocks_content_hash ON blocks(content_hash);
+			CREATE INDEX idx_blocks_project ON blocks(project_id);
+			CREATE INDEX idx_blocks_item ON blocks(project_id, stream, item_name);
+			CREATE INDEX idx_blocks_item_id ON blocks(project_id, stream, item_id);
+			CREATE UNIQUE INDEX idx_blocks_source_id ON blocks(project_id, stream, item_name, source_id)
+				WHERE source_id != '';
+
+			-- ---- governance follows the file, not its address ----
+			CREATE TABLE unit_decisions_rekeyed (
+				project_id   TEXT NOT NULL,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				item_id      TEXT NOT NULL DEFAULT '',
+				item_name    TEXT NOT NULL DEFAULT '',
+				unit         TEXT NOT NULL,
+				variant      TEXT NOT NULL,
+				status       TEXT NOT NULL DEFAULT '',
+				target_hash  TEXT NOT NULL DEFAULT '',
+				content_hash TEXT NOT NULL DEFAULT '',
+				review_state TEXT NOT NULL DEFAULT '',
+				decided_by   TEXT NOT NULL DEFAULT '',
+				decided_at   TEXT NOT NULL DEFAULT '',
+				note         TEXT NOT NULL DEFAULT '',
+				parked       INTEGER NOT NULL DEFAULT 0,
+				assignee     TEXT NOT NULL DEFAULT '',
+				updated      TEXT NOT NULL DEFAULT '',
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, item_id, unit, variant)
+			);
+			INSERT OR IGNORE INTO unit_decisions_rekeyed
+				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash,
+				 review_state, decided_by, decided_at, note, parked, assignee, updated, updated_at)
+				SELECT d.project_id, d.stream,
+				       COALESCE((SELECT i.id FROM items i
+				                 WHERE i.project_id = d.project_id AND i.stream = d.stream AND i.name = d.item_name), ''),
+				       d.item_name, d.unit, d.variant, d.status, d.target_hash, d.content_hash,
+				       d.review_state, d.decided_by, d.decided_at, d.note, d.parked, d.assignee, d.updated, d.updated_at
+				FROM unit_decisions d;
+			DROP TABLE unit_decisions;
+			ALTER TABLE unit_decisions_rekeyed RENAME TO unit_decisions;
+			CREATE INDEX idx_unit_decisions_project ON unit_decisions(project_id, stream);
+			CREATE INDEX idx_unit_decisions_item ON unit_decisions(project_id, stream, item_id);
+
+			ALTER TABLE assets                  ADD COLUMN item_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE proposed_source_changes ADD COLUMN item_id TEXT NOT NULL DEFAULT '';
+			UPDATE assets SET item_id = COALESCE((SELECT i.id FROM items i
+				WHERE i.project_id = assets.project_id AND i.stream = assets.stream AND i.name = assets.item_name), '');
+			UPDATE proposed_source_changes SET item_id = COALESCE((SELECT i.id FROM items i
+				WHERE i.project_id = proposed_source_changes.project_id
+				  AND i.stream = proposed_source_changes.stream
+				  AND i.name = proposed_source_changes.item_name), '');
+		`,
+	},
 }

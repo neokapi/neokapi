@@ -119,17 +119,18 @@ func TestDeleteStream_LeavesNoOrphans_SQLite(t *testing.T) {
 	}
 	assert.Zero(t, countRows(t, s, "blocks", `project_id=? AND item_name=?`, p.ID, "branch.json"))
 	got, err := s.GetBlock(ctx, p.ID, "main", mainBlockID)
-	require.NoError(t, err, "main's shared block survives the branch delete")
+	require.NoError(t, err, "main keeps its own copy through a branch delete")
 	assert.Equal(t, "Hello", got.Block.SourceText())
 
+	// A stream created again under the same name starts as its PARENT, which is
+	// what branching means — and inherits nothing from the dead one.
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{ProjectID: p.ID, Name: "feature", Parent: "main"}))
-	for _, table := range storeutil.StreamScopedTables() {
-		if table == "items" {
-			continue // CreateStream copies the parent's items by design
-		}
-		assert.Zero(t, countRows(t, s, table, `project_id=? AND stream=?`, p.ID, "feature"),
-			"%s: a recreated stream inherits nothing from the dead one", table)
-	}
+	assert.Zero(t, countRows(t, s, "blocks", `project_id=? AND stream=? AND item_name=?`, p.ID, "feature", "branch.json"),
+		"the dead stream's content does not come back")
+	assert.NotZero(t, countRows(t, s, "blocks", `project_id=? AND stream=? AND item_name=?`, p.ID, "feature", "en.json"),
+		"the parent's content does")
+	assert.Zero(t, countRows(t, s, "change_log", `project_id=? AND stream=?`, p.ID, "feature"),
+		"a new branch has no history of its own yet")
 }
 
 func TestDeleteProject_LeavesNoOrphans_SQLite(t *testing.T) {

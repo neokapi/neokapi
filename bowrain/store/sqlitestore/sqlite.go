@@ -445,41 +445,44 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Remove this stream's item row first; its absence is the not-found signal.
-	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
-	if err != nil {
-		return fmt.Errorf("delete item: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	// The id first — the rows describing an item are keyed on what it IS, and
+	// the name is only how this call addressed it. Its absence is the
+	// not-found signal.
+	var itemID string
+	err = tx.QueryRowContext(ctx,
+		`SELECT id FROM items WHERE project_id=? AND stream=? AND name=?`,
+		projectID, stream, itemName).Scan(&itemID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
 	}
+	if err != nil {
+		return fmt.Errorf("look up item %q: %w", itemName, err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID); err != nil {
+		return fmt.Errorf("delete item: %w", err)
+	}
 
-	// The block-scoped rows are per-stream, so this stream's rows for the item's
-	// blocks are orphaned now even though the shared block rows may survive for
-	// another stream. Dropping them stops a later re-push of the same block id
-	// from resurrecting stale targets, notes or proposals onto new source text.
+	// Everything describing this item on this stream goes with it. Each table
+	// is stream-scoped, and so now is blocks, so a sibling branch holding the
+	// same item at the same ids is untouched by any of it.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=? AND stream=?
-			 AND block_id IN (SELECT id FROM blocks WHERE project_id=? AND item_name=?)`
-		if _, err := tx.ExecContext(ctx, q, projectID, stream, projectID, itemName); err != nil {
+			 AND block_id IN (SELECT id FROM blocks WHERE project_id=? AND stream=? AND item_name=?)`
+		if _, err := tx.ExecContext(ctx, q, projectID, stream, projectID, stream, itemName); err != nil {
 			return fmt.Errorf("delete %s for item %q: %w", table, itemName, err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_name=?`,
-		projectID, stream, itemName); err != nil {
+		`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=?`,
+		projectID, stream, itemID); err != nil {
 		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
 	}
 
-	// Block rows are shared across streams (CreateStream copies items, not
-	// blocks), so reclaim them only when no other stream still references this
-	// item name — this stream's row is already gone.
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM blocks WHERE project_id=? AND item_name=?
-		 AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=? AND name=?)`,
-		projectID, itemName, projectID, itemName); err != nil {
+		`DELETE FROM blocks WHERE project_id=? AND stream=? AND item_name=?`,
+		projectID, stream, itemName); err != nil {
 		return fmt.Errorf("delete item blocks: %w", err)
 	}
 
@@ -529,12 +532,6 @@ func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, stream,
 // NOT IN list: `keep` is one file's worth of keys, and a bound parameter per
 // key runs into SQLITE_MAX_VARIABLE_NUMBER on a large enough document.
 func (s *SQLiteStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
-	// stream is taken for symmetry with the other block verbs and deliberately
-	// not consulted: a block row belongs to (project, item) and is shared by
-	// every stream holding that item, so a pruned block is gone from all of
-	// them — and the per-stream rows describing it have to go with it, whichever
-	// stream they belong to.
-	_ = stream
 	if itemName == "" {
 		return 0, nil
 	}
@@ -546,8 +543,8 @@ func (s *SQLiteStore) PruneItemBlocks(ctx context.Context, projectID, stream, it
 	defer func() { _ = tx.Rollback() }()
 
 	rows, err := tx.QueryContext(ctx,
-		`SELECT id, COALESCE(source_id, '') FROM blocks WHERE project_id=? AND item_name=?`,
-		projectID, itemName)
+		`SELECT id, COALESCE(source_id, '') FROM blocks WHERE project_id=? AND stream=? AND item_name=?`,
+		projectID, stream, itemName)
 	if err != nil {
 		return 0, fmt.Errorf("load item blocks for prune: %w", err)
 	}
@@ -581,16 +578,17 @@ func (s *SQLiteStore) PruneItemBlocks(ctx context.Context, projectID, stream, it
 	}
 
 	marks := strings.TrimSuffix(strings.Repeat("?,", len(stale)), ",")
+	args := append([]any{projectID, stream}, stale...)
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
-		q := `DELETE FROM ` + table + ` WHERE project_id=? AND block_id IN (` + marks + `)`
-		if _, err := tx.ExecContext(ctx, q, append([]any{projectID}, stale...)...); err != nil {
+		q := `DELETE FROM ` + table + ` WHERE project_id=? AND stream=? AND block_id IN (` + marks + `)`
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 			return 0, fmt.Errorf("prune %s for item %q: %w", table, itemName, err)
 		}
 	}
 	//nolint:gosec // placeholder list, not data — every id binds below
-	del := `DELETE FROM blocks WHERE project_id=? AND id IN (` + marks + `)`
-	if _, err := tx.ExecContext(ctx, del, append([]any{projectID}, stale...)...); err != nil {
+	del := `DELETE FROM blocks WHERE project_id=? AND stream=? AND id IN (` + marks + `)`
+	if _, err := tx.ExecContext(ctx, del, args...); err != nil {
 		return 0, fmt.Errorf("prune blocks for item %q: %w", itemName, err)
 	}
 
@@ -623,10 +621,22 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	// exactly the duplication in #1527.
 	existingSourceIDs := map[string]string{} // caller/source id → internal id
 	internalSourceIDs := map[string]string{} // internal id → its source id
+	// The item's durable identity, recorded on every block so a rename moves the
+	// address and nothing else. Resolve-or-create, through the same helper the
+	// decision ledger uses: storing blocks for an item IS the assertion that the
+	// item exists, and two paths minting ids independently would leave a block
+	// and the decision about it disagreeing on which file they belong to.
+	var itemID string
+	if itemName != "" {
+		var err error
+		if itemID, err = resolveItemIDSQLite(ctx, tx, projectID, stream, itemName); err != nil {
+			return err
+		}
+	}
 	if itemName != "" {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT source_id, id FROM blocks WHERE project_id=? AND item_name=?`,
-			projectID, itemName)
+			`SELECT source_id, id FROM blocks WHERE project_id=? AND stream=? AND item_name=?`,
+			projectID, stream, itemName)
 		if err != nil {
 			return fmt.Errorf("load source_id mapping: %w", err)
 		}
@@ -654,7 +664,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		// history heal in place, and the adopted row is picked up by the hash
 		// query below like any other item-scoped block.
 		adopt, err := tx.PrepareContext(ctx,
-			`UPDATE blocks SET item_name=?, source_id=? WHERE project_id=? AND id=? AND item_name=''`)
+			`UPDATE blocks SET item_name=?, source_id=? WHERE project_id=? AND stream=? AND id=? AND item_name=''`)
 		if err != nil {
 			return fmt.Errorf("prepare legacy adoption: %w", err)
 		}
@@ -668,7 +678,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			}
 			// The row is found by its internal id; the source_id it adopts is
 			// the caller's durable key, not that id.
-			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, b.ID)
+			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, stream, b.ID)
 			if err != nil {
 				adopt.Close()
 				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
@@ -681,10 +691,11 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	}
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, word_count, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(project_id, id) DO UPDATE SET
+		`INSERT INTO blocks (id, project_id, stream, item_name, item_id, source_id, name, type, mime_type, translatable,
+			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
+			item_name=excluded.item_name, item_id=excluded.item_id,
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
@@ -731,10 +742,10 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 			// The concatenated fragment is ",?,?,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND id IN (?` + //nolint:gosec // placeholder list, not data
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
 				strings.Repeat(",?", len(chunk)-1) + `)`
-			args := make([]any, 0, len(chunk)+1)
-			args = append(args, projectID)
+			args := make([]any, 0, len(chunk)+2)
+			args = append(args, projectID, stream)
 			for _, id := range chunk {
 				args = append(args, id)
 			}
@@ -851,7 +862,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		}
 
 		_, err = stmt.ExecContext(ctx,
-			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, translatable,
+			internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
 			string(sourceJSON), string(propsJSON), string(overlaysJSON),
 			model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
@@ -885,7 +896,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				// The source half of every pairing this unit's decisions blessed
 				// has moved, so the projections are re-derived against the
 				// ledger — mirrors settleDecisionProjectionsPg exactly.
-				if err := settleDecisionProjections(ctx, tx, projectID, internalID, identity.ContentHash); err != nil {
+				if err := settleDecisionProjections(ctx, tx, projectID, stream, internalID, identity.ContentHash); err != nil {
 					return err
 				}
 			}
@@ -918,7 +929,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID s
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, properties, overlays, stored_at, updated_at
-		 FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
+		 FROM blocks WHERE project_id=? AND stream=? AND id=?`, projectID, stream, blockID)
 	sb, err := scanStoredBlock(row)
 	if err != nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
@@ -968,6 +979,12 @@ const sqliteSourceTextMatch = `EXISTS (
 func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterSQLite {
 	where := []string{"b.project_id = ?"}
 	whereArgs := []any{query.ProjectID}
+
+	// A block belongs to one stream. Unfiltered, every query would read its
+	// branches' rows alongside its own — the same block id exists on each — so
+	// the scope is applied here rather than left to each caller to remember.
+	where = append(where, "b.stream = ?")
+	whereArgs = append(whereArgs, storeutil.DefaultStream(query.Stream))
 
 	if query.ItemName != "" {
 		where = append(where, "b.item_name = ?")
@@ -1112,9 +1129,9 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ?
 		LEFT JOIN items i
 		ON i.project_id = b.project_id AND i.stream = ? AND i.name = b.item_name
-		WHERE b.project_id = ? AND b.translatable AND t.text <> ''
+		WHERE b.project_id = ? AND b.stream = ? AND b.translatable AND t.text <> ''
 		AND COALESCE(json_extract(t.target_json, '$.status'), '') NOT IN ('reviewed', 'signed-off')%s`
-	args := []any{stream, stream, q.ProjectID}
+	args := []any{stream, stream, q.ProjectID, stream}
 	scope := ""
 	if len(q.Locales) > 0 {
 		scope = fmt.Sprintf(` AND t.locale IN (?%s)`, strings.Repeat(",?", len(q.Locales)-1))
@@ -1165,7 +1182,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 
 	// Build IN clause for item names.
 	placeholders := make([]string, len(items))
-	args := []any{projectID}
+	args := []any{projectID, stream}
 	for i, item := range items {
 		placeholders[i] = "?"
 		args = append(args, item.Name)
@@ -1178,7 +1195,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 		`SELECT id, item_name, translatable,
 			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
 			COALESCE(word_count, -1)
-		 FROM blocks WHERE project_id = ? AND item_name IN (%s)
+		 FROM blocks WHERE project_id = ? AND stream = ? AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
 
@@ -1242,35 +1259,35 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 
 	// The decision ledger keys on the block's unit identity (source_id), not its
 	// id, so read the scope before the row is gone.
-	var itemName, sourceID string
+	var itemName, sourceID, itemID string
 	err = tx.QueryRowContext(ctx,
-		`SELECT item_name, source_id FROM blocks WHERE project_id=? AND id=?`,
-		projectID, blockID).Scan(&itemName, &sourceID)
+		`SELECT item_name, source_id, item_id FROM blocks WHERE project_id=? AND stream=? AND id=?`,
+		projectID, stream, blockID).Scan(&itemName, &sourceID, &itemID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+		return fmt.Errorf("block %s not found in project %s stream %s", blockID, projectID, stream)
 	}
 	if err != nil {
 		return fmt.Errorf("look up block %s: %w", blockID, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, blockID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND stream=? AND id=?`, projectID, stream, blockID); err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
 
-	// A block is shared across streams and removed project-wide, so everything
-	// filed under its id goes with it in every stream — otherwise a re-push of
-	// the id resurrects them.
+	// Everything filed under the block's id on THIS stream goes with it — a
+	// branch holding the same id keeps its own rows, which is the whole point
+	// of a branch.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
-		q := `DELETE FROM ` + table + ` WHERE project_id=? AND block_id=?`
-		if _, err := tx.ExecContext(ctx, q, projectID, blockID); err != nil {
+		q := `DELETE FROM ` + table + ` WHERE project_id=? AND stream=? AND block_id=?`
+		if _, err := tx.ExecContext(ctx, q, projectID, stream, blockID); err != nil {
 			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)
 		}
 	}
 	if sourceID != "" {
 		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM unit_decisions WHERE project_id=? AND item_name=? AND unit=?`,
-			projectID, itemName, sourceID); err != nil {
+			`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=? AND unit=?`,
+			projectID, stream, itemID, sourceID); err != nil {
 			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
 		}
 	}
@@ -1300,7 +1317,10 @@ func (s *SQLiteStore) ClearBlockTargets(ctx context.Context, projectID, stream, 
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*platstore.Version, error) {
-	_ = storeutil.DefaultStream(stream) // versions snapshot all blocks in the project
+	// A version is a point in ONE stream's history — the parameter has always
+	// said so, and the statements below used to ignore it and snapshot the whole
+	// project.
+	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -1312,7 +1332,7 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, labe
 
 	// Count blocks.
 	var blockCount int
-	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM blocks WHERE project_id=?`, projectID).Scan(&blockCount)
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM blocks WHERE project_id=? AND stream=?`, projectID, stream).Scan(&blockCount)
 	if err != nil {
 		return nil, fmt.Errorf("count blocks: %w", err)
 	}
@@ -1328,8 +1348,8 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, labe
 	// Snapshot current block hashes.
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO version_blocks (version_id, block_id, content_hash)
-		 SELECT ?, id, content_hash FROM blocks WHERE project_id=?`,
-		versionID, projectID)
+		 SELECT ?, id, content_hash FROM blocks WHERE project_id=? AND stream=?`,
+		versionID, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot blocks: %w", err)
 	}
