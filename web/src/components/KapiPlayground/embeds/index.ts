@@ -6,7 +6,7 @@
 import type { WalkthroughEmbedConfig } from "./types";
 import kapiBilingualWorkflow from "./kapi-bilingual-workflow.embed";
 import kapiExplainPrompts from "./kapi-explain-prompts.embed";
-import kapiKeepSourceCompliant from "./kapi-keep-source-compliant.embed";
+import kapiKeepSourceOnBrand from "./kapi-keep-source-on-brand.embed";
 import kapiKpzWorkspace from "./kapi-kpz-workspace.embed";
 import kapiOverview from "./kapi-overview.embed";
 import kapiProjectWorkflow from "./kapi-project-workflow.embed";
@@ -22,7 +22,7 @@ import kapiWordCount from "./kapi-word-count.embed";
 export const EMBED_CONFIGS: Record<string, WalkthroughEmbedConfig> = {
   "kapi-bilingual-workflow": kapiBilingualWorkflow,
   "kapi-explain-prompts": kapiExplainPrompts,
-  "kapi-keep-source-compliant": kapiKeepSourceCompliant,
+  "kapi-keep-source-on-brand": kapiKeepSourceOnBrand,
   "kapi-kpz-workspace": kapiKpzWorkspace,
   "kapi-overview": kapiOverview,
   "kapi-project-workflow": kapiProjectWorkflow,

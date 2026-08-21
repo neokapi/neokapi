@@ -595,7 +595,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Source-first gate (epic 019): translate only the blocks whose source has
 	// settled to (or above) the project's source gate. A block held below the
 	// gate is skipped here — never translated into this locale — so a partially
-	// settled item translates only its ready segments and an non-compliant /
+	// settled item translates only its ready segments and an off-brand /
 	// un-term-checked source is not fanned out. The orchestrator already refuses
 	// to spawn a job for an item with nothing producible; this is the per-block
 	// enforcement that also protects the direct auto-translate path.

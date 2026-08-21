@@ -5,7 +5,7 @@ import { DEFAULT_MIN_SCORE, scoreFillClass } from "./complianceBar";
 
 interface BrandDimensionBreakdownProps {
   dimensions: DimensionScore[];
-  /** The profile's compliant bar; DEFAULT_MIN_SCORE when no profile is loaded. */
+  /** The profile's compliance bar; DEFAULT_MIN_SCORE when no profile is loaded. */
   bar?: number;
   className?: string;
 }

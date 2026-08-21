@@ -1,7 +1,7 @@
 import { DEFAULT_MIN_SCORE } from "./complianceBar";
 
 /**
- * Reading the authored compliant bar out of a profile-editor field.
+ * Reading the authored compliance bar out of a profile-editor field.
  *
  * `min_score` is the one governance number a voice profile carries: the server
  * excludes a block scoring below it from the compliance rate and refuses to

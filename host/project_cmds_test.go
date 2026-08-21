@@ -78,7 +78,7 @@ func TestInitProject(t *testing.T) {
 }
 
 // TestInitProject_ContentScaffold: with no target locales and no framework, the
-// compliant content scaffold is written (not the translation one).
+// on-brand content scaffold is written (not the translation one).
 func TestInitProject_ContentScaffold(t *testing.T) {
 	dir := t.TempDir()
 	res, err := InitProject(dir, InitOptions{})

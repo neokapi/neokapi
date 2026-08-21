@@ -169,7 +169,7 @@ type Config struct {
 	// PulseEnabled mounts the public Pulse activity dashboard surface (the
 	// /api/v1/pulse routes with their access middleware and response cache,
 	// plus PulseUIDir SPA serving). Off by default — the platform's public
-	// surface is compliant authoring, not l10n gamification. Set
+	// surface is on-brand authoring, not l10n gamification. Set
 	// BOWRAIN_PULSE_ENABLED=true to re-mount it.
 	PulseEnabled bool
 

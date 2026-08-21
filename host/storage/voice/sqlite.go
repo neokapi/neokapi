@@ -119,7 +119,7 @@ var migrations = []storage.Migration{
 	},
 	{
 		Version:     3,
-		Description: "the profile's own compliant bar",
+		Description: "the profile's own compliance bar",
 		// min_score is the score a block must reach to count as compliant: 0
 		// means the default (core/profile.DefaultMinScore), which is what every
 		// profile in an existing database answered while the column was absent.

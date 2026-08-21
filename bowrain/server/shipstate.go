@@ -417,7 +417,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 	return out, nil
 }
 
-// applyCompliance stamps the derived compliant fields onto one locale scope. A
+// applyCompliance stamps the derived compliance fields onto one locale scope. A
 // scope with nothing translated gets no rate (nothing to rate — the additive
 // fields stay omitted). The count is clamped to the translated denominator so
 // a stats/block-read skew can never report a rate above 1. The basis names the
@@ -451,7 +451,7 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 // enough to ship without a person's review: it passes the QA checks with no
 // error-severity finding, is term-compliant for the locale (via the shared
 // gate), AND — where a persisted brand voice score exists for the block — the
-// score meets the scoring profile's compliant bar. This is exactly the per-block
+// score meets the scoring profile's compliance bar. This is exactly the per-block
 // compliant predicate applyShipStates aggregates into the compliance rate (#1365);
 // the bulk approve-passing endpoint reuses it to pick which pending drafts to
 // auto-approve, so a target using a forbidden term or missing a mandated one is
@@ -502,7 +502,7 @@ type scoredBlock struct {
 
 // latestVoiceScores reads the project's persisted brand voice scores and keeps
 // the newest per (locale, block), each paired with its scoring profile's
-// compliant bar. Locale keys are normalized (scores are stored normalized).
+// compliance bar. Locale keys are normalized (scores are stored normalized).
 // Best-effort by design: a nil brand store or a read failure yields an empty
 // map, degrading the compliance rate to checks-only rather than failing the
 // dashboard.

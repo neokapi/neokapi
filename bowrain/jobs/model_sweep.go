@@ -302,7 +302,7 @@ func (s sweepArmScore) Rate() float64 {
 //     survive verbatim into the target — read back from the tool's
 //     do-not-translate findings on the unified quality.findings annotation;
 //   - brand vocabulary: coreprofile.MatchVocabulary over the target plus the
-//     profile's compliant bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
+//     profile's compliance bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
 //     zero-AI matcher behind persistDraftVoiceScores and every HTTP scoring
 //     surface.
 //

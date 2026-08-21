@@ -224,7 +224,7 @@ export function BrandMCPGuide({
               },
               {
                 name: "voice_rewrite",
-                desc: "Rewrite non-compliant copy by substituting forbidden/competitor terms",
+                desc: "Rewrite off-brand copy by substituting forbidden/competitor terms",
               },
               { name: "term_lookup", desc: "Look up approved terminology in the terms store" },
             ].map((tool) => (

@@ -54,7 +54,7 @@ type VoiceProfile struct {
 	CreatedBy   string    `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
-// DefaultMinScore is the compliant bar applied when a profile does not set its
+// DefaultMinScore is the compliance bar applied when a profile does not set its
 // own MinScore: one critical vocabulary hit (25-point penalty) already drops a
 // block below it, while a handful of minor issues does not.
 const DefaultMinScore = 80

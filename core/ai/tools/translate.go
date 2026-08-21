@@ -108,7 +108,7 @@ type AITranslateConfig struct {
 	// serving a cached target produced under different guidance.
 	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt"`
 	// Profile is an optional voice profile. When set, its guidance is
-	// injected into the translation prompt so output is compliant at generation
+	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
 	// via the .kapi voice binding.
 	Profile *coreprofile.VoiceProfile `json:"-" schema:"-"`

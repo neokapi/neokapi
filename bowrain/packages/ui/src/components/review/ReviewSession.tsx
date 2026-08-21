@@ -140,8 +140,8 @@ function resolveBrandProfile(project: ProjectInfo, stream: string): string | und
   return s?.properties?.voice_profile_id || project.properties?.voice_profile_id || undefined;
 }
 
-/** Per-locale compliant context for the reviewer header, from the dashboard. */
-function compliantForLocale(
+/** Per-locale compliance context for the reviewer header, from the dashboard. */
+function complianceForLocale(
   stats: TranslationDashboardStats,
   locale: string,
 ): ReviewerCompliance | undefined {
@@ -517,7 +517,7 @@ export function ReviewSession({
   );
 
   // Bulk "Approve all passing": server promotes every pending block passing
-  // checks + the compliant bar. review_completed → the queue emptied and
+  // checks + the compliance bar. review_completed → the queue emptied and
   // delivery kicked off.
   const [confirmBulk, setConfirmBulk] = useState(false);
   const runBulkApprove = useCallback(async () => {
@@ -795,7 +795,7 @@ export function ReviewSession({
               sourceLocale={sourceLocale}
               position={{ index: currentIndex + 1, total: visible.length }}
               localeName={localeName}
-              compliant={compliantForLocale(dashboardStats, current.locale)}
+              compliance={complianceForLocale(dashboardStats, current.locale)}
               editing={editing}
               busy={busy}
               reChecking={recheckingId === current.id}

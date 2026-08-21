@@ -174,7 +174,7 @@ describe("TranslationDashboard", () => {
     expect(within(overview).getAllByTestId("ship-state-pending").length).toBeGreaterThan(0);
   });
 
-  it("renders an compliance rate chip per locale when the server derives it", () => {
+  it("renders a compliance rate chip per locale when the server derives it", () => {
     render(<TranslationDashboard stats={complianceDashboardStats} />);
     const card = screen.getByTestId("ship-readiness");
     const chips = within(card).getAllByTestId("compliant-rate");
@@ -192,7 +192,7 @@ describe("TranslationDashboard", () => {
     expect(screen.queryByTestId("compliant-rate")).toBeNull();
   });
 
-  it("explains the compliant basis in the chip tooltip", async () => {
+  it("explains the compliance basis in the chip tooltip", async () => {
     const user = userEvent.setup();
     render(<TranslationDashboard stats={complianceDashboardStats} />);
     const card = screen.getByTestId("ship-readiness");

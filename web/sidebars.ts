@@ -65,7 +65,7 @@ const sidebars: SidebarsConfig = {
           key: "kapi-recipes-overview",
         },
         { type: "doc", id: "kapi/recipes/verify-content", label: "Check content like tests" },
-        { type: "doc", id: "kapi/recipes/keep-source-compliant", label: "Keep source on brand" },
+        { type: "doc", id: "kapi/recipes/keep-source-on-brand", label: "Keep source on brand" },
         {
           type: "doc",
           id: "kapi/recipes/brand-guide-in-10-minutes",

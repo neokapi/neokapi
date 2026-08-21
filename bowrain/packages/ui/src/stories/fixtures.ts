@@ -1716,7 +1716,7 @@ export const shipStateDashboardStats: TranslationDashboardStats = (() => {
 })();
 
 /**
- * Ship-state dashboard with the derived compliant fields: voice-informed for
+ * Ship-state dashboard with the derived compliance fields: voice-informed for
  * fr-FR (worker draft scoring has run), checks-only elsewhere — the newest
  * server shape behind the compliance rate chip in the ship-readiness band.
  */

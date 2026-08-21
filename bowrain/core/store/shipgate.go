@@ -57,7 +57,7 @@ type ShipGateVerdict struct {
 
 // ShipGateScore is one scored (block, locale) pair as the brand voice store
 // holds it, reduced to the only question the rollup asks of it: whether the
-// score clears the scoring profile's compliant bar.
+// score clears the scoring profile's compliance bar.
 type ShipGateScore struct {
 	ShipGateRef
 	BelowBar bool
@@ -72,7 +72,7 @@ type ShipGateCounts struct {
 	// Clean counts translated blocks whose stored verdict passes it.
 	Clean int
 	// Scored counts clean-or-failing blocks the pass supplied a voice score
-	// for, which is what makes the compliant basis able to say voice informed
+	// for, which is what makes the compliance basis able to say voice informed
 	// the rate in this scope.
 	Scored int
 	// CleanBelowBar counts blocks that pass the gate but whose supplied voice

@@ -1,4 +1,4 @@
-// The compliant bar and the score bands derived from it — the client mirror of
+// The compliance bar and the score bands derived from it — the client mirror of
 // core/profile's DefaultMinScore / VoiceProfile.ComplianceBar. Every surface
 // that colours a 0–100 voice score reads its bar from here, so a profile with
 // min_score 90 shows an 85 as below-bar in the gauge, the dimension bars, the
@@ -7,13 +7,13 @@
 /** The bar applied when a profile sets no min_score (core/profile.DefaultMinScore). */
 export const DEFAULT_MIN_SCORE = 80;
 
-/** Carries a profile's own compliant bar; anything with a `min_score` field. */
+/** Carries a profile's own compliance bar; anything with a `min_score` field. */
 export interface HasMinScore {
   min_score?: number;
 }
 
 /**
- * The effective compliant bar for a profile: its `min_score` when set (capped at
+ * The effective compliance bar for a profile: its `min_score` when set (capped at
  * 100), DEFAULT_MIN_SCORE otherwise. A missing profile answers the default,
  * matching VoiceProfile.ComplianceBar on a nil receiver.
  */

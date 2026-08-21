@@ -8,7 +8,7 @@ import (
 
 // RenderVoiceGuide produces a markdown-formatted voice guide optimized for
 // LLM consumption. It is the single source of truth for turning a VoiceProfile
-// into prompt text — used by the AI translate prompt (so generation is compliant),
+// into prompt text — used by the AI translate prompt (so generation is on-brand),
 // the voice check tool, the local `kapi voice guide` command, and the
 // bowrain cloud MCP `get_voice_guide` tool.
 //

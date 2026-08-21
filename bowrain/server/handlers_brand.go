@@ -28,7 +28,7 @@ type BrandProfileRequest struct {
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
 	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
-	// MinScore is the profile's own compliant bar (0–100); 0 means the default
+	// MinScore is the profile's own compliance bar (0–100); 0 means the default
 	// (coreprofile.DefaultMinScore). It is authored content, not server-managed
 	// metadata: the bar decides which blocks the ship gate and bulk
 	// approve-passing count as compliant, so it round-trips through every write
@@ -36,7 +36,7 @@ type BrandProfileRequest struct {
 	MinScore int `json:"min_score,omitempty"`
 }
 
-// validMinScore reports whether a requested compliant bar is in range. 0 is
+// validMinScore reports whether a requested compliance bar is in range. 0 is
 // valid and means "use the default"; the accepted band mirrors
 // coreprofile.ValidateProfile's min_score rule.
 func validMinScore(minScore int) bool {

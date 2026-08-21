@@ -71,7 +71,7 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 	sql := Migrations[0].SQL
 
 	// The correction-learning loop's schema, the personas column folded in from
-	// version 2, and the compliant bar from version 4 are all in the one baseline.
+	// version 2, and the compliance bar from version 4 are all in the one baseline.
 	for _, want := range []string{
 		"voice_rule_decisions", "voice_corrections", "voice_profile_versions",
 		"autonomy", "personas", "min_score",

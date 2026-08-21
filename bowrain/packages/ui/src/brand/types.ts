@@ -211,7 +211,7 @@ export interface CreateVoiceProfileRequest {
   examples: VoiceExample[];
   personas?: Record<string, PersonaOverride>;
   /**
-   * The profile's own compliant bar (0–100); omitted or 0 means the default
+   * The profile's own compliance bar (0–100); omitted or 0 means the default
    * (complianceBar / core/profile's DefaultMinScore). Authored content, not
    * server-managed metadata: the bar decides which blocks the ship gate and
    * bulk approve-passing count as compliant, so every write surface carries it.

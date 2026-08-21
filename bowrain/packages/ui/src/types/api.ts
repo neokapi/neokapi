@@ -1668,7 +1668,7 @@ export interface PendingReviewEntry {
   term_compliance?: TermCompliance;
   /**
    * The latest persisted brand voice score for this block+locale, and the
-   * compliant bar of the profile that produced it. Absent together for a block
+   * compliance bar of the profile that produced it. Absent together for a block
    * that has never been scored; the server applies no voice bar to one either.
    */
   voice_score?: number;

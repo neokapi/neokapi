@@ -202,7 +202,7 @@ func TestIsBrandVoiceEvent(t *testing.T) {
 	}
 }
 
-func TestAutomaticompliantVoiceRule(t *testing.T) {
+func TestAutomationVoiceRule(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
 
