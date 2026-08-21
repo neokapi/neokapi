@@ -85,6 +85,11 @@ type ContextScanApprovedTerm struct {
 // ContextScanApproval is the reviewed outcome of a brand scan: the edited draft
 // profile and the terms that survived review, applied in one request.
 type ContextScanApproval struct {
+	// At is the point the approved artefacts would govern. Empty is the
+	// project's default point. The server refuses a point whose axes the
+	// workspace declares no content on, so this is a 409 rather than a
+	// silently-ignored field.
+	At      map[string]string         `json:"at,omitempty"`
 	Profile BrandProfileUpsert        `json:"profile"`
 	Terms   []ContextScanApprovedTerm `json:"terms,omitempty"`
 	Locale  string                    `json:"locale,omitempty"`

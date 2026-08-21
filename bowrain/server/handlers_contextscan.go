@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -274,6 +275,10 @@ type ContextScanApprovedTerm struct {
 // ContextScanApproveRequest is the reviewed outcome of a brand scan: the edited
 // draft profile and the candidate terms that survived review.
 type ContextScanApproveRequest struct {
+	// At is the point the approved artefacts would govern, as an axis map.
+	// EMPTY is the project's default point — whatever defaults.coordinates
+	// resolves to — which is the onboarding case and always accepted.
+	At      map[string]string         `json:"at,omitempty"`
 	Profile BrandProfileRequest       `json:"profile"`
 	Terms   []ContextScanApprovedTerm `json:"terms,omitempty"`
 	// Locale is the locale approved terms are created in when a term does not
@@ -337,6 +342,13 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 	}
 	if strings.TrimSpace(req.Profile.Name) == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "profile.name is required"})
+	}
+	if unknown := s.undeclaredAxes(ctx, c, req.At); len(unknown) > 0 {
+		return c.JSON(http.StatusConflict, ErrorResponse{
+			Error: fmt.Sprintf(
+				"cannot bind at %s: this workspace declares no content on %s. Declare the axis in a recipe and push before binding anything at it.",
+				formatPoint(req.At), strings.Join(unknown, ", ")),
+		})
 	}
 	defaultLocale := model.LocaleID(strings.TrimSpace(req.Locale))
 	if defaultLocale == "" {
@@ -483,4 +495,70 @@ func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
 		Score:    score,
 		Findings: findings,
 	})
+}
+
+// undeclaredAxes reports which axes of a proposed point this workspace has no
+// declared content on, in sorted order. Empty means the point is bindable.
+//
+// The recipe is the only thing that mints a coordinate, and the server's copy
+// of what a recipe declares is the collection rows a push reconciles — the same
+// index the context-profiles board is built from. So "is this axis real?" is
+// answered from pushed content rather than from a list the server keeps
+// separately, which is what stops the server believing in a coordinate the
+// recipe has never heard of.
+//
+// An empty point is the project's default point and is always bindable: it is
+// where a scan that found no structure proposes, and requiring a declaration
+// for it would make onboarding depend on a push that has not happened yet.
+func (s *Server) undeclaredAxes(ctx context.Context, c echo.Context, at map[string]string) []string {
+	if len(at) == 0 {
+		return nil
+	}
+
+	declared := map[string]bool{}
+	wsID, _ := c.Get("workspace_id").(string)
+	if s.Services != nil && s.Services.Project != nil && s.ContentStore != nil {
+		if projects, err := s.Services.Project.ListProjects(ctx); err == nil {
+			points := newProfilePoints()
+			for _, pr := range projects {
+				if pr == nil || pr.WorkspaceID != wsID || pr.Archived {
+					continue
+				}
+				s.collectProfilePoints(ctx, points, pr)
+			}
+			for _, axis := range points.axes() {
+				declared[axis] = true
+			}
+		}
+	}
+
+	var unknown []string
+	for axis, value := range at {
+		if strings.TrimSpace(axis) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		if !declared[axis] {
+			unknown = append(unknown, axis)
+		}
+	}
+	sort.Strings(unknown)
+	return unknown
+}
+
+// formatPoint renders a point the way a recipe writes it, for an error a
+// reader can act on: axis=value pairs in a stable order.
+func formatPoint(at map[string]string) string {
+	if len(at) == 0 {
+		return "the default point"
+	}
+	axes := make([]string, 0, len(at))
+	for axis := range at {
+		axes = append(axes, axis)
+	}
+	sort.Strings(axes)
+	parts := make([]string, 0, len(axes))
+	for _, axis := range axes {
+		parts = append(parts, axis+"="+at[axis])
+	}
+	return strings.Join(parts, ",")
 }

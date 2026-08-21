@@ -199,3 +199,40 @@ func TestContextScanApprove_RequiresManageBrand(t *testing.T) {
 
 	assert.Error(t, srv.HandleApproveContextScan(c))
 }
+
+// An artefact binds at a point, and a point is only real once a recipe declares
+// it and a push carries it. Approving at an axis nobody has declared would put a
+// coordinate into the graph that no content sits at — so the server refuses,
+// rather than the UI merely greying the row, because the CLI client and any API
+// caller reach the same endpoint.
+func TestContextScanApprove_RefusesAnUndeclaredAxis(t *testing.T) {
+	srv, scanID := setupScanApproval(t)
+
+	rec, err := approveScan(t, srv, scanID,
+		`{"at":{"product_line":"cloud"},"profile":{"name":"Acme Cloud"}}`)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusConflict, rec.Code, "body: %s", rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "product_line",
+		"the error must name the axis that is missing")
+	assert.Contains(t, rec.Body.String(), "product_line=cloud",
+		"and the point the caller asked for")
+}
+
+// The default point is where a scan that found no structure proposes, and it is
+// bindable before any push has happened — otherwise onboarding would depend on
+// content that does not exist yet.
+func TestContextScanApprove_AcceptsTheDefaultPoint(t *testing.T) {
+	srv, scanID := setupScanApproval(t)
+
+	// No `at` at all.
+	rec, err := approveScan(t, srv, scanID, approvePayload)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+
+	// An explicitly empty one means the same thing.
+	_, scanID2 := setupScanApproval(t)
+	rec, err = approveScan(t, srv, scanID2, `{"at":{},"profile":{"name":"Acme"}}`)
+	require.NoError(t, err)
+	assert.NotEqual(t, http.StatusConflict, rec.Code,
+		"an empty point is the default point, never an undeclared one")
+}

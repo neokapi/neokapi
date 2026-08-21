@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T09:15:01Z",
+  "generatedAt": "2026-08-21T22:48:05Z",
   "asOf": "2026-07-15",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [

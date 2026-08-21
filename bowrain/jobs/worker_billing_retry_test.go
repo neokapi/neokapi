@@ -272,5 +272,5 @@ func TestContextScanWorker_RetryChargesOncePerPhase(t *testing.T) {
 	require.NoError(t, f.db.QueryRowContext(context.Background(),
 		`SELECT COUNT(*) FROM credit_ledger WHERE workspace_id = $1 AND operation = 'context_scan'`,
 		wsID).Scan(&rows))
-	assert.Equal(t, 2, rows, "one ledger entry per phase, however many times the scan runs")
+	assert.Equal(t, 3, rows, "one ledger entry per phase (infer, terms, axes), however many times the scan runs")
 }
