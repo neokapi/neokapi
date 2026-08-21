@@ -33,17 +33,32 @@ import (
 // is what the transport distinction was declared for; it just never had a
 // second value that worked.
 
+// The numbers below come from current object-storage guidance rather than from
+// taste. Two of them decide a third, so they are set together.
+//
+// MULTIPART IS NOT USED, and that is a conclusion rather than an omission. S3
+// multipart is the recommended shape for objects of 100 MB and up; a part must
+// be at least 5 MB and there are at most 10,000 of them. A chunk here is capped
+// well below that threshold, so multipart would add a two-phase protocol and a
+// cleanup obligation to objects too small to benefit. The way to make a failed
+// upload cheaper at this size is a smaller chunk, not a partitioned one.
 const (
 	// uploadWindow is how many chunks are held and uploaded at once. It bounds
-	// both the producer's memory (window × chunk size — the per-chunk caps are
-	// in push.go, where the chunker reads them) and the number of URLs asked
-	// for in one grant.
+	// the producer's memory — window × the compressed size of a chunk — and the
+	// number of URLs asked for in one grant.
+	//
+	// It matches uploadConcurrency so that every chunk staged is a chunk in
+	// flight: a larger window would hold bytes waiting for a slot, which is
+	// memory spent on nothing.
 	uploadWindow = 8
 
-	// uploadConcurrency is how many direct PUTs run at a time within a window.
+	// uploadConcurrency is how many direct PUTs run at a time. Guidance puts
+	// the useful range at 5–10 parallel uploads, tuned to the network; 8 sits
+	// in it without assuming a fat pipe.
+	//
 	// The proxy path is not parallelised at all: its whole cost is the load it
-	// puts on the interactive server.
-	uploadConcurrency = 4
+	// puts on the interactive server, which is the thing being removed.
+	uploadConcurrency = 8
 )
 
 // TransportDirect and TransportProxy are the two ways a chunk reaches storage.
