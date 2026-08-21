@@ -122,8 +122,11 @@ func variantToResponse(v *venue.AssetVariant) AssetVariantResponse {
 	}
 }
 
-// generateDownloadURL attempts to generate a SAS/pre-signed download URL.
-// Returns empty string if BlobStore is nil or doesn't support pre-signed URLs.
+// generateDownloadURL attempts to generate a pre-signed download URL. Returns
+// empty string if BlobStore is nil or doesn't support pre-signed URLs.
+//
+// The store call is bound to the caller's context, so a client that disconnects
+// mid-request aborts it rather than leaving it blocked on a detached one.
 func (s *Server) generateDownloadURL(ctx context.Context, blobKey string) string {
 	if s.BlobStore == nil {
 		return ""
@@ -133,6 +136,43 @@ func (s *Server) generateDownloadURL(ctx context.Context, blobKey string) string
 		return ""
 	}
 	return url
+}
+
+// downloadURLFor is where a caller should fetch this blob from — and unlike
+// generateDownloadURL it always answers.
+//
+// A store that can pre-sign answers with a URL straight to object storage. One
+// that cannot — the local filesystem backend, which is the DEFAULT backend —
+// answers with this server's own streaming route.
+//
+// The distinction matters because the empty string used to be the answer for
+// the second case, and every caller read it as "no media here". So on any
+// deployment that had not configured S3, every asset variant resolved to
+// nothing, the pull skipped it, and the translated file was written without its
+// media and reported as a success.
+func (s *Server) downloadURLFor(c echo.Context, blobKey string) string {
+	if s.BlobStore == nil || blobKey == "" {
+		return ""
+	}
+	if url := s.generateDownloadURL(c.Request().Context(), blobKey); url != "" {
+		return url
+	}
+	return blobDownloadPath(c, blobKey)
+}
+
+// blobDownloadPath is this server's streaming route for one blob, on the same
+// project and stream the request arrived on — so the route the caller follows
+// is authorized exactly as the one that handed it over.
+func blobDownloadPath(c echo.Context, blobKey string) string {
+	projectID := c.Param("id")
+	if projectID == "" || blobKey == "" {
+		return ""
+	}
+	ws := c.Param("ws")
+	if ws == "" {
+		return "/api/v1/projects/" + projectID + "/sync/" + refParam(c) + "/blobs/" + blobKey
+	}
+	return "/api/v1/" + ws + "/" + projectID + "/sync/" + refParam(c) + "/blobs/" + blobKey
 }
 
 // ---------------------------------------------------------------------------
@@ -219,7 +259,7 @@ func (s *Server) HandleCreateAsset(c echo.Context) error {
 	}
 
 	resp := assetToResponse(asset)
-	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), asset.BlobKey)
+	resp.DownloadURL = s.downloadURLFor(c, asset.BlobKey)
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -241,7 +281,7 @@ func (s *Server) HandleListAssets(c echo.Context) error {
 	result := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		result[i] = assetToResponse(a)
-		result[i].DownloadURL = s.generateDownloadURL(c.Request().Context(), a.BlobKey)
+		result[i].DownloadURL = s.downloadURLFor(c, a.BlobKey)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"assets": result})
@@ -263,7 +303,7 @@ func (s *Server) HandleGetAsset(c echo.Context) error {
 	}
 
 	resp := assetToResponse(asset)
-	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), asset.BlobKey)
+	resp.DownloadURL = s.downloadURLFor(c, asset.BlobKey)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -359,7 +399,7 @@ func (s *Server) HandleCreateVariant(c echo.Context) error {
 	}
 
 	resp := variantToResponse(variant)
-	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), variant.BlobKey)
+	resp.DownloadURL = s.downloadURLFor(c, variant.BlobKey)
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -380,7 +420,7 @@ func (s *Server) HandleListVariants(c echo.Context) error {
 	result := make([]AssetVariantResponse, len(variants))
 	for i, v := range variants {
 		result[i] = variantToResponse(v)
-		result[i].DownloadURL = s.generateDownloadURL(c.Request().Context(), v.BlobKey)
+		result[i].DownloadURL = s.downloadURLFor(c, v.BlobKey)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"variants": result})

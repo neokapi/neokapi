@@ -1075,7 +1075,44 @@ func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) (
 }
 
 // DownloadBlob downloads binary content from a URL (SAS URL or server proxy).
+// ownAPIPath reports whether a URL addresses this client's own server, and the
+// request path when it does. A root-relative URL is ours by construction; an
+// absolute one is ours only if it starts at our base.
+func (c *BowrainClient) ownAPIPath(downloadURL string) (string, bool) {
+	if strings.HasPrefix(downloadURL, "/") {
+		return downloadURL, true
+	}
+	if base := c.BaseURL(); base != "" && strings.HasPrefix(downloadURL, base+"/") {
+		return strings.TrimPrefix(downloadURL, base), true
+	}
+	return "", false
+}
+
 func (c *BowrainClient) DownloadBlob(ctx context.Context, downloadURL string) ([]byte, error) {
+	// A URL on our own API gets our credential; a URL anywhere else does not.
+	//
+	// The two are genuinely different things. A pre-signed object-storage URL
+	// IS the grant, and attaching an Authorization header to it tells the
+	// object store something it has no business seeing — some backends reject
+	// the request outright. Our own streaming route, which a store that cannot
+	// pre-sign falls back to, is an ordinary authorized API call.
+	if path, ours := c.ownAPIPath(downloadURL); ours {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL()+path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create download request: %w", err)
+		}
+		resp, err := c.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("download blob: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			return nil, NewStatusError("download", resp.StatusCode, body)
+		}
+		return io.ReadAll(resp.Body)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create download request: %w", err)
