@@ -317,6 +317,11 @@ func (s *swappedBlobStore) Download(ctx context.Context, key string) (io.ReadClo
 // failingItemStore fails every StoreItem and otherwise delegates. Item metadata
 // is a separate write from the blocks it describes, so it is the write that can
 // fail on its own.
+// failingItemStore is the real store with one verb broken. It decorates the
+// transition rather than the pool: a push applies through PushApplier, so a
+// decorator that only overrode ContentStore.StoreItem would never be consulted
+// — and, by not carrying the capability forward, would make the push refuse for
+// the wrong reason.
 type failingItemStore struct {
 	store.ContentStore
 	err error
@@ -324,6 +329,25 @@ type failingItemStore struct {
 
 func (s *failingItemStore) StoreItem(context.Context, string, string, *store.Item) error {
 	return s.err
+}
+
+func (s *failingItemStore) ApplyPush(ctx context.Context, fn func(store.PushApplier) error) error {
+	inner, ok := s.ContentStore.(store.PushApplyStore)
+	if !ok {
+		return errors.New("wrapped store cannot apply a push atomically")
+	}
+	return inner.ApplyPush(ctx, func(tx store.PushApplier) error {
+		return fn(failingItemApplier{PushApplier: tx, err: s.err})
+	})
+}
+
+type failingItemApplier struct {
+	store.PushApplier
+	err error
+}
+
+func (a failingItemApplier) StoreItem(context.Context, string, string, *store.Item) error {
+	return a.err
 }
 
 // Item metadata — format, block index, preview, collection — is written
@@ -376,6 +400,13 @@ func TestProcessSyncPush_ItemMetadataWriteFailureFailsTheJob(t *testing.T) {
 	j, err := deps.JobStore.GetJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.Equal(t, StatusFailed, j.Status)
+
+	// The blocks were written before the item row was attempted, so they are
+	// the half of the transition that used to survive a failure like this.
+	blocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID, Stream: "main", ItemName: "en.json", Limit: 10})
+	require.NoError(t, err)
+	assert.Empty(t, blocks, "a push whose item write failed must leave no blocks behind")
 }
 
 // The manifest's item metadata is what tells the worker each item's format,

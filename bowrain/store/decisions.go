@@ -39,7 +39,7 @@ import (
 // that the file exists. Minting the row is what gives the key something stable
 // to point at; without it every ungrounded decision would key on the empty
 // string and collide with every other one.
-func resolveItemIDPg(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string) (string, error) {
+func resolveItemIDPg(ctx context.Context, tx Runner, projectID, stream, itemName string) (string, error) {
 	if itemName == "" {
 		return "", nil
 	}
@@ -99,16 +99,28 @@ func DecisionUnchanged(old, next venue.UnitDecision) bool {
 // when the unit resolves to a stored block and the decision still blesses the
 // current translation.
 func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error) {
-	if len(decisions) == 0 {
-		return 0, nil
-	}
-	stream = storeutil.DefaultStream(stream)
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin decisions tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck // no-op after Commit; the commit error is what matters
+
+	changed, err := upsertUnitDecisionsTx(ctx, tx, projectID, stream, decisions)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit decisions: %w", err)
+	}
+	return changed, nil
+}
+
+// upsertUnitDecisionsTx is the work, on whatever executor the caller brings.
+func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream string, decisions []venue.UnitDecision) (int, error) {
+	if len(decisions) == 0 {
+		return 0, nil
+	}
+	stream = storeutil.DefaultStream(stream)
 
 	changed := 0
 	now := time.Now().UTC()
@@ -229,16 +241,20 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return changed, fmt.Errorf("commit decisions: %w", err)
-	}
 	return changed, nil
 }
 
 // ListUnitDecisions implements platstore.DecisionStore.
 func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error) {
+	return listUnitDecisionsTx(ctx, s.db, projectID, stream)
+}
+
+// listUnitDecisionsTx is the work, on whatever executor the caller brings. A
+// push asserts its expected ledger ref on the transaction it is about to write
+// through, so the assertion is a compare-and-swap rather than a look and a hope.
+func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream string) ([]venue.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := tx.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
 			decided_by, decided_at, note, parked, assignee, updated
 		 FROM unit_decisions WHERE project_id=$1 AND stream=$2
@@ -386,7 +402,7 @@ func TargetTextFromJSON(targetJSON string) string {
 // Runs inside the storeBlocks transaction, scoped to the stream whose source
 // moved, and only when the content hash actually moved. A branch holding the
 // same block id at its own content is judged by its own ledger.
-func settleDecisionProjectionsPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, contentHash string) error {
+func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stream, blockID, contentHash string) error {
 	// The ledger keys on the unit identity (item + source_id), not the block id.
 	var itemID, unit string
 	if err := tx.QueryRowContext(ctx,

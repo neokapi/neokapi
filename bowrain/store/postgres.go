@@ -411,6 +411,11 @@ func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, er
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string, item *platstore.Item) error {
+	return storeItemTx(ctx, s.db, projectID, stream, item)
+}
+
+// storeItemTx is the work, on whatever executor the caller brings.
+func storeItemTx(ctx context.Context, tx Runner, projectID, stream string, item *platstore.Item) error {
 	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	item.CreatedAt = now
@@ -441,13 +446,15 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 	// upsert a non-empty id and clobber the existing binding (#1840).
 	fallbackCollectionID := ""
 	if item.CollectionID == "" {
-		defColl, defErr := s.GetDefaultCollection(ctx, projectID)
-		if defErr == nil && defColl != nil {
-			fallbackCollectionID = defColl.ID
-		}
+		// On the caller's executor, not the pool: a push that reconciled its
+		// collections in the same transaction must see them here, and a read
+		// outside it would not.
+		_ = tx.QueryRowContext(ctx,
+			`SELECT id FROM collections WHERE project_id=$1 AND is_default=TRUE`,
+			projectID).Scan(&fallbackCollectionID)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE(NULLIF($10::text, ''), $13::text), $11, $12)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
@@ -572,15 +579,28 @@ func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, strea
 //
 // Scoped to one stream, so pruning a branch leaves its parent alone.
 func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
-	if itemName == "" {
-		return 0, nil
-	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	n, err := pruneItemBlocksTx(ctx, tx, projectID, stream, itemName, keep)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit prune for item %q: %w", itemName, err)
+	}
+	return n, nil
+}
+
+// pruneItemBlocksTx is the work, on whatever executor the caller brings — its
+// own transaction, or the one a whole push is landing in.
+func pruneItemBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, keep []string) (int, error) {
+	if itemName == "" {
+		return 0, nil
+	}
 
 	rows, err := tx.QueryContext(ctx,
 		`SELECT id, source_id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
@@ -619,33 +639,36 @@ func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, 
 
 	args := append([]any{projectID, stream}, anyStrings(stale)...)
 	for _, table := range storeutil.BlockScopedTables() {
-		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2 AND block_id IN (` +
 			placeholderList("pg", 3, len(stale)) + `)`
 		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 			return 0, fmt.Errorf("prune %s for item %q: %w", table, itemName, err)
 		}
 	}
-	//nolint:gosec // placeholder list, not data — every id binds below
 	del := `DELETE FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
 		placeholderList("pg", 3, len(stale)) + `)`
 	if _, err := tx.ExecContext(ctx, del, args...); err != nil {
 		return 0, fmt.Errorf("prune blocks for item %q: %w", itemName, err)
 	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit prune for item %q: %w", itemName, err)
-	}
 	return len(stale), nil
 }
 
 func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	if err := storeBlocksTx(ctx, tx, projectID, stream, itemName, blocks); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// storeBlocksTx is the work, on whatever executor the caller brings.
+func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block) error {
+	stream = storeutil.DefaultStream(stream)
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs.
@@ -793,7 +816,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 			// The concatenated fragment is "$2,$3,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` + //nolint:gosec // placeholder list, not data
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
 				placeholderList("pg", 3, len(chunk)) + `)`
 			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID, stream}, anyStrings(chunk)...)...)
 			if err != nil {
@@ -972,7 +995,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
@@ -1681,7 +1704,7 @@ func queryVersionBlocks(ctx context.Context, db *sql.DB, versionID string) (map[
 }
 
 // logChange inserts a single change log entry within a PostgreSQL transaction.
-func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
+func logChange(ctx context.Context, tx Runner, projectID, stream, blockID, changeType, locale, contentHash string) error {
 	stream = storeutil.DefaultStream(stream)
 	now := time.Now().UTC()
 	var localeVal any

@@ -192,3 +192,40 @@ type ContentStore interface {
 	// Close releases the store's resources.
 	Close() error
 }
+
+// PushApplier is the write surface one push performs, every call landing in
+// the same transaction. It is deliberately small — the verbs a push actually
+// uses, and no others — so that what a push can do inside a transition is a
+// readable list rather than the whole store.
+//
+// The reads on it are here for one reason: a push must see what the push has
+// already written. An item's collection binding is decided against items this
+// same transition may have just stored, and the decisions ledger is asserted
+// against the rows this same transition is about to replace. A lookup made on
+// the pool would answer from the state the push started in, and the answer
+// would be wrong in exactly the cases that matter.
+type PushApplier interface {
+	StoreItem(ctx context.Context, projectID, stream string, item *Item) error
+	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
+	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
+	PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error)
+	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error)
+	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)
+	GetItem(ctx context.Context, projectID, stream, itemName string) (*Item, error)
+	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
+	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)
+}
+
+// PushApplyStore is the optional capability of applying a whole push as one
+// transition. A store that has it gets atomicity; one that does not is asked
+// for its verbs one at a time, as before, and a push that fails partway leaves
+// what it managed to write.
+//
+// It is asserted for by interface rather than required of ContentStore because
+// the offline SQLite store on the desktop has no push to apply — it is the
+// thing being pushed FROM.
+type PushApplyStore interface {
+	// ApplyPush runs fn against one transaction and commits it. An error from
+	// fn rolls the whole transition back: nothing fn wrote survives.
+	ApplyPush(ctx context.Context, fn func(PushApplier) error) error
+}

@@ -2,13 +2,12 @@ package jobs
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -16,12 +15,10 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue"
-	"github.com/neokapi/neokapi/memory"
-	"google.golang.org/protobuf/proto"
-
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.
@@ -204,10 +201,11 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			nil)
 	}
 
-	// Resolve the project content memory (optional) and source language once, so ingest can
-	// seed pushed target translations into the content memory for future recycling (theme
-	// A2). A missing content memory or source language simply disables seeding — never an
-	// error on the push path.
+	// Resolve the project content memory (optional) and source language once, so
+	// the decisions this push carries can promote the wording they approve into
+	// the memory once they commit. The push's own targets are not admitted: a
+	// decision is the only door in. A missing content memory or source language
+	// simply disables promotion — never an error on the push path.
 	var seedMemory memory.Store
 	var sourceLocale model.LocaleID
 	if deps.MemoryResolver != nil {
@@ -223,95 +221,21 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 	}
 
-	// 2. Process each chunk.
-	totalStored := 0
-	var allItemNames []string
-
-	for _, chunkRef := range manifest.Chunks {
-		emitLog(deps, job.StepID, "info",
-			fmt.Sprintf("Processing chunk %d (%s, %d records)", chunkRef.Index, chunkRef.ContentType, chunkRef.RecordCount),
-			nil)
-
-		// Download chunk.
-		chunkReader, err := deps.BlobStore.Download(ctx, chunkRef.Hash)
-		if err != nil {
-			markJobFailed(ctx, deps, job.ID,
-				fmt.Sprintf("chunk %d download failed: %s", chunkRef.Index, err.Error()))
-			return fmt.Errorf("download chunk %d: %w", chunkRef.Index, err)
-		}
-		chunkData, err := io.ReadAll(chunkReader)
-		chunkReader.Close()
-		if err != nil {
-			markJobFailed(ctx, deps, job.ID, "chunk read failed")
-			return fmt.Errorf("read chunk %d: %w", chunkRef.Index, err)
-		}
-
-		// The manifest's hash is a promise about the bytes, not just the name of
-		// a place to find them. Re-derive it: whatever the store returned is
-		// accepted only if it is in fact the content that was pushed, so a
-		// manifest cannot make the worker parse bytes that were never uploaded
-		// under that digest.
-		if sum := sha256.Sum256(chunkData); hex.EncodeToString(sum[:]) != chunkRef.Hash {
-			markJobFailed(ctx, deps, job.ID,
-				fmt.Sprintf("chunk %d content does not match its hash", chunkRef.Index))
-			return fmt.Errorf("chunk %d: content does not match hash %s", chunkRef.Index, chunkRef.Hash)
-		}
-
-		// Attempt zstd decompression (compressed chunks start with zstd magic bytes).
-		if deps.Decompressor != nil && len(chunkData) > 4 {
-			if decompressed, err := deps.Decompressor.Decompress(chunkData); err == nil {
-				chunkData = decompressed
-			}
-			// If decompression fails, assume uncompressed data and continue.
-		}
-
-		// Deserialize protobuf SyncChunk.
-		var chunk pb.SyncChunk
-		if err := proto.Unmarshal(chunkData, &chunk); err != nil {
-			markJobFailed(ctx, deps, job.ID, "invalid chunk data")
-			return fmt.Errorf("unmarshal chunk %d: %w", chunkRef.Index, err)
-		}
-
-		// Route by content type.
-		switch chunk.ContentType {
-		case "blocks":
-			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, manifest.BlockPropertyKeys)
-			if err != nil {
-				markJobFailed(ctx, deps, job.ID, err.Error())
-				return err
-			}
-			totalStored += stored
-			allItemNames = append(allItemNames, itemNames...)
-
-		case "terms", "memory", "media":
-			// These content types are not yet implemented. Rather than silently
-			// dropping the payload and marking the job Completed (which would lose
-			// data for any client that emits them), fail the job explicitly.
-			err := fmt.Errorf("sync: content type %q (chunk %d) is not yet supported", chunk.ContentType, chunkRef.Index)
-			markJobFailed(ctx, deps, job.ID, err.Error())
-			return err
-
-		default:
-			err := fmt.Errorf("sync: unknown content type %q (chunk %d)", chunk.ContentType, chunkRef.Index)
-			markJobFailed(ctx, deps, job.ID, err.Error())
-			return err
-		}
+	// 2. Stage every chunk. Nothing is written here: the chunks are
+	// downloaded, verified against the hashes the manifest promised, decoded,
+	// and checked against the state the push started from.
+	staged, err := stagePush(ctx, deps, job, &manifest, projectID, stream, itemMetaMap)
+	if err != nil {
+		return err
 	}
 
-	// Removals land AFTER every chunk, and only once they have all landed.
-	// A push is chunked, so no single chunk knows an item's whole content:
-	// pruning inside one would delete everything the others carried. And a
-	// chunk that failed returned above — a partial push must never be read as
-	// "the source dropped the rest".
-	pruneDeclaredItems(ctx, deps, job, projectID, stream, manifest.ItemBlocks)
-
-	// The decisions content type ingests AFTER the chunks, so decisions that
-	// arrived with the content they judge can resolve their rows and project
-	// their status. A malformed payload fails the push — decisions are
-	// authored state, and dropping them silently is the exact failure shape
-	// this protocol keeps having to confess. A store without the ledger
-	// capability skips with a log line rather than failing content it can
-	// otherwise apply.
+	// A malformed decisions payload fails the push — decisions are authored
+	// state, and dropping them silently is the exact failure shape this protocol
+	// keeps having to confess. A payload that decodes to nothing, on the other
+	// hand, is not a decisions write at all: everything downstream keys on the
+	// decoded records rather than the raw bytes, which is what stops a JSON
+	// `null` — four bytes of nothing — from asserting a component this push
+	// never touches.
 	var decisions []venue.UnitDecision
 	if len(manifest.Decisions) > 0 {
 		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
@@ -319,38 +243,45 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			return fmt.Errorf("parse manifest decisions: %w", err)
 		}
 	}
-	// A payload that decodes to nothing is not a decisions write. Keying the
-	// work on the decoded records rather than on the raw bytes is what stops a
-	// JSON `null` — four bytes of nothing — from asserting a component this
-	// push never touches.
+
+	// 3. Apply the whole transition on one transaction. Blocks, items, the
+	// prune and the decisions ledger land together or not at all; a worker that
+	// dies partway leaves the project exactly as the push found it.
+	applier, ok := deps.ContentStore.(store.PushApplyStore)
+	if !ok {
+		err := errors.New("sync: this content store cannot apply a push atomically")
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
+	var outcome *pushOutcome
+	if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
+		var aerr error
+		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
+			staged, manifest.ItemBlocks, decisions, manifest.ExpectedRef)
+		return aerr
+	}); err != nil {
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
+	totalStored := outcome.Stored
+	allItemNames := outcome.ItemNames
+	if outcome.Decisions > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Recorded %d decision(s) in the ledger", outcome.Decisions), nil)
+	}
+
+	// The corpus follows the decisions, once they have committed: approvals
+	// promote their wording into the content memory, rejections evict it. The
+	// content memory is a different store, so it cannot join the transition —
+	// which is why it runs after it rather than inside it, and why the full
+	// decision set is passed rather than only the changed records. Promotion is
+	// idempotent, and a replay must be able to heal a memory that was reset
+	// independently of the ledger.
 	if len(decisions) > 0 {
-		if ds, ok := deps.ContentStore.(store.DecisionStore); ok {
-			if err := assertDecisionsRef(ctx, ds, projectID, stream, manifest.ExpectedRef); err != nil {
-				markJobFailed(ctx, deps, job.ID, err.Error())
-				return err
-			}
-			applied, derr := ds.UpsertUnitDecisions(ctx, projectID, stream, decisions)
-			if derr != nil {
-				markJobFailed(ctx, deps, job.ID, derr.Error())
-				return derr
-			}
-			if applied > 0 {
-				emitLog(deps, job.StepID, "info",
-					fmt.Sprintf("Recorded %d decision(s) in the ledger", applied), nil)
-			}
-			// The corpus follows the decisions: approvals promote their
-			// wording into the content memory, rejections evict it. The full
-			// set is passed rather than only the changed records — promotion
-			// is idempotent, and a replay must be able to heal a memory that
-			// was reset independently of the ledger.
-			if promotedN, evictedN := PromoteDecisionsToMemory(ctx, deps.ContentStore, seedMemory,
-				projectID, stream, sourceLocale, decisions); promotedN+evictedN > 0 {
-				emitLog(deps, job.StepID, "info",
-					fmt.Sprintf("Content memory followed the decisions: %d promoted, %d evicted", promotedN, evictedN), nil)
-			}
-		} else {
-			slog.Warn("decisions arrived but the content store keeps no ledger; skipped",
-				"project_id", projectID, "decisions", len(decisions))
+		if promotedN, evictedN := PromoteDecisionsToMemory(ctx, deps.ContentStore, seedMemory,
+			projectID, stream, sourceLocale, decisions); promotedN+evictedN > 0 {
+			emitLog(deps, job.StepID, "info",
+				fmt.Sprintf("Content memory followed the decisions: %d promoted, %d evicted", promotedN, evictedN), nil)
 		}
 	}
 
@@ -472,159 +403,6 @@ func sampleItemNames(names []string, n int) []string {
 	return names[:n]
 }
 
-// processBlockChunk converts SyncBlocks to model.Blocks and stores them.
-// Blocks with ExpectedHash set are checked for optimistic concurrency conflicts.
-func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta, declaredProperties []string) (int, []string, error) {
-	// Check expected_hash conflict detection (optimistic concurrency). A block
-	// that came out of this store names its row directly (sb.Id is the stored
-	// row id — what a pull handed the client); one read from a local file
-	// carries its durable identity in sb.Name (source_id, the structural name).
-	// Both joins are checked: matching only the row id went permanently silent
-	// when the store moved to durable keying, and matching only the durable key
-	// would orphan every hash a pull-based editor holds. One stored-block load
-	// per item.
-	type expectedRef struct{ byRowID, byKey, hash string }
-	conflictItems := map[string][]expectedRef{}
-	for _, sb := range chunk.Blocks {
-		if sb.ExpectedHash == "" {
-			continue
-		}
-		conflictItems[sb.ItemName] = append(conflictItems[sb.ItemName],
-			expectedRef{byRowID: sb.Id, byKey: sb.Name, hash: sb.ExpectedHash})
-	}
-	for itemName, expected := range conflictItems {
-		storedRows, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
-			ProjectID: projectID, Stream: stream, ItemName: itemName,
-		})
-		if err != nil {
-			continue // Item doesn't exist yet — no conflict.
-		}
-		byRowID := map[string]string{}
-		byKey := map[string]string{}
-		for _, row := range storedRows {
-			byRowID[row.ID] = row.ContentHash
-			if row.SourceID != "" {
-				byKey[row.SourceID] = row.ContentHash
-			}
-		}
-		for _, exp := range expected {
-			current, found := byRowID[exp.byRowID]
-			if !found && exp.byKey != "" {
-				current, found = byKey[exp.byKey]
-			}
-			if !found {
-				continue // Block doesn't exist yet — no conflict.
-			}
-			if current != exp.hash {
-				return 0, nil, fmt.Errorf("conflict on block %s in %s: expected hash %s but current is %s",
-					exp.byRowID, itemName, exp.hash, current)
-			}
-		}
-	}
-
-	// Group blocks by item.
-	itemGroups := map[string][]*model.Block{}
-	for _, sb := range chunk.Blocks {
-		b, err := venue.ProtoToBlock(sb)
-		if err != nil {
-			return 0, nil, fmt.Errorf("decode block %s in %s: %w", sb.Id, sb.ItemName, err)
-		}
-		itemGroups[sb.ItemName] = append(itemGroups[sb.ItemName], b)
-	}
-
-	stored := 0
-	var itemNames []string
-	for itemName, blocks := range itemGroups {
-		if itemName != "" {
-			keepUndeclaredProperties(ctx, deps, projectID, stream, itemName, blocks, declaredProperties)
-			if err := deps.ContentStore.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
-				return stored, itemNames, fmt.Errorf("store blocks for %s: %w", itemName, err)
-			}
-			// Ensure item exists with rich metadata.
-			item := &store.Item{
-				Name:     itemName,
-				Format:   "json", // default
-				ItemType: "file",
-			}
-			if src := itemSourcePath(blocks); src != "" {
-				item.Properties = map[string]string{store.ItemPropSourcePath: src}
-			}
-			if meta, ok := itemMetas[itemName]; ok {
-				if meta.Format != "" {
-					item.Format = meta.Format
-				}
-				item.BlockIndex = meta.BlockIndexJson
-				item.PreviewHTML = meta.PreviewHtml
-				if meta.Collection != "" {
-					// The collection this item belongs to was reconciled before
-					// the chunks were stored, precisely so this lookup finds it.
-					// When it does not, the item does NOT stay outside every
-					// collection: an item stored with no collection id falls to
-					// the project's default collection, which every project
-					// created through the API has (#1786). So the named
-					// collection's coordinates, voice and gates do not apply —
-					// and the default collection's bindings do, to content that
-					// was never authored under them.
-					//
-					// The fallback is resolved here rather than left to the
-					// store, so the warning names the collection the item
-					// actually landed in instead of describing an outcome the
-					// store does not produce. Only a project with no default
-					// collection leaves the item genuinely ungrouped.
-					//
-					// The fallback applies to an item with no binding yet. An
-					// item this push already found filed under a collection
-					// keeps that binding: a lookup that failed once is not a
-					// decision to regroup content, and a re-push that resolved
-					// the default here would move the item into it (#1840).
-					coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, meta.Collection, stream)
-					switch {
-					case err == nil && coll != nil:
-						item.CollectionID = coll.ID
-					default:
-						existing, exErr := deps.ContentStore.GetItem(ctx, projectID, stream, itemName)
-						if exErr == nil && existing != nil && existing.CollectionID != "" {
-							item.CollectionID = existing.CollectionID
-							slog.Warn("pushed item could not be bound to the collection its meta names; it keeps the collection it is already filed under, so that collection's governance goes on applying to it and the named one's does not",
-								"project_id", projectID, "stream", stream,
-								"item", itemName, "collection", meta.Collection,
-								"kept_collection_id", existing.CollectionID, "error", err)
-						} else if fallback, fbErr := deps.ContentStore.GetDefaultCollection(ctx, projectID); fbErr == nil && fallback != nil {
-							item.CollectionID = fallback.ID
-							slog.Warn("pushed item could not be bound to its collection; it falls to the project's default collection, so the named collection's governance does not apply to it and the default collection's does",
-								"project_id", projectID, "stream", stream,
-								"item", itemName, "collection", meta.Collection,
-								"default_collection", fallback.Name, "error", err)
-						} else {
-							slog.Warn("pushed item could not be bound to its collection and the project has no default collection; it is stored ungrouped, so no collection's governance applies to it",
-								"project_id", projectID, "stream", stream,
-								"item", itemName, "collection", meta.Collection,
-								"error", err, "default_collection_error", fbErr)
-						}
-					}
-				}
-			}
-			if err := deps.ContentStore.StoreItem(ctx, projectID, stream, item); err != nil {
-				return stored, itemNames, fmt.Errorf("store item %s: %w", itemName, err)
-			}
-			itemNames = append(itemNames, itemName)
-		} else {
-			if err := deps.ContentStore.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
-				return stored, itemNames, fmt.Errorf("store blocks: %w", err)
-			}
-		}
-		stored += len(blocks)
-
-		// Pushed targets do NOT seed the content memory. Transport moves
-		// content; it does not approve it. The corpus has one door in —
-		// wording a decision approved (PromoteDecisionsToMemory, below) — so
-		// nothing a push carried can be offered back as approved wording
-		// merely for having traveled.
-	}
-
-	return stored, itemNames, nil
-}
-
 // itemSourcePath is the file an item's content was lifted out of, when every
 // block it holds agrees on one.
 //
@@ -682,24 +460,35 @@ func itemSourcePath(blocks []*model.Block) string {
 // left entirely alone. An item present with an empty set IS an answer: its last
 // translatable string was deleted, which is the case this exists for.
 //
-// A failure here is logged and not fatal. The content of the push has already
-// landed and is correct; what has not happened is the removal of content that is
-// merely stale, and failing the whole job over that would reject a good write to
-// avoid an outdated row. The next push declares the same thing and tries again.
-func pruneDeclaredItems(ctx context.Context, deps *WorkerDeps, job *TranslationJob, projectID, stream string, itemBlocks map[string][]string) {
-	if len(itemBlocks) == 0 || deps.ContentStore == nil {
-		return
+// A failure here fails the push. Inside one transition the prune is not a
+// separate, lesser write it could be skipped in favour of: the blocks this push
+// carried and the blocks it removed are one statement about what the source now
+// holds, and landing half of it is what this design exists to stop. The client
+// retries and declares the same thing again.
+func pruneDeclaredItems(
+	ctx context.Context,
+	tx store.PushApplier,
+	deps *WorkerDeps,
+	job *TranslationJob,
+	projectID, stream string,
+	itemBlocks map[string][]string,
+) (int, error) {
+	if len(itemBlocks) == 0 {
+		return 0, nil
 	}
-	pruned, items := 0, 0
-	for itemName, keep := range itemBlocks {
-		if itemName == "" {
-			continue
+	names := make([]string, 0, len(itemBlocks))
+	for itemName := range itemBlocks {
+		if itemName != "" {
+			names = append(names, itemName)
 		}
-		n, err := deps.ContentStore.PruneItemBlocks(ctx, projectID, stream, itemName, keep)
+	}
+	sort.Strings(names)
+
+	pruned, items := 0, 0
+	for _, itemName := range names {
+		n, err := tx.PruneItemBlocks(ctx, projectID, stream, itemName, itemBlocks[itemName])
 		if err != nil {
-			slog.Warn("pushed item could not be pruned of the blocks its source no longer has; the content this push carried is stored, and the stale blocks stay until a later push removes them",
-				"project_id", projectID, "stream", stream, "item", itemName, "error", err)
-			continue
+			return 0, fmt.Errorf("prune item %s of the blocks its source no longer has: %w", itemName, err)
 		}
 		if n > 0 {
 			pruned += n
@@ -710,6 +499,7 @@ func pruneDeclaredItems(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Removed %d block(s) across %d item(s) the source no longer has", pruned, items), nil)
 	}
+	return pruned, nil
 }
 
 // keepUndeclaredProperties carries forward the block properties a stored row

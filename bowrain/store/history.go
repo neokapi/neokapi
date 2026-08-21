@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -15,7 +14,7 @@ import (
 // loadOldTargetText batch-loads the current target text for a set of blocks,
 // keyed by block ID then variant text. Used before an upsert to detect target
 // changes for block_history.
-func loadOldTargetText(ctx context.Context, tx *sql.Tx, projectID, stream string, blockIDs []string) (map[string]map[string]string, error) {
+func loadOldTargetText(ctx context.Context, tx Runner, projectID, stream string, blockIDs []string) (map[string]map[string]string, error) {
 	out := map[string]map[string]string{}
 	if len(blockIDs) == 0 {
 		return out, nil
@@ -67,7 +66,7 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 // little behind its database and a restore reverts nothing, because every row
 // it should roll back looks older than the version being rolled back to; run it
 // ahead and the restore blanks targets that had content.
-func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target, now time.Time) error {
+func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target, now time.Time) error {
 	cc := ChangeContextFromContext(ctx)
 	for key, nt := range newTargets {
 		if nt == nil {

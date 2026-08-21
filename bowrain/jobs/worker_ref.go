@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -46,9 +45,17 @@ func assertContextRef(ctx context.Context, deps *WorkerDeps, projectID, stream s
 	return ref.Assert(ref.ComponentContext, expected.Context, current)
 }
 
+// decisionLedgerReader is the one verb the assertion needs. Narrowing to it is
+// what lets a push assert through the transaction it is about to write in —
+// making the check a compare-and-swap — while a caller outside a transition
+// passes the store.
+type decisionLedgerReader interface {
+	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)
+}
+
 // assertDecisionsRef refuses a decisions upsert whose asserted decisions
 // component no longer matches the ledger.
-func assertDecisionsRef(ctx context.Context, ds store.DecisionStore, projectID, stream string, expected ref.Ref) error {
+func assertDecisionsRef(ctx context.Context, ds decisionLedgerReader, projectID, stream string, expected ref.Ref) error {
 	if expected.Decisions == "" {
 		return nil
 	}
