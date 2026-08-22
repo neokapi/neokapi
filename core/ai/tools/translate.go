@@ -28,10 +28,14 @@ type AITranslateTool struct {
 	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
-	glossary     map[string]string
-	dnt          []string // do-not-translate terms; masked before the model, restored after
-	voiceGuide   string   // compact voice profile guidance injected into every prompt
-	instruction  string   // caller-supplied directive injected into every prompt
+	// termMap is the configured term rules projected to term→replacement, the
+	// shape the prompt's terminology section renders. The projection happens once
+	// here rather than per prompt, because the same map feeds the context
+	// fingerprint and the two must not diverge.
+	termMap     map[string]string
+	dnt         []string // do-not-translate terms; masked before the model, restored after
+	voiceGuide  string   // compact voice profile guidance injected into every prompt
+	instruction string   // caller-supplied directive injected into every prompt
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
 	// guidance itself is rendered once and the profile discarded, so these are
@@ -92,12 +96,16 @@ const (
 // Fields are exposed as CLI flags via schema tags and as flow config
 // via json tags.
 type AITranslateConfig struct {
-	SourceLocale   model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
-	TargetLocale   model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
-	Provider       string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey         string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
-	Model          string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
-	PreferredTerms map[string]string `json:"preferred_terms,omitempty"     schema:"-"`
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model        string         `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	// TermRules are the terminology constraints governing this translation: for
+	// each, when the source says Term the target should say Replacement. The
+	// same shape a voice profile's vocabulary uses, so one set of rules can be
+	// rendered into the prompt here and checked by term-check afterwards.
+	TermRules []coreprofile.TermRule `json:"term_rules,omitempty" schema:"-"`
 	// Instruction is a directive applied while translating, rendered into the
 	// prompt's Instruction section. It is the supported way to steer a
 	// translation without replacing the prompt: "Informal register", "keep
@@ -115,7 +123,7 @@ type AITranslateConfig struct {
 
 	// DNT are do-not-translate terms (product names, trademarks, code
 	// identifiers) that must survive VERBATIM into the target — the enforced
-	// counterpart of the advisory Glossary. Where the glossary only asks the
+	// counterpart of the advisory TermRules. Where a term rule only asks the
 	// model to prefer a rendering, DNT LOCKS the span: each occurrence in the
 	// source is masked with a sentinel placeholder before the model sees it and
 	// restored to the exact original after, so the term cannot be translated,
@@ -245,7 +253,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
-		glossary:     cfg.PreferredTerms,
+		termMap:      coreprofile.TermRuleMap(cfg.TermRules),
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
@@ -254,7 +262,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
 	}
-	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
+	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
 	}
@@ -321,7 +329,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 // result and are excluded.
 //
 // Everything prompt-shaped — the task and constraint wording, the instruction,
-// the voice profile guidance, the glossary, the locales — enters through the
+// the voice profile guidance, the term rules, the locales — enters through the
 // prompt builder's own Fingerprint, hashed from the text it actually renders.
 // Listing those inputs here by hand would mean that rewording a prompt (which
 // changes output) left the fingerprint untouched, and cached targets produced by
@@ -332,7 +340,7 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 		TargetLocale:   cfg.TargetLocale,
 		Instruction:    cfg.Instruction,
 		VoiceGuide:     voiceGuide,
-		PreferredTerms: cfg.PreferredTerms,
+		PreferredTerms: coreprofile.TermRuleMap(cfg.TermRules),
 	}
 	// The context *policy* is part of the fingerprint: turning context on changes
 	// every prompt, so cached targets produced without it must not be served. The
@@ -660,7 +668,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.glossary,
+		PreferredTerms: t.termMap,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		BlockContext:   t.contextFor(v.ID(), v.Name()),
@@ -751,7 +759,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.glossary,
+		PreferredTerms: t.termMap,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
@@ -1123,7 +1131,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	p := prompt.Translate{
 		SourceLocale:   t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.glossary,
+		PreferredTerms: t.termMap,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 	}

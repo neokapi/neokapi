@@ -262,12 +262,12 @@ func (c *contextFingerprints) at(point project.GovernancePoint, locale string) (
 	if !found {
 		p = nil
 	}
-	glossary, err := c.app.ResolveProjectPreferredTermsFor(c.cmd, locale, point)
+	rules, err := c.app.ResolveTermRulesFor(c.cmd, locale, point)
 	if err != nil {
 		return governingContext{}, err
 	}
 
-	id, version, fingerprint := coreprofile.GovernanceContext(p, PreferredTermMap(glossary))
+	id, version, fingerprint := coreprofile.GovernanceContext(p, rules)
 	g := governingContext{fingerprint: fingerprint, profileID: id, profileVersion: version}
 	c.cache[key] = g
 	return g, nil

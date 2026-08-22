@@ -106,7 +106,7 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	assert.Contains(t, guide, "personality: friendly")
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, `"utilize" → "use"`)
-	assert.Equal(t, map[string]string{"dashboard": "tableau de bord"}, cfg.PreferredTerms)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord"}}, cfg.TermRules)
 
 	// And the full worker path completes a demo translation with them bound.
 	require.NoError(t, js.CreateJob(ctx, job))
@@ -144,5 +144,5 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	bareJob := &TranslationJob{ID: "job-bare", WorkspaceSlug: "no-terms", ProjectID: bareID, TargetLocale: "fr"}
 	bareCfg := jobTranslateConfig(ctx, deps, bareJob, bareProj)
 	assert.Nil(t, bareCfg.Profile, "no binding at any rung → no profile")
-	assert.Nil(t, bareCfg.PreferredTerms, "no terminology for the pair → no glossary")
+	assert.Nil(t, bareCfg.TermRules, "no terminology for the pair → no rules")
 }

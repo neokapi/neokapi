@@ -724,14 +724,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	limiter := resolved.Limiter
 
 	cfg := jobTranslateConfig(ctx, deps, job, proj)
-	if cfg.Profile != nil || len(cfg.PreferredTerms) > 0 {
+	if cfg.Profile != nil || len(cfg.TermRules) > 0 {
 		profileName := ""
 		if cfg.Profile != nil {
 			profileName = cfg.Profile.Name
 		}
 		emitLog(deps, job.StepID, "info",
-			fmt.Sprintf("Applying brand context: voice=%q, glossary terms=%d", profileName, len(cfg.PreferredTerms)),
-			map[string]string{"brand_voice": profileName, "glossary_terms": strconv.Itoa(len(cfg.PreferredTerms))})
+			fmt.Sprintf("Applying context: voice=%q, term rules=%d", profileName, len(cfg.TermRules)),
+			map[string]string{"voice": profileName, "term_rules": strconv.Itoa(len(cfg.TermRules))})
 	}
 	translateTool := tools.NewAITranslateTool(prov, cfg)
 
@@ -997,7 +997,7 @@ func estimateTokens(blocks []*venue.StoredBlock) int {
 // jobTranslateConfig builds the AI translate tool config for a translation
 // job. Beyond the locale/batching plumbing, it binds the project's standing
 // brand context — the resolved voice profile and the per-locale
-// terminology glossary — so every server-side AI translation carries the same
+// term rules — so every server-side AI translation carries the same
 // guidance the CLI flow injects via ApplyProjectBindings. Both bindings are
 // best-effort: absence or a resolution failure leaves the corresponding field
 // unset and the job runs bare.
@@ -1022,10 +1022,10 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Voice → prompt guidance, resolved through the platform's
 		// binding ladder (collection → stream → project → workspace default).
 		Profile: resolveJobVoiceProfile(ctx, deps, job),
-		// Terminology → the advisory glossary section of the prompt, so the
+		// Terminology → the advisory term-rule section of the prompt, so the
 		// model is told the mandated renderings at generation time instead of
 		// term-check only flagging them afterwards.
-		PreferredTerms: resolveJobPreferredTerms(ctx, deps, job, srcLocale, tgtLocale),
+		TermRules: resolveJobTermRules(ctx, deps, job, srcLocale, tgtLocale),
 		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
 		// masks each protected span before the model and restores it verbatim
 		// after, so a product name / trademark / code identifier cannot be

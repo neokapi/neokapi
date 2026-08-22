@@ -122,15 +122,15 @@ type MemoryLeverageConfig struct {
 	// approval nearest here rather than to the one the corpus repeats most.
 	Point string `json:"point,omitempty" schema:"-"`
 
-	// Profile and Glossary carry the context governing the collection, injected
+	// Profile and TermRules carry the context governing the collection, injected
 	// by the flow's bindings. Recycling consults neither for matching, but a
 	// filled target is stamped with them so a recycled target is as attributable
 	// as a freshly translated one. See recycleOrigin for the fill-time decision.
-	Profile        *coreprofile.VoiceProfile `json:"-" schema:"-"`
-	PreferredTerms map[string]string         `json:"preferred_terms,omitempty" schema:"-"`
+	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 
-	// Governing context resolved once at construction from Profile + Glossary and
-	// stamped onto every filled target's Origin.
+	// Governing context resolved once at construction from Profile + TermRules
+	// and stamped onto every filled target's Origin.
 	profileID      string
 	profileVersion string
 	contextFP      string
@@ -176,7 +176,7 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.DowngradeIdenticalBestMatches = false
 	c.Point = ""
 	c.Profile = nil
-	c.PreferredTerms = nil
+	c.TermRules = nil
 	c.profileID = ""
 	c.profileVersion = ""
 	c.contextFP = ""
@@ -234,7 +234,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		cfg.FillTarget = true
 		cfg.FillTargetThreshold = 0 // 0 means accept any score
 	}
-	cfg.profileID, cfg.profileVersion, cfg.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
+	cfg.profileID, cfg.profileVersion, cfg.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 
 	t := &tool.BaseTool{
 		ToolName:        "recycle",

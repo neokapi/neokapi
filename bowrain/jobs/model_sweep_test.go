@@ -27,8 +27,8 @@ func sweepTestContext() *SweepContext {
 				ForbiddenTerms:  []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 			},
 		},
-		Glossary: map[string]string{"save": "enregistrer"},
-		DNT:      []string{"Kapiflow"},
+		TermRules: []coreprofile.TermRule{{Term: "save", Replacement: "enregistrer"}},
+		DNT:       []string{"Kapiflow"},
 	}
 }
 
@@ -49,7 +49,7 @@ func TestDeriveSweepFixtures_TrapClassificationAndDeterminism(t *testing.T) {
 	for _, f := range fixtures {
 		byID[f.BlockID] = f
 	}
-	assert.Equal(t, "glossary", byID["b1"].Trap)
+	assert.Equal(t, "terms", byID["b1"].Trap)
 	assert.Equal(t, "voice", byID["b2"].Trap)
 	assert.Equal(t, "dnt", byID["b4"].Trap)
 	assert.Equal(t, "voice", byID["b5"].Trap)
@@ -74,7 +74,7 @@ func TestDeriveSweepFixtures_CapsAtBudget(t *testing.T) {
 	assert.Len(t, fixtures, maxSweepFixtures,
 		"a project rich in one trap kind refills spare capacity up to the budget")
 	for _, f := range fixtures {
-		assert.Equal(t, "glossary", f.Trap)
+		assert.Equal(t, "terms", f.Trap)
 	}
 }
 
@@ -97,19 +97,19 @@ func TestDeriveSweepFixtures_QuotasBalanceMixedTraps(t *testing.T) {
 	}
 	assert.Equal(t, sweepDNTQuota, byTrap["dnt"],
 		"the DNT quota is reserved even when earlier-sorting glossary traps abound")
-	assert.Equal(t, maxSweepFixtures-sweepDNTQuota, byTrap["glossary"],
+	assert.Equal(t, maxSweepFixtures-sweepDNTQuota, byTrap["terms"],
 		"glossary refills the remaining budget")
 }
 
 func TestSweepFixtureDigest_SensitiveToContentAndContext(t *testing.T) {
 	sc := sweepTestContext()
-	fixtures := []SweepFixture{{BlockID: "b1", SourceText: "Save your work", Trap: "glossary"}}
+	fixtures := []SweepFixture{{BlockID: "b1", SourceText: "Save your work", Trap: "terms"}}
 
 	base := SweepFixtureDigest("p1", "fr", fixtures, sc)
 	assert.Equal(t, base, SweepFixtureDigest("p1", "fr", fixtures, sc), "digest must be deterministic")
 
 	// Content change → new digest.
-	changed := []SweepFixture{{BlockID: "b1", SourceText: "Save your work twice", Trap: "glossary"}}
+	changed := []SweepFixture{{BlockID: "b1", SourceText: "Save your work twice", Trap: "terms"}}
 	assert.NotEqual(t, base, SweepFixtureDigest("p1", "fr", changed, sc))
 
 	// Profile version bump → new digest.
@@ -119,7 +119,7 @@ func TestSweepFixtureDigest_SensitiveToContentAndContext(t *testing.T) {
 
 	// Terms-derived glossary change → new digest.
 	sc3 := sweepTestContext()
-	sc3.Glossary["dashboard"] = "tableau de bord"
+	sc3.TermRules = append(sc3.TermRules, coreprofile.TermRule{Term: "dashboard", Replacement: "tableau de bord"})
 	assert.NotEqual(t, base, SweepFixtureDigest("p1", "fr", fixtures, sc3))
 
 	// Locale is part of the key.

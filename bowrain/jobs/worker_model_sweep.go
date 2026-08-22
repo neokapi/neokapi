@@ -160,14 +160,14 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 		}
 		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
 
-		// Arm 1 — full context: the project's voice profile, glossary, and
+		// Arm 1 — full context: the project's voice profile, term rules, and
 		// enforced DNT terms, exactly as jobTranslateConfig binds them.
 		ctxArm, ctxTokens, err := runSweepArm(ctx, prov, limiter, fixtures, aitools.AITranslateConfig{
-			SourceLocale:   srcLocale,
-			TargetLocale:   tgtLocale,
-			Profile:        sc.Profile,
-			PreferredTerms: sc.Glossary,
-			DNT:            sc.DNT,
+			SourceLocale: srcLocale,
+			TargetLocale: tgtLocale,
+			Profile:      sc.Profile,
+			TermRules:    sc.TermRules,
+			DNT:          sc.DNT,
 		}, tgtLocale, sc)
 		if err != nil {
 			return fmt.Errorf("model %q context arm: %w", candidate, err)

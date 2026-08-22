@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,8 +13,8 @@ import (
 func TestTermCheckToolPass(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		PreferredTerms: []tools.PreferredTermPair{
-			{Source: "Save", Target: "Sauvegarder"},
+		TermRules: []coreprofile.TermRule{
+			{Term: "Save", Replacement: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
 	}
@@ -33,8 +34,8 @@ func TestTermCheckToolPass(t *testing.T) {
 func TestTermCheckToolFail(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		PreferredTerms: []tools.PreferredTermPair{
-			{Source: "Save", Target: "Sauvegarder"},
+		TermRules: []coreprofile.TermRule{
+			{Term: "Save", Replacement: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
 	}
@@ -53,8 +54,8 @@ func TestTermCheckToolFail(t *testing.T) {
 func TestTermCheckToolCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		PreferredTerms: []tools.PreferredTermPair{
-			{Source: "save", Target: "sauvegarder"},
+		TermRules: []coreprofile.TermRule{
+			{Term: "save", Replacement: "sauvegarder"},
 		},
 		TargetLocale:  model.LocaleFrench,
 		CaseSensitive: false,
@@ -73,8 +74,8 @@ func TestTermCheckToolCaseInsensitive(t *testing.T) {
 func TestTermCheckToolNoTarget(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		PreferredTerms: []tools.PreferredTermPair{
-			{Source: "Save", Target: "Sauvegarder"},
+		TermRules: []coreprofile.TermRule{
+			{Term: "Save", Replacement: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
 	}
@@ -98,17 +99,17 @@ func TestTermCheckConfigValidation(t *testing.T) {
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
-	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "", Target: "x"}}
+	cfg.TermRules = []coreprofile.TermRule{{Term: "", Replacement: "x"}}
 	err = cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "empty source")
+	assert.Contains(t, err.Error(), "has no term")
 
-	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "x", Target: ""}}
+	cfg.TermRules = []coreprofile.TermRule{{Term: "x", Replacement: ""}}
 	err = cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "empty target")
+	assert.Contains(t, err.Error(), "has no replacement")
 
-	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "Save", Target: "Sauvegarder"}}
+	cfg.TermRules = []coreprofile.TermRule{{Term: "Save", Replacement: "Sauvegarder"}}
 	err = cfg.Validate()
 	require.NoError(t, err)
 }

@@ -817,28 +817,27 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 }
 
 // editorVoiceContext bundles the optional stores the synchronous editor
-// translate path uses to bind the project's standing brand context — the brand
-// voice profile and the terminology glossary — mirroring the worker's
-// WorkerDeps brand fields (jobs/brand_context.go). Every field is optional: a
-// zero value translates bare, exactly as before.
+// translate path uses to bind the project's standing context — the voice
+// profile and the term rules — mirroring the worker's WorkerDeps context fields
+// (jobs/voice_context.go). Every field is optional: a zero value translates
+// bare, exactly as before.
 type editorVoiceContext struct {
-	// Brand reads voice profiles. Nil translates without voice.
-	Brand coreprofile.Store
+	// Voice reads voice profiles. Nil translates without voice.
+	Voice coreprofile.Store
 	// WorkspaceDefault resolves the workspace-level default voice
 	// profile — the base rung of the voicescope resolution ladder. Nil skips
 	// the workspace rung.
 	WorkspaceDefault voicescope.WorkspaceDefault
-	// Stores yields the per-workspace terms the glossary derives from. Nil
-	// translates without a glossary.
+	// Stores yields the per-workspace terms the rules derive from. Nil
+	// translates without terminology.
 	Stores *workspaceStores
 }
 
 // editorTranslateConfig builds the AI translate tool config for the
-// interactive editor path, binding the same standing brand context the worker
-// binds via jobTranslateConfig (jobs/worker.go): the voice profile
-// resolved through the voicescope ladder, the per-locale terminology glossary
-// from the workspace terms, and the project's do-not-translate terms from
-// settings. All bindings are best-effort — absence or a resolution failure
+// interactive editor path, binding the same standing context the worker binds
+// via jobTranslateConfig (jobs/worker.go): the voice profile resolved through
+// the voicescope ladder, the per-locale term rules from the workspace terms,
+// and the project's do-not-translate terms from settings. All bindings are best-effort — absence or a resolution failure
 // leaves the field unset and the translation runs bare, never fails.
 func editorTranslateConfig(
 	ctx context.Context,
@@ -857,10 +856,10 @@ func editorTranslateConfig(
 	// Voice → prompt guidance, resolved through the platform's binding
 	// ladder (collection → stream → project → workspace default).
 	cfg.Profile = editorVoiceProfile(ctx, cs, voiceCtx, workspaceID, projectID, stream, cfg.TargetLocale)
-	// Terminology → the advisory glossary section of the prompt, so the model
-	// is told the mandated renderings at generation time instead of
-	// term-enforce only flagging them afterwards.
-	cfg.PreferredTerms = editorPreferredTerms(ctx, voiceCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
+	// Terminology → the advisory term-rule section of the prompt, so the model
+	// is told the mandated renderings at generation time instead of term-check
+	// only flagging them afterwards.
+	cfg.TermRules = editorTermRules(ctx, voiceCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
 	// Do-not-translate terms are ENFORCED, not merely prompted: the tool masks
 	// each protected span before the model and restores it verbatim after, so a
 	// product name / trademark / code identifier cannot be translated. Sourced
@@ -884,10 +883,10 @@ func editorVoiceProfile(
 	workspaceID, projectID, stream string,
 	targetLocale model.LocaleID,
 ) *coreprofile.VoiceProfile {
-	if voiceCtx.Brand == nil {
+	if voiceCtx.Voice == nil {
 		return nil
 	}
-	profile, err := voicescope.Resolve(ctx, cs, voiceCtx.WorkspaceDefault, voiceCtx.Brand, voicescope.Scope{
+	profile, err := voicescope.Resolve(ctx, cs, voiceCtx.WorkspaceDefault, voiceCtx.Voice, voicescope.Scope{
 		WorkspaceID: workspaceID,
 		ProjectID:   projectID,
 		Stream:      stream,
@@ -901,35 +900,35 @@ func editorVoiceProfile(
 	return profile
 }
 
-// editorPreferredTerms builds the source→target glossary for an editor translation
-// from the workspace terms, sharing the derivation with the worker
-// (jobs.PreferredTermsFromConcepts) so both surfaces mandate identical renderings.
-// Returns nil (and logs) when no terms resolves or a read fails:
+// editorTermRules builds the term rules for an editor translation from the
+// workspace terms, sharing the derivation with the worker
+// (jobs.TermRulesFromConcepts) so both surfaces mandate identical renderings.
+// Returns nil (and logs) when no terms store resolves or a read fails:
 // terminology must never fail an interactive translation.
-func editorPreferredTerms(
+func editorTermRules(
 	ctx context.Context,
 	voiceCtx editorVoiceContext,
 	workspaceSlug, projectID string,
 	sourceLocale, targetLocale model.LocaleID,
-) map[string]string {
+) []coreprofile.TermRule {
 	if voiceCtx.Stores == nil || workspaceSlug == "" || sourceLocale == "" || targetLocale == "" {
 		return nil
 	}
 	tb, err := voiceCtx.Stores.getTerms(workspaceSlug)
 	if err != nil || tb == nil {
 		if err != nil {
-			slog.WarnContext(ctx, "terms resolution failed; translating without glossary",
+			slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
 				"workspace", workspaceSlug, "error", err)
 		}
 		return nil
 	}
-	glossary, err := jobs.PreferredTermsFromConcepts(ctx, tb, projectID, sourceLocale, targetLocale)
+	rules, err := jobs.TermRulesFromConcepts(ctx, tb, projectID, sourceLocale, targetLocale)
 	if err != nil {
-		slog.WarnContext(ctx, "terms read failed; translating without glossary",
+		slog.WarnContext(ctx, "terms read failed; translating without terminology",
 			"workspace", workspaceSlug, "error", err)
 		return nil
 	}
-	return glossary
+	return rules
 }
 
 // editorAITranslate translates blocks using an AI provider.
@@ -941,8 +940,8 @@ func editorPreferredTerms(
 // platform path and any bring-your-own path RECORD ai_usage (the monthly abuse
 // cap must see all traffic), while only the platform path DEDUCTS credits.
 //
-// The translate config carries the project's standing brand context (voice
-// profile + terminology glossary) via editorTranslateConfig, so an interactive
+// The translate config carries the project's standing context (voice profile +
+// term rules) via editorTranslateConfig, so an interactive
 // per-block translation gets the same guidance an async worker job does.
 func editorAITranslate(
 	ctx context.Context,
