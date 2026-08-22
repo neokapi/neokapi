@@ -165,7 +165,7 @@ func TestApproveAxis_NeedsManageVoice(t *testing.T) {
 
 	// requirePermission writes the 403 itself and returns the sentinel, so the
 	// handler's error is the denial rather than a failure to answer.
-	assert.ErrorIs(t, srv.HandleApproveAxis(c), errAccessDenied)
+	require.ErrorIs(t, srv.HandleApproveAxis(c), errAccessDenied)
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 	assert.Empty(t, changes.proposed)
 }
