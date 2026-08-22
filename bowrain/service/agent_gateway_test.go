@@ -68,7 +68,7 @@ func TestModePrefix(t *testing.T) {
 	}{
 		{mode: "ask", contains: "Mode: Ask"},
 		{mode: "coworker", contains: "Mode: Co-worker"},
-		{mode: "bravo", contains: "Mode: Brand Voice"},
+		{mode: "bravo", contains: "Mode: Voice"},
 		{mode: "", empty: true},
 		{mode: "unknown", empty: true},
 	}
@@ -96,9 +96,9 @@ func TestModePrefix_CoworkerFullAccess(t *testing.T) {
 	assert.Contains(t, prefix, "Confirm before any destructive")
 }
 
-func TestModePrefix_BravoBrandVoice(t *testing.T) {
+func TestModePrefix_BravoVoice(t *testing.T) {
 	prefix := modePrefix("bravo")
-	assert.Contains(t, prefix, "brand voice")
+	assert.Contains(t, prefix, "voice")
 	assert.Contains(t, prefix, "check_vocabulary")
 
 	// The prefix is prose the model reads, so the sentence that decides when
@@ -106,7 +106,7 @@ func TestModePrefix_BravoBrandVoice(t *testing.T) {
 	// keyword elsewhere in the prompt passes while this one is unreadable:
 	// a rename once turned "non-brand" into "ncompliant" here and every
 	// assertion above still held.
-	assert.Contains(t, prefix, "beyond brand voice scope (translate, manage files, run non-brand flows)")
+	assert.Contains(t, prefix, "beyond voice scope (translate, manage files, run non-brand flows)")
 	assert.Contains(t, prefix, `[STEP_UP:{"required_mode":"coworker"`)
 }
 

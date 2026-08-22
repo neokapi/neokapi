@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ConceptsSection } from "./ConceptsSection";
 import { ConceptStorySection } from "./ConceptStorySection";
-import { withContextHub } from "../../stories/brandHubFixtures";
+import { withContextHub } from "../../stories/voiceHubFixtures";
 
 // The R4 Concepts section, now built on the framework concept UI
 // (@neokapi/concept-ui) driven by a RestConceptDataSource over the mock

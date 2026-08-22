@@ -4,7 +4,7 @@ import {
   ProjectDetailSkeleton,
   EditorSkeleton,
   TablePageSkeleton,
-  BrandProfilesSkeleton,
+  VoiceProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
@@ -43,8 +43,8 @@ export const TablePage: Story = {
   render: () => <TablePageSkeleton />,
 };
 
-export const BrandProfiles: Story = {
-  render: () => <BrandProfilesSkeleton />,
+export const VoiceProfiles: Story = {
+  render: () => <VoiceProfilesSkeleton />,
 };
 
 export const Settings: Story = {

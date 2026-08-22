@@ -19,7 +19,7 @@ const STEPS: { at: number; label: string }[] = [
 ];
 
 /**
- * Progress view for a running brand scan: a bar plus the worker's milestone
+ * Progress view for a running context scan: a bar plus the worker's milestone
  * steps. Failures render the job error with an optional retry action.
  */
 export function ContextScanProgress({ job, onRetry }: ContextScanProgressProps) {

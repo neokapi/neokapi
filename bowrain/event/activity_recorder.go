@@ -176,11 +176,11 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "gate"
 		a.Summary = "quality gate failed"
 
-	// Brand voice
-	case platev.EventBrandVoiceDrift:
+	// Voice
+	case platev.EventVoiceDrift:
 		a.Type = bstore.ActivityVoiceDrift
 		a.EntityType = "brand"
-		a.Summary = "brand voice drift detected"
+		a.Summary = "voice drift detected"
 
 	// Versions
 	case platev.EventVersionCreated:

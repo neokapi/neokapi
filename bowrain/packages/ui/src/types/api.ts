@@ -1,6 +1,6 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
 import type { IOPort, Run, RunRange } from "@neokapi/contract-types";
-import type { BrandVoiceFinding, VoiceProfile } from "../brand/types";
+import type { VoiceFinding, VoiceProfile } from "../voice/types";
 export type { IOPort };
 
 /** User info from auth system */
@@ -216,7 +216,7 @@ export interface StreamInfo {
   created_at: string;
   created_by: string;
   shared_with?: string[];
-  /** Extensible metadata, e.g. the stream-level brand-voice binding under `voice_profile_id`. */
+  /** Extensible metadata, e.g. the stream-level voice binding under `voice_profile_id`. */
   properties?: Record<string, string>;
 }
 
@@ -249,7 +249,7 @@ export interface CreateStreamRequest {
   parent?: string;
   visibility?: StreamVisibility;
   description?: string;
-  /** Extensible metadata, e.g. `voice_profile_id` for the stream-level brand-voice binding. */
+  /** Extensible metadata, e.g. `voice_profile_id` for the stream-level voice binding. */
   properties?: Record<string, string>;
 }
 
@@ -1667,7 +1667,7 @@ export interface PendingReviewEntry {
    */
   term_compliance?: TermCompliance;
   /**
-   * The latest persisted brand voice score for this block+locale, and the
+   * The latest persisted voice score for this block+locale, and the
    * compliance bar of the profile that produced it. Absent together for a block
    * that has never been scored; the server applies no voice bar to one either.
    */
@@ -2337,7 +2337,7 @@ export const PERMISSION_LABELS: Record<PermissionName, string> = {
   manage_automation: "Manage automation",
   manage_members: "Manage members",
   manage_project: "Manage project",
-  manage_voice: "Manage brand voice",
+  manage_voice: "Manage voice",
   manage_assets: "Manage assets",
 };
 
@@ -2516,11 +2516,11 @@ export interface PostHogDemandResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Brand scan (AI brand onboarding — epic 016)
+// Context scan (AI brand onboarding — epic 016)
 // ---------------------------------------------------------------------------
 
 /**
- * Request body for POST /api/v1/{ws}/brand-scans. At least one source
+ * Request body for POST /api/v1/{ws}/context-scans. At least one source
  * (paste_text, urls, repo_url, or upload_keys) is required.
  */
 export interface ContextScanRequest {
@@ -2538,7 +2538,7 @@ export interface ContextScanRequest {
   domain?: string;
 }
 
-/** One stored upload from POST /api/v1/{ws}/brand-scans/uploads. */
+/** One stored upload from POST /api/v1/{ws}/context-scans/uploads. */
 export interface ContextScanUpload {
   key: string;
   filename: string;
@@ -2637,7 +2637,7 @@ export interface ContextScanDraft {
 
 export type ContextScanStatus = "queued" | "processing" | "completed" | "failed";
 
-/** State of a brand-scan job from GET /api/v1/{ws}/brand-scans/{id}. */
+/** State of a brand-scan job from GET /api/v1/{ws}/context-scans/{id}. */
 export interface ContextScanJob {
   id: string;
   status: ContextScanStatus;
@@ -2659,7 +2659,7 @@ export interface ContextScanApprovedTerm {
 }
 
 /**
- * The reviewed outcome of a brand scan: the edited draft profile and the
+ * The reviewed outcome of a context scan: the edited draft profile and the
  * candidate terms that survived review, applied in one transaction.
  */
 export interface ContextScanApproveRequest {
@@ -2691,10 +2691,10 @@ export interface ContextScanApproveResult {
 
 /** Result of the stateless draft check (live tester). */
 export interface ContextScanCheckResult {
-  /** core/brand.BrandComplianceScore — the roll-up plus per-dimension detail. */
+  /** core/profile.VoiceComplianceScore — the roll-up plus per-dimension detail. */
   score: { overall: number; dimensions?: unknown[]; word_count?: number };
   /** core/check.Finding, the same shape the profile check and stored scores emit. */
-  findings: BrandVoiceFinding[];
+  findings: VoiceFinding[];
 }
 
 /** The signed state that ties a GitHub App installation back to the workspace

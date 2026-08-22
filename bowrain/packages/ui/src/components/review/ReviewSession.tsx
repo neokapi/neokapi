@@ -20,7 +20,7 @@ import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw, FileText } from ".
 import { ReviewQueueList } from "./ReviewQueueList";
 import { FocusedReviewer, type ReviewerCompliance } from "./FocusedReviewer";
 import { MarkSourceTermDialog } from "./MarkSourceTermDialog";
-import { SuggestBrandRuleDialog } from "./SuggestBrandRuleDialog";
+import { SuggestVoiceRuleDialog } from "./SuggestVoiceRuleDialog";
 import { ProposeSourceChangeDialog } from "./ProposeSourceChangeDialog";
 import { SourceProposalsDialog } from "./SourceProposalsDialog";
 import { useSourceProposals } from "../../hooks/useSourceProposalsApi";
@@ -134,8 +134,8 @@ function skipReasons(result: ApprovePassingResult): string {
   return parts.length > 0 ? parts.join(", ") : "no reason given";
 }
 
-/** Resolve the bound brand profile from the active stream, if any. */
-function resolveBrandProfile(project: ProjectInfo, stream: string): string | undefined {
+/** Resolve the bound voice profile from the active stream, if any. */
+function resolveVoiceProfile(project: ProjectInfo, stream: string): string | undefined {
   const s = project.streams?.find((x) => x.name === stream);
   return s?.properties?.voice_profile_id || project.properties?.voice_profile_id || undefined;
 }
@@ -181,7 +181,7 @@ export function ReviewSession({
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
   const sourceLocale = project.default_source_language;
-  const brandProfileId = useMemo(() => resolveBrandProfile(project, stream), [project, stream]);
+  const voiceProfileId = useMemo(() => resolveVoiceProfile(project, stream), [project, stream]);
 
   const targetLocales = useMemo(() => project.target_languages ?? [], [project.target_languages]);
 
@@ -333,7 +333,7 @@ export function ReviewSession({
 
   // Dialog state for the source-side affordances.
   const [markTermText, setMarkTermText] = useState<string | null>(null);
-  const [brandRule, setBrandRule] = useState<{ original: string; blockId?: string } | null>(null);
+  const [voiceRule, setVoiceRule] = useState<{ original: string; blockId?: string } | null>(null);
   // Back-to-source review (RV-F): the block whose source is being proposed for a
   // change, and whether the source-owner review surface is open.
   const [proposeSource, setProposeSource] = useState<{
@@ -799,7 +799,7 @@ export function ReviewSession({
               editing={editing}
               busy={busy}
               reChecking={recheckingId === current.id}
-              brandProfileId={brandProfileId}
+              voiceProfileId={voiceProfileId}
               onApprove={approve}
               onReject={reject}
               onEditToggle={() => setEditing((v) => !v)}
@@ -807,11 +807,11 @@ export function ReviewSession({
               onCancelEdit={() => setEditing(false)}
               onReCheck={() => void recheck(current)}
               onMarkTerm={(text) => setMarkTermText(text)}
-              onSuggestBrandRule={(text) =>
-                setBrandRule({ original: text, blockId: current.block.id })
+              onSuggestVoiceRule={(text) =>
+                setVoiceRule({ original: text, blockId: current.block.id })
               }
               onMakeRule={() =>
-                setBrandRule({
+                setVoiceRule({
                   original: getTargetText(current.block, current.locale),
                   blockId: current.block.id,
                 })
@@ -866,15 +866,15 @@ export function ReviewSession({
         onDone={setMessage}
         onOpenChangeset={onOpenChangeset}
       />
-      {brandProfileId && (
-        <SuggestBrandRuleDialog
-          open={brandRule !== null}
-          onOpenChange={(o) => !o && setBrandRule(null)}
+      {voiceProfileId && (
+        <SuggestVoiceRuleDialog
+          open={voiceRule !== null}
+          onOpenChange={(o) => !o && setVoiceRule(null)}
           projectId={project.id}
           stream={stream}
-          profileId={brandProfileId}
-          initialOriginal={brandRule?.original ?? ""}
-          blockId={brandRule?.blockId}
+          profileId={voiceProfileId}
+          initialOriginal={voiceRule?.original ?? ""}
+          blockId={voiceRule?.blockId}
           onDone={setMessage}
         />
       )}

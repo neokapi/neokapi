@@ -165,11 +165,11 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
-  BrandRollup,
-  BrandRollupOptions,
-  BrandCorrectionRequest,
-  BrandCorrectionResult,
-} from "../brand/types";
+  VoiceRollup,
+  VoiceRollupOptions,
+  VoiceCorrectionRequest,
+  VoiceCorrectionResult,
+} from "../voice/types";
 import type {
   ListConceptsParams,
   ConceptStory,
@@ -1884,14 +1884,14 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async recordBrandCorrection(
+  async recordVoiceCorrection(
     workspaceSlug: string,
     projectId: string,
-    req: BrandCorrectionRequest,
+    req: VoiceCorrectionRequest,
     stream?: string,
-  ): Promise<BrandCorrectionResult> {
+  ): Promise<VoiceCorrectionResult> {
     return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref(stream)}/corrections`,
+      `${this.projectEp(workspaceSlug, projectId)}/voice/${this.ref(stream)}/corrections`,
       { method: "POST", body: JSON.stringify(req) },
     );
   }
@@ -1986,8 +1986,8 @@ export class RestApiAdapter implements ApiAdapter {
       body: JSON.stringify({ permissions }),
     });
   }
-  async demoteBrandRule(workspaceSlug: string, profileId: string, term: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/${workspaceSlug}/brand-profiles/${profileId}/demote-rule`, {
+  async demoteVoiceRule(workspaceSlug: string, profileId: string, term: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/voice-profiles/${profileId}/demote-rule`, {
       method: "POST",
       body: JSON.stringify({ term }),
     });
@@ -2584,14 +2584,14 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  // ── Brand Voice ──────────────────────────────────────────────────────────
+  // ── Voice ──────────────────────────────────────────────────────────
 
-  private brandEp(ws: string) {
-    return `/api/v1/${ws}/brand-profiles`;
+  private voiceEp(ws: string) {
+    return `/api/v1/${ws}/voice-profiles`;
   }
 
-  async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
-    return this.fetchJSON(this.brandEp(workspaceSlug));
+  async listVoiceProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
+    return this.fetchJSON(this.voiceEp(workspaceSlug));
   }
 
   async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
@@ -2616,49 +2616,45 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
-    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`);
+  async getVoiceProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
+    return this.fetchJSON(`${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}`);
   }
 
-  async createBrandProfile(
+  async createVoiceProfile(
     workspaceSlug: string,
     data: CreateVoiceProfileRequest,
   ): Promise<VoiceProfile> {
-    return this.fetchJSON(this.brandEp(workspaceSlug), {
+    return this.fetchJSON(this.voiceEp(workspaceSlug), {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async updateBrandProfile(
+  async updateVoiceProfile(
     workspaceSlug: string,
     data: UpdateVoiceProfileRequest,
   ): Promise<VoiceProfile> {
-    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(data.id)}`, {
+    return this.fetchJSON(`${this.voiceEp(workspaceSlug)}/${encodeURIComponent(data.id)}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
-  async deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void> {
-    await this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`, {
+  async deleteVoiceProfile(workspaceSlug: string, profileId: string): Promise<void> {
+    await this.fetchJSON(`${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}`, {
       method: "DELETE",
     });
   }
 
-  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/scores`,
-    );
+  async getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/voice/${this.ref()}/scores`);
   }
 
-  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/trends`,
-    );
+  async getVoiceTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/voice/${this.ref()}/trends`);
   }
 
-  async getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup> {
+  async getVoiceRollup(workspaceSlug: string, opts?: VoiceRollupOptions): Promise<VoiceRollup> {
     const q = new URLSearchParams();
     if (opts?.limit) q.set("limit", String(opts.limit));
     if (opts?.offset) q.set("offset", String(opts.offset));
@@ -2666,12 +2662,12 @@ export class RestApiAdapter implements ApiAdapter {
     if (opts?.minScore) q.set("min_score", String(opts.minScore));
     if (opts?.dropPoints) q.set("drop_points", String(opts.dropPoints));
     const qs = q.toString();
-    return this.fetchJSON(`/api/v1/${workspaceSlug}/brand-voice/rollup${qs ? `?${qs}` : ""}`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/voice/rollup${qs ? `?${qs}` : ""}`);
   }
 
   // ── Correction-learning loop (AD-019) ──────────────────────────────────────
 
-  async listBrandCandidates(
+  async listVoiceCandidates(
     workspaceSlug: string,
     profileId: string,
     opts?: { minCount?: number; all?: boolean },
@@ -2681,33 +2677,33 @@ export class RestApiAdapter implements ApiAdapter {
     if (opts?.all) q.set("all", "true");
     const qs = q.toString();
     return this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/candidates${qs ? `?${qs}` : ""}`,
+      `${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}/candidates${qs ? `?${qs}` : ""}`,
     );
   }
 
-  async promoteBrandRule(
+  async promoteVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string; correction_count?: number },
   ): Promise<{ promoted: boolean }> {
     return this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/promote-rule`,
+      `${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}/promote-rule`,
       { method: "POST", body: JSON.stringify(rule) },
     );
   }
 
-  async rejectBrandRule(
+  async rejectVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string },
   ): Promise<void> {
     await this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/reject-rule`,
+      `${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}/reject-rule`,
       { method: "POST", body: JSON.stringify(rule) },
     );
   }
 
-  async evaluateBrandRule(
+  async evaluateVoiceRule(
     workspaceSlug: string,
     profileId: string,
     req: {
@@ -2718,12 +2714,12 @@ export class RestApiAdapter implements ApiAdapter {
     },
   ): Promise<BlastRadius> {
     return this.fetchJSON(
-      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/evaluate-rule`,
+      `${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}/evaluate-rule`,
       { method: "POST", body: JSON.stringify(req) },
     );
   }
 
-  async getBrandDrift(
+  async getVoiceDrift(
     workspaceSlug: string,
     projectId: string,
     opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
@@ -2734,7 +2730,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (opts?.dropPoints) q.set("drop_points", String(opts.dropPoints));
     const qs = q.toString();
     return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/drift${qs ? `?${qs}` : ""}`,
+      `${this.projectEp(workspaceSlug, projectId)}/voice/${this.ref()}/drift${qs ? `?${qs}` : ""}`,
     );
   }
 
@@ -2743,16 +2739,16 @@ export class RestApiAdapter implements ApiAdapter {
     pack: string,
     name?: string,
   ): Promise<VoiceProfile> {
-    return this.fetchJSON(this.brandEp(workspaceSlug) + "/from-starter", {
+    return this.fetchJSON(this.voiceEp(workspaceSlug) + "/from-starter", {
       method: "POST",
       body: JSON.stringify({ pack, ...(name ? { name } : {}) }),
     });
   }
 
-  // ── Brand scan (AI brand onboarding — epic 016) ─────────────────────────────
+  // ── Context scan (AI brand onboarding — epic 016) ─────────────────────────────
 
   private contextScanEp(ws: string) {
-    return `/api/v1/${ws}/brand-scans`;
+    return `/api/v1/${ws}/context-scans`;
   }
 
   async uploadContextScanSources(
@@ -2804,7 +2800,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async checkBrandDraft(
+  async checkVoiceDraft(
     workspaceSlug: string,
     profile: VoiceProfile,
     text: string,

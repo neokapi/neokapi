@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { Button } from "@neokapi/ui-primitives";
 import { WhatIfWizard } from "./WhatIfWizard";
-import { withContextHub } from "../../stories/brandHubFixtures";
+import { withContextHub } from "../../stories/voiceHubFixtures";
 
 const meta: Meta<typeof WhatIfWizard> = {
   title: "Context/Experiments/WhatIfWizard",

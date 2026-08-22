@@ -7,15 +7,15 @@ import type {
   StyleRules,
   VocabularyRules,
   VoiceExample,
-} from "../brand/types";
+} from "../voice/types";
 import type { ContextScanDraft, ContextScanFieldEvidence, ContextScanTerm } from "../types/api";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import { PersonalityTagPicker } from "../brand/PersonalityTagPicker";
-import { ToneSpectrumSelector } from "../brand/ToneSpectrumSelector";
-import { VocabularyEditor } from "../brand/VocabularyEditor";
-import { ExamplesEditor } from "../brand/ExamplesEditor";
-import { BrandVoicePreview } from "../brand/BrandVoicePreview";
+import { PersonalityTagPicker } from "../voice/PersonalityTagPicker";
+import { ToneSpectrumSelector } from "../voice/ToneSpectrumSelector";
+import { VocabularyEditor } from "../voice/VocabularyEditor";
+import { ExamplesEditor } from "../voice/ExamplesEditor";
+import { VoicePreview } from "../voice/VoicePreview";
 import {
   formalitySpectrum,
   emotionSpectrum,
@@ -23,7 +23,7 @@ import {
   sentenceLengthSpectrum,
   povSpectrum,
   contractionsSpectrum,
-} from "../brand/data/tone-spectrums";
+} from "../voice/data/tone-spectrums";
 import { ContextScanLiveTester } from "./ContextScanLiveTester";
 import { scanAxes, scanTerms, scanVoice } from "./artefacts";
 import { TEST_IDS } from "../test-ids";
@@ -68,7 +68,7 @@ function FieldEvidence({ evidence }: { evidence?: ContextScanFieldEvidence }) {
 }
 
 /**
- * The review-first surface for a completed brand scan (epic 016): every
+ * The review-first surface for a completed context scan (epic 016): every
  * inferred field renders with confidence and source attribution and stays
  * editable; candidate terms start selected and are individually
  * deselectable (opt-out — the "N of M selected" count keeps the selection
@@ -155,7 +155,7 @@ function ContextScanReviewEditor({
     setApproving(true);
     setError(null);
     try {
-      const profile = await api.createBrandProfile(ws, {
+      const profile = await api.createVoiceProfile(ws, {
         name: name.trim(),
         description,
         tone,
@@ -174,7 +174,7 @@ function ContextScanReviewEditor({
           terms: [{ text: term.term, locale: termLocale, status: "proposed" }],
         });
       }
-      void queryClient.invalidateQueries({ queryKey: ["brand-profiles", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["voice-profiles", ws] });
       void queryClient.invalidateQueries({ queryKey: ["concepts", ws] });
       onApproved(profile);
     } catch (err) {
@@ -270,7 +270,7 @@ function ContextScanReviewEditor({
               id="scan-profile-name"
               value={name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-              placeholder="Name this brand voice"
+              placeholder="Name this voice"
             />
           </div>
           <div className="space-y-2">
@@ -461,7 +461,7 @@ function ContextScanReviewEditor({
       {/* Right rail: preview + live tester */}
       <div className="hidden lg:block w-80 shrink-0">
         <div className="sticky top-6 space-y-4">
-          <BrandVoicePreview tone={tone} style={style} />
+          <VoicePreview tone={tone} style={style} />
           <ContextScanLiveTester profile={editedProfile} debounceMs={testerDebounceMs} />
         </div>
       </div>

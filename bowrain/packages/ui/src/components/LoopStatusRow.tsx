@@ -17,7 +17,7 @@ import {
 //
 // The row is purely presentational: the route (web) or host shell computes
 // these summaries from data it already holds — the workspace activity feed,
-// the caller's open task list, and the brand-compliance rollup — and feeds
+// the caller's open task list, and the voice compliance rollup — and feeds
 // them in as props. Absent fields degrade card by card, never the whole row.
 // ---------------------------------------------------------------------------
 
@@ -29,8 +29,8 @@ export interface LoopActivitySummary {
   created_at: string;
 }
 
-/** Workspace brand-compliance standing, folded from the brand rollup. */
-export interface LoopBrandHealth {
+/** Workspace voice compliance standing, folded from the voice rollup. */
+export interface LoopVoiceHealth {
   /** Rounded mean of project brand scores; null while nothing is scored. */
   averageScore: number | null;
   /** Projects with at least one stored score. */
@@ -78,8 +78,8 @@ export interface LoopStatusData {
   openReviewTasks?: number;
   /** Ship-state rollup; absent hides the ship card entirely. */
   ship?: LoopShipStatus;
-  /** Brand rollup summary; absent hides the brand card entirely. */
-  brand?: LoopBrandHealth;
+  /** Voice rollup summary; absent hides the voice card entirely. */
+  brand?: LoopVoiceHealth;
 }
 
 export interface LoopStatusRowProps {
@@ -94,8 +94,8 @@ export interface LoopStatusRowProps {
   onOpenReview?: () => void;
   /** Opens the delivery (translation dashboard) surface. */
   onOpenDelivery?: () => void;
-  /** Opens the brand dashboard. */
-  onOpenBrandDashboard?: () => void;
+  /** Opens the voice dashboard. */
+  onOpenVoiceDashboard?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,13 +204,13 @@ export function LoopStatusRow({
   onOpenTasks,
   onOpenReview,
   onOpenDelivery,
-  onOpenBrandDashboard,
+  onOpenVoiceDashboard,
 }: LoopStatusRowProps) {
   const { latestActivity, latestRun, openReviewTasks, ship, brand } = status;
   const showRun = latestRun !== undefined;
   const showShip = ship !== undefined;
-  const showBrand = brand !== undefined;
-  const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showBrand ? 1 : 0);
+  const showVoice = brand !== undefined;
+  const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showVoice ? 1 : 0);
 
   const shippableLocales = ship ? ship.governed + ship.aiShippable : 0;
   const totalLocales = ship ? shippableLocales + ship.pending : 0;
@@ -331,12 +331,12 @@ export function LoopStatusRow({
         </StatusCard>
       )}
 
-      {showBrand && (
+      {showVoice && (
         <StatusCard
           label="Voice health"
           icon={<Palette />}
           footer="Voice dashboard"
-          onOpen={onOpenBrandDashboard}
+          onOpen={onOpenVoiceDashboard}
           testId="loop-card-brand"
         >
           {brand.scoredProjects > 0 && brand.averageScore !== null ? (

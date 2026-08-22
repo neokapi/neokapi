@@ -54,7 +54,7 @@ export interface FocusedReviewerProps {
   /** Shows the re-check spinner. */
   reChecking?: boolean;
   /** When set, the source-side + brand-correction affordances are enabled. */
-  brandProfileId?: string;
+  voiceProfileId?: string;
   onApprove: () => void;
   onReject: () => void;
   onEditToggle: () => void;
@@ -64,8 +64,8 @@ export interface FocusedReviewerProps {
   /** Mark the selected source text as a term (governance-aware, in the parent). */
   onMarkTerm: (sourceText: string) => void;
   /** Suggest a brand/voice rule from the selected source text. */
-  onSuggestBrandRule: (sourceText: string) => void;
-  /** Turn the reviewer's target fix into a brand-voice correction/rule. */
+  onSuggestVoiceRule: (sourceText: string) => void;
+  /** Turn the reviewer's target fix into a voice correction/rule. */
   onMakeRule: () => void;
   /**
    * Propose a change to the SOURCE text (back-to-source review, RV-F). Unlike a
@@ -115,7 +115,7 @@ export function FocusedReviewer({
   editing,
   busy,
   reChecking,
-  brandProfileId,
+  voiceProfileId,
   onApprove,
   onReject,
   onEditToggle,
@@ -123,7 +123,7 @@ export function FocusedReviewer({
   onCancelEdit,
   onReCheck,
   onMarkTerm,
-  onSuggestBrandRule,
+  onSuggestVoiceRule,
   onMakeRule,
   onProposeSourceChange,
   onEntityPromote,
@@ -301,8 +301,8 @@ export function FocusedReviewer({
                     size="sm"
                     variant="outline"
                     className="h-7 px-2 text-xs"
-                    disabled={!brandProfileId}
-                    onClick={() => onSuggestBrandRule(selection)}
+                    disabled={!voiceProfileId}
+                    onClick={() => onSuggestVoiceRule(selection)}
                     data-testid="source-suggest-rule"
                   >
                     <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest brand rule
@@ -366,7 +366,7 @@ export function FocusedReviewer({
                 <CollapsedTargetCell block={block} locale={locale} testId="reviewer-target-cell" />
               </div>
             )}
-            {brandProfileId && !editing && (
+            {voiceProfileId && !editing && (
               <Button
                 size="sm"
                 variant="ghost"

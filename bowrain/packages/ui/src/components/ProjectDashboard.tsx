@@ -119,8 +119,8 @@ export interface ProjectDashboardProps {
   onArchiveProject?: (projectId: string) => void;
   /** Workspace languages for locale pickers. */
   workspaceLanguages?: string[];
-  /** Opens the AI brand scan (epic 016) from the first-run empty state. */
-  onScanBrand?: () => void;
+  /** Opens the AI context scan (epic 016) from the first-run empty state. */
+  onScanVoice?: () => void;
   /** Opens the members settings surface from the first-run invite card. */
   onInviteTeam?: () => void;
   /** Server origin shown in the copyable starter-pack prompt (web shells). */
@@ -128,7 +128,7 @@ export interface ProjectDashboardProps {
   /**
    * Loop-status layer for the populated state: latest loop activity, the
    * latest convergence run, the caller's open review tasks, the ship-state
-   * rollup, and the brand rollup summary. Absent hides the layer (first
+   * rollup, and the voice rollup summary. Absent hides the layer (first
    * paint, desktop shells without the data).
    */
   loopStatus?: LoopStatusData;
@@ -142,8 +142,8 @@ export interface ProjectDashboardProps {
   onOpenReview?: () => void;
   /** Opens the delivery/translation dashboard surface (loop-status card). */
   onOpenDelivery?: () => void;
-  /** Opens the brand dashboard (loop-status card). */
-  onOpenBrandDashboard?: () => void;
+  /** Opens the voice dashboard (loop-status card). */
+  onOpenVoiceDashboard?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +350,7 @@ function OnboardingView({
   onStartCreate,
   onDropFiles,
   onCreateSampleProject,
-  onScanBrand,
+  onScanVoice,
   onInviteTeam,
 }: {
   workspaceName?: string;
@@ -359,7 +359,7 @@ function OnboardingView({
   onStartCreate: () => void;
   onDropFiles: (files: File[]) => void;
   onCreateSampleProject?: () => void;
-  onScanBrand?: () => void;
+  onScanVoice?: () => void;
   onInviteTeam?: () => void;
 }) {
   const [dragActive, setDragActive] = useState(false);
@@ -398,16 +398,16 @@ function OnboardingView({
         workspaceName={workspaceName}
         serverUrl={serverUrl}
         footer={
-          onScanBrand && (
+          onScanVoice && (
             <p className="mt-4 text-sm text-muted-foreground">
               No assistant at hand?{" "}
               <button
                 type="button"
-                onClick={onScanBrand}
+                onClick={onScanVoice}
                 data-testid="onboarding-scan-brand"
                 className="cursor-pointer border-none bg-transparent p-0 font-medium text-foreground underline underline-offset-2 hover:text-primary"
               >
-                Run the hosted brand scan
+                Run the hosted context scan
               </button>{" "}
               instead.
             </p>
@@ -531,7 +531,7 @@ export function ProjectDashboard({
   onEditProject,
   onArchiveProject,
   workspaceLanguages,
-  onScanBrand,
+  onScanVoice,
   onInviteTeam,
   serverUrl,
   loopStatus,
@@ -540,7 +540,7 @@ export function ProjectDashboard({
   onOpenTasks,
   onOpenReview,
   onOpenDelivery,
-  onOpenBrandDashboard,
+  onOpenVoiceDashboard,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
@@ -566,7 +566,7 @@ export function ProjectDashboard({
           onStartCreate={() => setShowCreate(true)}
           onDropFiles={handleDropFiles}
           onCreateSampleProject={onCreateSampleProject}
-          onScanBrand={onScanBrand}
+          onScanVoice={onScanVoice}
           onInviteTeam={onInviteTeam}
         />
       ) : (
@@ -600,7 +600,7 @@ export function ProjectDashboard({
                 onOpenTasks={onOpenTasks}
                 onOpenReview={onOpenReview}
                 onOpenDelivery={onOpenDelivery}
-                onOpenBrandDashboard={onOpenBrandDashboard}
+                onOpenVoiceDashboard={onOpenVoiceDashboard}
               />
             </section>
           )}

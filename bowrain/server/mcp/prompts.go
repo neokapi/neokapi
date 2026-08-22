@@ -7,20 +7,20 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// registerPrompts registers brand voice prompt templates on the MCP server.
+// registerPrompts registers voice prompt templates on the MCP server.
 //
 // Prompts:
-//   - write_in_voice   — write content in brand voice
-//   - rewrite_in_voice — rewrite text to match brand voice
+//   - write_in_voice   — write content in voice
+//   - rewrite_in_voice — rewrite text to match voice
 //   - check_draft      — check draft against guidelines
 func (s *MCPServer) registerPrompts() {
-	// write_in_voice — write new content in a brand voice.
+	// write_in_voice — write new content in a voice.
 	s.server.AddPrompt(
 		&mcp.Prompt{
 			Name:        "write_in_voice",
-			Description: "Write new content following a brand voice profile's guidelines.",
+			Description: "Write new content following a voice profile's guidelines.",
 			Arguments: []*mcp.PromptArgument{
-				{Name: "profile_id", Description: "the brand voice profile ID", Required: true},
+				{Name: "profile_id", Description: "the voice profile ID", Required: true},
 				{Name: "topic", Description: "the topic or subject to write about", Required: true},
 				{Name: "content_type", Description: "the type of content (e.g., blog post, email, social media)", Required: false},
 				{Name: "locale", Description: "target locale for locale-specific voice adjustments", Required: false},
@@ -29,13 +29,13 @@ func (s *MCPServer) registerPrompts() {
 		s.handleWriteInVoice,
 	)
 
-	// rewrite_in_voice — rewrite existing text to match a brand voice.
+	// rewrite_in_voice — rewrite existing text to match a voice.
 	s.server.AddPrompt(
 		&mcp.Prompt{
 			Name:        "rewrite_in_voice",
-			Description: "Rewrite existing text to match a brand voice profile's tone, style, and vocabulary.",
+			Description: "Rewrite existing text to match a voice profile's tone, style, and vocabulary.",
 			Arguments: []*mcp.PromptArgument{
-				{Name: "profile_id", Description: "the brand voice profile ID", Required: true},
+				{Name: "profile_id", Description: "the voice profile ID", Required: true},
 				{Name: "text", Description: "the text to rewrite", Required: true},
 				{Name: "locale", Description: "target locale for locale-specific voice adjustments", Required: false},
 				{Name: "channel", Description: "content channel for channel-specific adjustments", Required: false},
@@ -44,13 +44,13 @@ func (s *MCPServer) registerPrompts() {
 		s.handleRewriteInVoicePrompt,
 	)
 
-	// check_draft — check a draft against brand voice guidelines.
+	// check_draft — check a draft against voice guidelines.
 	s.server.AddPrompt(
 		&mcp.Prompt{
 			Name:        "check_draft",
-			Description: "Check a draft against brand voice guidelines and suggest improvements.",
+			Description: "Check a draft against voice guidelines and suggest improvements.",
 			Arguments: []*mcp.PromptArgument{
-				{Name: "profile_id", Description: "the brand voice profile ID", Required: true},
+				{Name: "profile_id", Description: "the voice profile ID", Required: true},
 				{Name: "draft", Description: "the draft text to check", Required: true},
 				{Name: "locale", Description: "target locale for locale-specific checks", Required: false},
 			},
@@ -78,11 +78,11 @@ func (s *MCPServer) handleWriteInVoice(ctx context.Context, req *mcp.GetPromptRe
 		contentTypeStr = contentType
 	}
 
-	systemPrompt := "You are a brand voice writer. Follow the brand voice guide below exactly when writing content.\n\n" + guide
-	userPrompt := fmt.Sprintf("Write a %s about: %s\n\nFollow the brand voice guide precisely. Use the preferred vocabulary, avoid forbidden and competitor terms, and match the specified tone and style.", contentTypeStr, topic)
+	systemPrompt := "You are a voice writer. Follow the voice guide below exactly when writing content.\n\n" + guide
+	userPrompt := fmt.Sprintf("Write a %s about: %s\n\nFollow the voice guide precisely. Use the preferred vocabulary, avoid forbidden and competitor terms, and match the specified tone and style.", contentTypeStr, topic)
 
 	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Write %s in the %q brand voice", contentTypeStr, profile.Name),
+		Description: fmt.Sprintf("Write %s in the %q voice", contentTypeStr, profile.Name),
 		Messages: []*mcp.PromptMessage{
 			{Role: "assistant", Content: &mcp.TextContent{Text: systemPrompt}},
 			{Role: "user", Content: &mcp.TextContent{Text: userPrompt}},
@@ -104,11 +104,11 @@ func (s *MCPServer) handleRewriteInVoicePrompt(ctx context.Context, req *mcp.Get
 	resolved := resolveProfile(profile, locale, channel)
 	guide := formatVoiceGuide(resolved)
 
-	systemPrompt := "You are a brand voice editor. Rewrite text to match the brand voice guide below. Preserve the original meaning while adjusting tone, style, and vocabulary.\n\n" + guide
-	userPrompt := fmt.Sprintf("Rewrite the following text to match the brand voice:\n\n%s\n\nProvide the rewritten text and a brief summary of changes made.", text)
+	systemPrompt := "You are a voice editor. Rewrite text to match the voice guide below. Preserve the original meaning while adjusting tone, style, and vocabulary.\n\n" + guide
+	userPrompt := fmt.Sprintf("Rewrite the following text to match the voice:\n\n%s\n\nProvide the rewritten text and a brief summary of changes made.", text)
 
 	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Rewrite text in the %q brand voice", profile.Name),
+		Description: fmt.Sprintf("Rewrite text in the %q voice", profile.Name),
 		Messages: []*mcp.PromptMessage{
 			{Role: "assistant", Content: &mcp.TextContent{Text: systemPrompt}},
 			{Role: "user", Content: &mcp.TextContent{Text: userPrompt}},
@@ -129,11 +129,11 @@ func (s *MCPServer) handleCheckDraft(ctx context.Context, req *mcp.GetPromptRequ
 	resolved := resolveProfile(profile, locale, "")
 	guide := formatVoiceGuide(resolved)
 
-	systemPrompt := "You are a brand voice reviewer. Evaluate text against the brand voice guide below. Check for tone consistency, style rule compliance, vocabulary violations, and overall brand alignment.\n\n" + guide
-	userPrompt := fmt.Sprintf("Review the following draft against the brand voice guidelines:\n\n%s\n\nProvide:\n1. An overall compliance assessment (score 0-100)\n2. Specific findings grouped by dimension (tone, style, vocabulary, clarity, compliance)\n3. Suggested corrections for each finding\n4. A revised version if changes are needed", draft)
+	systemPrompt := "You are a voice reviewer. Evaluate text against the voice guide below. Check for tone consistency, style rule compliance, vocabulary violations, and overall brand alignment.\n\n" + guide
+	userPrompt := fmt.Sprintf("Review the following draft against the voice guidelines:\n\n%s\n\nProvide:\n1. An overall compliance assessment (score 0-100)\n2. Specific findings grouped by dimension (tone, style, vocabulary, clarity, compliance)\n3. Suggested corrections for each finding\n4. A revised version if changes are needed", draft)
 
 	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Check draft against %q brand voice", profile.Name),
+		Description: fmt.Sprintf("Check draft against %q voice", profile.Name),
 		Messages: []*mcp.PromptMessage{
 			{Role: "assistant", Content: &mcp.TextContent{Text: systemPrompt}},
 			{Role: "user", Content: &mcp.TextContent{Text: userPrompt}},

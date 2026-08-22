@@ -140,7 +140,7 @@ describe("graphToSteps with parallel branches", () => {
         { tool: "translate", config: { provider: "anthropic" } },
         {
           tool: "",
-          parallel: [{ tool: "qa" }, { tool: "brand-check" }],
+          parallel: [{ tool: "qa" }, { tool: "voice-check" }],
         },
       ],
     };
@@ -167,18 +167,18 @@ describe("suggestParallelGroups", () => {
 
   it("suggests parallelizing adjacent validate + enrich tools", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "brand-check" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "voice-check" }],
     };
     const toolMap = makeToolMap(
       ["translate", "translate"],
       ["qa", "validate"],
-      ["brand-check", "validate"],
+      ["voice-check", "validate"],
     );
 
     const suggestions = suggestParallelGroups(spec, toolMap);
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].stepIndices).toEqual([1, 2]);
-    expect(suggestions[0].toolNames).toEqual(["qa", "brand-check"]);
+    expect(suggestions[0].toolNames).toEqual(["qa", "voice-check"]);
   });
 
   it("does not suggest parallelizing mutating tools", () => {
@@ -219,14 +219,14 @@ describe("suggestParallelGroups", () => {
       steps: [
         {
           tool: "",
-          parallel: [{ tool: "qa" }, { tool: "brand-check" }],
+          parallel: [{ tool: "qa" }, { tool: "voice-check" }],
         },
         { tool: "term-lookup" },
       ],
     };
     const toolMap = makeToolMap(
       ["qa", "validate"],
-      ["brand-check", "validate"],
+      ["voice-check", "validate"],
       ["term-lookup", "enrich"],
     );
 

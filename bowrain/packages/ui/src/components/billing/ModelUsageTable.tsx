@@ -13,7 +13,7 @@ const operationLabels: Record<string, string> = {
   review: "Review",
   entity_extract: "Entity Extraction",
   terminology: "Terminology",
-  brand_voice: "Brand Voice",
+  brand_voice: "Voice",
 };
 
 function formatTokens(value: number): string {

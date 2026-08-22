@@ -72,13 +72,13 @@ func TestContextScanCreate_Authz(t *testing.T) {
 	require.NoError(t, s.AuthStore.CreateUser(t.Context(), outsider))
 	outsiderToken, err := platauth.GenerateToken(outsider, "test-secret", time.Hour)
 	require.NoError(t, err)
-	code := do(t, s, http.MethodPost, "/api/v1/test/brand-scans", outsiderToken, body)
+	code := do(t, s, http.MethodPost, "/api/v1/test/context-scans", outsiderToken, body)
 	assert.True(t, code == http.StatusForbidden || code == http.StatusNotFound,
 		"non-member must be rejected, got %d", code)
 
 	// Member without PermManageVoice.
 	memberToken := addWorkspaceMember(t, s, "bs-member", "bs-member@example.com", platauth.RoleMember)
-	code = do(t, s, http.MethodPost, "/api/v1/test/brand-scans", memberToken, body)
+	code = do(t, s, http.MethodPost, "/api/v1/test/context-scans", memberToken, body)
 	assert.Equal(t, http.StatusForbidden, code, "a plain member lacks PermManageVoice")
 }
 
@@ -88,15 +88,15 @@ func TestContextScanCreate_RequiresSource(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	wireContextScan(t, s)
 
-	code := do(t, s, http.MethodPost, "/api/v1/test/brand-scans", ownerToken, `{}`)
+	code := do(t, s, http.MethodPost, "/api/v1/test/context-scans", ownerToken, `{}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	code = do(t, s, http.MethodPost, "/api/v1/test/brand-scans", ownerToken, `{"paste_text":"   "}`)
+	code = do(t, s, http.MethodPost, "/api/v1/test/context-scans", ownerToken, `{"paste_text":"   "}`)
 	assert.Equal(t, http.StatusBadRequest, code, "whitespace-only paste is not a source")
 
 	// URL cap: at most 5 links per scan.
 	over := `{"urls":["https://a.example","https://b.example","https://c.example","https://d.example","https://e.example","https://f.example"]}`
-	code = do(t, s, http.MethodPost, "/api/v1/test/brand-scans", ownerToken, over)
+	code = do(t, s, http.MethodPost, "/api/v1/test/context-scans", ownerToken, over)
 	assert.Equal(t, http.StatusBadRequest, code)
 }
 
@@ -135,7 +135,7 @@ func TestContextScanCreate_InsufficientCredits402(t *testing.T) {
 	s.ContextScanQueue = jobs.NewChannelQueue(8)
 
 	e := echo.New()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/brand-scans",
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/context-scans",
 		strings.NewReader(`{"paste_text":"We write plainly."}`))
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -161,7 +161,7 @@ func TestContextScanCreate_ZeroCreditWorkspaceRefusedOnRoute(t *testing.T) {
 	wireContextScan(t, s)
 	s.BillingStore = zeroCreditBillingStore{}
 
-	code := do(t, s, http.MethodPost, "/api/v1/test/brand-scans", ownerToken, `{"paste_text":"We write plainly."}`)
+	code := do(t, s, http.MethodPost, "/api/v1/test/context-scans", ownerToken, `{"paste_text":"We write plainly."}`)
 	assert.True(t, code == http.StatusPaymentRequired || code == http.StatusTooManyRequests,
 		"a zero-credit workspace must be refused, got %d", code)
 
@@ -186,7 +186,7 @@ func TestContextScanCreate_EnqueuesJob(t *testing.T) {
 	wireContextScan(t, s)
 
 	body := `{"paste_text":"We write plainly.","profile_name":"Acme Voice","domain":"developer tools"}`
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/brand-scans", strings.NewReader(body))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/context-scans", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Authorization", "Bearer "+ownerToken)
 	rec := httptest.NewRecorder()
@@ -231,7 +231,7 @@ func TestContextScanGet_CrossTenant404(t *testing.T) {
 	}
 	require.NoError(t, s.ContextScanStore.CreateContextScanJob(ctx, victim))
 
-	code := do(t, s, http.MethodGet, "/api/v1/test/brand-scans/victim-scan", ownerToken, "")
+	code := do(t, s, http.MethodGet, "/api/v1/test/context-scans/victim-scan", ownerToken, "")
 	assert.Equal(t, http.StatusNotFound, code, "cross-tenant scan reads must 404")
 
 	// A same-workspace job is visible, and a completed one carries the draft.
@@ -244,7 +244,7 @@ func TestContextScanGet_CrossTenant404(t *testing.T) {
 	}
 	require.NoError(t, s.ContextScanStore.CreateContextScanJob(ctx, mine))
 
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/brand-scans/my-scan", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/context-scans/my-scan", nil)
 	r.Header.Set("Authorization", "Bearer "+ownerToken)
 	rec := httptest.NewRecorder()
 	s.GetEcho().ServeHTTP(rec, r)
@@ -281,7 +281,7 @@ func TestContextScanGet_CompletedCarriesDraft(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, owner)
 
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/brand-scans/done-scan", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/context-scans/done-scan", nil)
 	r.Header.Set("Authorization", "Bearer "+ownerToken)
 	rec := httptest.NewRecorder()
 	s.GetEcho().ServeHTTP(rec, r)
@@ -317,7 +317,7 @@ func contextScanMultipart(t *testing.T, files map[string][]byte) (*bytes.Buffer,
 func newContextScanUploadContext(t *testing.T, body *bytes.Buffer, contentType string) (echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/brand-scans/uploads", body)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/uploads", body)
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
@@ -435,14 +435,14 @@ func TestContextScanCheckDraft(t *testing.T) {
 		"text": "Our cheap plan is great."
 	}`
 	e := echo.New()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/brand-scans/check-draft", strings.NewReader(body))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/check-draft", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
 	c.SetParamNames("ws")
 	c.SetParamValues("acme")
 
-	require.NoError(t, s.HandleCheckBrandDraft(c))
+	require.NoError(t, s.HandleCheckVoiceDraft(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	var resp struct {
@@ -457,22 +457,22 @@ func TestContextScanCheckDraft(t *testing.T) {
 
 	// Clean text scores clean.
 	cleanBody := strings.Replace(body, "Our cheap plan is great.", "Our affordable plan is great.", 1)
-	r = httptest.NewRequest(http.MethodPost, "/api/v1/acme/brand-scans/check-draft", strings.NewReader(cleanBody))
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/check-draft", strings.NewReader(cleanBody))
 	r.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(r, rec)
-	require.NoError(t, s.HandleCheckBrandDraft(c))
+	require.NoError(t, s.HandleCheckVoiceDraft(c))
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Empty(t, resp.Findings)
 
 	// Validation: text and profile are both required.
 	for _, invalid := range []string{`{"text":"x"}`, `{"profile":{"name":"d"}}`} {
-		r = httptest.NewRequest(http.MethodPost, "/api/v1/acme/brand-scans/check-draft", strings.NewReader(invalid))
+		r = httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/check-draft", strings.NewReader(invalid))
 		r.Header.Set("Content-Type", "application/json")
 		rec = httptest.NewRecorder()
 		c = e.NewContext(r, rec)
-		require.NoError(t, s.HandleCheckBrandDraft(c))
+		require.NoError(t, s.HandleCheckVoiceDraft(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code, invalid)
 	}
 }

@@ -490,7 +490,7 @@ export const ParallelBranches: Story = {
           tool: "",
           parallel: [
             { tool: "qa", label: "Quality Check" },
-            { tool: "brand-vocab-check", label: "Brand Check" },
+            { tool: "voice-vocab-check", label: "Brand Check" },
           ],
         },
         { tool: "word-count", label: "Word Count" },
@@ -509,7 +509,7 @@ export const ThreeWayParallel: Story = {
           tool: "",
           parallel: [
             { tool: "qa", label: "QA" },
-            { tool: "brand-vocab-check", label: "Brand" },
+            { tool: "voice-vocab-check", label: "Brand" },
             { tool: "entity-extract", label: "Entities" },
           ],
         },
@@ -535,7 +535,7 @@ export const ManyBranchParallel: Story = {
           tool: "",
           parallel: [
             { tool: "qa", label: "Quality" },
-            { tool: "brand-vocab-check", label: "Brand" },
+            { tool: "voice-vocab-check", label: "Brand" },
             { tool: "entity-extract", label: "Entities" },
             { tool: "term-check", label: "Terminology" },
             { tool: "word-count", label: "Word Count" },
@@ -555,7 +555,7 @@ export const ParallelizationSuggestion: Story = {
       steps: [
         { tool: "translate" },
         { tool: "qa" },
-        { tool: "brand-vocab-check" },
+        { tool: "voice-vocab-check" },
         { tool: "word-count" },
       ],
     },

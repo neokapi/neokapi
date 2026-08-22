@@ -141,7 +141,7 @@ func TestVoiceProfileIDsInOps(t *testing.T) {
 // Check standing is scoped by the voice the score resolved through, so a
 // profile bound to no voice, and a voice nothing has checked, both report none.
 func TestAttachCheckStanding(t *testing.T) {
-	srv := setupBrandLoopServer(t)
+	srv := setupVoiceLoopServer(t)
 	ctx := t.Context()
 
 	project := &store.Project{

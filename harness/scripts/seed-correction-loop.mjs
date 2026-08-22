@@ -61,7 +61,7 @@ async function main() {
 
   // A voice profile. Its vocabulary starts minimal — the candidates the demo
   // promotes come from the correction stream below, not the seed profile.
-  const profile = await jpost(`/${wsSlug}/brand-profiles`, {
+  const profile = await jpost(`/${wsSlug}/voice-profiles`, {
     name: "Acme Voice",
     description: "Acme's voice profile — clear, direct, no jargon.",
     tone: { personality: ["clear", "direct"], formality: "neutral", emotion: "warm", humor: "light" },
@@ -123,7 +123,7 @@ async function main() {
   let posted = 0;
   for (const c of stream) {
     for (let i = 0; i < c.n; i++) {
-      await jpost(`/${wsSlug}/${projectId}/brand-voice/main/corrections`, {
+      await jpost(`/${wsSlug}/${projectId}/voice/main/corrections`, {
         profile_id: profileId,
         block_id: `seed-${c.original}-${i}`,
         dimension: "vocabulary",
@@ -136,7 +136,7 @@ async function main() {
 
   // Verify candidates surfaced.
   const cand = await (
-    await fetch(`${API}/${wsSlug}/brand-profiles/${profileId}/candidates?min_count=3`, { headers: H })
+    await fetch(`${API}/${wsSlug}/voice-profiles/${profileId}/candidates?min_count=3`, { headers: H })
   ).json();
 
   console.log(

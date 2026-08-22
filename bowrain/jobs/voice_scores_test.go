@@ -64,7 +64,7 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 	assert.NotEmpty(t, off.Findings, "the persisted score carries the findings behind it")
 
 	// Empty locale reads project-wide (all locales) — the shape the score
-	// endpoints and brand rollup consume.
+	// endpoints and voice rollup consume.
 	all, err := bs.GetScores(ctx, "proj-vs", "")
 	require.NoError(t, err)
 	assert.Len(t, all, 2)

@@ -8,7 +8,7 @@
 // `TermSearchResult` from ./api; the types here add the graph, governance, and
 // collaboration shapes that hang off a concept.
 
-import type { TermRule } from "../brand/types";
+import type { TermRule } from "../voice/types";
 
 // ---------------------------------------------------------------------------
 // Shared atoms (terms + core/graph)
@@ -247,7 +247,7 @@ export type OpType =
 /** Which vocabulary list a voice rule joins (knowledge.VoiceRuleList). */
 export type VoiceRuleList = "preferred" | "forbidden" | "competitor";
 
-/** A brand vocabulary rule that references its backing concept (core/brand.TermRule). */
+/** A brand vocabulary rule that references its backing concept (core/profile.TermRule). */
 export type VoiceRule = TermRule & { concept_id?: string };
 
 export interface ConceptCreatePayload {

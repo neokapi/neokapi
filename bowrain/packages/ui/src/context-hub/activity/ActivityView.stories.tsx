@@ -2,15 +2,15 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import type { Decorator } from "@storybook/react";
 import { ActivityView } from "./ActivityView";
-import { brandHubOverrides } from "../../stories/brandHubFixtures";
+import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 
-const populated: Decorator = createProvidersDecorator(undefined, brandHubOverrides);
+const populated: Decorator = createProvidersDecorator(undefined, voiceHubOverrides);
 
 // A feed with nothing in it, and no names to resolve — what a workspace looks
 // like before its first governed change.
 const empty: Decorator = createProvidersDecorator(undefined, {
-  ...brandHubOverrides,
+  ...voiceHubOverrides,
   listActivities: async () => ({ activities: [], next_cursor: "" }),
   listChangesets: async () => [],
   listConcepts: async () => ({ concepts: [], total_count: 0 }),

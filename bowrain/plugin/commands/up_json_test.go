@@ -38,7 +38,7 @@ func emitServerEvents(stream *output.NDJSONStream, n int) {
 
 // TestServerUpJSONDocument_ReportsTruncationOnce is a contract test for the
 // server venue's NDJSON document, not a driven server run: it wires the real
-// reportBrandPush, event sink, and cli.PrintUpResultStream around one stream
+// reportVoicePush, event sink, and cli.PrintUpResultStream around one stream
 // exactly as runServerUp does, then breaks a write in the middle.
 //
 // Before this, `sink = func(ev) { _ = enc.Encode(ev) }` dropped every progress
@@ -50,7 +50,7 @@ func TestServerUpJSONDocument_ReportsTruncationOnce(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportVoicePush(cmd, stream, &transfer.PushVoiceResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 6) // the 4th write fails; the rest are lost
 
 	err := cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1})
@@ -68,7 +68,7 @@ func TestServerUpJSONDocument_ClosedConsumerExitsCleanly(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportVoicePush(cmd, stream, &transfer.PushVoiceResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 6)
 
 	require.NoError(t, cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1}),
@@ -84,7 +84,7 @@ func TestServerUpJSONDocument_CompleteStreamIsUnchanged(t *testing.T) {
 	cmd := serverUpJSONCmd(t, w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.NoError(t, reportBrandPush(cmd, stream, &transfer.PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportVoicePush(cmd, stream, &transfer.PushVoiceResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	emitServerEvents(stream, 2)
 	require.NoError(t, cli.PrintUpResultStream(cmd, stream, cli.ConvergeOutput{Passes: 1}))
 
@@ -95,6 +95,6 @@ func TestServerUpJSONDocument_CompleteStreamIsUnchanged(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(lines[0]), &first))
 	require.NoError(t, json.Unmarshal([]byte(lines[3]), &last))
-	assert.Equal(t, "brand_profile", first.Type)
+	assert.Equal(t, "voice_profile", first.Type)
 	assert.Equal(t, "result", last.Type)
 }

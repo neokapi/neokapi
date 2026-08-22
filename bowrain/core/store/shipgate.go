@@ -55,7 +55,7 @@ type ShipGateVerdict struct {
 	Fails bool
 }
 
-// ShipGateScore is one scored (block, locale) pair as the brand voice store
+// ShipGateScore is one scored (block, locale) pair as the voice store
 // holds it, reduced to the only question the rollup asks of it: whether the
 // score clears the scoring profile's compliance bar.
 type ShipGateScore struct {

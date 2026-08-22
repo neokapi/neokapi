@@ -93,7 +93,7 @@ neokapi/
 │   ├── storage/                     # Shared SQLite DB infrastructure (Open, Migrate)
 │   ├── project/                     # .kapi project file format (Load, Save, Validate)
 │   ├── tools/                       # Built-in utility tools (word count, pseudo, etc.)
-│   ├── brand/                       # Brand-voice profiles + checks
+│   ├── voice/                       # Voice profiles + checks
 │   ├── check/                       # Unified content checks
 │   ├── plugin/                      # Plugin runtime support
 │   │   ├── manifest/                # manifest.json parsing + validation

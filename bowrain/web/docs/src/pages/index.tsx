@@ -11,7 +11,7 @@ import styles from "./index.module.css";
 // repeated corrections a team makes to AI output surface as candidate rules, and
 // promoting one hardens it into a versioned brand check enforced on every future
 // generation. Purely decorative (aria-hidden) — the real flow lives in
-// Brand voice & corrections.
+// Voice & corrections.
 function HeroPromote() {
   const rules = [
     { from: "leverage", to: "use", count: 4 },

@@ -46,7 +46,7 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyBrandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyVoiceYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
 	// {name} placeholder plus a glossary term "Save".
@@ -222,10 +222,10 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 	return buf.String(), runErr
 }
 
-// verifyBrandYAML binds a voice profile with a critical competitor term, so a
+// verifyVoiceYAML binds a voice profile with a critical competitor term, so a
 // single occurrence in the source drops the compliance score below the default
 // threshold (100 - 25 = 75 < 80) and fails the voice gate.
-const verifyBrandYAML = `name: Verify Brand
+const verifyVoiceYAML = `name: Verify Brand
 vocabulary:
   forbidden_terms:
     - term: utilize

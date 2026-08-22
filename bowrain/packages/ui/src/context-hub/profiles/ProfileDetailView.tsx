@@ -25,8 +25,8 @@ export interface ProfileDetailViewProps {
   onOpenTerms: () => void;
   /** Opens the change-set queue. */
   onOpenChanges: () => void;
-  /** Opens the hosted brand scan. Omitted when the server runs no scan jobs. */
-  onScanBrand?: () => void;
+  /** Opens the hosted context scan. Omitted when the server runs no scan jobs. */
+  onScanVoice?: () => void;
 }
 
 /**
@@ -39,7 +39,7 @@ export function ProfileDetailView({
   onOpenVoice,
   onOpenTerms,
   onOpenChanges,
-  onScanBrand,
+  onScanVoice,
 }: ProfileDetailViewProps) {
   const { data, profile, isLoading, error } = useContextProfile(slug);
 
@@ -255,8 +255,8 @@ export function ProfileDetailView({
                 A scan covers the whole workspace: it carries no coordinates, so it is reported here
                 rather than split across points it never distinguished.
               </p>
-              {onScanBrand && (
-                <Button variant="outline" size="sm" onClick={onScanBrand}>
+              {onScanVoice && (
+                <Button variant="outline" size="sm" onClick={onScanVoice}>
                   <Sparkles className="mr-1.5 size-3.5" /> Scan your brand
                 </Button>
               )}

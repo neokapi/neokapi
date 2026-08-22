@@ -163,42 +163,42 @@ func TestAutomationPause(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func TestBrandVoiceEventTypes(t *testing.T) {
+func TestVoiceEventTypes(t *testing.T) {
 	tests := []struct {
 		eventType platev.EventType
 		value     string
 	}{
-		{platev.EventBrandVoiceCheckStarted, "brand.voice.check.started"},
-		{platev.EventBrandVoiceCheckCompleted, "brand.voice.check.completed"},
-		{platev.EventBrandVoiceGateFailed, "brand.voice.gate.failed"},
-		{platev.EventBrandVoiceGatePassed, "brand.voice.gate.passed"},
-		{platev.EventBrandVoiceDrift, "brand.voice.drift"},
-		{platev.EventBrandVoiceCorrected, "brand.voice.corrected"},
-		{platev.EventBrandProfileUpdated, "brand.profile.updated"},
+		{platev.EventVoiceCheckStarted, "voice.check.started"},
+		{platev.EventVoiceCheckCompleted, "voice.check.completed"},
+		{platev.EventVoiceGateFailed, "voice.gate.failed"},
+		{platev.EventVoiceGatePassed, "voice.gate.passed"},
+		{platev.EventVoiceDrift, "voice.drift"},
+		{platev.EventVoiceCorrected, "voice.corrected"},
+		{platev.EventVoiceProfileUpdated, "voice.profile.updated"},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, platev.EventType(tt.value), tt.eventType)
 	}
 }
 
-func TestIsBrandVoiceEvent(t *testing.T) {
+func TestIsVoiceEvent(t *testing.T) {
 	tests := []struct {
 		eventType platev.EventType
 		want      bool
 	}{
-		{platev.EventBrandVoiceCheckStarted, true},
-		{platev.EventBrandVoiceCheckCompleted, true},
-		{platev.EventBrandVoiceGateFailed, true},
-		{platev.EventBrandVoiceGatePassed, true},
-		{platev.EventBrandVoiceDrift, true},
-		{platev.EventBrandVoiceCorrected, true},
-		{platev.EventBrandProfileUpdated, true},
+		{platev.EventVoiceCheckStarted, true},
+		{platev.EventVoiceCheckCompleted, true},
+		{platev.EventVoiceGateFailed, true},
+		{platev.EventVoiceGatePassed, true},
+		{platev.EventVoiceDrift, true},
+		{platev.EventVoiceCorrected, true},
+		{platev.EventVoiceProfileUpdated, true},
 		{platev.EventBlockCreated, false},
 		{platev.EventFlowStarted, false},
 		{platev.EventQualityGatePass, false},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, IsBrandVoiceEvent(tt.eventType), "IsBrandVoiceEvent(%q)", tt.eventType)
+		assert.Equal(t, tt.want, IsVoiceEvent(tt.eventType), "IsVoiceEvent(%q)", tt.eventType)
 	}
 }
 
@@ -218,14 +218,14 @@ func TestAutomationVoiceRule(t *testing.T) {
 	defer engine.Close()
 
 	engine.AddRule(AutomationRule{
-		Name:      "brand-voice-gate",
-		EventType: platev.EventBrandVoiceGateFailed,
+		Name:      "voice-gate",
+		EventType: platev.EventVoiceGateFailed,
 		Actions:   []AutomationAction{{Type: "notify", Config: map[string]string{"channel": "brand-alerts"}}},
 	})
 
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceCheckStarted}) // Should not trigger
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGateFailed})   // Should trigger
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGatePassed})   // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventVoiceCheckStarted}) // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventVoiceGateFailed})   // Should trigger
+	bus.Publish(platev.Event{Type: platev.EventVoiceGatePassed})   // Should not trigger
 
 	require.Eventually(t, func() bool {
 		mu.Lock()
@@ -234,7 +234,7 @@ func TestAutomationVoiceRule(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	assert.Equal(t, platev.EventBrandVoiceGateFailed, executed[0])
+	assert.Equal(t, platev.EventVoiceGateFailed, executed[0])
 	mu.Unlock()
 }
 

@@ -66,7 +66,7 @@ type recheckOracle func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bo
 //     became (or was created) forbidden/preferred through the governed change-set
 //     path (the subscriber is strictly downstream of governance: it reacts to the
 //     RESULTING event, it does not bypass the change-set gate); and
-//   - brand.voice.rule_promoted / rule_auto_promoted — the correction-learning
+//   - voice.rule_promoted / rule_auto_promoted — the correction-learning
 //     loop promoted a forbidden vocabulary rule.
 //
 // For each, it re-checks the workspace's existing reviewed/signed-off targets and
@@ -118,9 +118,9 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) error {
 			return nil
 		}
 		return s.recheckConceptViolations(ctx, ev.WorkspaceID, conceptID, ev.Actor)
-	case EventBrandVoiceRulePromoted, EventBrandVoiceRuleAutoPromoted:
+	case EventVoiceRulePromoted, EventVoiceRuleAutoPromoted:
 		// Brand rule events stash the workspace id on ProjectID and the promoted
-		// term on Data["term"] (publishBrandRuleEvent); WorkspaceID wins if a future
+		// term on Data["term"] (publishVoiceRuleEvent); WorkspaceID wins if a future
 		// publisher sets it. A promotion that also minted a knowledge-graph concept
 		// additionally fires concept.created (handled above); idempotency makes the
 		// overlap a no-op on the second pass.
@@ -182,7 +182,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	// re-check oracle and the ship gate can never disagree. Scoping to cTB (this
 	// one concept) keeps the re-check from sweeping up targets that only trip an
 	// OLDER, unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions
-	// are covered by the shared predicate; no brand profile applies to a concept
+	// are covered by the shared predicate; no voice profile applies to a concept
 	// change, hence nil.
 	violates := func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
 		return !blockTermCompliant(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil)

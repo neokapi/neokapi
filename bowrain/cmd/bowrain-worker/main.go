@@ -186,7 +186,7 @@ func runWorker(dbURL string) error {
 	case jobs.SQSConfigured():
 		contextScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSContextScanQueue)
 		if err != nil {
-			return fmt.Errorf("connect to SQS (brand scan): %w", err)
+			return fmt.Errorf("connect to SQS (context scan): %w", err)
 		}
 	default:
 		contextScanQueue = jobs.NewChannelQueue(64)
@@ -233,25 +233,25 @@ func runWorker(dbURL string) error {
 		ConnectorConfigs: connectorConfigs,
 	}
 
-	// Auth store: consulted for the workspace-level default brand-voice profile
+	// Auth store: consulted for the workspace-level default voice profile
 	// (brand context, below) and per-workspace platform model choice (platform
 	// resolver, below). Opening it is non-fatal: on failure those refinements
 	// are skipped. The auth schema migration is idempotent + advisory-locked,
 	// so the worker constructing the store alongside the server is safe.
 	var authStore *auth.PostgresAuthStore
 	if as, err := auth.NewAuthStoreFromDB(pgdb); err != nil {
-		slog.Warn("auth store unavailable; worker skips per-workspace model choice and workspace-default brand voice", "error", err)
+		slog.Warn("auth store unavailable; worker skips per-workspace model choice and workspace-default voice", "error", err)
 	} else {
 		authStore = as
 	}
 
 	// Brand context (parity with the CLI flow's project bindings): the brand
-	// store + workspace-default resolver bind the project's brand voice into
+	// store + workspace-default resolver bind the project's voice into
 	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology glossary. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
 	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
-		slog.Warn("brand store unavailable; translation jobs run without brand voice", "error", err)
+		slog.Warn("voice store unavailable; translation jobs run without voice", "error", err)
 	} else {
 		translationDeps.VoiceStore = bs
 	}
@@ -701,12 +701,12 @@ func newWorkerMemoryResolver(pgdb *storage.PgDB) jobs.MemoryResolver {
 	})
 }
 
-// workerWorkspaceDefault resolves the workspace-level default brand-voice
-// profile from the workspace record — the base rung of the brandscope ladder.
+// workerWorkspaceDefault resolves the workspace-level default voice
+// profile from the workspace record — the base rung of the voicescope ladder.
 // Mirrors the server's mcpWorkspaceDefaultAdapter.
 type workerWorkspaceDefault struct{ auth auth.AuthStore }
 
-func (a *workerWorkspaceDefault) WorkspaceBrandProfileID(ctx context.Context, workspaceID string) (string, error) {
+func (a *workerWorkspaceDefault) WorkspaceVoiceProfileID(ctx context.Context, workspaceID string) (string, error) {
 	if a.auth == nil || workspaceID == "" {
 		return "", nil
 	}

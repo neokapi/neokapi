@@ -27,14 +27,14 @@ func TestApproveContextScan(t *testing.T) {
 	c := NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
 	res, err := c.ApproveContextScan(context.Background(), "scan-1", ContextScanApproval{
-		Profile: BrandProfileUpsert{Name: "Acme Voice"},
+		Profile: VoiceProfileUpsert{Name: "Acme Voice"},
 		Locale:  "en-US",
 		Terms:   []ContextScanApprovedTerm{{Term: "sign in", Domain: "auth"}, {Term: "cart"}},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodPost, gotMethod)
-	assert.Equal(t, "/api/v1/acme/brand-scans/scan-1/approve", gotPath)
+	assert.Equal(t, "/api/v1/acme/context-scans/scan-1/approve", gotPath)
 	assert.Equal(t, "Acme Voice", gotBody.Profile.Name)
 	assert.Equal(t, "en-US", gotBody.Locale)
 	require.Len(t, gotBody.Terms, 2)

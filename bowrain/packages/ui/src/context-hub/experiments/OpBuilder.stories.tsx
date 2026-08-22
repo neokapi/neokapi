@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { Decorator } from "@storybook/react";
 import { OpBuilder } from "./OpBuilder";
-import { withContextHub } from "../../stories/brandHubFixtures";
+import { withContextHub } from "../../stories/voiceHubFixtures";
 
 const pad: Decorator = (Story) => (
   <div style={{ maxWidth: 480, padding: 24 }}>

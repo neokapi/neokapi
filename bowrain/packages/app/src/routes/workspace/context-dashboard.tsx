@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { BrandDashboardView } from "@neokapi/ui";
+import { VoiceDashboardView } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function ContextDashboardRoute() {
@@ -17,7 +17,7 @@ export function ContextDashboardRoute() {
   const ws = workspace ?? "";
 
   return (
-    <BrandDashboardView
+    <VoiceDashboardView
       onOpenExperiment={(id) =>
         void navigate({
           to: "/$workspace/context/changes/$id",

@@ -1402,7 +1402,7 @@ export async function injectMockBackend(page: Page) {
       ["GET", /^\/api\/v1\/[^/]+\/tasks\/counts$/, () => ({ total: 0, by_status: {} })],
       ["GET", /^\/api\/v1\/[^/]+\/tasks$/, () => ({ tasks: [], total: 0 })],
       ["GET", /^\/api\/v1\/[^/]+\/loop-rollup$/, () => ({})],
-      ["GET", /^\/api\/v1\/[^/]+\/brand-voice\/rollup$/, () => ({ projects: [] })],
+      ["GET", /^\/api\/v1\/[^/]+\/voice\/rollup$/, () => ({ projects: [] })],
       ["GET", /^\/api\/v1\/[^/]+\/changesets\/counts$/, () => ({ total: 0, by_status: {} })],
       ["GET", /^\/api\/v1\/[^/]+\/changesets$/, () => []],
       ["GET", /^\/api\/v1\/[^/]+\/connectors$/, () => []],
@@ -1435,7 +1435,7 @@ export async function injectMockBackend(page: Page) {
     // component expects a list is a crash waiting for the right page.
     mock[IDS.GetFailedChangesCount] = () => 0;
     mock[IDS.ListChangesets] = () => [];
-    mock[IDS.ListBrandProfiles] = () => [];
+    mock[IDS.ListVoiceProfiles] = () => [];
 
     mock[IDS.StartWatching] = () => {};
     mock[IDS.StopWatching] = () => {};

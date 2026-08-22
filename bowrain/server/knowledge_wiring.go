@@ -23,7 +23,7 @@ var errKnowledgeUnavailable = errors.New("brand knowledge graph not configured")
 // interfaces directly — the compile-time checks in knowledge/engine.go and
 // knowledge/pilot.go prove the content store is a BlockSource /
 // CollectionResolver / StreamBindingStore, the framework terms is a
-// ConceptStore, and the brand store is a ProfileStore — so no adapters are
+// ConceptStore, and the voice store is a ProfileStore — so no adapters are
 // needed. An engine holds only pointers, so building a fresh one per request is
 // cheap; the workspace terms it carries is cached by workspaceStores.
 //

@@ -79,7 +79,7 @@ func TestRoundTripLossless(t *testing.T) {
 	require.Equal(t, canonicalConcepts(concepts), got.Concepts, "concepts must round-trip losslessly")
 }
 
-func TestRoundTripPreservesBrandAndCompetitorFields(t *testing.T) {
+func TestRoundTripPreservesVoiceAndCompetitorFields(t *testing.T) {
 	data, err := Marshal(FromConcepts(richConcepts()))
 	require.NoError(t, err)
 	out := string(data)

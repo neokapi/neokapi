@@ -159,8 +159,8 @@ export function TablePageSkeleton() {
   );
 }
 
-/** Skeleton for brand profile list (card grid). */
-export function BrandProfilesSkeleton() {
+/** Skeleton for voice profile list (card grid). */
+export function VoiceProfilesSkeleton() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}

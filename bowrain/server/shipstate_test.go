@@ -162,7 +162,7 @@ func TestApplyShipStates(t *testing.T) {
 	assert.Equal(t, platstore.ShipStatePending, itB.ShipState)
 	assert.Equal(t, 1, itB.FailingChecks, "the failing block is attributed to its collection")
 
-	// On-brand rates (no brand store → checks-only basis everywhere derived).
+	// On-brand rates (no voice store → checks-only basis everywhere derived).
 	assertCompliant(t, fr, 2, 1.0, platstore.ComplianceBasisChecks)
 	assertCompliant(t, de, 2, 1.0, platstore.ComplianceBasisChecks)
 	assertCompliant(t, es, 1, 1.0, platstore.ComplianceBasisChecks)

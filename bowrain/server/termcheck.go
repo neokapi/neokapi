@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -24,7 +24,7 @@ import (
 //
 //   - PRESENCE: the target CONTAINS a forbidden or competitor term — drawn from
 //     the terms store (LookupAll, the same matcher the concept blast radius and RV-E
-//     use) AND from the brand profile's vocabulary (core/profile.MatchVocabulary,
+//     use) AND from the voice profile's vocabulary (core/profile.MatchVocabulary,
 //     the single brand-vocab matcher the voice-vocab-check tool and blast radius
 //     call).
 //   - ABSENCE: the source uses a concept that MANDATES a preferred/approved
@@ -33,7 +33,7 @@ import (
 //     the source term, a case-insensitive contains for the mandated rendering).
 //
 // The checks are deterministic and offline — no DB or LLM call is made per block.
-// The terms store is snapshotted in-memory once per (workspace) and the brand profile
+// The terms store is snapshotted in-memory once per (workspace) and the voice profile
 // resolved once per (workspace, locale) by the caller (see termGate), then reused
 // across every block of the ship/compliant pass.
 
@@ -46,7 +46,7 @@ import (
 //
 // tb is an in-memory terms snapshot resolved once by the caller (nil = the
 // project has no terms → the terms store half is skipped). profile is the brand
-// voice profile resolved for tgtLoc once by the caller (nil = no brand profile →
+// voice profile resolved for tgtLoc once by the caller (nil = no voice profile →
 // the brand-vocab half is skipped). With both nil the predicate is a pure no-op
 // and always reports compliant, so a project with no terminology governance is
 // byte-identical to the pre-term behavior. An empty (untranslated) target is
@@ -142,12 +142,12 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 }
 
 // termGate carries the terminology-governance context for one ship/compliant pass:
-// an in-memory terms snapshot (resolved once) and a per-locale brand-profile
+// an in-memory terms snapshot (resolved once) and a per-locale voice profile
 // resolver (resolved at most once per locale, then cached). It is the caller-side
 // wrapper that keeps the shared blockTermCompliant predicate bounded — the pass
 // resolves stores once, the predicate runs offline per block. A nil gate is a
 // no-op (every block compliant, no term governance active), so a project with no
-// terms and no brand profile behaves exactly as before.
+// terms and no voice profile behaves exactly as before.
 type termGate struct {
 	srcLoc     model.LocaleID
 	tb         terms.Terminology // in-memory snapshot; nil = no terms governance
@@ -206,7 +206,7 @@ func (g *termGate) fingerprint(ctx context.Context, locales []string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// profileFor resolves (and caches) the brand voice profile for one target locale.
+// profileFor resolves (and caches) the voice profile for one target locale.
 // The resolver runs at most once per locale across the whole pass — never per
 // block — so the ship/compliant pass adds no per-block store reads.
 func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
@@ -233,7 +233,7 @@ func (g *termGate) compliant(ctx context.Context, block *model.Block, tgtLoc mod
 }
 
 // active reports whether the gate has any terminology governance to enforce for
-// tgtLoc — a non-empty terms snapshot, or a brand profile carrying forbidden /
+// tgtLoc — a non-empty terms snapshot, or a voice profile carrying forbidden /
 // competitor vocabulary. It drives the honest compliance_basis: term checks are
 // noted as contributing only where they actually ran against something.
 func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
@@ -249,10 +249,10 @@ func (g *termGate) active(ctx context.Context, tgtLoc model.LocaleID) bool {
 
 // resolveTermGate builds the terminology-governance gate for a project's
 // ship/compliant pass: an in-memory snapshot of the workspace terms (one read,
-// reused across every block and locale) plus a per-locale brand-profile resolver
+// reused across every block and locale) plus a per-locale voice profile resolver
 // (resolved at most once per locale). The gate is deterministic and offline — no
 // per-block DB or LLM call. Returns nil when the project has neither a terms store
-// nor a brand store, so the term check is a no-op and the derived ship/compliant
+// nor a voice store, so the term check is a no-op and the derived ship/compliant
 // numbers stay byte-identical to the pre-term behavior.
 func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, stream, wsID string) *termGate {
 	if proj == nil {
@@ -268,16 +268,16 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 		snap, snapFP = snapshotTerms(ctx, tb)
 	}
 
-	// Brand-profile resolver: the same hierarchical binding ladder the editor and
-	// worker resolve through (brandscope.Resolve), scoped per target locale.
+	// Voice profile resolver: the same hierarchical binding ladder the editor and
+	// worker resolve through (voicescope.Resolve), scoped per target locale.
 	var resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
 	if s.VoiceStore != nil {
-		var wd brandscope.WorkspaceDefault
+		var wd voicescope.WorkspaceDefault
 		if s.AuthStore != nil {
 			wd = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 		}
 		resolve = func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
-			profile, err := brandscope.Resolve(ctx, s.ContentStore, wd, s.VoiceStore, brandscope.Scope{
+			profile, err := voicescope.Resolve(ctx, s.ContentStore, wd, s.VoiceStore, voicescope.Scope{
 				WorkspaceID: wsID,
 				ProjectID:   proj.ID,
 				Stream:      stream,

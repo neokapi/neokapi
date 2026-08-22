@@ -144,7 +144,7 @@ func TestExtractFileRejections(t *testing.T) {
 		{"unknown content type without extension", []byte("data"), "blob", "application/octet-stream", "unsupported file type"},
 		// PDF has no reader in a non-wasm build (the wasm PDF reader is js-only;
 		// native reads go through the kapi-pdfium plugin), so a server-side
-		// brand scan reports it as unsupported rather than pretending to read it.
+		// context scan reports it as unsupported rather than pretending to read it.
 		{"pdf without a registered reader", []byte("%PDF-1.7"), "brand.pdf", "", "unsupported file type"},
 		{"legacy binary ppt", []byte("\xd0\xcf\x11\xe0"), "deck.ppt", "", "unsupported file type"},
 	}

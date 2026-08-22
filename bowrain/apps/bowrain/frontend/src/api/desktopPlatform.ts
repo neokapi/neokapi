@@ -138,7 +138,7 @@ export function createDesktopPlatform(): PlatformAdapter {
         "connector-sync": "connector.sync",
         "flow-changed": "flow.changed",
         "membership-changed": "member.changed",
-        "brand-voice-changed": "brand.changed",
+        "voice-changed": "brand.changed",
         "terms-changed": "term.changed",
         "stream-changed": "stream.changed",
       };

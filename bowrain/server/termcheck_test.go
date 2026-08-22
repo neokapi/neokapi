@@ -210,7 +210,7 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 }
 
 // TestResolveTermGateNoTermsNoOp proves the byte-stable no-op: a project with
-// no terms concepts and no bound brand profile derives ship/compliant numbers
+// no terms concepts and no bound voice profile derives ship/compliant numbers
 // identical to the pre-term behavior (checks-only basis, no spurious failures).
 func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)

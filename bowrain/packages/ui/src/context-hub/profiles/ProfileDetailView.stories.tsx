@@ -17,7 +17,7 @@ const meta: Meta<typeof ProfileDetailView> = {
     onOpenVoice: fn(),
     onOpenTerms: fn(),
     onOpenChanges: fn(),
-    onScanBrand: fn(),
+    onScanVoice: fn(),
   },
   decorators: [
     (Story) => (

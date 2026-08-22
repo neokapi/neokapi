@@ -153,7 +153,7 @@ func (req TranslateRequest) Prompt() prompt.Translate {
 	}
 }
 
-// Directives returns the deterministic instruction + brand-voice + glossary
+// Directives returns the deterministic instruction + voice + glossary
 // block shared by every translation prompt.
 func (req TranslateRequest) Directives() string { return req.Prompt().Directives() }
 

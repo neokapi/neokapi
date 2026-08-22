@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
-	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
@@ -89,15 +89,15 @@ type WorkerDeps struct {
 	// back to the previous AI-only behavior. Mirrors the server's per-workspace
 	// workspaceStores.getMemory.
 	MemoryResolver MemoryResolver
-	// VoiceStore reads brand voice profiles so a translation job carries the
-	// project's brand voice into the AI prompt — parity with the CLI flow's
-	// brand binding. Optional; nil translates without brand voice.
+	// VoiceStore reads voice profiles so a translation job carries the
+	// project's voice into the AI prompt — parity with the CLI flow's
+	// brand binding. Optional; nil translates without voice.
 	VoiceStore coreprofile.Store
-	// WorkspaceDefault resolves the workspace-level default brand-voice
-	// profile — the base rung of the brandscope resolution ladder that a
+	// WorkspaceDefault resolves the workspace-level default voice
+	// profile — the base rung of the voicescope resolution ladder that a
 	// project/stream/collection binding overrides. Optional; nil skips the
 	// workspace rung.
-	WorkspaceDefault brandscope.WorkspaceDefault
+	WorkspaceDefault voicescope.WorkspaceDefault
 	// TermsResolver returns the workspace terms so a translation job carries
 	// the project's terminology as a prompt glossary — parity with the CLI
 	// flow's terms binding. Optional; nil translates without a glossary.
@@ -609,14 +609,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
 
-	// Lazily resolve the standing brand voice profile once for draft scoring
+	// Lazily resolve the standing voice profile once for draft scoring
 	// (persistDraftVoiceScores) — resolved only when a draft actually persists,
 	// so a job with nothing to score costs no extra store reads.
 	var voiceProfile *coreprofile.VoiceProfile
 	voiceProfileResolved := false
 	draftProfile := func() *coreprofile.VoiceProfile {
 		if !voiceProfileResolved {
-			voiceProfile = resolveJobBrandProfile(ctx, deps, job)
+			voiceProfile = resolveJobVoiceProfile(ctx, deps, job)
 			voiceProfileResolved = true
 		}
 		return voiceProfile
@@ -840,7 +840,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 }
 
 // leaseRenewer is the lease-heartbeat surface shared by every leased job
-// store (translation, brand scan).
+// store (translation, context scan).
 type leaseRenewer interface {
 	RenewLease(ctx context.Context, id string, epoch int64) (owner bool, err error)
 }
@@ -975,7 +975,7 @@ func estimateTokens(blocks []*venue.StoredBlock) int {
 
 // jobTranslateConfig builds the AI translate tool config for a translation
 // job. Beyond the locale/batching plumbing, it binds the project's standing
-// brand context — the resolved brand voice profile and the per-locale
+// brand context — the resolved voice profile and the per-locale
 // terminology glossary — so every server-side AI translation carries the same
 // guidance the CLI flow injects via ApplyProjectBindings. Both bindings are
 // best-effort: absence or a resolution failure leaves the corresponding field
@@ -998,9 +998,9 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		TargetLocale:     tgtLocale,
 		BatchSize:        batchSz,
 		BatchConcurrency: concurrency,
-		// Brand voice → prompt guidance, resolved through the platform's
+		// Voice → prompt guidance, resolved through the platform's
 		// binding ladder (collection → stream → project → workspace default).
-		Profile: resolveJobBrandProfile(ctx, deps, job),
+		Profile: resolveJobVoiceProfile(ctx, deps, job),
 		// Terminology → the advisory glossary section of the prompt, so the
 		// model is told the mandated renderings at generation time instead of
 		// term-check only flagging them afterwards.

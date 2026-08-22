@@ -194,7 +194,7 @@ func runCommand(t *testing.T, args ...string) string {
 // TMX and TBX are deliberately absent — they are external file-format standards
 // we do not own, and naming them is correct.
 //
-// "brand voice" is here because CLI help names the mechanism, and the mechanism
+// "voice" is here because CLI help names the mechanism, and the mechanism
 // is the voice profile. Positioning prose that sells the use case ("keep it on
 // brand") lives on the docs and landing surfaces, not in help text.
 var retiredVocabulary = regexp.MustCompile(`(?i)termbases?|glossar(?:y|ies)|locali[sz](?:e|es|ed|ing|ation|ations)|l10n|translation memor(?:y|ies)|brand[- ]voice`)

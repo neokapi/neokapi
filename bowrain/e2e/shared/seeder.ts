@@ -7,7 +7,7 @@
  * Layers:
  *   1. Foundation  — workspace + projects + file uploads
  *   2. Language     — content-memory entries + terminology concepts
- *   3. Brand Voice  — brand profile from starter pack
+ *   3. Voice  — voice profile from starter pack
  *   4. Collaboration — stream + tasks
  *   5. Automation   — automation rules
  */
@@ -39,7 +39,7 @@ export interface StoryContext {
   api: BowrainAPI;
   wsSlug: string;
   projects: Record<string, { id: string; name: string }>;
-  brandProfileId?: string;
+  voiceProfileId?: string;
   stream?: string;
   taskIds?: string[];
   memoryCount: number;
@@ -147,21 +147,21 @@ export async function seedLanguageAssets(ctx: StoryContext): Promise<StoryContex
 }
 
 // ---------------------------------------------------------------------------
-// Layer 3: Brand Voice — brand profile from starter pack
+// Layer 3: Voice — voice profile from starter pack
 // ---------------------------------------------------------------------------
 
 export async function seedBrandVoice(ctx: StoryContext): Promise<StoryContext> {
   const { api, wsSlug } = ctx;
 
-  console.log(`[seed] Creating brand profile from starter pack "${BRAND_PROFILE.pack}"...`);
+  console.log(`[seed] Creating voice profile from starter pack "${BRAND_PROFILE.pack}"...`);
 
   // Check if a profile with the same name already exists.
-  const existing = await api.listBrandProfiles(wsSlug);
+  const existing = await api.listVoiceProfiles(wsSlug);
   const found = existing.find((p) => p.name === BRAND_PROFILE.name);
 
   if (found) {
-    console.log(`[seed]   Brand profile already exists (${found.id})`);
-    return { ...ctx, brandProfileId: found.id };
+    console.log(`[seed]   Voice profile already exists (${found.id})`);
+    return { ...ctx, voiceProfileId: found.id };
   }
 
   const profile = await api.createBrandProfileFromStarter(
@@ -169,8 +169,8 @@ export async function seedBrandVoice(ctx: StoryContext): Promise<StoryContext> {
     BRAND_PROFILE.pack,
     BRAND_PROFILE.name,
   );
-  console.log(`[seed]   Created brand profile (${profile.id})`);
-  return { ...ctx, brandProfileId: profile.id };
+  console.log(`[seed]   Created voice profile (${profile.id})`);
+  return { ...ctx, voiceProfileId: profile.id };
 }
 
 // ---------------------------------------------------------------------------

@@ -90,7 +90,7 @@ func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 
 // ChatStructured returns JSON conforming to the requested schema. The batch
 // translation schema (emitted by translate) is honoured by parsing the
-// numbered prompt and translating each segment. The brand-voice inference
+// numbered prompt and translating each segment. The voice inference
 // schema (emitted by voice-infer) is honoured by deterministic surface
 // heuristics over the corpus embedded in the prompt — a generative onboarding
 // draft, clearly marked as illustrative. All other schemas get a neutral,
@@ -377,7 +377,7 @@ func demoBatchTranslations(userTurn string, target model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic demo brand-voice inference
+// Deterministic demo voice inference
 // ---------------------------------------------------------------------------
 
 // demoContractionRe matches common English contractions ("we're", "don't").
@@ -594,7 +594,7 @@ func demoChatReply(ctx context.Context, userTurn string) string {
 
 // neutralSchemaJSON builds a minimal schema-valid JSON document: arrays become
 // empty arrays, strings empty, numbers zero, booleans false, objects recursed.
-// Used for QA / brand-voice style schemas where inventing findings would be
+// Used for QA / voice style schemas where inventing findings would be
 // dishonest.
 func neutralSchemaJSON(s JSONSchema) string {
 	v := neutralValue(s.Schema)

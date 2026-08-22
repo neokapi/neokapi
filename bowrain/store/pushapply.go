@@ -31,7 +31,7 @@ import (
 //
 // The line is drawn at the content store. Collections reconcile before the
 // transition, against a store this one cannot join: reconciliation writes
-// voice profiles to the brand store as well, and a transaction over one
+// voice profiles to the voice store as well, and a transaction over one
 // database cannot roll back the other. The asymmetry is deliberate rather than
 // unfortunate — a collection created for content that then rolled back is an
 // empty collection, which is harmless and idempotently re-used by the retry,

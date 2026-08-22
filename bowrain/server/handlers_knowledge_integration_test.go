@@ -23,7 +23,7 @@ import (
 )
 
 // These tests drive the brand knowledge-graph handlers against the real
-// PostgreSQL-backed governance store, content store, and brand store, exercising
+// PostgreSQL-backed governance store, content store, and voice store, exercising
 // the change-set lifecycle end to end. They are gated behind //go:build
 // integration and skip automatically when Docker is unavailable (pgtest).
 

@@ -10,7 +10,7 @@ import (
 
 // persistDraftVoiceScores runs the profile's deterministic gate
 // (coreprofile.Findings — the same zero-AI vocabulary and pattern matching behind
-// every HTTP scoring surface) over freshly persisted draft targets and stores one brand voice
+// every HTTP scoring surface) over freshly persisted draft targets and stores one voice
 // score per block. This is what makes the dashboard's compliance rate
 // voice-informed without any extra AI spend: every server-side draft the
 // convergence loop produces (content memory-recycled or AI-translated) leaves a measured
@@ -35,7 +35,7 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 			continue
 		}
 		// Anchor findings to a single synthetic text run over the checked text,
-		// exactly like the HTTP check surfaces (HandleCheckBrandVoice).
+		// exactly like the HTTP check surfaces (HandleCheckVoice).
 		runs := []model.Run{{Text: &model.TextRun{Text: text}}}
 		findings := coreprofile.Findings(profile, text, runs)
 		score := coreprofile.CalculateScore(findings)

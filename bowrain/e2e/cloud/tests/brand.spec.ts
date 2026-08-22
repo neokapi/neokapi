@@ -1,6 +1,6 @@
 import { test, expect } from "../fixtures/test";
 
-test.describe("Brand Voice Profiles", () => {
+test.describe("Voice Profiles", () => {
   let wsSlug: string;
   let createdProfileId: string | undefined;
   let brandAvailable = true;
@@ -14,7 +14,7 @@ test.describe("Brand Voice Profiles", () => {
       const profile = await api.createBrandProfileFromStarter(
         wsSlug,
         "professional-b2b",
-        "E2E Brand Voice",
+        "E2E Voice",
       );
       createdProfileId = profile.id;
     } catch (err) {
@@ -30,7 +30,7 @@ test.describe("Brand Voice Profiles", () => {
   });
 
   // eslint-disable-next-line no-unused-vars
-  test("create brand profile from starter pack", async ({ api }) => {
+  test("create voice profile from starter pack", async ({ api }) => {
     if (!brandAvailable) {
       test.skip(true, "Brand profiles feature not available on this server");
       return;
@@ -46,38 +46,38 @@ test.describe("Brand Voice Profiles", () => {
       return;
     }
 
-    const profiles = await api.listBrandProfiles(wsSlug);
+    const profiles = await api.listVoiceProfiles(wsSlug);
     expect(profiles.length).toBeGreaterThan(0);
-    const found = profiles.find((p) => p.name === "E2E Brand Voice");
+    const found = profiles.find((p) => p.name === "E2E Voice");
     expect(found).toBeTruthy();
   });
 
-  test("get brand profile by ID", async ({ api }) => {
+  test("get voice profile by ID", async ({ api }) => {
     if (!brandAvailable || !createdProfileId) {
       test.skip(true, "Brand profiles feature not available or profile not created");
       return;
     }
 
-    const profiles = await api.listBrandProfiles(wsSlug);
-    const target = profiles.find((p) => p.name === "E2E Brand Voice");
+    const profiles = await api.listVoiceProfiles(wsSlug);
+    const target = profiles.find((p) => p.name === "E2E Voice");
     expect(target).toBeTruthy();
     expect(target!.id).toBeTruthy();
   });
 
-  test("update brand profile", async ({ api }) => {
+  test("update voice profile", async ({ api }) => {
     if (!brandAvailable || !createdProfileId) {
       test.skip(true, "Brand profiles feature not available or profile not created");
       return;
     }
 
-    const updated = await api.updateBrandProfile(wsSlug, createdProfileId!, {
-      name: "E2E Brand Voice Updated",
+    const updated = await api.updateVoiceProfile(wsSlug, createdProfileId!, {
+      name: "E2E Voice Updated",
     });
 
-    expect(updated.name).toBe("E2E Brand Voice Updated");
+    expect(updated.name).toBe("E2E Voice Updated");
   });
 
-  test("delete brand profile", async ({ api }) => {
+  test("delete voice profile", async ({ api }) => {
     if (!brandAvailable) {
       test.skip(true, "Brand profiles feature not available on this server");
       return;
@@ -95,9 +95,9 @@ test.describe("Brand Voice Profiles", () => {
       throw err;
     }
 
-    await api.deleteBrandProfile(wsSlug, profile.id);
+    await api.deleteVoiceProfile(wsSlug, profile.id);
 
-    const profiles = await api.listBrandProfiles(wsSlug);
+    const profiles = await api.listVoiceProfiles(wsSlug);
     const found = profiles.find((p) => p.id === profile.id);
     expect(found).toBeUndefined();
   });

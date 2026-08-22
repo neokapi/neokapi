@@ -1,5 +1,5 @@
 // Package mcp provides a cloud MCP (Model Context Protocol) server that
-// exposes brand voice resources, tools, and prompts via Streamable HTTP.
+// exposes voice resources, tools, and prompts via Streamable HTTP.
 package mcp
 
 import (
@@ -15,9 +15,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/memory"
@@ -69,11 +69,11 @@ type SandboxResult struct {
 	ExitCode int
 }
 
-// MCPServer wraps the MCP protocol server with brand voice resources and tools.
+// MCPServer wraps the MCP protocol server with voice resources and tools.
 type MCPServer struct {
 	voiceStore     coreprofile.Store
 	contentStore   store.ContentStore
-	wsDefault      brandscope.WorkspaceDefault
+	wsDefault      voicescope.WorkspaceDefault
 	memoryResolver MemoryResolver
 	tbResolver     TermsResolver
 	connResolver   ConnectorResolver
@@ -149,10 +149,10 @@ func WithSandbox(e SandboxExecutor) Option {
 	return func(s *MCPServer) { s.sandbox = e }
 }
 
-// WithWorkspaceDefault supplies the workspace-level default brand-voice profile
+// WithWorkspaceDefault supplies the workspace-level default voice profile
 // lookup, forming the base rung of the scoring tools' resolution ladder. When
 // unset, the workspace default is skipped and resolution stops at the project.
-func WithWorkspaceDefault(wd brandscope.WorkspaceDefault) Option {
+func WithWorkspaceDefault(wd voicescope.WorkspaceDefault) Option {
 	return func(s *MCPServer) { s.wsDefault = wd }
 }
 
@@ -161,12 +161,12 @@ func WithToolRegistry(r *registry.ToolRegistry) Option {
 	return func(s *MCPServer) { s.toolReg = r }
 }
 
-// NewMCPServer creates a new MCP server with brand voice capabilities.
+// NewMCPServer creates a new MCP server with voice capabilities.
 func NewMCPServer(voiceStore coreprofile.Store, cfg Config) (*MCPServer, error) {
 	return NewMCPServerWithStore(voiceStore, nil, cfg)
 }
 
-// NewMCPServerWithStore creates a new MCP server with brand voice and
+// NewMCPServerWithStore creates a new MCP server with voice and
 // content/flow/content memory/terms/connector tools for @bravo agent access.
 func NewMCPServerWithStore(voiceStore coreprofile.Store, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
 	s := mcp.NewServer(
@@ -229,7 +229,7 @@ func NewMCPServerWithStore(voiceStore coreprofile.Store, contentStore store.Cont
 	}
 	ms.metadata = &oauthex.ProtectedResourceMetadata{
 		Resource:               resourceURL + "/mcp/",
-		ResourceName:           "Bowrain Brand Voice MCP Server",
+		ResourceName:           "Bowrain Voice MCP Server",
 		BearerMethodsSupported: []string{"header"},
 		ScopesSupported:        []string{"brand:read", "brand:write"},
 	}

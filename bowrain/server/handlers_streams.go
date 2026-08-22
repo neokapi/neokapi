@@ -81,7 +81,7 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 		Description: req.Description,
 		CreatedBy:   createdBy,
 		// Properties carry extensible metadata such as the stream-level
-		// brand-voice binding (voice_profile_id).
+		// voice binding (voice_profile_id).
 		Properties: req.Properties,
 	}
 
@@ -149,7 +149,7 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 	if req.Visibility != nil {
 		st.Visibility = store.StreamVisibility(*req.Visibility)
 	}
-	// Properties carry extensible metadata such as the stream-level brand-voice
+	// Properties carry extensible metadata such as the stream-level voice
 	// binding (voice_profile_id). Merge so a single-key update never drops
 	// other keys, mirroring the project properties merge.
 	if req.Properties != nil {

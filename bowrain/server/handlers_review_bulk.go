@@ -44,7 +44,7 @@ type ApprovePassingResponse struct {
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
 // awaiting review AND clears the ship bar — passes the project's QA checks with
-// no error-severity finding AND meets the brand compliance bar (the same #1365
+// no error-severity finding AND meets the voice compliance bar (the same #1365
 // shipstate predicate the dashboard aggregates). Blocks that fail checks or fall
 // below the bar are EXCLUDED and left pending for a person. Approved blocks are
 // promoted to reviewed; the locales that clear their review queue have their
@@ -102,9 +102,9 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 
 	scores := latestVoiceScores(ctx, s.VoiceStore, pid, stream)
 	// The same terminology gate the dashboard ship/compliant pass uses, resolved
-	// once (workspace terms snapshot + per-locale brand profile): a pending
+	// once (workspace terms snapshot + per-locale voice profile): a pending
 	// draft that uses a forbidden term or misses a mandated one is non-compliant and
-	// must not be auto-approved. Nil gate (no terms/brand store) is a no-op.
+	// must not be auto-approved. Nil gate (no terms/voice store) is a no-op.
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 

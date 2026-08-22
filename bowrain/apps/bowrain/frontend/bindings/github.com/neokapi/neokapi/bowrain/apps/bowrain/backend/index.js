@@ -20,8 +20,6 @@ export {
     BlockStatusCountsView,
     BlockTargetInfo,
     BlockTermMatch,
-    BrandRollupArgs,
-    BrandRollupResult,
     BulkApplyMemoryArgs,
     BulkApplyMemoryView,
     BulkReviewArgs,
@@ -87,6 +85,8 @@ export {
     UpdateConceptRequest,
     Validity,
     VersionInfo,
+    VoiceRollupArgs,
+    VoiceRollupResult,
     WordCountResult,
     WorkspaceInfo
 } from "./models.js";

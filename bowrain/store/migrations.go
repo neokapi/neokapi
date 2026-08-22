@@ -14,7 +14,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	 3  Live Preview: per-project settings + block content key (AD-023/AD-036)
 //	 4  block occurrences (AD-036)
 //	 5  workspace-scoped connector configs (durable connectors)
-//	 6  stream properties (extensible metadata, incl. brand voice binding)
+//	 6  stream properties (extensible metadata, incl. voice binding)
 //	 7  convergence run loop-observability columns (stall_reason, stage, activity)
 //	 8  source-first convergence: blocked-on-source count on a run
 //	 9  connector last-sync timestamp (real status, not fabricated now)
@@ -100,7 +100,7 @@ var Migrations = []storage.Migration{
 				locked_by   TEXT NOT NULL DEFAULT '',
 				locked_at   TIMESTAMPTZ,
 				-- Extensible key/value metadata, like projects and items carry —
-				-- most immediately the stream-level brand-voice binding
+				-- most immediately the stream-level voice binding
 				-- (voice_profile_id), a rung in the hierarchical profile
 				-- resolver.
 				properties  TEXT NOT NULL DEFAULT '{}',
@@ -927,9 +927,9 @@ var Migrations = []storage.Migration{
 			);
 			CREATE INDEX IF NOT EXISTS idx_connector_configs_ws ON connector_configs(workspace_id);
 
-			-- ---- folded from version 6: stream properties (extensible metadata, incl. brand voice binding) ----
+			-- ---- folded from version 6: stream properties (extensible metadata, incl. voice binding) ----
 			-- Streams carry extensible key/value metadata like projects and items
-			-- do — most immediately the stream-level brand-voice binding
+			-- do — most immediately the stream-level voice binding
 			-- (voice_profile_id), a rung in the hierarchical profile
 			-- resolver. Stored as a JSON TEXT map, matching items.properties.
 

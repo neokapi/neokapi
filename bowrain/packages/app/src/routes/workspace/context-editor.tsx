@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
-  BrandProfileWizard,
+  VoiceProfileWizard,
   StarterPackPicker,
   ErrorNotice,
-  useBrandProfile,
-  useCreateBrandProfile,
-  useUpdateBrandProfile,
+  useVoiceProfile,
+  useCreateVoiceProfile,
+  useUpdateVoiceProfile,
   useCreateFromStarter,
   useAnalytics,
   AnalyticsEvents,
@@ -28,9 +28,9 @@ export function ContextEditorRoute() {
   // Show picker on first render for new profiles (triggered via "From Starter" button)
   const [pickerShownOnce, setPickerShownOnce] = useState(false);
 
-  const { data: profile } = useBrandProfile(isNew ? "" : (profileId ?? ""));
-  const createMutation = useCreateBrandProfile();
-  const updateMutation = useUpdateBrandProfile();
+  const { data: profile } = useVoiceProfile(isNew ? "" : (profileId ?? ""));
+  const createMutation = useCreateVoiceProfile();
+  const updateMutation = useUpdateVoiceProfile();
   const createFromStarter = useCreateFromStarter();
   const { capture } = useAnalytics();
 
@@ -71,7 +71,7 @@ export function ContextEditorRoute() {
   );
 
   // Selecting a starter pack creates the profile from the server's authoritative
-  // template (core/brand/packs/*.yaml) and opens it in the editor for review —
+  // template (core/profile/packs/*.yaml) and opens it in the editor for review —
   // no client-side copy of the pack content to drift from the source.
   const handleSelectPack = useCallback(
     async (pack: StarterPackMeta) => {
@@ -122,7 +122,7 @@ export function ContextEditorRoute() {
           <ErrorNotice error={starterError} title="Could not create the profile from that pack" />
         </div>
       )}
-      <BrandProfileWizard profile={wizardProfile} onSave={handleSave} onCancel={handleCancel} />
+      <VoiceProfileWizard profile={wizardProfile} onSave={handleSave} onCancel={handleCancel} />
     </>
   );
 }

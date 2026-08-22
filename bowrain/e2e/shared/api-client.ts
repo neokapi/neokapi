@@ -713,29 +713,29 @@ export class BowrainAPI {
   // Brand Profiles
   // -----------------------------------------------------------------------
 
-  async listBrandProfiles(wsSlug: string): Promise<BrandProfile[]> {
-    const result = await this.get<BrandProfile[] | null>(`/${wsSlug}/brand-profiles`);
+  async listVoiceProfiles(wsSlug: string): Promise<BrandProfile[]> {
+    const result = await this.get<BrandProfile[] | null>(`/${wsSlug}/voice-profiles`);
     return result ?? [];
   }
 
-  async createBrandProfile(wsSlug: string, profile: Partial<BrandProfile>): Promise<BrandProfile> {
-    return this.post(`/${wsSlug}/brand-profiles`, profile);
+  async createVoiceProfile(wsSlug: string, profile: Partial<BrandProfile>): Promise<BrandProfile> {
+    return this.post(`/${wsSlug}/voice-profiles`, profile);
   }
 
-  async updateBrandProfile(
+  async updateVoiceProfile(
     wsSlug: string,
     profileId: string,
     profile: Partial<BrandProfile>,
   ): Promise<BrandProfile> {
-    return this.put(`/${wsSlug}/brand-profiles/${profileId}`, profile);
+    return this.put(`/${wsSlug}/voice-profiles/${profileId}`, profile);
   }
 
-  async deleteBrandProfile(wsSlug: string, profileId: string): Promise<void> {
-    return this.del(`/${wsSlug}/brand-profiles/${profileId}`);
+  async deleteVoiceProfile(wsSlug: string, profileId: string): Promise<void> {
+    return this.del(`/${wsSlug}/voice-profiles/${profileId}`);
   }
 
   async checkBrandProfile(wsSlug: string, profileId: string): Promise<unknown> {
-    return this.post(`/${wsSlug}/brand-profiles/${profileId}/check`);
+    return this.post(`/${wsSlug}/voice-profiles/${profileId}/check`);
   }
 
   async createBrandProfileFromStarter(
@@ -745,7 +745,7 @@ export class BowrainAPI {
   ): Promise<BrandProfile> {
     const body: Record<string, unknown> = { pack };
     if (name) body.name = name;
-    return this.post(`/${wsSlug}/brand-profiles/from-starter`, body);
+    return this.post(`/${wsSlug}/voice-profiles/from-starter`, body);
   }
 
   // -----------------------------------------------------------------------

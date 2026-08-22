@@ -14,7 +14,7 @@ import (
 // only run where branching does.
 //
 // TestStreamProperties_RoundTrip verifies the streams.properties column added
-// for stream-level bindings (e.g. the brand-voice profile) is persisted through
+// for stream-level bindings (e.g. the voice profile) is persisted through
 // create, read, and update — the store change that makes the resolver's stream
 // rung real rather than a dropped write.
 func TestStreamProperties_RoundTrip(t *testing.T) {
@@ -31,7 +31,7 @@ func TestStreamProperties_RoundTrip(t *testing.T) {
 	got, err := s.GetStream(ctx, p.ID, "v2")
 	require.NoError(t, err)
 	assert.Equal(t, "profile-abc", got.Properties[coreprofile.PropertyProfileID],
-		"stream brand-voice binding survives create/read")
+		"stream voice binding survives create/read")
 
 	// A property update must merge-persist through UpdateStream.
 	got.Properties[coreprofile.PropertyChannel] = "email"

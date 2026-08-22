@@ -179,7 +179,7 @@ export type { StarterPromptCardProps, StarterPromptProps } from "./components/St
 export { LoopStatusRow } from "./components/LoopStatusRow";
 export type {
   LoopActivitySummary,
-  LoopBrandHealth,
+  LoopVoiceHealth,
   LoopRunStatus,
   LoopShipStatus,
   LoopStatusData,
@@ -207,8 +207,8 @@ export type {
 } from "./components/review/ReviewInbox";
 export { MarkSourceTermDialog } from "./components/review/MarkSourceTermDialog";
 export type { MarkSourceTermDialogProps } from "./components/review/MarkSourceTermDialog";
-export { SuggestBrandRuleDialog } from "./components/review/SuggestBrandRuleDialog";
-export type { SuggestBrandRuleDialogProps } from "./components/review/SuggestBrandRuleDialog";
+export { SuggestVoiceRuleDialog } from "./components/review/SuggestVoiceRuleDialog";
+export type { SuggestVoiceRuleDialogProps } from "./components/review/SuggestVoiceRuleDialog";
 export { ProposeSourceChangeDialog } from "./components/review/ProposeSourceChangeDialog";
 export type { ProposeSourceChangeDialogProps } from "./components/review/ProposeSourceChangeDialog";
 export { SourceProposalsDialog } from "./components/review/SourceProposalsDialog";
@@ -388,7 +388,7 @@ export {
   ProjectDetailSkeleton,
   EditorSkeleton,
   TablePageSkeleton,
-  BrandProfilesSkeleton,
+  VoiceProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
@@ -724,23 +724,23 @@ export type {
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
-// Brand voice
+// Voice
 export {
-  BrandProfileCard,
-  BrandScoreGauge,
-  BrandFindingsList,
-  BrandDimensionBreakdown,
-  BrandExamplePair,
-  BrandProfileEditor,
-  BrandProfileList,
-  BrandDashboard,
-  BrandMCPGuide,
-  BrandProfileWizard,
+  VoiceProfileCard,
+  VoiceScoreGauge,
+  VoiceFindingsList,
+  VoiceDimensionBreakdown,
+  VoiceExamplePair,
+  VoiceProfileEditor,
+  VoiceProfileList,
+  VoiceDashboard,
+  VoiceMCPGuide,
+  VoiceProfileWizard,
   StarterPackPicker,
   StarterPackCard,
   ToneSpectrumSelector,
   PersonalityTagPicker,
-  BrandVoicePreview,
+  VoicePreview,
   PatternListEditor,
   VocabularyEditor,
   ExamplesEditor,
@@ -758,8 +758,8 @@ export {
   MIN_SCORE_HELP,
   minScoreFieldValue,
   parseMinScore,
-} from "./brand";
-export type { ScoreBand, HasMinScore, ProfileBarSource, ParsedMinScore } from "./brand";
+} from "./voice";
+export type { ScoreBand, HasMinScore, ProfileBarSource, ParsedMinScore } from "./voice";
 export type {
   VoiceProfile,
   ToneProfile,
@@ -771,12 +771,12 @@ export type {
   LocaleOverride,
   ChannelOverride,
   Dimension,
-  BrandCorrectionRequest,
-  BrandCorrectionResult,
-  BrandSeverity,
-  BrandVoiceFinding,
+  VoiceCorrectionRequest,
+  VoiceCorrectionResult,
+  VoiceSeverity,
+  VoiceFinding,
   DimensionScore,
-  BrandComplianceScore,
+  VoiceComplianceScore,
   StoredScore,
   ScoreTrend,
   CreateVoiceProfileRequest,
@@ -787,32 +787,32 @@ export type {
   CollectionBlastRadius,
   BlastRadius,
   DriftResult,
-  BrandTrend,
-  BrandRollupEntry,
-  BrandRollup,
-  BrandRollupOptions,
+  VoiceTrend,
+  VoiceRollupEntry,
+  VoiceRollup,
+  VoiceRollupOptions,
   StarterPackMeta,
-} from "./brand";
+} from "./voice";
 
-// Brand voice hooks
+// Voice hooks
 export {
-  useBrandProfiles,
-  useBrandProfile,
-  useCreateBrandProfile,
-  useUpdateBrandProfile,
-  useDeleteBrandProfile,
-  useBrandScores,
-  useBrandTrends,
-  useBrandCandidates,
-  usePromoteBrandRule,
-  useRejectBrandRule,
-  useEvaluateBrandRule,
-  useRecordBrandCorrection,
-  useBrandDrift,
+  useVoiceProfiles,
+  useVoiceProfile,
+  useCreateVoiceProfile,
+  useUpdateVoiceProfile,
+  useDeleteVoiceProfile,
+  useVoiceScores,
+  useVoiceTrends,
+  useVoiceCandidates,
+  usePromoteVoiceRule,
+  useRejectVoiceRule,
+  useEvaluateVoiceRule,
+  useRecordVoiceCorrection,
+  useVoiceDrift,
   useCreateFromStarter,
-} from "./hooks/useBrandApi";
+} from "./hooks/useVoiceApi";
 
-// Brand scan (AI brand onboarding — epic 016)
+// Context scan (AI brand onboarding — epic 016)
 export {
   ContextScanInput,
   ContextScanProgress,
@@ -833,7 +833,7 @@ export {
   useUploadContextScanSources,
   useStartContextScan,
   useContextScanJob,
-  useCheckBrandDraft,
+  useCheckVoiceDraft,
   contextScanPollInterval,
 } from "./hooks/useContextScanApi";
 export type {
@@ -925,8 +925,8 @@ export {
   RelationBadge,
   relationLabel,
   EmptyState as ContextHubEmptyState,
-  formatDate as brandHubFormatDate,
-  formatRelative as brandHubFormatRelative,
+  formatDate as voiceHubFormatDate,
+  formatRelative as voiceHubFormatRelative,
   // Concepts section — framework concept UI (R4) on @neokapi/concept-ui.
   ConceptsSection,
   PendingConceptChanges,
@@ -940,7 +940,7 @@ export {
   ExperimentsView,
   ExperimentDetailView,
   ActivityView,
-  BrandDashboardView,
+  VoiceDashboardView,
   RollupMatrix,
 } from "./context-hub";
 export type {
@@ -957,7 +957,7 @@ export type {
   ExperimentsViewProps,
   ExperimentDetailViewProps,
   ActivityViewProps,
-  BrandDashboardViewProps,
+  VoiceDashboardViewProps,
 } from "./context-hub";
 
 // Context explorer — the framework component set (@neokapi/context-explorer)

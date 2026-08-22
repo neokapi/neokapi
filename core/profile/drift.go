@@ -38,7 +38,7 @@ type DriftResult struct {
 // preceding baseline window, computes the count-weighted average score of each,
 // and reports whether aggregate voice compliance has drifted — either by falling
 // below an absolute floor or by dropping materially from its baseline. It is the
-// detection kernel behind the brand.voice.drift alert; trends come from the
+// detection kernel behind the voice.drift alert; trends come from the
 // store and can be in any date order.
 func AnalyzeDrift(trends []*ScoreTrend, cfg DriftConfig) DriftResult {
 	cfg = cfg.withDefaults()

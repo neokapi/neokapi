@@ -1,0 +1,673 @@
+package server
+
+import (
+	"context"
+	"net/http"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
+)
+
+// VoiceProfileRequest is the request body for creating/updating a voice profile.
+type VoiceProfileRequest struct {
+	Name        string                                        `json:"name"`
+	Description string                                        `json:"description,omitempty"`
+	Tone        coreprofile.ToneProfile                       `json:"tone"`
+	Style       coreprofile.StyleRules                        `json:"style"`
+	Vocabulary  coreprofile.VocabularyRules                   `json:"vocabulary"`
+	Examples    []coreprofile.VoiceExample                    `json:"examples"`
+	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
+	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
+	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
+	// MinScore is the profile's own compliance bar (0–100); 0 means the default
+	// (coreprofile.DefaultMinScore). It is authored content, not server-managed
+	// metadata: the bar decides which blocks the ship gate and bulk
+	// approve-passing count as compliant, so it round-trips through every write
+	// surface — create, update, and the `kapi push` upsert.
+	MinScore int `json:"min_score,omitempty"`
+}
+
+// validMinScore reports whether a requested compliance bar is in range. 0 is
+// valid and means "use the default"; the accepted band mirrors
+// coreprofile.ValidateProfile's min_score rule.
+func validMinScore(minScore int) bool {
+	return minScore >= 0 && minScore <= 100
+}
+
+// errMinScoreRange is the 400 a bar outside 0–100 earns, worded the way
+// coreprofile.ValidateProfile words it.
+const errMinScoreRange = "min_score must be between 0 and 100"
+
+// VoiceProfileUpsertResponse reports what HandleUpsertVoiceProfile did.
+// Action is "created", "updated", or "unchanged"; Profile is the stored
+// workspace profile after the action.
+type VoiceProfileUpsertResponse struct {
+	Action  string                    `json:"action"`
+	Profile *coreprofile.VoiceProfile `json:"profile"`
+}
+
+// VoiceCheckRequest is the request body for checking text against a voice profile.
+type VoiceCheckRequest struct {
+	Text   string `json:"text"`
+	Locale string `json:"locale,omitempty"`
+}
+
+// VoiceCheckResponse is the response for a voice check.
+type VoiceCheckResponse struct {
+	Score    coreprofile.ComplianceScore `json:"score"`
+	Findings []coreprofile.VoiceFinding  `json:"findings"`
+}
+
+// StarterPackResponse describes an available starter pack template.
+type StarterPackResponse struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// CreateFromStarterRequest is the request body for creating a profile from a starter pack.
+type CreateFromStarterRequest struct {
+	Pack string `json:"pack"`
+	Name string `json:"name,omitempty"`
+}
+
+// HandleListVoiceProfiles lists all voice profiles in a workspace.
+func (s *Server) HandleListVoiceProfiles(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	profiles, err := s.VoiceStore.ListProfiles(c.Request().Context(), wsID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, profiles)
+}
+
+// HandleCreateVoiceProfile creates a new voice profile.
+func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	var req VoiceProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if req.Name == "" {
+		return apiErr(c, http.StatusBadRequest, "name is required")
+	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
+	now := time.Now().UTC()
+
+	profile := &coreprofile.VoiceProfile{
+		ID:          id.New(),
+		Name:        req.Name,
+		Description: req.Description,
+		Tone:        req.Tone,
+		Style:       req.Style,
+		Vocabulary:  req.Vocabulary,
+		Examples:    req.Examples,
+		Locales:     req.Locales,
+		Channels:    req.Channels,
+		Personas:    req.Personas,
+		MinScore:    req.MinScore,
+		Scope:       wsID,
+		Version:     1,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		CreatedBy:   userID,
+	}
+
+	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusCreated, profile)
+}
+
+// HandleUpsertVoiceProfile creates or updates the workspace voice profile
+// matching the request by name — the idempotent endpoint behind `kapi push`.
+// The linkage key is the profile name within the workspace (the store already
+// enforces UNIQUE(workspace_id, name)), matched case-insensitively:
+//
+//   - no workspace profile with that name → create it (version 1);
+//   - a match whose authored content equals the pushed content → no-op;
+//   - a match that differs → apply the pushed content through the store's
+//     UpdateProfile, which archives the current state as an immutable
+//     ProfileVersion before bumping the version — server-side edits are never
+//     lost, only superseded by a new, revertible version.
+//
+// Vocabulary rules the correction-learning loop promoted server-side (a
+// promoted RuleDecision still present in the live profile) are folded back
+// into the pushed vocabulary when the push does not carry the term, so a push
+// from a stale local profile never reverts a promotion; demoting a rule stays
+// a server-side, governed act.
+func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	var req VoiceProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if req.Name == "" {
+		return apiErr(c, http.StatusBadRequest, "name is required")
+	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
+	}
+
+	ctx := c.Request().Context()
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
+
+	result, err := s.upsertVoiceProfile(ctx, wsID, userID, req, "superseded by kapi push")
+	if err != nil {
+		return serverErr(c, err)
+	}
+	switch result.Action {
+	case voiceUpsertCreated:
+		return c.JSON(http.StatusCreated, VoiceProfileUpsertResponse{Action: result.Action, Profile: result.Profile})
+	case voiceUpsertUpdated:
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventVoiceProfileUpdated,
+			ResourceType: "voice_profile",
+			ResourceID:   result.Profile.ID,
+			Data:         map[string]string{"name": result.Profile.Name, "via": "push"},
+			Before:       map[string]string{"version": strconv.Itoa(result.BeforeVersion)},
+			After:        map[string]string{"version": strconv.Itoa(result.Profile.Version)},
+		})
+	}
+	return c.JSON(http.StatusOK, VoiceProfileUpsertResponse{Action: result.Action, Profile: result.Profile})
+}
+
+// The three outcomes of a voice profile upsert.
+const (
+	voiceUpsertCreated   = "created"
+	voiceUpsertUpdated   = "updated"
+	voiceUpsertUnchanged = "unchanged"
+)
+
+// voiceProfileUpsert is the outcome of upsertVoiceProfile: the stored profile,
+// which of the three actions produced it, and the version an update superseded
+// (zero unless Action is "updated").
+type voiceProfileUpsert struct {
+	Profile       *coreprofile.VoiceProfile
+	Action        string
+	BeforeVersion int
+}
+
+// upsertVoiceProfile creates or updates the workspace profile matching req by
+// name, case-insensitively, and reports which it did. An update archives the
+// current state as an immutable version under versionNote before bumping;
+// identical content is a no-op. Server-promoted vocabulary rules the request
+// does not carry are folded back in, so an upsert from stale content never
+// reverts a promotion.
+//
+// The caller emits any audit event: the same upsert is reached from a push and
+// from a brand-scan approval, and those are not the same act.
+func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, req VoiceProfileRequest, versionNote string) (voiceProfileUpsert, error) {
+	profiles, err := s.VoiceStore.ListProfiles(ctx, wsID)
+	if err != nil {
+		return voiceProfileUpsert{}, err
+	}
+	var existing *coreprofile.VoiceProfile
+	for _, p := range profiles {
+		if strings.EqualFold(p.Name, req.Name) {
+			existing = p
+			break
+		}
+	}
+
+	if existing == nil {
+		now := time.Now().UTC()
+		profile := &coreprofile.VoiceProfile{
+			ID:          id.New(),
+			Name:        req.Name,
+			Description: req.Description,
+			Tone:        req.Tone,
+			Style:       req.Style,
+			Vocabulary:  req.Vocabulary,
+			Examples:    req.Examples,
+			Locales:     req.Locales,
+			Channels:    req.Channels,
+			Personas:    req.Personas,
+			MinScore:    req.MinScore,
+			Scope:       wsID,
+			Version:     1,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			CreatedBy:   userID,
+		}
+		if err := s.VoiceStore.CreateProfile(ctx, profile); err != nil {
+			return voiceProfileUpsert{}, err
+		}
+		return voiceProfileUpsert{Profile: profile, Action: voiceUpsertCreated}, nil
+	}
+
+	// The effective incoming vocabulary keeps the server's promoted rules.
+	vocab := req.Vocabulary
+	s.preservePromotedRules(ctx, existing, &vocab)
+
+	incoming := voiceContentOf(voiceProfileContent{
+		Name: req.Name, Description: req.Description, Tone: req.Tone, Style: req.Style,
+		Vocabulary: vocab, Examples: req.Examples, Locales: req.Locales,
+		Channels: req.Channels, Personas: req.Personas, MinScore: req.MinScore,
+	})
+	current := voiceContentOf(voiceProfileContent{
+		Name: existing.Name, Description: existing.Description, Tone: existing.Tone, Style: existing.Style,
+		Vocabulary: existing.Vocabulary, Examples: existing.Examples, Locales: existing.Locales,
+		Channels: existing.Channels, Personas: existing.Personas, MinScore: existing.MinScore,
+	})
+	if reflect.DeepEqual(incoming, current) {
+		return voiceProfileUpsert{Profile: existing, Action: voiceUpsertUnchanged}, nil
+	}
+
+	beforeVersion := existing.Version
+	existing.Name = req.Name
+	existing.Description = req.Description
+	existing.Tone = req.Tone
+	existing.Style = req.Style
+	existing.Vocabulary = vocab
+	existing.Examples = req.Examples
+	existing.Locales = req.Locales
+	existing.Channels = req.Channels
+	existing.Personas = req.Personas
+	existing.MinScore = req.MinScore
+	existing.VersionNote = versionNote
+	existing.UpdatedAt = time.Now().UTC()
+
+	// UpdateProfile archives the current state as an immutable ProfileVersion
+	// and bumps existing.Version — the incoming change lands as a new version.
+	if err := s.VoiceStore.UpdateProfile(ctx, existing); err != nil {
+		return voiceProfileUpsert{}, err
+	}
+	return voiceProfileUpsert{Profile: existing, Action: voiceUpsertUpdated, BeforeVersion: beforeVersion}, nil
+}
+
+// voiceProfileContent is the authored surface of a voice profile the push
+// upsert compares — exactly the field set VoiceProfileRequest carries.
+// Server-managed metadata (ID, workspace, version, autonomy, timestamps) is
+// excluded: a push never touches it.
+type voiceProfileContent struct {
+	Name        string
+	Description string
+	Tone        coreprofile.ToneProfile
+	Style       coreprofile.StyleRules
+	Vocabulary  coreprofile.VocabularyRules
+	Examples    []coreprofile.VoiceExample
+	Locales     map[model.LocaleID]coreprofile.LocaleOverride
+	Channels    map[string]coreprofile.ChannelOverride
+	Personas    map[string]coreprofile.PersonaOverride
+	MinScore    int
+}
+
+// voiceContentOf normalizes a comparable view: every empty top-level collection
+// maps to nil so a YAML-decoded pushed profile (nil slices/maps) compares equal
+// to a stored one that round-tripped through the database.
+func voiceContentOf(c voiceProfileContent) voiceProfileContent {
+	tone, style, vocab := c.Tone, c.Style, c.Vocabulary
+	examples, locales, channels, personas := c.Examples, c.Locales, c.Channels, c.Personas
+	if len(tone.Personality) == 0 {
+		tone.Personality = nil
+	}
+	if len(style.ProhibitedPatterns) == 0 {
+		style.ProhibitedPatterns = nil
+	}
+	if len(style.RequiredPatterns) == 0 {
+		style.RequiredPatterns = nil
+	}
+	if len(vocab.PreferredTerms) == 0 {
+		vocab.PreferredTerms = nil
+	}
+	if len(vocab.ForbiddenTerms) == 0 {
+		vocab.ForbiddenTerms = nil
+	}
+	if len(vocab.CompetitorTerms) == 0 {
+		vocab.CompetitorTerms = nil
+	}
+	if len(vocab.Abbreviations) == 0 {
+		vocab.Abbreviations = nil
+	}
+	if len(examples) == 0 {
+		examples = nil
+	}
+	if len(locales) == 0 {
+		locales = nil
+	}
+	if len(channels) == 0 {
+		channels = nil
+	}
+	if len(personas) == 0 {
+		personas = nil
+	}
+	return voiceProfileContent{
+		Name: c.Name, Description: c.Description, Tone: tone, Style: style,
+		Vocabulary: vocab, Examples: examples, Locales: locales, Channels: channels, Personas: personas,
+		MinScore: c.MinScore,
+	}
+}
+
+// preservePromotedRules folds the profile's promoted-rule decisions into the
+// pushed vocabulary so a push from a stale local profile never reverts what
+// the correction-learning loop promoted server-side. A rule is preserved when
+// its decision is promoted AND the live profile still carries it (a demoted
+// rule is gone from the live profile and stays gone) AND the pushed vocabulary
+// does not itself carry the term. Promotions land in ForbiddenTerms
+// (profile.ApplySuggestedRule), so only that list needs folding. Returns the
+// number of preserved rules.
+func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofile.VoiceProfile, vocab *coreprofile.VocabularyRules) int {
+	decisions, err := s.VoiceStore.ListRuleDecisions(ctx, existing.ID)
+	if err != nil || len(decisions) == 0 {
+		return 0
+	}
+	promoted := map[string]bool{}
+	for _, d := range decisions {
+		if d.Status == coreprofile.RuleDecisionPromoted {
+			promoted[strings.ToLower(d.Term)] = true
+		}
+	}
+	if len(promoted) == 0 {
+		return 0
+	}
+	pushed := map[string]bool{}
+	for _, r := range vocab.ForbiddenTerms {
+		pushed[strings.ToLower(r.Term)] = true
+	}
+	n := 0
+	for _, rule := range existing.Vocabulary.ForbiddenTerms {
+		key := strings.ToLower(rule.Term)
+		if promoted[key] && !pushed[key] {
+			vocab.ForbiddenTerms = append(vocab.ForbiddenTerms, rule)
+			n++
+		}
+	}
+	return n
+}
+
+// profileInRequestWorkspace reports whether the voice profile belongs to the
+// workspace the request is scoped to. VoiceStore.GetProfile/UpdateProfile/
+// DeleteProfile take only a GLOBAL profile id and ignore VoiceProfile.Scope,
+// so without this check an owner/admin of workspace A could read, update, or
+// delete workspace B's voice profile by addressing it through their own
+// workspace (/api/v1/<A>/voice-profiles/<B-profile-id>) — a cross-tenant IDOR.
+// Callers respond 404 (anti-enumeration) on a mismatch, matching the
+// project-level cross-tenant guard in ProjectAccessMiddleware. Fails closed when
+// the workspace context is missing (wsID empty).
+func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile) bool {
+	wsID, _ := c.Get("workspace_id").(string)
+	return wsID != "" && profile != nil && profile.Scope == wsID
+}
+
+// HandleGetVoiceProfile returns a single voice profile by ID.
+func (s *Server) HandleGetVoiceProfile(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	profile, err := s.VoiceStore.GetProfile(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return apiErr(c, http.StatusNotFound, "voice profile not found")
+	}
+	return c.JSON(http.StatusOK, profile)
+}
+
+// HandleUpdateVoiceProfile updates an existing voice profile.
+func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	var req VoiceProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
+	}
+
+	ctx := c.Request().Context()
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
+	if err != nil {
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return apiErr(c, http.StatusNotFound, "voice profile not found")
+	}
+	beforeVersion := strconv.Itoa(profile.Version)
+
+	profile.Name = req.Name
+	profile.Description = req.Description
+	profile.Tone = req.Tone
+	profile.Style = req.Style
+	profile.Vocabulary = req.Vocabulary
+	profile.Examples = req.Examples
+	profile.Locales = req.Locales
+	profile.Channels = req.Channels
+	profile.Personas = req.Personas
+	profile.MinScore = req.MinScore
+	profile.Version++
+	profile.UpdatedAt = time.Now().UTC()
+
+	if err := s.VoiceStore.UpdateProfile(ctx, profile); err != nil {
+		return serverErr(c, err)
+	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventVoiceProfileUpdated,
+		ResourceType: "voice_profile",
+		ResourceID:   profile.ID,
+		Data:         map[string]string{"name": profile.Name},
+		Before:       map[string]string{"version": beforeVersion},
+		After:        map[string]string{"version": strconv.Itoa(profile.Version)},
+	})
+	return c.JSON(http.StatusOK, profile)
+}
+
+// HandleDeleteVoiceProfile deletes a voice profile.
+func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	// Fetch first to assert workspace ownership: DeleteProfile takes a global id,
+	// so an unscoped delete would let a caller destroy another tenant's profile.
+	ctx := c.Request().Context()
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
+	if err != nil {
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return apiErr(c, http.StatusNotFound, "voice profile not found")
+	}
+	if err := s.VoiceStore.DeleteProfile(ctx, profile.ID); err != nil {
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleCheckVoice checks text against a voice profile and returns findings and score.
+func (s *Server) HandleCheckVoice(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	var req VoiceCheckRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if req.Text == "" {
+		return apiErr(c, http.StatusBadRequest, "text is required")
+	}
+
+	ctx := c.Request().Context()
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
+	if err != nil {
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return apiErr(c, http.StatusNotFound, "voice profile not found")
+	}
+
+	// Run the profile's whole deterministic gate: whole-word, Unicode-aware
+	// vocabulary matching (so "use" never matches inside "user") with concept_id
+	// propagation, plus the prohibited style patterns (profile.Findings) —
+	// identical to the streaming pipeline tool and the MCP tool. A single text run
+	// anchors each finding's position to the checked text.
+	//
+	// The request carries a whole text rather than one block of one, so the
+	// document-scope rules apply too (profile.DocumentFindings): the required
+	// patterns this endpoint's own profile card counts as rules.
+	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
+	findings := coreprofile.Findings(profile, req.Text, runs)
+	findings = append(findings, coreprofile.DocumentFindings(profile, req.Text)...)
+	score := coreprofile.CalculateScore(findings)
+	score.ProfileID = profile.ID
+
+	return c.JSON(http.StatusOK, VoiceCheckResponse{
+		Score:    score,
+		Findings: findings,
+	})
+}
+
+// HandleListStarterPacks lists available starter pack templates.
+func (s *Server) HandleListStarterPacks(c echo.Context) error {
+	names, err := packs.List()
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	result := make([]StarterPackResponse, 0, len(names))
+	for _, name := range names {
+		p, err := packs.Load(name)
+		if err != nil {
+			continue
+		}
+		result = append(result, StarterPackResponse{
+			Name:        name,
+			Description: p.Description,
+		})
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+// HandleCreateFromStarter creates a voice profile from a starter pack template.
+func (s *Server) HandleCreateFromStarter(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
+		return err
+	}
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	var req CreateFromStarterRequest
+	if err := c.Bind(&req); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if req.Pack == "" {
+		return apiErr(c, http.StatusBadRequest, "pack name is required")
+	}
+
+	template, err := packs.Load(req.Pack)
+	if err != nil {
+		return apiErr(c, http.StatusNotFound, "starter pack not found: "+req.Pack)
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
+	now := time.Now().UTC()
+
+	profile := template
+	profile.ID = id.New()
+	profile.Scope = wsID
+	profile.Version = 1
+	profile.CreatedAt = now
+	profile.UpdatedAt = now
+	profile.CreatedBy = userID
+	if req.Name != "" {
+		profile.Name = req.Name
+	}
+
+	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusCreated, profile)
+}
+
+// HandleGetVoiceScores returns voice compliance scores for a project.
+func (s *Server) HandleGetVoiceScores(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	projectID := c.Param("id")
+	scores, err := s.VoiceStore.GetScores(c.Request().Context(), projectID, "")
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, scores)
+}
+
+// HandleGetVoiceScoresByLocale returns voice compliance scores filtered by locale.
+func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	projectID := c.Param("id")
+	locale := model.LocaleID(c.Param("locale"))
+	scores, err := s.VoiceStore.GetScores(c.Request().Context(), projectID, locale)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, scores)
+}
+
+// HandleGetVoiceTrends returns voice compliance score trends for a project.
+func (s *Server) HandleGetVoiceTrends(c echo.Context) error {
+	if s.VoiceStore == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
+	}
+
+	projectID := c.Param("id")
+	days := 30
+	if d := c.QueryParam("days"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
+			days = parsed
+		}
+	}
+
+	trends, err := s.VoiceStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, trends)
+}

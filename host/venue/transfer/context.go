@@ -18,7 +18,7 @@ import (
 // collections the recipe declares, the point each occupies in the project's
 // context space, and the governance resolved for that point.
 //
-// It replaces the separate brand-profile upload this file's predecessor
+// It replaces the separate voice profile upload this file's predecessor
 // performed. That upload was a REST call made after the content transport had
 // already finished, which meant a push could — and on a 403 routinely did —
 // leave content stored against governance that never landed. Carrying the
@@ -31,8 +31,8 @@ import (
 // otherwise a new version through the store's profile versioning, so a
 // server-side edit is superseded by something revertible rather than clobbered.
 
-// PushBrandResult holds what the governance half of a push amounted to.
-type PushBrandResult struct {
+// PushVoiceResult holds what the governance half of a push amounted to.
+type PushVoiceResult struct {
 	Name    string // profile name
 	Action  string // carried | skipped | would-push (dry run)
 	Version int    // stored profile version after the action (0 when unknown)
@@ -56,7 +56,7 @@ type PushBrandResult struct {
 // Returns (nil, nil, nil) when the project is not connected to a server: there
 // is no context to reconcile against, and this is not an error — the same
 // silent skip the terminology push makes.
-func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
+func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project, dryRun bool) (*apiclient.PushContext, *PushVoiceResult, error) {
 	if app == nil || proj == nil || proj.Recipe == nil {
 		return nil, nil, nil
 	}
@@ -73,7 +73,7 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// after the first identify it by name alone.
 	carried := map[string]bool{}
 	var entries []*pb.SyncContextEntry
-	var brandResult *PushBrandResult
+	var voiceResult *PushVoiceResult
 
 	for i := range kapiProject.Collections {
 		coll := &kapiProject.Collections[i]
@@ -125,8 +125,8 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 			}
 		}
 
-		if found && brandResult == nil {
-			brandResult = &PushBrandResult{Name: profile.Name, Action: brandAction(dryRun)}
+		if found && voiceResult == nil {
+			voiceResult = &PushVoiceResult{Name: profile.Name, Action: voiceAction(dryRun)}
 		}
 		if found {
 			entry.VoiceProfile = profile.Name
@@ -146,14 +146,14 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// — which is what lets a recipe that just dropped its last collection be
 	// told the server still holds it. Only a caller with no recipe at all
 	// (a nil PushContext) says nothing.
-	return apiclient.NewPushContext(entries), brandResult, nil
+	return apiclient.NewPushContext(entries), voiceResult, nil
 }
 
-// brandAction names what a push does to the governance it carries. There is no
+// voiceAction names what a push does to the governance it carries. There is no
 // created/updated/unchanged distinction to report here, and that is the honest
 // consequence of folding the upsert into the push: the worker decides which of
 // those it was, after the client has gone.
-func brandAction(dryRun bool) string {
+func voiceAction(dryRun bool) string {
 	if dryRun {
 		return "would-push"
 	}

@@ -35,7 +35,7 @@ export const Prefilled: Story = {
       paste_text: "We build precise, dependable tools for translators.",
       urls: ["https://acme.example/about", "https://acme.example/blog/voice"],
       repo_url: "https://github.com/acme/website",
-      profile_name: "Acme Brand Voice",
+      profile_name: "Acme Voice",
       domain: "developer tools",
     },
   },

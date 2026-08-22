@@ -12,7 +12,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	3  groups, deny rules, workspace role overrides, separation-of-duties settings
 //	4  per-workspace preferred AI model (customer model choice)
 //	5  refresh-token reuse detection (family_id + consumed_at)
-//	6  workspace default brand-voice profile (hierarchical resolver base)
+//	6  workspace default voice profile (hierarchical resolver base)
 //	7  user locale preference (locale-aware transactional emails)
 //	8  auth baseline (folded 1-7)
 //	9  auth baseline (folds 1-8) + api token machine identity

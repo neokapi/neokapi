@@ -30,7 +30,7 @@ let wsSlug: string;
  * Corpus with recurring capitalized terms (so the offline demo provider's
  * vocabulary heuristic yields deterministic candidates, incl. "Bowrain"),
  * contractions, and first-person-plural voice. Mirrors the Go worker test
- * (bowrain/jobs/brandscan_worker_test.go, demoPasteText).
+ * (bowrain/jobs/contextscan_worker_test.go, demoPasteText).
  */
 const PASTE_TEXT =
   "We're building Bowrain for teams that care about voice. " +
@@ -57,10 +57,10 @@ const REPO_URL = "https://github.com/octocat/Spoon-Knife";
  *   → intake page (paste + file + repository) → start
  *   → polled job page → review (confidence badges, sources, candidate terms)
  *   → live tester (stateless check-draft) → approve
- *   → brand profile created + selected terms become concepts
+ *   → voice profile created + selected terms become concepts
  *   → failure path: all sources unreadable → failed job + retry affordance.
  */
-test.describe("Brand scan onboarding", () => {
+test.describe("Context scan onboarding", () => {
   // lg+ viewport so the review's right rail (preview + live tester) renders.
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -93,7 +93,7 @@ test.describe("Brand scan onboarding", () => {
       "brand-deck.pdf",
     );
 
-    const resp = await fetch(`${API}/${wsSlug}/brand-scans/uploads`, {
+    const resp = await fetch(`${API}/${wsSlug}/context-scans/uploads`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -151,7 +151,7 @@ test.describe("Brand scan onboarding", () => {
     // ── 2. Start: files upload to the blob store, then the job is enqueued ──
     const started = page.waitForResponse(
       (r) =>
-        r.url().includes("/brand-scans") && r.request().method() === "POST" && r.status() === 202,
+        r.url().includes("/context-scans") && r.request().method() === "POST" && r.status() === 202,
     );
     await page.getByTestId(TEST_IDS.contextScan.start).click();
     await started;
@@ -194,7 +194,7 @@ test.describe("Brand scan onboarding", () => {
     const tester = page.getByTestId(TEST_IDS.contextScan.liveTester);
     await expect(tester).toBeVisible();
     const checked = page.waitForResponse(
-      (r) => r.url().includes("/brand-scans/check-draft") && r.ok(),
+      (r) => r.url().includes("/context-scans/check-draft") && r.ok(),
     );
     await tester.locator("textarea").fill("We ship fast and we keep your copy on-brand.");
     await checked;
@@ -202,7 +202,7 @@ test.describe("Brand scan onboarding", () => {
 
     // ── 8. Approve: creates the profile + selected terms, then navigates ──
     const created = page.waitForResponse(
-      (r) => r.url().includes("/brand-profiles") && r.request().method() === "POST" && r.ok(),
+      (r) => r.url().includes("/voice-profiles") && r.request().method() === "POST" && r.ok(),
     );
     await page.getByTestId(TEST_IDS.contextScan.approve).click();
     await created;
@@ -212,7 +212,7 @@ test.describe("Brand scan onboarding", () => {
 
     // The approved profile is persisted, and the selected candidate terms
     // became workspace concepts (assert through the served API).
-    const profilesResp = await fetch(`${API}/${wsSlug}/brand-profiles`, {
+    const profilesResp = await fetch(`${API}/${wsSlug}/voice-profiles`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(profilesResp.ok).toBe(true);

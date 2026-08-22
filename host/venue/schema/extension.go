@@ -31,7 +31,7 @@ func init() {
 		{Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder, DependsOn: VenueKey},
 		{Name: "automations", Scope: coreproj.ScopeProject, Decoder: automationsDecoder, DependsOn: VenueKey},
 		{Name: "assets", Scope: coreproj.ScopeProject, Decoder: assetsDecoder, DependsOn: VenueKey},
-		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder, DependsOn: VenueKey},
+		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: voiceDecoder, DependsOn: VenueKey},
 
 		// ── Per-item keys ─────────────────────────────────────────
 		// No `base` here: it is a framework field on ContentItem, so the key
@@ -106,9 +106,9 @@ var assetsDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
 	return a.Validate()
 })
 
-// brandVoiceDecoder validates the top-level `brand_voice:` block.
-var brandVoiceDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
-	var bv BrandVoiceSpec
+// voiceDecoder validates the top-level `brand_voice:` block.
+var voiceDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
+	var bv VoiceSpec
 	if err := n.Decode(&bv); err != nil {
 		return fmt.Errorf("decode brand_voice: %w", err)
 	}

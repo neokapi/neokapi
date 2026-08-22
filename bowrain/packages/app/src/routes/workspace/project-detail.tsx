@@ -31,7 +31,7 @@ import type {
   StreamDiffResult,
   StreamInfo,
 } from "@neokapi/ui";
-import { projectDetailQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { projectDetailQueryOptions, voiceProfilesQueryOptions } from "../../queries";
 import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
 
@@ -88,9 +88,9 @@ export function ProjectDetailRoute() {
         },
       });
 
-  // Workspace brand-voice profiles feed the per-collection / per-stream voice
+  // Workspace voice profiles feed the per-collection / per-stream voice
   // pickers; the dialogs render the control only when profiles exist.
-  const { data: brandProfiles } = useQuery(brandProfilesQueryOptions(adapter, ws));
+  const { data: voiceProfiles } = useQuery(voiceProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
     document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -495,7 +495,7 @@ export function ProjectDetailRoute() {
         }}
         onSubmit={handleCreateCollection}
         editCollection={editingCollection}
-        brandProfiles={brandProfiles}
+        voiceProfiles={voiceProfiles}
       />
 
       {/* Create Stream Dialog */}
@@ -504,7 +504,7 @@ export function ProjectDetailRoute() {
         open={showCreateStream}
         onClose={() => setShowCreateStream(false)}
         onSubmit={handleCreateStream}
-        brandProfiles={brandProfiles}
+        voiceProfiles={voiceProfiles}
       />
 
       {/* Edit Stream Dialog */}
@@ -513,7 +513,7 @@ export function ProjectDetailRoute() {
         open={editingStream !== null}
         onClose={() => setEditingStream(null)}
         onSubmit={handleEditStreamSubmit}
-        brandProfiles={brandProfiles}
+        voiceProfiles={voiceProfiles}
       />
 
       {/* Merge Stream Dialog */}

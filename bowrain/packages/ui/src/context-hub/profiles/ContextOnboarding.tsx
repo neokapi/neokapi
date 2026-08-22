@@ -8,8 +8,8 @@ export interface ContextOnboardingProps {
   workspaceName?: string;
   /** Server origin folded into the assistant prompt (web shells). */
   serverUrl?: string;
-  /** Opens the hosted brand scan. Absent when the server runs no scan jobs. */
-  onScanBrand?: () => void;
+  /** Opens the hosted context scan. Absent when the server runs no scan jobs. */
+  onScanVoice?: () => void;
 }
 
 /**
@@ -21,13 +21,13 @@ export interface ContextOnboardingProps {
 export function ContextOnboarding({
   workspaceName,
   serverUrl,
-  onScanBrand,
+  onScanVoice,
 }: ContextOnboardingProps) {
   return (
     <div className="space-y-5" data-testid={TEST_IDS.onboarding.contextLanes}>
       <StarterPromptCard workspaceName={workspaceName} serverUrl={serverUrl} />
 
-      {onScanBrand && (
+      {onScanVoice && (
         <Card data-testid={TEST_IDS.onboarding.contextScanCard}>
           <CardContent className="flex flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
@@ -44,7 +44,7 @@ export function ContextOnboarding({
             </div>
             <Button
               className="shrink-0"
-              onClick={onScanBrand}
+              onClick={onScanVoice}
               data-testid={TEST_IDS.onboarding.contextScanButton}
             >
               <Sparkles className="mr-1.5 size-3.5" /> Scan your brand

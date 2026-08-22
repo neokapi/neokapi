@@ -9,7 +9,7 @@ import (
 // whole Block (or Layer) with no run position — the counterpart to positional
 // Overlays (see overlay.go). They are the former "annotation map": notes,
 // alt-translations, analysis results (word/char/segment counts, comparison,
-// repetition, brand-voice), and format round-trip state. Each value is a typed
+// repetition, voice), and format round-trip state. Each value is a typed
 // payload registered with the payload registry (annotation_registry.go) so the
 // wire and store layers can rehydrate it from its type name. The vocabulary is
 // open — formats and plugins store their own keys.

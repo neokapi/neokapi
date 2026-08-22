@@ -71,7 +71,7 @@ func TestRecipeValidate_FanOutPerExtensionBlock(t *testing.T) {
 			r.Automations = []AutomationSpec{{ /* missing name */ }}
 		},
 		"assets":      nil, // AssetsSpec.Validate is a no-op today
-		"brand_voice": nil, // BrandVoiceSpec.Validate is a no-op today
+		"brand_voice": nil, // VoiceSpec.Validate is a no-op today
 	}
 
 	registered := coreproj.RegisteredExtensions(coreproj.ScopeProject)

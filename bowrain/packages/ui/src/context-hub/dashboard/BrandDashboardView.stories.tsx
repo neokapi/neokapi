@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import type { Decorator } from "@storybook/react";
-import { BrandDashboardView } from "./BrandDashboardView";
-import { brandHubOverrides } from "../../stories/brandHubFixtures";
+import { VoiceDashboardView } from "./VoiceDashboardView";
+import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 import type { ApiAdapter } from "../../api/adapter";
 
@@ -94,9 +94,9 @@ const rollup = {
 
 const complianceOverrides: Partial<ApiAdapter> = {
   listProjects: async () => projects as never,
-  getBrandScores: async () => storedScores as never,
-  getBrandTrends: async () => trends as never,
-  getBrandDrift: async () => ({
+  getVoiceScores: async () => storedScores as never,
+  getVoiceTrends: async () => trends as never,
+  getVoiceDrift: async () => ({
     drifted: true,
     recent_avg: 76.4,
     baseline_avg: 83.1,
@@ -105,24 +105,24 @@ const complianceOverrides: Partial<ApiAdapter> = {
     recent_count: 14,
     reason: "vocabulary slips on the new landing pages",
   }),
-  getBrandRollup: async () => rollup as never,
-  listBrandProfiles: async () => profiles as never,
+  getVoiceRollup: async () => rollup as never,
+  listVoiceProfiles: async () => profiles as never,
 };
 
 const populated: Decorator = createProvidersDecorator(undefined, {
-  ...brandHubOverrides,
+  ...voiceHubOverrides,
   ...complianceOverrides,
 });
 
 // An empty workspace has to answer the aggregates as emptily as the lists — the
 // dashboard's metric cards read the counts, not the list lengths.
 const emptyOverrides: Partial<ApiAdapter> = {
-  ...brandHubOverrides,
+  ...voiceHubOverrides,
   listConcepts: async () => ({ concepts: [], total_count: 0 }),
   listChangesets: async () => [],
   listMarkets: async () => [],
   listProjects: async () => [],
-  listBrandProfiles: async () => [],
+  listVoiceProfiles: async () => [],
   getConceptStatusCounts: async () => ({ total: 0, by_status: {} }),
   getConceptLocaleCoverage: async () => ({ total: 0, locales: [] }),
   getChangesetCounts: async () => ({ total: 0, by_status: {} }),
@@ -130,9 +130,9 @@ const emptyOverrides: Partial<ApiAdapter> = {
 
 const empty: Decorator = createProvidersDecorator(undefined, emptyOverrides);
 
-const meta: Meta<typeof BrandDashboardView> = {
-  title: "Context/Dashboard/BrandDashboardView",
-  component: BrandDashboardView,
+const meta: Meta<typeof VoiceDashboardView> = {
+  title: "Context/Dashboard/VoiceDashboardView",
+  component: VoiceDashboardView,
   tags: ["autodocs"],
   parameters: { layout: "fullscreen" },
   args: {
@@ -152,7 +152,7 @@ const meta: Meta<typeof BrandDashboardView> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof BrandDashboardView>;
+type Story = StoryObj<typeof VoiceDashboardView>;
 
 export const Default: Story = {
   decorators: [populated],

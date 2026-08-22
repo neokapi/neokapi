@@ -123,8 +123,8 @@ var messages = map[string]string{
 	"auth not configured":          "Authentication is not configured on this server.",
 	"store not configured":         "The server's data store is not configured.",
 	"content store not configured": "The server's content store is not configured.",
-	"brand voice not configured":   "Brand voice features are not configured on this server.",
-	"brand profile not found":      "The brand profile could not be found.",
+	"voice not configured":         "Voice features are not configured on this server.",
+	"voice profile not found":      "The voice profile could not be found.",
 }
 
 // MessageFor returns the human sentence for a stable error code. Codes whose

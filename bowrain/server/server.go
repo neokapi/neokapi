@@ -181,7 +181,7 @@ type Server struct {
 	// Backed by Redis when configured, otherwise in-memory.
 	SessionStore SessionStateStore
 
-	// VoiceStore manages brand voice profiles. Nil when not configured.
+	// VoiceStore manages voice profiles. Nil when not configured.
 	VoiceStore coreprofile.Store
 
 	// KnowledgeStore persists the governance and collaboration layer of the
@@ -209,7 +209,7 @@ type Server struct {
 	// SIEMExporter forwards events to an external SIEM/log sink. Nil when disabled.
 	SIEMExporter *event.SIEMExporter
 
-	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
+	// mcpServer is the MCP protocol server for voice. Nil when voice store is not configured.
 	mcpServer *mcpserver.MCPServer
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
@@ -864,7 +864,7 @@ func NewServer(cfg Config) *Server {
 	// step with its block cache.
 	s.subscribeContextGraphOnPush()
 
-	// Initialize MCP server for brand voice + agent tools when stores are available.
+	// Initialize MCP server for voice + agent tools when stores are available.
 	if s.VoiceStore != nil {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
@@ -891,7 +891,7 @@ func NewServer(cfg Config) *Server {
 		if s.AuthStore != nil && cfg.JWTSecret != "" {
 			mcpOpts = append(mcpOpts, mcpserver.WithMembershipChecker(&mcpMembershipAdapter{auth: s.AuthStore}))
 		}
-		// Base rung of the brand-voice resolution ladder: the workspace default
+		// Base rung of the voice resolution ladder: the workspace default
 		// profile, resolved from the workspace record when no more-specific
 		// (project/stream/collection) binding is bound on a scoring call.
 		if s.AuthStore != nil {
@@ -1516,7 +1516,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.PUT("/platform", s.HandleAdminUpdatePlatformConfig)
 	}
 
-	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).
+	// MCP server (voice resources, tools, prompts via Streamable HTTP).
 	if s.mcpServer != nil {
 		s.mcpServer.RegisterRoutes(e)
 	}
@@ -1588,7 +1588,7 @@ func serveSPAFile(c echo.Context, dir string) error {
 // or c.Param("id"). Slug-to-ID resolution middleware will be added separately.
 //
 // aiLimit is a per-IP throttle applied to the AI-consuming routes (ai-translate,
-// brand-voice check) so a single client cannot drive unbounded provider spend.
+// voice check) so a single client cannot drive unbounded provider spend.
 func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.MiddlewareFunc) {
 	// Apply project-level permission resolution for routes with :pid or :id params.
 	// The middleware is a no-op when no project ID is present (workspace-scoped routes).
@@ -1663,22 +1663,22 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// The read surface over the workspace context graph the push writes.
 	s.registerContextGraphRoutes(g)
 
-	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
-	g.GET("/brand-profiles", s.HandleListBrandProfiles)
-	g.POST("/brand-profiles", s.HandleCreateBrandProfile)
-	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
-	g.PUT("/brand-profiles/:id", s.HandleUpdateBrandProfile)
-	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
-	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice, aiLimit)
-	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
-	g.POST("/brand-profiles/upsert", s.HandleUpsertBrandProfile)
-	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
-	g.GET("/brand-profiles/:id/candidates", s.HandleListCandidates)
-	g.POST("/brand-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)
-	g.POST("/brand-profiles/:id/demote-rule", s.HandleDemoteSuggestedRule)
-	g.POST("/brand-profiles/:id/reject-rule", s.HandleRejectSuggestedRule)
-	g.POST("/brand-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
-	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
+	// Brand profiles — Bowrain AD-011: /:ws/voice-profiles
+	g.GET("/voice-profiles", s.HandleListVoiceProfiles)
+	g.POST("/voice-profiles", s.HandleCreateVoiceProfile)
+	g.GET("/voice-profiles/:id", s.HandleGetVoiceProfile)
+	g.PUT("/voice-profiles/:id", s.HandleUpdateVoiceProfile)
+	g.DELETE("/voice-profiles/:id", s.HandleDeleteVoiceProfile)
+	g.POST("/voice-profiles/:id/check", s.HandleCheckVoice, aiLimit)
+	g.POST("/voice-profiles/from-starter", s.HandleCreateFromStarter)
+	g.POST("/voice-profiles/upsert", s.HandleUpsertVoiceProfile)
+	g.GET("/voice-profiles/suggested-rules", s.HandleGetSuggestedRules)
+	g.GET("/voice-profiles/:id/candidates", s.HandleListCandidates)
+	g.POST("/voice-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)
+	g.POST("/voice-profiles/:id/demote-rule", s.HandleDemoteSuggestedRule)
+	g.POST("/voice-profiles/:id/reject-rule", s.HandleRejectSuggestedRule)
+	g.POST("/voice-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
+	g.GET("/voice-profiles/starter-packs", s.HandleListStarterPacks)
 
 	// Recipe changes an approval is waiting to put in a working tree. An
 	// approved axis is not a coordinate until kapi.yaml says so and a push
@@ -1688,18 +1688,18 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/projects/:id/recipe-changes", s.HandleListPendingRecipeChanges)
 	g.POST("/projects/:id/recipe-changes/:changeID/applied", s.HandleMarkRecipeChangeApplied)
 
-	// Workspace brand-compliance rollup — the all-surfaces board aggregating
-	// every project's stored scores/trends into one matrix: /:ws/brand-voice/rollup
-	g.GET("/brand-voice/rollup", s.HandleGetBrandVoiceRollup)
+	// Workspace voice compliance rollup — the all-surfaces board aggregating
+	// every project's stored scores/trends into one matrix: /:ws/voice/rollup
+	g.GET("/voice/rollup", s.HandleGetVoiceRollup)
 
-	// AI brand onboarding scans — epic 016: /:ws/brand-scans. The scan
+	// AI brand onboarding scans — epic 016: /:ws/context-scans. The scan
 	// endpoint burns platform credits (QuotaGuard + the handler's 402
 	// pre-check); the draft tester is deterministic (aiLimit only).
-	g.POST("/brand-scans/uploads", s.HandleContextScanUploads)
-	g.POST("/brand-scans", s.HandleCreateContextScan, aiLimit, billing.QuotaGuard(s.BillingStore))
-	g.GET("/brand-scans/:id", s.HandleGetContextScan)
-	g.POST("/brand-scans/:id/approve", s.HandleApproveContextScan)
-	g.POST("/brand-scans/check-draft", s.HandleCheckBrandDraft, aiLimit)
+	g.POST("/context-scans/uploads", s.HandleContextScanUploads)
+	g.POST("/context-scans", s.HandleCreateContextScan, aiLimit, billing.QuotaGuard(s.BillingStore))
+	g.GET("/context-scans/:id", s.HandleGetContextScan)
+	g.POST("/context-scans/:id/approve", s.HandleApproveContextScan)
+	g.POST("/context-scans/check-draft", s.HandleCheckVoiceDraft, aiLimit)
 
 	// Translation jobs — Bowrain AD-011: /:ws/jobs
 	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
@@ -1966,13 +1966,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/source-proposals", s.HandleCreateSourceProposal)
 	g.POST("/:id/source-proposals/:pid/decide", s.HandleDecideSourceProposal)
 
-	// Brand voice — Bowrain AD-011: /:ws/:id/brand-voice/:ref
-	g.GET("/:id/brand-voice/:ref/scores", s.HandleGetBrandVoiceScores)
-	g.GET("/:id/brand-voice/:ref/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
-	g.GET("/:id/brand-voice/:ref/trends", s.HandleGetBrandVoiceTrends)
-	g.GET("/:id/brand-voice/:ref/drift", s.HandleGetBrandVoiceDrift)
-	g.POST("/:id/brand-voice/:ref/drift-check", s.HandleRunBrandVoiceDriftCheck)
-	g.POST("/:id/brand-voice/:ref/corrections", s.HandleCreateBrandVoiceCorrection)
+	// Voice — Bowrain AD-011: /:ws/:id/voice/:ref
+	g.GET("/:id/voice/:ref/scores", s.HandleGetVoiceScores)
+	g.GET("/:id/voice/:ref/scores/:locale", s.HandleGetVoiceScoresByLocale)
+	g.GET("/:id/voice/:ref/trends", s.HandleGetVoiceTrends)
+	g.GET("/:id/voice/:ref/drift", s.HandleGetVoiceDrift)
+	g.POST("/:id/voice/:ref/drift-check", s.HandleRunVoiceDriftCheck)
+	g.POST("/:id/voice/:ref/corrections", s.HandleCreateVoiceCorrection)
 
 	// Collab — Bowrain AD-011: /:ws/:id/collab/:ref
 	g.GET("/:id/collab/:ref", s.HandleCollabWebSocket)

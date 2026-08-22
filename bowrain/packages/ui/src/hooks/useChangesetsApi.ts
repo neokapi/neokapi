@@ -162,7 +162,7 @@ export function useMergeChangeset(changesetId: string) {
       // A merge applies ops to the live graph + voice profiles.
       invalidateConceptAggregates(qc, ws);
       void qc.invalidateQueries({ queryKey: ["graph", ws] });
-      void qc.invalidateQueries({ queryKey: ["brand-profiles", ws] });
+      void qc.invalidateQueries({ queryKey: ["voice-profiles", ws] });
     },
   });
 }

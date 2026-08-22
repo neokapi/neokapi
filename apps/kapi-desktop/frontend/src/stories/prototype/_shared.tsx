@@ -467,8 +467,8 @@ export interface FlowDef {
 export const configuredFlows: FlowDef[] = [
   {
     name: "Brand check & rewrite",
-    description: "Score every draft against the brand voice and rewrite anything off-message.",
-    steps: ["brand-check", "rewrite", "report"],
+    description: "Score every draft against the voice and rewrite anything off-message.",
+    steps: ["voice-check", "rewrite", "report"],
     kind: "content",
   },
   {

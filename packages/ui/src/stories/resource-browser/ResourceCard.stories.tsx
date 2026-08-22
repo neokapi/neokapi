@@ -40,8 +40,8 @@ export const MemoryCard: Story = {
 
 export const TermsCard: Story = {
   args: {
-    name: "brand-glossary",
-    path: "~/.config/kapi/termbases/brand-glossary.db",
+    name: "acme-terms",
+    path: "~/.config/kapi/terms/acme-terms.db",
     entryCount: 347,
     size: 131072,
     modified: new Date(Date.now() - 172800000).toISOString(),

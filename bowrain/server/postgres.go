@@ -76,7 +76,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 
 	bs, err := platvoice.NewPostgresVoiceStore(db)
 	if err != nil {
-		slog.Warn("failed to init brand store (brand voice features disabled)", "error", err)
+		slog.Warn("failed to init voice store (voice features disabled)", "error", err)
 	}
 
 	ks, err := knowledge.NewPostgresKnowledgeStore(db)

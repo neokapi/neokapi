@@ -146,7 +146,7 @@ async function findClippedContent(page: Page): Promise<Clip[]> {
       // surface the card links to. It is indistinguishable from accidental
       // clipping by geometry alone — `-webkit-line-clamp` is the intent.
       // Nothing tripped this until a voice profile with a real description
-      // existed on /context/voice, which only happened once the brand scan
+      // existed on /context/voice, which only happened once the context scan
       // started completing again (#1587).
       const clamp = style.getPropertyValue("-webkit-line-clamp");
       if (clamp && clamp !== "none") continue;

@@ -136,7 +136,7 @@ func TestMemberMutations(t *testing.T) {
 	}
 }
 
-func TestBrandGovernanceRoutes(t *testing.T) {
+func TestVoiceGovernanceRoutes(t *testing.T) {
 	tests := []struct {
 		name       string
 		call       func(a *App) error
@@ -152,7 +152,7 @@ func TestBrandGovernanceRoutes(t *testing.T) {
 				return err
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/acme/brand-profiles/prof-1/candidates",
+			wantPath:   "/api/v1/acme/voice-profiles/prof-1/candidates",
 			wantQuery:  "all=true&min_count=3",
 		},
 		{
@@ -162,7 +162,7 @@ func TestBrandGovernanceRoutes(t *testing.T) {
 				return err
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "/api/v1/acme/brand-profiles/prof-1/promote-rule",
+			wantPath:   "/api/v1/acme/voice-profiles/prof-1/promote-rule",
 			wantBody:   `"term":"utilize"`,
 		},
 		{
@@ -171,7 +171,7 @@ func TestBrandGovernanceRoutes(t *testing.T) {
 				return a.RejectRule("acme", "prof-1", CandidateRuleArgs{Term: "leverage"})
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "/api/v1/acme/brand-profiles/prof-1/reject-rule",
+			wantPath:   "/api/v1/acme/voice-profiles/prof-1/reject-rule",
 			wantBody:   `"term":"leverage"`,
 		},
 		{
@@ -181,36 +181,36 @@ func TestBrandGovernanceRoutes(t *testing.T) {
 				return err
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "/api/v1/acme/brand-profiles/prof-1/evaluate-rule",
+			wantPath:   "/api/v1/acme/voice-profiles/prof-1/evaluate-rule",
 			wantBody:   `"project_id":"proj-7"`,
 		},
 		{
 			name: "drift",
 			call: func(a *App) error {
-				_, err := a.GetBrandDrift("acme", "proj-7", 30, 0, 0)
+				_, err := a.GetVoiceDrift("acme", "proj-7", 30, 0, 0)
 				return err
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/acme/proj-7/brand-voice/main/drift",
+			wantPath:   "/api/v1/acme/proj-7/voice/main/drift",
 			wantQuery:  "recent_days=30",
 		},
 		{
 			name: "scores",
 			call: func(a *App) error {
-				_, err := a.GetBrandScores("acme", "proj-7")
+				_, err := a.GetVoiceScores("acme", "proj-7")
 				return err
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/acme/proj-7/brand-voice/main/scores",
+			wantPath:   "/api/v1/acme/proj-7/voice/main/scores",
 		},
 		{
 			name: "list profiles",
 			call: func(a *App) error {
-				_, err := a.ListBrandProfiles("acme")
+				_, err := a.ListVoiceProfiles("acme")
 				return err
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/acme/brand-profiles",
+			wantPath:   "/api/v1/acme/voice-profiles",
 		},
 	}
 
@@ -262,11 +262,11 @@ func TestGovernanceReturnsDecodedJSON(t *testing.T) {
 
 // The rollup is the server's aggregation, proxied whole — the desktop no
 // longer needs a local recomposition that cannot resolve the profile ladder.
-func TestGetBrandRollup(t *testing.T) {
+func TestGetVoiceRollup(t *testing.T) {
 	overall := 82
 	app, rec := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"projects": []apiclient.BrandRollupEntry{{
+			"projects": []apiclient.VoiceRollupEntry{{
 				ProjectID:    "p1",
 				ProjectName:  "Docs",
 				ProfileID:    "prof-1",
@@ -281,11 +281,11 @@ func TestGetBrandRollup(t *testing.T) {
 		})
 	})
 
-	out, err := app.GetBrandRollup("acme", BrandRollupArgs{Limit: 50, RecentDays: 7})
+	out, err := app.GetVoiceRollup("acme", VoiceRollupArgs{Limit: 50, RecentDays: 7})
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodGet, rec.method)
-	assert.Equal(t, "/api/v1/acme/brand-voice/rollup", rec.path)
+	assert.Equal(t, "/api/v1/acme/voice/rollup", rec.path)
 	assert.Equal(t, "Bearer tok-xyz", rec.auth)
 	assert.Contains(t, rec.query, "limit=50")
 	assert.Contains(t, rec.query, "recent_days=7")
@@ -301,23 +301,23 @@ func TestGetBrandRollup(t *testing.T) {
 	assert.Equal(t, 82, *out.Projects[0].Overall)
 }
 
-func TestGetBrandRollupOffline(t *testing.T) {
+func TestGetVoiceRollupOffline(t *testing.T) {
 	app := newTestApp(t)
 
-	out, err := app.GetBrandRollup("acme", BrandRollupArgs{})
+	out, err := app.GetVoiceRollup("acme", VoiceRollupArgs{})
 	require.NoError(t, err, "offline is a marked empty answer, not an error")
 	assert.True(t, out.Offline)
-	assert.Equal(t, []apiclient.BrandRollupEntry{}, out.Projects)
+	assert.Equal(t, []apiclient.VoiceRollupEntry{}, out.Projects)
 	assert.Equal(t, 0, out.Total)
 }
 
-func TestGetBrandRollupServerError(t *testing.T) {
+func TestGetVoiceRollupServerError(t *testing.T) {
 	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = w.Write([]byte(`{"error":"brand voice not configured"}`))
+		_, _ = w.Write([]byte(`{"error":"voice not configured"}`))
 	})
 
-	out, err := app.GetBrandRollup("acme", BrandRollupArgs{})
+	out, err := app.GetVoiceRollup("acme", VoiceRollupArgs{})
 	require.Error(t, err)
 	assert.False(t, out.Offline, "a server error is not offline")
 }

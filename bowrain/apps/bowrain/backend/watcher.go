@@ -192,8 +192,8 @@ func (w *ProjectWatcher) handleEvent(ev editorclient.EditorChangeEvent) {
 	case strings.HasPrefix(t, "member."), strings.HasPrefix(t, "task."):
 		w.app.emit("membership-changed", ChangeEvent{EventType: t, Actor: ev.Actor})
 
-	case strings.HasPrefix(t, "brand."):
-		w.app.emit("brand-voice-changed", ChangeEvent{EventType: t})
+	case strings.HasPrefix(t, "voice."):
+		w.app.emit("voice-changed", ChangeEvent{EventType: t})
 
 	case strings.HasPrefix(t, "term."), strings.HasPrefix(t, "concept."):
 		w.app.emit("terms-changed", ChangeEvent{EventType: t})

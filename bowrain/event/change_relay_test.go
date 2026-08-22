@@ -115,14 +115,14 @@ func TestChangeRelay_WorkspaceFromEventData(t *testing.T) {
 	_, ch := relay.Subscribe("ws-7", "")
 
 	bus.Publish(platev.Event{
-		Type:      platev.EventBrandProfileUpdated,
+		Type:      platev.EventVoiceProfileUpdated,
 		ProjectID: "",
 		Data:      map[string]string{"workspace_id": "ws-7"},
 	})
 
 	ce, ok := recvOne(t, ch)
 	require.True(t, ok)
-	assert.Equal(t, "brand.profile.updated", ce.Type)
+	assert.Equal(t, "voice.profile.updated", ce.Type)
 }
 
 func TestChangeRelay_SkipsAgent(t *testing.T) {

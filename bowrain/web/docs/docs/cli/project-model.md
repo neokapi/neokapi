@@ -142,7 +142,7 @@ brand_voice:
 | `hooks`        | map            | Flows that run at lifecycle points (`pre-push`, `post-pull`, ...)      |
 | `automations`  | list           | Local automation rules (see [Automations](#automations))               |
 | `assets`       | object         | Asset (image/binary) policy                                            |
-| `brand_voice`  | object         | Brand voice profile and channel                                        |
+| `voice`        | object         | Voice profile and channel                                              |
 
 ### `defaults` block
 

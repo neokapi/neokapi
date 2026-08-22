@@ -14,7 +14,7 @@ const meta: Meta<typeof ProfilesView> = {
   component: ProfilesView,
   tags: ["autodocs"],
   parameters: { layout: "fullscreen" },
-  args: { onOpenProfile: fn(), onScanBrand: fn() },
+  args: { onOpenProfile: fn(), onScanVoice: fn() },
   decorators: [
     (Story) => (
       <div style={{ padding: 24 }}>
@@ -38,7 +38,7 @@ export const Blank: Story = {
 
 /** Blank, on a server that runs no scan jobs: the assistant lane alone. */
 export const BlankWithoutHostedScan: Story = {
-  args: { onScanBrand: undefined, serverUrl: "https://app.bowrain.cloud" },
+  args: { onScanVoice: undefined, serverUrl: "https://app.bowrain.cloud" },
   decorators: [withProfiles(emptyProfiles)],
 };
 
@@ -47,7 +47,7 @@ export const OnlyTheDefault: Story = { decorators: [withProfiles(governedButUnde
 
 /** No hosted scan configured, so the scan action is absent. */
 export const WithoutHostedScan: Story = {
-  args: { onScanBrand: undefined },
+  args: { onScanVoice: undefined },
   decorators: [withProfiles(populatedProfiles)],
 };
 

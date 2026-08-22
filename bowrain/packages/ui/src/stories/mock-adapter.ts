@@ -38,7 +38,7 @@ import type {
   PendingReviewOptions,
   TermCompliance,
 } from "../types/api";
-import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
+import type { VoiceProfile, VoiceCorrectionRequest } from "../voice/types";
 import type {
   ChangeSet,
   ChangeSetImpact,
@@ -233,14 +233,14 @@ export interface MockAdapter extends ApiAdapter {
   promoteEntityToConceptCalls: { itemName: string; blockId: string; entityKey: string }[];
   /** Backing store for source proposals (seed to preload the review surface). */
   sourceProposals: SourceProposal[];
-  /** `recordBrandCorrection` invocations in call order. */
-  recordBrandCorrectionCalls: BrandCorrectionRequest[];
+  /** `recordVoiceCorrection` invocations in call order. */
+  recordVoiceCorrectionCalls: VoiceCorrectionRequest[];
   /** `startContextScan` invocations in call order. */
   startContextScanCalls: ContextScanRequest[];
   /** `uploadContextScanSources` invocations — filenames per call. */
   uploadContextScanSourcesCalls: string[][];
-  /** `checkBrandDraft` invocations in call order. */
-  checkBrandDraftCalls: { profileName: string; text: string }[];
+  /** `checkVoiceDraft` invocations in call order. */
+  checkVoiceDraftCalls: { profileName: string; text: string }[];
   /**
    * States returned by successive `getContextScan` calls: each call consumes
    * the next entry; the last entry repeats. Tests overwrite this to simulate
@@ -316,8 +316,8 @@ export const sampleModelRecommendations: ModelRecommendationsResponse = {
 /** Deterministic drafted profile for the brand-scan review fixtures. */
 export const sampleContextScanProfile: VoiceProfile = {
   id: "",
-  name: "Acme Brand Voice",
-  description: "Drafted from 3 sources by the brand scan.",
+  name: "Acme Voice",
+  description: "Drafted from 3 sources by the context scan.",
   tone: {
     personality: ["precise", "helpful", "direct"],
     formality: "neutral",
@@ -531,10 +531,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   const decideSourceProposalCalls: { proposalId: string; decision: string; reason?: string }[] = [];
   const promoteEntityToConceptCalls: { itemName: string; blockId: string; entityKey: string }[] =
     [];
-  const recordBrandCorrectionCalls: BrandCorrectionRequest[] = [];
+  const recordVoiceCorrectionCalls: VoiceCorrectionRequest[] = [];
   const startContextScanCalls: ContextScanRequest[] = [];
   const uploadContextScanSourcesCalls: string[][] = [];
-  const checkBrandDraftCalls: { profileName: string; text: string }[] = [];
+  const checkVoiceDraftCalls: { profileName: string; text: string }[] = [];
   const pendingReviewCalls: (PendingReviewOptions | undefined)[] = [];
   let contextScanPollIndex = 0;
 
@@ -547,10 +547,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     decideSourceProposalCalls,
     promoteEntityToConceptCalls,
     sourceProposals: [],
-    recordBrandCorrectionCalls,
+    recordVoiceCorrectionCalls,
     startContextScanCalls,
     uploadContextScanSourcesCalls,
-    checkBrandDraftCalls,
+    checkVoiceDraftCalls,
     contextScanJobStates: [sampleContextScanJob],
     itemNames: {},
     itemCollections: {},
@@ -988,8 +988,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       };
     },
 
-    recordBrandCorrection: async (_ws, _projectId, req) => {
-      recordBrandCorrectionCalls.push(req);
+    recordVoiceCorrection: async (_ws, _projectId, req) => {
+      recordVoiceCorrectionCalls.push(req);
       return { auto_promoted: false };
     },
 
@@ -1083,7 +1083,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     setSoDMode: async () => {},
     listRoleOverrides: async () => ({}),
     setRoleOverride: async () => {},
-    demoteBrandRule: async () => {},
+    demoteVoiceRule: async () => {},
 
     // --- QA --------------------------------------------------------------
     runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
@@ -1351,20 +1351,20 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     deleteStreamTag: noop,
     listProjectTags: async () => [],
 
-    // --- Brand Voice -------------------------------------------------------
-    listBrandProfiles: async () => [],
-    getBrandProfile: notImpl,
-    createBrandProfile: notImpl,
-    updateBrandProfile: notImpl,
-    deleteBrandProfile: noop,
-    getBrandScores: async () => [],
-    getBrandTrends: async () => [],
-    getBrandRollup: async () => ({ projects: [], total: 0, limit: 50, offset: 0 }),
+    // --- Voice -------------------------------------------------------
+    listVoiceProfiles: async () => [],
+    getVoiceProfile: notImpl,
+    createVoiceProfile: notImpl,
+    updateVoiceProfile: notImpl,
+    deleteVoiceProfile: noop,
+    getVoiceScores: async () => [],
+    getVoiceTrends: async () => [],
+    getVoiceRollup: async () => ({ projects: [], total: 0, limit: 50, offset: 0 }),
     getLoopRollup: async () => ({}),
-    listBrandCandidates: async () => [],
-    promoteBrandRule: async () => ({ promoted: true }),
-    rejectBrandRule: noop,
-    evaluateBrandRule: async () => ({
+    listVoiceCandidates: async () => [],
+    promoteVoiceRule: async () => ({ promoted: true }),
+    rejectVoiceRule: noop,
+    evaluateVoiceRule: async () => ({
       total_blocks: 0,
       affected_blocks: 0,
       improved_blocks: 0,
@@ -1374,7 +1374,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       critical_count: 0,
       collections: [],
     }),
-    getBrandDrift: async () => ({
+    getVoiceDrift: async () => ({
       drifted: false,
       recent_avg: 0,
       baseline_avg: 0,
@@ -1384,7 +1384,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
     createProfileFromStarter: notImpl,
 
-    // --- Brand scan (epic 016) -------------------------------------------
+    // --- Context scan (epic 016) -------------------------------------------
     uploadContextScanSources: async (_ws, files): Promise<ContextScanUploadResult> => {
       uploadContextScanSourcesCalls.push(files.map((f) => f.name));
       const uploads: ContextScanUploadResult["uploads"] = [];
@@ -1422,8 +1422,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       contextScanPollIndex++;
       return { ...state, id: jobId };
     },
-    checkBrandDraft: async (_ws, profile, text): Promise<ContextScanCheckResult> => {
-      checkBrandDraftCalls.push({ profileName: profile.name, text });
+    checkVoiceDraft: async (_ws, profile, text): Promise<ContextScanCheckResult> => {
+      checkVoiceDraftCalls.push({ profileName: profile.name, text });
       // Deterministic: forbidden/competitor terms in the sample text lower
       // the score and surface findings, mirroring the vocabulary matcher.
       const rules = [
@@ -1795,7 +1795,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
 
     // --- Concepts -----------------------------------------------------------
-    // The context-hub stories drive these from `brandHubOverrides`, which carries
+    // The context-hub stories drive these from `voiceHubOverrides`, which carries
     // the fixture graph. Here they answer emptily but truthfully, so a story
     // that renders the surface without opting into that graph gets an empty
     // state rather than a crash.

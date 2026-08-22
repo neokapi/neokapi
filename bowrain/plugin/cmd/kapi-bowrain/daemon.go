@@ -73,7 +73,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	// Initialize the App exactly as the `command` subtree's PersistentPreRunE
 	// does. The daemon hangs off rootCmd, not off that subtree, so it never ran
 	// this — leaving commands.app nil for the whole daemon lifetime. Anything
-	// reached over RPC that needs the host's resolution ladder (brand voice
+	// reached over RPC that needs the host's resolution ladder (voice
 	// profiles, starter packs) silently degraded to "nothing to resolve".
 	app.Config = newBowrainAppConfig()
 	app.RegistryResolver = func() []cliconfig.RegistryEntry { return nil }

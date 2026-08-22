@@ -29,7 +29,7 @@ type pendingReviewEntry struct {
 	// bars beyond QA checks that approve-passing applies, so a queue that
 	// bucketed on checks alone called blocks passing that the server refuses.
 	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
-	// VoiceScore is the latest persisted brand voice score for this block and
+	// VoiceScore is the latest persisted voice score for this block and
 	// locale, and VoiceBar the compliance bar of the profile that produced it
 	// (VoiceProfile.ComplianceBar). Both are absent together when the block has
 	// never been scored — the server then applies no voice bar to it either.
@@ -130,7 +130,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 	}
 
 	// The two bars beyond QA checks that approve-passing applies, resolved ONCE
-	// for the page: the terminology gate (one terms snapshot + a brand profile
+	// for the page: the terminology gate (one terms snapshot + a voice profile
 	// per locale, then offline per block) and the project's persisted voice
 	// scores (one read, latest per block+locale, each paired with the bar of the
 	// profile that produced it). Both are the same helpers shipstate.go uses, so

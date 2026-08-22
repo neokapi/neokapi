@@ -62,7 +62,7 @@ const meta: Meta<typeof FocusedReviewer> = {
     onCancelEdit: fn(),
     onReCheck: fn(),
     onMarkTerm: fn(),
-    onSuggestBrandRule: fn(),
+    onSuggestVoiceRule: fn(),
     onMakeRule: fn(),
     onProposeSourceChange: fn(),
     onEntityPromote: fn(),
@@ -167,11 +167,11 @@ export const InlineCodes: Story = {
   },
 };
 
-/** With a bound brand profile, the source lane + "make a rule" affordance appear. */
-export const WithBrandProfile: Story = {
+/** With a bound voice profile, the source lane + "make a rule" affordance appear. */
+export const WithVoiceProfile: Story = {
   args: {
     entry: entry({}),
-    brandProfileId: "prof-1",
+    voiceProfileId: "prof-1",
     compliance: { rate: 0.88, basis: "voice+checks", compliantBlocks: 44, translatedBlocks: 50 },
   },
 };

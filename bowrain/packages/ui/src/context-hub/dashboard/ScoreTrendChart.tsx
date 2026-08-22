@@ -1,4 +1,4 @@
-// A compact brand-compliance trend (AD-021). Renders the per-day average score
+// A compact voice compliance trend (AD-021). Renders the per-day average score
 // over time as a filled area, on a fixed 0–100 axis so the slope is honest.
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
@@ -7,7 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@neokapi/ui-primitives";
-import type { ScoreTrend } from "../../brand/types";
+import type { ScoreTrend } from "../../voice/types";
 
 const config: ChartConfig = {
   score: { label: "Avg score", color: "var(--chart-2, oklch(0.6 0.118 184.704))" },
@@ -37,7 +37,7 @@ export function ScoreTrendChart({
       <ChartContainer config={config} className="h-full w-full">
         <AreaChart data={data} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
           <defs>
-            <linearGradient id="brandScoreFill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="voiceScoreFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--color-score)" stopOpacity={0.25} />
               <stop offset="95%" stopColor="var(--color-score)" stopOpacity={0} />
             </linearGradient>
@@ -66,7 +66,7 @@ export function ScoreTrendChart({
             type="monotone"
             dataKey="score"
             stroke="var(--color-score)"
-            fill="url(#brandScoreFill)"
+            fill="url(#voiceScoreFill)"
             strokeWidth={2}
             dot={false}
           />

@@ -12,7 +12,7 @@ import (
 
 // TestApplyFrameworkPreset_NeokapiI18nCleanLayout proves `kapi init --preset
 // neokapi-i18n` scaffolds the clean nested layout: source KBF catalogs under
-// i18n/src/, per-locale targets under i18n/{lang}/, and brand voice + terms
+// i18n/src/, per-locale targets under i18n/{lang}/, and voice + terms
 // source bound under i18n/. It then round-trips through InitProject so the
 // generated state .gitignore is asserted too.
 func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {

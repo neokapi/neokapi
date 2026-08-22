@@ -686,138 +686,6 @@ export class BlockTermMatch {
 }
 
 /**
- * BrandRollupArgs selects the rollup page and the drift window. Zero fields are
- * omitted, leaving the server's defaults in force.
- */
-export class BrandRollupArgs {
-    /**
-     * Creates a new BrandRollupArgs instance.
-     * @param {Partial<BrandRollupArgs>} [$$source = {}] - The source object to create the BrandRollupArgs.
-     */
-    constructor($$source = {}) {
-        if (!("limit" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["limit"] = 0;
-        }
-        if (!("offset" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["offset"] = 0;
-        }
-        if (!("recentDays" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["recentDays"] = 0;
-        }
-        if (!("minScore" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["minScore"] = 0;
-        }
-        if (!("dropPoints" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["dropPoints"] = 0;
-        }
-        if (!("days" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["days"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new BrandRollupArgs instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {BrandRollupArgs}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new BrandRollupArgs(/** @type {Partial<BrandRollupArgs>} */($$parsedSource));
-    }
-}
-
-/**
- * BrandRollupResult is the workspace brand-compliance rollup the desktop
- * returns: the server's page verbatim, plus Offline distinguishing "no server
- * to ask" from "no projects scored".
- */
-export class BrandRollupResult {
-    /**
-     * Creates a new BrandRollupResult instance.
-     * @param {Partial<BrandRollupResult>} [$$source = {}] - The source object to create the BrandRollupResult.
-     */
-    constructor($$source = {}) {
-        if (!("projects" in $$source)) {
-            /**
-             * @member
-             * @type {client$0.BrandRollupEntry[]}
-             */
-            this["projects"] = [];
-        }
-        if (!("total" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["total"] = 0;
-        }
-        if (!("limit" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["limit"] = 0;
-        }
-        if (!("offset" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["offset"] = 0;
-        }
-        if (!("offline" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["offline"] = false;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new BrandRollupResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {BrandRollupResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("projects" in $$parsedSource) {
-            $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
-        }
-        return new BrandRollupResult(/** @type {Partial<BrandRollupResult>} */($$parsedSource));
-    }
-}
-
-/**
  * BulkApplyMemoryArgs applies the best content-memory match to a selection of
  * blocks. A zero Threshold takes the server default of 1 — an exact match.
  */
@@ -900,8 +768,8 @@ export class BulkApplyMemoryView {
      * @returns {BulkApplyMemoryView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType15;
-        const $$createField1_0 = $$createType17;
+        const $$createField0_0 = $$createType13;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
@@ -1032,7 +900,7 @@ export class BulkReviewView {
      * @returns {BulkReviewView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType19;
+        const $$createField0_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("results" in $$parsedSource) {
             $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
@@ -1196,7 +1064,7 @@ export class CollabSession {
      * @returns {CollabSession}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
+        const $$createField3_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
@@ -1747,8 +1615,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType22;
-        const $$createField4_0 = $$createType24;
+        const $$createField3_0 = $$createType20;
+        const $$createField4_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -1867,8 +1735,8 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType25;
-        const $$createField5_0 = $$createType26;
+        const $$createField4_0 = $$createType23;
+        const $$createField5_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -2523,7 +2391,7 @@ export class MemorySearchResult {
      * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType28;
+        const $$createField0_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2725,7 +2593,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType30;
+        const $$createField6_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -2785,7 +2653,7 @@ export class PendingReviewEntryView {
      * @returns {PendingReviewEntryView}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType32;
+        const $$createField3_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block" in $$parsedSource) {
             $$parsedSource["block"] = $$createField3_0($$parsedSource["block"]);
@@ -2841,7 +2709,7 @@ export class PendingReviewPageView {
      * @returns {PendingReviewPageView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType34;
+        const $$createField0_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2918,7 +2786,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType30;
+        const $$createField6_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -3139,7 +3007,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType11;
-        const $$createField5_0 = $$createType36;
+        const $$createField5_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -3467,13 +3335,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType38;
-        const $$createField1_0 = $$createType40;
-        const $$createField2_0 = $$createType42;
-        const $$createField3_0 = $$createType44;
-        const $$createField4_0 = $$createType46;
-        const $$createField5_0 = $$createType48;
-        const $$createField6_0 = $$createType50;
+        const $$createField0_0 = $$createType36;
+        const $$createField1_0 = $$createType38;
+        const $$createField2_0 = $$createType40;
+        const $$createField3_0 = $$createType42;
+        const $$createField4_0 = $$createType44;
+        const $$createField5_0 = $$createType46;
+        const $$createField6_0 = $$createType48;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -3957,7 +3825,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType52;
+        const $$createField0_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -4083,7 +3951,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType54;
+        const $$createField0_0 = $$createType52;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -4229,8 +4097,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType11;
         const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType56;
-        const $$createField8_0 = $$createType56;
+        const $$createField7_0 = $$createType54;
+        const $$createField8_0 = $$createType54;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -4612,6 +4480,138 @@ export class VersionInfo {
 }
 
 /**
+ * VoiceRollupArgs selects the rollup page and the drift window. Zero fields are
+ * omitted, leaving the server's defaults in force.
+ */
+export class VoiceRollupArgs {
+    /**
+     * Creates a new VoiceRollupArgs instance.
+     * @param {Partial<VoiceRollupArgs>} [$$source = {}] - The source object to create the VoiceRollupArgs.
+     */
+    constructor($$source = {}) {
+        if (!("limit" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["offset"] = 0;
+        }
+        if (!("recentDays" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["recentDays"] = 0;
+        }
+        if (!("minScore" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["minScore"] = 0;
+        }
+        if (!("dropPoints" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["dropPoints"] = 0;
+        }
+        if (!("days" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["days"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceRollupArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceRollupArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceRollupArgs(/** @type {Partial<VoiceRollupArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceRollupResult is the workspace voice compliance rollup the desktop
+ * returns: the server's page verbatim, plus Offline distinguishing "no server
+ * to ask" from "no projects scored".
+ */
+export class VoiceRollupResult {
+    /**
+     * Creates a new VoiceRollupResult instance.
+     * @param {Partial<VoiceRollupResult>} [$$source = {}] - The source object to create the VoiceRollupResult.
+     */
+    constructor($$source = {}) {
+        if (!("projects" in $$source)) {
+            /**
+             * @member
+             * @type {client$0.VoiceRollupEntry[]}
+             */
+            this["projects"] = [];
+        }
+        if (!("total" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total"] = 0;
+        }
+        if (!("limit" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["offset"] = 0;
+        }
+        if (!("offline" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["offline"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceRollupResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceRollupResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType56;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
+        }
+        return new VoiceRollupResult(/** @type {Partial<VoiceRollupResult>} */($$parsedSource));
+    }
+}
+
+/**
  * WordCountResult holds word and character counts.
  */
 export class WordCountResult {
@@ -4750,49 +4750,49 @@ const $$createType8 = $Create.Map($Create.Any, $$createType7);
 const $$createType9 = $Create.Map($Create.Any, $$createType6);
 const $$createType10 = $Create.Map($Create.Any, $Create.Any);
 const $$createType11 = $Create.Array($Create.Any);
-const $$createType12 = client$0.BrandRollupEntry.createFrom;
+const $$createType12 = AppliedMemoryView.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = AppliedMemoryView.createFrom;
+const $$createType14 = SkippedMemoryView.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = SkippedMemoryView.createFrom;
+const $$createType16 = BlockResultView.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = BlockResultView.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = CollabUser.createFrom;
-const $$createType21 = FlowNodeInfo.createFrom;
+const $$createType18 = CollabUser.createFrom;
+const $$createType19 = FlowNodeInfo.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = FlowEdgeInfo.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = FlowEdgeInfo.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = $Create.Map($Create.Any, $Create.Any);
-const $$createType26 = PositionInfo.createFrom;
-const $$createType27 = MemoryEntryInfo.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = RunConstraintsInfo.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $Create.Any);
+const $$createType24 = PositionInfo.createFrom;
+const $$createType25 = MemoryEntryInfo.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = RunConstraintsInfo.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = BlockInfo.createFrom;
 const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = BlockInfo.createFrom;
-const $$createType32 = $Create.Nullable($$createType31);
-const $$createType33 = PendingReviewEntryView.createFrom;
+const $$createType31 = PendingReviewEntryView.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = ProjectItem.createFrom;
 const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = ProjectItem.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = TextRunInfo.createFrom;
+const $$createType35 = TextRunInfo.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = PlaceholderRunInfo.createFrom;
 const $$createType38 = $Create.Nullable($$createType37);
-const $$createType39 = PlaceholderRunInfo.createFrom;
+const $$createType39 = PcOpenRunInfo.createFrom;
 const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = PcOpenRunInfo.createFrom;
+const $$createType41 = PcCloseRunInfo.createFrom;
 const $$createType42 = $Create.Nullable($$createType41);
-const $$createType43 = PcCloseRunInfo.createFrom;
+const $$createType43 = SubRunInfo.createFrom;
 const $$createType44 = $Create.Nullable($$createType43);
-const $$createType45 = SubRunInfo.createFrom;
+const $$createType45 = PluralRunInfo.createFrom;
 const $$createType46 = $Create.Nullable($$createType45);
-const $$createType47 = PluralRunInfo.createFrom;
+const $$createType47 = SelectRunInfo.createFrom;
 const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = SelectRunInfo.createFrom;
-const $$createType50 = $Create.Nullable($$createType49);
-const $$createType51 = TermMatchInfo.createFrom;
+const $$createType49 = TermMatchInfo.createFrom;
+const $$createType50 = $Create.Array($$createType49);
+const $$createType51 = ConceptInfo.createFrom;
 const $$createType52 = $Create.Array($$createType51);
-const $$createType53 = ConceptInfo.createFrom;
+const $$createType53 = IOPort.createFrom;
 const $$createType54 = $Create.Array($$createType53);
-const $$createType55 = IOPort.createFrom;
+const $$createType55 = client$0.VoiceRollupEntry.createFrom;
 const $$createType56 = $Create.Array($$createType55);
 const $$createType57 = $Create.Map($Create.Any, $Create.Any);

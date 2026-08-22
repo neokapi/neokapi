@@ -1,10 +1,10 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
-  BrandProfileList,
-  BrandProfilesSkeleton,
-  useBrandProfiles,
-  useDeleteBrandProfile,
+  VoiceProfileList,
+  VoiceProfilesSkeleton,
+  useVoiceProfiles,
+  useDeleteVoiceProfile,
 } from "@neokapi/ui";
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -22,8 +22,8 @@ export function ContextVoiceProfilesRoute() {
     }
   }, [activeWorkspace]);
 
-  const { data: profiles, isLoading } = useBrandProfiles();
-  const deleteMutation = useDeleteBrandProfile();
+  const { data: profiles, isLoading } = useVoiceProfiles();
+  const deleteMutation = useDeleteVoiceProfile();
 
   const handleSelect = useCallback(
     (profile: VoiceProfile) => {
@@ -42,7 +42,7 @@ export function ContextVoiceProfilesRoute() {
     });
   }, [navigate, workspace]);
 
-  const handleScanBrand = useCallback(() => {
+  const handleScanVoice = useCallback(() => {
     void navigate({
       to: "/$workspace/context/scan",
       params: { workspace: workspace ?? "" },
@@ -74,11 +74,11 @@ export function ContextVoiceProfilesRoute() {
   );
 
   if (isLoading) {
-    return <BrandProfilesSkeleton />;
+    return <VoiceProfilesSkeleton />;
   }
 
   return (
-    <BrandProfileList
+    <VoiceProfileList
       profiles={profiles ?? []}
       onSelect={handleSelect}
       onCreate={handleCreate}
@@ -86,7 +86,7 @@ export function ContextVoiceProfilesRoute() {
       onReview={handleReview}
       // Only servers running the brand-scan job system get the hosted-scan
       // CTA; the local lane (kapi Agent Skill) is always available.
-      onScanBrand={contextScanAvailable ? handleScanBrand : undefined}
+      onScanVoice={contextScanAvailable ? handleScanVoice : undefined}
       onLocalLane={handleLocalLane}
     />
   );

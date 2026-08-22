@@ -731,8 +731,8 @@ export default function ContextEval(): ReactElement {
         <h1>Context eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
           kapi steers model output by injecting context: a terms store that mandates renderings, a
-          brand voice guide, an instruction. This page measures whether each model actually follows
-          that context — not whether it translates well, which is a different question. The sibling{" "}
+          voice guide, an instruction. This page measures whether each model actually follows that
+          context — not whether it translates well, which is a different question. The sibling{" "}
           <Link to="/batch-eval">batch eval</Link> measures structural integrity and cost; this one
           measures obedience.
         </p>

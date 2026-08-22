@@ -263,7 +263,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 			}
 		}
 		if profile != nil {
-			if ov := brandOverlay(profile, runs, source); ov != nil {
+			if ov := voiceOverlay(profile, runs, source); ov != nil {
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
@@ -316,7 +316,7 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// brandOverlay builds an OverlayQA over the source runs from the project's voice
+// voiceOverlay builds an OverlayQA over the source runs from the project's voice
 // profile — both halves of its deterministic gate, vocabulary
 // (coreprofile.MatchVocabulary) and prohibited style patterns
 // (coreprofile.MatchPatterns). Findings ride on the QA overlay type (the model's
@@ -324,7 +324,7 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
 // or rule, severity, kind and any preferred replacement. Returns nil when
 // nothing matches.
-func brandOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
+func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
 	hits := coreprofile.MatchVocabulary(profile, source)
 	patterns := coreprofile.MatchPatterns(profile, source)
 	if len(hits) == 0 && len(patterns) == 0 {

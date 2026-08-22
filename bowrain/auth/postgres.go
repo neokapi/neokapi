@@ -933,7 +933,7 @@ type scanner = storage.Scanner
 // with %w as usual.
 func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
 	dst.Terminology = true
-	dst.BrandVocabulary = false
+	dst.VoiceVocabulary = false
 	if raw != "" {
 		_ = json.Unmarshal([]byte(raw), dst)
 	}

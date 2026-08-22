@@ -23,7 +23,7 @@ import (
 //
 // What "reconcile" means here is narrow and deliberate. A declared collection
 // gets a store.Collection row, and the governance resolved for its point is
-// written where core/profile already looks for it — bowrain/core/brandscope
+// written where core/profile already looks for it — bowrain/core/voicescope
 // reads Collection.ConnectorConfig into brand.ResolveContext.CollectionConfig,
 // where PropertyProfileID and PropertyChannel are the keys that decide which
 // voice governs the content. Nothing here invents a second place to put
@@ -312,7 +312,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
 		if err := b.deps.VoiceStore.CreateProfile(ctx, &created); err != nil {
-			return "", fmt.Errorf("create brand profile %q: %w", name, err)
+			return "", fmt.Errorf("create voice profile %q: %w", name, err)
 		}
 		return created.ID, nil
 	}
@@ -336,7 +336,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
 	if err := b.deps.VoiceStore.UpdateProfile(ctx, &updated); err != nil {
-		return "", fmt.Errorf("update brand profile %q: %w", name, err)
+		return "", fmt.Errorf("update voice profile %q: %w", name, err)
 	}
 	return updated.ID, nil
 }

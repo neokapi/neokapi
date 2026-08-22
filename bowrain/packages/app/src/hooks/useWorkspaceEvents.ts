@@ -116,13 +116,13 @@ export function planInvalidations(ws: string, ev: WorkspaceChangeEvent): Invalid
     return plan;
   }
 
-  // Brand voice / profile → brand candidates, profiles, drift, scores.
-  if (t.startsWith("brand.")) {
+  // Voice / profile → candidates, profiles, drift, scores.
+  if (t.startsWith("voice.")) {
     immediate(
-      ["brand-candidates", ws],
-      ["brand-profiles", ws],
-      ["brand-drift", ws],
-      ["brand-scores", ws],
+      ["voice-candidates", ws],
+      ["voice-profiles", ws],
+      ["voice-drift", ws],
+      ["voice-scores", ws],
     );
     return plan;
   }

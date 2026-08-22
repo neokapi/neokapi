@@ -1,10 +1,10 @@
-// Pure derivation helpers for the Brand dashboard (AD-021). Kept free of React
+// Pure derivation helpers for the Voice dashboard (AD-021). Kept free of React
 // so they can be unit-tested directly: score aggregation over stored brand
 // checks, and the waiting order for the pending governance queue. Concept
 // status counts and locale coverage are server aggregates, not derivations.
 import type { ChangeSet } from "../../types/brand-graph";
 import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
-import type { DimensionScore, StoredScore } from "../../brand/types";
+import type { DimensionScore, StoredScore } from "../../voice/types";
 
 /** Canonical dimension order so breakdowns read the same everywhere. */
 const DIMENSION_ORDER = ["tone", "style", "vocabulary", "clarity", "compliance"];

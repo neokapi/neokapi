@@ -148,7 +148,7 @@ exclude:
 	assert.NoError(t, assetsDecoder.Decode(n))
 }
 
-func TestBrandVoiceDecoder_Valid(t *testing.T) {
+func TestVoiceDecoder_Valid(t *testing.T) {
 	n := decode(t, `
 profile: company-profile
 channel: marketing
@@ -156,7 +156,7 @@ collections:
   ui:
     profile: technical
 `)
-	assert.NoError(t, brandVoiceDecoder.Decode(n))
+	assert.NoError(t, voiceDecoder.Decode(n))
 }
 
 func TestStringDecoder_AcceptsScalarString(t *testing.T) {

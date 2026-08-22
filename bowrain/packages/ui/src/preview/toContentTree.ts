@@ -34,7 +34,7 @@ import type {
 } from "@neokapi/ui-primitives/preview";
 import { runRangeForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
-import type { BrandVoiceFinding } from "../brand/types";
+import type { VoiceFinding } from "../voice/types";
 import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
 
 /**
@@ -43,10 +43,10 @@ import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/ap
  * brand scores all emit. `position` is already run-anchored, so it needs no
  * offset conversion.
  *
- * The wire shape itself is {@link BrandVoiceFinding}; `side` is bowrain's own
+ * The wire shape itself is {@link VoiceFinding}; `side` is bowrain's own
  * annotation, naming which text the finding was raised against.
  */
-export interface BlockFinding extends BrandVoiceFinding {
+export interface BlockFinding extends VoiceFinding {
   /**
    * The side the finding was raised on — "source" or a target locale key.
    * Defaults to "source".

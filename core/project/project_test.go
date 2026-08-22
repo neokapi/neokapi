@@ -734,12 +734,12 @@ func TestVoiceBinding_Validate(t *testing.T) {
 	}
 }
 
-// TestBowrainTopLevelBrandVoice_RoundTrips guards that the framework's
+// TestBowrainTopLevelVoice_RoundTrips guards that the framework's
 // `defaults.voice` binding does not regress bowrain's distinct
 // top-level `brand_voice:` extension. The framework alone (no bowrain
 // extension registered) must round-trip the top-level key verbatim via
 // Extras while still decoding the defaults binding into its typed field.
-func TestBowrainTopLevelBrandVoice_RoundTrips(t *testing.T) {
+func TestBowrainTopLevelVoice_RoundTrips(t *testing.T) {
 	yamlText := `version: v1
 name: dual
 defaults:

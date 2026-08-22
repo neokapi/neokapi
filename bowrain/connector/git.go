@@ -150,7 +150,7 @@ type GitConnector struct {
 // NewGitConnector creates a new GitConnector.
 //
 // Optional hardening config keys (used by one-shot harvesters of
-// user-supplied repositories such as the brand scan):
+// user-supplied repositories such as the context scan):
 //   - "shallow": "true" clones with --depth 1 --no-tags, bounding the fetch
 //     to the tip of the single requested branch.
 //   - "http_follow_redirects": "false" pins http.followRedirects=false on

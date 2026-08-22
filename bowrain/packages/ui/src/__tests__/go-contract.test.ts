@@ -177,12 +177,12 @@ const GO = {
 
 const TS = {
   api: "bowrain/packages/ui/src/types/api.ts",
-  brandGraph: "bowrain/packages/ui/src/types/brand-graph.ts",
+  voiceGraph: "bowrain/packages/ui/src/types/brand-graph.ts",
   blockStatus: "bowrain/packages/ui/src/components/editor/blockStatus.ts",
   chip: "bowrain/packages/ui/src/components/ComplianceRateChip.tsx",
   atoms: "bowrain/packages/ui/src/context-hub/shell/atoms.tsx",
   restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
-  brandTypes: "bowrain/packages/ui/src/brand/types.ts",
+  voiceTypes: "bowrain/packages/ui/src/voice/types.ts",
   apiError: "bowrain/packages/ui/src/errors/ApiError.ts",
 } as const;
 
@@ -201,12 +201,12 @@ const src = {
   finding: readRepoFile(GO.finding),
   handlersConcepts: readRepoFile(GO.handlersConcepts),
   api: readRepoFile(TS.api),
-  brandGraph: readRepoFile(TS.brandGraph),
+  voiceGraph: readRepoFile(TS.voiceGraph),
   blockStatus: readRepoFile(TS.blockStatus),
   chip: readRepoFile(TS.chip),
   atoms: readRepoFile(TS.atoms),
   restAdapter: readRepoFile(TS.restAdapter),
-  brandTypes: readRepoFile(TS.brandTypes),
+  voiceTypes: readRepoFile(TS.voiceTypes),
   apiError: readRepoFile(TS.apiError),
 };
 
@@ -233,7 +233,7 @@ describe("TermStatus mirrors model.TermStatus", () => {
     expectSameMembers(
       "TermStatus",
       { path: GO.term, members },
-      { path: TS.brandGraph, members: tsUnionMembers(src.brandGraph, "TermStatus") },
+      { path: TS.voiceGraph, members: tsUnionMembers(src.voiceGraph, "TermStatus") },
     );
   });
 
@@ -300,12 +300,12 @@ describe("ChangeSetStatus mirrors knowledge.ChangeSetStatus", () => {
     expectSameMembers(
       "ChangeSetStatus",
       { path: GO.knowledgeTypes, members },
-      { path: TS.brandGraph, members: tsUnionMembers(src.brandGraph, "ChangeSetStatus") },
+      { path: TS.voiceGraph, members: tsUnionMembers(src.voiceGraph, "ChangeSetStatus") },
     );
     expectSameMembers(
       "CHANGE_SET_STATUSES",
       { path: GO.knowledgeTypes, members },
-      { path: TS.brandGraph, members: tsArrayMembers(src.brandGraph, "CHANGE_SET_STATUSES") },
+      { path: TS.voiceGraph, members: tsArrayMembers(src.voiceGraph, "CHANGE_SET_STATUSES") },
     );
   });
 
@@ -341,8 +341,8 @@ describe("ChangeSetStatus mirrors knowledge.ChangeSetStatus", () => {
       "TERMINAL_CHANGESET_STATUSES",
       { path: GO.changeset, members: terminal },
       {
-        path: TS.brandGraph,
-        members: tsArrayMembers(src.brandGraph, "TERMINAL_CHANGESET_STATUSES"),
+        path: TS.voiceGraph,
+        members: tsArrayMembers(src.voiceGraph, "TERMINAL_CHANGESET_STATUSES"),
       },
     );
   });
@@ -433,7 +433,7 @@ describe("BillingUsageResponse mirrors the credit ledger page", () => {
   });
 });
 
-describe("BrandVoiceFinding mirrors check.Finding", () => {
+describe("VoiceFinding mirrors check.Finding", () => {
   // The two fields this caught: the grouping field is `category`, not
   // `dimension` (nothing on the wire ever carried `dimension`, so the findings
   // list rendered an empty chip), and `position` is a run range, not a
@@ -442,7 +442,7 @@ describe("BrandVoiceFinding mirrors check.Finding", () => {
     expectSameMembers(
       "check.Finding",
       { path: GO.finding, members: goStructJSONFields(src.finding, "Finding") },
-      { path: TS.brandTypes, members: tsInterfaceFields(src.brandTypes, "BrandVoiceFinding") },
+      { path: TS.voiceTypes, members: tsInterfaceFields(src.voiceTypes, "VoiceFinding") },
     );
   });
 });

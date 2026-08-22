@@ -10,7 +10,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { useState, useEffect } from "react";
 import type { CollectionKind, CollectionInfo } from "../types/api";
-import type { VoiceProfile } from "../brand/types";
+import type { VoiceProfile } from "../voice/types";
 import { Upload, Plug } from "./icons";
 
 /** Binding key stored inside a collection's connector_config map. */
@@ -27,8 +27,8 @@ export interface CreateCollectionDialogProps {
   }) => void;
   /** When set, the dialog operates in edit mode. */
   editCollection?: CollectionInfo;
-  /** Workspace brand-voice profiles; when non-empty the dialog offers a voice picker. */
-  brandProfiles?: VoiceProfile[];
+  /** Workspace voice profiles; when non-empty the dialog offers a voice picker. */
+  voiceProfiles?: VoiceProfile[];
 }
 
 export function CreateCollectionDialog({
@@ -36,15 +36,15 @@ export function CreateCollectionDialog({
   onClose,
   onSubmit,
   editCollection,
-  brandProfiles,
+  voiceProfiles,
 }: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CollectionKind>("uploaded");
   const [itemLabel, setItemLabel] = useState("");
-  const [brandVoiceProfileId, setBrandVoiceProfileId] = useState("");
+  const [voiceProfileId, setVoiceProfileId] = useState("");
 
   const isEdit = !!editCollection;
-  const showBrandPicker = !!brandProfiles && brandProfiles.length > 0;
+  const showVoicePicker = !!voiceProfiles && voiceProfiles.length > 0;
 
   // Populate fields when editing
   useEffect(() => {
@@ -52,7 +52,7 @@ export function CreateCollectionDialog({
       setName(editCollection.name);
       setKind(editCollection.kind);
       setItemLabel(editCollection.item_label === "item" ? "" : editCollection.item_label);
-      setBrandVoiceProfileId(editCollection.connector_config?.[BRAND_VOICE_KEY] ?? "");
+      setVoiceProfileId(editCollection.connector_config?.[BRAND_VOICE_KEY] ?? "");
     }
   }, [editCollection, open]);
 
@@ -60,7 +60,7 @@ export function CreateCollectionDialog({
     setName("");
     setKind("uploaded");
     setItemLabel("");
-    setBrandVoiceProfileId("");
+    setVoiceProfileId("");
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -73,18 +73,18 @@ export function CreateCollectionDialog({
   const handleSubmit = () => {
     if (!name.trim()) return;
     // Preserve any existing connector_config (secrets are re-added server-side)
-    // and layer the brand-voice binding on top. On create, only send the map
+    // and layer the voice binding on top. On create, only send the map
     // when a profile is picked; on edit, always send it so clearing back to
     // "Inherit" persists an empty binding.
     let connectorConfig: Record<string, string> | undefined;
-    if (showBrandPicker) {
+    if (showVoicePicker) {
       if (isEdit) {
         connectorConfig = {
           ...editCollection?.connector_config,
-          [BRAND_VOICE_KEY]: brandVoiceProfileId,
+          [BRAND_VOICE_KEY]: voiceProfileId,
         };
-      } else if (brandVoiceProfileId) {
-        connectorConfig = { [BRAND_VOICE_KEY]: brandVoiceProfileId };
+      } else if (voiceProfileId) {
+        connectorConfig = { [BRAND_VOICE_KEY]: voiceProfileId };
       }
     }
     onSubmit({
@@ -199,26 +199,26 @@ export function CreateCollectionDialog({
             </p>
           </div>
 
-          {showBrandPicker && (
+          {showVoicePicker && (
             <div>
-              <Label className="text-muted-foreground">Brand voice</Label>
+              <Label className="text-muted-foreground">Voice</Label>
               <select
                 className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                value={brandVoiceProfileId}
+                value={voiceProfileId}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setBrandVoiceProfileId(e.target.value)
+                  setVoiceProfileId(e.target.value)
                 }
-                aria-label="Collection brand voice profile"
+                aria-label="Collection voice profile"
               >
                 <option value="">Inherit (stream/project)</option>
-                {brandProfiles?.map((p) => (
+                {voiceProfiles?.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Overrides the stream and project brand voice for content in this collection
+                Overrides the stream and project voice for content in this collection
               </p>
             </div>
           )}

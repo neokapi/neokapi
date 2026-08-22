@@ -8,25 +8,25 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/neokapi/neokapi/bowrain/core/brandscope"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// brandScopeInput carries the optional organizational scope a scoring tool
-// resolves its brand-voice profile from when profile_id is omitted. It maps to
-// brandscope.Scope: the ladder is explicit profile_id → collection → stream →
+// voiceScopeInput carries the optional organizational scope a scoring tool
+// resolves its voice profile from when profile_id is omitted. It maps to
+// voicescope.Scope: the ladder is explicit profile_id → collection → stream →
 // project → workspace default. An agent working inside a project passes
 // project_id (and optionally stream/collection) and gets the right profile
 // without knowing its ID.
-type brandScopeInput struct {
-	ProjectID    string `json:"project_id,omitempty" jsonschema:"optional project to resolve the bound brand voice profile from"`
-	Stream       string `json:"stream,omitempty" jsonschema:"optional stream (branch) whose brand voice binding overrides the project"`
-	CollectionID string `json:"collection_id,omitempty" jsonschema:"optional collection whose brand voice binding overrides the stream"`
-	Persona      string `json:"persona,omitempty" jsonschema:"optional author persona to apply on top of the brand profile (within its guardrails); unknown persona falls back to the base profile"`
+type voiceScopeInput struct {
+	ProjectID    string `json:"project_id,omitempty" jsonschema:"optional project to resolve the bound voice profile from"`
+	Stream       string `json:"stream,omitempty" jsonschema:"optional stream (branch) whose voice binding overrides the project"`
+	CollectionID string `json:"collection_id,omitempty" jsonschema:"optional collection whose voice binding overrides the stream"`
+	Persona      string `json:"persona,omitempty" jsonschema:"optional author persona to apply on top of the voice profile (within its guardrails); unknown persona falls back to the base profile"`
 }
 
-// resolveProfile selects the effective brand-voice profile for a scoring call.
+// resolveProfile selects the effective voice profile for a scoring call.
 // An explicit profileID wins; otherwise the profile is resolved from the
 // organizational hierarchy (collection → stream → project → workspace default).
 // locale and channel overrides are applied to the selected profile, then the
@@ -34,12 +34,12 @@ type brandScopeInput struct {
 // an unknown persona simply leaves the base profile unchanged. Returns an error
 // when no profile is bound at any level, matching the prior behavior of an
 // empty/unknown profile ID.
-func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope brandScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
+func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope voiceScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
 	projectID := scope.ProjectID
 	if s.contentStore != nil {
 		projectID = s.resolveProjectID(ctx, scope.ProjectID)
 	}
-	profile, err := brandscope.Resolve(ctx, s.contentStore, s.wsDefault, s.voiceStore, brandscope.Scope{
+	profile, err := voicescope.Resolve(ctx, s.contentStore, s.wsDefault, s.voiceStore, voicescope.Scope{
 		ExplicitProfileID: profileID,
 		ProjectID:         projectID,
 		Stream:            scope.Stream,
@@ -52,7 +52,7 @@ func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope 
 		return nil, err
 	}
 	if profile == nil {
-		return nil, errors.New("no brand voice profile: pass profile_id or bind one to the project, stream, collection, or workspace")
+		return nil, errors.New("no voice profile: pass profile_id or bind one to the project, stream, collection, or workspace")
 	}
 	return profile, nil
 }
@@ -70,22 +70,22 @@ func (s *MCPServer) registerPhase2Tools() {
 	// suggest_corrections — generate rewrites for findings.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "suggest_corrections",
-		Description: "Given brand compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
+		Description: "Given voice compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
 	}, s.handleSuggestCorrections)
 
 	// rewrite_in_voice — full rewrite with diff.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "rewrite_in_voice",
-		Description: "Rewrite text to match a brand voice profile. Returns the rewritten text and a summary of changes made. Uses vocabulary rules and style guidelines to transform the input.",
+		Description: "Rewrite text to match a voice profile. Returns the rewritten text and a summary of changes made. Uses vocabulary rules and style guidelines to transform the input.",
 	}, s.handleRewriteInVoice)
 }
 
 // scoreVoiceComplianceInput is the input for the score_voice_compliance tool.
 type scoreVoiceComplianceInput struct {
-	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the brand voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
+	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
 	Text            string `json:"text" jsonschema:"the text to score"`
 	Locale          string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
-	brandScopeInput `json:",inline"`
+	voiceScopeInput `json:",inline"`
 }
 
 // scoreVoiceComplianceOutput is the output for the score_voice_compliance tool.
@@ -94,7 +94,7 @@ type scoreVoiceComplianceOutput struct {
 }
 
 func (s *MCPServer) handleScoreVoiceCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreVoiceComplianceInput) (*mcp.CallToolResult, scoreVoiceComplianceOutput, error) {
-	profile, err := s.resolveProfile(ctx, input.ProfileID, input.brandScopeInput, input.Locale, "")
+	profile, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, "")
 	if err != nil {
 		return nil, scoreVoiceComplianceOutput{}, err
 	}
@@ -110,10 +110,10 @@ func (s *MCPServer) handleScoreVoiceCompliance(ctx context.Context, req *mcp.Cal
 
 // suggestCorrectionsInput is the input for the suggest_corrections tool.
 type suggestCorrectionsInput struct {
-	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the brand voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
+	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
 	Text            string `json:"text" jsonschema:"the original text to correct"`
 	Locale          string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
-	brandScopeInput `json:",inline"`
+	voiceScopeInput `json:",inline"`
 }
 
 type correction struct {
@@ -129,7 +129,7 @@ type suggestCorrectionsOutput struct {
 }
 
 func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallToolRequest, input suggestCorrectionsInput) (*mcp.CallToolResult, suggestCorrectionsOutput, error) {
-	profile, err := s.resolveProfile(ctx, input.ProfileID, input.brandScopeInput, input.Locale, "")
+	profile, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, "")
 	if err != nil {
 		return nil, suggestCorrectionsOutput{}, err
 	}
@@ -167,11 +167,11 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 
 // rewriteInVoiceInput is the input for the rewrite_in_voice tool.
 type rewriteInVoiceInput struct {
-	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the brand voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
+	ProfileID       string `json:"profile_id,omitempty" jsonschema:"the voice profile ID; omit to resolve from the project/stream/collection/workspace hierarchy"`
 	Text            string `json:"text" jsonschema:"the text to rewrite"`
 	Locale          string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
 	Channel         string `json:"channel,omitempty" jsonschema:"optional channel for channel-specific overrides"`
-	brandScopeInput `json:",inline"`
+	voiceScopeInput `json:",inline"`
 }
 
 // rewriteInVoiceOutput is the output for the rewrite_in_voice tool.
@@ -183,7 +183,7 @@ type rewriteInVoiceOutput struct {
 }
 
 func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolRequest, input rewriteInVoiceInput) (*mcp.CallToolResult, rewriteInVoiceOutput, error) {
-	resolved, err := s.resolveProfile(ctx, input.ProfileID, input.brandScopeInput, input.Locale, input.Channel)
+	resolved, err := s.resolveProfile(ctx, input.ProfileID, input.voiceScopeInput, input.Locale, input.Channel)
 	if err != nil {
 		return nil, rewriteInVoiceOutput{}, err
 	}

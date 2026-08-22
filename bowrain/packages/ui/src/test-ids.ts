@@ -92,12 +92,12 @@ export const TEST_IDS = {
     settingsTab: "project-settings-tab",
   },
 
-  // ── Brand voice (referenced in walkthroughs) ─────────────────────
+  // ── Voice (referenced in walkthroughs) ─────────────────────
   brand: {
-    profilesList: "brand-profiles-list",
-    newProfileButton: "brand-new-profile-button",
-    starterPackPicker: "brand-starter-pack-picker",
-    profileNameInput: "brand-profile-name-input",
+    profilesList: "voice-profiles-list",
+    newProfileButton: "voice-new-profile-button",
+    starterPackPicker: "voice-starter-pack-picker",
+    profileNameInput: "voice profile-name-input",
   },
 
   // ── Blank-slate onboarding (the assistant and hosted lanes) ──────

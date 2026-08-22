@@ -412,7 +412,7 @@ func TestKnowledgeReturnsDecodedJSON(t *testing.T) {
 }
 
 // runKnowledgeRouteTests drives a table of route assertions against a recording
-// test server, mirroring TestBrandGovernanceRoutes in governance_test.go.
+// test server, mirroring TestVoiceGovernanceRoutes in governance_test.go.
 func runKnowledgeRouteTests(t *testing.T, tests []struct {
 	name       string
 	call       func(a *App) error

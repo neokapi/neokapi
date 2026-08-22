@@ -277,10 +277,10 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 	assert.NotEmpty(t, versions, "the superseded state is archived, not lost")
 }
 
-// TestReconcileContext_NoBrandCarriesStructureOnly pins what --no-brand means
+// TestReconcileContext_NoVoiceCarriesStructureOnly pins what --no-brand means
 // now that governance travels with the push: the collections still land, and
 // nothing binds a voice.
-func TestReconcileContext_NoBrandCarriesStructureOnly(t *testing.T) {
+func TestReconcileContext_NoVoiceCarriesStructureOnly(t *testing.T) {
 	deps := newContextTestDeps(t)
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")

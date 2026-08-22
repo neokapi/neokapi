@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// rebrandTB seeds a terms store with a deprecated concept (c-old), its
+// renameTB seeds a terms store with a deprecated concept (c-old), its
 // replacement (c-new), and — when withRelation is set — the USE_INSTEAD
 // relation between them.
-func rebrandTB(t *testing.T, withRelation bool) terms.Terminology {
+func renameTB(t *testing.T, withRelation bool) terms.Terminology {
 	t.Helper()
 	tb := terms.NewInMemoryStore()
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
@@ -176,7 +176,7 @@ func TestTermToolConfigs_AsOfValidation(t *testing.T) {
 // --- USE_INSTEAD / REPLACED_BY suggestion resolution ---
 
 func TestTermLookupTool_UseInsteadSuggestion(t *testing.T) {
-	tb := rebrandTB(t, true)
+	tb := renameTB(t, true)
 
 	tl := terms.NewTermLookupTool(tb, terms.TermLookupConfig{
 		SourceLocale: model.LocaleEnglish,
@@ -197,7 +197,7 @@ func TestTermLookupTool_UseInsteadSuggestion(t *testing.T) {
 }
 
 func TestTermLookupTool_NoRelationFallsBack(t *testing.T) {
-	tb := rebrandTB(t, false)
+	tb := renameTB(t, false)
 
 	tl := terms.NewTermLookupTool(tb, terms.TermLookupConfig{
 		SourceLocale: model.LocaleEnglish,
@@ -247,7 +247,7 @@ func TestTermLookupTool_ReplacedByForbiddenTerm(t *testing.T) {
 }
 
 func TestTermLookupTool_UseInsteadWinsOverReplacedBy(t *testing.T) {
-	tb := rebrandTB(t, false)
+	tb := renameTB(t, false)
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID: "c-other", Domain: "software",
 		Terms: []terms.Term{
@@ -277,7 +277,7 @@ func TestTermLookupTool_UseInsteadWinsOverReplacedBy(t *testing.T) {
 }
 
 func TestTermLookupTool_ReplacementWithoutTargetLocaleFallsBack(t *testing.T) {
-	tb := rebrandTB(t, false)
+	tb := renameTB(t, false)
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID: "c-en-only", Domain: "software",
 		Terms: []terms.Term{
@@ -304,7 +304,7 @@ func TestTermLookupTool_ReplacementWithoutTargetLocaleFallsBack(t *testing.T) {
 }
 
 func TestTermEnforceTool_UseInsteadViolation(t *testing.T) {
-	tb := rebrandTB(t, true)
+	tb := renameTB(t, true)
 
 	te := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
 		SourceLocale:  model.LocaleEnglish,
@@ -334,7 +334,7 @@ func TestTermEnforceTool_UseInsteadViolation(t *testing.T) {
 }
 
 func TestTermEnforceTool_ReplacementUsedPasses(t *testing.T) {
-	tb := rebrandTB(t, true)
+	tb := renameTB(t, true)
 
 	te := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
 		SourceLocale:  model.LocaleEnglish,
@@ -351,7 +351,7 @@ func TestTermEnforceTool_ReplacementUsedPasses(t *testing.T) {
 }
 
 func TestTermEnforceTool_NoRelationFallsBack(t *testing.T) {
-	tb := rebrandTB(t, false)
+	tb := renameTB(t, false)
 
 	te := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
 		SourceLocale:  model.LocaleEnglish,
@@ -376,7 +376,7 @@ func TestTermEnforceTool_NoRelationFallsBack(t *testing.T) {
 }
 
 func TestTermEnforceTool_ScopedRelation(t *testing.T) {
-	tb := rebrandTB(t, false)
+	tb := renameTB(t, false)
 	// The rebrand only holds in the dach market.
 	require.NoError(t, tb.AddRelation(context.Background(), terms.ConceptRelation{
 		ID: "r-dach", SourceID: "c-old", TargetID: "c-new",
