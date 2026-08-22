@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vite-plus/test";
+import { describe, it, expect, vi, beforeAll } from "vite-plus/test";
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,11 +12,26 @@ import { ContextScanInput } from "../context-scan/ContextScanInput";
 import { ContextScanProgress } from "../context-scan/ContextScanProgress";
 import { ContextScanReview } from "../context-scan/ContextScanReview";
 import { ContextScanLiveTester } from "../context-scan/ContextScanLiveTester";
+import { ContextScanAxes } from "../context-scan/ContextScanAxes";
 import { contextScanPollInterval } from "../hooks/useContextScanApi";
-import { createMockAdapter, sampleContextScanDraft } from "../stories/mock-adapter";
+import {
+  createMockAdapter,
+  sampleContextScanDraft,
+  sampleCollection,
+} from "../stories/mock-adapter";
+import { sampleProject } from "../stories/fixtures";
 import type { MockAdapter } from "../stories/mock-adapter";
 import { TEST_IDS } from "../test-ids";
 import { scanVoice } from "../context-scan/artefacts";
+
+// jsdom lacks the pointer APIs Radix Select relies on, so a trigger click
+// throws before the listbox opens.
+beforeAll(() => {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= vi.fn();
+  Element.prototype.releasePointerCapture ??= vi.fn();
+  Element.prototype.scrollIntoView ??= vi.fn();
+});
 
 const workspace: Workspace = {
   id: "ws-1",
@@ -306,6 +321,101 @@ describe("ContextScanLiveTester", () => {
     // `category`); the tester must normalize it to the UI's `dimension` —
     // regression lock for the review-page crash on the first live check.
     expect(screen.getByText("vocabulary")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ContextScanAxes
+// ---------------------------------------------------------------------------
+
+describe("ContextScanAxes", () => {
+  const axes = sampleContextScanDraft.axes ?? [];
+  const structural = axes.find((a) => a.axis === "product")!;
+  const declared = axes.find((a) => a.axis === "audience")!;
+
+  it("keeps a structural axis unapprovable until a collection is named", async () => {
+    const user = userEvent.setup();
+    const adapter = createMockAdapter();
+    renderWithProviders(<ContextScanAxes axes={[structural]} />, adapter);
+
+    const propose = screen.getByRole("button", { name: /propose in kapi\.yaml/i });
+    expect(propose).toBeDisabled();
+
+    await user.click(screen.getByLabelText("Project for product"));
+    await user.click(await screen.findByRole("option", { name: sampleProject.name }));
+    expect(propose).toBeDisabled();
+
+    await user.click(screen.getByLabelText("Collection for product"));
+    await user.click(await screen.findByRole("option", { name: sampleCollection.name }));
+    await waitFor(() => expect(propose).toBeEnabled());
+
+    await user.click(propose);
+    await waitFor(() =>
+      expect(adapter.approveAxisCalls).toEqual([
+        { axis: "product", value: structural.values[0], collection: sampleCollection.name },
+      ]),
+    );
+    expect(await screen.findByText(/collections\.docs\.channel/)).toBeInTheDocument();
+  });
+
+  it("asks a declared axis for a project only, and never a collection", async () => {
+    const user = userEvent.setup();
+    const adapter = createMockAdapter();
+    renderWithProviders(<ContextScanAxes axes={[declared]} />, adapter);
+
+    expect(screen.queryByLabelText("Collection for audience")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Project for audience"));
+    await user.click(await screen.findByRole("option", { name: sampleProject.name }));
+
+    const propose = screen.getByRole("button", { name: /propose in kapi\.yaml/i });
+    await waitFor(() => expect(propose).toBeEnabled());
+    await user.click(propose);
+
+    await waitFor(() =>
+      expect(adapter.approveAxisCalls).toEqual([{ axis: "audience", value: declared.values[0] }]),
+    );
+    expect(await screen.findByText(/defaults\.coordinates\.audience/)).toBeInTheDocument();
+  });
+
+  it("approves the value the reviewer picked, not the first one", async () => {
+    const user = userEvent.setup();
+    const adapter = createMockAdapter();
+    renderWithProviders(<ContextScanAxes axes={[declared]} />, adapter);
+
+    await user.click(screen.getByRole("button", { name: declared.values[1] }));
+    await user.click(screen.getByLabelText("Project for audience"));
+    await user.click(await screen.findByRole("option", { name: sampleProject.name }));
+    await user.click(screen.getByRole("button", { name: /propose in kapi\.yaml/i }));
+
+    await waitFor(() =>
+      expect(adapter.approveAxisCalls).toEqual([{ axis: "audience", value: declared.values[1] }]),
+    );
+  });
+
+  // The server's refusals name what to do next. Summarising them would cost the
+  // reviewer the only instruction they get.
+  it("shows the server's refusal verbatim", async () => {
+    const user = userEvent.setup();
+    const adapter = createMockAdapter();
+    adapter.approveAxis = vi
+      .fn()
+      .mockRejectedValue(new Error("this collection has no product yet"));
+    renderWithProviders(<ContextScanAxes axes={[declared]} />, adapter);
+
+    await user.click(screen.getByLabelText("Project for audience"));
+    await user.click(await screen.findByRole("option", { name: sampleProject.name }));
+    await user.click(screen.getByRole("button", { name: /propose in kapi\.yaml/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "this collection has no product yet",
+    );
+  });
+
+  it("renders nothing when the scan proposed no axes", () => {
+    const adapter = createMockAdapter();
+    renderWithProviders(<ContextScanAxes axes={[]} />, adapter);
+    expect(screen.queryByTestId(TEST_IDS.contextScan.axes)).not.toBeInTheDocument();
   });
 });
 

@@ -142,6 +142,8 @@ import type {
   CreditLedgerPage,
   ContextScanApproveRequest,
   ContextScanApproveResult,
+  ApproveAxisRequest,
+  PendingRecipeChange,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1153,9 +1155,9 @@ export interface ApiAdapter {
   ): Promise<VoiceProfile>;
 
   // Context scan (AI brand onboarding — epic 016). A scan drafts a voice
-  // profile + candidate glossary from pasted text, fetched pages, uploaded
-  // files, and repo docs; the draft is reviewed and approved by a human via
-  // the ordinary createVoiceProfile/createConcept surface.
+  // profile + candidate terms from pasted text, fetched pages, uploaded files,
+  // and repo docs; the draft is reviewed and approved by a human via the
+  // ordinary createVoiceProfile/createConcept surface.
   uploadContextScanSources(workspaceSlug: string, files: File[]): Promise<ContextScanUploadResult>;
   startContextScan(workspaceSlug: string, req: ContextScanRequest): Promise<{ job_id: string }>;
   getContextScan(workspaceSlug: string, jobId: string): Promise<ContextScanJob>;
@@ -1176,6 +1178,24 @@ export interface ApiAdapter {
     profile: VoiceProfile,
     text: string,
   ): Promise<ContextScanCheckResult>;
+
+  /**
+   * Approve one axis a scan proposed: record the recipe line it implies, for a
+   * pull to write into `kapi.yaml`.
+   *
+   * Nothing here declares a coordinate. The recipe is the only thing that
+   * mints one, so this returns a PENDING change and the axis becomes real once
+   * that line lands in git and a push carries content at it.
+   *
+   * Rejects with a 409 when the claim cannot be composed — a structural axis
+   * with no collection named, or a collection whose other half is not set yet.
+   * Those messages are written for the reviewer and should be shown as-is.
+   */
+  approveAxis(
+    workspaceSlug: string,
+    projectId: string,
+    req: ApproveAxisRequest,
+  ): Promise<PendingRecipeChange>;
 
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;

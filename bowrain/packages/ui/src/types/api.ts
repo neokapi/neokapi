@@ -2635,6 +2635,42 @@ export interface ContextScanDraft {
   truncated: boolean;
 }
 
+/**
+ * One axis a reviewer approved, and where it applies. Mirrors
+ * server.ApproveAxisRequest.
+ *
+ * `collection` is required for the structural axes (`product`, `channel`) and
+ * refused for the rest: those two are derived from a collection's `channel:`,
+ * so approving one is a claim about a particular collection, and which one the
+ * scan cannot know — it read a corpus, never the project's collections.
+ */
+export interface ApproveAxisRequest {
+  axis: string;
+  value: string;
+  collection?: string;
+}
+
+/**
+ * One recipe field an approval is waiting to write. Mirrors
+ * store.PendingRecipeChange.
+ *
+ * Approving an axis does not declare it. The row waits for a pull to put the
+ * line in `kapi.yaml`, where it is reviewed in git like any other change; the
+ * recipe stays the only thing that mints a coordinate.
+ */
+export interface PendingRecipeChange {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  /** Dotted recipe path, e.g. `collections.docs.channel`. */
+  path: string;
+  value: unknown;
+  status: "pending" | "applied";
+  created_by?: string;
+  created_at: string;
+  applied_at?: string;
+}
+
 export type ContextScanStatus = "queued" | "processing" | "completed" | "failed";
 
 /** State of a brand-scan job from GET /api/v1/{ws}/context-scans/{id}. */

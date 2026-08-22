@@ -35,6 +35,9 @@ import type {
   BlockStatusCounts,
   AutomationHistoryPage,
   ContextScanApproveResult,
+  ApproveAxisRequest,
+  PendingRecipeChange,
+  CollectionInfo,
   PendingReviewOptions,
   TermCompliance,
 } from "../types/api";
@@ -241,6 +244,8 @@ export interface MockAdapter extends ApiAdapter {
   uploadContextScanSourcesCalls: string[][];
   /** `checkVoiceDraft` invocations in call order. */
   checkVoiceDraftCalls: { profileName: string; text: string }[];
+  /** `approveAxis` invocations in call order. */
+  approveAxisCalls: ApproveAxisRequest[];
   /**
    * States returned by successive `getContextScan` calls: each call consumes
    * the next entry; the last entry repeats. Tests overwrite this to simulate
@@ -361,7 +366,7 @@ export const sampleContextScanDraft: ContextScanDraft = {
         fields: {
           tone: { confidence: 0.82, source: "Consistent register across brand-guide.docx" },
           style: { confidence: 0.71, source: "Short imperative sentences on the landing pages" },
-          vocabulary: { confidence: 0.9, source: "Glossary section in brand-guide.docx" },
+          vocabulary: { confidence: 0.9, source: "Terminology section in brand-guide.docx" },
           examples: { confidence: 0.55, source: "Rewrites derived from the blog posts" },
         },
       },
@@ -387,12 +392,40 @@ export const sampleContextScanDraft: ContextScanDraft = {
       ],
     },
   ],
+  // One structural axis and one declared axis, because the two are approved
+  // differently: `product` is derived from a collection's channel and needs one
+  // named, `audience` sits on the project's default point and refuses a
+  // collection.
+  axes: [
+    {
+      axis: "product",
+      values: ["kapi", "bowrain"],
+      evidence: ["Two distinct product names across brand-guide.docx and the about page"],
+      confidence: 0.84,
+    },
+    {
+      axis: "audience",
+      values: ["developer", "buyer"],
+      evidence: ["Reference pages address a developer; the landing pages address a buyer"],
+      confidence: 0.61,
+    },
+  ],
   sources: [
     { kind: "upload", label: "brand-guide.docx", runes: 48210 },
     { kind: "url", label: "https://acme.example/about", runes: 9120 },
     { kind: "paste", label: "pasted text", runes: 1834 },
   ],
   truncated: false,
+};
+
+/** One collection, so a structural axis has somewhere to be approved for. */
+export const sampleCollection: CollectionInfo = {
+  id: "col-docs",
+  project_id: "proj-1",
+  name: "docs",
+  kind: "uploaded",
+  item_label: "file",
+  is_default: false,
 };
 
 /** A completed brand-scan job carrying the sample draft. */
@@ -535,6 +568,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   const startContextScanCalls: ContextScanRequest[] = [];
   const uploadContextScanSourcesCalls: string[][] = [];
   const checkVoiceDraftCalls: { profileName: string; text: string }[] = [];
+  const approveAxisCalls: ApproveAxisRequest[] = [];
   const pendingReviewCalls: (PendingReviewOptions | undefined)[] = [];
   let contextScanPollIndex = 0;
 
@@ -551,6 +585,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     startContextScanCalls,
     uploadContextScanSourcesCalls,
     checkVoiceDraftCalls,
+    approveAxisCalls,
     contextScanJobStates: [sampleContextScanJob],
     itemNames: {},
     itemCollections: {},
@@ -700,7 +735,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
 
     // --- Collections ----------------------------------------------------
-    listCollections: async () => [],
+    listCollections: async () => [sampleCollection],
     createCollection: notImpl,
     getCollection: notImpl,
     updateCollection: notImpl,
@@ -1416,6 +1451,29 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       concepts_existing: 0,
       concept_ids: (req.terms ?? []).map((t) => `concept-${t.term}`),
     }),
+    approveAxis: async (_ws, projectId, req): Promise<PendingRecipeChange> => {
+      approveAxisCalls.push(req);
+      // The server refuses a structural axis with no collection, so the mock
+      // does too — a story that forgets it should see the message a reviewer
+      // would, not a success.
+      const structural = req.axis === "product" || req.axis === "channel";
+      if (structural && !req.collection) {
+        throw new Error(
+          `${req.axis} is derived from a collection's channel, not declared: name the collection this applies to`,
+        );
+      }
+      return {
+        id: `change-${approveAxisCalls.length}`,
+        workspace_id: "ws-1",
+        project_id: projectId,
+        path: structural
+          ? `collections.${req.collection}.channel`
+          : `defaults.coordinates.${req.axis}`,
+        value: structural ? `${req.value}/web` : req.value,
+        status: "pending",
+        created_at: "2026-08-22T09:00:00Z",
+      };
+    },
     getContextScan: async (_ws, jobId): Promise<ContextScanJob> => {
       const states = adapter.contextScanJobStates;
       const state = states[Math.min(contextScanPollIndex, states.length - 1)];
