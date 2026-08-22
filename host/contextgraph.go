@@ -250,6 +250,15 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 	if err != nil {
 		return nil, err
 	}
+	// A decision names its document by identity; a stored block names its
+	// document by path, because the block store places a block by where it was
+	// read from. The two meet here, so the key is turned back into the address
+	// before the join — the alternative being a graph that silently loses every
+	// blesses-edge the moment a document has a key at all.
+	docPaths, err := work.DocumentPaths(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read document paths: %w", err)
+	}
 
 	seenBlocks := map[string]bool{}
 	for _, u := range units {
@@ -268,7 +277,11 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 		}
 		d.Nodes = append(d.Nodes, contextgraph.UnitStateNode(scope, gu))
 
-		b, ok := byDocUnit[documentUnitKey(u.Scope, u.Unit)]
+		document := u.Scope
+		if p, known := docPaths[document]; known && p != "" {
+			document = p
+		}
+		b, ok := byDocUnit[documentUnitKey(document, u.Unit)]
 		if !ok {
 			continue
 		}

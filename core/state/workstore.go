@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
@@ -66,7 +66,15 @@ type WorkStore struct {
 type memWork struct {
 	path  string // the sidecar the set persists to
 	units map[Key]memUnit
-	docs  map[string]string
+	docs  map[string]memDoc
+}
+
+// memDoc is one document's identity in the sidecar: where it lives now, and
+// what it held when it was last read — which is what recognises it again after
+// a rename.
+type memDoc struct {
+	Path    string   `json:"path"`
+	Content []string `json:"content,omitempty"`
 }
 
 type memUnit struct {
@@ -77,7 +85,7 @@ type memUnit struct {
 // memFile is the sidecar serialization of the browser working set.
 type memFile struct {
 	Units []memUnit         `json:"units"`
-	Docs  map[string]string `json:"docs,omitempty"`
+	Docs  map[string]memDoc `json:"docs,omitempty"`
 }
 
 // load reads the sidecar back into the working set. A missing sidecar is an
@@ -188,6 +196,17 @@ ALTER TABLE unit_state_scoped RENAME TO unit_state;
 CREATE INDEX IF NOT EXISTS unit_state_content ON unit_state(content_hash);
 CREATE INDEX IF NOT EXISTS unit_state_context ON unit_state(scope, context_hash);
 CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged = 1;`,
+}, {
+	Version:     4,
+	Description: "a document records what it held",
+	// Path alone cannot recognise a document that moved. What it CONTAINED can:
+	// the content hash of each block it held, which is what reconcile grades a
+	// candidate against. Without it a rename is indistinguishable from a
+	// deletion plus an unrelated new file, and every decision in the file is
+	// orphaned — silently, since nothing fails.
+	SQL: `
+ALTER TABLE document ADD COLUMN content TEXT NOT NULL DEFAULT '[]';
+CREATE INDEX IF NOT EXISTS document_path ON document(path);`,
 }}
 
 // The store runs its statements on ctx: a WorkStore is a
@@ -255,7 +274,7 @@ func OpenWorkSidecar(ctx context.Context, sidecarPath, committedPath string) (*W
 	mem := &memWork{
 		path:  sidecarPath,
 		units: map[Key]memUnit{},
-		docs:  map[string]string{},
+		docs:  map[string]memDoc{},
 	}
 	w := &WorkStore{committed: committedPath, mem: mem}
 	found, err := mem.load()
@@ -474,19 +493,164 @@ func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 	return out, rows.Err()
 }
 
-// PutDocument records where a document currently lives. The key is its durable
-// identity; the path is only its address, and moves without it.
-func (w *WorkStore) PutDocument(ctx context.Context, key, path string) error {
+// Documents returns the documents the project already knows, as identity
+// resolution needs them: a durable key, the path it was last seen at, and the
+// content hashes it held there.
+func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) {
 	if w.mem != nil {
-		if w.mem.docs[key] == path {
-			return nil
+		out := make([]reconcile.DocUnit, 0, len(w.mem.docs))
+		for key, d := range w.mem.docs {
+			out = append(out, reconcile.DocUnit{Key: key, Path: d.Path, Content: d.Content})
 		}
-		w.mem.docs[key] = path
-		return w.mem.persist()
+		sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+		return out, nil
 	}
-	_, err := w.db.ExecContext(ctx, `
-INSERT INTO document (key, path) VALUES (?, ?)
-ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
+	rows, err := w.db.QueryContext(ctx, `SELECT key, path, content FROM document ORDER BY key`)
+	if err != nil {
+		return nil, fmt.Errorf("state: list documents: %w", err)
+	}
+	defer rows.Close()
+
+	var out []reconcile.DocUnit
+	for rows.Next() {
+		var u reconcile.DocUnit
+		var content string
+		if err := rows.Scan(&u.Key, &u.Path, &content); err != nil {
+			return nil, fmt.Errorf("state: scan document: %w", err)
+		}
+		// A document written before content was recorded reads as holding
+		// nothing, which grades as "not a rename" rather than as an error: the
+		// path pass still recognises it where it stands, and the next read
+		// records what it holds.
+		if content != "" && content != "[]" {
+			if uerr := json.Unmarshal([]byte(content), &u.Content); uerr != nil {
+				return nil, fmt.Errorf("state: parse document %q content: %w", u.Key, uerr)
+			}
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// AdoptDocuments resolves a fresh read against the documents the project knows,
+// records the result, and returns each current path's durable key.
+//
+// It is the local half of what a venue does on a push, and it exists for the
+// same reason: a decision is filed against the document it was made in, so if
+// the document's identity is its path, renaming a file orphans every approval
+// inside it — silently, because nothing fails and the loop simply re-approves
+// from scratch. Resolution here matches on path first and on surviving content
+// second, so a file that moved keeps its key, and the decisions filed under its
+// old address move onto that key in the same transaction.
+//
+// current is what was just read, in any order. The returned map is keyed by
+// DocUnit.Path.
+func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error) {
+	prior, err := w.Documents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resolved := reconcile.DocumentUnits(current, prior)
+
+	// Where each key used to live, so a key resolved at a new path can carry
+	// the decisions filed under the old one.
+	priorPath := make(map[string]string, len(prior))
+	for _, u := range prior {
+		priorPath[u.Key] = u.Path
+	}
+
+	out := make(map[string]string, len(resolved))
+	for i, r := range resolved {
+		out[r.Path] = r.Key
+		content := current[i].Content
+
+		// The address is swept every time, not only on first sight. Anything
+		// that could not resolve a key — a fresh checkout, a build with no
+		// store, a surface reading a project before its first extraction —
+		// files its decision under the path, so the path keeps acquiring
+		// decisions that belong to the identity long after it has one.
+		if rerr := w.rekeyScope(ctx, r.Path, r.Key); rerr != nil {
+			return nil, rerr
+		}
+		// And a key that moved carries its decisions with it.
+		if was, known := priorPath[r.Key]; known && was != r.Path {
+			if rerr := w.rekeyScope(ctx, was, r.Key); rerr != nil {
+				return nil, rerr
+			}
+		}
+		if perr := w.putDocument(ctx, r.Key, r.Path, content); perr != nil {
+			return nil, perr
+		}
+	}
+	if w.mem != nil {
+		if perr := w.mem.persist(); perr != nil {
+			return nil, perr
+		}
+	}
+	return out, nil
+}
+
+// rekeyScope moves every decision filed under one scope onto another. A no-op
+// when they are already the same, which is the ordinary case: a document whose
+// key equals its path (nothing recorded yet) and a document that did not move.
+//
+// Decisions already under `to` win. Re-keying is a migration of an address into
+// an identity, and it must never overwrite a decision that was recorded against
+// the identity itself.
+func (w *WorkStore) rekeyScope(ctx context.Context, from, to string) error {
+	if from == "" || to == "" || from == to {
+		return nil
+	}
+	if w.mem != nil {
+		for k, mu := range w.mem.units {
+			if k.Scope != from {
+				continue
+			}
+			moved := Key{Scope: to, Unit: k.Unit, Variant: k.Variant}
+			if _, taken := w.mem.units[moved]; taken {
+				continue
+			}
+			mu.Unit.Scope = to
+			w.mem.units[moved] = mu
+			delete(w.mem.units, k)
+		}
+		return nil
+	}
+	// The payload carries the scope too, so it is rewritten with the column —
+	// a reader that trusted one and not the other would report the document a
+	// decision was made in as the path it no longer sits at.
+	if _, err := w.db.ExecContext(ctx, `
+UPDATE OR IGNORE unit_state
+   SET scope   = ?,
+       payload = json_set(payload, '$.scope', ?)
+ WHERE scope = ?`, to, to, from); err != nil {
+		return fmt.Errorf("state: move decisions from %q to %q: %w", from, to, err)
+	}
+	// Rows the update could not move are ones the target already holds. They
+	// are the address's copy of a decision the identity also has, and leaving
+	// them would make the same unit answer twice.
+	if _, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE scope = ?`, from); err != nil {
+		return fmt.Errorf("state: drop superseded decisions at %q: %w", from, err)
+	}
+	return nil
+}
+
+// putDocument records where a document currently lives and what it held. The
+// key is its durable identity; the path is only its address, and moves without
+// it.
+func (w *WorkStore) putDocument(ctx context.Context, key, path string, content []string) error {
+	if w.mem != nil {
+		w.mem.docs[key] = memDoc{Path: path, Content: content}
+		return nil
+	}
+	encoded, err := json.Marshal(content)
+	if err != nil {
+		return fmt.Errorf("state: encode document %q content: %w", key, err)
+	}
+	_, err = w.db.ExecContext(ctx, `
+INSERT INTO document (key, path, content) VALUES (?, ?, ?)
+ON CONFLICT(key) DO UPDATE SET path = excluded.path, content = excluded.content`,
+		key, path, string(encoded))
 	if err != nil {
 		return fmt.Errorf("state: put document: %w", err)
 	}
@@ -497,7 +661,9 @@ ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
 func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {
 	if w.mem != nil {
 		out := make(map[string]string, len(w.mem.docs))
-		maps.Copy(out, w.mem.docs)
+		for key, d := range w.mem.docs {
+			out[key] = d.Path
+		}
 		return out, nil
 	}
 	rows, err := w.db.QueryContext(ctx, `SELECT key, path FROM document ORDER BY key`)

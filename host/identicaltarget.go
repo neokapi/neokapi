@@ -48,6 +48,9 @@ type identicalTargetRule struct {
 	// so it asks the index for the decision made in THAT document — the same
 	// identity the decision was recorded under.
 	root string
+	// docs turns that path into the document's durable key, so a file that was
+	// renamed since the decision still answers for it.
+	docs DocumentIndex
 }
 
 // newIdenticalTargetRule builds the rule from the project's terms and its
@@ -62,6 +65,7 @@ func (a *App) newIdenticalTargetRule(ctx context.Context, cmd Command, proj *pro
 		byLocale: map[string]map[string]bool{},
 		resolve:  func(locale string) map[string]bool { return a.doNotTranslateTerms(cmd, locale) },
 		root:     root,
+		docs:     a.documentIndexOrEmpty(ctx, root),
 	}
 	if !projectStoreExists(root) {
 		return r, nil
@@ -87,7 +91,7 @@ func (r *identicalTargetRule) settles(sourcePath string, b *model.Block, locale 
 	if r.doNotTranslate(locale)[b.SourceText()] {
 		return true
 	}
-	e, _, applies := r.reviewed.grade(DecisionScope(r.root, sourcePath), b, locale)
+	e, _, applies := r.reviewed.grade(r.docs.Scope(r.root, sourcePath), b, locale)
 	return approvesTarget(e, applies)
 }
 

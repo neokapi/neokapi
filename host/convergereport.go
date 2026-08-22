@@ -204,12 +204,12 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			// The decision's document is the SOURCE path (DecisionScope): the
-			// identity namespace the unit key lives in, and the half of the
-			// decision's identity that tells one page's `p` from another's.
-			// The review queue's display path is the target file, which no
-			// other party names anything by.
-			return a.recordDecisionState(ctx, proj, root, DecisionScope(root, u.SourcePath), blockKey(b), loc,
+			// The decision's document is its SOURCE file, resolved to the
+			// durable key the project holds for it: the identity namespace the
+			// unit key lives in, and the half of the decision's identity that
+			// tells one page's `p` from another's. The review queue's display
+			// path is the target file, which no other party names anything by.
+			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
 				decidedContent{source: b.SourceText(), target: target}, status, decision, note, by)
 		}
 	}
@@ -316,6 +316,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 
 	recorded := 0
 	loc := model.LocaleID(locale)
+	docs := a.documentIndexOrEmpty(ctx, root)
 	for _, u := range units {
 		if u.Locale != locale || u.DisplayPath != file {
 			continue
@@ -330,7 +331,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		if missing {
 			continue
 		}
-		scope := DecisionScope(root, u.SourcePath)
+		scope := docs.Scope(root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -443,7 +444,7 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 			if serr != nil {
 				return nil, serr
 			}
-			k := state.Key{Scope: DecisionScope(root, u.SourcePath), Unit: ref.Key, Variant: model.Variant(loc)}
+			k := state.Key{Scope: a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), Unit: ref.Key, Variant: model.Variant(loc)}
 			if us, found := st.Get(ctx, k); found {
 				th := targetHash(info.Target)
 				ch := state.SourceHash(info.Source)
@@ -469,19 +470,16 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
 }
 
-// DecisionScope is the document a unit's decisions belong to: its SOURCE file,
-// relative to the project root, in slash form.
+// DecisionScope is a document's ADDRESS: its SOURCE file, relative to the
+// project root, in slash form. It is what a decision is scoped by where the
+// project holds no durable key for the document — a fresh checkout, a build
+// with no store — and it is the fallback DocumentIndex.Scope falls back to.
 //
-// It is half of a decision's identity, not a label beside it. A reader names
-// blocks by what the format gives it, and for prose those names follow position
-// — so every page of a docs collection carries an `h`, a `p` and an `fm_title`,
-// and a decision recorded against the id alone belongs to whichever page was
-// processed last. The source path rather than the target's is what the unit key
-// lives in and what the connector names items by, so it is also what lets a
-// decision travel scoped to the right item.
-//
-// One definition, because every party that records a decision and every party
-// that reads one back has to name the same document the same way.
+// Reach for DocumentIndex.Scope rather than this. The address is not the
+// identity: renaming a file changes it, and a decision keyed on it is detached
+// by a rename, silently. This stays exported because the fallback has to be one
+// definition — every party that records a decision and every party that reads
+// one back has to name an unresolved document the same way.
 func DecisionScope(root, sourcePath string) string {
 	return filepath.ToSlash(relToRoot(root, sourcePath))
 }
