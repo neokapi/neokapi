@@ -21,10 +21,10 @@ import (
 // is advisory and the checks still report what the model got wrong.
 
 // TermsResolver returns the workspace's server terms, so a translation job can
-// build the per-locale glossary that reaches the model's prompt. It mirrors the
+// build the per-locale term rules that reach the model's prompt. It mirrors the
 // server's workspaceStores.getTerms: a per-workspace, PostgreSQL-backed terms
 // keyed by the workspace slug. Optional on WorkerDeps — when nil the job
-// translates without a glossary.
+// translates without terminology.
 type TermsResolver interface {
 	GetTB(workspaceSlug string) (terms.Terminology, error)
 }

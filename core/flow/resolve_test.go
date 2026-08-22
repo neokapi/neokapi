@@ -20,7 +20,7 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 
 	config := map[string]any{
 		"tmxPath":   "memory:project-memory",
-		"termsPath": "terms:glossary",
+		"termsPath": "terms:product",
 		"srxPath":   "srx:custom-rules",
 	}
 
@@ -32,7 +32,7 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 
 	expected := map[string]string{
 		"tmxPath":   filepath.Join(tmpDir, "memory", "project-memory.db"),
-		"termsPath": filepath.Join(tmpDir, "terms", "glossary.db"),
+		"termsPath": filepath.Join(tmpDir, "terms", "product.db"),
 		"srxPath":   filepath.Join(tmpDir, "srx", "custom-rules.srx"),
 	}
 
@@ -162,7 +162,7 @@ func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 	}
 
 	config := map[string]any{
-		"termsFile":     "terms:glossary",
+		"termsFile":     "terms:product",
 		"regularString": "memory:not-a-path", // should NOT be resolved (no x-path annotation, name doesn't match heuristic)
 	}
 
@@ -174,7 +174,7 @@ func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 
 	// termsFile should be resolved via URI prefix.
 	got := resolved["termsFile"].(string)
-	want := filepath.Join(tmpDir, "terms", "glossary.db")
+	want := filepath.Join(tmpDir, "terms", "product.db")
 	if got != want {
 		t.Errorf("termsFile: got %q, want %q", got, want)
 	}

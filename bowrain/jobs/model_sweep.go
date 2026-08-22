@@ -20,7 +20,7 @@ import (
 
 // Measured steerability (model recommendation sweeps): the platform
 // periodically measures how much each candidate model actually obeys THIS
-// project's standing brand context — voice profile, terminology glossary, and
+// project's standing context — voice profile, term rules, and
 // do-not-translate terms — and recommends the model with the highest measured
 // context lift. No customer authoring, no customer spend: the fixture set is
 // derived from the project's own content, both arms run on the PLATFORM
@@ -123,7 +123,7 @@ func (c *SweepContext) Empty() bool {
 // from the project's stored source blocks, deterministically (blocks are
 // visited in ID order; the same content + context always yields the same set):
 //
-//   - glossary traps: the source contains a terms store source term, so the
+//   - terms traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts the profile's forbidden/competitor
 //     vocabulary (coreprofile.MatchVocabulary against the source — a model that
@@ -237,7 +237,7 @@ func isVoiceTrap(text string, profile *coreprofile.VoiceProfile) bool {
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
-// fixture content, the profile identity+version, and the glossary/DNT terms
+// fixture content, the profile identity+version, and the term rules/DNT terms
 // derived from the terms store and project settings. Any change to content or
 // context yields a new digest, so stale rows are never mistaken for a
 // measurement of the current state.
@@ -292,7 +292,7 @@ func (s sweepArmScore) Rate() float64 {
 // REAL core check tools — the same ones the convergence loop's checks pass
 // runs (no LLM judge, zero extra AI spend):
 //
-//   - term-check (core/tools): every glossary source term present in the
+//   - term-check (core/tools): every ruled source term present in the
 //     source must have its mandated rendering in the target — read back from
 //     the tool's term-check-passed property;
 //   - dnt-check (core/tools): every DNT term present in the source must

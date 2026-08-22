@@ -202,7 +202,7 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 	cfg.Reset()
 	// The voice profile is injected by the flow bindings as a live pointer, not a
 	// serializable value, so it is lifted out before ApplyConfig's JSON round-trip.
-	// The glossary is a plain map and binds directly.
+	// The term rules bind directly.
 	var profile *coreprofile.VoiceProfile
 	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
 		profile = pf

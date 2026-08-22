@@ -278,7 +278,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 }
 
 // termOverlay builds an OverlayTerm over the source runs from the project's
-// terms. Each matched glossary term becomes a span carrying the matched
+// terms. Each matched term becomes a span carrying the matched
 // surface form (term), its preferred target translation (target) and domain.
 // Returns nil when nothing matches.
 func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, source string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {

@@ -88,12 +88,12 @@ func NewTermCheckFromConfig(config map[string]any, targetLang string) (tool.Tool
 }
 
 // NewTermCheckTool creates a tool that verifies terminology usage in translations.
-// For each glossary entry, if the source term appears in the source text,
+// For each rule, if the term appears in the source text,
 // the tool checks that the required target term appears in the target text.
 func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "term-check",
-		ToolDescription: "Verifies terminology usage in translations against a glossary",
+		ToolDescription: "Verifies terminology usage in translations against the project's term rules",
 		Cfg:             cfg,
 	}
 	t.Annotate = func(v tool.BlockView) error {

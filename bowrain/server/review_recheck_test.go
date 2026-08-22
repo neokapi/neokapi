@@ -238,7 +238,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 }
 
 // TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues (RV-F) is the
-// complementary end-to-end proof for the glossary-ABSENCE direction: a governed
+// complementary end-to-end proof for the terminology-ABSENCE direction: a governed
 // project with two APPROVED (reviewed) fr targets whose sources both use a
 // concept — one target uses the mandated fr rendering, one does not — has that
 // concept given a preferred fr term. The resulting concept event pulls exactly

@@ -66,7 +66,7 @@ func hookNoticeOf(t *testing.T, raw string) string {
 
 // makeVerifyPass rewrites the project's source and target files so all gates
 // pass: the competitor term is removed from the source and the target keeps the
-// placeholder and uses the approved glossary term.
+// placeholder and uses the approved term.
 func makeVerifyPass(t *testing.T, root, targetFile string) {
 	t.Helper()
 	goodSrc := `{

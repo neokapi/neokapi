@@ -174,7 +174,7 @@ func TestAITranslate_SessionCachedOverlaySkipsSecondPass(t *testing.T) {
 	assert.Equal(t, 2, *calls, "a different source file must not reuse another file's overlay")
 }
 
-// Config-fingerprint invalidation (changed model/glossary re-translates
+// Config-fingerprint invalidation (changed model/term rules re-translates
 // instead of serving the stale cached target) is covered by
 // TestAITranslate_SessionCacheIsConfigAware in session_cache_test.go.
 

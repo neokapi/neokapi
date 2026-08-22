@@ -131,7 +131,7 @@ func bindingKey(rc *project.ResolvedGovernance) string {
 		b.WriteString(rc.Voice.Pack)
 	}
 	b.WriteByte(0)
-	b.WriteString(rc.Terms)
+	b.WriteString(rc.TermStore)
 	return b.String()
 }
 

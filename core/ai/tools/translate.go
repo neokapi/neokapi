@@ -61,7 +61,7 @@ type AITranslateTool struct {
 	blockIndex  atomic.Int32
 	totalBlocks int
 	// configFP fingerprints the output-affecting config (provider, model, locales,
-	// glossary, voice profile). The session overlay cache stores it so a re-run with
+	// term rules, voice profile). The session overlay cache stores it so a re-run with
 	// a changed model/prompt/voice re-translates instead of serving the stale
 	// cached target. See tool.OverlayConfigFingerprint.
 	configFP string

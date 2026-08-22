@@ -46,8 +46,8 @@ func TestDigestIsStableAndPerTarget(t *testing.T) {
 }
 
 // TestMandatesReachTheSteeredPass pins the injection contract: every term the
-// scorer demands must be in the glossary the steered pass injects (verbatim),
-// and every DNT term must ride the glossary as an identity pin — that is how a
+// scorer demands must be in the rules the steered pass injects (verbatim),
+// and every DNT term must ride the rules as an identity pin — that is how a
 // do-not-translate name reaches generation in production.
 func TestMandatesReachTheSteeredPass(t *testing.T) {
 	for _, target := range Targets() {
@@ -55,16 +55,17 @@ func TestMandatesReachTheSteeredPass(t *testing.T) {
 		for _, f := range c.Fixtures {
 			for _, chk := range f.Checks[target] {
 				if chk.Term != nil {
-					got, ok := c.Ctx.Glossary[chk.Term.Source]
-					require.True(t, ok, "%s/%s: term %q is scored but not injected", target, f.Key, chk.Term.Source)
-					assert.Equal(t, chk.Term.Target, got,
-						"%s/%s: the scorer demands %q but the glossary injects %q — the eval would punish obedience",
-						target, f.Key, chk.Term.Target, got)
+					got, ok := c.Ctx.Mandate(chk.Term.Term)
+					require.True(t, ok, "%s/%s: term %q is scored but not injected", target, f.Key, chk.Term.Term)
+					assert.Equal(t, chk.Term.Replacement, got,
+						"%s/%s: the scorer demands %q but the rules mandate %q — the eval would punish obedience",
+						target, f.Key, chk.Term.Replacement, got)
 				}
 				if chk.DNT != "" {
 					assert.Contains(t, c.Ctx.DNT, chk.DNT, "%s/%s: DNT term not in the check list", target, f.Key)
-					assert.Equal(t, chk.DNT, c.Ctx.Glossary[chk.DNT],
-						"%s/%s: DNT term %q needs an identity glossary pin to reach generation", target, f.Key, chk.DNT)
+					pinned, _ := c.Ctx.Mandate(chk.DNT)
+					assert.Equal(t, chk.DNT, pinned,
+						"%s/%s: DNT term %q needs an identity pin to reach generation", target, f.Key, chk.DNT)
 				}
 			}
 		}
@@ -163,12 +164,12 @@ func TestHouseStyleNamesEveryMandate(t *testing.T) {
 	for _, target := range Targets() {
 		c := contextFor(target)
 		joined := strings.Join(c.HouseStyle(), "\n")
-		for k, v := range c.Glossary {
-			if k == v {
-				assert.NotContains(t, joined, k+" → ", "%s: identity pin %q should not be a mandate line", target, k)
+		for _, r := range c.TermRules {
+			if r.Term == r.Replacement {
+				assert.NotContains(t, joined, r.Term+" → ", "%s: identity pin %q should not be a mandate line", target, r.Term)
 				continue
 			}
-			assert.Contains(t, joined, k+" → "+v, "%s: mandate %q missing from house style", target, k)
+			assert.Contains(t, joined, r.Term+" → "+r.Replacement, "%s: mandate %q missing from house style", target, r.Term)
 		}
 		for _, r := range c.Profile.Vocabulary.ForbiddenTerms {
 			assert.Contains(t, joined, r.Term, "%s: forbidden term %q missing from house style", target, r.Term)

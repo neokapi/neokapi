@@ -49,7 +49,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyVoiceYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
-	// {name} placeholder plus a glossary term "Save".
+	// {name} placeholder plus a ruled term "Save".
 	src := `{
   "greeting": "Hello {name}, welcome to Globex!",
   "save": "Save"
@@ -58,7 +58,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"), []byte(src), 0o644))
 
 	// Target: drops the {name} placeholder (QA fail) and mistranslates "Save"
-	// (terminology fail — glossary requires "Enregistrer").
+	// (terminology fail — the rule requires "Enregistrer").
 	bad := `{
   "greeting": "Bonjour, bienvenue chez Globex!",
   "save": "Sauvegarder"

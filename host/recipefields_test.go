@@ -55,8 +55,8 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 	}
 	termsProfiles := map[string]project.Profile{
 		"kapi": {
-			Channels: []project.Channel{{ID: "docs"}},
-			Terms:    "terms/kapi.json",
+			Channels:  []project.Channel{{ID: "docs"}},
+			TermStore: "terms/kapi.json",
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 			name: "a profile that declares no channels warns too",
 			proj: &project.KapiProject{
 				Version:  "v1",
-				Profiles: map[string]project.Profile{"kapi": {Terms: "terms/all.json"}},
+				Profiles: map[string]project.Profile{"kapi": {TermStore: "terms/all.json"}},
 				Extras:   venueExtras(t),
 			},
 			want: true,
@@ -131,7 +131,7 @@ func TestWarnUnsyncedCoordinates_UnregisteredVenue(t *testing.T) {
 	proj := &project.KapiProject{
 		Version: "v1",
 		Profiles: map[string]project.Profile{
-			"kapi": {Terms: "terms/kapi.json"},
+			"kapi": {TermStore: "terms/kapi.json"},
 		},
 		Extras: venueExtras(t),
 	}

@@ -153,7 +153,7 @@ func Corpus() TestCorpus {
 	// hardest, and a corpus of UI strings alone would hide it.
 	prose := []struct{ key, text string }{
 		{"docs.intro", "The engine reads a document, hands each translatable unit to the tools you configured, and writes the result back in the original format. Nothing else in the file is touched."},
-		{"docs.caching", "A translation is cached against the content of the block and the configuration that produced it. Change the model, the glossary, or the prompt, and the affected strings are translated again rather than served from a cache a different configuration produced."},
+		{"docs.caching", "A translation is cached against the content of the block and the configuration that produced it. Change the model, the terms, or the prompt, and the affected strings are translated again rather than served from a cache a different configuration produced."},
 		{"docs.review", "Review does not replace the checks. The checks are deterministic and cheap and run on every block; review is a judgement call, made by a model, on the blocks the checks could not settle."},
 		{"docs.plugins", "A plugin is a separate binary that the engine launches as a subprocess and speaks to over gRPC. It can contribute formats, tools, and commands, and it cannot corrupt the engine's memory if it crashes."},
 		{"docs.terminology", "Terminology is enforced at generation time, not merely checked afterwards. A term in the terms store is rendered into the prompt, so the model is asked for the right word rather than corrected for using the wrong one."},

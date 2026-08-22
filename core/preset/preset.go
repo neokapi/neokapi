@@ -27,7 +27,7 @@ type FrameworkPreset struct {
 	VoiceProfile string
 	// TermsSource, when non-empty, is scaffolded as defaults.terms_source
 	// — the committed, git-tracked native terms the project compiles its
-	// glossary from (e.g. i18n/terms.json).
+	// terms from (e.g. i18n/terms.json).
 	TermsSource string
 }
 

@@ -497,7 +497,7 @@ func exampleAnnotationFile() *AnnotationFile {
 					Offset: 0,
 					Length: 5,
 				},
-				Data: []byte(`{"kind":"glossary-match","term":"Files"}`),
+				Data: []byte(`{"kind":"term-match","term":"Files"}`),
 			},
 		},
 	}

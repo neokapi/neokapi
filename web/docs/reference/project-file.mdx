@@ -255,7 +255,7 @@ collections:
 | ------------ | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `channels`   | Channel[]         | The surfaces this product ships on. A slug, or `{id, concept}` in long form                        |
 | `voice`      | VoiceBinding      | The voice profile governing this product's content, in the same forms as `defaults.voice`. Unset keeps `defaults.voice` |
-| `terms`      | string            | A standalone terms store governing this product's content, resolved relative to the project root. Unset, the project's own store governs |
+| `termstore`  | string            | A standalone terms store governing this product's content, resolved relative to the project root. Unset, the project's own store governs |
 | `concept`    | string            | The concept that names this product, for display. Carried and shape-checked, never resolved during matching |
 | `valid_from` | string            | Date (`YYYY-MM-DD`) or RFC3339 instant this profile starts governing, inclusive. Unset is unbounded (see [Profile validity](#profile-validity)) |
 | `valid_to`   | string            | Date or RFC3339 instant it stops, exclusive. Unset is unbounded                                    |
@@ -287,7 +287,7 @@ point each use sits at.
 
 On a connected project, the resolved product and channel travel to the server as
 the content's coordinates, so both venues resolve the same voice for the same
-content. A profile's `terms:` does not: it is a path into the local project, and
+content. A profile's `termstore:` does not: it is a path into the local project, and
 a connected run warns that the binding applies locally only.
 
 #### Conventional files
@@ -299,7 +299,7 @@ collection's point, most specific first:
 | Store | Order                                                                                   |
 | ----- | --------------------------------------------------------------------------------------- |
 | voice | `profiles.<name>.voice` → `.kapi/profiles/<name>/voice.yaml` → `defaults.voice` → `.kapi/voice.yaml` → `voice.yaml` |
-| terms | `--termstore` → `profiles.<name>.terms` → `.kapi/profiles/<name>/terms.json` (when the file exists) → the project's own store |
+| terms | `--termstore` → `profiles.<name>.termstore` → `.kapi/profiles/<name>/terms.json` (when the file exists) → the project's own store |
 
 The channel then refines the voice that resolved: a matching entry under the
 voice profile's own `channels:` replaces its tone, its style, or both. Vocabulary

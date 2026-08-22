@@ -16,7 +16,7 @@ import (
 
 // TestAITranslate_SessionCacheIsConfigAware verifies the config-aware overlay
 // cache: an unchanged-config re-run is served from the cache (no LLM call), but a
-// changed model or glossary re-translates rather than serving the stale cached
+// changed model or term rule re-translates rather than serving the stale cached
 // target — the "never run unneeded processing, never serve stale processing"
 // contract.
 func TestAITranslate_SessionCacheIsConfigAware(t *testing.T) {

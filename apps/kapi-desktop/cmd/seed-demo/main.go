@@ -47,7 +47,7 @@ func main() {
 	must(os.MkdirAll(tbDir, 0o755))
 	must(os.MkdirAll(memoryDir, 0o755))
 
-	seedTerms(filepath.Join(tbDir, "product-glossary.db"))
+	seedTerms(filepath.Join(tbDir, "product-terms.db"))
 	seedSecondaryTerms(filepath.Join(tbDir, "brand-terms.db"))
 	seedMemory(filepath.Join(memoryDir, "acme-app.db"))
 	seedSecondaryMemory(filepath.Join(memoryDir, "global-memory.db"))

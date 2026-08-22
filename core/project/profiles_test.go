@@ -24,7 +24,7 @@ profiles:
   bowrain:
     channels: [app, docs]
     voice: .kapi/profiles/bowrain/voice.yaml
-    terms: .kapi/profiles/bowrain/terms.json
+    termstore: .kapi/profiles/bowrain/terms.json
 collections:
   - name: neokapi-cli
     channel: neokapi/cli
@@ -54,7 +54,7 @@ func TestKapiProject_ProfilesAreKeyed(t *testing.T) {
 
 	require.Len(t, p.Profiles, 2)
 	assert.Equal(t, ".kapi/profiles/bowrain/voice.yaml", p.Profiles["bowrain"].Voice.ProfileFile)
-	assert.Equal(t, ".kapi/profiles/bowrain/terms.json", p.Profiles["bowrain"].Terms)
+	assert.Equal(t, ".kapi/profiles/bowrain/terms.json", p.Profiles["bowrain"].TermStore)
 	assert.True(t, p.HasContextSpace())
 	assert.True(t, p.BindsTermsByProfile())
 }
@@ -147,7 +147,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 		assert.Equal(t, "bowrain", rc.Profile)
 		assert.Equal(t, "docs", rc.Channel)
 		assert.Equal(t, ".kapi/profiles/bowrain/voice.yaml", rc.Voice.ProfileFile)
-		assert.Equal(t, ".kapi/profiles/bowrain/terms.json", rc.Terms)
+		assert.Equal(t, ".kapi/profiles/bowrain/terms.json", rc.TermStore)
 		assert.Equal(t, "profiles.bowrain.voice", rc.VoiceField)
 	})
 
@@ -156,7 +156,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, rc.Profile)
 		assert.Empty(t, rc.Channel)
-		assert.Empty(t, rc.Terms)
+		assert.Empty(t, rc.TermStore)
 		assert.Equal(t, ".kapi/voice.yaml", rc.Voice.ProfileFile)
 		assert.Equal(t, DefaultVoiceField, rc.VoiceField)
 	})

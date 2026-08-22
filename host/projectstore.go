@@ -243,7 +243,7 @@ func (a *App) closeProjectStores() {
 // the App's shared handle, which the command must not close.
 //
 // The zero value means neither: nothing is bound, and the caller falls through
-// to whatever "no store" means for it (usually: no leverage, no glossary).
+// to whatever "no store" means for it (usually: no leverage, no terminology).
 type StoreSelection struct {
 	// Path is the standalone store file. Empty when Root is set.
 	Path string

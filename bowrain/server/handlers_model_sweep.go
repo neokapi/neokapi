@@ -11,7 +11,7 @@ import (
 
 // Measured steerability endpoints: Bowrain periodically measures how much each
 // candidate model actually obeys THIS project's brand context (voice +
-// glossary + DNT) and recommends the winner. Sweeps are platform QC — they run
+// term rules + DNT) and recommends the winner. Sweeps are platform QC — they run
 // on the platform provider and never deduct customer credits.
 //
 // Trigger surface: (a) the explicit refresh POST below (PermManageVoice,

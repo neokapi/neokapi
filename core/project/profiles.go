@@ -96,10 +96,14 @@ type Profile struct {
 	// pack). nil keeps defaults.voice.
 	Voice *VoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
 
-	// Terms is a STANDALONE terms store governing this product's content — a
-	// file the recipe points at, resolved relative to the project root. Empty
+	// TermStore is a STANDALONE terms store governing this product's content —
+	// a file the recipe points at, resolved relative to the project root. Empty
 	// is the ordinary case: the project's own store governs.
-	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
+	//
+	// Spelled `termstore:` rather than `terms:` because a store is not its
+	// contents, and because `terms` is already the dnt-check tool's own key for
+	// a list of strings. It matches the `--termstore` selector.
+	TermStore string `yaml:"termstore,omitempty" json:"termstore,omitempty"`
 
 	// Concept optionally references the concept that names this product, for
 	// display. Carried and shape-checked; never resolved during matching.
@@ -312,7 +316,7 @@ func (p *KapiProject) ResolveChannel(ref string) (ChannelRef, error) {
 // ResolvedGovernance is the governance in force over one collection's content:
 // the profile its channel resolved to, and what a run carries from it.
 //
-// Voice and Terms are resolved already, so a caller applies them without
+// Voice and TermStore are resolved already, so a caller applies them without
 // knowing whether they came from a profile or from the project defaults.
 // Channel is passed on to profile resolution, which selects the matching
 // override inside the voice profile.
@@ -322,10 +326,10 @@ type ResolvedGovernance struct {
 	// Voice is the matched profile's voice, else defaults.voice. nil
 	// when neither binds one.
 	Voice *VoiceBinding
-	// Terms is the matched profile's standalone terms store, as written in the
-	// recipe — relative to the project root unless absolute. Empty means the
+	// TermStore is the matched profile's standalone terms store, as written in
+	// the recipe — relative to the project root unless absolute. Empty means the
 	// project's own store governs, which is the ordinary case.
-	Terms string
+	TermStore string
 	// VoiceField names the recipe key Voice came from (`profiles.bowrain.voice`
 	// or `defaults.voice`), so a profile that cannot be loaded names the line
 	// to fix.
@@ -608,8 +612,8 @@ func (p *KapiProject) governanceAt(ref ChannelRef) *ResolvedGovernance {
 	if prof.Voice != nil {
 		rc.Voice, rc.VoiceField = prof.Voice, fmt.Sprintf("profiles.%s.voice", ref.Profile)
 	}
-	if prof.Terms != "" {
-		rc.Terms = prof.Terms
+	if prof.TermStore != "" {
+		rc.TermStore = prof.TermStore
 	}
 	// Load has already validated the window, so a parse error cannot surface here.
 	if v, err := prof.Validity(); err == nil {
@@ -660,15 +664,15 @@ func (p *KapiProject) HasContextSpace() bool {
 //
 // The distinction is a venue one. A collection's channel and the voice it
 // selects are carried to a connected server by the context content type, so
-// both venues resolve the same voice for the same content. A profile's `terms:`
-// is a path into the local project — a file the recipe points at — and there is
-// nothing on the wire for it: the server governs terminology from the workspace
-// vocabulary instead. A recipe that binds terms per profile therefore still
+// both venues resolve the same voice for the same content. A profile's
+// `termstore:` is a path into the local project — a file the recipe points at —
+// and there is nothing on the wire for it: the server governs terminology from
+// the workspace vocabulary instead. A recipe that binds terms per profile therefore still
 // resolves differently depending on where the loop ran, and that is what the
 // remaining warning is about.
 func (p *KapiProject) BindsTermsByProfile() bool {
 	for _, name := range sortedKeys(p.Profiles) {
-		if p.Profiles[name].Terms != "" {
+		if p.Profiles[name].TermStore != "" {
 			return true
 		}
 	}

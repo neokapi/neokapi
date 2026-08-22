@@ -96,7 +96,7 @@ func TestExtractFileHappyPaths(t *testing.T) {
 		{
 			name:        "csv",
 			data:        []byte("term,definition\nrocket,A launch vehicle built by Acme\n"),
-			filename:    "glossary.csv",
+			filename:    "terms.csv",
 			wantContain: []string{"A launch vehicle built by Acme"},
 		},
 		{

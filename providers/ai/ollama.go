@@ -22,13 +22,13 @@ const ollamaKeepAlive = "10m"
 
 // DefaultOllamaModel is the model kapi pulls and uses for local translation when
 // the caller names none. llama3.2:3b is the strongest small local model for
-// kapi's constrained-translation path (exact glossary + voice profile + verbatim
+// kapi's constrained-translation path (exact term rules + voice profile + verbatim
 // inline placeholders + translation-only output) at ~90 tok/s on Metal.
 const DefaultOllamaModel = "llama3.2:3b"
 
 // ollamaTranslateTemperature is the default sampling temperature for Ollama when
 // the caller leaves Config.Temperature unset (0). kapi's local-model use is
-// overwhelmingly translation and QA, where deterministic, glossary-faithful
+// overwhelmingly translation and QA, where deterministic, terminology-faithful
 // output matters far more than creative variety — Ollama's own default (0.8) is
 // too loose and degrades terminology obedience.
 const ollamaTranslateTemperature = 0.2

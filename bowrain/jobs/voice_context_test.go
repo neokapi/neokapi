@@ -52,7 +52,7 @@ func seedConcept(t *testing.T, tb terms.Terminology, id, projectID, source, targ
 	}))
 }
 
-// TestResolveJobTermRules_BuildsFromConcepts proves the glossary derivation:
+// TestResolveJobTermRules_BuildsFromConcepts proves the rule derivation:
 // workspace-scoped concepts and this project's concepts contribute
 // source→preferred-target pairs; other projects' concepts are excluded; a
 // concept with no target-locale rendering contributes nothing; and a
@@ -167,7 +167,7 @@ func TestResolveJobVoiceProfile_DegradesGracefully(t *testing.T) {
 
 // TestJobTranslateConfig_BareWithoutVoiceDeps proves a deployment without the
 // brand context deps (or a project with none bound) constructs exactly the
-// pre-existing bare config: no profile, no glossary, DNT and locales intact.
+// pre-existing bare config: no profile, no term rules, DNT and locales intact.
 func TestJobTranslateConfig_BareWithoutVoiceDeps(t *testing.T) {
 	proj := &store.Project{
 		ID:                    "p",

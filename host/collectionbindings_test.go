@@ -104,9 +104,9 @@ func TestGroupInputsByBinding(t *testing.T) {
 			Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
 		},
 		"press": {
-			Channels: []project.Channel{{ID: "news"}},
-			Voice:    &project.VoiceBinding{Pack: "marketing-blog"},
-			Terms:    "press-terms.db",
+			Channels:  []project.Channel{{ID: "news"}},
+			Voice:     &project.VoiceBinding{Pack: "marketing-blog"},
+			TermStore: "press-terms.db",
 		},
 		// A profile binding exactly what the project defaults bind: the default
 		// voice, and no standalone terms — so the project's own store governs

@@ -1,14 +1,14 @@
 // Command contexteval measures how well a model uses the context kapi injects —
-// the glossary, the voice profile, and the instruction — rather than how
+// the term rules, the voice profile, and the instruction — rather than how
 // well it translates. The two are different questions: a capable model may pick
 // the right register unprompted, and that earns our brand guide no credit.
 //
 // So the core metric is a differential. Every fixture is translated twice
 // through the production pipeline (core/ai/tools.AITranslateTool):
 //
-//   - bare: no glossary, no voice profile, no instruction;
+//   - bare: no term rules, no voice profile, no instruction;
 //   - steered: the full context, injected exactly as production injects it
-//     (glossary map → prompt glossary section, profile.VoiceProfile →
+//     (term rules → prompt terminology section, profile.VoiceProfile →
 //     RenderVoiceGuideCompact → voice section, instruction → instruction
 //     section).
 //
@@ -418,7 +418,7 @@ func translatePass(ctx context.Context, provider aiprovider.LLMProvider, corpus 
 		BatchConcurrency: concurrency,
 	}
 	if steered {
-		cfg.PreferredTerms = corpus.Ctx.Glossary
+		cfg.TermRules = corpus.Ctx.TermRules
 		cfg.Instruction = corpus.Ctx.Instruction
 		cfg.Profile = corpus.Ctx.Profile
 	}

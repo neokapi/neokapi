@@ -92,7 +92,7 @@ func editorVoiceContextFixture(t *testing.T) (platstore.ContentStore, editorVoic
 // TestEditorTranslateConfigCarriesVoiceContext proves the interactive editor
 // translate config carries the same standing brand context a worker job does:
 // the voice profile resolved through the voicescope ladder (with the target
-// locale's override applied) and the terms store-derived glossary — the exact
+// locale's override applied) and the terms store-derived rules — the exact
 // fields the AI translate tool injects into every prompt.
 func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	cs, voiceCtx, proj := editorVoiceContextFixture(t)
@@ -113,7 +113,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 
 // TestEditorTranslateConfigBareWithoutVoiceContext pins the control case: a
 // server with no voice/terms wiring (or a workspace with nothing bound)
-// constructs exactly the pre-existing bare config — no profile, no glossary,
+// constructs exactly the pre-existing bare config — no profile, no term rules,
 // locales and batching intact.
 func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 	cs, err := bstore.NewSQLiteStore(":memory:")

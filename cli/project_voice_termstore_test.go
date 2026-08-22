@@ -198,7 +198,7 @@ defaults:
 }
 
 // TestResolveTermRules_FromProfileTerms asserts a profile's standalone
-// `terms:` (relative to the project root) governs a collection whose channel
+// `termstore:` (relative to the project root) governs a collection whose channel
 // resolves to that profile, over the project's own store. Vocabulary is bound
 // per point through the collection: resolution scoped to no collection sits at
 // the default point and reads the project store instead.
@@ -211,7 +211,7 @@ defaults:
 profiles:
   press:
     channels: [docs]
-    terms: brand-terms.db
+    termstore: brand-terms.db
 collections:
   - name: press-docs
     channel: press/docs

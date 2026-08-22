@@ -1759,7 +1759,7 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 	if rc == nil {
 		return ""
 	}
-	if bound := rc.Terms; bound != "" {
+	if bound := rc.TermStore; bound != "" {
 		if !filepath.IsAbs(bound) {
 			bound = filepath.Join(root, bound)
 		}

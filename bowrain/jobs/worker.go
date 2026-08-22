@@ -120,8 +120,8 @@ type WorkerDeps struct {
 	// workspace rung.
 	WorkspaceDefault voicescope.WorkspaceDefault
 	// TermsResolver returns the workspace terms so a translation job carries
-	// the project's terminology as a prompt glossary — parity with the CLI
-	// flow's terms binding. Optional; nil translates without a glossary.
+	// the project's terminology as prompt term rules — parity with the CLI
+	// flow's terms binding. Optional; nil translates without terminology.
 	TermsResolver TermsResolver
 	// ConnectorFetcher performs the fetch+store for durable forge-ingest jobs
 	// (webhook/bind-triggered source ingests enqueued by the server). The

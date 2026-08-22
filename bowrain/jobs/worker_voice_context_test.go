@@ -19,7 +19,7 @@ import (
 // PostgreSQL stores: a project whose Properties bind a voice profile
 // (the project rung of the voicescope ladder) and whose workspace terms
 // carries approved terminology produces a translate config that carries the
-// rendered voice guide and the per-locale glossary — and the demo-provider
+// rendered voice guide and the per-locale term rules — and the demo-provider
 // translation job completes with them bound. A sibling project with neither
 // runs bare through the very same worker path.
 func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
