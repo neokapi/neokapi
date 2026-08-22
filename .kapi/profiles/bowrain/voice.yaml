@@ -57,9 +57,6 @@ style:
     - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
       description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
       severity: major
-    - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
-      description: Credibility-by-assertion; show the mechanism instead
-      severity: major
     # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
     #
     # Patterns rather than vocabulary.forbidden_terms because MatchVocabulary is
@@ -107,6 +104,9 @@ style:
     # `brand-voice.yaml` filename, which are not.
     - regex: '(?i)\bbrand[ -]voice\b'
       description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
+      severity: major
+    - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
+      description: Credibility-by-assertion; show the mechanism instead
       severity: major
 vocabulary:
   preferred_terms:

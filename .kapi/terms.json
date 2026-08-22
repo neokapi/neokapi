@@ -756,13 +756,18 @@
     {
       "id": "term:8cf3cf906c",
       "domain": "voice",
-      "definition": "The VoiceProfile bound to a project.",
+      "definition": "The VoiceProfile bound to a project. Retired spelling: brand voice — which names the common use case, never the mechanism.",
       "source": "terminology",
       "terms": [
         {
-          "text": "brand voice",
+          "text": "voice profile",
           "locale": "en",
           "status": "preferred"
+        },
+        {
+          "text": "brand voice",
+          "locale": "en",
+          "status": "deprecated"
         },
         {
           "text": "merkevarestemme",
@@ -771,7 +776,7 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-08-22T21:10:00Z"
     },
     {
       "id": "term:9cf8295e97",

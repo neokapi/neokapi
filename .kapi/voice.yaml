@@ -18,7 +18,8 @@ tone:
     State capabilities plainly. Lead with the problem and the mechanism, not
     adjectives. Every claim must be checkable against the code or a generated
     artifact. One idea per sentence; short sentences over long ones. The
-    reader is a developer or localization engineer, not a prospect.
+    reader is a developer or the person running the language work, not a
+    prospect.
 style:
   active_voice: true
   sentence_length: short
@@ -32,7 +33,7 @@ style:
       description: Brochure framing
       severity: major
     - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
-      description: Emoji in documentation or committed prose
+      description: Emoji in committed prose
       severity: major
     # The leading (^|[^\w.-]) is the count guard: RE2 has no lookbehind, so the
     # delimiter before the number is matched rather than asserted. Without it a
@@ -112,7 +113,7 @@ vocabulary:
     - term: extract
       note: The shared mechanism is extraction — "the text is extracted into blocks"
     - term: text
-      note: Neutral wording for the shared engine; reserve "translatable" for genuinely localization-specific contexts
+      note: Neutral wording for the shared engine; reserve "translatable" for contexts genuinely about translation
     - term: neokapi
       note: The project and Go framework — always lowercase
     - term: kapi
@@ -124,7 +125,7 @@ vocabulary:
   forbidden_terms:
     - term: translatable text
       replacement: text
-      note: Frames the shared engine as translation-only; use neutral wording unless the context is specifically localization
+      note: Frames the shared engine as translation-only; use neutral wording unless the context really is about translation
       severity: minor
     - term: simply
       replacement: ""
@@ -134,7 +135,7 @@ vocabulary:
       severity: minor
 examples:
   - before: "kapi delivers powerful, seamless format support for everything you need."
-    after: "kapi reads and writes localization, document, and data formats."
+    after: "kapi reads and writes document, data and translation interchange formats."
     explanation: State the capability plainly; remove superlatives and brochure framing
     category: tone
   - before: "The translatable text is segmented into 42 blocks across 15+ formats."
@@ -151,9 +152,9 @@ locales:
     person_pov: second
     cultural_notes: >-
       Norwegian Bokmål. Address the reader as "du". Use established Norwegian
-      software terminology where it exists (see the project termbase) and keep
+      software terminology where it exists (see the project's terms) and keep
       the academic, plain register — Norwegian technical prose tolerates
-      anglicisms, but prefer the Norwegian term when the termbase names one.
+      anglicisms, but prefer the Norwegian term when the terms name one.
       Never translate product names (neokapi, kapi, kapi-desktop, Bowrain),
       CLI commands, flags, file formats, code identifiers, or file paths.
       Headings in sentence case. Compound nouns close up in Norwegian
@@ -165,4 +166,4 @@ locales:
       - term: termbase
         note: termbase stays "termbase" (established loan in Norwegian localization practice)
       - term: arbeidsflyt
-        note: Reserved for generic workflow prose; a kapi "flow" is "flyt" (see termbase)
+        note: Reserved for generic workflow prose; a kapi "flow" is "flyt" (see the project's terms)

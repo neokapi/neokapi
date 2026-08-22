@@ -21,6 +21,24 @@ style:
     - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
       description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
       severity: major
+    - regex: '\btermbases?\b'
+      description: "termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)"
+      severity: major
+    - regex: '\bglossar(y|ies)\b'
+      description: "glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)"
+      severity: major
+    - regex: '(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b'
+      description: Say multilingual content, or language — and recast the sentence rather than substituting a word for "localize"
+      severity: major
+    - regex: '(?i)(^|[^\w-])l10n\b'
+      description: Say multilingual content, or language (the l10n-* make targets are developer-facing internals and are not this rule)
+      severity: major
+    - regex: '(?i)\btranslation memor(y|ies)\b'
+      description: "translation memory: say content memory"
+      severity: major
+    - regex: '(?i)\bbrand[ -]voice\b'
+      description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
+      severity: major
 vocabulary:
   forbidden_terms:
     - term: simply
