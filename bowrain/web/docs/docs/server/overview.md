@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
 title: Overview
-description: Bowrain Server is the governed platform where a team's multilingual content lives — it ingests source through connectors, drafts and checks it, and serves the shared context (vocabulary, content memory, and brand voice) to people and AI tools alike.
+description: Bowrain Server is the governed platform where a team's multilingual content lives — it ingests source through connectors, drafts and checks it, and serves the shared context (vocabulary, content memory, and voice profiles) to people and AI tools alike.
 ---
 
 # Bowrain Server
 
-Bowrain Server is the governed platform where a team's multilingual content lives. It ingests source through [connectors](/server/connectors) — content platforms, design tools, code repositories, and a developer's checkout — drafts and checks it, and serves that governed context (vocabulary, content memory, brand voice) to people and AI tools alike, with full version history.
+Bowrain Server is the governed platform where a team's multilingual content lives. It ingests source through [connectors](/server/connectors) — content platforms, design tools, code repositories, and a developer's checkout — drafts and checks it, and serves that governed context (vocabulary, content memory, voice profiles) to people and AI tools alike, with full version history.
 
 ## What the server adds
 

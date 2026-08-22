@@ -10,7 +10,7 @@ description: Short, honest answers — when a platform is warranted, self-hostin
 
 kapi is the open-source, single-user toolchain: it reads and writes many
 content formats, runs checks, and draws on local memory — all from files you
-own, with no server or account. Bowrain is the platform that holds brand voice,
+own, with no server or account. Bowrain is the platform that holds voice profiles,
 vocabulary, and content memory once, across every project, surface, and
 teammate, and adds real-time collaboration, connectors, automation, versioned
 history, and corrections that become enforced checks.

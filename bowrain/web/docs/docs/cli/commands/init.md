@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and unit state — with everything derived confined to `.kapi/work/`.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, voice profile and unit state — with everything derived confined to `.kapi/work/`.
 
 ## Usage
 

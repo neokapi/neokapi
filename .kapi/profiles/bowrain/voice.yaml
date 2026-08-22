@@ -1,5 +1,5 @@
-# Bowrain brand voice profile. Bound to the bowrain-* content collections via
-# the recipe's `profiles:` block, so landing, app UI, docs and email copy are
+# Bowrain voice profile. Bound to the bowrain-* content collections via the
+# recipe's `profiles:` block, so landing, app UI, docs and email copy are
 # governed by this register while the kapi surfaces keep theirs.
 #
 # The house rules below (no superlatives, no emoji, no hardcoded counts) are
@@ -59,6 +59,54 @@ style:
       severity: major
     - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
       description: Credibility-by-assertion; show the mechanism instead
+      severity: major
+    # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
+    #
+    # Patterns rather than vocabulary.forbidden_terms because MatchVocabulary is
+    # whole-word: `localize` there would not match "localization", and the
+    # inflections are the point — a noun-only rule misses the form that actually
+    # survives a sweep.
+    #
+    # scripts/check-vocabulary.sh carries the same list for the surfaces kapi
+    # cannot open (.go, .ts, .sh, packaging metadata). This file is the
+    # authority; that script's copy exists only to reach further.
+    #
+    # termbase and glossary are matched LOWERCASE ONLY, deliberately. Both name
+    # something real in mixed case that must not be flagged: TBX expands to
+    # "TermBase eXchange" (ISO 30042) and XLIFF 2.x carries a "Glossary" module,
+    # and RE2 has no lookahead to exclude them by context. The cost is a missed
+    # hit at the start of a sentence; the alternative is a rule that flags two
+    # standards by name, which is how a check teaches its reader to stop reading
+    # it. The others fold case: they collide with nothing.
+    #
+    # Words inside a fenced code block are not reached at all — the markdown and
+    # mdx readers do not extract code as content — so a quoted identifier like
+    # `SideEffect = "termbase-read"` needs no exception here.
+    - regex: '\btermbases?\b'
+      description: "termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)"
+      severity: major
+    - regex: '\bglossar(y|ies)\b'
+      description: "glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)"
+      severity: major
+    - regex: '(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b'
+      description: Say multilingual content, or language — and recast the sentence rather than substituting a word for "localize"
+      severity: major
+    # The leading (^|[^\w-]) is the third-party guard, the same shape the count
+    # rule above uses: RE2 has no lookbehind, so the delimiter is matched rather
+    # than asserted. It keeps another project's tool name out — Flutter's
+    # `gen-l10n`, and anything else hyphen-prefixed — while a bare `l10n` in our
+    # own prose still fails.
+    - regex: '(?i)(^|[^\w-])l10n\b'
+      description: Say multilingual content, or language (the l10n-* make targets are developer-facing internals and are not this rule)
+      severity: major
+    - regex: '(?i)\btranslation memor(y|ies)\b'
+      description: "translation memory: say content memory"
+      severity: major
+    # `brand_voice` with an underscore is bowrain's recipe extension key, which a
+    # doc is right to name; the space and hyphen forms are prose and the retired
+    # `brand-voice.yaml` filename, which are not.
+    - regex: '(?i)\bbrand[ -]voice\b'
+      description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
       severity: major
 vocabulary:
   preferred_terms:
