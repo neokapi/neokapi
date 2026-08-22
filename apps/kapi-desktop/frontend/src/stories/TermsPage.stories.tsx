@@ -117,7 +117,7 @@ function SimulatedTermsPage() {
       modified: new Date(Date.now() - 7200000).toISOString(),
     },
     {
-      name: "brand-terms",
+      name: "voice-terms",
       path: "~/.config/kapi/termbases/brand-terms.db",
       size: 131072,
       modified: new Date(Date.now() - 172800000).toISOString(),
@@ -211,7 +211,7 @@ export const WithResources: StoryObj<typeof TermsPage> = {
           modified: new Date(Date.now() - 7200000).toISOString(),
         },
         {
-          name: "brand-terms",
+          name: "voice-terms",
           path: "~/.config/kapi/termbases/brand-terms.db",
           size: 131072,
           modified: new Date(Date.now() - 172800000).toISOString(),

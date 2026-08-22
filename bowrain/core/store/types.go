@@ -313,7 +313,7 @@ type Stream struct {
 	Visibility  StreamVisibility  `json:"visibility"`            // "public", "private", "shared"
 	Description string            `json:"description"`           // human-readable purpose
 	SharedWith  []string          `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
-	Properties  map[string]string `json:"properties,omitempty"`  // extensible metadata (brand voice bindings, etc.)
+	Properties  map[string]string `json:"properties,omitempty"`  // extensible metadata (voice bindings, etc.)
 	CreatedAt   time.Time         `json:"created_at"`
 	CreatedBy   string            `json:"created_by"`
 }
@@ -630,7 +630,7 @@ type LocaleTranslationStats struct {
 	// CompliantBlocks counts translated blocks that pass the project's QA checks
 	// with no error-severity finding, are term-compliant for the locale (no
 	// forbidden/competitor term, no missing mandated rendering), AND — where a
-	// persisted brand voice score exists for the block+locale — carry a score at
+	// persisted voice score exists for the block+locale — carry a score at
 	// or above the scoring profile's minimum bar. Additive: producers that do not
 	// derive the compliance rate leave it 0 (omitted from JSON).
 	CompliantBlocks int `json:"compliant_blocks,omitempty"`
@@ -654,16 +654,16 @@ type ComplianceBasis string
 
 const (
 	// ComplianceBasisChecks — the rate reflects QA check results only; no term
-	// governance was active and no brand voice scores existed for the scope.
+	// governance was active and no voice scores existed for the scope.
 	ComplianceBasisChecks ComplianceBasis = "checks"
 	// ComplianceBasisChecksTerms — QA checks plus deterministic terminology
 	// compliance (forbidden/competitor presence, mandated-rendering absence).
 	ComplianceBasisChecksTerms ComplianceBasis = "checks+terms"
-	// ComplianceBasisVoice — QA checks plus persisted brand voice scores measured
+	// ComplianceBasisVoice — QA checks plus persisted voice scores measured
 	// against the scoring profile's minimum bar.
 	ComplianceBasisVoice ComplianceBasis = "voice+checks"
 	// ComplianceBasisVoiceTerms — QA checks plus terminology compliance plus
-	// persisted brand voice scores: the fullest basis.
+	// persisted voice scores: the fullest basis.
 	ComplianceBasisVoiceTerms ComplianceBasis = "voice+checks+terms"
 )
 

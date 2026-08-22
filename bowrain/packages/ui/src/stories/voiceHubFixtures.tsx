@@ -1,0 +1,551 @@
+// Shared Storybook fixtures + a providers decorator for the Brand hub stories
+// (AD-021). Lives under src/stories (excluded from the package typecheck) so the
+// brand mock can satisfy just the methods the hub views call. The bowrain
+// Storybook still discovers the *.stories.tsx files that import from here.
+import type { Decorator } from "@storybook/react";
+import type { ApiAdapter } from "../api/adapter";
+import type { ActivityInfo, ConceptInfo, Membership, TermSearchResult } from "../types/api";
+import type {
+  ConceptRelation,
+  Observation,
+  Comment as ConceptComment,
+  ConceptStory,
+  ConceptUsage,
+  Market,
+  ChangeSet,
+  ChangeSetDetail,
+  ChangeSetImpact,
+} from "../types/brand-graph";
+import { createProvidersDecorator } from "./decorators";
+
+const now = "2026-06-13T10:00:00Z";
+const earlier = "2026-06-01T09:00:00Z";
+
+export const sampleConcepts: ConceptInfo[] = [
+  {
+    id: "c-checkout",
+    domain: "commerce",
+    definition: "The flow where a shopper completes a purchase.",
+    terms: [
+      { text: "Checkout", locale: "en-US", status: "preferred" },
+      { text: "Kasse", locale: "de-DE", status: "approved" },
+      { text: "Caisse", locale: "fr-FR", status: "proposed" },
+    ],
+    created_at: earlier,
+    updated_at: now,
+  },
+  {
+    id: "c-basket",
+    domain: "commerce",
+    definition: "The collection of items a shopper intends to buy.",
+    terms: [
+      { text: "Cart", locale: "en-US", status: "preferred" },
+      { text: "Basket", locale: "en-GB", status: "admitted" },
+      { text: "Warenkorb", locale: "de-DE", status: "approved" },
+    ],
+    created_at: earlier,
+    updated_at: earlier,
+  },
+  {
+    id: "c-rival",
+    domain: "commerce",
+    definition: "A competitor's product name we must not use.",
+    terms: [{ text: "QuickPay", locale: "en-US", status: "forbidden" }],
+    created_at: earlier,
+    updated_at: now,
+  },
+];
+
+const conceptsResult: TermSearchResult = {
+  concepts: sampleConcepts,
+  total_count: sampleConcepts.length,
+};
+
+const sampleRelations: ConceptRelation[] = [
+  {
+    id: "r-1",
+    source_id: "c-checkout",
+    target_id: "c-basket",
+    relation_type: "RELATED",
+    note: "Checkout follows the cart.",
+    created_at: earlier,
+  },
+  {
+    id: "r-2",
+    source_id: "c-rival",
+    target_id: "c-checkout",
+    relation_type: "COMPETITOR",
+    created_at: earlier,
+  },
+];
+
+const sampleObservations: Observation[] = [
+  {
+    id: "o-1",
+    workspace_id: "ws-1",
+    concept_id: "c-checkout",
+    kind: "competitor",
+    quote: "Breeze through QuickPay checkout in one tap.",
+    source: "Rival landing page",
+    url: "https://example.com",
+    market: "us",
+    created_by: "alex",
+    created_at: earlier,
+  },
+];
+
+const sampleComments: ConceptComment[] = [
+  {
+    id: "cm-1",
+    workspace_id: "ws-1",
+    concept_id: "c-checkout",
+    body: "Should ‘Caisse’ be preferred for fr-FR rather than proposed?",
+    author: "sam",
+    created_at: earlier,
+    resolved: false,
+  },
+  {
+    id: "cm-2",
+    workspace_id: "ws-1",
+    concept_id: "c-checkout",
+    parent_id: "cm-1",
+    body: "Marketing prefers ‘Paiement’. Let's open an experiment.",
+    author: "alex",
+    created_at: now,
+    resolved: false,
+  },
+];
+
+const sampleStory: ConceptStory = {
+  concept_id: "c-checkout",
+  entries: [
+    { kind: "revision", at: earlier, actor: "alex", summary: "Created concept with 3 terms." },
+    { kind: "observation", at: earlier, actor: "alex", summary: "Recorded a competitor phrasing." },
+    { kind: "comment", at: now, actor: "sam", summary: "Asked about the fr-FR status." },
+    { kind: "changeset", at: now, actor: "sam", summary: "Opened experiment ‘Prefer Paiement’." },
+  ],
+};
+
+const sampleConceptUsage: ConceptUsage = {
+  concept_id: "c-checkout",
+  total_blocks: 1280,
+  blocks: 96,
+  occurrences: 142,
+  words: 410,
+  projects: [
+    {
+      project_id: "p-web",
+      project_name: "Marketing Website",
+      blocks: 61,
+      occurrences: 88,
+      words: 250,
+      collections: [],
+    },
+    {
+      project_id: "p-app",
+      project_name: "Mobile App",
+      blocks: 35,
+      occurrences: 54,
+      words: 160,
+      collections: [],
+    },
+  ],
+  samples: [],
+};
+
+const sampleMarkets: Market[] = [
+  {
+    id: "m-dach",
+    workspace_id: "ws-1",
+    name: "dach",
+    description: "German-speaking markets",
+    locales: ["de-DE", "de-AT", "de-CH"],
+    created_at: earlier,
+    updated_at: earlier,
+  },
+  {
+    id: "m-us",
+    workspace_id: "ws-1",
+    name: "us",
+    locales: ["en-US"],
+    created_at: earlier,
+    updated_at: earlier,
+  },
+];
+
+// The list route counts ops and carries the impact stored at submission; the
+// single-change-set read carries the ops themselves instead.
+export const sampleChangesets: ChangeSet[] = [
+  {
+    id: "cs-1",
+    workspace_id: "ws-1",
+    name: "Prefer ‘Paiement’ for fr-FR",
+    description: "Promote the marketing-preferred term and retire the proposed one.",
+    status: "in_review",
+    created_by: "sam",
+    created_at: earlier,
+    updated_at: now,
+    submitted_at: now,
+    ops_count: 2,
+    impact_summary: {
+      total_blocks: 1280,
+      affected_blocks: 34,
+      new_violations: 12,
+      resolved: 7,
+      words: 210,
+      projects: 2,
+      computed_at: now,
+    },
+  },
+  {
+    id: "cs-2",
+    workspace_id: "ws-1",
+    name: "Ban competitor name in DACH",
+    status: "draft",
+    created_by: "alex",
+    created_at: earlier,
+    updated_at: earlier,
+    ops_count: 1,
+  },
+  {
+    id: "cs-3",
+    workspace_id: "ws-1",
+    name: "Standardise ‘Cart’ across locales",
+    status: "merged",
+    created_by: "alex",
+    created_at: earlier,
+    updated_at: earlier,
+    merged_at: earlier,
+    merged_by: "sam",
+    ops_count: 5,
+  },
+];
+
+const sampleChangesetDetail: ChangeSetDetail = {
+  ...sampleChangesets[0],
+  governed: true,
+  solo_review: false,
+  ops: [
+    {
+      workspace_id: "ws-1",
+      changeset_id: "cs-1",
+      seq: 1,
+      op: "term.status",
+      payload: {
+        concept_id: "c-checkout",
+        locale: "fr-FR",
+        text: "Paiement",
+        from: "proposed",
+        to: "preferred",
+      },
+      base_rev: 4,
+      created_by: "sam",
+      created_at: now,
+    },
+    {
+      workspace_id: "ws-1",
+      changeset_id: "cs-1",
+      seq: 2,
+      op: "term.remove",
+      payload: { concept_id: "c-checkout", locale: "fr-FR", text: "Caisse" },
+      base_rev: 4,
+      created_by: "sam",
+      created_at: now,
+    },
+  ],
+  reviews: [
+    {
+      workspace_id: "ws-1",
+      changeset_id: "cs-1",
+      reviewer: "alex",
+      verdict: "approve",
+      basis: "peer",
+      comment: "Agreed, matches the brand book.",
+      created_at: now,
+    },
+  ],
+  pilots: [
+    {
+      workspace_id: "ws-1",
+      changeset_id: "cs-1",
+      project_id: "p-web",
+      stream: "main",
+      created_by: "sam",
+      created_at: now,
+    },
+  ],
+};
+
+const sampleImpact: ChangeSetImpact = {
+  total_blocks: 1280,
+  affected_blocks: 34,
+  new_violations: 12,
+  resolved: 7,
+  words: 210,
+  projects: [
+    {
+      project_id: "p-web",
+      project_name: "Marketing Website",
+      affected_blocks: 22,
+      new_violations: 8,
+      resolved: 5,
+      words: 140,
+      collections: [],
+    },
+    {
+      project_id: "p-app",
+      project_name: "Mobile App",
+      affected_blocks: 12,
+      new_violations: 4,
+      resolved: 2,
+      words: 70,
+      collections: [],
+    },
+  ],
+  samples: [],
+};
+
+// The workspace activity feed as the server records it: one row per governed
+// or ordinary write, newest first, carrying a sentence and the id of what it
+// touched — never a title, which the hub resolves from its own list reads.
+export const sampleActivities: ActivityInfo[] = [
+  {
+    id: "act-1",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "comment.added",
+    entity_type: "concept",
+    entity_id: "c-checkout",
+    summary: "commented on a concept",
+    created_at: "2026-06-13T11:20:00Z",
+  },
+  {
+    id: "act-2",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "review.decided",
+    entity_type: "changeset",
+    entity_id: "cs-1",
+    summary: "approved a change",
+    created_at: "2026-06-13T10:05:00Z",
+  },
+  {
+    id: "act-3",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "concept.term.status_changed",
+    entity_type: "concept",
+    entity_id: "c-basket",
+    summary: "changed a term's status",
+    created_at: "2026-06-13T08:40:00Z",
+  },
+  {
+    id: "act-4",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "pilot.started",
+    entity_type: "changeset",
+    entity_id: "cs-1",
+    stream: "main",
+    summary: "started piloting a change on p-web · main",
+    created_at: "2026-06-12T16:30:00Z",
+    data: { project_id: "p-web", stream: "main" },
+  },
+  {
+    id: "act-5",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "observation.added",
+    entity_type: "concept",
+    entity_id: "c-rival",
+    summary: "recorded an observation",
+    created_at: "2026-06-12T10:10:00Z",
+  },
+  {
+    id: "act-6",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "changeset.created",
+    entity_type: "changeset",
+    entity_id: "cs-2",
+    summary: "opened an experiment",
+    created_at: "2026-06-09T09:00:00Z",
+  },
+];
+
+// The actors that author fixture change-sets, reviews, observations, and
+// comments, mapped to display names so the hub renders people, not raw user ids.
+const sampleMembers: Membership[] = [
+  {
+    user_id: "you",
+    workspace_id: "ws-1",
+    role: "owner",
+    user: { id: "you", email: "you@acme.example", name: "You", avatar_url: "" },
+  },
+  {
+    user_id: "sam",
+    workspace_id: "ws-1",
+    role: "member",
+    user: { id: "sam", email: "sam@acme.example", name: "Sam Okafor", avatar_url: "" },
+  },
+  {
+    user_id: "alex",
+    workspace_id: "ws-1",
+    role: "admin",
+    user: { id: "alex", email: "alex@acme.example", name: "Alex Romero", avatar_url: "" },
+  },
+];
+
+/** Brand-hub method overrides layered onto the base Storybook mock adapter. */
+export const voiceHubOverrides: Partial<ApiAdapter> = {
+  listMembers: async () => sampleMembers,
+  listConcepts: async (_ws, params) => {
+    let list = sampleConcepts;
+    if (params?.status) list = list.filter((c) => c.terms.some((t) => t.status === params.status));
+    if (params?.q) {
+      const q = params.q.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.terms.some((t) => t.text.toLowerCase().includes(q)) ||
+          c.definition.toLowerCase().includes(q),
+      );
+    }
+    if (params?.sort === "updated_at") {
+      list = [...list].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+    }
+    return { concepts: list, total_count: list.length };
+  },
+  getConceptStatusCounts: async () => {
+    // A concept counts under every status one of its terms carries, so the
+    // buckets overlap — the same way the server counts them.
+    const by_status: Record<string, number> = {
+      preferred: 0,
+      approved: 0,
+      admitted: 0,
+      proposed: 0,
+      deprecated: 0,
+      forbidden: 0,
+    };
+    for (const c of sampleConcepts) {
+      for (const status of new Set(c.terms.map((t) => t.status))) by_status[status]++;
+    }
+    return { total: sampleConcepts.length, by_status };
+  },
+  getConceptLocaleCoverage: async () => {
+    const present = new Map<string, number>();
+    for (const c of sampleConcepts) {
+      for (const locale of new Set(c.terms.map((t) => t.locale))) {
+        present.set(locale, (present.get(locale) ?? 0) + 1);
+      }
+    }
+    const total = sampleConcepts.length;
+    const locales = [...present.entries()]
+      .map(([locale, n]) => ({
+        locale,
+        present: n,
+        total,
+        pct: total === 0 ? 0 : Math.round((n / total) * 100),
+      }))
+      .sort((a, b) => b.present - a.present || a.locale.localeCompare(b.locale));
+    return { total, locales };
+  },
+  getConcept: async (_ws, id) => sampleConcepts.find((c) => c.id === id) ?? sampleConcepts[0],
+  createConcept: async (_ws, req) => ({
+    id: "c-new",
+    domain: req.domain,
+    definition: req.definition,
+    terms: req.terms,
+    created_at: now,
+    updated_at: now,
+  }),
+  getConceptStory: async () => sampleStory,
+  listConceptRelations: async () => sampleRelations,
+  addConceptRelation: async (_ws, _id, req) => ({
+    id: "r-new",
+    source_id: "c-checkout",
+    target_id: req.target_id,
+    relation_type: req.relation_type,
+    note: req.note,
+    created_at: now,
+  }),
+  deleteConceptRelation: async () => {},
+  getConceptBlastRadius: async () => sampleConceptUsage,
+  listObservations: async () => sampleObservations,
+  addObservation: async (_ws, id, req) => ({
+    id: "o-new",
+    workspace_id: "ws-1",
+    concept_id: id,
+    created_by: "you",
+    created_at: now,
+    ...req,
+  }),
+  deleteObservation: async () => {},
+  listConceptComments: async () => sampleComments,
+  addConceptComment: async (_ws, id, req) => ({
+    id: "cm-new",
+    workspace_id: "ws-1",
+    concept_id: id,
+    body: req.body,
+    author: "you",
+    created_at: now,
+    resolved: false,
+  }),
+  resolveConceptComment: async () => {},
+  deleteConceptComment: async () => {},
+  listMarkets: async () => sampleMarkets,
+  listChangesets: async (_ws, status) =>
+    status ? sampleChangesets.filter((c) => c.status === status) : sampleChangesets,
+  getChangeset: async () => sampleChangesetDetail,
+  createChangeset: async (_ws, req) => ({
+    id: "cs-new",
+    workspace_id: "ws-1",
+    name: req.name,
+    description: req.description,
+    status: "draft",
+    created_by: "you",
+    created_at: now,
+    updated_at: now,
+  }),
+  getChangesetCounts: async () => {
+    const by_status: Record<string, number> = {
+      draft: 0,
+      in_review: 0,
+      approved: 0,
+      merged: 0,
+      abandoned: 0,
+      superseded: 0,
+    };
+    for (const c of sampleChangesets) by_status[c.status]++;
+    return { total: sampleChangesets.length, by_status };
+  },
+  // The stored summary carries the totals only; the fresh walk carries the
+  // breakdown — the same difference the server reports.
+  getChangesetBlastRadius: async () => ({
+    ...sampleImpact,
+    projects: null,
+    samples: null,
+    stored: true,
+    computed_at: now,
+  }),
+  refreshChangesetBlastRadius: async () => sampleImpact,
+  // The workspace feed, filtered by type prefix the way the server filters it.
+  listActivities: async (_ws, query) => {
+    const prefixes = query?.types ?? (query?.type ? [query.type] : []);
+    const matching =
+      prefixes.length === 0
+        ? sampleActivities
+        : sampleActivities.filter((a) => prefixes.some((p) => a.type.startsWith(p)));
+    return { activities: matching, next_cursor: "" };
+  },
+  markActivitiesSeen: async () => {},
+  listVoiceProfiles: async () => [],
+};
+
+/** Decorator wiring the base mock + context-hub overrides + a wide container. */
+export const withContextHub: Decorator = createProvidersDecorator(undefined, voiceHubOverrides);

@@ -427,7 +427,7 @@ const TERMBASE_RESOURCES = [
     modified: hoursAgo(2),
   },
   {
-    name: "brand-terms",
+    name: "voice-terms",
     path: "~/.config/kapi/termbases/brand-terms.db",
     size: 131072,
     modified: hoursAgo(48),

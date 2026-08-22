@@ -135,7 +135,7 @@ const meta: Meta<typeof AppShell> = {
 export default meta;
 type Story = StoryObj<typeof AppShell>;
 
-/** Workspace-level: default flat navigation with Projects, Brand Voice, Terms, etc. */
+/** Workspace-level: default flat navigation with Projects, Voice, Terms, etc. */
 export const WorkspaceLevel: Story = {
   render: () => {
     const [collapsed, setCollapsed] = useState(false);

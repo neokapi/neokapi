@@ -94,7 +94,7 @@ func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
 	}
 }
 
-func TestPushOutput_FormatText_BrandLine(t *testing.T) {
+func TestPushOutput_FormatText_VoiceLine(t *testing.T) {
 	tests := []struct {
 		name     string
 		out      PushOutput
@@ -105,45 +105,45 @@ func TestPushOutput_FormatText_BrandLine(t *testing.T) {
 			name: "carried with the push",
 			out: PushOutput{
 				BlocksPushed: 3,
-				BrandProfile: "Acme Voice",
-				BrandAction:  "carried",
+				VoiceProfile: "Acme Voice",
+				VoiceAction:  "carried",
 			},
-			contains: []string{`Brand profile: "Acme Voice" carried to the workspace brand hub`},
+			contains: []string{`Voice profile: "Acme Voice" carried to the workspace brand hub`},
 		},
 		{
 			name: "carried on a push that moved no content",
 			out: PushOutput{
 				UpToDate:     true,
-				BrandProfile: "Acme Voice",
-				BrandAction:  "carried",
+				VoiceProfile: "Acme Voice",
+				VoiceAction:  "carried",
 			},
-			contains: []string{`Brand profile: "Acme Voice" carried to the workspace brand hub`},
+			contains: []string{`Voice profile: "Acme Voice" carried to the workspace brand hub`},
 		},
 		{
 			name: "skipped carries the reason",
 			out: PushOutput{
 				BlocksPushed: 1,
-				BrandProfile: "Acme Voice",
-				BrandAction:  "skipped",
-				BrandReason:  "--no-brand",
+				VoiceProfile: "Acme Voice",
+				VoiceAction:  "skipped",
+				VoiceReason:  "--no-brand",
 			},
-			contains: []string{`Brand profile: "Acme Voice" not pushed (--no-brand)`},
+			contains: []string{`Voice profile: "Acme Voice" not pushed (--no-brand)`},
 		},
 		{
 			name: "dry run announces the would-push",
 			out: PushOutput{
 				DryRun:       true,
 				BlocksPushed: 3,
-				BrandProfile: "Acme Voice",
-				BrandAction:  "would-push",
+				VoiceProfile: "Acme Voice",
+				VoiceAction:  "would-push",
 			},
-			contains: []string{`Would push brand profile "Acme Voice" to the workspace brand hub`},
-			absent:   []string{"Brand profile:"},
+			contains: []string{`Would push voice profile "Acme Voice" to the workspace brand hub`},
+			absent:   []string{"Voice profile:"},
 		},
 		{
 			name:     "no brand push, no line",
 			out:      PushOutput{BlocksPushed: 2},
-			absent:   []string{"Brand profile", "brand hub"},
+			absent:   []string{"Voice profile", "brand hub"},
 			contains: []string{"Pushed 2 blocks"},
 		},
 		{

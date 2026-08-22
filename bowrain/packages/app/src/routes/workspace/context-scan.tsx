@@ -61,9 +61,9 @@ export function ContextScanRoute() {
         <div>
           <h1 className="text-lg font-semibold">Scan your brand</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            The hosted brand scan is not available on this server: it requires the background job
+            The hosted context scan is not available on this server: it requires the background job
             system (PostgreSQL and a job queue), which this deployment does not run. You can still
-            create a brand profile by hand, or draft one locally.
+            create a voice profile by hand, or draft one locally.
           </p>
         </div>
         <ContextScanLocalLaneCard onLearnMore={handleLocalLane} />

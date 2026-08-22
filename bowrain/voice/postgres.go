@@ -21,7 +21,7 @@ type PostgresVoiceStore struct {
 	db *storage.PgDB
 }
 
-// NewPostgresVoiceStore creates a new PostgreSQL-backed brand store.
+// NewPostgresVoiceStore creates a new PostgreSQL-backed voice store.
 func NewPostgresVoiceStore(db *storage.PgDB) (*PostgresVoiceStore, error) {
 	if err := storage.MigratePostgresNS(db, "voice_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("brand migration: %w", err)
@@ -96,7 +96,7 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 		string(locales), string(channels), string(personas), string(autonomy),
 		profile.MinScore, profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
-		return fmt.Errorf("insert brand profile: %w", err)
+		return fmt.Errorf("insert voice profile: %w", err)
 	}
 	return nil
 }
@@ -171,11 +171,11 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 		string(locales), string(channels), string(personas), string(autonomy),
 		profile.MinScore, profile.Version, now, profile.ID)
 	if err != nil {
-		return fmt.Errorf("update brand profile: %w", err)
+		return fmt.Errorf("update voice profile: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("brand profile %s not found", profile.ID)
+		return fmt.Errorf("voice profile %s not found", profile.ID)
 	}
 	return nil
 }
@@ -183,11 +183,11 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 func (s *PostgresVoiceStore) DeleteProfile(ctx context.Context, profileID string) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM voice_profiles WHERE id=$1`, profileID)
 	if err != nil {
-		return fmt.Errorf("delete brand profile: %w", err)
+		return fmt.Errorf("delete voice profile: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("brand profile %s not found", profileID)
+		return fmt.Errorf("voice profile %s not found", profileID)
 	}
 	return nil
 }
@@ -244,14 +244,14 @@ func (s *PostgresVoiceStore) StoreScore(ctx context.Context, score *coreprofile.
 		score.ID, score.ProjectID, stream, score.BlockID, score.ProfileID,
 		score.ProfileVersion, string(locale.Normalize(score.Locale)), score.Score, string(dims), string(findings), score.CheckedAt)
 	if err != nil {
-		return fmt.Errorf("insert brand voice score: %w", err)
+		return fmt.Errorf("insert voice score: %w", err)
 	}
 	return nil
 }
 
 // GetScores returns the persisted scores for a project, newest first. An empty
 // locale means ALL locales — the project-wide read the score endpoints and the
-// brand rollup use — not "rows stored with an empty locale".
+// voice rollup use — not "rows stored with an empty locale".
 func (s *PostgresVoiceStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	query := `SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
 		 FROM voice_scores WHERE project_id = $1 AND locale = $2
@@ -675,9 +675,9 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("brand profile not found")
+			return nil, errors.New("voice profile not found")
 		}
-		return nil, fmt.Errorf("scan brand profile: %w", err)
+		return nil, fmt.Errorf("scan voice profile: %w", err)
 	}
 
 	if err := json.Unmarshal([]byte(toneJSON), &p.Tone); err != nil {

@@ -8,12 +8,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  useBrandCandidates,
-  usePromoteBrandRule,
-  useRejectBrandRule,
-  useEvaluateBrandRule,
-  useBrandDrift,
-  useBrandProfile,
+  useVoiceCandidates,
+  usePromoteVoiceRule,
+  useRejectVoiceRule,
+  useEvaluateVoiceRule,
+  useVoiceDrift,
+  useVoiceProfile,
   useProjects,
 } from "@neokapi/ui";
 import type { CandidateRule, BlastRadius } from "@neokapi/ui";
@@ -30,15 +30,15 @@ export function ContextReviewRoute() {
   const { profileId } = useParams({ strict: false });
   const pid = profileId ?? "";
 
-  const { data: profile } = useBrandProfile(pid);
+  const { data: profile } = useVoiceProfile(pid);
   const { data: projects = [] } = useProjects();
   const [projectId, setProjectId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const { data: candidates = [], isLoading } = useBrandCandidates(pid, { all: showHistory });
-  const promote = usePromoteBrandRule(pid);
-  const reject = useRejectBrandRule(pid);
-  const evaluate = useEvaluateBrandRule(pid);
-  const { data: drift } = useBrandDrift(projectId);
+  const { data: candidates = [], isLoading } = useVoiceCandidates(pid, { all: showHistory });
+  const promote = usePromoteVoiceRule(pid);
+  const reject = useRejectVoiceRule(pid);
+  const evaluate = useEvaluateVoiceRule(pid);
+  const { data: drift } = useVoiceDrift(projectId);
 
   const [preview, setPreview] = useState<{ term: string; radius: BlastRadius } | null>(null);
 

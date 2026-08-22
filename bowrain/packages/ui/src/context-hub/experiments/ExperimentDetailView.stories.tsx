@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import type { Decorator } from "@storybook/react";
 import { ExperimentDetailView } from "./ExperimentDetailView";
-import { brandHubOverrides } from "../../stories/brandHubFixtures";
+import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 import type { ChangeSetDetail, ChangeSetImpact, ChangeSetOp } from "../../types/brand-graph";
 import type { User } from "../../types/api";
@@ -203,7 +203,7 @@ function user(id: string): User {
 
 function decoratorFor(detail: ChangeSetDetail, currentUserId = "reviewer"): Decorator {
   return createProvidersDecorator(undefined, {
-    ...brandHubOverrides,
+    ...voiceHubOverrides,
     getChangeset: async () => detail,
     getChangesetBlastRadius: async () => impact,
     getCurrentUser: async () => user(currentUserId),

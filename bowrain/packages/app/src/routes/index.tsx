@@ -20,7 +20,7 @@ import {
   ProjectDetailSkeleton,
   EditorSkeleton,
   TablePageSkeleton,
-  BrandProfilesSkeleton,
+  VoiceProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
@@ -90,7 +90,7 @@ export interface WorkspaceRouteContext {
    * Whether this deployment runs the brand-scan job system (the server's
    * `features.context_scan` capability bit). Gates the hosted-scan entry points
    * so servers without it (SQLite/standalone) do not advertise a flow that
-   * would fail with "brand scan system not configured".
+   * would fail with "context scan system not configured".
    */
   contextScanAvailable: boolean;
   user: User;
@@ -808,7 +808,7 @@ const contextDashboardRoute = createRoute({
   ),
 });
 
-// Brand scan (AI brand onboarding — epic 016): paste/link/upload/repo intake,
+// Context scan (AI brand onboarding — epic 016): paste/link/upload/repo intake,
 // then a polled job page that flips into the confidence/attribution review.
 const contextScanRoute = createRoute({
   getParentRoute: () => contextRoute,
@@ -827,7 +827,7 @@ const contextScanJobRoute = createRoute({
   ),
 });
 
-// Voice — the brand-voice profiles + correction loop, re-homed under the hub.
+// Voice — the voice profiles + correction loop, re-homed under the hub.
 const contextVoiceRoute = createRoute({
   getParentRoute: () => contextRoute,
   path: "voice",
@@ -837,7 +837,7 @@ const contextVoiceRoute = createRoute({
 const contextVoiceIndexRoute = createRoute({
   getParentRoute: () => contextVoiceRoute,
   path: "/",
-  pendingComponent: BrandProfilesSkeleton,
+  pendingComponent: VoiceProfilesSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/context-voice-profiles"),
     "ContextVoiceProfilesRoute",

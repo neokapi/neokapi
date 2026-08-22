@@ -26,11 +26,11 @@ const (
 	approveWSSlug = "test"
 )
 
-// setupScanApproval wires a server with a brand store, a brand-scan store, and
+// setupScanApproval wires a server with a voice store, a brand-scan store, and
 // one completed scan to approve.
 func setupScanApproval(t *testing.T) (*Server, string) {
 	t.Helper()
-	srv := setupBrandLoopServer(t)
+	srv := setupVoiceLoopServer(t)
 	wireContextScan(t, srv)
 
 	job := &jobs.ContextScanJob{
@@ -50,7 +50,7 @@ func setupScanApproval(t *testing.T) (*Server, string) {
 func approveScan(t *testing.T, srv *Server, scanID, body string) (*httptest.ResponseRecorder, error) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/"+approveWSSlug+"/brand-scans/"+scanID+"/approve", strings.NewReader(body))
+		"/api/v1/"+approveWSSlug+"/context-scans/"+scanID+"/approve", strings.NewReader(body))
 	req.Header.Set("Content-Type", echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
@@ -82,7 +82,7 @@ func TestContextScanApprove_AppliesProfileAndTermsInOneCall(t *testing.T) {
 
 	var got ContextScanApproveResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
-	assert.Equal(t, brandUpsertCreated, got.ProfileAction)
+	assert.Equal(t, voiceUpsertCreated, got.ProfileAction)
 	require.NotNil(t, got.Profile)
 	assert.Equal(t, "Acme Voice", got.Profile.Name)
 	assert.Equal(t, 2, got.ConceptsCreated)
@@ -116,7 +116,7 @@ func TestContextScanApprove_RetryIsIdempotent(t *testing.T) {
 
 	var got ContextScanApproveResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
-	assert.Equal(t, brandUpsertUnchanged, got.ProfileAction)
+	assert.Equal(t, voiceUpsertUnchanged, got.ProfileAction)
 	assert.Zero(t, got.ConceptsCreated)
 	assert.Equal(t, 2, got.ConceptsExisting)
 
@@ -185,7 +185,7 @@ func TestContextScanApprove_OtherWorkspacesScanIsNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestContextScanApprove_RequiresManageBrand(t *testing.T) {
+func TestContextScanApprove_RequiresManageVoice(t *testing.T) {
 	srv, scanID := setupScanApproval(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(approvePayload))

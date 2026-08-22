@@ -44,10 +44,10 @@ function Launcher() {
               icon={<ShieldCheck size={22} />}
               eyebrow="Content"
               title="Keep content on brand"
-              description="Brand voice, terminology, and quality checks. Keep every draft on-message — no translation required."
+              description="Voice, terminology, and quality checks. Keep every draft on-message — no translation required."
               chips={
                 <>
-                  <Chip>Brand voice</Chip>
+                  <Chip>Voice</Chip>
                   <Chip>Checks</Chip>
                   <Chip>Rewrite</Chip>
                 </>

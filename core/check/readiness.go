@@ -58,7 +58,7 @@ type SeverityLister interface {
 //
 // It is derived, not a checker itself: it reads the findings the upstream
 // source checks already left on the block (the unified Findings annotation
-// plus any SeverityLister annotation such as brand-voice) and decides
+// plus any SeverityLister annotation such as voice) and decides
 // readiness from their severities, so it belongs LAST in a source-check
 // sequence. blockSeverity is the lowest finding severity that keeps a block
 // from being `checked` (minor|major|critical; empty means major): findings at
@@ -122,7 +122,7 @@ func blockThreshold(blockSeverity string) (int, error) {
 
 // worstSourceFindingWeight returns the highest finding-severity weight recorded
 // on the block by upstream source checks, across both the unified Findings
-// annotation and any SeverityLister annotation (e.g. brand-voice). 0 means
+// annotation and any SeverityLister annotation (e.g. voice). 0 means
 // "no findings" (clean).
 func worstSourceFindingWeight(v tool.BlockView) int {
 	worst := 0

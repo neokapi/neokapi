@@ -62,7 +62,7 @@ type PushResult struct {
 
 	// Brand reports what the governance carried in the push amounted to. Nil
 	// when the project binds no voice.
-	Brand *PushBrandResult
+	Brand *PushVoiceResult
 
 	// UndeclaredCollections names recipe-owned collections the server holds
 	// that this push no longer declares. Reported, never deleted.

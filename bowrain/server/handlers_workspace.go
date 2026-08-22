@@ -33,7 +33,7 @@ type WorkspaceRequest struct {
 	// the platform default. Honored only when the admin has enabled customer
 	// model choice and the model is in the enabled set.
 	PreferredModel *string `json:"preferred_model,omitempty"`
-	// VoiceProfileID is the workspace-level default brand-voice profile —
+	// VoiceProfileID is the workspace-level default voice profile —
 	// the base rung of the hierarchical resolver that a project/stream/collection
 	// binding overrides. A pointer so an omitted field is untouched; an explicit
 	// "" clears the default.

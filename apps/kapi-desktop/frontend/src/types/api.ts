@@ -168,7 +168,7 @@ export interface DesktopFinding {
   block_id?: string;
   /** Which side of the block the offending text lives on. */
   field?: "source" | "target";
-  /** Structured fix text (e.g. a brand profile's preferred term). */
+  /** Structured fix text (e.g. a voice profile's preferred term). */
   replacement?: string;
   /** Whether the panel may show a one-click "Apply fix" button. */
   fixable: boolean;

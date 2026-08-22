@@ -93,16 +93,16 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 	})
 }
 
-// TestCrossTenantBrandProfileIDOR proves an owner/admin of one workspace cannot
-// read, update, or delete another workspace's brand profile by addressing it
+// TestCrossTenantVoiceProfileIDOR proves an owner/admin of one workspace cannot
+// read, update, or delete another workspace's voice profile by addressing it
 // through their own workspace slug. VoiceStore.GetProfile/UpdateProfile/
 // DeleteProfile resolve by GLOBAL id, so the handlers assert the profile's
 // WorkspaceID matches the request workspace and 404 (anti-enumeration) otherwise.
-func TestCrossTenantBrandProfileIDOR(t *testing.T) {
+func TestCrossTenantVoiceProfileIDOR(t *testing.T) {
 	s, _ := newTestServer(t) // test-user owns "test-ws" (slug "test")
 	attackerToken := addWorkspaceWithOwner(t, s, "attacker-ws", "attacker", "attacker-user", "attacker@example.com")
 
-	// Wire a real brand store (its own schema on the shared container).
+	// Wire a real voice store (its own schema on the shared container).
 	db := pgtest.NewTestDB(t)
 	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
@@ -114,23 +114,23 @@ func TestCrossTenantBrandProfileIDOR(t *testing.T) {
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound,
-			do(t, s, http.MethodGet, "/api/v1/attacker/brand-profiles/victim-bp", attackerToken, ""),
-			"cross-tenant brand-profile read must be denied (fail-closed 404)")
+			do(t, s, http.MethodGet, "/api/v1/attacker/voice-profiles/victim-bp", attackerToken, ""),
+			"cross-tenant voice profile read must be denied (fail-closed 404)")
 	})
 	t.Run("update via foreign workspace slug is 404", func(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound,
-			do(t, s, http.MethodPut, "/api/v1/attacker/brand-profiles/victim-bp", attackerToken, `{"name":"pwned"}`),
-			"cross-tenant brand-profile update must be denied (fail-closed 404)")
+			do(t, s, http.MethodPut, "/api/v1/attacker/voice-profiles/victim-bp", attackerToken, `{"name":"pwned"}`),
+			"cross-tenant voice profile update must be denied (fail-closed 404)")
 	})
 	t.Run("delete via foreign workspace slug is 404", func(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound,
-			do(t, s, http.MethodDelete, "/api/v1/attacker/brand-profiles/victim-bp", attackerToken, ""),
-			"cross-tenant brand-profile delete must be denied (fail-closed 404)")
+			do(t, s, http.MethodDelete, "/api/v1/attacker/voice-profiles/victim-bp", attackerToken, ""),
+			"cross-tenant voice profile delete must be denied (fail-closed 404)")
 	})
 	t.Run("check via foreign workspace slug is 404", func(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound,
-			do(t, s, http.MethodPost, "/api/v1/attacker/brand-profiles/victim-bp/check", attackerToken, `{"text":"hi"}`),
-			"cross-tenant brand-profile check must be denied (fail-closed 404)")
+			do(t, s, http.MethodPost, "/api/v1/attacker/voice-profiles/victim-bp/check", attackerToken, `{"text":"hi"}`),
+			"cross-tenant voice profile check must be denied (fail-closed 404)")
 	})
 
 	// The victim profile is neither modified nor deleted.
@@ -175,7 +175,7 @@ func TestCrossTenantJobIDOR(t *testing.T) {
 // TestWorkspaceSiblingIDRoutesNotGuarded is the regression guard for the
 // cross-tenant IDOR fix over-applying. ProjectAccessMiddleware runs for EVERY
 // route under /:ws, including sibling routes whose :id is a NON-project resource
-// (/:ws/jobs/:id, /:ws/brand-profiles/:id, ...). For those GetProject returns
+// (/:ws/jobs/:id, /:ws/voice-profiles/:id, ...). For those GetProject returns
 // sql.ErrNoRows, which the guard must treat as "not a project route" and fall
 // through — NOT as a cross-tenant hit. The earlier (buggy) guard 404'd every
 // such request (and emitted a spurious cross_workspace_project audit), silently
@@ -202,9 +202,9 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 			"jobs/:id must reach its handler for the owner; the guard must not 404 a non-project :id")
 	})
 
-	t.Run("brand-profiles/:id reaches handler for the workspace owner", func(t *testing.T) {
+	t.Run("voice-profiles/:id reaches handler for the workspace owner", func(t *testing.T) {
 		// VoiceStore is not wired by initTestStores; attach a real one (its own
-		// schema on the shared container, mirroring setupBrandLoopServer) so the
+		// schema on the shared container, mirroring setupVoiceLoopServer) so the
 		// handler can return a profile rather than 503.
 		db := pgtest.NewTestDB(t)
 		bs, err := voicepg.NewPostgresVoiceStore(db)
@@ -214,9 +214,9 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", Scope: "test-ws", Name: "Sib"}
 		require.NoError(t, bs.CreateProfile(ctx, profile))
 
-		code := do(t, s, http.MethodGet, "/api/v1/test/brand-profiles/"+profile.ID, ownerToken, "")
+		code := do(t, s, http.MethodGet, "/api/v1/test/voice-profiles/"+profile.ID, ownerToken, "")
 		assert.Equal(t, http.StatusOK, code,
-			"brand-profiles/:id must reach its handler for the owner; the guard must not 404 a non-project :id")
+			"voice-profiles/:id must reach its handler for the owner; the guard must not 404 a non-project :id")
 	})
 }
 

@@ -1,11 +1,11 @@
 import { Card, Textarea } from "@neokapi/ui-primitives";
 import { useEffect, useState } from "react";
-import type { VoiceProfile } from "../brand/types";
+import type { VoiceProfile } from "../voice/types";
 import type { ContextScanCheckResult } from "../types/api";
-import { BrandScoreGauge } from "../brand/BrandScoreGauge";
-import { complianceBar } from "../brand/complianceBar";
-import { BrandFindingsList } from "../brand/BrandFindingsList";
-import { useCheckBrandDraft } from "../hooks/useContextScanApi";
+import { VoiceScoreGauge } from "../voice/VoiceScoreGauge";
+import { complianceBar } from "../voice/complianceBar";
+import { VoiceFindingsList } from "../voice/VoiceFindingsList";
+import { useCheckVoiceDraft } from "../hooks/useContextScanApi";
 import { TEST_IDS } from "../test-ids";
 
 export interface ContextScanLiveTesterProps {
@@ -21,7 +21,7 @@ export interface ContextScanLiveTesterProps {
  * credits, so it can run on every pause in typing.
  */
 export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScanLiveTesterProps) {
-  const check = useCheckBrandDraft();
+  const check = useCheckVoiceDraft();
   const { mutate } = check;
   const [text, setText] = useState("");
   const [result, setResult] = useState<ContextScanCheckResult | null>(null);
@@ -56,14 +56,14 @@ export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScan
       {result && (
         <div className="space-y-3">
           <div className="flex items-center gap-4">
-            <BrandScoreGauge score={result.score.overall} bar={complianceBar(profile)} size={72} />
+            <VoiceScoreGauge score={result.score.overall} bar={complianceBar(profile)} size={72} />
             <p className="text-xs text-muted-foreground">
               {result.findings.length === 0
                 ? "No rule violations in this sample."
                 : `${result.findings.length} finding${result.findings.length === 1 ? "" : "s"} against the draft rules.`}
             </p>
           </div>
-          {result.findings.length > 0 && <BrandFindingsList findings={result.findings} />}
+          {result.findings.length > 0 && <VoiceFindingsList findings={result.findings} />}
         </div>
       )}
     </Card>

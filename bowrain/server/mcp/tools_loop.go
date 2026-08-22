@@ -22,12 +22,12 @@ import (
 func (s *MCPServer) registerLoopTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "get_suggested_rules",
-		Description: "List the candidate vocabulary rules a workspace's corrections have produced for a brand profile, each annotated with its decision status (pending, approved, rejected, promoted). Pending candidates are the ones awaiting review.",
+		Description: "List the candidate vocabulary rules a workspace's corrections have produced for a voice profile, each annotated with its decision status (pending, approved, rejected, promoted). Pending candidates are the ones awaiting review.",
 	}, s.handleGetSuggestedRules)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "promote_rule",
-		Description: "Promote a correction-derived candidate into a brand profile as an enforced forbidden term. Bumps and archives the profile version and records the decision, so the correction becomes a deterministic check on every future generation.",
+		Description: "Promote a correction-derived candidate into a voice profile as an enforced forbidden term. Bumps and archives the profile version and records the decision, so the correction becomes a deterministic check on every future generation.",
 	}, s.handlePromoteRule)
 
 	if s.contentStore != nil {
@@ -40,7 +40,7 @@ func (s *MCPServer) registerLoopTools() {
 
 type getSuggestedRulesInput struct {
 	WorkspaceID string `json:"workspace_id" jsonschema:"the workspace whose corrections produced the candidates"`
-	ProfileID   string `json:"profile_id" jsonschema:"the brand profile to annotate candidates against"`
+	ProfileID   string `json:"profile_id" jsonschema:"the voice profile to annotate candidates against"`
 	MinCount    int    `json:"min_count,omitempty" jsonschema:"minimum corrections behind a candidate (default 3)"`
 	All         bool   `json:"all,omitempty" jsonschema:"include already rejected/promoted candidates (default false: only pending/approved)"`
 }
@@ -66,7 +66,7 @@ func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, _ *mcp.CallTool
 }
 
 type promoteRuleInput struct {
-	ProfileID   string `json:"profile_id" jsonschema:"the brand profile to promote the rule into"`
+	ProfileID   string `json:"profile_id" jsonschema:"the voice profile to promote the rule into"`
 	Term        string `json:"term" jsonschema:"the term to forbid (what was repeatedly corrected away)"`
 	Replacement string `json:"replacement,omitempty" jsonschema:"the preferred replacement (what it was corrected to)"`
 }
@@ -104,7 +104,7 @@ func (s *MCPServer) handlePromoteRule(ctx context.Context, _ *mcp.CallToolReques
 }
 
 type evaluateRuleInput struct {
-	ProfileID   string `json:"profile_id" jsonschema:"the baseline brand profile"`
+	ProfileID   string `json:"profile_id" jsonschema:"the baseline voice profile"`
 	Term        string `json:"term" jsonschema:"the candidate term to evaluate"`
 	Replacement string `json:"replacement,omitempty" jsonschema:"the preferred replacement"`
 	ProjectID   string `json:"project_id" jsonschema:"the project whose content to evaluate against"`

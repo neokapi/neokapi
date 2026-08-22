@@ -26,7 +26,7 @@ const sampleMemories = [
 
 const sampleTerms = [
   { name: "glossary", entryCount: 340 },
-  { name: "brand-terms", entryCount: 52 },
+  { name: "voice-terms", entryCount: 52 },
 ];
 
 const sampleSRX = [{ name: "custom-rules" }, { name: "japanese-rules" }];

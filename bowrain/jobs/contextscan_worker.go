@@ -204,7 +204,7 @@ func processContextScanJob(ctx context.Context, deps *ContextScanWorkerDeps, job
 			slog.WarnContext(ctx, "brand-scan quota check failed", "workspace", job.WorkspaceSlug, "error", qerr)
 		} else if remaining <= 0 {
 			_, _ = deps.Store.FailContextScanJob(ctx, jobID, epoch, "workspace AI quota exceeded")
-			emitContextScanLog(deps, jobID, "error", "Brand scan failed: workspace AI quota exceeded", nil)
+			emitContextScanLog(deps, jobID, "error", "Context scan failed: workspace AI quota exceeded", nil)
 			return fmt.Errorf("workspace %s quota exceeded", job.WorkspaceSlug)
 		}
 	}
@@ -224,7 +224,7 @@ func processContextScanJob(ctx context.Context, deps *ContextScanWorkerDeps, job
 				emitContextScanLog(deps, jobID, "warn", "Transient error, retrying: "+err.Error(), nil)
 				return &transientError{err: err}
 			}
-			emitContextScanLog(deps, jobID, "error", "Brand scan failed after retries: "+err.Error(), nil)
+			emitContextScanLog(deps, jobID, "error", "Context scan failed after retries: "+err.Error(), nil)
 			return err
 		}
 		// Epoch-guarded terminal write: a stale worker's permanent error must
@@ -237,7 +237,7 @@ func processContextScanJob(ctx context.Context, deps *ContextScanWorkerDeps, job
 				"job_id", jobID)
 			return nil
 		}
-		emitContextScanLog(deps, jobID, "error", "Brand scan failed: "+err.Error(), nil)
+		emitContextScanLog(deps, jobID, "error", "Context scan failed: "+err.Error(), nil)
 		return err
 	}
 	return nil
@@ -256,7 +256,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 		return fmt.Errorf("decode brand-scan request: %w", err)
 	}
 	if !req.HasSource() {
-		return errors.New("brand scan has no sources")
+		return errors.New("context scan has no sources")
 	}
 
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressReading, "reading-sources")
@@ -280,7 +280,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 
 	// Build the platform provider. Brand scans always run on the platform key
 	// (the request carries no provider config), so credit deduction below is
-	// unconditionally platform-metered. Brand scan is not translation, so it uses
+	// unconditionally platform-metered. Context scan is not translation, so it uses
 	// the platform default model (no per-workspace model scope).
 	platform := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver)
 	if platform == nil {
@@ -835,7 +835,7 @@ func setContextScanProgress(ctx context.Context, deps *ContextScanWorkerDeps, jo
 
 func setContextScanLogDone(deps *ContextScanWorkerDeps, jobID string, termCount, tokens int) {
 	emitContextScanLog(deps, jobID, "info",
-		fmt.Sprintf("Brand scan completed — draft profile with %d candidate terms, %d tokens", termCount, tokens),
+		fmt.Sprintf("Context scan completed — draft profile with %d candidate terms, %d tokens", termCount, tokens),
 		map[string]string{"terms": strconv.Itoa(termCount), "tokens": strconv.Itoa(tokens)})
 }
 

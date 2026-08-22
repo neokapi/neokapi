@@ -104,7 +104,7 @@ func testProfile() *coreprofile.VoiceProfile {
 	return &coreprofile.VoiceProfile{
 		ID:          "test-profile-1",
 		Name:        "Test Brand",
-		Description: "A test brand voice profile",
+		Description: "A test voice profile",
 		Scope:       "ws-1",
 		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "professional"},
@@ -270,7 +270,7 @@ func TestMCPServerListResources(t *testing.T) {
 	for _, tmpl := range result.ResourceTemplates {
 		templateNames = append(templateNames, tmpl.Name)
 	}
-	assert.Contains(t, templateNames, "brand_profile")
+	assert.Contains(t, templateNames, "voice_profile")
 	assert.Contains(t, templateNames, "brand_vocabulary")
 	assert.Contains(t, templateNames, "brand_examples")
 	assert.Contains(t, templateNames, "brand_terminology")

@@ -8,7 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// registerResources registers brand voice resource templates on the MCP server.
+// registerResources registers voice resource templates on the MCP server.
 //
 // Resource URIs:
 //   - brand://profiles/{id}             — full voice profile
@@ -19,8 +19,8 @@ func (s *MCPServer) registerResources() {
 	// Full voice profile by ID.
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
-			Name:        "brand_profile",
-			Description: "Full brand voice profile including tone, style, vocabulary, and examples",
+			Name:        "voice_profile",
+			Description: "Full voice profile including tone, style, vocabulary, and examples",
 			URITemplate: "brand://profiles/{id}",
 			MIMEType:    "application/json",
 		},
@@ -31,7 +31,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "brand_vocabulary",
-			Description: "Vocabulary rules (preferred, forbidden, competitor terms) for a brand voice profile",
+			Description: "Vocabulary rules (preferred, forbidden, competitor terms) for a voice profile",
 			URITemplate: "brand://profiles/{id}/vocabulary",
 			MIMEType:    "application/json",
 		},
@@ -42,7 +42,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "brand_examples",
-			Description: "Before/after transformation examples for a brand voice profile",
+			Description: "Before/after transformation examples for a voice profile",
 			URITemplate: "brand://profiles/{id}/examples",
 			MIMEType:    "application/json",
 		},
@@ -53,7 +53,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "brand_terminology",
-			Description: "Terminology index listing all brand voice profiles and their term counts in a workspace",
+			Description: "Terminology index listing all voice profiles and their term counts in a workspace",
 			URITemplate: "brand://terminology/{workspace}",
 			MIMEType:    "application/json",
 		},

@@ -1600,7 +1600,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	return leverage.NewProvider(tm), func() { tm.Close() }, nil
 }
 
-// ProjectBindings holds the standing brand-voice + glossary context resolved
+// ProjectBindings holds the standing voice + glossary context resolved
 // from a .kapi project, applied to project-flow steps that can honor them.
 type ProjectBindings struct {
 	// profile is the resolved voice profile (defaults.voice),
@@ -1631,7 +1631,7 @@ type ProjectBindings struct {
 	point string
 }
 
-// resolveProjectBindings resolves the standing brand-voice + glossary context
+// resolveProjectBindings resolves the standing voice + glossary context
 // for one point of a project flow run — the governance in force there. The
 // voice comes from the profile matching that point, else defaults.voice, else a
 // convention voice.yaml, with the point's channel selecting the override inside
@@ -2151,7 +2151,7 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 
 // ApplyProjectBindings injects the project's standing context into a step's
 // config: the tool's project preset (defaults.tools, applied under the step's
-// own keys — the step wins), then the brand-voice and glossary bindings when
+// own keys — the step wins), then the voice and glossary bindings when
 // the tool can honor them and the step did not set them explicitly. Returns
 // the (possibly cloned) config so the recipe's in-memory step config is never
 // mutated.

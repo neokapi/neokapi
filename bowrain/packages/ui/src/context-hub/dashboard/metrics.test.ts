@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vite-plus/test";
 import type { ChangeSet } from "../../types/brand-graph";
-import type { StoredScore } from "../../brand/types";
+import type { StoredScore } from "../../voice/types";
 import {
   averageScore,
   aggregateDimensions,

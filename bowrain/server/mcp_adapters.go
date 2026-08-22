@@ -33,14 +33,14 @@ func (a *mcpMembershipAdapter) IsMember(ctx context.Context, workspaceID, userID
 	return err == nil && m != nil
 }
 
-// mcpWorkspaceDefaultAdapter bridges auth.AuthStore → brandscope.WorkspaceDefault
-// so the MCP scoring tools resolve the workspace-level default brand-voice
+// mcpWorkspaceDefaultAdapter bridges auth.AuthStore → voicescope.WorkspaceDefault
+// so the MCP scoring tools resolve the workspace-level default voice
 // profile (the base rung of the ladder) from the workspace record.
 type mcpWorkspaceDefaultAdapter struct {
 	auth auth.AuthStore
 }
 
-func (a *mcpWorkspaceDefaultAdapter) WorkspaceBrandProfileID(ctx context.Context, workspaceID string) (string, error) {
+func (a *mcpWorkspaceDefaultAdapter) WorkspaceVoiceProfileID(ctx context.Context, workspaceID string) (string, error) {
 	if a.auth == nil || workspaceID == "" {
 		return "", nil
 	}

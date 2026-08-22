@@ -13,7 +13,7 @@ import (
 )
 
 // StreamBindingStore is the slice of the content StreamStore the pilot lifecycle
-// uses to bind (and later unbind) a candidate brand-voice profile to a content
+// uses to bind (and later unbind) a candidate voice profile to a content
 // stream via Stream.Properties. The real bowrain ContentStore satisfies it; the
 // engine reaches it through its BlockSource, which the ContentStore also is.
 type StreamBindingStore interface {
@@ -21,7 +21,7 @@ type StreamBindingStore interface {
 	UpdateStream(ctx context.Context, s *store.Stream) error
 }
 
-// PilotProfileStore is the slice of the brand store the pilot lifecycle needs to
+// PilotProfileStore is the slice of the voice store the pilot lifecycle needs to
 // materialize and retire a stream-scoped candidate profile: the read+update
 // ProfileStore plus create and delete. coreprofile.Store satisfies it.
 type PilotProfileStore interface {
@@ -72,8 +72,8 @@ func pilotProfileID(changesetID, stream, profileID string) string {
 // and real checks resolve through the draft before it merges (AD-021). It writes
 // the change-set's resulting concepts and added relations into the terms store's
 // stream-scoped shadow (AddConceptWithStream / AddRelationWithStream on the pilot
-// stream, under namespaced IDs), materializes a candidate brand profile for the
-// change-set's voice ops and binds it to the content stream's brand-voice
+// stream, under namespaced IDs), materializes a candidate voice profile for the
+// change-set's voice ops and binds it to the content stream's voice
 // property, then records the pilot. It returns the recorded pilot so callers
 // surface the persisted creator and creation time rather than reconstructing
 // them. It is safe to re-run: shadow writes are upserts and the pilot record
@@ -120,7 +120,7 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 }
 
 // StopPilot retires a pilot: it removes the change-set's stream-shadow concepts
-// and relations, clears (and deletes) the candidate brand-voice binding on the
+// and relations, clears (and deletes) the candidate voice binding on the
 // content stream, and removes the pilot record. It is idempotent — every removal
 // tolerates an already-absent row — so merge and abandon can call it
 // unconditionally.
@@ -272,7 +272,7 @@ func (e *Engine) removePilotShadow(ctx context.Context, cs ChangeSet, ops []Chan
 // bindPilotVoice materializes a candidate profile for each voice-targeted
 // profile (ApplyVoiceOpsToProfile — the CandidateWithRule semantics generalized
 // to the change-set's voice ops) and binds the first one to the content stream's
-// brand-voice property, so checks in the pilot stream resolve through the draft.
+// voice property, so checks in the pilot stream resolve through the draft.
 // A change-set with no voice ops is a no-op.
 func (e *Engine) bindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, projectID, stream string) error {
 	ids := voiceProfileIDs(ops)
@@ -329,7 +329,7 @@ func (e *Engine) bindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeS
 	return nil
 }
 
-// unbindPilotVoice clears the candidate brand-voice binding the pilot set (only
+// unbindPilotVoice clears the candidate voice binding the pilot set (only
 // when the stream still points at one of this pilot's candidates) and deletes the
 // candidate profiles. Both steps tolerate an already-cleaned state.
 func (e *Engine) unbindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, projectID, stream string) error {

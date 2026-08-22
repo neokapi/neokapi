@@ -46,7 +46,7 @@ type contextScanSkippedEntry struct {
 }
 
 // HandleContextScanUploads stores brand source files for a later scan.
-// POST /api/v1/:ws/brand-scans/uploads (multipart field "files")
+// POST /api/v1/:ws/context-scans/uploads (multipart field "files")
 //
 // Files are validated up front against the contextscan extraction allowlist and
 // size caps; each accepted file is wrapped in a ContextScanUploadEnvelope (blob
@@ -75,7 +75,7 @@ func (s *Server) HandleContextScanUploads(c echo.Context) error {
 	}
 	if len(files) > maxContextScanUploadFiles {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: "too many files: a brand scan accepts at most 10 files per upload",
+			Error: "too many files: a context scan accepts at most 10 files per upload",
 		})
 	}
 	var totalBytes int64
@@ -84,7 +84,7 @@ func (s *Server) HandleContextScanUploads(c echo.Context) error {
 	}
 	if totalBytes > maxContextScanUploadTotalBytes {
 		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{
-			Error: "upload too large: a brand scan accepts at most 40 MiB per upload",
+			Error: "upload too large: a context scan accepts at most 40 MiB per upload",
 		})
 	}
 
@@ -155,8 +155,8 @@ func (s *Server) HandleContextScanUploads(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// HandleCreateContextScan enqueues an async AI brand scan (epic 016).
-// POST /api/v1/:ws/brand-scans
+// HandleCreateContextScan enqueues an async AI context scan (epic 016).
+// POST /api/v1/:ws/context-scans
 //
 // Route middleware applies the per-IP AI throttle and billing.QuotaGuard; the
 // handler additionally requires PermManageVoice and refuses a scan up front
@@ -167,7 +167,7 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 		return err
 	}
 	if s.ContextScanStore == nil || s.ContextScanQueue == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand scan system not configured"})
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context scan system not configured"})
 	}
 
 	var req jobs.ContextScanRequest
@@ -181,7 +181,7 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 	}
 	if len(req.URLs) > jobs.MaxContextScanURLs {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: "too many urls: a brand scan accepts at most 5 links",
+			Error: "too many urls: a context scan accepts at most 5 links",
 		})
 	}
 
@@ -224,7 +224,7 @@ func (s *Server) HandleCreateContextScan(c echo.Context) error {
 // contextScanInRequestWorkspace reports whether the brand-scan job belongs to
 // the workspace the request is scoped to. GetContextScanJob resolves by GLOBAL
 // id, so without this a caller could read another tenant's scan (sources,
-// draft profile, token spend) via /api/v1/<their-ws>/brand-scans/<victim-id>.
+// draft profile, token spend) via /api/v1/<their-ws>/context-scans/<victim-id>.
 // 404 (anti-enumeration) on mismatch, mirroring jobInRequestWorkspace.
 func contextScanInRequestWorkspace(c echo.Context, job *jobs.ContextScanJob) bool {
 	ws := c.Param("ws")
@@ -232,19 +232,19 @@ func contextScanInRequestWorkspace(c echo.Context, job *jobs.ContextScanJob) boo
 }
 
 // HandleGetContextScan returns the status, progress, and (when completed) the
-// draft result of a brand scan.
-// GET /api/v1/:ws/brand-scans/:id
+// draft result of a context scan.
+// GET /api/v1/:ws/context-scans/:id
 func (s *Server) HandleGetContextScan(c echo.Context) error {
 	if s.ContextScanStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand scan system not configured"})
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context scan system not configured"})
 	}
 
 	job, err := s.ContextScanStore.GetContextScanJob(c.Request().Context(), c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand scan not found"})
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "context scan not found"})
 	}
 	if !contextScanInRequestWorkspace(c, job) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand scan not found"})
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "context scan not found"})
 	}
 
 	resp := map[string]any{
@@ -272,14 +272,14 @@ type ContextScanApprovedTerm struct {
 	Locale     string `json:"locale,omitempty"`
 }
 
-// ContextScanApproveRequest is the reviewed outcome of a brand scan: the edited
+// ContextScanApproveRequest is the reviewed outcome of a context scan: the edited
 // draft profile and the candidate terms that survived review.
 type ContextScanApproveRequest struct {
 	// At is the point the approved artefacts would govern, as an axis map.
 	// EMPTY is the project's default point — whatever defaults.coordinates
 	// resolves to — which is the onboarding case and always accepted.
 	At      map[string]string         `json:"at,omitempty"`
-	Profile BrandProfileRequest       `json:"profile"`
+	Profile VoiceProfileRequest       `json:"profile"`
 	Terms   []ContextScanApprovedTerm `json:"terms,omitempty"`
 	// Locale is the locale approved terms are created in when a term does not
 	// name its own. Defaults to "en".
@@ -297,9 +297,9 @@ type ContextScanApproveResponse struct {
 	ConceptIDs       []string                  `json:"concept_ids"`
 }
 
-// HandleApproveContextScan applies a reviewed brand scan in one request: the
+// HandleApproveContextScan applies a reviewed context scan in one request: the
 // profile and every approved term.
-// POST /api/v1/:ws/brand-scans/:id/approve
+// POST /api/v1/:ws/context-scans/:id/approve
 //
 // The endpoint is idempotent by content, so a retry after a partial failure
 // converges instead of duplicating. The profile goes through the same
@@ -316,10 +316,10 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 		return err
 	}
 	if s.ContextScanStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand scan system not configured"})
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context scan system not configured"})
 	}
 	if s.VoiceStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -328,11 +328,11 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 	ctx := c.Request().Context()
 	job, err := s.ContextScanStore.GetContextScanJob(ctx, c.Param("id"))
 	if err != nil || !contextScanInRequestWorkspace(c, job) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand scan not found"})
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "context scan not found"})
 	}
 	if job.Status != jobs.ContextScanStatusCompleted {
 		return c.JSON(http.StatusConflict, ErrorResponse{
-			Error: fmt.Sprintf("only a completed brand scan can be approved (status %q)", job.Status),
+			Error: fmt.Sprintf("only a completed context scan can be approved (status %q)", job.Status),
 		})
 	}
 
@@ -376,7 +376,7 @@ func (s *Server) HandleApproveContextScan(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	actor, _ := c.Get("user_id").(string)
-	upsert, err := s.upsertBrandProfile(ctx, wsID, actor, req.Profile, "superseded by a brand-scan approval")
+	upsert, err := s.upsertVoiceProfile(ctx, wsID, actor, req.Profile, "superseded by a brand-scan approval")
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -454,23 +454,23 @@ func findConceptByTerm(ctx context.Context, tb terms.Store, term terms.Term) (st
 // first page is not a match anyone would find either.
 const conceptTermProbeLimit = 50
 
-// BrandDraftCheckRequest is the request body for the stateless draft tester:
+// VoiceDraftCheckRequest is the request body for the stateless draft tester:
 // an (unsaved, possibly user-edited) draft profile plus sample text.
-type BrandDraftCheckRequest struct {
+type VoiceDraftCheckRequest struct {
 	Profile *coreprofile.VoiceProfile `json:"profile"`
 	Text    string                    `json:"text"`
 }
 
-// HandleCheckBrandDraft scores sample text against an inline draft voice
+// HandleCheckVoiceDraft scores sample text against an inline draft voice
 // profile — the zero-AI-cost live tester for the scan review surface.
-// POST /api/v1/:ws/brand-scans/check-draft
+// POST /api/v1/:ws/context-scans/check-draft
 //
-// It mirrors HandleCheckBrandVoice but takes the profile in the request body
+// It mirrors HandleCheckVoice but takes the profile in the request body
 // instead of loading a stored one, so a draft can be tested (and refined)
 // before it is ever persisted. Deterministic matcher only — no provider
 // call, hence no QuotaGuard.
-func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
-	var req BrandDraftCheckRequest
+func (s *Server) HandleCheckVoiceDraft(c echo.Context) error {
+	var req VoiceDraftCheckRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -491,7 +491,7 @@ func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
 	}
 	score := coreprofile.CalculateScore(findings)
 
-	return c.JSON(http.StatusOK, BrandCheckResponse{
+	return c.JSON(http.StatusOK, VoiceCheckResponse{
 		Score:    score,
 		Findings: findings,
 	})

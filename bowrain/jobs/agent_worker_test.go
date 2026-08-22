@@ -56,7 +56,7 @@ func TestAgentJobMessage_Marshal(t *testing.T) {
 		WorkspaceID:    "ws-2",
 		UserID:         "user-2",
 		WorkspaceRole:  "member",
-		Content:        "Check brand voice",
+		Content:        "Check voice",
 		Mode:           "bravo",
 	}
 
@@ -67,7 +67,7 @@ func TestAgentJobMessage_Marshal(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &decoded))
 	assert.Equal(t, "conv-99", decoded["conversation_id"])
 	assert.Equal(t, "bravo", decoded["mode"])
-	assert.Equal(t, "Check brand voice", decoded["content"])
+	assert.Equal(t, "Check voice", decoded["content"])
 }
 
 func TestAgentJobMessage_MarshalOmitsEmptyMode(t *testing.T) {

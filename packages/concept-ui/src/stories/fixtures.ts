@@ -302,7 +302,7 @@ const SAMPLE_OBSERVATIONS: Record<string, Observation[]> = {
       id: "o2",
       kind: "style_guide",
       quote: "Always lowercase 'checkout' mid-sentence.",
-      source: "Brand voice guide v4",
+      source: "Voice guide v4",
       locale: "en-US",
       actor: "Style council",
       at: "2025-12-01T09:00:00Z",

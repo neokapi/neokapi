@@ -50,8 +50,8 @@ live progress, and pulls the produced targets when the run finishes. Parked
 units land in the team's review queue on the server.
 
 The push phase carries the same payload as kapi push: content blocks, governed
-terminology edits, and the recipe-bound brand voice profile (upserted into the
-workspace brand hub by name; --no-brand skips the profile).
+terminology edits, and the recipe-bound voice profile (upserted into the
+workspace's voice profiles by name; the recipe decides whether one is bound).
 
   --local   run the loop on this machine instead, then push the results so the
             server stays up to date.
@@ -113,7 +113,7 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, brand voice — travelled
+	// The declared context — collections, coordinates, voice — travelled
 	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
@@ -133,7 +133,7 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 			fmt.Fprintf(cmd.ErrOrStderr(), "Pushed %d block(s) to the server.\n", pr.BlocksPushed)
 		}
 	}
-	return reportBrandPush(cmd, nil, bres, flagBool(cmd, "json"))
+	return reportVoicePush(cmd, nil, bres, flagBool(cmd, "json"))
 }
 
 // reportConceptPush says what the terminology fold inside `kapi up`'s push
@@ -235,7 +235,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, brand voice — travelled
+	// The declared context — collections, coordinates, voice — travelled
 	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
@@ -261,7 +261,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 			fmt.Fprintf(stderr, "Pushed %d block(s).\n", pr.BlocksPushed)
 		}
 	}
-	if err := reportBrandPush(cmd, jsonStream, bres, jsonOut); err != nil {
+	if err := reportVoicePush(cmd, jsonStream, bres, jsonOut); err != nil {
 		return err
 	}
 
@@ -376,7 +376,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	return acc.terminalError(final)
 }
 
-// reportBrandPush surfaces the brand-profile result of up's push phase the way
+// reportVoicePush surfaces the voice profile result of up's push phase the way
 // `kapi push` reports it: the same footer line (via output.PushOutput) next to
 // the push messages on stderr, or — under --json — one discriminated NDJSON
 // line on stdout carrying the same field names as push's JSON output. Silent
@@ -385,7 +385,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 // stream is the caller's NDJSON document, so this record shares the run's
 // sticky-error accounting; a nil stream gets one of its own (the local-venue
 // push, which happens after the local run has closed its stream).
-func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *transfer.PushBrandResult, jsonOut bool) error {
+func reportVoicePush(cmd *cobra.Command, stream *output.NDJSONStream, res *transfer.PushVoiceResult, jsonOut bool) error {
 	if res == nil {
 		return nil
 	}
@@ -397,22 +397,22 @@ func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *trans
 		// dropped. Encode returns nil when the consumer merely went away.
 		return stream.Encode(struct {
 			Type    string `json:"type"`
-			Profile string `json:"brand_profile"`
-			Action  string `json:"brand_profile_action"`
-			Version int    `json:"brand_profile_version,omitempty"`
-			Reason  string `json:"brand_profile_reason,omitempty"`
-		}{Type: "brand_profile", Profile: res.Name, Action: res.Action, Version: res.Version, Reason: res.Reason})
+			Profile string `json:"voice_profile"`
+			Action  string `json:"voice_profile_action"`
+			Version int    `json:"voice_profile_version,omitempty"`
+			Reason  string `json:"voice_profile_reason,omitempty"`
+		}{Type: "voice_profile", Profile: res.Name, Action: res.Action, Version: res.Version, Reason: res.Reason})
 	}
 	if app != nil && app.Quiet {
 		return nil
 	}
 	out := output.PushOutput{
-		BrandProfile: res.Name,
-		BrandAction:  res.Action,
-		BrandVersion: res.Version,
-		BrandReason:  res.Reason,
+		VoiceProfile: res.Name,
+		VoiceAction:  res.Action,
+		VoiceVersion: res.Version,
+		VoiceReason:  res.Reason,
 	}
-	out.FormatBrand(cmd.ErrOrStderr())
+	out.FormatVoice(cmd.ErrOrStderr())
 	return nil
 }
 

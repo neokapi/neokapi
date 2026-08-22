@@ -148,7 +148,7 @@ var sideEffectingExtras = map[string]bool{
 //   - Exec-class format bindings ([execClassFormats]) on any content item.
 //   - Every path-valued field naming somewhere outside the project
 //     ([sanitizeRecipePath]): the terms, terms-source, memory-source and state
-//     bindings, the redaction rules file, the brand-voice profile file, and each
+//     bindings, the redaction rules file, the voice profile file, and each
 //     content entry's `base` and `target`. A project's OWN recipe may point
 //     wherever its owner wants — that stays supported, and is asserted
 //     separately — but a packaged recipe is answering for a machine it has

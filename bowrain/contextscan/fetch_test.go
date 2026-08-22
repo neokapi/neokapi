@@ -47,7 +47,7 @@ func newTestServerFetcher(t *testing.T, ts *httptest.Server) *fetcher {
 	)
 }
 
-func newBrandTestServer(t *testing.T) *httptest.Server {
+func newVoiceTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
@@ -87,7 +87,7 @@ func newBrandTestServer(t *testing.T) *httptest.Server {
 }
 
 func TestFetchURLHappyPath(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	text, err := f.fetch(context.Background(), "https://example.com/")
@@ -101,7 +101,7 @@ func TestFetchURLHappyPath(t *testing.T) {
 }
 
 func TestFetchURLRejectsRedirectToPrivateIP(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	_, err := f.fetch(context.Background(), "https://example.com/redirect-private")
@@ -110,7 +110,7 @@ func TestFetchURLRejectsRedirectToPrivateIP(t *testing.T) {
 }
 
 func TestFetchURLCapsRedirectChain(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	_, err := f.fetch(context.Background(), "https://example.com/redirect-loop")
@@ -119,7 +119,7 @@ func TestFetchURLCapsRedirectChain(t *testing.T) {
 }
 
 func TestFetchURLRejectsOversizedBody(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	_, err := f.fetch(context.Background(), "https://example.com/big")
@@ -128,7 +128,7 @@ func TestFetchURLRejectsOversizedBody(t *testing.T) {
 }
 
 func TestFetchURLRejectsNonHTMLContentType(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	_, err := f.fetch(context.Background(), "https://example.com/json")
@@ -137,7 +137,7 @@ func TestFetchURLRejectsNonHTMLContentType(t *testing.T) {
 }
 
 func TestFetchURLRejectsNonOKStatus(t *testing.T) {
-	ts := newBrandTestServer(t)
+	ts := newVoiceTestServer(t)
 	f := newTestServerFetcher(t, ts)
 
 	_, err := f.fetch(context.Background(), "https://example.com/missing")

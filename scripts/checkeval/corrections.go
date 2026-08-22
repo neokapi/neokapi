@@ -71,9 +71,9 @@ func LoadCorrectionsCorpus(path string) (CorrectionsCorpus, error) {
 	return c, nil
 }
 
-// brandVocabFlags reports whether the voice-vocabulary check raises any finding
+// voiceVocabFlags reports whether the voice-vocabulary check raises any finding
 // on text under the profile — the real checker the loop's promoted rules feed.
-func brandVocabFlags(profile *coreprofile.VoiceProfile, text string) bool {
+func voiceVocabFlags(profile *coreprofile.VoiceProfile, text string) bool {
 	b := &model.Block{ID: "c", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
 	if err := coretools.NewVoiceVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
 		return false
@@ -107,8 +107,8 @@ func EvaluateCorrections(corpus CorrectionsCorpus) CorrectionsReport {
 
 	for _, c := range corpus.Corrections {
 		promoted := c.Count >= corpus.MinCount
-		origFlagged := brandVocabFlags(profile, c.Original)
-		corrFlagged := brandVocabFlags(profile, c.Corrected)
+		origFlagged := voiceVocabFlags(profile, c.Original)
+		corrFlagged := voiceVocabFlags(profile, c.Corrected)
 
 		var ok bool
 		if promoted {

@@ -191,7 +191,7 @@ type App struct {
 	// everywhere else.
 	convergeProgressTap tool.Tool
 
-	// ProjectBindings carries the standing brand-voice + terms context
+	// ProjectBindings carries the standing voice + terms context
 	// resolved from a .kapi project (defaults.voice / defaults.terms_source).
 	// Set temporarily by RunFromProject so project-flow steps can be made
 	// brand- and terminology-aware with no flags. nil for ad-hoc runs.

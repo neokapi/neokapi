@@ -152,11 +152,11 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
-  BrandRollup,
-  BrandRollupOptions,
-  BrandCorrectionRequest,
-  BrandCorrectionResult,
-} from "../brand/types";
+  VoiceRollup,
+  VoiceRollupOptions,
+  VoiceCorrectionRequest,
+  VoiceCorrectionResult,
+} from "../voice/types";
 import type {
   ListConceptsParams,
   ConceptStory,
@@ -844,7 +844,7 @@ export interface ApiAdapter {
   setSoDMode(workspaceSlug: string, mode: SoDMode): Promise<void>;
   listRoleOverrides(workspaceSlug: string): Promise<Record<string, string[]>>;
   setRoleOverride(workspaceSlug: string, role: string, permissions: string[]): Promise<void>;
-  demoteBrandRule(workspaceSlug: string, profileId: string, term: string): Promise<void>;
+  demoteVoiceRule(workspaceSlug: string, profileId: string, term: string): Promise<void>;
 
   // QA
   runQACheck(
@@ -1062,49 +1062,49 @@ export interface ApiAdapter {
     entityKey: string,
   ): Promise<void>;
 
-  // Brand Voice
-  listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]>;
-  getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
-  createBrandProfile(workspaceSlug: string, data: CreateVoiceProfileRequest): Promise<VoiceProfile>;
-  updateBrandProfile(workspaceSlug: string, data: UpdateVoiceProfileRequest): Promise<VoiceProfile>;
-  deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
-  getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
-  getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+  // Voice
+  listVoiceProfiles(workspaceSlug: string): Promise<VoiceProfile[]>;
+  getVoiceProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
+  createVoiceProfile(workspaceSlug: string, data: CreateVoiceProfileRequest): Promise<VoiceProfile>;
+  updateVoiceProfile(workspaceSlug: string, data: UpdateVoiceProfileRequest): Promise<VoiceProfile>;
+  deleteVoiceProfile(workspaceSlug: string, profileId: string): Promise<void>;
+  getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
+  getVoiceTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
   /**
    * Workspace-wide brand-compliance rollup: one row per project (effective
    * profile, latest score, per-dimension breakdown, trend, drift, last
    * activity), aggregated from stored scores. Paginated for large workspaces.
    */
-  getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup>;
+  getVoiceRollup(workspaceSlug: string, opts?: VoiceRollupOptions): Promise<VoiceRollup>;
   // Correction-learning loop (AD-019)
   /**
    * Record a reviewer's in-place correction (original → corrected) against the
-   * bound brand profile. Feeds the correction-learning loop: repeated
+   * bound voice profile. Feeds the correction-learning loop: repeated
    * corrections surface as candidate rules and auto-promote past the profile's
    * threshold. `ref` is the stream (defaults server-side).
    */
-  recordBrandCorrection(
+  recordVoiceCorrection(
     workspaceSlug: string,
     projectId: string,
-    req: BrandCorrectionRequest,
+    req: VoiceCorrectionRequest,
     stream?: string,
-  ): Promise<BrandCorrectionResult>;
-  listBrandCandidates(
+  ): Promise<VoiceCorrectionResult>;
+  listVoiceCandidates(
     workspaceSlug: string,
     profileId: string,
     opts?: { minCount?: number; all?: boolean },
   ): Promise<CandidateRule[]>;
-  promoteBrandRule(
+  promoteVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string; correction_count?: number },
   ): Promise<{ promoted: boolean }>;
-  rejectBrandRule(
+  rejectVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string },
   ): Promise<void>;
-  evaluateBrandRule(
+  evaluateVoiceRule(
     workspaceSlug: string,
     profileId: string,
     req: {
@@ -1114,7 +1114,7 @@ export interface ApiAdapter {
       stream?: string;
     },
   ): Promise<BlastRadius>;
-  getBrandDrift(
+  getVoiceDrift(
     workspaceSlug: string,
     projectId: string,
     opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
@@ -1152,10 +1152,10 @@ export interface ApiAdapter {
     name?: string,
   ): Promise<VoiceProfile>;
 
-  // Brand scan (AI brand onboarding — epic 016). A scan drafts a voice
+  // Context scan (AI brand onboarding — epic 016). A scan drafts a voice
   // profile + candidate glossary from pasted text, fetched pages, uploaded
   // files, and repo docs; the draft is reviewed and approved by a human via
-  // the ordinary createBrandProfile/createConcept surface.
+  // the ordinary createVoiceProfile/createConcept surface.
   uploadContextScanSources(workspaceSlug: string, files: File[]): Promise<ContextScanUploadResult>;
   startContextScan(workspaceSlug: string, req: ContextScanRequest): Promise<{ job_id: string }>;
   getContextScan(workspaceSlug: string, jobId: string): Promise<ContextScanJob>;
@@ -1171,7 +1171,7 @@ export interface ApiAdapter {
     req: ContextScanApproveRequest,
   ): Promise<ContextScanApproveResult>;
   /** Stateless deterministic check of sample text against an in-progress draft. */
-  checkBrandDraft(
+  checkVoiceDraft(
     workspaceSlug: string,
     profile: VoiceProfile,
     text: string,

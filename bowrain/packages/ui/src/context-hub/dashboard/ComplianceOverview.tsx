@@ -1,4 +1,4 @@
-// Compliance overview for the Brand dashboard (AD-021): per-project brand-check
+// Compliance overview for the Voice dashboard (AD-021): per-project brand-check
 // health. Brand scores are scoped to a project's content, so this offers a
 // project picker and reads the existing brand score / trend / drift hooks. It
 // reuses the brand score gauge, dimension breakdown, and drift banner.
@@ -17,15 +17,15 @@ import {
 import { BarChart3 } from "../../components/icons";
 import { useProjects } from "../../hooks/useProjectApi";
 import {
-  useBrandScores,
-  useBrandTrends,
-  useBrandDrift,
-  useBrandProfiles,
-} from "../../hooks/useBrandApi";
-import { barForProfile } from "../../brand/complianceBar";
-import { BrandScoreGauge } from "../../brand/BrandScoreGauge";
-import { BrandDimensionBreakdown } from "../../brand/BrandDimensionBreakdown";
-import { DriftAlert } from "../../brand/DriftAlert";
+  useVoiceScores,
+  useVoiceTrends,
+  useVoiceDrift,
+  useVoiceProfiles,
+} from "../../hooks/useVoiceApi";
+import { barForProfile } from "../../voice/complianceBar";
+import { VoiceScoreGauge } from "../../voice/VoiceScoreGauge";
+import { VoiceDimensionBreakdown } from "../../voice/VoiceDimensionBreakdown";
+import { DriftAlert } from "../../voice/DriftAlert";
 import { EmptyState } from "../shell/atoms";
 import { averageScore, aggregateDimensions } from "./metrics";
 import { ScoreTrendChart } from "./ScoreTrendChart";
@@ -38,10 +38,10 @@ export function ComplianceOverview() {
     if (!projectId && projects && projects.length > 0) setProjectId(projects[0].id);
   }, [projects, projectId]);
 
-  const { data: scores, isLoading: scoresLoading } = useBrandScores(projectId);
-  const { data: trends } = useBrandTrends(projectId);
-  const { data: drift } = useBrandDrift(projectId);
-  const { data: profiles } = useBrandProfiles();
+  const { data: scores, isLoading: scoresLoading } = useVoiceScores(projectId);
+  const { data: trends } = useVoiceTrends(projectId);
+  const { data: drift } = useVoiceDrift(projectId);
+  const { data: profiles } = useVoiceProfiles();
 
   const recentScores = scores ?? [];
   const trendSeries = trends ?? [];
@@ -95,7 +95,7 @@ export function ComplianceOverview() {
         ) : !hasData ? (
           <EmptyState
             title="No brand checks recorded"
-            description="Run a brand-voice check on this project's content to populate its compliance trend."
+            description="Run a voice check on this project's content to populate its compliance trend."
             className="py-10"
           />
         ) : (
@@ -105,7 +105,7 @@ export function ComplianceOverview() {
                 <p className="text-sm text-muted-foreground">No score yet</p>
               ) : (
                 <div className="relative">
-                  <BrandScoreGauge score={avg} bar={bar} size={132} />
+                  <VoiceScoreGauge score={avg} bar={bar} size={132} />
                 </div>
               )}
               <p className="text-center text-xs text-muted-foreground">
@@ -118,7 +118,7 @@ export function ComplianceOverview() {
 
             <div className="lg:col-span-4">
               {dimensions.length > 0 ? (
-                <BrandDimensionBreakdown dimensions={dimensions} bar={bar} />
+                <VoiceDimensionBreakdown dimensions={dimensions} bar={bar} />
               ) : (
                 <p className="text-xs text-muted-foreground">No dimension data yet.</p>
               )}

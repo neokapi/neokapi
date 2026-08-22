@@ -1,5 +1,5 @@
 // Shared Storybook fixtures for the Context hub's Profiles section. Lives under
-// src/stories, beside brandHubFixtures, so the story data stays out of the
+// src/stories, beside voiceHubFixtures, so the story data stays out of the
 // shipped package.
 import type { Decorator } from "@storybook/react";
 import type { ApiAdapter } from "../api/adapter";

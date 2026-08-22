@@ -147,10 +147,10 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 			wantType: "task.assigned",
 		},
 		{
-			name:     "brand voice",
-			event:    editorclient.EditorChangeEvent{Type: "brand.profile.updated"},
-			wantName: "brand-voice-changed",
-			wantType: "brand.profile.updated",
+			name:     "voice",
+			event:    editorclient.EditorChangeEvent{Type: "voice.profile.updated"},
+			wantName: "voice-changed",
+			wantType: "voice.profile.updated",
 		},
 		{
 			name:     "terms",

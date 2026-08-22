@@ -72,7 +72,7 @@ blocks, so an unfixable finding cannot loop forever.`,
 // it denies a write to a file that the current project generates as a
 // translation target (a `kapi merge` output), steering Claude back through the
 // extract → translate → merge round-trip. Hand-editing a target is discarded on
-// the next merge and skips the terminology, placeholder, and brand-voice gates,
+// the next merge and skips the terminology, placeholder, and voice gates,
 // so the guard turns the skill's "don't hand-translate files" guidance into a
 // hard rule.
 func newHookPreEditCmd(a *App) *cobra.Command {

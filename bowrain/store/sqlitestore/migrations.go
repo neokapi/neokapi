@@ -598,10 +598,10 @@ var storeMigrations = []storage.Migration{
 	},
 	{
 		Version:     5,
-		Description: "stream properties (extensible metadata, incl. brand voice binding)",
+		Description: "stream properties (extensible metadata, incl. voice binding)",
 		SQL: `
 			-- Mirrors streams.properties in bowrain/store/migrations.go (Version 6):
-			-- a JSON TEXT map carrying the stream-level brand-voice binding
+			-- a JSON TEXT map carrying the stream-level voice binding
 			-- (voice_profile_id) and other extensible metadata.
 			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';
 		`,

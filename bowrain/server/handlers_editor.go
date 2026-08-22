@@ -724,15 +724,15 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	// Bind the project's standing brand context from the server's own stores —
 	// the same instances the brand and terminology surfaces use. Everything in
 	// it is optional: missing stores mean a bare translation, never an error.
-	brandCtx := editorBrandContext{Brand: s.VoiceStore, Stores: s.wsStores}
+	voiceCtx := editorVoiceContext{Brand: s.VoiceStore, Stores: s.wsStores}
 	if s.AuthStore != nil {
-		brandCtx.WorkspaceDefault = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
+		voiceCtx.WorkspaceDefault = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
 	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,
 		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"),
-		s.platformProviderConfigForWorkspace(c.Request().Context(), wsID), brandCtx)
+		s.platformProviderConfigForWorkspace(c.Request().Context(), wsID), voiceCtx)
 	if err != nil {
 		// The provider is circuit-broken: nothing was sent, no credits were
 		// spent. Say so with a typed 503 the editor renders as "queued, will
@@ -1352,8 +1352,8 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	// Derive per-locale + per-collection ship states and compliance rates
 	// (bounded QA pass + deterministic term compliance + persisted voice scores)
 	// so the cached result carries them for every paged slice. The term gate
-	// resolves the workspace terms snapshot + per-locale brand profile once
-	// (never per block) — a nil gate (no terms, no brand store) is a no-op.
+	// resolves the workspace terms snapshot + per-locale voice profile once
+	// (never per block) — a nil gate (no terms, no voice store) is a no-op.
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return serverErr(c, err)

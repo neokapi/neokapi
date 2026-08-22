@@ -24,7 +24,7 @@ import (
 // `kapi pull`, etc.
 //
 // Only the connection coordinates live here. Lifecycle policy (hooks,
-// automations) and content/governance features (assets, brand voice) are
+// automations) and content/governance features (assets, voice) are
 // top-level on KapiProject — they describe project policy that may run
 // regardless of which CLI is driving the recipe.
 type ServerSpec struct {

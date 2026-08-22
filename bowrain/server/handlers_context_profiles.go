@@ -137,7 +137,7 @@ type ContextProfileChecks struct {
 	LastCheckedAt *time.Time `json:"last_checked_at,omitempty"`
 }
 
-// ContextProfileScan is the workspace's most recent brand scan.
+// ContextProfileScan is the workspace's most recent context scan.
 type ContextProfileScan struct {
 	JobID     string    `json:"job_id"`
 	Status    string    `json:"status"`

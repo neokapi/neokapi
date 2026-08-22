@@ -199,7 +199,7 @@ describe("FocusedReviewer back-to-source affordances", () => {
     onCancelEdit: () => {},
     onReCheck: () => {},
     onMarkTerm: () => {},
-    onSuggestBrandRule: () => {},
+    onSuggestVoiceRule: () => {},
     onMakeRule: () => {},
   };
 

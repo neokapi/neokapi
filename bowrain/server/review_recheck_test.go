@@ -27,7 +27,7 @@ import (
 
 // newRecheckHarness builds a Postgres-backed Server wired for the RV-E review
 // re-check: content/auth/task/convergence-run stores, a channel event bus, a
-// Postgres brand store, an in-memory workspace terms, the convergence
+// Postgres voice store, an in-memory workspace terms, the convergence
 // orchestrator with the review-completion subscription (so a wrongful
 // review.completed WOULD start a run — letting the tests assert RV-E starts
 // none), and the RV-E re-check subscription itself. It seeds a workspace with an
@@ -339,11 +339,11 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1, b2})
 	require.Equal(t, 0, frPendingCount(t, s, projID))
 
-	// Promote the "utiliser" rule: publishBrandRuleEvent stashes the workspace id on
+	// Promote the "utiliser" rule: publishVoiceRuleEvent stashes the workspace id on
 	// ProjectID and the term on Data["term"].
 	s.EventBus.Publish(platev.Event{
 		ID:        id.New(),
-		Type:      EventBrandVoiceRulePromoted,
+		Type:      EventVoiceRulePromoted,
 		Source:    "brand",
 		ProjectID: wsID,
 		Data:      map[string]string{"profile_id": profile.ID, "term": "utiliser"},

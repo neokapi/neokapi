@@ -4,7 +4,7 @@ import type { Decorator } from "@storybook/react";
 import { fn } from "storybook/test";
 import { Button } from "@neokapi/ui-primitives";
 import { MergeConfirmDialog } from "./MergeConfirmDialog";
-import { brandHubOverrides } from "../../stories/brandHubFixtures";
+import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 import type { ChangeSetImpact, MergeResult } from "../../types/brand-graph";
 
@@ -65,7 +65,7 @@ export const Default: Story = {
   render: () => <Harness />,
   decorators: [
     createProvidersDecorator(undefined, {
-      ...brandHubOverrides,
+      ...voiceHubOverrides,
       getChangesetBlastRadius: async () => impact,
       mergeChangeset: async () => cleanMerge,
     }) as Decorator,
@@ -77,7 +77,7 @@ export const Conflict: Story = {
   render: () => <Harness />,
   decorators: [
     createProvidersDecorator(undefined, {
-      ...brandHubOverrides,
+      ...voiceHubOverrides,
       getChangesetBlastRadius: async () => impact,
       mergeChangeset: async () => {
         throw new Error(

@@ -739,7 +739,7 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 	// Apply exclude patterns.
 	recipe.Defaults.Exclude = append(recipe.Defaults.Exclude, fp.Exclude...)
 
-	// Standing project-context bindings the stack declares — a brand voice
+	// Standing project-context bindings the stack declares — a voice
 	// profile and a committed native terms source — scaffolded under
 	// defaults: so project-scoped brand and terminology checks need no flags.
 	if fp.VoiceProfile != "" && recipe.Defaults.Voice == nil {

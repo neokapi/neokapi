@@ -39,7 +39,7 @@ voice governing it. They travel inside the push, so the collections a pushed
 item belongs to exist server-side by the time the item is stored — created on
 first push, unchanged content is a no-op, and a changed voice lands as a new
 version with server-side edits archived rather than overwritten. A collection
-the recipe no longer names is reported, never deleted. Use --no-brand to carry
+the recipe no longer names is reported, never deleted. Use the recipe to carry
 the structure without the governance.`,
 	RunE: runPush,
 }
@@ -78,10 +78,10 @@ func runPush(cmd *cobra.Command, args []string) error {
 		Ingest:                pr.Ingest,
 	}
 	if pr.Brand != nil {
-		out.BrandProfile = pr.Brand.Name
-		out.BrandAction = pr.Brand.Action
-		out.BrandVersion = pr.Brand.Version
-		out.BrandReason = pr.Brand.Reason
+		out.VoiceProfile = pr.Brand.Name
+		out.VoiceAction = pr.Brand.Action
+		out.VoiceVersion = pr.Brand.Version
+		out.VoiceReason = pr.Brand.Reason
 	}
 
 	// Fold the workspace's governed terminology into the push: reconcile local

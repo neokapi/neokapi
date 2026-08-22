@@ -29,7 +29,7 @@ bowrain/
 ├── billing/         Stripe + workspace credits
 ├── jobs/            Background worker queue
 ├── event/           Event bus + automation
-├── brand/           Brand voice management
+├── voice/           Voice profile management
 ├── proto/           gRPC protobuf definitions
 ├── cmd/
 │   ├── bowrain-server/   Echo REST API server entrypoint

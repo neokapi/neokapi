@@ -170,45 +170,45 @@ func (a *App) DeleteInvite(workspaceSlug, inviteID string) error {
 
 // --- Brand profiles (read) ---
 
-// brandProfilesPath returns the workspace brand-profiles collection path.
-func brandProfilesPath(ws string) string {
-	return "/api/v1/" + url.PathEscape(ws) + "/brand-profiles"
+// voiceProfilesPath returns the workspace voice-profiles collection path.
+func voiceProfilesPath(ws string) string {
+	return "/api/v1/" + url.PathEscape(ws) + "/voice-profiles"
 }
 
-// ListBrandProfiles returns the brand voice profiles for a workspace.
+// ListVoiceProfiles returns the voice profiles for a workspace.
 // The shape is opaque to the proxy; the frontend has the VoiceProfile type.
-func (a *App) ListBrandProfiles(workspaceSlug string) (json.RawMessage, error) {
+func (a *App) ListVoiceProfiles(workspaceSlug string) (json.RawMessage, error) {
 	var out json.RawMessage
-	if err := a.govRequest(http.MethodGet, brandProfilesPath(workspaceSlug), nil, &out); err != nil {
+	if err := a.govRequest(http.MethodGet, voiceProfilesPath(workspaceSlug), nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// GetBrandProfile returns a single brand voice profile.
-func (a *App) GetBrandProfile(workspaceSlug, profileID string) (json.RawMessage, error) {
+// GetVoiceProfile returns a single voice profile.
+func (a *App) GetVoiceProfile(workspaceSlug, profileID string) (json.RawMessage, error) {
 	var out json.RawMessage
-	path := brandProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID)
+	path := voiceProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID)
 	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// GetBrandScores returns stored brand-compliance scores for a project.
-func (a *App) GetBrandScores(workspaceSlug, projectID string) (json.RawMessage, error) {
+// GetVoiceScores returns stored brand-compliance scores for a project.
+func (a *App) GetVoiceScores(workspaceSlug, projectID string) (json.RawMessage, error) {
 	var out json.RawMessage
-	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/brand-voice/main/scores"
+	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/voice/main/scores"
 	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// GetBrandTrends returns brand-compliance score trends for a project.
-func (a *App) GetBrandTrends(workspaceSlug, projectID string) (json.RawMessage, error) {
+// GetVoiceTrends returns brand-compliance score trends for a project.
+func (a *App) GetVoiceTrends(workspaceSlug, projectID string) (json.RawMessage, error) {
 	var out json.RawMessage
-	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/brand-voice/main/trends"
+	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/voice/main/trends"
 	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (a *App) GetSuggestedRules(workspaceSlug, profileID string, minCount int, a
 	if all {
 		q.Set("all", "true")
 	}
-	path := brandProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/candidates"
+	path := voiceProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/candidates"
 	if qs := q.Encode(); qs != "" {
 		path += "?" + qs
 	}
@@ -256,7 +256,7 @@ func (a *App) GetSuggestedRules(workspaceSlug, profileID string, minCount int, a
 
 // PromoteRule hardens a candidate rule into an enforced check on the profile.
 func (a *App) PromoteRule(workspaceSlug, profileID string, rule CandidateRuleArgs) (json.RawMessage, error) {
-	path := brandProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/promote-rule"
+	path := voiceProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/promote-rule"
 	var out json.RawMessage
 	if err := a.govRequest(http.MethodPost, path, rule, &out); err != nil {
 		return nil, err
@@ -266,14 +266,14 @@ func (a *App) PromoteRule(workspaceSlug, profileID string, rule CandidateRuleArg
 
 // RejectRule rejects a candidate rule so it stops re-surfacing.
 func (a *App) RejectRule(workspaceSlug, profileID string, rule CandidateRuleArgs) error {
-	path := brandProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/reject-rule"
+	path := voiceProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/reject-rule"
 	return a.govRequest(http.MethodPost, path, rule, nil)
 }
 
 // EvaluateRule computes the blast radius of promoting a candidate rule across a
 // project's content (how many blocks it newly flags / resolves, per collection).
 func (a *App) EvaluateRule(workspaceSlug, profileID string, req EvaluateRuleArgs) (json.RawMessage, error) {
-	path := brandProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/evaluate-rule"
+	path := voiceProfilesPath(workspaceSlug) + "/" + url.PathEscape(profileID) + "/evaluate-rule"
 	var out json.RawMessage
 	if err := a.govRequest(http.MethodPost, path, req, &out); err != nil {
 		return nil, err
@@ -281,8 +281,8 @@ func (a *App) EvaluateRule(workspaceSlug, profileID string, req EvaluateRuleArgs
 	return out, nil
 }
 
-// GetBrandDrift returns the brand-compliance drift analysis for a project.
-func (a *App) GetBrandDrift(workspaceSlug, projectID string, recentDays, minScore, dropPoints int) (json.RawMessage, error) {
+// GetVoiceDrift returns the brand-compliance drift analysis for a project.
+func (a *App) GetVoiceDrift(workspaceSlug, projectID string, recentDays, minScore, dropPoints int) (json.RawMessage, error) {
 	q := url.Values{}
 	if recentDays > 0 {
 		q.Set("recent_days", strconv.Itoa(recentDays))
@@ -293,7 +293,7 @@ func (a *App) GetBrandDrift(workspaceSlug, projectID string, recentDays, minScor
 	if dropPoints > 0 {
 		q.Set("drop_points", strconv.Itoa(dropPoints))
 	}
-	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/brand-voice/main/drift"
+	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/voice/main/drift"
 	if qs := q.Encode(); qs != "" {
 		path += "?" + qs
 	}
@@ -304,9 +304,9 @@ func (a *App) GetBrandDrift(workspaceSlug, projectID string, recentDays, minScor
 	return out, nil
 }
 
-// BrandRollupArgs selects the rollup page and the drift window. Zero fields are
+// VoiceRollupArgs selects the rollup page and the drift window. Zero fields are
 // omitted, leaving the server's defaults in force.
-type BrandRollupArgs struct {
+type VoiceRollupArgs struct {
 	Limit      int `json:"limit"`
 	Offset     int `json:"offset"`
 	RecentDays int `json:"recentDays"`
@@ -315,18 +315,18 @@ type BrandRollupArgs struct {
 	Days       int `json:"days"`
 }
 
-// BrandRollupResult is the workspace brand-compliance rollup the desktop
+// VoiceRollupResult is the workspace brand-compliance rollup the desktop
 // returns: the server's page verbatim, plus Offline distinguishing "no server
 // to ask" from "no projects scored".
-type BrandRollupResult struct {
-	Projects []apiclient.BrandRollupEntry `json:"projects"`
+type VoiceRollupResult struct {
+	Projects []apiclient.VoiceRollupEntry `json:"projects"`
 	Total    int                          `json:"total"`
 	Limit    int                          `json:"limit"`
 	Offset   int                          `json:"offset"`
 	Offline  bool                         `json:"offline"`
 }
 
-// GetBrandRollup returns the workspace brand-compliance rollup from the
+// GetVoiceRollup returns the workspace brand-compliance rollup from the
 // connected server.
 //
 // The rollup is the server's aggregation: it reads stored per-project scores
@@ -335,9 +335,9 @@ type BrandRollupResult struct {
 // from per-project reads produces a different board — a blank profile column
 // and a trend derived from a different window — so offline this returns the
 // empty rollup marked Offline rather than a locally computed one.
-func (a *App) GetBrandRollup(workspaceSlug string, args BrandRollupArgs) (BrandRollupResult, error) {
+func (a *App) GetVoiceRollup(workspaceSlug string, args VoiceRollupArgs) (VoiceRollupResult, error) {
 	if !a.isConnected() {
-		return BrandRollupResult{Projects: []apiclient.BrandRollupEntry{}, Offline: true}, nil
+		return VoiceRollupResult{Projects: []apiclient.VoiceRollupEntry{}, Offline: true}, nil
 	}
 
 	q := url.Values{}
@@ -353,14 +353,14 @@ func (a *App) GetBrandRollup(workspaceSlug string, args BrandRollupArgs) (BrandR
 			q.Set(name, strconv.Itoa(v))
 		}
 	}
-	path := withQuery("/api/v1/"+url.PathEscape(workspaceSlug)+"/brand-voice/rollup", q)
+	path := withQuery("/api/v1/"+url.PathEscape(workspaceSlug)+"/voice/rollup", q)
 
-	var out BrandRollupResult
+	var out VoiceRollupResult
 	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
-		return BrandRollupResult{}, err
+		return VoiceRollupResult{}, err
 	}
 	if out.Projects == nil {
-		out.Projects = []apiclient.BrandRollupEntry{}
+		out.Projects = []apiclient.VoiceRollupEntry{}
 	}
 	return out, nil
 }

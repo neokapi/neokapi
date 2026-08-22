@@ -54,7 +54,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	assert.Equal(t, "my-app", state.Project.ID)
 
 	// Default init scaffolds an on-brand content project: source language set,
-	// no target languages, a brand-voice pack bound under defaults:, and a check
+	// no target languages, a voice pack bound under defaults:, and a check
 	// flow on the deterministic voice-vocabulary check. Terminology needs no
 	// binding — the vocabulary lives in the project's own store.
 	p, err := project.Load(recipe)
@@ -101,7 +101,7 @@ func TestInitCmd_translationScaffold(t *testing.T) {
 
 	// Recipe loads with source/target locales populated under defaults: — the
 	// schema the loader actually reads (not top-level sourceLocale). The
-	// translation scaffold does not bind a brand-voice pack.
+	// translation scaffold does not bind a voice pack.
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	p, err := project.Load(recipe)
 	require.NoError(t, err)

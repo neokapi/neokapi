@@ -1,4 +1,4 @@
-// Coverage panels for the Brand dashboard (AD-021): how much brand language
+// Coverage panels for the Voice dashboard (AD-021): how much brand language
 // exists and how completely it spans the workspace. Three self-contained cards —
 // vocabulary by lifecycle status, per-locale completeness, and the markets a
 // workspace has defined.

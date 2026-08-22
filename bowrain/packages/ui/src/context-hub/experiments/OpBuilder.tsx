@@ -38,7 +38,7 @@ import type {
 import { RELATION_TYPES } from "../../types/brand-graph";
 import { relationLabel } from "../shell/atoms";
 import { useConcepts } from "../../hooks/useConceptsApi";
-import { useBrandProfiles } from "../../hooks/useBrandApi";
+import { useVoiceProfiles } from "../../hooks/useVoiceApi";
 import { useAppendChangesetOp } from "../../hooks/useChangesetsApi";
 
 type ActionId = "ban" | "prefer" | "relation" | "voice-add" | "voice-remove" | "edit-concept";
@@ -356,7 +356,7 @@ function RelationForm({ busy, error, onSubmit }: FormProps) {
 const VOICE_LISTS: VoiceRuleList[] = ["preferred", "forbidden", "competitor"];
 
 function VoiceRuleForm({ mode, busy, error, onSubmit }: FormProps & { mode: "add" | "remove" }) {
-  const { data: profiles, isLoading } = useBrandProfiles();
+  const { data: profiles, isLoading } = useVoiceProfiles();
   const [profileId, setProfileId] = useState("");
   const [list, setList] = useState<VoiceRuleList>(mode === "add" ? "forbidden" : "forbidden");
   const [term, setTerm] = useState("");

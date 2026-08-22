@@ -76,7 +76,7 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
   const types = useMemo(() => typePrefixesFor(enabled), [enabled]);
 
   const feedQuery = useInfiniteQuery({
-    queryKey: ["brand-activities", ws, types],
+    queryKey: ["voice-activities", ws, types],
     queryFn: ({ pageParam }) =>
       api.listActivities(ws, {
         types,

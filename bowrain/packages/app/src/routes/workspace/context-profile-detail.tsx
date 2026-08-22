@@ -34,7 +34,7 @@ export function ContextProfileDetailRoute() {
       onOpenVoice={(profileId) => go("/$workspace/context/voice/$profileId", { profileId })}
       onOpenTerms={() => go("/$workspace/context/concepts")}
       onOpenChanges={() => go("/$workspace/context/changes")}
-      onScanBrand={contextScanAvailable ? () => go("/$workspace/context/scan") : undefined}
+      onScanVoice={contextScanAvailable ? () => go("/$workspace/context/scan") : undefined}
     />
   );
 }

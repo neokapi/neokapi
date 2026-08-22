@@ -30,8 +30,8 @@ describe("planInvalidations → query-key mapping", () => {
     { type: "stream.merged", expectIncludes: ["project"] },
     { type: "task.assigned", expectIncludes: ["tasks", "myTasks"] },
     { type: "member.added", expectIncludes: ["members", "project"] },
-    { type: "brand.profile.updated", expectIncludes: ["brand-candidates", "brand-profiles"] },
-    { type: "brand.voice.drift", expectIncludes: ["brand-drift"] },
+    { type: "voice.profile.updated", expectIncludes: ["voice-candidates", "voice-profiles"] },
+    { type: "voice.drift", expectIncludes: ["voice-drift"] },
     { type: "connector.sync.completed", expectIncludes: ["connectors", "project"] },
     { type: "flow.completed", expectIncludes: ["flows", "automation-runs"] },
     {

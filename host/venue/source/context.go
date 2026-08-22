@@ -49,7 +49,7 @@ type ContextPullResult struct {
 
 // applyPulledContext records the pulled context on the sync cache and reports
 // what diverged. It writes nothing outside the cache: kapi.yaml is not touched,
-// the local brand store is not touched, and the profile a run resolves is
+// the local voice store is not touched, and the profile a run resolves is
 // exactly the one the recipe binds — before this call and after it.
 func (c *BowrainSourceConnector) applyPulledContext(ctx context.Context, entries []*pb.SyncContextEntry) *ContextPullResult {
 	result := &ContextPullResult{}

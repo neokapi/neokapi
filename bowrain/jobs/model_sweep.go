@@ -95,7 +95,7 @@ type SweepFixture struct {
 // order so a project rich in one trap kind still fills the budget.
 const (
 	maxSweepFixtures      = 24
-	sweepGlossaryQuota    = 10
+	sweepTermsQuota       = 10
 	sweepVoiceQuota       = 10
 	sweepDNTQuota         = 4
 	sweepMaxSourceLen     = 500 // skip very long segments; traps are short by nature
@@ -167,7 +167,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 	}
 
 	// Pass 1 — balanced quotas per trap kind.
-	quota := map[string]int{"glossary": sweepGlossaryQuota, "voice": sweepVoiceQuota, "dnt": sweepDNTQuota}
+	quota := map[string]int{"glossary": sweepTermsQuota, "voice": sweepVoiceQuota, "dnt": sweepDNTQuota}
 	counts := map[string]int{}
 	selected := map[string]bool{}
 	var fixtures []SweepFixture
@@ -397,13 +397,13 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 
 // resolveSweepContext captures the project's standing brand context for a
 // sweep, via the very same resolution the translation worker binds into every
-// AI job (#1334): the brandscope profile ladder, the workspace terms
+// AI job (#1334): the voicescope profile ladder, the workspace terms
 // glossary, and the project's DNT terms.
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
 	return &SweepContext{
-		Profile:  resolveJobBrandProfile(ctx, deps, job),
+		Profile:  resolveJobVoiceProfile(ctx, deps, job),
 		Glossary: resolveJobGlossary(ctx, deps, job, srcLocale, tgtLocale),
 		DNT:      ProjectDNTTerms(proj),
 	}

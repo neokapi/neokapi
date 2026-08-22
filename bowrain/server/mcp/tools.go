@@ -12,7 +12,7 @@ import (
 
 // Phase 1 tools: check_vocabulary, list_profiles, get_voice_guide.
 
-// registerPhase1Tools registers the basic brand voice tools.
+// registerPhase1Tools registers the basic voice tools.
 func (s *MCPServer) registerPhase1Tools() {
 	// check_vocabulary — validate text against brand terms.
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -20,7 +20,7 @@ func (s *MCPServer) registerPhase1Tools() {
 		Description: "Check text against the vocabulary rules the governing profile holds. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it — this reports what a rule caught after the fact.",
 	}, s.handleCheckVocabulary)
 
-	// list_profiles — list available brand voice profiles in a workspace.
+	// list_profiles — list available voice profiles in a workspace.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_profiles",
 		Description: "Context discovery: list the profiles this workspace holds — the named bundles of coordinates content is written under (audience, surface, register, market). Start here when you do not yet know which profile governs the content at hand.",
@@ -35,7 +35,7 @@ func (s *MCPServer) registerPhase1Tools() {
 
 // checkVocabularyInput is the input for the check_vocabulary tool.
 type checkVocabularyInput struct {
-	ProfileID string `json:"profile_id" jsonschema:"the brand voice profile ID to check against"`
+	ProfileID string `json:"profile_id" jsonschema:"the voice profile ID to check against"`
 	Text      string `json:"text" jsonschema:"the text to validate"`
 	Locale    string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
 }
@@ -107,7 +107,7 @@ func (s *MCPServer) handleListProfiles(ctx context.Context, req *mcp.CallToolReq
 
 // getVoiceGuideInput is the input for the get_voice_guide tool.
 type getVoiceGuideInput struct {
-	ProfileID string `json:"profile_id" jsonschema:"the brand voice profile ID"`
+	ProfileID string `json:"profile_id" jsonschema:"the voice profile ID"`
 	Locale    string `json:"locale,omitempty" jsonschema:"optional locale for locale-specific overrides"`
 	Channel   string `json:"channel,omitempty" jsonschema:"optional channel for channel-specific overrides"`
 }

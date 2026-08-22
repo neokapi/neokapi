@@ -29,7 +29,7 @@ func ioKey(f schema.IOPort) string { return portKey(f.Type, f.Side) }
 // from extract, and any terms/entities/alt-translations persisted with the
 // source. They are assumed available when the flow does not pin its source
 // binding (the source is supplied at invocation). Tool-computed port (qa,
-// tm-match, comparison, counts, brand-voice, …) are deliberately NOT here: they
+// tm-match, comparison, counts, voice, …) are deliberately NOT here: they
 // must be produced by an upstream tool.
 func sourceDerivablePorts() map[string]bool {
 	return map[string]bool{

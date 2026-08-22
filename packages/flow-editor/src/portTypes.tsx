@@ -244,12 +244,12 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
   },
   voice: {
     get label() {
-      return t("Brand voice", "port type");
+      return t("Voice", "port type");
     },
     family: "suggestion",
     icon: Megaphone,
     get description() {
-      return t("Brand-voice findings and rewrites.");
+      return t("Voice findings and rewrites.");
     },
   },
   comparison: {

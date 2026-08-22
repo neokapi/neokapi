@@ -32,11 +32,11 @@ type ActionConfig = schema.ActionConfig
 // AssetsSpec controls project-wide media asset sync behavior.
 type AssetsSpec = schema.AssetsSpec
 
-// BrandVoiceSpec holds brand voice profile bindings for a project.
-type BrandVoiceSpec = schema.BrandVoiceSpec
+// VoiceSpec holds voice profile bindings for a project.
+type VoiceSpec = schema.VoiceSpec
 
-// BrandVoiceEntry is a per-scope brand voice binding.
-type BrandVoiceEntry = schema.BrandVoiceEntry
+// VoiceEntry is a per-scope voice binding.
+type VoiceEntry = schema.VoiceEntry
 
 // ProjectURLInfo holds the parts extracted from a compound project URL.
 type ProjectURLInfo = schema.ProjectURLInfo
@@ -95,7 +95,7 @@ type Recipe struct {
 	Hooks       HooksSpec        `yaml:"hooks,omitempty" json:"hooks,omitempty"`
 	Automations []AutomationSpec `yaml:"automations,omitempty" json:"automations,omitempty"`
 	Assets      *AssetsSpec      `yaml:"assets,omitempty" json:"assets,omitempty"`
-	BrandVoice  *BrandVoiceSpec  `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
+	BrandVoice  *VoiceSpec       `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
 }
 
 // LoadRecipe reads a *.kapi file and decodes both framework and bowrain

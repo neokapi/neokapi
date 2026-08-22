@@ -135,7 +135,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
               },
             },
             {
-              tool: "brand-vocab-check",
+              tool: "voice-vocab-check",
               get label() {
                 return t("Brand Check", "flow step label");
               },
@@ -188,7 +188,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
               },
             },
             {
-              tool: "brand-vocab-check",
+              tool: "voice-vocab-check",
               get label() {
                 return t("Brand Check", "flow step label");
               },

@@ -20,7 +20,7 @@ const (
 	PermManageAutomation                        // Create/edit automation rules
 	PermManageMembers                           // Add/remove project members
 	PermManageProject                           // Edit project settings, archive
-	PermManageVoice                             // Edit brand voice profiles
+	PermManageVoice                             // Edit voice profiles
 	PermManageAssets                            // Upload/delete media assets
 	PermAuditRead                               // Read the audit log
 	PermRollbackChanges                         // Roll back / restore content to a prior state

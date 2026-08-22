@@ -118,14 +118,14 @@ const (
 	EventItemCreated EventType = "item.created"
 	EventItemDeleted EventType = "item.deleted"
 
-	// Brand voice events
-	EventBrandVoiceCheckStarted   EventType = "brand.voice.check.started"
-	EventBrandVoiceCheckCompleted EventType = "brand.voice.check.completed"
-	EventBrandVoiceGateFailed     EventType = "brand.voice.gate.failed"
-	EventBrandVoiceGatePassed     EventType = "brand.voice.gate.passed"
-	EventBrandVoiceDrift          EventType = "brand.voice.drift"
-	EventBrandVoiceCorrected      EventType = "brand.voice.corrected"
-	EventBrandProfileUpdated      EventType = "brand.profile.updated"
+	// Voice events
+	EventVoiceCheckStarted   EventType = "voice.check.started"
+	EventVoiceCheckCompleted EventType = "voice.check.completed"
+	EventVoiceGateFailed     EventType = "voice.gate.failed"
+	EventVoiceGatePassed     EventType = "voice.gate.passed"
+	EventVoiceDrift          EventType = "voice.drift"
+	EventVoiceCorrected      EventType = "voice.corrected"
+	EventVoiceProfileUpdated EventType = "voice.profile.updated"
 
 	// Workflow events (Bowrain AD-014)
 	EventPushAutomationsCompleted EventType = "push.automations.completed"

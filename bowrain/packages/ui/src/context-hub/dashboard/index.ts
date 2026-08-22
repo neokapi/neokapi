@@ -1,3 +1,3 @@
-export { BrandDashboardView } from "./BrandDashboardView";
-export type { BrandDashboardViewProps } from "./BrandDashboardView";
+export { VoiceDashboardView } from "./VoiceDashboardView";
+export type { VoiceDashboardViewProps } from "./VoiceDashboardView";
 export { RollupMatrix } from "./RollupMatrix";

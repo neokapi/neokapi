@@ -181,7 +181,7 @@ describe("LoopStatusRow", () => {
   it("fires the per-card open handlers", () => {
     const onOpenActivities = vi.fn();
     const onOpenTasks = vi.fn();
-    const onOpenBrandDashboard = vi.fn();
+    const onOpenVoiceDashboard = vi.fn();
     render(
       <LoopStatusRow
         status={{
@@ -191,7 +191,7 @@ describe("LoopStatusRow", () => {
         }}
         onOpenActivities={onOpenActivities}
         onOpenTasks={onOpenTasks}
-        onOpenBrandDashboard={onOpenBrandDashboard}
+        onOpenVoiceDashboard={onOpenVoiceDashboard}
       />,
     );
     fireEvent.click(screen.getByTestId("loop-card-activity"));
@@ -199,6 +199,6 @@ describe("LoopStatusRow", () => {
     fireEvent.click(screen.getByTestId("loop-card-brand"));
     expect(onOpenActivities).toHaveBeenCalledTimes(1);
     expect(onOpenTasks).toHaveBeenCalledTimes(1);
-    expect(onOpenBrandDashboard).toHaveBeenCalledTimes(1);
+    expect(onOpenVoiceDashboard).toHaveBeenCalledTimes(1);
   });
 });

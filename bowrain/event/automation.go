@@ -182,9 +182,14 @@ func chainDepth(causationID string) int {
 	return depth
 }
 
-// IsBrandVoiceEvent returns true if the event type is a brand voice event.
-func IsBrandVoiceEvent(t platev.EventType) bool {
-	return strings.HasPrefix(string(t), "brand.")
+// IsVoiceEvent reports whether an event type belongs to the voice family.
+//
+// Prefix, not a list, so an event added beside the others is routed without
+// this function being edited. It matches the CURRENT spelling only: a stored
+// event from before the rename keeps `brand.` in the audit log, and it is a
+// record of what happened rather than something still being routed.
+func IsVoiceEvent(t platev.EventType) bool {
+	return strings.HasPrefix(string(t), "voice.")
 }
 
 // NextCausationID increments the causation chain.

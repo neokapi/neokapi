@@ -19,7 +19,7 @@ import { getBlockStatus, getTargetText } from "../editor/blockStatus";
  * `passing` means the server will take this block in a bulk approve-passing
  * pass, and `failing` means it will not. The queue used to bucket on check
  * findings alone, because they were the only per-block evidence the payload
- * carried; the server applies two further bars (terminology and the brand voice
+ * carried; the server applies two further bars (terminology and the voice
  * score), so a "no failing checks" bucket over-counted by exactly the blocks
  * approve-passing then refused. The entries now carry all three, and this
  * mirrors shipstate.blockCompliantAndPassing over them.
@@ -85,7 +85,7 @@ export interface ReviewEntry {
    */
   termCompliance: TermCompliance;
   /**
-   * The latest persisted brand voice score for this block+locale, and the bar
+   * The latest persisted voice score for this block+locale, and the bar
    * of the profile that produced it. Absent together for a block that has never
    * been scored — the server applies no voice bar to it either.
    */

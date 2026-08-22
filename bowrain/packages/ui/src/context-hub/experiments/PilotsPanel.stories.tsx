@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { Decorator } from "@storybook/react";
 import { PilotsPanel } from "./PilotsPanel";
-import { withContextHub } from "../../stories/brandHubFixtures";
+import { withContextHub } from "../../stories/voiceHubFixtures";
 import type { ChangeSetDetail } from "../../types/brand-graph";
 
 const now = "2026-06-13T10:00:00Z";

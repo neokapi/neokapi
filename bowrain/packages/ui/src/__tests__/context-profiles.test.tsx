@@ -102,7 +102,7 @@ describe("ProfilesView", () => {
 
   it("offers both onboarding lanes at the front door of an empty workspace", async () => {
     renderWithProviders(
-      <ProfilesView onOpenProfile={vi.fn()} onScanBrand={vi.fn()} serverUrl="https://bw.example" />,
+      <ProfilesView onOpenProfile={vi.fn()} onScanVoice={vi.fn()} serverUrl="https://bw.example" />,
       adapterFor(emptyProfiles),
     );
 
@@ -121,14 +121,14 @@ describe("ProfilesView", () => {
   });
 
   it("fires the hosted scan from the landing empty state", async () => {
-    const onScanBrand = vi.fn();
+    const onScanVoice = vi.fn();
     renderWithProviders(
-      <ProfilesView onOpenProfile={vi.fn()} onScanBrand={onScanBrand} />,
+      <ProfilesView onOpenProfile={vi.fn()} onScanVoice={onScanVoice} />,
       adapterFor(emptyProfiles),
     );
 
     fireEvent.click(await screen.findByTestId("context-onboarding-scan-btn"));
-    expect(onScanBrand).toHaveBeenCalledTimes(1);
+    expect(onScanVoice).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the assistant lane when the server runs no hosted scan", async () => {

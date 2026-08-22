@@ -5,9 +5,9 @@
 // stored scores) and complements the per-project ComplianceOverview drill-down.
 import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { Activity, AlertTriangle, ArrowDown, ArrowRight, ArrowUp } from "../../components/icons";
-import type { BrandRollupEntry, BrandTrend } from "../../brand/types";
-import { useBrandProfiles, useBrandRollup } from "../../hooks/useBrandApi";
-import { DEFAULT_MIN_SCORE, barForProfile, scoreTextClass } from "../../brand/complianceBar";
+import type { VoiceRollupEntry, VoiceTrend } from "../../voice/types";
+import { useVoiceProfiles, useVoiceRollup } from "../../hooks/useVoiceApi";
+import { DEFAULT_MIN_SCORE, barForProfile, scoreTextClass } from "../../voice/complianceBar";
 import { EmptyState, formatRelative } from "../shell/atoms";
 
 export interface RollupMatrixProps {
@@ -16,8 +16,8 @@ export interface RollupMatrixProps {
 }
 
 export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
-  const { data, isLoading } = useBrandRollup();
-  const { data: profiles } = useBrandProfiles();
+  const { data, isLoading } = useVoiceRollup();
+  const { data: profiles } = useVoiceProfiles();
   const rows = data?.projects ?? [];
 
   return (
@@ -97,7 +97,7 @@ function RollupRow({
   bar = DEFAULT_MIN_SCORE,
   onOpenProject,
 }: {
-  row: BrandRollupEntry;
+  row: VoiceRollupEntry;
   /** The row's own profile bar — each project is judged against its own. */
   bar?: number;
   onOpenProject?: (projectId: string) => void;
@@ -159,7 +159,7 @@ function RollupRow({
   );
 }
 
-function TrendCell({ trend }: { trend: BrandTrend }) {
+function TrendCell({ trend }: { trend: VoiceTrend }) {
   switch (trend) {
     case "up":
       return (

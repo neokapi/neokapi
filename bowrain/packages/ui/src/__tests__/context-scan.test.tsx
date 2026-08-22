@@ -7,7 +7,7 @@ import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
 import type { Workspace, ContextScanJob } from "../types/api";
-import type { VoiceProfile } from "../brand/types";
+import type { VoiceProfile } from "../voice/types";
 import { ContextScanInput } from "../context-scan/ContextScanInput";
 import { ContextScanProgress } from "../context-scan/ContextScanProgress";
 import { ContextScanReview } from "../context-scan/ContextScanReview";
@@ -186,7 +186,7 @@ describe("ContextScanProgress", () => {
 describe("ContextScanReview", () => {
   function reviewAdapter(): {
     adapter: MockAdapter;
-    createBrandProfile: ReturnType<typeof vi.fn>;
+    createVoiceProfile: ReturnType<typeof vi.fn>;
     createConcept: ReturnType<typeof vi.fn>;
   } {
     const adapter = createMockAdapter();
@@ -195,16 +195,16 @@ describe("ContextScanReview", () => {
       id: "prof-created",
       name: "Edited Voice",
     };
-    const createBrandProfile = vi.fn().mockResolvedValue(created);
+    const createVoiceProfile = vi.fn().mockResolvedValue(created);
     const createConcept = vi.fn().mockImplementation(async (_ws: string, req: unknown) => ({
       id: "c-new",
       ...(req as object),
       created_at: "",
       updated_at: "",
     }));
-    adapter.createBrandProfile = createBrandProfile;
+    adapter.createVoiceProfile = createVoiceProfile;
     (adapter as unknown as Record<string, unknown>).createConcept = createConcept;
-    return { adapter, createBrandProfile, createConcept };
+    return { adapter, createVoiceProfile, createConcept };
   }
 
   it("renders per-field confidence badges with source attribution", () => {
@@ -225,7 +225,7 @@ describe("ContextScanReview", () => {
 
   it("approves with the edited draft and only the selected terms", async () => {
     const user = userEvent.setup();
-    const { adapter, createBrandProfile, createConcept } = reviewAdapter();
+    const { adapter, createVoiceProfile, createConcept } = reviewAdapter();
     const onApproved = vi.fn();
     renderWithProviders(
       <ContextScanReview draft={sampleContextScanDraft} onApproved={onApproved} />,
@@ -245,8 +245,8 @@ describe("ContextScanReview", () => {
     await user.click(screen.getByTestId(TEST_IDS.contextScan.approve));
 
     await waitFor(() => expect(onApproved).toHaveBeenCalledTimes(1));
-    expect(createBrandProfile).toHaveBeenCalledTimes(1);
-    const [ws, request] = createBrandProfile.mock.calls[0];
+    expect(createVoiceProfile).toHaveBeenCalledTimes(1);
+    const [ws, request] = createVoiceProfile.mock.calls[0];
     expect(ws).toBe("demo");
     expect(request.name).toBe("Edited Voice");
     expect(request.vocabulary).toEqual(sampleScanProfile.vocabulary);
@@ -279,7 +279,7 @@ describe("ContextScanReview", () => {
 // ---------------------------------------------------------------------------
 
 describe("ContextScanLiveTester", () => {
-  it("debounces checkBrandDraft and renders score + findings", async () => {
+  it("debounces checkVoiceDraft and renders score + findings", async () => {
     const user = userEvent.setup();
     const adapter = createMockAdapter();
     renderWithProviders(
@@ -293,11 +293,11 @@ describe("ContextScanLiveTester", () => {
 
     // Many keystrokes in quick succession must collapse into one check.
     await user.type(textarea!, "our synergy story");
-    await waitFor(() => expect(adapter.checkBrandDraftCalls).toHaveLength(1));
+    await waitFor(() => expect(adapter.checkVoiceDraftCalls).toHaveLength(1));
     // Give the debounce window time to prove no further calls fire.
     await new Promise((r) => setTimeout(r, 120));
-    expect(adapter.checkBrandDraftCalls).toHaveLength(1);
-    expect(adapter.checkBrandDraftCalls[0].text).toBe("our synergy story");
+    expect(adapter.checkVoiceDraftCalls).toHaveLength(1);
+    expect(adapter.checkVoiceDraftCalls[0].text).toBe("our synergy story");
 
     // The deterministic mock flags the forbidden term.
     expect(await screen.findByText("62")).toBeInTheDocument();

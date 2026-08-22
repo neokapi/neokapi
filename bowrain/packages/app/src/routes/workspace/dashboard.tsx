@@ -81,9 +81,9 @@ export function ProjectDashboardRoute() {
     ...myReviewTaskCountsQueryOptions(adapter, ws),
     enabled: hasProjects,
   });
-  const { data: brandRollup } = useQuery({
-    queryKey: ["brand-rollup", ws, {}],
-    queryFn: () => adapter.getBrandRollup(ws),
+  const { data: voiceRollup } = useQuery({
+    queryKey: ["voice-rollup", ws, {}],
+    queryFn: () => adapter.getVoiceRollup(ws),
     enabled: hasProjects,
     staleTime: 30_000,
   });
@@ -105,14 +105,14 @@ export function ProjectDashboardRoute() {
     const openReviewTasks = reviewTaskCounts?.total;
 
     let brand: LoopStatusData["brand"];
-    if (brandRollup) {
-      const scored = brandRollup.projects.filter((p) => p.overall !== null);
+    if (voiceRollup) {
+      const scored = voiceRollup.projects.filter((p) => p.overall !== null);
       brand = {
         averageScore: scored.length
           ? Math.round(scored.reduce((acc, p) => acc + (p.overall ?? 0), 0) / scored.length)
           : null,
         scoredProjects: scored.length,
-        driftingProjects: brandRollup.projects.filter(
+        driftingProjects: voiceRollup.projects.filter(
           (p) => p.drift?.drifted === true || p.trend === "down",
         ).length,
       };
@@ -151,7 +151,7 @@ export function ProjectDashboardRoute() {
       ship,
       brand,
     };
-  }, [hasProjects, activitiesData, reviewTaskCounts, brandRollup, loopRollup]);
+  }, [hasProjects, activitiesData, reviewTaskCounts, voiceRollup, loopRollup]);
 
   const invalidateProjects = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["projects", ws] });
@@ -217,7 +217,7 @@ export function ProjectDashboardRoute() {
     [ws, adapter, invalidateProjects],
   );
 
-  const handleScanBrand = useCallback(() => {
+  const handleScanVoice = useCallback(() => {
     void navigate({
       to: "/$workspace/context/scan",
       params: { workspace: workspace ?? ws },
@@ -284,7 +284,7 @@ export function ProjectDashboardRoute() {
     });
   }, [navigate, workspace, ws, loopRollup]);
 
-  const handleOpenBrandDashboard = useCallback(() => {
+  const handleOpenVoiceDashboard = useCallback(() => {
     void navigate({
       to: "/$workspace/context/dashboard",
       params: { workspace: workspace ?? ws },
@@ -311,7 +311,7 @@ export function ProjectDashboardRoute() {
         onArchiveProject={setArchiveProjectId}
         workspaceLanguages={activeWorkspace.languages}
         // Hosted-scan CTA only where the server runs the brand-scan job system.
-        onScanBrand={contextScanAvailable ? handleScanBrand : undefined}
+        onScanVoice={contextScanAvailable ? handleScanVoice : undefined}
         onInviteTeam={handleInviteTeam}
         serverUrl={platform.kind === "web" ? window.location.origin : undefined}
         loopStatus={loopStatus}
@@ -320,7 +320,7 @@ export function ProjectDashboardRoute() {
         onOpenTasks={handleOpenTasks}
         onOpenReview={handleOpenReviewInbox}
         onOpenDelivery={handleOpenDelivery}
-        onOpenBrandDashboard={handleOpenBrandDashboard}
+        onOpenVoiceDashboard={handleOpenVoiceDashboard}
       />
 
       <ConfirmDialog

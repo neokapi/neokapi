@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { Decorator } from "@storybook/react";
 import { ReviewsPanel } from "./ReviewsPanel";
-import { brandHubOverrides } from "../../stories/brandHubFixtures";
+import { voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 import type { ChangeSetDetail } from "../../types/brand-graph";
 import type { User } from "../../types/api";
@@ -29,7 +29,7 @@ function user(id: string): User {
 
 function withUser(id: string): Decorator {
   return createProvidersDecorator(undefined, {
-    ...brandHubOverrides,
+    ...voiceHubOverrides,
     getCurrentUser: async () => user(id),
   });
 }

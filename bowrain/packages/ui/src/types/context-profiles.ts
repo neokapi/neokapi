@@ -80,7 +80,7 @@ export interface ContextProfileTerms {
   concept_count: number;
 }
 
-/** The workspace's most recent brand scan. */
+/** The workspace's most recent context scan. */
 export interface ContextProfileScan {
   job_id: string;
   status: string;

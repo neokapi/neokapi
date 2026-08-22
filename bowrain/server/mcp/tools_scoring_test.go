@@ -34,10 +34,10 @@ func (f *scopeContentStore) ListProjects(_ context.Context) ([]*store.Project, e
 	return []*store.Project{f.project}, nil
 }
 
-// wsDefaultFunc adapts a func to brandscope.WorkspaceDefault.
+// wsDefaultFunc adapts a func to voicescope.WorkspaceDefault.
 type wsDefaultFunc func(ctx context.Context, workspaceID string) (string, error)
 
-func (f wsDefaultFunc) WorkspaceBrandProfileID(ctx context.Context, workspaceID string) (string, error) {
+func (f wsDefaultFunc) WorkspaceVoiceProfileID(ctx context.Context, workspaceID string) (string, error) {
 	return f(ctx, workspaceID)
 }
 
@@ -65,7 +65,7 @@ func TestScoreVoiceCompliance_ExplicitProfileWins(t *testing.T) {
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hex1",
 		Text:            "hello world",
-		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
+		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex1", out.Score.ProfileID, "explicit profile_id wins over the project binding")
@@ -80,7 +80,7 @@ func TestScoreVoiceCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) 
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
-		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
+		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex2", out.Score.ProfileID, "the project binding wins when no explicit profile is given")
@@ -92,7 +92,7 @@ func TestScoreVoiceCompliance_FallsThroughToWorkspaceDefault(t *testing.T) {
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
-		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
+		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex3", out.Score.ProfileID, "with no scope binding, the workspace default is used")
@@ -104,10 +104,10 @@ func TestScoreVoiceCompliance_NoProfileAnywhere(t *testing.T) {
 
 	_, _, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
-		brandScopeInput: brandScopeInput{ProjectID: "hex-proj"},
+		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
 	})
 	require.Error(t, err, "no profile bound at any level is an error, matching the prior empty-profile behavior")
-	assert.Contains(t, err.Error(), "no brand voice profile")
+	assert.Contains(t, err.Error(), "no voice profile")
 }
 
 // findingForTerm reports whether any finding was raised for the given term.
@@ -147,7 +147,7 @@ func TestScoreVoiceCompliance_PersonaRespected(t *testing.T) {
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hexP",
 		Text:            "utilize synergy today",
-		brandScopeInput: brandScopeInput{Persona: "jordan"},
+		voiceScopeInput: voiceScopeInput{Persona: "jordan"},
 	})
 	require.NoError(t, err)
 	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is always flagged")
@@ -173,7 +173,7 @@ func TestScoreVoiceCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T)
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID:       "hexP",
 		Text:            "utilize synergy today",
-		brandScopeInput: brandScopeInput{Persona: "nobody"},
+		voiceScopeInput: voiceScopeInput{Persona: "nobody"},
 	})
 	require.NoError(t, err)
 	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is still flagged")
@@ -192,7 +192,7 @@ func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		Text:            "hello world",
-		brandScopeInput: brandScopeInput{ProjectID: "hex-proj", Stream: "v2"},
+		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj", Stream: "v2"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex3", out.Score.ProfileID, "a stream binding wins over the project binding")

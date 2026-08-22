@@ -268,15 +268,15 @@ type PushOutput struct {
 	// ChangesetID names it and nothing new was created.
 	ChangesetUnchanged bool `json:"changeset_unchanged,omitempty"`
 
-	// Brand voice (the recipe-bound profile carried in the push's context
-	// content type and upserted by name on the server). BrandAction is
-	// carried | skipped | would-push (dry run); BrandVersion is the stored
+	// Voice (the recipe-bound profile carried in the push's context
+	// content type and upserted by name on the server). VoiceAction is
+	// carried | skipped | would-push (dry run); VoiceVersion is the stored
 	// version when a synchronous upsert reported one, and 0 when the version
 	// is the worker's to decide.
-	BrandProfile string `json:"brand_profile,omitempty"`
-	BrandAction  string `json:"brand_profile_action,omitempty"`
-	BrandVersion int    `json:"brand_profile_version,omitempty"`
-	BrandReason  string `json:"brand_profile_reason,omitempty"`
+	VoiceProfile string `json:"voice_profile,omitempty"`
+	VoiceAction  string `json:"voice_profile_action,omitempty"`
+	VoiceVersion int    `json:"voice_profile_version,omitempty"`
+	VoiceReason  string `json:"voice_profile_reason,omitempty"`
 
 	// UndeclaredCollections names recipe-owned collections the server holds
 	// that this push no longer declares. Reported so a recipe edit that drops
@@ -306,7 +306,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	o.formatAssets(w)
 	o.formatIngest(w)
 	o.formatConcepts(w)
-	o.FormatBrand(w)
+	o.FormatVoice(w)
 	o.formatUndeclared(w)
 	o.formatLoopStatus(w)
 	return nil
@@ -344,7 +344,7 @@ func (o PushOutput) formatIngest(w io.Writer) {
 	}
 }
 
-// FormatBrand appends the brand-profile line: what the push did with the
+// FormatVoice appends the voice profile line: what the push did with the
 // recipe-bound voice profile in the workspace brand hub. Silent when no
 // profile travelled. Exported so `kapi up`'s push phase renders the exact
 // same footer line.
@@ -352,17 +352,17 @@ func (o PushOutput) formatIngest(w io.Writer) {
 // The created/updated/unchanged wording the pre-context push used is gone
 // because the distinction is: the voice now travels inside the push and the
 // worker decides which of those it was, after the client has reported.
-func (o PushOutput) FormatBrand(w io.Writer) {
-	if o.BrandProfile == "" {
+func (o PushOutput) FormatVoice(w io.Writer) {
+	if o.VoiceProfile == "" {
 		return
 	}
-	switch o.BrandAction {
+	switch o.VoiceAction {
 	case "would-push":
-		fmt.Fprintf(w, "Would push brand profile %q to the workspace brand hub\n", o.BrandProfile)
+		fmt.Fprintf(w, "Would push voice profile %q to the workspace brand hub\n", o.VoiceProfile)
 	case "carried":
-		fmt.Fprintf(w, "Brand profile: %q carried to the workspace brand hub\n", o.BrandProfile)
+		fmt.Fprintf(w, "Voice profile: %q carried to the workspace brand hub\n", o.VoiceProfile)
 	case "skipped":
-		fmt.Fprintf(w, "Brand profile: %q not pushed (%s)\n", o.BrandProfile, o.BrandReason)
+		fmt.Fprintf(w, "Voice profile: %q not pushed (%s)\n", o.VoiceProfile, o.VoiceReason)
 	}
 }
 

@@ -33,7 +33,7 @@ export const AnalyticsEvents = {
   memberInviteSent: "member_invite_sent",
   /** A language was added to the workspace ({locale}). */
   localeAdded: "locale_added",
-  /** A brand-voice profile was saved ({mode}). */
+  /** A voice profile was saved ({mode}). */
   brandVoiceSaved: "brand_voice_saved",
   /**
    * A terms status change persisted ({status, locale}).

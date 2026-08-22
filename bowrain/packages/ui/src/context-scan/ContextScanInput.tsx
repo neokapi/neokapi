@@ -364,7 +364,7 @@ export function ContextScanInput({ onStarted, initialRequest }: ContextScanInput
               id="context-scan-profile-name"
               value={profileName}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileName(e.target.value)}
-              placeholder="e.g. Acme Brand Voice"
+              placeholder="e.g. Acme Voice"
             />
           </div>
           <div className="space-y-1.5">

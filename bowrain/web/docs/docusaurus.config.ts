@@ -209,7 +209,7 @@ const config: Config = {
           { from: "/notes/index", to: "/developer/server" },
           { from: "/notes/admin-control-plane", to: "/server/configuration" },
           { from: "/notes/automation-run-visibility", to: "/server/automation" },
-          { from: "/notes/brand-voice-data-model", to: "/server/context-voice" },
+          { from: "/notes/voice-data-model", to: "/server/context-voice" },
           { from: "/notes/bravo-agent-implementation", to: "/server/web-overview" },
           { from: "/notes/cli-commands-reference", to: "/cli/overview" },
           { from: "/notes/connector-interfaces", to: "/developer/connectors" },
@@ -229,7 +229,7 @@ const config: Config = {
           // linked and indexed, so they resolve rather than 404.
           { from: "/server/brand", to: "/server/context" },
           { from: "/server/brand-scan", to: "/server/context-scan" },
-          { from: "/server/brand-voice", to: "/server/context-voice" },
+          { from: "/server/voice", to: "/server/context-voice" },
         ],
       },
     ],

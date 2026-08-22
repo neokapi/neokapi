@@ -64,7 +64,7 @@ const useCopyToClipboard = ({
         setTimeout(() => setIsCopied(false), copiedDuration);
       })
       .catch(() => {
-        // See BrandMCPGuide: a refused clipboard write must not leave the
+        // See VoiceMCPGuide: a refused clipboard write must not leave the
         // button claiming it succeeded.
         setIsCopied(false);
       });

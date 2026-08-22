@@ -11,8 +11,8 @@ import { Layers, Sparkles } from "../../components/icons";
 export interface ProfilesViewProps {
   /** Opens one profile. */
   onOpenProfile: (slug: string) => void;
-  /** Opens the hosted brand scan. Omitted when the server runs no scan jobs. */
-  onScanBrand?: () => void;
+  /** Opens the hosted context scan. Omitted when the server runs no scan jobs. */
+  onScanVoice?: () => void;
   /** Server origin folded into the onboarding prompt (web shells). */
   serverUrl?: string;
 }
@@ -21,7 +21,7 @@ export interface ProfilesViewProps {
  * The Context hub's landing view: one card per governance profile — every point
  * the workspace's content occupies, and what governs each.
  */
-export function ProfilesView({ onOpenProfile, onScanBrand, serverUrl }: ProfilesViewProps) {
+export function ProfilesView({ onOpenProfile, onScanVoice, serverUrl }: ProfilesViewProps) {
   const { data, isLoading, error } = useContextProfiles();
   const { activeWorkspace } = useWorkspace();
 
@@ -54,8 +54,8 @@ export function ProfilesView({ onOpenProfile, onScanBrand, serverUrl }: Profiles
       description="Every point your content sits at, and what governs it."
       width="wide"
       actions={
-        onScanBrand && (
-          <Button variant="outline" size="sm" onClick={onScanBrand}>
+        onScanVoice && (
+          <Button variant="outline" size="sm" onClick={onScanVoice}>
             <Sparkles className="mr-1.5 size-3.5" /> Scan your brand
           </Button>
         )
@@ -79,7 +79,7 @@ export function ProfilesView({ onOpenProfile, onScanBrand, serverUrl }: Profiles
           <ContextOnboarding
             workspaceName={activeWorkspace?.name}
             serverUrl={serverUrl}
-            onScanBrand={onScanBrand}
+            onScanVoice={onScanVoice}
           />
         ) : (
           declaredPoints.length === 0 && (

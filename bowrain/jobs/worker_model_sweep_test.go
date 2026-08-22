@@ -44,7 +44,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		wsID      = "ws-sweep"
 	)
 
-	// Brand voice profile bound at the project rung: a competitor term makes
+	// Voice profile bound at the project rung: a competitor term makes
 	// vocabulary measurable; the profile itself is part of the fixture digest.
 	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)

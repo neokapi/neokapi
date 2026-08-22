@@ -217,10 +217,10 @@ func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore
 		n.Category = string(bstore.CategoryQuality)
 		n.Priority = "high"
 
-	case platev.EventBrandVoiceDrift:
+	case platev.EventVoiceDrift:
 		n.Type = bstore.NotificationVoiceDrift
-		n.Title = "Brand voice drift detected"
-		n.Body = "Content has drifted from the brand voice guidelines"
+		n.Title = "Voice drift detected"
+		n.Body = "Content has drifted from the voice guidelines"
 		n.Category = string(bstore.CategoryQuality)
 
 	case platev.EventExtractionCompleted:

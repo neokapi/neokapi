@@ -213,7 +213,7 @@ const loopStatusAllClear: LoopStatusData = {
 /**
  * First run (0 projects): the assistant-driven starter-pack hero with the
  * copyable prompt, the create/import card with its drop affordance, and the
- * invite-team card. Hosted brand scan is offered as the no-agent fallback.
+ * invite-team card. Hosted context scan is offered as the no-agent fallback.
  */
 export const Empty: Story = {
   args: {
@@ -221,14 +221,14 @@ export const Empty: Story = {
     onCreateProject: fn(),
     onOpenProject: fn(),
     onCreateSampleProject: fn(),
-    onScanBrand: fn(),
+    onScanVoice: fn(),
     onInviteTeam: fn(),
     workspaceName: "My Workspace",
     serverUrl: "https://app.bowrain.cloud",
   },
 };
 
-/** First run without sample project, brand scan, or invite wiring (minimal shell). */
+/** First run without sample project, context scan, or invite wiring (minimal shell). */
 export const EmptyNoSample: Story = {
   args: {
     projects: [],
@@ -260,7 +260,7 @@ export const WithProjects: Story = {
     onOpenRuns: fn(),
     onOpenTasks: fn(),
     onOpenDelivery: fn(),
-    onOpenBrandDashboard: fn(),
+    onOpenVoiceDashboard: fn(),
   },
 };
 
@@ -274,7 +274,7 @@ export const LoopAllClear: Story = {
     loopStatus: loopStatusAllClear,
     onOpenActivities: fn(),
     onOpenTasks: fn(),
-    onOpenBrandDashboard: fn(),
+    onOpenVoiceDashboard: fn(),
   },
 };
 
@@ -284,7 +284,7 @@ export const ManyProjects: Story = {
     loopStatus,
     onOpenActivities: fn(),
     onOpenTasks: fn(),
-    onOpenBrandDashboard: fn(),
+    onOpenVoiceDashboard: fn(),
     projects: [
       sampleProject,
       marketingProject,

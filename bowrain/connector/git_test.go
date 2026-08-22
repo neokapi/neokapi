@@ -137,7 +137,7 @@ func TestNewGitConnectorAcceptsSafeConfig(t *testing.T) {
 }
 
 // TestNewGitConnectorHardeningConfig: the shallow / no-redirect knobs used by
-// one-shot harvesters (the brand scan) parse into the expected clone behavior
+// one-shot harvesters (the context scan) parse into the expected clone behavior
 // and stay off by default.
 func TestNewGitConnectorHardeningConfig(t *testing.T) {
 	reg := registry.NewFormatRegistry()

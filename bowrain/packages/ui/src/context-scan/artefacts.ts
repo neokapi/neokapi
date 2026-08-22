@@ -1,4 +1,4 @@
-import type { VoiceProfile } from "../brand/types";
+import type { VoiceProfile } from "../voice/types";
 import type {
   ContextScanArtefact,
   ContextScanAxis,

@@ -398,7 +398,7 @@ func (s *SQLiteStore) StoreScore(ctx context.Context, score *coreprofile.StoredS
 
 // GetScores returns the persisted scores for a project, newest first. An empty
 // locale means ALL locales — the project-wide read the score endpoints and the
-// brand rollup use — not "rows stored with an empty locale".
+// voice rollup use — not "rows stored with an empty locale".
 func (s *SQLiteStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	query := `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
 		 FROM voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`

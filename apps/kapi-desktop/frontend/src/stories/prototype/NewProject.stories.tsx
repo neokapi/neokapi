@@ -50,7 +50,7 @@ function NewProject() {
             icon={<ShieldCheck size={22} />}
             eyebrow="Content"
             title="Keep content on brand"
-            description="Brand voice and quality checks for content that stays in one language."
+            description="Voice and quality checks for content that stays in one language."
             selected={choice === "brand"}
             onClick={() => setChoice("brand")}
             chips={
@@ -60,7 +60,7 @@ function NewProject() {
             }
             footer={
               <ul className="space-y-1.5">
-                <ScaffoldItem>Brand voice profile (brand_voice)</ScaffoldItem>
+                <ScaffoldItem>Voice profile (brand_voice)</ScaffoldItem>
                 <ScaffoldItem>Brand &amp; terminology checks</ScaffoldItem>
                 <ScaffoldItem>Content collections</ScaffoldItem>
                 <ScaffoldItem muted>Target languages &amp; translation</ScaffoldItem>
@@ -87,7 +87,7 @@ function NewProject() {
                 <ScaffoldItem>Source &amp; target languages</ScaffoldItem>
                 <ScaffoldItem>Translate + QA flow</ScaffoldItem>
                 <ScaffoldItem>Content memory &amp; terms</ScaffoldItem>
-                <ScaffoldItem>Brand voice &amp; checks</ScaffoldItem>
+                <ScaffoldItem>Voice &amp; checks</ScaffoldItem>
               </ul>
             }
           />

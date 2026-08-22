@@ -21,7 +21,7 @@ import (
 //
 // Following "accept interfaces, return structs", the blast-radius engine depends
 // only on the narrow slices of the platform stores it actually calls. The real
-// PostgreSQL ContentStore, the framework terms, and the brand store satisfy
+// PostgreSQL ContentStore, the framework terms, and the voice store satisfy
 // these directly (or via thin adapters); tests inject in-memory fakes and the
 // framework in-memory terms so the whole read side runs without a database.
 // ---------------------------------------------------------------------------
@@ -60,11 +60,11 @@ type ConceptStore interface {
 	RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]terms.ConceptRelation, error)
 }
 
-// ProfileStore is the slice of the brand store the engine reads (and the merge
+// ProfileStore is the slice of the voice store the engine reads (and the merge
 // path writes) for voice impact. coreprofile.Store satisfies it.
 type ProfileStore interface {
 	// GetProfile returns a voice profile by ID, or a nil profile with a nil
-	// error when it is absent (following the brand store's convention).
+	// error when it is absent (following the voice store's convention).
 	GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error)
 	// ListProfiles returns the workspace's voice profiles.
 	ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error)
@@ -76,7 +76,7 @@ type ProfileStore interface {
 // Compile-time proof that the production stores satisfy the engine's interfaces,
 // so the read side runs against the real platform without adapters: the bowrain
 // ContentStore is a BlockSource and a CollectionResolver, the framework terms
-// store is a ConceptStore, and the brand store is a ProfileStore.
+// store is a ConceptStore, and the voice store is a ProfileStore.
 var (
 	_ BlockSource        = (store.ContentStore)(nil)
 	_ CollectionResolver = (store.ContentStore)(nil)

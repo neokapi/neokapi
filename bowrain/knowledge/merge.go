@@ -84,7 +84,7 @@ type conceptSnapshot struct {
 //     intervening edit (AD-021).
 //  3. Apply pass. Concept/term/relation ops are applied to the workspace
 //     terms in seq order via the shared applyTermsOp; voice ops are
-//     applied to the brand store, version-bumping each touched profile exactly
+//     applied to the voice store, version-bumping each touched profile exactly
 //     like AD-019 promotion. One immutable ConceptRevision is recorded per
 //     touched concept (snapshot, summary, actor, changeset_id).
 //  4. Finalize. The change-set is marked merged (store.SetMergeResult) and its
@@ -92,7 +92,7 @@ type conceptSnapshot struct {
 //     should fire are returned for the caller to publish; the engine never
 //     touches the event bus.
 //
-// Cross-store atomicity. The workspace terms, the brand store, and the
+// Cross-store atomicity. The workspace terms, the voice store, and the
 // knowledge store are three separate stores that share one PostgreSQL database
 // but are written here without a single enclosing transaction. The conflict
 // pre-check (step 2) makes stale-draft clobbering impossible, so the common
@@ -370,7 +370,7 @@ func loadReviews(ctx context.Context, store Store, workspaceID, changesetID stri
 	return reviews, nil
 }
 
-// isVoiceOp reports whether an op targets a brand profile rather than the
+// isVoiceOp reports whether an op targets a voice profile rather than the
 // terms.
 func isVoiceOp(o OpType) bool {
 	return o == OpVoiceRuleAdd || o == OpVoiceRuleRemove

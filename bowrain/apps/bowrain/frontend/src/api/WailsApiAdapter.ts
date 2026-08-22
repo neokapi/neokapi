@@ -75,8 +75,8 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
-  BrandRollup,
-  BrandRollupOptions,
+  VoiceRollup,
+  VoiceRollupOptions,
   ModelUsageResponse,
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
@@ -134,8 +134,8 @@ import type {
   StartPilotRequest,
   ReviewDemotion,
   ApprovePassingResult,
-  BrandCorrectionRequest,
-  BrandCorrectionResult,
+  VoiceCorrectionRequest,
+  VoiceCorrectionResult,
   ContextScanRequest,
   ContextScanUploadResult,
   ContextScanJob,
@@ -1091,11 +1091,11 @@ export class WailsApiAdapter implements ApiAdapter {
     // working copy signs off block-by-block via reviewBlock instead.
     throw new Error("bulk approve-passing is not available in the desktop app");
   }
-  async recordBrandCorrection(
+  async recordVoiceCorrection(
     _ws: string,
     _projectId: string,
-    _req: BrandCorrectionRequest,
-  ): Promise<BrandCorrectionResult> {
+    _req: VoiceCorrectionRequest,
+  ): Promise<VoiceCorrectionResult> {
     throw new Error("recording brand corrections is not available in the desktop app");
   }
   async listGroups(): Promise<Group[]> {
@@ -1154,7 +1154,7 @@ export class WailsApiAdapter implements ApiAdapter {
     return {};
   }
   async setRoleOverride(): Promise<void> {}
-  async demoteBrandRule(): Promise<void> {}
+  async demoteVoiceRule(): Promise<void> {}
 
   // --- Block notes (desktop: not yet backed by Wails bindings) ---
   async addBlockNote(
@@ -1374,7 +1374,7 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
 
-  // --- Brand Voice (proxied to the server's REST governance endpoints) ---
+  // --- Voice (proxied to the server's REST governance endpoints) ---
   async createProfileFromStarter(
     _ws: string,
     _pack: string,
@@ -1383,8 +1383,8 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Creating brand profiles is not available in the desktop app");
   }
 
-  async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
-    return Backend.ListBrandProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
+  async listVoiceProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
+    return Backend.ListVoiceProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
   }
   async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
     return Backend.ListContextProfiles(workspaceSlug) as Promise<ContextProfilesResponse>;
@@ -1409,42 +1409,42 @@ export class WailsApiAdapter implements ApiAdapter {
       status: judgement.status,
     }) as Promise<ChannelAliasProposal>;
   }
-  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
-    return Backend.GetBrandProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;
+  async getVoiceProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
+    return Backend.GetVoiceProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;
   }
-  async createBrandProfile(_ws: string, _data: CreateVoiceProfileRequest): Promise<VoiceProfile> {
+  async createVoiceProfile(_ws: string, _data: CreateVoiceProfileRequest): Promise<VoiceProfile> {
     // Authoring profiles is a web/MCP workflow; the desktop governance surface
     // is review (promote/reject/evaluate), not profile creation.
     throw new Error("Creating brand profiles is not available in the desktop app");
   }
-  async updateBrandProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
+  async updateVoiceProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
     throw new Error("Editing brand profiles is not available in the desktop app");
   }
-  async deleteBrandProfile(_ws: string, _profileId: string): Promise<void> {
+  async deleteVoiceProfile(_ws: string, _profileId: string): Promise<void> {
     throw new Error("Deleting brand profiles is not available in the desktop app");
   }
-  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
-    return Backend.GetBrandScores(workspaceSlug, projectId) as Promise<StoredScore[]>;
+  async getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
+    return Backend.GetVoiceScores(workspaceSlug, projectId) as Promise<StoredScore[]>;
   }
-  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
-    return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
+  async getVoiceTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
+    return Backend.GetVoiceTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
   }
-  async getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup> {
+  async getVoiceRollup(workspaceSlug: string, opts?: VoiceRollupOptions): Promise<VoiceRollup> {
     // The rollup is the server's aggregation: the effective profile comes from
     // a resolution ladder only the server can walk. Offline the backend answers
     // the empty rollup marked offline rather than a locally composed board.
-    const out = (await Backend.GetBrandRollup(workspaceSlug, {
+    const out = (await Backend.GetVoiceRollup(workspaceSlug, {
       limit: opts?.limit ?? 0,
       offset: opts?.offset ?? 0,
       recentDays: opts?.recentDays ?? 0,
       minScore: opts?.minScore ?? 0,
       dropPoints: opts?.dropPoints ?? 0,
       days: 0,
-    })) as BrandRollup;
+    })) as VoiceRollup;
     return { projects: out.projects ?? [], total: out.total, limit: out.limit, offset: out.offset };
   }
   // --- Correction-learning loop (AD-019, proxied to the server's REST endpoints) ---
-  async listBrandCandidates(
+  async listVoiceCandidates(
     workspaceSlug: string,
     profileId: string,
     opts?: { minCount?: number; all?: boolean },
@@ -1456,7 +1456,7 @@ export class WailsApiAdapter implements ApiAdapter {
       opts?.all ?? false,
     ) as Promise<CandidateRule[]>;
   }
-  async promoteBrandRule(
+  async promoteVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string; correction_count?: number },
@@ -1467,7 +1467,7 @@ export class WailsApiAdapter implements ApiAdapter {
       correction_count: rule.correction_count ?? 0,
     }) as Promise<{ promoted: boolean }>;
   }
-  async rejectBrandRule(
+  async rejectVoiceRule(
     workspaceSlug: string,
     profileId: string,
     rule: { term: string; replacement?: string },
@@ -1478,7 +1478,7 @@ export class WailsApiAdapter implements ApiAdapter {
       correction_count: 0,
     });
   }
-  async evaluateBrandRule(
+  async evaluateVoiceRule(
     workspaceSlug: string,
     profileId: string,
     req: {
@@ -1495,12 +1495,12 @@ export class WailsApiAdapter implements ApiAdapter {
       stream: req.stream ?? "",
     }) as Promise<BlastRadius>;
   }
-  async getBrandDrift(
+  async getVoiceDrift(
     workspaceSlug: string,
     projectId: string,
     opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
   ): Promise<DriftResult> {
-    return Backend.GetBrandDrift(
+    return Backend.GetVoiceDrift(
       workspaceSlug,
       projectId,
       opts?.recentDays ?? 0,
@@ -1509,7 +1509,7 @@ export class WailsApiAdapter implements ApiAdapter {
     ) as Promise<DriftResult>;
   }
 
-  // --- Brand scan (epic 016) — a server-side worker job; the desktop app
+  // --- Context scan (epic 016) — a server-side worker job; the desktop app
   // does not expose the hosted scan (the local kapi Agent Skill lane covers
   // local onboarding) ---
   async uploadContextScanSources(_ws: string, _files: File[]): Promise<ContextScanUploadResult> {
@@ -1528,7 +1528,7 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("not implemented in desktop app");
   }
 
-  async checkBrandDraft(
+  async checkVoiceDraft(
     _ws: string,
     _profile: VoiceProfile,
     _text: string,
@@ -1792,7 +1792,7 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Brand knowledge graph (AD-021) ---
   // The desktop app is a working copy of the server (AD-021): these proxy the
   // workspace REST surface through the Go backend's knowledge.go (Bearer
-  // keychain auth, govRequest), exactly like the Brand Voice methods above. The
+  // keychain auth, govRequest), exactly like the Voice methods above. The
   // graph is never authored offline. The backend returns json.RawMessage, which
   // the bindings surface untyped, so cast at the boundary to the typed shapes
   // the ApiAdapter promises. Ordinary concept terminology edits keep using the

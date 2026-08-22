@@ -31,7 +31,7 @@ export function ContextGovernanceProfilesRoute() {
     [navigate, ws],
   );
 
-  const handleScanBrand = useCallback(() => {
+  const handleScanVoice = useCallback(() => {
     void navigate({ to: "/$workspace/context/scan", params: { workspace: ws } });
   }, [navigate, ws]);
 
@@ -40,7 +40,7 @@ export function ContextGovernanceProfilesRoute() {
       onOpenProfile={handleOpenProfile}
       // Only servers running the brand-scan job system get the hosted-scan
       // action; the local lane (kapi Agent Skill) is always available.
-      onScanBrand={contextScanAvailable ? handleScanBrand : undefined}
+      onScanVoice={contextScanAvailable ? handleScanVoice : undefined}
       serverUrl={platform.kind === "web" ? window.location.origin : undefined}
     />
   );

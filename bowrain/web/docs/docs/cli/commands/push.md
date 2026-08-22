@@ -19,7 +19,7 @@ duties the [Context](/server/context#tiered-governance) hub enforces. Push repor
 what applied directly versus what was proposed, with a link to review the
 change-set.
 
-When the recipe binds a brand voice profile (`defaults.brand_voice`, or a
+When the recipe binds a voice profile (`defaults.voice`, or a
 `brand.yaml` at the project root), push also carries it into the workspace
 [Context](/server/context) hub, matched by profile name: created on first push, a
 no-op when the content is unchanged, and otherwise applied as a **new profile
@@ -60,7 +60,6 @@ kapi push --force
 | `--force`   | Push all blocks, ignoring sync cache      | `false` |
 | `--dry-run` | Show what would be pushed without sending | `false` |
 | `--concepts` | Sync only local terminology edits to the workspace (direct edits + governed change-set) — no content transport, no hooks | `false` |
-| `--no-brand` | Skip uploading the recipe-bound brand voice profile to the workspace brand hub | `false` |
 
 ## What Happens
 

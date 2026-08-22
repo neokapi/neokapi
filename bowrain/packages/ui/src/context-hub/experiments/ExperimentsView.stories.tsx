@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { Decorator } from "@storybook/react";
 import { fn } from "storybook/test";
 import { ExperimentsView } from "./ExperimentsView";
-import { withContextHub, brandHubOverrides } from "../../stories/brandHubFixtures";
+import { withContextHub, voiceHubOverrides } from "../../stories/voiceHubFixtures";
 import { createProvidersDecorator } from "../../stories/decorators";
 
 const pad: Decorator = (Story) => (
@@ -30,7 +30,7 @@ export const Default: Story = {
 /** Empty workspace — invites composing the first experiment. */
 export const Empty: Story = {
   decorators: [
-    createProvidersDecorator(undefined, { ...brandHubOverrides, listChangesets: async () => [] }),
+    createProvidersDecorator(undefined, { ...voiceHubOverrides, listChangesets: async () => [] }),
     pad,
   ],
 };

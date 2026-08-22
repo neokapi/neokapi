@@ -37,7 +37,7 @@ const EVENT_CATEGORIES: Record<string, { label: string; icon: typeof Package }> 
   connector: { label: "Connector", icon: Plug },
   version: { label: "Version", icon: Clock },
   flow: { label: "Flow", icon: ArrowRight },
-  brand: { label: "Brand Voice", icon: Sparkles },
+  brand: { label: "Voice", icon: Sparkles },
   quality: { label: "Quality", icon: Sparkles },
   extraction: { label: "Extraction", icon: Search },
   // Security & governance
@@ -76,8 +76,14 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   "extraction.completed": "Extraction completed",
   "quality.gate.pass": "Quality gate passed",
   "quality.gate.fail": "Quality gate failed",
-  "brand.voice.check.completed": "Brand voice check completed",
-  "brand.profile.updated": "Updated brand profile",
+  "voice.check.completed": "Voice check completed",
+  "voice.profile.updated": "Updated voice profile",
+  // The audit log is hash-chained over the event type, so rows recorded before
+  // the rename keep their spelling — rewriting them would read as tampering,
+  // which is what the chain exists to detect. Both spellings are labelled so a
+  // reader sees an event rather than a raw type.
+  "brand.voice.check.completed": "Voice check completed",
+  "brand.profile.updated": "Updated voice profile",
   "member.added": "Added member",
   "member.removed": "Removed member",
   "member.role_changed": "Changed member role",

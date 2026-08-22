@@ -223,7 +223,7 @@ async function ensureProject(
 
 async function ensureBrandProfile(ws: string, token: string, name: string): Promise<string> {
   const existing = listOf<BrandProfile>(
-    await jget(`/${ws}/brand-profiles`, token),
+    await jget(`/${ws}/voice-profiles`, token),
     "brand_profiles",
   );
   const match = existing.find((p) => p.name === name);
@@ -232,7 +232,7 @@ async function ensureBrandProfile(ws: string, token: string, name: string): Prom
     return match.id;
   }
   const p = await jpost<BrandProfile>(
-    `/${ws}/brand-profiles`,
+    `/${ws}/voice-profiles`,
     {
       name,
       description: "Acme's voice profile — clear, direct, no jargon.",
@@ -460,7 +460,7 @@ async function main(): Promise<void> {
   // Guard: only post the correction stream if candidates aren't already there,
   // else re-running multiplies the counts and the demo shows wrong numbers.
   const existingCands = listOf<unknown>(
-    await jget(`/${ws}/brand-profiles/${profileId}/candidates?min_count=3`, aliceToken),
+    await jget(`/${ws}/voice-profiles/${profileId}/candidates?min_count=3`, aliceToken),
     "candidates",
   );
   if (existingCands.length > 0) {
@@ -472,7 +472,7 @@ async function main(): Promise<void> {
     for (const c of CORRECTION_STREAM) {
       for (let i = 0; i < c.n; i++) {
         await jpostSoft(
-          `/${ws}/${marketingId}/brand-voice/main/corrections`,
+          `/${ws}/${marketingId}/voice/main/corrections`,
           {
             profile_id: profileId,
             block_id: `seed-${c.original}-${i}`,

@@ -724,7 +724,7 @@ export const sampleMemories: ResourceOption[] = [
 
 export const sampleTerms: ResourceOption[] = [
   { name: "glossary", entryCount: 340 },
-  { name: "brand-terms", entryCount: 52 },
+  { name: "voice-terms", entryCount: 52 },
 ];
 
 export const sampleSRXFiles: ResourceOption[] = [

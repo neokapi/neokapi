@@ -10,7 +10,7 @@ import { TaskIndicator } from "../components/ActivityTaskIndicators";
 import { ConnectorsPanel } from "../components/ConnectorsPanel";
 import { AutomationHistory } from "../components/AutomationHistory";
 import { ExperimentsView } from "../context-hub/experiments/ExperimentsView";
-import { sampleChangesets } from "../stories/brandHubFixtures";
+import { sampleChangesets } from "../stories/voiceHubFixtures";
 import type { ApiAdapter } from "../api/adapter";
 import type {
   AutomationHistoryEntry,

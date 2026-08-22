@@ -118,7 +118,7 @@ describe("ProjectDashboard (first-run)", () => {
   it("renders the three distinct setup paths", () => {
     renderDashboard([], {
       onInviteTeam: () => {},
-      onScanBrand: () => {},
+      onScanVoice: () => {},
       serverUrl: "https://bw.example",
     });
     expect(screen.getByText("Build your brand starter pack with your AI")).toBeInTheDocument();
@@ -147,15 +147,15 @@ describe("ProjectDashboard (first-run)", () => {
     expect(onInviteTeam).toHaveBeenCalledTimes(1);
   });
 
-  it("offers the hosted brand scan only when the handler is wired", () => {
+  it("offers the hosted context scan only when the handler is wired", () => {
     const { unmount } = renderDashboard([]);
     expect(screen.queryByTestId("onboarding-scan-brand")).not.toBeInTheDocument();
     unmount();
 
-    const onScanBrand = vi.fn();
-    renderDashboard([], { onScanBrand });
+    const onScanVoice = vi.fn();
+    renderDashboard([], { onScanVoice });
     fireEvent.click(screen.getByTestId("onboarding-scan-brand"));
-    expect(onScanBrand).toHaveBeenCalledTimes(1);
+    expect(onScanVoice).toHaveBeenCalledTimes(1);
   });
 
   it("opens the create dialog from the create card", () => {

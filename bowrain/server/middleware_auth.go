@@ -472,7 +472,7 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 			//
 			// Crucially, :id is NOT always a project id: this middleware runs for
 			// every route under the /:ws group, including sibling routes whose :id
-			// is a non-project resource (/:ws/jobs/:id, /:ws/brand-profiles/:id,
+			// is a non-project resource (/:ws/jobs/:id, /:ws/voice-profiles/:id,
 			// /:ws/providers/:id, /:ws/connectors/:id/...). For those, GetProject
 			// returns sql.ErrNoRows — which must be treated as "not a project
 			// route" and fall through to normal resolution, NOT as a cross-tenant
@@ -508,7 +508,7 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 						return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
 					}
 					// sql.ErrNoRows: :id is not a project (it is a sibling resource
-					// id — job, brand-profile, provider, connector). Fall through to
+					// id — job, voice profile, provider, connector). Fall through to
 					// normal workspace-role resolution below.
 				}
 			}

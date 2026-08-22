@@ -30,7 +30,7 @@ export interface LoopActivitySummary {
 }
 
 /** Workspace brand-compliance standing, folded from the brand rollup. */
-export interface LoopBrandHealth {
+export interface LoopVoiceHealth {
   /** Rounded mean of project brand scores; null while nothing is scored. */
   averageScore: number | null;
   /** Projects with at least one stored score. */
@@ -79,7 +79,7 @@ export interface LoopStatusData {
   /** Ship-state rollup; absent hides the ship card entirely. */
   ship?: LoopShipStatus;
   /** Brand rollup summary; absent hides the brand card entirely. */
-  brand?: LoopBrandHealth;
+  brand?: LoopVoiceHealth;
 }
 
 export interface LoopStatusRowProps {
@@ -94,8 +94,8 @@ export interface LoopStatusRowProps {
   onOpenReview?: () => void;
   /** Opens the delivery (translation dashboard) surface. */
   onOpenDelivery?: () => void;
-  /** Opens the brand dashboard. */
-  onOpenBrandDashboard?: () => void;
+  /** Opens the voice dashboard. */
+  onOpenVoiceDashboard?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,13 +204,13 @@ export function LoopStatusRow({
   onOpenTasks,
   onOpenReview,
   onOpenDelivery,
-  onOpenBrandDashboard,
+  onOpenVoiceDashboard,
 }: LoopStatusRowProps) {
   const { latestActivity, latestRun, openReviewTasks, ship, brand } = status;
   const showRun = latestRun !== undefined;
   const showShip = ship !== undefined;
-  const showBrand = brand !== undefined;
-  const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showBrand ? 1 : 0);
+  const showVoice = brand !== undefined;
+  const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showVoice ? 1 : 0);
 
   const shippableLocales = ship ? ship.governed + ship.aiShippable : 0;
   const totalLocales = ship ? shippableLocales + ship.pending : 0;
@@ -331,12 +331,12 @@ export function LoopStatusRow({
         </StatusCard>
       )}
 
-      {showBrand && (
+      {showVoice && (
         <StatusCard
           label="Voice health"
           icon={<Palette />}
           footer="Voice dashboard"
-          onOpen={onOpenBrandDashboard}
+          onOpen={onOpenVoiceDashboard}
           testId="loop-card-brand"
         >
           {brand.scoredProjects > 0 && brand.averageScore !== null ? (

@@ -13,7 +13,7 @@ import {
   Switch,
 } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { projectQueryOptions, voiceProfilesQueryOptions } from "../../queries";
 import { ModelQualityCard } from "./model-quality-card";
 
 export function ProjectSettingsRoute() {
@@ -29,7 +29,7 @@ export function ProjectSettingsRoute() {
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  const { data: brandProfiles } = useQuery(brandProfilesQueryOptions(adapter, ws));
+  const { data: voiceProfiles } = useQuery(voiceProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
     document.title = `Settings — ${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -136,10 +136,10 @@ export function ProjectSettingsRoute() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Brand voice</CardTitle>
+          <CardTitle>Voice</CardTitle>
           <CardDescription>
-            Choose the brand voice profile that governs checks and scoring for this project. Leave
-            as the workspace default to inherit; streams and collections can override it.
+            Choose the voice profile that governs checks and scoring for this project. Leave as the
+            workspace default to inherit; streams and collections can override it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -159,10 +159,10 @@ export function ProjectSettingsRoute() {
                 });
                 invalidateProject();
               }}
-              aria-label="Project brand voice profile"
+              aria-label="Project voice profile"
             >
               <option value="">Workspace default</option>
-              {brandProfiles?.map((p) => (
+              {voiceProfiles?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>

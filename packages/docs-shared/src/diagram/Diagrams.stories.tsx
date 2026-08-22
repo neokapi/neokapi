@@ -391,7 +391,7 @@ export const GatedLoop: Story = {
           kind: "phase",
           role: "source",
           label: "settle source",
-          steps: ["term-check + protect", "brand-check", "source QA"],
+          steps: ["term-check + protect", "voice-check", "source QA"],
         },
         {
           kind: "gate",
@@ -427,7 +427,7 @@ export const GatedLoopMonolingual: Story = {
           kind: "phase",
           role: "source",
           label: "settle source",
-          steps: ["term-check + protect", "brand-check", "source QA"],
+          steps: ["term-check + protect", "voice-check", "source QA"],
         },
         {
           kind: "gate",

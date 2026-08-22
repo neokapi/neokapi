@@ -201,9 +201,9 @@ describe("TranslationDashboard", () => {
       .find((c) => c.dataset.basis === "voice+checks")!;
     await user.hover(voiceChip);
     // SimpleTooltip renders duplicate (trigger + portal) content.
-    expect(
-      (await screen.findAllByText(/brand voice scores measured against/i)).length,
-    ).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/voice scores measured against/i)).length).toBeGreaterThan(
+      0,
+    );
     expect((await screen.findAllByText(/translated blocks compliant/i)).length).toBeGreaterThan(0);
   });
 

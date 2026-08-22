@@ -29,10 +29,10 @@ export const projectsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
     staleTime: 30_000,
   });
 
-export const brandProfilesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+export const voiceProfilesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({
-    queryKey: ["brand-profiles", workspaceSlug],
-    queryFn: () => api.listBrandProfiles(workspaceSlug),
+    queryKey: ["voice-profiles", workspaceSlug],
+    queryFn: () => api.listVoiceProfiles(workspaceSlug),
     staleTime: 30_000,
   });
 

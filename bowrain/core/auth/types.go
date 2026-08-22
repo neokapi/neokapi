@@ -76,7 +76,7 @@ var ValidDashboardVisibility = map[DashboardVisibility]bool{
 // PulseTermSources controls which terminology sources are exposed on the Pulse dashboard.
 type PulseTermSources struct {
 	Terminology     bool `json:"terminology"`      // standard glossary terms
-	BrandVocabulary bool `json:"brand_vocabulary"` // product names, taglines, do/don't
+	VoiceVocabulary bool `json:"brand_vocabulary"` // product names, taglines, do/don't
 }
 
 // Workspace is the top-level organizational unit containing projects, members, and resources.
@@ -93,7 +93,7 @@ type Workspace struct {
 	DashboardVisibility DashboardVisibility `json:"dashboard_visibility"`
 	PulseAccessKey      string              `json:"pulse_access_key,omitempty"` // opaque key for unlisted dashboard access
 	PulseTermSources    PulseTermSources    `json:"pulse_term_sources"`
-	VoiceProfileID      string              `json:"voice_profile_id,omitempty"` // default brand voice profile for workspace
+	VoiceProfileID      string              `json:"voice_profile_id,omitempty"` // default voice profile for workspace
 	PreferredModel      string              `json:"preferred_model,omitempty"`  // per-workspace platform AI model (customer model choice; empty = platform default)
 	Role                Role                `json:"role,omitempty"`             // current user's role (populated by list/get with user context)
 	CreatedAt           time.Time           `json:"created_at"`
@@ -343,7 +343,7 @@ type AgentMode string
 const (
 	AgentModeAsk      AgentMode = "ask"      // read-only, advisory
 	AgentModeCoworker AgentMode = "coworker" // full tool access
-	AgentModeVoice    AgentMode = "voice"    // brand voice scoped
+	AgentModeVoice    AgentMode = "voice"    // voice scoped
 )
 
 // ValidAgentModes is the set of valid AgentMode values.

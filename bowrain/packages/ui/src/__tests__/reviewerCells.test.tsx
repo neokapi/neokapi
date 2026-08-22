@@ -69,7 +69,7 @@ function reviewer(over: Partial<ReviewEntry> = {}) {
       onCancelEdit={() => {}}
       onReCheck={() => {}}
       onMarkTerm={() => {}}
-      onSuggestBrandRule={() => {}}
+      onSuggestVoiceRule={() => {}}
       onMakeRule={() => {}}
     />,
   );

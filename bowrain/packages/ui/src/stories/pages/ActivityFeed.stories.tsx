@@ -75,7 +75,7 @@ const sampleActivities: ActivityInfo[] = [
     actor_name: "System",
     type: "voice.drift",
     entity_type: "brand",
-    summary: "brand voice drift detected",
+    summary: "voice drift detected",
     created_at: ago(300),
   },
   {

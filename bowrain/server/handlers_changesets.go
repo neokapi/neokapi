@@ -22,13 +22,13 @@ import (
 // /:ws/changesets collection and its op/review/pilot lifecycle. A change-set is
 // the governed path into the graph — ordinary edits land directly through the
 // concept routes, but a governed change (banning or promoting a term, deleting a
-// concept, a REPLACED_BY relation, any brand-voice rule) must travel through a
+// concept, a REPLACED_BY relation, any voice rule) must travel through a
 // reviewed change-set, which this surface drafts, submits, reviews, merges,
 // pilots, and previews (blast radius).
 //
 // Permissions follow the data-model note: reads gate on workspace membership
 // (view_content); drafting and editing a change-set, its ops, and its pilots
-// gate on manage_terms; authoring a brand-voice op additionally requires
+// gate on manage_terms; authoring a voice op additionally requires
 // manage_voice; approving, rejecting, and merging a governed change-set require
 // manage_voice and enforce separation of duties (the reviewer/approver must not
 // be the change-set's author). It reuses s.knowledgeEngineFor (blast radius,
@@ -327,7 +327,7 @@ func (s *Server) HandleUpdateChangeSet(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleAddChangeSetOp appends one validated op to a draft change-set. A
-// brand-voice op (voice.rule.add/remove) is a governed brand edit and so
+// voice op (voice.rule.add/remove) is a governed brand edit and so
 // additionally requires manage_voice to author.
 func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
@@ -364,7 +364,7 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 	if err := knowledge.ValidateOp(op); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	// Authoring a brand-voice op is a governed brand action.
+	// Authoring a voice op is a governed brand action.
 	if isVoiceOpType(op.Op) {
 		if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 			return err
@@ -1006,7 +1006,7 @@ func pilotStreams(pilots []*knowledge.Pilot) map[string][]string {
 	return m
 }
 
-// isVoiceOpType reports whether an op type targets a brand-voice profile (and is
+// isVoiceOpType reports whether an op type targets a voice profile (and is
 // therefore a governed brand edit requiring manage_voice to author).
 func isVoiceOpType(o knowledge.OpType) bool {
 	return o == knowledge.OpVoiceRuleAdd || o == knowledge.OpVoiceRuleRemove

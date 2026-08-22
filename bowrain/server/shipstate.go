@@ -37,16 +37,16 @@ import (
 // checks report no error-severity finding, AND its target is term-compliant for
 // the locale (deterministic, offline — it uses no forbidden/competitor term and
 // omits no mandated preferred/approved rendering; see termGate/blockTermCompliant),
-// AND — where a persisted brand voice score exists for the block+locale (written
+// AND — where a persisted voice score exists for the block+locale (written
 // by the worker's draft scoring, zero AI) — the score meets the scoring profile's
 // minimum bar (VoiceProfile.ComplianceBar). A term-non-compliant block is treated
 // exactly like a failing check: it counts against the compliance rate AND, at full
 // coverage, against FailingChecks, so it can never be governed or ai_shippable.
 // Scopes with no voice scores fall back to checks(+terms), and ComplianceBasis says
 // which evidence produced the number so consumers can present it honestly. Voice
-// scores are read best-effort: a brand store hiccup degrades the rate rather than
+// scores are read best-effort: a voice store hiccup degrades the rate rather than
 // failing the dashboard. The gate is resolved once per (workspace, locale) by the
-// caller and reused across every block; a nil gate (no terms, no brand store)
+// caller and reused across every block; a nil gate (no terms, no voice store)
 // makes the term half a no-op, keeping the numbers byte-identical to before.
 //
 // Staleness is graded by the ledger, not by this pass: TallyDecisionBasis joins
@@ -450,7 +450,7 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 // blockCompliantAndPassing reports whether a translated block+locale is clean
 // enough to ship without a person's review: it passes the QA checks with no
 // error-severity finding, is term-compliant for the locale (via the shared
-// gate), AND — where a persisted brand voice score exists for the block — the
+// gate), AND — where a persisted voice score exists for the block — the
 // score meets the scoring profile's compliance bar. This is exactly the per-block
 // compliant predicate applyShipStates aggregates into the compliance rate (#1365);
 // the bulk approve-passing endpoint reuses it to pick which pending drafts to
@@ -500,10 +500,10 @@ type scoredBlock struct {
 	bar   int
 }
 
-// latestVoiceScores reads the project's persisted brand voice scores and keeps
+// latestVoiceScores reads the project's persisted voice scores and keeps
 // the newest per (locale, block), each paired with its scoring profile's
 // compliance bar. Locale keys are normalized (scores are stored normalized).
-// Best-effort by design: a nil brand store or a read failure yields an empty
+// Best-effort by design: a nil voice store or a read failure yields an empty
 // map, degrading the compliance rate to checks-only rather than failing the
 // dashboard.
 func latestVoiceScores(ctx context.Context, voiceStore coreprofile.Store, projectID, stream string) map[string]map[string]scoredBlock {
