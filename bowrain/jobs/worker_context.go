@@ -80,18 +80,29 @@ func parseContextEntries(raw json.RawMessage) ([]*pb.SyncContextEntry, error) {
 // workspaceID is the workspace whose brand hub holds the voice profiles; an
 // empty one (an unclaimed project) skips the profile binding and reconciles
 // structure alone, which is the honest outcome — there is no hub to bind to.
+// collections is the store surface the reconcile writes through. It is a
+// parameter rather than deps.ContentStore because a push hands it the
+// transaction it is applying on, so a reconcile that moved existing governance
+// rolls back with the content that justified it.
+type collectionWriter interface {
+	ListCollections(ctx context.Context, projectID, stream string) ([]*store.Collection, error)
+	CreateCollection(ctx context.Context, c *store.Collection) error
+	UpdateCollection(ctx context.Context, c *store.Collection) error
+}
+
 func reconcileContext(
 	ctx context.Context,
-	deps *WorkerDeps,
+	collections collectionWriter,
+	voice coreprofile.Store,
 	projectID, stream, workspaceID, actorID string,
 	entries []*pb.SyncContextEntry,
 ) (*contextReconcileResult, error) {
 	result := &contextReconcileResult{ProfileIDs: map[string]string{}}
-	if deps.ContentStore == nil || len(entries) == 0 {
+	if collections == nil || len(entries) == 0 {
 		return result, nil
 	}
 
-	existing, err := deps.ContentStore.ListCollections(ctx, projectID, stream)
+	existing, err := collections.ListCollections(ctx, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list collections: %w", err)
 	}
@@ -103,7 +114,7 @@ func reconcileContext(
 	}
 
 	declared := make(map[string]struct{}, len(entries))
-	profileIDs := newProfileBinder(deps, workspaceID, actorID)
+	profileIDs := newProfileBinder(voice, workspaceID, actorID)
 
 	for _, e := range entries {
 		if e == nil || e.Name == "" {
@@ -133,7 +144,7 @@ func reconcileContext(
 				PreviewKind:     e.GetPreview().GetKind(),
 				PreviewURL:      e.GetPreview().GetUrl(),
 			}
-			if cerr := deps.ContentStore.CreateCollection(ctx, col); cerr != nil {
+			if cerr := collections.CreateCollection(ctx, col); cerr != nil {
 				return nil, fmt.Errorf("create collection %s: %w", e.Name, cerr)
 			}
 			result.Created = append(result.Created, e.Name)
@@ -170,7 +181,7 @@ func reconcileContext(
 		// components that may no longer be published there.
 		current.PreviewKind = e.GetPreview().GetKind()
 		current.PreviewURL = e.GetPreview().GetUrl()
-		if uerr := deps.ContentStore.UpdateCollection(ctx, current); uerr != nil {
+		if uerr := collections.UpdateCollection(ctx, current); uerr != nil {
 			return nil, fmt.Errorf("update collection %s: %w", e.Name, uerr)
 		}
 		if claiming {
@@ -233,14 +244,14 @@ func governanceConfig(current map[string]string, profileID, channel string) map[
 // id, upserting the authored content the push carried. It caches by profile
 // name, so several collections governed by one voice cost one upsert.
 type profileBinder struct {
-	deps        *WorkerDeps
+	voice       coreprofile.Store
 	workspaceID string
 	actorID     string
 	byName      map[string]string
 }
 
-func newProfileBinder(deps *WorkerDeps, workspaceID, actorID string) *profileBinder {
-	return &profileBinder{deps: deps, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
+func newProfileBinder(voice coreprofile.Store, workspaceID, actorID string) *profileBinder {
+	return &profileBinder{voice: voice, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
 }
 
 // bind returns the profile id governing this entry, creating or updating the
@@ -258,14 +269,14 @@ func newProfileBinder(deps *WorkerDeps, workspaceID, actorID string) *profileBin
 // never seen, and the collection is better ungoverned than governed by a
 // same-named profile nobody meant.
 func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (string, error) {
-	if e.VoiceProfile == "" || b.workspaceID == "" || b.deps.VoiceStore == nil {
+	if e.VoiceProfile == "" || b.workspaceID == "" || b.voice == nil {
 		return "", nil
 	}
 	if cached, ok := b.byName[e.VoiceProfile]; ok {
 		return cached, nil
 	}
 
-	profiles, err := b.deps.VoiceStore.ListProfiles(ctx, b.workspaceID)
+	profiles, err := b.voice.ListProfiles(ctx, b.workspaceID)
 	if err != nil {
 		return "", fmt.Errorf("list brand profiles: %w", err)
 	}
@@ -311,7 +322,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if err := b.deps.VoiceStore.CreateProfile(ctx, &created); err != nil {
+		if err := b.voice.CreateProfile(ctx, &created); err != nil {
 			return "", fmt.Errorf("create voice profile %q: %w", name, err)
 		}
 		return created.ID, nil
@@ -335,7 +346,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Personas = pushed.Personas
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if err := b.deps.VoiceStore.UpdateProfile(ctx, &updated); err != nil {
+	if err := b.voice.UpdateProfile(ctx, &updated); err != nil {
 		return "", fmt.Errorf("update voice profile %q: %w", name, err)
 	}
 	return updated.ID, nil

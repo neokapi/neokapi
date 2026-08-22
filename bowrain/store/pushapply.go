@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -29,14 +30,23 @@ import (
 // so the transaction spans the database work and not the transfer, and its
 // length is the size of the change rather than the size of the corpus.
 //
-// The line is drawn at the content store. Collections reconcile before the
-// transition, against a store this one cannot join: reconciliation writes
-// voice profiles to the voice store as well, and a transaction over one
-// database cannot roll back the other. The asymmetry is deliberate rather than
-// unfortunate — a collection created for content that then rolled back is an
-// empty collection, which is harmless and idempotently re-used by the retry,
-// whereas content bound to a collection that rolled back would be content
-// filed under a collection that does not exist.
+// The transition spans every store the push writes through, not just this one.
+// The content store and the voice store are separate types with separate
+// schemas, but bowrain-worker builds both from ONE PgDB, so a transaction
+// begun on that pool covers both — see storage.PgDB.Transition.
+//
+// It has to. The collection reconcile that runs first does more than create
+// empty collections: it UPDATES existing ones, moving their coordinates and
+// their voice binding, and it creates and updates the workspace's voice
+// profiles from the content the push declared. Left outside the transition, a
+// push that failed afterwards had already changed what governs the workspace
+// on the strength of content that never landed.
+//
+// What survives from the old arrangement is the ORDER, which was always the
+// real constraint: collections reconcile before items are stored, because an
+// item naming a collection that does not exist yet falls to the project's
+// default collection and is governed by it until some later push re-binds it.
+// Inside one transaction that is simply statement order.
 
 var (
 	_ platstore.PushApplyStore = (*PostgresStore)(nil)
@@ -76,6 +86,18 @@ func (a pushApply) ListUnitDecisions(ctx context.Context, projectID, stream stri
 	return listUnitDecisionsTx(ctx, a.tx, projectID, stream)
 }
 
+func (a pushApply) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
+	return a.s.listCollectionsTx(ctx, a.tx, projectID, stream)
+}
+
+func (a pushApply) CreateCollection(ctx context.Context, c *platstore.Collection) error {
+	return a.s.createCollectionTx(ctx, a.tx, c)
+}
+
+func (a pushApply) UpdateCollection(ctx context.Context, c *platstore.Collection) error {
+	return a.s.updateCollectionTx(ctx, a.tx, c)
+}
+
 func (a pushApply) RenameItem(ctx context.Context, projectID, stream, itemID, newName string) error {
 	return renameItemTx(ctx, a.tx, projectID, stream, itemID, newName)
 }
@@ -109,6 +131,12 @@ func (a pushApply) GetDefaultCollection(ctx context.Context, projectID string) (
 
 // ApplyPush runs fn against one transaction and commits it. An error from fn
 // rolls the whole transition back, so a push either lands or does not.
+// Bind returns this store's push surface bound to tx, for a caller that owns
+// the transaction and is putting more than one store in it.
+func (s *PostgresStore) Bind(tx storage.Runner) platstore.PushApplier {
+	return pushApply{s: s, tx: tx}
+}
+
 func (s *PostgresStore) ApplyPush(ctx context.Context, fn func(platstore.PushApplier) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

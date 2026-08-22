@@ -27,6 +27,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// PushTransitionFunc runs fn against one transaction, handing it each store
+// bound to that transaction. An error from fn rolls the whole thing back.
+type PushTransitionFunc func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error
+
 // WorkerDeps holds all dependencies for the translation worker.
 //
 // QueueName is a bounded metric label for this worker's queue
@@ -35,7 +39,24 @@ type WorkerDeps struct {
 	QueueName    string
 	JobStore     JobStore
 	ContentStore store.ContentStore
-	CredStore    *credentials.Store
+	// PushTransition runs one push's writes on a single transaction spanning
+	// every store the push touches — the content store AND the voice store the
+	// context reconcile writes profiles to. Both are built from one PgDB, so
+	// one transaction covers both.
+	//
+	// It exists because the reconcile does more than create empty collections:
+	// it moves existing collections' coordinates and voice bindings, and it
+	// creates and updates the workspace's voice profiles from what the push
+	// declared. Run outside the transition, a push that failed afterwards had
+	// already changed what governs the workspace on the strength of content
+	// that never landed.
+	//
+	// nil means the stores are not known to share a pool — a test double, or a
+	// deployment that cannot — and the push falls back to the content store's
+	// own transaction with the reconcile in front of it, which is what it did
+	// before this existed.
+	PushTransition PushTransitionFunc
+	CredStore      *credentials.Store
 	// ProviderStore resolves per-workspace BYO AI provider configs from Postgres
 	// (Epic 004). It replaces the machine-global keychain/file CredStore for
 	// worker translation jobs that carry a saved ProviderConfigID. Optional; when

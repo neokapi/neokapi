@@ -215,6 +215,19 @@ type PushApplier interface {
 	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
 	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)
 
+	// The collection verbs. A push declares the context its content sits in,
+	// and reconciling that is part of the same transition rather than a
+	// preamble to it: an updated collection moves existing governance, so a
+	// reconcile that survived a failed push would leave the project governed
+	// by a declaration that never landed.
+	//
+	// The list read is on the transaction for the same reason the item reads
+	// are: reconciliation answers "does this collection exist yet" against
+	// collections this same transition may have just created.
+	ListCollections(ctx context.Context, projectID, stream string) ([]*Collection, error)
+	CreateCollection(ctx context.Context, c *Collection) error
+	UpdateCollection(ctx context.Context, c *Collection) error
+
 	// The identity verbs. A push declares a tree; which document each entry IS
 	// is resolved against what the venue holds, and acted on before any content
 	// lands — so a renamed file's blocks are written to the item that already
