@@ -149,6 +149,12 @@ readonly VOCAB_SURFACES=(
   # the six-section rebuild left no retired spelling behind in either.
   bowrain/web/landing/src
   bowrain/web/landing/locale-meta.json
+  # The desktop's Storybook fixtures and the recording-only demo app. Fixtures
+  # are read as "this is what kapi is for", and the demo app is literally what
+  # the walkthrough videos show, so both are product prose whatever the file
+  # extension says.
+  apps/kapi-desktop/frontend/src/stories
+  apps/kapi-desktop/frontend/src/demo
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -156,14 +162,41 @@ readonly VOCAB_SURFACES=(
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
-  "apps/kapi-desktop/frontend/src/{stories,demo} (vocabulary) — story fixtures and the recorded demo app still name projects 'Acme App Localization' and browse 'termbases'; swept with the desktop story pass"
-  "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim; swept with the skill-copy item in 02"
+  "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim, and the skill description is intent-matching vocabulary: it must contain the words a user types. No sweep is scheduled; deciding what a matching surface owes the vocabulary rule comes first."
 )
 
-# Files inside a swept surface that legitimately spell a retired phrase. Empty:
-# every swept surface is user-facing prose, and none of it has a reason to name
-# a phrase this guard retires.
-readonly ALLOWED_FILES=()
+# Files inside a swept surface that legitimately spell a retired phrase. Each
+# needs a reason that is about the file, not about the effort of fixing it.
+readonly ALLOWED_FILES=(
+  # okapi-bridge's own tool ids and descriptions, captured verbatim. Renaming
+  # another project's identifiers in a fixture would make the fixture lie about
+  # what the bridge reports.
+  apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata.json
+  # TMX's name expands to Translation Memory eXchange. It is an external
+  # standard we do not own, and the Storybook entry names the format.
+  apps/kapi-desktop/frontend/src/stories/formats/tmx.stories.tsx
+  # The recording-only demo app mirrors the real sidebar, whose view ids
+  # ("termbases", "memories") are PERSISTED in settings.json and deliberately
+  # keep their historical spellings — see frontend/src/types/api.ts. The labels
+  # a user reads say Terms and Content Memory; only the ids are old.
+  apps/kapi-desktop/frontend/src/demo/DemoApp.tsx
+  # Prototype v1: a record of a design the product did not take, the fork
+  # between a "content project" and a "localization project". Prototype v2
+  # replaced it with one project shape. The vocabulary is the rejected design's
+  # own; each file says so at the top and the Storybook group reads
+  # "Prototype v1 (superseded)".
+  apps/kapi-desktop/frontend/src/stories/prototype/AdaptiveSidebar.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/ConfiguredFlows.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/Launcher.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/NewProject.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/QuickTools.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/StepUpToLocalization.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/_shared.tsx
+  # v2's own stories describe what v1 got wrong, which means naming it.
+  apps/kapi-desktop/frontend/src/stories/prototype/v2/Sidebar.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/v2/Flows.stories.tsx
+  apps/kapi-desktop/frontend/src/stories/prototype/v2/ProjectLanguages.stories.tsx
+)
 
 # list_files prints NUL-separated paths for one surface.
 #

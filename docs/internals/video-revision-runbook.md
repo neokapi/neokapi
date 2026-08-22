@@ -83,6 +83,28 @@ Re-record vocabulary:
   the main checkout for the generator run — run `vp install` before touching
   frontend builds here.
 
+## Desktop demo app — vocabulary sweep (2026-08-22), recording deferred
+
+The recording-only desktop app (`apps/kapi-desktop/frontend/src/demo/`) is what
+the `kapi-desktop-*` walkthroughs show on screen. Its copy and sample data were
+swept to the fixed vocabulary, and two on-screen paths were wrong as well as
+retired: the demo listed named stores under `~/.config/kapi/termbases/` and
+`~/.config/kapi/tm/`, where `namedResourceDir` puts them under `terms/` and
+`memory/` (`apps/kapi-desktop/backend/memory.go`). Every published desktop
+capture therefore shows a directory that does not exist.
+
+Authoring is done; **no recording was performed**. Narration needed no change —
+the demo scripts were already clean, and their `beat`/step ids (`open-termbases`,
+`open-glossary`) are recorded identifiers that stay.
+
+| Asset | What changed on screen | Re-record | Infra | Publish |
+| --- | --- | --- | --- | --- |
+| `harness/demos/kapi-desktop-explorer` | Home copy ("behind your localisation" → "behind your content"), and the Terms list + opened-store subtitle now read `~/.config/kapi/terms/<name>.db` instead of the non-existent `termbases/`. Beats `intro`, `open-termbases`, `open-glossary` all show changed pixels. | full re-capture; **no re-dub** — narration text is unchanged | none — `demo.html` runs in-browser with sample data, no backend | `make harness-videos-staged` → `make publish-cdn-videos` |
+| `harness/demos/kapi-desktop-{config,content,flows,projects}` | Not known to show the changed screens, but all five demos boot the same `demo.html` entry. | spot-check each capture's opening frames for the home copy before deciding; re-capture only those that show it | none | same |
+
+Storybook fixtures were swept in the same pass and are **not** recorded, so they
+carry no re-record debt.
+
 ## Known gaps / follow-ups (not addressed on this branch)
 
 - **wasm build lacks the porcelain verbs**: `kapi/cmd/kapi-wasm-cli/main.go`
@@ -102,3 +124,10 @@ Re-record vocabulary:
 - Demo 07's artifact paths (`src/ja.json` etc.) assume the re-capture
   configures the project target template accordingly (`src/{lang}.json`);
   confirm during the re-record.
+- The desktop demo app's vocabulary sweep (section above) is authored but
+  unrecorded: published `kapi-desktop-explorer` frames still show
+  `~/.config/kapi/termbases/`, a path the app never used.
+- `harness/src/driver/record-desktop.ts` still says "a localized recording
+  pass" in its own prose. It is harness code rather than a swept surface, so
+  `check-vocabulary.sh` does not see it; recast it when the recorder is next
+  touched.

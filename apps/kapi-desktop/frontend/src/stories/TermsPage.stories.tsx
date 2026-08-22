@@ -112,13 +112,13 @@ function SimulatedTermsPage() {
   const resources = [
     {
       name: "my-terms",
-      path: "~/.config/kapi/termbases/my-terms.db",
+      path: "~/.config/kapi/terms/my-terms.db",
       size: 262144,
       modified: new Date(Date.now() - 7200000).toISOString(),
     },
     {
       name: "voice-terms",
-      path: "~/.config/kapi/termbases/brand-terms.db",
+      path: "~/.config/kapi/terms/brand-terms.db",
       size: 131072,
       modified: new Date(Date.now() - 172800000).toISOString(),
     },
@@ -206,13 +206,13 @@ export const WithResources: StoryObj<typeof TermsPage> = {
       resources={[
         {
           name: "my-terms",
-          path: "~/.config/kapi/termbases/my-terms.db",
+          path: "~/.config/kapi/terms/my-terms.db",
           size: 262144,
           modified: new Date(Date.now() - 7200000).toISOString(),
         },
         {
           name: "voice-terms",
-          path: "~/.config/kapi/termbases/brand-terms.db",
+          path: "~/.config/kapi/terms/brand-terms.db",
           size: 131072,
           modified: new Date(Date.now() - 172800000).toISOString(),
         },

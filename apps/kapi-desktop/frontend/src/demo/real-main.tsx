@@ -81,11 +81,11 @@ if (forcedTheme === "dark" || forcedTheme === "light") {
   document.documentElement.classList.toggle("dark", forcedTheme === "dark");
 }
 
-// UI locale for localized recordings. The native entry (main.tsx) boots the
+// UI locale for recordings in another language. The native entry (main.tsx) boots the
 // locale from api.getUILanguage(); the recorder instead honors `?lang=` so the
-// walkthrough harness can record a localized UI (harness record-desktop.ts
+// walkthrough harness can record the UI in any language it ships (harness record-desktop.ts
 // appends &lang=<locale> when --locale is set). Loading before mount keeps the
-// first painted frame localized.
+// first painted frame already in that language.
 async function mount() {
   const lang = params.get("lang");
   if (lang && lang !== "en") {

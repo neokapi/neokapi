@@ -28,7 +28,7 @@ export const WithRecentProjects: Story = {
     recentFiles: [
       {
         path: "/Users/dev/projects/acme-app/kapi.yaml",
-        name: "Acme App Localization",
+        name: "Acme App",
         opened_at: "2026-03-29T14:30:00Z",
       },
       {

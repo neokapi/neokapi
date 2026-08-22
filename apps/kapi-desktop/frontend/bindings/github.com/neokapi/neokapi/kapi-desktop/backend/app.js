@@ -480,7 +480,7 @@ export function CreateNamedMemory(name) {
 }
 
 /**
- * CreateNamedTerms creates a new named terms in KAPI_HOME/termbases/.
+ * CreateNamedTerms creates a named terms store under the config dir's terms/.
  * @param {string} name
  * @returns {$CancellablePromise<string>}
  */
@@ -1542,7 +1542,7 @@ export function ListNamedMemories() {
 }
 
 /**
- * ListNamedTerms returns named terms stores from KAPI_HOME/termbases/.
+ * ListNamedTerms returns the named terms stores under the config dir's terms/.
  * @returns {$CancellablePromise<$models.ResourceInfo[]>}
  */
 export function ListNamedTerms() {

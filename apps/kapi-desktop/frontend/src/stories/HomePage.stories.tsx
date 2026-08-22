@@ -40,10 +40,10 @@ type Story = StoryObj<typeof HomePage>;
 
 export const Default: Story = {
   args: {
-    displayName: "Acme App Localization",
+    displayName: "Acme App",
     project: {
       version: "v1",
-      name: "Acme App Localization",
+      name: "Acme App",
       defaults: {
         source_language: "en",
         target_languages: ["fr", "de", "ja"],
@@ -282,10 +282,10 @@ export const WithCoverage: Story = {
 export const ThreeLanguages: Story = {
   args: {
     ...Default.args,
-    displayName: "Acme App Localization",
+    displayName: "Acme App",
     project: {
       version: "v1",
-      name: "Acme App Localization",
+      name: "Acme App",
       defaults: { source_language: "en", target_languages: ["fr", "de", "ja"] },
       collections: [
         { name: "Website", content: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
@@ -296,7 +296,7 @@ export const ThreeLanguages: Story = {
     },
     status: {
       projectPath: "/Users/dev/projects/acme/kapi.yaml",
-      projectName: "Acme App Localization",
+      projectName: "Acme App",
       hasData: true,
       collections: [
         {
@@ -329,7 +329,7 @@ export const WithShipGates: Story = {
   args: {
     ...ThreeLanguages.args,
     convergence: {
-      project: "Acme App Localization",
+      project: "Acme App",
       review: [],
       locales: [
         {
@@ -415,7 +415,7 @@ export const NeverExtracted: Story = {
     ...Default.args,
     status: {
       projectPath: "/Users/dev/projects/acme/kapi.yaml",
-      projectName: "Acme App Localization",
+      projectName: "Acme App",
       hasData: false,
       collections: [],
     },

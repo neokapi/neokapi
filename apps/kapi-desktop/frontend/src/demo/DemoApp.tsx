@@ -48,7 +48,7 @@ const LOCALES = [
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-// ── Sample terms: a product glossary for a fictional analytics app ───────
+// ── Sample terms: the vocabulary of a fictional analytics app ───────────
 const CONCEPTS: ConceptDTO[] = [
   {
     id: "c-dashboard",
@@ -419,16 +419,16 @@ function memoryAdapter(seed: MemoryEntryDTO[]): MemoryAdapter {
 }
 
 // ── Resource lists for the picker screens ───────────────────────────────────
-const TERMBASE_RESOURCES = [
+const TERMS_RESOURCES = [
   {
     name: "product-terms",
-    path: "~/.config/kapi/termbases/product-terms.db",
+    path: "~/.config/kapi/terms/product-terms.db",
     size: 262144,
     modified: hoursAgo(2),
   },
   {
     name: "voice-terms",
-    path: "~/.config/kapi/termbases/brand-terms.db",
+    path: "~/.config/kapi/terms/brand-terms.db",
     size: 131072,
     modified: hoursAgo(48),
   },
@@ -437,13 +437,13 @@ const TERMBASE_RESOURCES = [
 const MEMORY_RESOURCES = [
   {
     name: "acme-app",
-    path: "~/.config/kapi/tm/acme-app.db",
+    path: "~/.config/kapi/memory/acme-app.db",
     size: 786432,
     modified: hoursAgo(3),
   },
   {
     name: "global-tm",
-    path: "~/.config/kapi/tm/global-memory.db",
+    path: "~/.config/kapi/memory/global-memory.db",
     size: 1572864,
     modified: hoursAgo(72),
   },
@@ -456,7 +456,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Kapi Desktop</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
-          Browse the terminology and content memory behind your localisation — every concept, every
+          Browse the terminology and content memory behind your content — every concept, every
           approved term, every remembered translation.
         </p>
       </div>
@@ -500,7 +500,7 @@ function TermsView() {
       <div className="p-6">
         <PageHeader
           title={open}
-          subtitle={`~/.config/kapi/termbases/${open}.db`}
+          subtitle={`~/.config/kapi/terms/${open}.db`}
           backButton={
             <SimpleTooltip content="Close">
               <Button
@@ -539,7 +539,7 @@ function TermsView() {
         }
       />
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {TERMBASE_RESOURCES.map((r) => (
+        {TERMS_RESOURCES.map((r) => (
           <ResourceCard
             key={r.path}
             name={r.name}
@@ -564,7 +564,7 @@ function MemoriesView() {
       <div className="p-6">
         <PageHeader
           title={open}
-          subtitle={`~/.config/kapi/tm/${open}.db`}
+          subtitle={`~/.config/kapi/memory/${open}.db`}
           backButton={
             <SimpleTooltip content="Close">
               <Button
