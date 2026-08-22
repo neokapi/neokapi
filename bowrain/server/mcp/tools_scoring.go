@@ -70,7 +70,7 @@ func (s *MCPServer) registerPhase2Tools() {
 	// suggest_corrections — generate rewrites for findings.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "suggest_corrections",
-		Description: "Given brand compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
+		Description: "Given voice compliance findings, suggest specific text corrections. Returns the original text with each finding mapped to a concrete replacement suggestion.",
 	}, s.handleSuggestCorrections)
 
 	// rewrite_in_voice — full rewrite with diff.

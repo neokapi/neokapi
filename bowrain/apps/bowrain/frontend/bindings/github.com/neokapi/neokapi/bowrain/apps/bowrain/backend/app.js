@@ -525,69 +525,6 @@ export function GetBlockCounts(projectID, itemName, filter) {
 }
 
 /**
- * GetBrandDrift returns the brand-compliance drift analysis for a project.
- * @param {string} workspaceSlug
- * @param {string} projectID
- * @param {number} recentDays
- * @param {number} minScore
- * @param {number} dropPoints
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function GetBrandDrift(workspaceSlug, projectID, recentDays, minScore, dropPoints) {
-    return $Call.ByID(1697882120, workspaceSlug, projectID, recentDays, minScore, dropPoints);
-}
-
-/**
- * GetBrandProfile returns a single brand voice profile.
- * @param {string} workspaceSlug
- * @param {string} profileID
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function GetBrandProfile(workspaceSlug, profileID) {
-    return $Call.ByID(3068731866, workspaceSlug, profileID);
-}
-
-/**
- * GetBrandRollup returns the workspace brand-compliance rollup from the
- * connected server.
- * 
- * The rollup is the server's aggregation: it reads stored per-project scores
- * and resolves each project's effective profile through a ladder (collection →
- * stream → project → workspace default) that lives server-side. Composing it
- * from per-project reads produces a different board — a blank profile column
- * and a trend derived from a different window — so offline this returns the
- * empty rollup marked Offline rather than a locally computed one.
- * @param {string} workspaceSlug
- * @param {$models.BrandRollupArgs} args
- * @returns {$CancellablePromise<$models.BrandRollupResult>}
- */
-export function GetBrandRollup(workspaceSlug, args) {
-    return $Call.ByID(2587037143, workspaceSlug, args).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType21($result);
-    }));
-}
-
-/**
- * GetBrandScores returns stored brand-compliance scores for a project.
- * @param {string} workspaceSlug
- * @param {string} projectID
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function GetBrandScores(workspaceSlug, projectID) {
-    return $Call.ByID(698782758, workspaceSlug, projectID);
-}
-
-/**
- * GetBrandTrends returns brand-compliance score trends for a project.
- * @param {string} workspaceSlug
- * @param {string} projectID
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function GetBrandTrends(workspaceSlug, projectID) {
-    return $Call.ByID(2495255613, workspaceSlug, projectID);
-}
-
-/**
  * GetChangeset returns a single change-set with its ops, reviews, and pilots.
  * @param {string} workspaceSlug
  * @param {string} changesetID
@@ -620,7 +557,7 @@ export function GetChangesetBlastRadius(workspaceSlug, changesetID) {
  */
 export function GetCollabSession() {
     return $Call.ByID(1897887727).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType21($result);
     }));
 }
 
@@ -676,7 +613,7 @@ export function GetConceptStory(workspaceSlug, conceptID) {
  */
 export function GetConnectionState() {
     return $Call.ByID(3416146777).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType22($result);
     }));
 }
 
@@ -687,7 +624,7 @@ export function GetConnectionState() {
  */
 export function GetConnectorStatus(connectorID) {
     return $Call.ByID(2803823489, connectorID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType24($result);
     }));
 }
 
@@ -697,7 +634,7 @@ export function GetConnectorStatus(connectorID) {
  */
 export function GetCurrentWorkspace() {
     return $Call.ByID(1584343218).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType26($result);
+        return $$createType25($result);
     }));
 }
 
@@ -729,7 +666,7 @@ export function GetFailedChangesCount() {
  */
 export function GetFlowDefinition(projectID, id) {
     return $Call.ByID(1916918101, projectID, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType27($result);
     }));
 }
 
@@ -741,7 +678,7 @@ export function GetFlowDefinition(projectID, id) {
  */
 export function GetItem(projectID, itemName) {
     return $Call.ByID(3534021163, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType29($result);
     }));
 }
 
@@ -752,7 +689,7 @@ export function GetItem(projectID, itemName) {
  */
 export function GetItemBlocks(projectID, itemName) {
     return $Call.ByID(3766337077, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType30($result);
     }));
 }
 
@@ -762,7 +699,7 @@ export function GetItemBlocks(projectID, itemName) {
  */
 export function GetKnownLocales() {
     return $Call.ByID(2350617666).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType32($result);
     }));
 }
 
@@ -796,7 +733,7 @@ export function GetMemoryCount(projectID) {
  */
 export function GetMemoryEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(3771097165, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType34($result);
     }));
 }
 
@@ -820,7 +757,7 @@ export function GetPendingChangesCount() {
  */
 export function GetPendingReview(projectID, locales, limit, offset) {
     return $Call.ByID(883386567, projectID, locales, limit, offset).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType36($result);
     }));
 }
 
@@ -841,7 +778,7 @@ export function GetProject(projectID) {
  */
 export function GetServerWorkspaces() {
     return $Call.ByID(3159397869).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType38($result);
+        return $$createType37($result);
     }));
 }
 
@@ -880,7 +817,7 @@ export function GetTermCount(projectID) {
  */
 export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(3424415079, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType40($result);
+        return $$createType39($result);
     }));
 }
 
@@ -890,8 +827,71 @@ export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, l
  */
 export function GetVersion() {
     return $Call.ByID(663291304).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType40($result);
+    }));
+}
+
+/**
+ * GetVoiceDrift returns the voice compliance drift analysis for a project.
+ * @param {string} workspaceSlug
+ * @param {string} projectID
+ * @param {number} recentDays
+ * @param {number} minScore
+ * @param {number} dropPoints
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetVoiceDrift(workspaceSlug, projectID, recentDays, minScore, dropPoints) {
+    return $Call.ByID(2179001685, workspaceSlug, projectID, recentDays, minScore, dropPoints);
+}
+
+/**
+ * GetVoiceProfile returns a single voice profile.
+ * @param {string} workspaceSlug
+ * @param {string} profileID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetVoiceProfile(workspaceSlug, profileID) {
+    return $Call.ByID(1784809427, workspaceSlug, profileID);
+}
+
+/**
+ * GetVoiceRollup returns the workspace voice compliance rollup from the
+ * connected server.
+ * 
+ * The rollup is the server's aggregation: it reads stored per-project scores
+ * and resolves each project's effective profile through a ladder (collection →
+ * stream → project → workspace default) that lives server-side. Composing it
+ * from per-project reads produces a different board — a blank profile column
+ * and a trend derived from a different window — so offline this returns the
+ * empty rollup marked Offline rather than a locally computed one.
+ * @param {string} workspaceSlug
+ * @param {$models.VoiceRollupArgs} args
+ * @returns {$CancellablePromise<$models.VoiceRollupResult>}
+ */
+export function GetVoiceRollup(workspaceSlug, args) {
+    return $Call.ByID(647021252, workspaceSlug, args).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType41($result);
     }));
+}
+
+/**
+ * GetVoiceScores returns stored voice compliance scores for a project.
+ * @param {string} workspaceSlug
+ * @param {string} projectID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetVoiceScores(workspaceSlug, projectID) {
+    return $Call.ByID(1804370781, workspaceSlug, projectID);
+}
+
+/**
+ * GetVoiceTrends returns voice compliance score trends for a project.
+ * @param {string} workspaceSlug
+ * @param {string} projectID
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function GetVoiceTrends(workspaceSlug, projectID) {
+    return $Call.ByID(1940966638, workspaceSlug, projectID);
 }
 
 /**
@@ -970,16 +970,6 @@ export function InitContentStore(dbPath) {
  */
 export function JudgeChannelAliasProposal(workspaceSlug, args) {
     return $Call.ByID(1653313632, workspaceSlug, args);
-}
-
-/**
- * ListBrandProfiles returns the brand voice profiles for a workspace.
- * The shape is opaque to the proxy; the frontend has the VoiceProfile type.
- * @param {string} workspaceSlug
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function ListBrandProfiles(workspaceSlug) {
-    return $Call.ByID(3458585183, workspaceSlug);
 }
 
 /**
@@ -1216,6 +1206,16 @@ export function ListTools() {
 }
 
 /**
+ * ListVoiceProfiles returns the voice profiles for a workspace.
+ * The shape is opaque to the proxy; the frontend has the VoiceProfile type.
+ * @param {string} workspaceSlug
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListVoiceProfiles(workspaceSlug) {
+    return $Call.ByID(1803524732, workspaceSlug);
+}
+
+/**
  * ListWorkspaces returns the workspaces available to the current user.
  * When connected to a server, returns server workspaces; otherwise returns
  * a single "Personal" local workspace.
@@ -1223,7 +1223,7 @@ export function ListTools() {
  */
 export function ListWorkspaces() {
     return $Call.ByID(3303885562).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType38($result);
+        return $$createType37($result);
     }));
 }
 
@@ -1425,7 +1425,7 @@ export function PublishContent(connectorID, projectID) {
  */
 export function QueryItemBlocks(projectID, itemName, filter) {
     return $Call.ByID(3683844541, projectID, itemName, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType30($result);
     }));
 }
 
@@ -1583,7 +1583,7 @@ export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed
  */
 export function SaveFlowDefinition(projectID, info) {
     return $Call.ByID(1456548112, projectID, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType27($result);
     }));
 }
 
@@ -1841,32 +1841,32 @@ const $$createType17 = $models.BlockInfo.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
 const $$createType19 = $models.BlockCountsView.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = $models.BrandRollupResult.createFrom;
-const $$createType22 = $models.CollabSession.createFrom;
-const $$createType23 = $models.ConnectionInfo.createFrom;
-const $$createType24 = $models.SyncStatusInfo.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $models.WorkspaceInfo.createFrom;
-const $$createType27 = $models.FlowDefinitionInfo.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = $models.ItemView.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = $Create.Array($$createType17);
-const $$createType32 = locale$0.LocaleInfo.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $models.MemorySearchResult.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.PendingReviewPageView.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $Create.Array($$createType26);
-const $$createType39 = $models.TermSearchResult.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = $models.VersionInfo.createFrom;
+const $$createType21 = $models.CollabSession.createFrom;
+const $$createType22 = $models.ConnectionInfo.createFrom;
+const $$createType23 = $models.SyncStatusInfo.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = $models.WorkspaceInfo.createFrom;
+const $$createType26 = $models.FlowDefinitionInfo.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = $models.ItemView.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $Create.Array($$createType17);
+const $$createType31 = locale$0.LocaleInfo.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = $models.MemorySearchResult.createFrom;
+const $$createType34 = $Create.Nullable($$createType33);
+const $$createType35 = $models.PendingReviewPageView.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = $Create.Array($$createType25);
+const $$createType38 = $models.TermSearchResult.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = $models.VersionInfo.createFrom;
+const $$createType41 = $models.VoiceRollupResult.createFrom;
 const $$createType42 = $models.WordCountResult.createFrom;
 const $$createType43 = $Create.Nullable($$createType42);
 const $$createType44 = $Create.Array($Create.Any);
 const $$createType45 = $Create.Array($$createType10);
-const $$createType46 = $Create.Array($$createType27);
+const $$createType46 = $Create.Array($$createType26);
 const $$createType47 = $models.FormatInfo.createFrom;
 const $$createType48 = $Create.Array($$createType47);
 const $$createType49 = $Create.Array($$createType12);

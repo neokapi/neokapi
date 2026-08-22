@@ -1071,7 +1071,7 @@ export interface ApiAdapter {
   getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getVoiceTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
   /**
-   * Workspace-wide brand-compliance rollup: one row per project (effective
+   * Workspace-wide voice compliance rollup: one row per project (effective
    * profile, latest score, per-dimension breakdown, trend, drift, last
    * activity), aggregated from stored scores. Paginated for large workspaces.
    */

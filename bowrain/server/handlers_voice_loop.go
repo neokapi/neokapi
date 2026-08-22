@@ -214,7 +214,7 @@ func driftConfigFromQuery(c echo.Context) (coreprofile.DriftConfig, int) {
 	return cfg, days
 }
 
-// HandleGetVoiceDrift returns the current brand-compliance drift analysis
+// HandleGetVoiceDrift returns the current voice compliance drift analysis
 // for a project — the recent vs. baseline average and whether compliance has
 // drifted. Safe/read-only: it never fires an alert (use drift-check for that).
 func (s *Server) HandleGetVoiceDrift(c echo.Context) error {

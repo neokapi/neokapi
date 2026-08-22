@@ -1,4 +1,4 @@
-// A compact brand-compliance trend (AD-021). Renders the per-day average score
+// A compact voice compliance trend (AD-021). Renders the per-day average score
 // over time as a filled area, on a fixed 0–100 axis so the slope is honest.
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {

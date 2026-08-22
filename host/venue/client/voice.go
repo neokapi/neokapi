@@ -194,10 +194,10 @@ func (c *BowrainClient) UpsertVoiceProfile(ctx context.Context, req VoiceProfile
 }
 
 // ---------------------------------------------------------------------------
-// Workspace brand-compliance rollup
+// Workspace voice compliance rollup
 // ---------------------------------------------------------------------------
 
-// VoiceRollupEntry is one project's row in the workspace brand-compliance
+// VoiceRollupEntry is one project's row in the workspace voice compliance
 // rollup, mirroring the server's VoiceRollupEntry. Overall and LastScoredAt are
 // nil when the project has never been scored; ProfileID/ProfileName come from
 // the server's voice resolution ladder, which no client can reproduce.
@@ -214,7 +214,7 @@ type VoiceRollupEntry struct {
 	LastScoredAt *time.Time                   `json:"last_scored_at"`
 }
 
-// VoiceRollup is one page of the workspace brand-compliance rollup.
+// VoiceRollup is one page of the workspace voice compliance rollup.
 type VoiceRollup struct {
 	Projects []VoiceRollupEntry `json:"projects"`
 	Total    int                `json:"total"`
@@ -251,7 +251,7 @@ func (o VoiceRollupOptions) values() url.Values {
 	return q
 }
 
-// GetVoiceRollup reads the workspace brand-compliance rollup
+// GetVoiceRollup reads the workspace voice compliance rollup
 // (GET /api/v1/:ws/voice/rollup): one row per project with its effective
 // bound profile, latest score, per-dimension breakdown, trend and drift.
 //

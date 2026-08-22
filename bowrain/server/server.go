@@ -1688,7 +1688,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/projects/:id/recipe-changes", s.HandleListPendingRecipeChanges)
 	g.POST("/projects/:id/recipe-changes/:changeID/applied", s.HandleMarkRecipeChangeApplied)
 
-	// Workspace brand-compliance rollup — the all-surfaces board aggregating
+	// Workspace voice compliance rollup — the all-surfaces board aggregating
 	// every project's stored scores/trends into one matrix: /:ws/voice/rollup
 	g.GET("/voice/rollup", s.HandleGetVoiceRollup)
 

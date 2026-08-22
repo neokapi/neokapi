@@ -9,7 +9,7 @@ interface DriftAlertProps {
 }
 
 /**
- * DriftAlert surfaces a brand-compliance drift result. When compliance has
+ * DriftAlert surfaces a voice compliance drift result. When compliance has
  * drifted it renders a warning banner with the recent vs. baseline average and
  * the reason; otherwise it renders nothing (or, with showStable, a quiet
  * confirmation).
@@ -24,7 +24,7 @@ export function DriftAlert({ drift, showStable = false, className }: DriftAlertP
           className,
         )}
       >
-        Brand compliance is stable — recent average {drift.recent_avg.toFixed(1)} over the last{" "}
+        Voice compliance is stable — recent average {drift.recent_avg.toFixed(1)} over the last{" "}
         {drift.recent_days} days.
       </div>
     );
@@ -38,7 +38,7 @@ export function DriftAlert({ drift, showStable = false, className }: DriftAlertP
         className,
       )}
     >
-      <p className="font-medium text-warning">Brand compliance is drifting</p>
+      <p className="font-medium text-warning">Voice compliance is drifting</p>
       <p className="text-muted-foreground">
         Recent average{" "}
         <span className="font-medium text-foreground">{drift.recent_avg.toFixed(1)}</span> vs.

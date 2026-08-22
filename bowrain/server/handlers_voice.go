@@ -622,7 +622,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	return c.JSON(http.StatusCreated, profile)
 }
 
-// HandleGetVoiceScores returns brand compliance scores for a project.
+// HandleGetVoiceScores returns voice compliance scores for a project.
 func (s *Server) HandleGetVoiceScores(c echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
@@ -636,7 +636,7 @@ func (s *Server) HandleGetVoiceScores(c echo.Context) error {
 	return c.JSON(http.StatusOK, scores)
 }
 
-// HandleGetVoiceScoresByLocale returns brand compliance scores filtered by locale.
+// HandleGetVoiceScoresByLocale returns voice compliance scores filtered by locale.
 func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
@@ -651,7 +651,7 @@ func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
 	return c.JSON(http.StatusOK, scores)
 }
 
-// HandleGetVoiceTrends returns brand compliance score trends for a project.
+// HandleGetVoiceTrends returns voice compliance score trends for a project.
 func (s *Server) HandleGetVoiceTrends(c echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")

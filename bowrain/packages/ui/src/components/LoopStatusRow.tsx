@@ -17,7 +17,7 @@ import {
 //
 // The row is purely presentational: the route (web) or host shell computes
 // these summaries from data it already holds — the workspace activity feed,
-// the caller's open task list, and the brand-compliance rollup — and feeds
+// the caller's open task list, and the voice compliance rollup — and feeds
 // them in as props. Absent fields degrade card by card, never the whole row.
 // ---------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ export interface LoopActivitySummary {
   created_at: string;
 }
 
-/** Workspace brand-compliance standing, folded from the brand rollup. */
+/** Workspace voice compliance standing, folded from the voice rollup. */
 export interface LoopVoiceHealth {
   /** Rounded mean of project brand scores; null while nothing is scored. */
   averageScore: number | null;
@@ -78,7 +78,7 @@ export interface LoopStatusData {
   openReviewTasks?: number;
   /** Ship-state rollup; absent hides the ship card entirely. */
   ship?: LoopShipStatus;
-  /** Brand rollup summary; absent hides the brand card entirely. */
+  /** Voice rollup summary; absent hides the voice card entirely. */
   brand?: LoopVoiceHealth;
 }
 

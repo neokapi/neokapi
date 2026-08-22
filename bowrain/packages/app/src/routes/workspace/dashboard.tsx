@@ -62,7 +62,7 @@ export function ProjectDashboardRoute() {
   const hasProjects = projects.length > 0;
 
   // Loop-status inputs. Activities reuses the layout's top-bar query (same
-  // key — a cache hit, no extra request, no extra polling). The brand rollup
+  // key — a cache hit, no extra request, no extra polling). The voice rollup
   // and the review-task count are the two additional fetches on this surface;
   // both are skipped entirely on first run.
   //

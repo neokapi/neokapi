@@ -264,7 +264,7 @@ export interface BlastRadius {
   collections: CollectionBlastRadius[];
 }
 
-/** Outcome of a brand-compliance drift analysis. */
+/** Outcome of a voice compliance drift analysis. */
 export interface DriftResult {
   drifted: boolean;
   recent_avg: number;
@@ -275,12 +275,12 @@ export interface DriftResult {
   reason?: string;
 }
 
-// ── Workspace brand-compliance rollup ──────────────────────────────────────
+// ── Workspace voice compliance rollup ──────────────────────────────────────
 
 /** Coarse score-trend direction; "" when a project has no history yet. */
 export type VoiceTrend = "up" | "down" | "flat" | "";
 
-/** One project's row in the workspace brand-compliance rollup. */
+/** One project's row in the workspace voice compliance rollup. */
 export interface VoiceRollupEntry {
   project_id: string;
   project_name: string;
@@ -297,7 +297,7 @@ export interface VoiceRollupEntry {
   last_scored_at: string | null;
 }
 
-/** The workspace-wide brand-compliance rollup, plus its pagination envelope. */
+/** The workspace-wide voice compliance rollup, plus its pagination envelope. */
 export interface VoiceRollup {
   projects: VoiceRollupEntry[];
   total: number;

@@ -25,7 +25,7 @@ export function VoiceDashboard({
   if (!score) {
     return (
       <div className={cn("space-y-6", className)}>
-        <h1 className="text-lg font-semibold mb-6">Brand Compliance Dashboard</h1>
+        <h1 className="text-lg font-semibold mb-6">Voice Compliance Dashboard</h1>
         <Card className="p-8 text-center">
           <p className="text-sm text-muted-foreground">
             No compliance data yet. Run a voice check on your project content to see results here.
@@ -37,7 +37,7 @@ export function VoiceDashboard({
 
   return (
     <div className={cn("space-y-6", className)}>
-      <h1 className="text-lg font-semibold">Brand Compliance Dashboard</h1>
+      <h1 className="text-lg font-semibold">Voice Compliance Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Overall Score */}

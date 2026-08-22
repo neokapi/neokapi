@@ -24,7 +24,7 @@ const DIMENSIONS: { value: Dimension; label: string }[] = [
   { value: "tone", label: "Tone" },
   { value: "style", label: "Style" },
   { value: "clarity", label: "Clarity" },
-  { value: "compliance", label: "Brand compliance" },
+  { value: "compliance", label: "Voice compliance" },
 ];
 
 export interface SuggestVoiceRuleDialogProps {

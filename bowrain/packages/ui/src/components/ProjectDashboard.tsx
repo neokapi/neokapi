@@ -128,7 +128,7 @@ export interface ProjectDashboardProps {
   /**
    * Loop-status layer for the populated state: latest loop activity, the
    * latest convergence run, the caller's open review tasks, the ship-state
-   * rollup, and the brand rollup summary. Absent hides the layer (first
+   * rollup, and the voice rollup summary. Absent hides the layer (first
    * paint, desktop shells without the data).
    */
   loopStatus?: LoopStatusData;

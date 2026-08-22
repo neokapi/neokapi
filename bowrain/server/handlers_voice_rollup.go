@@ -14,7 +14,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// Workspace brand-compliance rollup — the all-surfaces board that answers "how
+// Workspace voice compliance rollup — the all-surfaces board that answers "how
 // compliant is every project right now?" in one matrix. It is a pure aggregation
 // over already-stored per-project scores and trends (the same numbers the
 // per-project ComplianceOverview shows): nothing is re-scored here.
@@ -24,7 +24,7 @@ const (
 	maxRollupLimit     = 200
 )
 
-// VoiceRollupEntry is one project's row in the workspace brand-compliance
+// VoiceRollupEntry is one project's row in the workspace voice compliance
 // rollup. Overall and LastScoredAt are nil when the project has never been
 // scored; the effective ProfileID/Name come from the voice resolution
 // ladder (#1268), so a project inherits the workspace default when it carries no
@@ -42,7 +42,7 @@ type VoiceRollupEntry struct {
 	LastScoredAt *time.Time                   `json:"last_scored_at"`
 }
 
-// VoiceRollupResponse is the workspace-level brand-compliance rollup: one entry
+// VoiceRollupResponse is the workspace-level voice compliance rollup: one entry
 // per project in the requested page, plus the pagination envelope so a client
 // can page through a workspace with many projects.
 type VoiceRollupResponse struct {
@@ -52,7 +52,7 @@ type VoiceRollupResponse struct {
 	Offset   int                `json:"offset"`
 }
 
-// HandleGetVoiceRollup returns the workspace-wide brand-compliance rollup:
+// HandleGetVoiceRollup returns the workspace-wide voice compliance rollup:
 // for every project in the workspace, its effective bound profile, latest
 // overall score, per-dimension scores, score-trend direction, drift flag, and
 // last-scored timestamp — aggregated from stored scores, never recomputed. The

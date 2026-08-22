@@ -14,15 +14,15 @@ import * as profile$0 from "../../../core/profile/models.js";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
- * BrandRollupEntry is one project's row in the workspace brand-compliance
- * rollup, mirroring the server's BrandRollupEntry. Overall and LastScoredAt are
+ * VoiceRollupEntry is one project's row in the workspace voice compliance
+ * rollup, mirroring the server's VoiceRollupEntry. Overall and LastScoredAt are
  * nil when the project has never been scored; ProfileID/ProfileName come from
- * the server's brand-voice resolution ladder, which no client can reproduce.
+ * the server's voice resolution ladder, which no client can reproduce.
  */
-export class BrandRollupEntry {
+export class VoiceRollupEntry {
     /**
-     * Creates a new BrandRollupEntry instance.
-     * @param {Partial<BrandRollupEntry>} [$$source = {}] - The source object to create the BrandRollupEntry.
+     * Creates a new VoiceRollupEntry instance.
+     * @param {Partial<VoiceRollupEntry>} [$$source = {}] - The source object to create the VoiceRollupEntry.
      */
     constructor($$source = {}) {
         if (!("project_id" in $$source)) {
@@ -101,9 +101,9 @@ export class BrandRollupEntry {
     }
 
     /**
-     * Creates a new BrandRollupEntry instance from a string or object.
+     * Creates a new VoiceRollupEntry instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {BrandRollupEntry}
+     * @returns {VoiceRollupEntry}
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType1;
@@ -115,7 +115,7 @@ export class BrandRollupEntry {
         if ("drift" in $$parsedSource) {
             $$parsedSource["drift"] = $$createField7_0($$parsedSource["drift"]);
         }
-        return new BrandRollupEntry(/** @type {Partial<BrandRollupEntry>} */($$parsedSource));
+        return new VoiceRollupEntry(/** @type {Partial<VoiceRollupEntry>} */($$parsedSource));
     }
 }
 

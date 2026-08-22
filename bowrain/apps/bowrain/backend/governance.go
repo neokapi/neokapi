@@ -195,7 +195,7 @@ func (a *App) GetVoiceProfile(workspaceSlug, profileID string) (json.RawMessage,
 	return out, nil
 }
 
-// GetVoiceScores returns stored brand-compliance scores for a project.
+// GetVoiceScores returns stored voice compliance scores for a project.
 func (a *App) GetVoiceScores(workspaceSlug, projectID string) (json.RawMessage, error) {
 	var out json.RawMessage
 	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/voice/main/scores"
@@ -205,7 +205,7 @@ func (a *App) GetVoiceScores(workspaceSlug, projectID string) (json.RawMessage, 
 	return out, nil
 }
 
-// GetVoiceTrends returns brand-compliance score trends for a project.
+// GetVoiceTrends returns voice compliance score trends for a project.
 func (a *App) GetVoiceTrends(workspaceSlug, projectID string) (json.RawMessage, error) {
 	var out json.RawMessage
 	path := "/api/v1/" + url.PathEscape(workspaceSlug) + "/" + url.PathEscape(projectID) + "/voice/main/trends"
@@ -281,7 +281,7 @@ func (a *App) EvaluateRule(workspaceSlug, profileID string, req EvaluateRuleArgs
 	return out, nil
 }
 
-// GetVoiceDrift returns the brand-compliance drift analysis for a project.
+// GetVoiceDrift returns the voice compliance drift analysis for a project.
 func (a *App) GetVoiceDrift(workspaceSlug, projectID string, recentDays, minScore, dropPoints int) (json.RawMessage, error) {
 	q := url.Values{}
 	if recentDays > 0 {
@@ -315,7 +315,7 @@ type VoiceRollupArgs struct {
 	Days       int `json:"days"`
 }
 
-// VoiceRollupResult is the workspace brand-compliance rollup the desktop
+// VoiceRollupResult is the workspace voice compliance rollup the desktop
 // returns: the server's page verbatim, plus Offline distinguishing "no server
 // to ask" from "no projects scored".
 type VoiceRollupResult struct {
@@ -326,7 +326,7 @@ type VoiceRollupResult struct {
 	Offline  bool                         `json:"offline"`
 }
 
-// GetVoiceRollup returns the workspace brand-compliance rollup from the
+// GetVoiceRollup returns the workspace voice compliance rollup from the
 // connected server.
 //
 // The rollup is the server's aggregation: it reads stored per-project scores
