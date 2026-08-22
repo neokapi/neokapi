@@ -51,3 +51,32 @@ export const NoVoiceProposed: Story = {
     onRegenerate: fn(),
   },
 };
+
+/**
+ * A corpus that varies. The axes card names the dimensions the scan found and
+ * what it would propose for the recipe; the voice below is what governs at the
+ * point they describe.
+ */
+export const AxesDiscovered: Story = {
+  args: {
+    draft: {
+      ...sampleContextScanDraft,
+      axes: [
+        {
+          axis: "product_line",
+          values: ["cloud", "desktop"],
+          evidence: ["Cloud plans start at…", "Download the desktop app"],
+          confidence: 0.84,
+        },
+        {
+          axis: "market",
+          values: ["emea", "japan"],
+          evidence: ["Prices shown in EUR for EMEA customers"],
+          confidence: 0.61,
+        },
+      ],
+    },
+    onApproved: fn(),
+    onRegenerate: fn(),
+  },
+};

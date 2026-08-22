@@ -2607,8 +2607,29 @@ export interface ContextScanArtefact {
   terms?: ContextScanTerm[];
 }
 
+/**
+ * One dimension the corpus varies along, and the values it takes. The axis name
+ * is the corpus' own vocabulary rather than a name from a fixed list: a project
+ * has product lines, or regional markets, or audiences, and the context space is
+ * whatever that project actually distinguishes.
+ *
+ * Mirrors tools.AxisProposal.
+ */
+export interface ContextScanAxis {
+  axis: string;
+  values: string[];
+  evidence?: string[];
+  confidence: number;
+}
+
 /** The reviewable output of a completed context scan. Mirrors jobs.ContextScanResult. */
 export interface ContextScanDraft {
+  /**
+   * Absent or empty is the ordinary answer for a project whose content is
+   * uniform, and for a first scan of one small site. Not a failure, and not a
+   * reason to withhold the artefacts.
+   */
+  axes?: ContextScanAxis[];
   artefacts: ContextScanArtefact[];
   sources: ContextScanSource[];
   truncated: boolean;
