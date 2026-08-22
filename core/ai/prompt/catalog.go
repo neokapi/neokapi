@@ -106,6 +106,7 @@ func (p AxisDiscover) Turns(corpus string) []Turn {
 	b.WriteString("- brand — the brand it speaks as (acme, northwind)\n")
 	b.WriteString("- product_line — a family of products (cloud, desktop)\n")
 	b.WriteString("- product — one product within a line (analytics, editor)\n")
+	b.WriteString("- channel — the surface it ships on (docs, app, marketing)\n")
 	b.WriteString("- market — where it is read (emea, japan)\n")
 	b.WriteString("- audience — who it addresses (developer, buyer, operator)\n\n")
 	b.WriteString("Those are EXAMPLES, not a list to choose from. Name the axes this corpus actually distinguishes, in its own vocabulary; if it varies along something none of the examples covers, report that instead.\n\n")

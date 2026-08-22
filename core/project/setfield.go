@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -29,6 +30,15 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 	}
 	if path == "defaults.coordinates" {
 		return false, errors.New(`recipe: set one axis at a time, as "defaults.coordinates.<axis>"`)
+	}
+
+	// collections.<name>.channel is the structural half. product and channel
+	// are derived from a collection's `channel:`, so this is where a decision
+	// about them is written — a collection is addressed by NAME rather than by
+	// position, because a name is what the decision was about and an index
+	// moves when an unrelated entry is added above it.
+	if rest, ok := strings.CutPrefix(path, "collections."); ok {
+		return setCollectionField(proj, path, rest, raw)
 	}
 
 	switch path {
@@ -147,6 +157,118 @@ func setDefaultCoordinate(proj *KapiProject, path, axis string, raw json.RawMess
 	}
 	proj.Defaults.Coordinates[axis] = v
 	return true, nil
+}
+
+// setCollectionField sets one field of one named collection. Only `channel` is
+// settable: it is the recipe key the structural axes are derived from, and the
+// rest of a collection — its content globs, its target template — describes
+// what files it covers rather than where its content sits.
+func setCollectionField(proj *KapiProject, path, rest string, raw json.RawMessage) (bool, error) {
+	// Split at the LAST dot: the field name has none, and a collection name
+	// might.
+	dot := strings.LastIndex(rest, ".")
+	if dot <= 0 || dot == len(rest)-1 {
+		return false, fmt.Errorf(`recipe: %q is not a settable collection field (want "collections.<name>.channel")`, path)
+	}
+	name, field := rest[:dot], rest[dot+1:]
+	if field != "channel" {
+		return false, fmt.Errorf("recipe: %q is not settable — a collection's %s is not a coordinate", path, field)
+	}
+
+	col := proj.collectionNamed(name)
+	if col == nil {
+		return false, fmt.Errorf("recipe: no collection named %q (declared: %s)", name, proj.declaredCollections())
+	}
+
+	var v string
+	if err := decodeRecipeValue(path, raw, &v); err != nil {
+		return false, err
+	}
+	v = strings.TrimSpace(v)
+
+	// An empty value withdraws the binding, so the collection falls back to the
+	// project's default point. The operation stays total, as it is for a
+	// declared coordinate.
+	if v == "" {
+		if col.Channel == "" {
+			return false, nil
+		}
+		col.Channel = ""
+		return true, nil
+	}
+
+	profile, channel, qualified := strings.Cut(v, "/")
+	if !qualified || profile == "" || channel == "" {
+		return false, fmt.Errorf("recipe: %s must be `product/channel`, got %q — a channel is a surface OF a product, and the binding reads as one", path, v)
+	}
+	if strings.Contains(channel, "/") {
+		return false, fmt.Errorf("recipe: %s has too many parts (want `product/channel`), got %q", path, v)
+	}
+	if !slugPattern.MatchString(profile) || !slugPattern.MatchString(channel) {
+		return false, fmt.Errorf("recipe: %s must be %s on both sides of the slash, got %q", path, slugRule, v)
+	}
+
+	if col.Channel == v && proj.declaresChannelRef(profile, channel) {
+		return false, nil
+	}
+
+	// The point the collection is moving to has to EXIST, and saying it does is
+	// the same decision. A `channel:` naming a profile that `profiles:` does not
+	// declare will not load, so writing one and leaving the declaration to a
+	// second change means an ordering contract between two rows — and a working
+	// tree that does not load if they arrive out of order.
+	proj.declareChannel(profile, channel)
+	col.Channel = v
+	return true, nil
+}
+
+// collectionNamed finds a collection by name, or nil. Unnamed entries have no
+// point to resolve, so they are never addressable here.
+func (p *KapiProject) collectionNamed(name string) *Collection {
+	if name == "" {
+		return nil
+	}
+	for i := range p.Collections {
+		if p.Collections[i].Name == name {
+			return &p.Collections[i]
+		}
+	}
+	return nil
+}
+
+// declaredCollections renders the named collections, for an error a reader can
+// act on.
+func (p *KapiProject) declaredCollections() string {
+	var names []string
+	for _, c := range p.Collections {
+		if c.Name != "" {
+			names = append(names, c.Name)
+		}
+	}
+	if len(names) == 0 {
+		return "none"
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}
+
+// declaresChannelRef reports whether profiles: already declares this point.
+func (p *KapiProject) declaresChannelRef(profile, channel string) bool {
+	prof, ok := p.Profiles[profile]
+	return ok && declaresChannel(prof.Channels, channel)
+}
+
+// declareChannel adds the profile and channel if the recipe does not already
+// carry them, leaving everything else about an existing profile alone.
+func (p *KapiProject) declareChannel(profile, channel string) {
+	if p.Profiles == nil {
+		p.Profiles = map[string]Profile{}
+	}
+	prof := p.Profiles[profile]
+	if !declaresChannel(prof.Channels, channel) {
+		prof.Channels = append(prof.Channels, Channel{ID: channel})
+	}
+	p.Profiles[profile] = prof
 }
 
 // decodeRecipeValue JSON-decodes a recipe value into dst, wrapping the error

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -109,11 +110,34 @@ func (c *BowrainSourceConnector) applyPendingRecipeChanges(ctx context.Context) 
 // the paths where a disagreement is possible. It answers false for a path with
 // nothing set, which is not a conflict — it is the ordinary case.
 func currentRecipeValue(proj *project.KapiProject, path string) (string, bool) {
-	const coordPrefix = "defaults.coordinates."
-	if len(path) > len(coordPrefix) && path[:len(coordPrefix)] == coordPrefix {
-		axis := path[len(coordPrefix):]
-		v, ok := proj.Defaults.Coordinates[axis]
-		return v, ok
+	if axis, ok := strings.CutPrefix(path, "defaults.coordinates."); ok {
+		v, present := proj.Defaults.Coordinates[axis]
+		return v, present
+	}
+	// A collection's channel is the other half of the coordinate surface, and
+	// it is a decision in exactly the same way: a working tree that already
+	// places a collection somewhere has said where its content sits, and a pull
+	// that quietly moved it would relabel content the recipe governs.
+	if rest, ok := strings.CutPrefix(path, "collections."); ok {
+		name, field, split := cutLast(rest, ".")
+		if !split || field != "channel" {
+			return "", false
+		}
+		for i := range proj.Collections {
+			if proj.Collections[i].Name == name {
+				return proj.Collections[i].Channel, true
+			}
+		}
 	}
 	return "", false
+}
+
+// cutLast splits around the LAST occurrence of sep — the field name carries
+// none and a collection name might.
+func cutLast(s, sep string) (before, after string, found bool) {
+	i := strings.LastIndex(s, sep)
+	if i < 0 {
+		return s, "", false
+	}
+	return s[:i], s[i+len(sep):], true
 }
