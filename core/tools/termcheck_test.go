@@ -12,7 +12,7 @@ import (
 func TestTermCheckToolPass(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		Glossary: []tools.GlossaryEntry{
+		PreferredTerms: []tools.PreferredTermPair{
 			{Source: "Save", Target: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
@@ -33,7 +33,7 @@ func TestTermCheckToolPass(t *testing.T) {
 func TestTermCheckToolFail(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		Glossary: []tools.GlossaryEntry{
+		PreferredTerms: []tools.PreferredTermPair{
 			{Source: "Save", Target: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
@@ -53,7 +53,7 @@ func TestTermCheckToolFail(t *testing.T) {
 func TestTermCheckToolCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		Glossary: []tools.GlossaryEntry{
+		PreferredTerms: []tools.PreferredTermPair{
 			{Source: "save", Target: "sauvegarder"},
 		},
 		TargetLocale:  model.LocaleFrench,
@@ -73,7 +73,7 @@ func TestTermCheckToolCaseInsensitive(t *testing.T) {
 func TestTermCheckToolNoTarget(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.TermCheckConfig{
-		Glossary: []tools.GlossaryEntry{
+		PreferredTerms: []tools.PreferredTermPair{
 			{Source: "Save", Target: "Sauvegarder"},
 		},
 		TargetLocale: model.LocaleFrench,
@@ -98,17 +98,17 @@ func TestTermCheckConfigValidation(t *testing.T) {
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
-	cfg.Glossary = []tools.GlossaryEntry{{Source: "", Target: "x"}}
+	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "", Target: "x"}}
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty source")
 
-	cfg.Glossary = []tools.GlossaryEntry{{Source: "x", Target: ""}}
+	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "x", Target: ""}}
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty target")
 
-	cfg.Glossary = []tools.GlossaryEntry{{Source: "Save", Target: "Sauvegarder"}}
+	cfg.PreferredTerms = []tools.PreferredTermPair{{Source: "Save", Target: "Sauvegarder"}}
 	err = cfg.Validate()
 	require.NoError(t, err)
 }

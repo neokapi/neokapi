@@ -336,11 +336,11 @@ collections:
 	return root
 }
 
-// TestVerify_GlossaryFromTermsSource asserts the terminology gate resolves
+// TestVerify_PreferredTermsFromTermsSource asserts the terminology gate resolves
 // the project vocabulary directly from the committed termbase_source
 // (.terms.json) when the project store holds no concepts — the common case at
 // check time in CI, where the gitignored store does not exist at all. The gate must run and fail on the mistranslated "Save".
-func TestVerify_GlossaryFromTermsSource(t *testing.T) {
+func TestVerify_PreferredTermsFromTermsSource(t *testing.T) {
 	root := writeTermsSourceProject(t)
 	t.Chdir(root)
 
@@ -356,7 +356,7 @@ func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 		"the finding must name the preferred term resolved from the .terms.json source")
 }
 
-// TestVerify_GlossaryFromTermsSourceWithAnEmptyStorePresent is the case the
+// TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent is the case the
 // merged store introduced, and the one a stat-based gate gets wrong.
 //
 // A fresh checkout has the committed `.terms.json` and no store. The first kapi
@@ -368,7 +368,7 @@ func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 //
 // So the rule is: committed source wins while the store's vocabulary tables are
 // empty. Same project, same expected failure, with the store sitting there.
-func TestVerify_GlossaryFromTermsSourceWithAnEmptyStorePresent(t *testing.T) {
+func TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent(t *testing.T) {
 	root := writeTermsSourceProject(t)
 
 	// Exactly what a first command in a fresh checkout leaves behind.
@@ -453,10 +453,10 @@ collections:
 	return root
 }
 
-// TestVerify_GlossaryFromConventionalLocation covers the well-known-location
+// TestVerify_PreferredTermsFromConventionalLocation covers the well-known-location
 // ladder for terms: with no defaults.terms_source binding, a glossary
 // committed at either conventional path is still found and still gates.
-func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
+func TestVerify_PreferredTermsFromConventionalLocation(t *testing.T) {
 	tests := []struct {
 		name string
 		rel  string
@@ -476,11 +476,11 @@ func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 	}
 }
 
-// TestVerify_ConventionalGlossaryPrefersContextDir pins the ordering when both
+// TestVerify_ConventionalPreferredTermsPreferContextDir pins the ordering when both
 // rungs are present: `.kapi/` wins. It is committed and it is where a
 // project's authored sources live, so the conventional home and the reviewed
 // home are the same directory.
-func TestVerify_ConventionalGlossaryPrefersContextDir(t *testing.T) {
+func TestVerify_ConventionalPreferredTermsPreferContextDir(t *testing.T) {
 	root := writeTermsProjectUnbound(t, project.RelStatePath("terms.json"))
 
 	// A root glossary that would PASS the gate. If the ladder still preferred

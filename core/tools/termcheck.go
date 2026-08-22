@@ -16,17 +16,17 @@ const (
 	PropTermCheckErrors = "term-check-errors"
 )
 
-// GlossaryEntry defines a source term and its required target translation.
-type GlossaryEntry struct {
+// PreferredTermPair defines a source term and its required target translation.
+type PreferredTermPair struct {
 	Source string // Source language term
 	Target string // Required target translation
 }
 
 // TermCheckConfig holds configuration for the terminology check tool.
 type TermCheckConfig struct {
-	Glossary      []GlossaryEntry `json:"glossary,omitempty"      schema:"-"`
-	TargetLocale  model.LocaleID  `json:"targetLocale,omitempty"  schema:"-"`
-	CaseSensitive bool            `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
+	PreferredTerms []PreferredTermPair `json:"preferred_terms,omitempty"      schema:"-"`
+	TargetLocale   model.LocaleID      `json:"targetLocale,omitempty"  schema:"-"`
+	CaseSensitive  bool                `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -34,7 +34,7 @@ func (c *TermCheckConfig) ToolName() string { return "term-check" }
 
 // Reset restores default values.
 func (c *TermCheckConfig) Reset() {
-	c.Glossary = nil
+	c.PreferredTerms = nil
 	c.TargetLocale = ""
 	c.CaseSensitive = false
 }
@@ -44,7 +44,7 @@ func (c *TermCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
 		return errors.New("term-check: TargetLocale is required")
 	}
-	for i, entry := range c.Glossary {
+	for i, entry := range c.PreferredTerms {
 		if entry.Source == "" {
 			return fmt.Errorf("term-check: glossary entry %d has empty source", i)
 		}
@@ -82,7 +82,7 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*TermCheckConfig)
-		if len(conf.Glossary) == 0 {
+		if len(conf.PreferredTerms) == 0 {
 			return nil
 		}
 
@@ -94,7 +94,7 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 		targetText := v.TargetText(conf.TargetLocale)
 
 		var errs []string
-		for _, entry := range conf.Glossary {
+		for _, entry := range conf.PreferredTerms {
 			srcContains := containsTerm(sourceText, entry.Source, conf.CaseSensitive)
 			if !srcContains {
 				continue

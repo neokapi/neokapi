@@ -92,10 +92,10 @@ func TestMTTranslateToolStampsGovernance(t *testing.T) {
 	mock := newMock("test-mt")
 
 	tl := tools.NewMTTranslateTool(mock, tools.MTTranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		Profile:      &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
-		Glossary:     map[string]string{"cart": "panier"},
+		SourceLocale:   model.LocaleEnglish,
+		TargetLocale:   model.LocaleFrench,
+		Profile:        &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
+		PreferredTerms: map[string]string{"cart": "panier"},
 	})
 
 	block := model.NewBlock("tu1", "Hello World")

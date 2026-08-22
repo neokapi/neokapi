@@ -75,16 +75,16 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 	}
 
 	// Glossary per locale, resolved once (opens the terms store).
-	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
-	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) {
-		if g, ok := glossaryByLocale[locale]; ok {
+	preferredTermsByLocale := map[string][]coretools.PreferredTermPair{}
+	preferredTermsFor := func(locale string) ([]coretools.PreferredTermPair, error) {
+		if g, ok := preferredTermsByLocale[locale]; ok {
 			return g, nil
 		}
-		g, err := a.ResolveProjectGlossary(cmd, locale)
+		g, err := a.ResolveProjectPreferredTerms(cmd, locale)
 		if err != nil {
 			return nil, err
 		}
-		glossaryByLocale[locale] = g
+		preferredTermsByLocale[locale] = g
 		return g, nil
 	}
 
@@ -100,15 +100,15 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 			continue // untranslated — there is no translation to check
 		}
 
-		glossary, gerr := glossaryFor(u.Locale)
+		glossary, gerr := preferredTermsFor(u.Locale)
 		if gerr != nil {
 			return nil, gerr
 		}
 		var termTool BlockProcessor
 		if len(glossary) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-				Glossary:     glossary,
-				TargetLocale: model.LocaleID(u.Locale),
+				PreferredTerms: glossary,
+				TargetLocale:   model.LocaleID(u.Locale),
 			})
 		}
 

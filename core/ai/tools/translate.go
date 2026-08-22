@@ -92,12 +92,12 @@ const (
 // Fields are exposed as CLI flags via schema tags and as flow config
 // via json tags.
 type AITranslateConfig struct {
-	SourceLocale model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
-	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
-	Provider     string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey       string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
-	Model        string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
-	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
+	SourceLocale   model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale   model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
+	Provider       string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey         string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model          string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	PreferredTerms map[string]string `json:"preferred_terms,omitempty"     schema:"-"`
 	// Instruction is a directive applied while translating, rendered into the
 	// prompt's Instruction section. It is the supported way to steer a
 	// translation without replacing the prompt: "Informal register", "keep
@@ -245,7 +245,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
-		glossary:     cfg.Glossary,
+		glossary:     cfg.PreferredTerms,
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
@@ -254,7 +254,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
 	}
-	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.Glossary)
+	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
 	}
@@ -328,11 +328,11 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 // the old prompt would be served as if current.
 func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 	p := prompt.Translate{
-		SourceLocale: cfg.SourceLocale,
-		TargetLocale: cfg.TargetLocale,
-		Instruction:  cfg.Instruction,
-		VoiceGuide:   voiceGuide,
-		Glossary:     cfg.Glossary,
+		SourceLocale:   cfg.SourceLocale,
+		TargetLocale:   cfg.TargetLocale,
+		Instruction:    cfg.Instruction,
+		VoiceGuide:     voiceGuide,
+		PreferredTerms: cfg.PreferredTerms,
 	}
 	// The context *policy* is part of the fingerprint: turning context on changes
 	// every prompt, so cached targets produced without it must not be served. The
@@ -660,7 +660,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		Glossary:       t.glossary,
+		PreferredTerms: t.glossary,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		BlockContext:   t.contextFor(v.ID(), v.Name()),
@@ -751,7 +751,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		Glossary:       t.glossary,
+		PreferredTerms: t.glossary,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
@@ -1121,11 +1121,11 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	}
 	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{
-		SourceLocale: t.sourceLocale,
-		TargetLocale: t.targetLocale,
-		Glossary:     t.glossary,
-		VoiceGuide:   t.voiceGuide,
-		Instruction:  t.instruction,
+		SourceLocale:   t.sourceLocale,
+		TargetLocale:   t.targetLocale,
+		PreferredTerms: t.glossary,
+		VoiceGuide:     t.voiceGuide,
+		Instruction:    t.instruction,
 	}
 	turns := p.BatchWithContext(segments, batchCtx)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateBatch))

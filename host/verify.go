@@ -242,7 +242,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.InitRegistries()
 
 	// The verify path threads cmd.Context() into ctx-aware content memory/terms lookups
-	// (e.g. ResolveProjectGlossary). When computeVerify runs outside cobra's
+	// (e.g. ResolveProjectPreferredTerms). When computeVerify runs outside cobra's
 	// Execute — the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
 	// RunVerify directly — that context is nil, which panics deep in
 	// database/sql and then deadlocks on the deferred store Close. Seed a real
@@ -1060,14 +1060,14 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 	}
 
 	// Cache the glossary per (point, locale) — building it opens the terms store.
-	glossaries := map[string][]coretools.GlossaryEntry{}
-	glossaryFor := func(u VerifyUnit) ([]coretools.GlossaryEntry, error) {
+	glossaries := map[string][]coretools.PreferredTermPair{}
+	preferredTermsFor := func(u VerifyUnit) ([]coretools.PreferredTermPair, error) {
 		point := a.unitGovernancePoint(root, u)
 		key := point.Collection + "\x00" + point.Path + "\x00" + u.Locale
 		if g, ok := glossaries[key]; ok {
 			return g, nil
 		}
-		g, err := a.ResolveProjectGlossaryFor(cmd, u.Locale, point)
+		g, err := a.ResolveProjectPreferredTermsFor(cmd, u.Locale, point)
 		if err != nil {
 			return nil, err
 		}
@@ -1076,7 +1076,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 	}
 
 	for _, u := range units {
-		glossary, err := glossaryFor(u)
+		glossary, err := preferredTermsFor(u)
 		if err != nil {
 			return gate, err
 		}
@@ -1097,8 +1097,8 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 			continue
 		}
 		cfg := &coretools.TermCheckConfig{
-			Glossary:     glossary,
-			TargetLocale: model.LocaleID(u.Locale),
+			PreferredTerms: glossary,
+			TargetLocale:   model.LocaleID(u.Locale),
 		}
 		tc := coretools.NewTermCheckTool(cfg)
 		for _, b := range blocks {
@@ -1239,7 +1239,7 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 // target is correct for such a string rather than untranslated. Returns nil on
 // any resolution error, which simply leaves the rule with nothing to suppress.
 func (a *App) doNotTranslateTerms(cmd Command, locale string) map[string]bool {
-	glossary, err := a.ResolveProjectGlossary(cmd, locale)
+	glossary, err := a.ResolveProjectPreferredTerms(cmd, locale)
 	if err != nil || len(glossary) == 0 {
 		return nil
 	}

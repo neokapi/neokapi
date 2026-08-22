@@ -200,13 +200,13 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				// supplied programmatically. This makes `kapi term-check
 				// fr.json` enforce the project terms store with no flag.
 				if ToolRequires(ToolSchema, schema.RequiresTerms) {
-					if _, ok := config["glossary"]; !ok {
-						glossary, gerr := a.ResolveProjectGlossary(cmd, effectiveLang)
+					if _, ok := config["preferred_terms"]; !ok {
+						glossary, gerr := a.ResolveProjectPreferredTerms(cmd, effectiveLang)
 						if gerr != nil {
 							return nil, gerr
 						}
 						if len(glossary) > 0 {
-							config["glossary"] = glossary
+							config["preferred_terms"] = glossary
 						}
 					}
 				}

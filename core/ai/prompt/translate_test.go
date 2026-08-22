@@ -51,11 +51,11 @@ func TestRenderingIsDeterministic(t *testing.T) {
 
 	build := func() Translate {
 		return Translate{
-			SourceLocale: "en",
-			TargetLocale: "fr",
-			Instruction:  "Keep it informal.",
-			VoiceGuide:   "Warm, direct.",
-			Glossary:     map[string]string{"zeta": "zêta", "alpha": "alpha", "mu": "mû"},
+			SourceLocale:   "en",
+			TargetLocale:   "fr",
+			Instruction:    "Keep it informal.",
+			VoiceGuide:     "Warm, direct.",
+			PreferredTerms: map[string]string{"zeta": "zêta", "alpha": "alpha", "mu": "mû"},
 		}
 	}
 
@@ -75,11 +75,11 @@ func TestDirectivesReachBothSingleAndBatch(t *testing.T) {
 	t.Parallel()
 
 	p := Translate{
-		SourceLocale: "en",
-		TargetLocale: "fr",
-		Instruction:  "Keep it informal.",
-		VoiceGuide:   "Warm, direct.",
-		Glossary:     map[string]string{"utilize": "use"},
+		SourceLocale:   "en",
+		TargetLocale:   "fr",
+		Instruction:    "Keep it informal.",
+		VoiceGuide:     "Warm, direct.",
+		PreferredTerms: map[string]string{"utilize": "use"},
 	}
 
 	for name, sys := range map[string]string{
@@ -179,7 +179,7 @@ func TestFingerprintTracksEveryPromptInput(t *testing.T) {
 		"source locale": {SourceLocale: "nb", TargetLocale: "fr"},
 		"instruction":   {SourceLocale: "en", TargetLocale: "fr", Instruction: "Informal."},
 		"voice guide":   {SourceLocale: "en", TargetLocale: "fr", VoiceGuide: "Warm, direct."},
-		"glossary":      {SourceLocale: "en", TargetLocale: "fr", Glossary: map[string]string{"utilize": "use"}},
+		"glossary":      {SourceLocale: "en", TargetLocale: "fr", PreferredTerms: map[string]string{"utilize": "use"}},
 	}
 
 	for name, v := range variants {
@@ -195,9 +195,9 @@ func TestFingerprintIsStable(t *testing.T) {
 
 	build := func() Translate {
 		return Translate{
-			SourceLocale: "en",
-			TargetLocale: "fr",
-			Glossary:     map[string]string{"zeta": "zêta", "alpha": "alpha"},
+			SourceLocale:   "en",
+			TargetLocale:   "fr",
+			PreferredTerms: map[string]string{"zeta": "zêta", "alpha": "alpha"},
 		}
 	}
 
@@ -217,9 +217,9 @@ func TestSectionsAreAttributed(t *testing.T) {
 
 	p := Translate{
 		SourceLocale: "en", TargetLocale: "fr",
-		Instruction: "Informal.",
-		VoiceGuide:  "Warm.",
-		Glossary:    map[string]string{"utilize": "use"},
+		Instruction:    "Informal.",
+		VoiceGuide:     "Warm.",
+		PreferredTerms: map[string]string{"utilize": "use"},
 	}
 	turns := p.Single("Save", true)
 
@@ -234,7 +234,7 @@ func TestSectionsAreAttributed(t *testing.T) {
 	// the tag rule this block earned.
 	assert.Equal(t, []string{"framework", "framework (block has inline codes)", "framework"}, origins[KindConstraint])
 	assert.Equal(t, []string{"voice profile"}, origins[KindVoice])
-	assert.Equal(t, []string{"terms (1 term)"}, origins[KindGlossary])
+	assert.Equal(t, []string{"terms (1 term)"}, origins[KindPreferredTerms])
 	assert.Equal(t, []string{"--instruction / recipe"}, origins[KindInstruction])
 
 	// The content is its own turn, and carries no instruction.

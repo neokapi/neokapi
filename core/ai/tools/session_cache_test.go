@@ -66,8 +66,8 @@ func TestAITranslate_SessionCacheIsConfigAware(t *testing.T) {
 	run(changedModel)
 	assert.Equal(t, 2, calls, "a changed model re-translates instead of serving the stale target")
 
-	changedGlossary := base
-	changedGlossary.Glossary = map[string]string{"Hello": "Salut"}
-	run(changedGlossary)
+	changedPreferredTerms := base
+	changedPreferredTerms.PreferredTerms = map[string]string{"Hello": "Salut"}
+	run(changedPreferredTerms)
 	assert.Equal(t, 3, calls, "a changed glossary re-translates")
 }

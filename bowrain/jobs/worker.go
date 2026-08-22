@@ -724,14 +724,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	limiter := resolved.Limiter
 
 	cfg := jobTranslateConfig(ctx, deps, job, proj)
-	if cfg.Profile != nil || len(cfg.Glossary) > 0 {
+	if cfg.Profile != nil || len(cfg.PreferredTerms) > 0 {
 		profileName := ""
 		if cfg.Profile != nil {
 			profileName = cfg.Profile.Name
 		}
 		emitLog(deps, job.StepID, "info",
-			fmt.Sprintf("Applying brand context: voice=%q, glossary terms=%d", profileName, len(cfg.Glossary)),
-			map[string]string{"brand_voice": profileName, "glossary_terms": strconv.Itoa(len(cfg.Glossary))})
+			fmt.Sprintf("Applying brand context: voice=%q, glossary terms=%d", profileName, len(cfg.PreferredTerms)),
+			map[string]string{"brand_voice": profileName, "glossary_terms": strconv.Itoa(len(cfg.PreferredTerms))})
 	}
 	translateTool := tools.NewAITranslateTool(prov, cfg)
 
@@ -1025,7 +1025,7 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Terminology → the advisory glossary section of the prompt, so the
 		// model is told the mandated renderings at generation time instead of
 		// term-check only flagging them afterwards.
-		Glossary: resolveJobGlossary(ctx, deps, job, srcLocale, tgtLocale),
+		PreferredTerms: resolveJobPreferredTerms(ctx, deps, job, srcLocale, tgtLocale),
 		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
 		// masks each protected span before the model and restores it verbatim
 		// after, so a product name / trademark / code identifier cannot be

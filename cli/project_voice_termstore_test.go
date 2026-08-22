@@ -172,11 +172,11 @@ func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
 	}
 }
 
-// TestResolveProjectGlossary_FromProjectStore asserts that with no --termstore
+// TestResolveProjectPreferredTerms_FromProjectStore asserts that with no --termstore
 // flag and no profile binding, the project's own store builds the vocabulary.
 // That is the whole binding story now: a recipe carries no terms path, so being
 // in a project IS the binding.
-func TestResolveProjectGlossary_FromProjectStore(t *testing.T) {
+func TestResolveProjectPreferredTerms_FromProjectStore(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -190,19 +190,19 @@ defaults:
 	// A command without a --termstore flag still resolves the project terms.
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Save", glossary[0].Source)
 	assert.Equal(t, "Enregistrer", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_FromProfileTerms asserts a profile's standalone
+// TestResolveProjectPreferredTerms_FromProfileTerms asserts a profile's standalone
 // `terms:` (relative to the project root) governs a collection whose channel
 // resolves to that profile, over the project's own store. Vocabulary is bound
 // per point through the collection: resolution scoped to no collection sits at
 // the default point and reads the project store instead.
-func TestResolveProjectGlossary_FromProfileTerms(t *testing.T) {
+func TestResolveProjectPreferredTerms_FromProfileTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -237,7 +237,7 @@ collections:
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossaryFor(cmd, "fr", project.GovernancePoint{Collection: "press-docs"})
+	glossary, err := a.ResolveProjectPreferredTermsFor(cmd, "fr", project.GovernancePoint{Collection: "press-docs"})
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)
@@ -286,7 +286,7 @@ defaults:
 	require.NoError(t, termCheck.Flags().Set("termstore", named))
 
 	a := &App{SourceLang: "en"}
-	glossary, err := a.ResolveProjectGlossary(termCheck, "fr")
+	glossary, err := a.ResolveProjectPreferredTerms(termCheck, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source,
@@ -294,22 +294,22 @@ defaults:
 	assert.Equal(t, "Annuler", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_NoProject returns nil (no error) when there is no
+// TestResolveProjectPreferredTerms_NoProject returns nil (no error) when there is no
 // project in scope.
-func TestResolveProjectGlossary_NoProject(t *testing.T) {
+func TestResolveProjectPreferredTerms_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
-	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
 	require.NoError(t, err)
 	assert.Nil(t, glossary)
 }
 
-// TestTermCheck_EnforcesProjectGlossary proves the end-to-end chain: the
+// TestTermCheck_EnforcesProjectPreferredTerms proves the end-to-end chain: the
 // project terms store glossary, injected as the term-check tool's config, makes
 // the tool flag the violation. This mirrors what the term-check command's
 // newTool closure does inside a project.
-func TestTermCheck_EnforcesProjectGlossary(t *testing.T) {
+func TestTermCheck_EnforcesProjectPreferredTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -323,12 +323,12 @@ defaults:
 	a.InitRegistries()
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 
 	// Build term-check exactly as the toolcmds newTool closure would.
-	config := map[string]any{"glossary": glossary}
+	config := map[string]any{"preferred_terms": glossary}
 	tl, err := a.ToolReg.NewToolWithConfig(registryToolID("term-check"), config, "fr")
 	require.NoError(t, err)
 
