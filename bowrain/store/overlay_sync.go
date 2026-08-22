@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -17,9 +18,7 @@ import (
 // does for the readers. One writer serves the block round-trip (inside the
 // store-blocks transaction) and the in-process blockstore adapter (on the
 // pool), so a target reaches the same columns whichever door it came through.
-type Execer interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
+type Execer = storage.Execer
 
 // SyncBlockOverlays writes a block's targets and annotations into the
 // kind-specific overlay tables (translations, annotations), keyed for
@@ -552,9 +551,7 @@ func SplitTargetStates(states []TargetLocaleState) (locales, approved []string) 
 // against both transaction-scoped and pooled connections. Reads only, and
 // deliberately the narrowest thing those helpers need: a caller holding nothing
 // more than a query method can still use them.
-type Querier interface {
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-}
+type Querier = storage.Querier
 
 // Runner is everything a *sql.DB and a *sql.Tx both do.
 //
@@ -563,12 +560,7 @@ type Querier interface {
 // larger transition that has to land whole. Without it every write owns its
 // transaction, which is exactly why a push used to apply in pieces — one per
 // chunk, one per item, and more again after the loop.
-type Runner interface {
-	Execer
-	Querier
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
-}
+type Runner = storage.Runner
 
 // VariantKeyText renders a VariantKey to its canonical text form for use as a
 // change-log identifier and the translations.locale column ("fr-FR" for the

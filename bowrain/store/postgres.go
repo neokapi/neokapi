@@ -237,6 +237,12 @@ func (s *PostgresStore) ListArchivedProjects(ctx context.Context, workspaceID st
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Collection) error {
+	return s.createCollectionTx(ctx, s.db, c)
+}
+
+// createCollectionTx is CreateCollection against an arbitrary runner, so the
+// same body serves the standalone call and the push transition.
+func (s *PostgresStore) createCollectionTx(ctx context.Context, r storage.Runner, c *platstore.Collection) error {
 	now := time.Now().UTC()
 	c.CreatedAt = now
 	c.UpdatedAt = now
@@ -266,7 +272,7 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 	}
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
-	_, err = s.db.ExecContext(ctx,
+	_, err = r.ExecContext(ctx,
 		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
@@ -300,7 +306,14 @@ func (s *PostgresStore) GetDefaultCollection(ctx context.Context, projectID stri
 }
 
 func (s *PostgresStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
-	rows, err := s.db.QueryContext(ctx,
+	return s.listCollectionsTx(ctx, s.db, projectID, stream)
+}
+
+// listCollectionsTx is ListCollections against an arbitrary runner. A push
+// reconciles against the collections its own transition may have just created,
+// so this read has to see them.
+func (s *PostgresStore) listCollectionsTx(ctx context.Context, r storage.Runner, projectID, stream string) ([]*platstore.Collection, error) {
+	rows, err := r.QueryContext(ctx,
 		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, preview_kind, preview_url, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND (stream='' OR stream=$2)
 		 ORDER BY is_default DESC, name`, projectID, stream)
@@ -321,6 +334,11 @@ func (s *PostgresStore) ListCollections(ctx context.Context, projectID, stream s
 }
 
 func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Collection) error {
+	return s.updateCollectionTx(ctx, s.db, c)
+}
+
+// updateCollectionTx is UpdateCollection against an arbitrary runner.
+func (s *PostgresStore) updateCollectionTx(ctx context.Context, r storage.Runner, c *platstore.Collection) error {
 	c.UpdatedAt = time.Now().UTC()
 
 	configJSON, err := json.Marshal(c.ConnectorConfig)
@@ -337,7 +355,7 @@ func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Colle
 	}
 	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
-	_, err = s.db.ExecContext(ctx,
+	_, err = r.ExecContext(ctx,
 		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, context=$6, owner=$7, context_hash=$8, preview_kind=$9, preview_url=$10, updated_at=$11
 		 WHERE project_id=$12 AND id=$13`,
 		c.Name, string(c.Kind), c.ItemLabel, c.Stream, sealedConfig,

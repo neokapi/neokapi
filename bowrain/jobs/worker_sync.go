@@ -15,6 +15,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
@@ -177,11 +178,12 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		projectRow = p
 	}
 
-	// The context content type reconciles BEFORE the chunks are stored: the
-	// collections are the structure the items are stored into, so an item
-	// naming a collection that has not been created yet would fall to the
-	// project's default collection and be governed by it until the next push
-	// re-binds it. See the binding in processBlockChunk.
+	// The context content type reconciles inside the transition below, and
+	// before the chunks are stored within it: the collections are the structure
+	// the items are stored into, so an item naming a collection that has not
+	// been created yet would fall to the project's default collection and be
+	// governed by it until the next push re-binds it. See the binding in
+	// processBlockChunk.
 	contextEntries, err := parseContextEntries(manifest.Contexts)
 	if err != nil {
 		markJobFailed(ctx, deps, job.ID, "invalid context entries")
@@ -196,18 +198,6 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			markJobFailed(ctx, deps, job.ID, err.Error())
 			return err
 		}
-	}
-	contextResult, err := reconcileContext(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, contextEntries)
-	if err != nil {
-		markJobFailed(ctx, deps, job.ID, err.Error())
-		return err
-	}
-	if contextResult.total() > 0 {
-		emitLog(deps, job.StepID, "info",
-			fmt.Sprintf("Reconciled %d collection(s): %d created, %d updated, %d claimed, %d unchanged",
-				contextResult.total(), len(contextResult.Created), len(contextResult.Updated),
-				len(contextResult.Claimed), len(contextResult.Unchanged)),
-			nil)
 	}
 
 	// Resolve the project content memory (optional) and source language once, so
@@ -272,14 +262,44 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		return err
 	}
 	var outcome *pushOutcome
-	if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
+	var contextResult *contextReconcileResult
+	apply := func(tx store.PushApplier, voice coreprofile.Store) error {
+		// Collections first, and on this transaction: an item naming a
+		// collection that does not exist yet falls to the project's default
+		// collection, and a reconcile that outlived a failed push would leave
+		// the project governed by a declaration that never landed.
+		var rerr error
+		contextResult, rerr = reconcileContext(ctx, tx, voice,
+			projectID, stream, workspaceID, manifest.ActorID, contextEntries)
+		if rerr != nil {
+			return rerr
+		}
 		var aerr error
 		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
 			staged, plan, manifest.Tree, decisions, manifest.ExpectedRef)
 		return aerr
+	}
+
+	if deps.PushTransition != nil {
+		if err := deps.PushTransition(ctx, apply); err != nil {
+			markJobFailed(ctx, deps, job.ID, err.Error())
+			return err
+		}
+	} else if err := applier.ApplyPush(ctx, func(tx store.PushApplier) error {
+		// No shared-pool transition: the voice store cannot join this
+		// transaction, so it is written through the pool and a rollback leaves
+		// it. Content and collections still land together.
+		return apply(tx, deps.VoiceStore)
 	}); err != nil {
 		markJobFailed(ctx, deps, job.ID, err.Error())
 		return err
+	}
+	if contextResult.total() > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Reconciled %d collection(s): %d created, %d updated, %d claimed, %d unchanged",
+				contextResult.total(), len(contextResult.Created), len(contextResult.Updated),
+				len(contextResult.Claimed), len(contextResult.Unchanged)),
+			nil)
 	}
 	totalStored := outcome.Stored
 	allItemNames := outcome.ItemNames

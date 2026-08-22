@@ -31,7 +31,7 @@ func TestReconcileContext_CarriesThePreviewHostPerCollection(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
 		previewEntry("bowrain-app", "storybook", "https://neokapi.github.io/storybook/bowrain/"),
 		previewEntry("neokapi-desktop", "storybook", "https://neokapi.github.io/storybook/kapi/"),
 		previewEntry("neokapi-docs", "", ""),
@@ -60,11 +60,11 @@ func TestReconcileContext_RepointingTheHostLands(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1",
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1",
 		[]*pb.SyncContextEntry{previewEntry("app", "storybook", "https://old.example/sb/")})
 	require.NoError(t, err)
 
-	res, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1",
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1",
 		[]*pb.SyncContextEntry{previewEntry("app", "storybook", "https://new.example/sb/")})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"app"}, res.Updated)
@@ -82,11 +82,11 @@ func TestReconcileContext_DroppingTheHostClearsIt(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1",
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1",
 		[]*pb.SyncContextEntry{previewEntry("app", "storybook", "https://example.dev/sb/")})
 	require.NoError(t, err)
 
-	_, err = reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1",
+	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1",
 		[]*pb.SyncContextEntry{previewEntry("app", "", "")})
 	require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func TestReconcileContext_AnUnfamiliarKindIsStoredNotDropped(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1",
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1",
 		[]*pb.SyncContextEntry{previewEntry("app", "ladle", "https://example.dev/ladle/")})
 	require.NoError(t, err)
 

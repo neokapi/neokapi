@@ -37,6 +37,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	fwmemory "github.com/neokapi/neokapi/memory"
@@ -245,15 +246,26 @@ func runWorker(dbURL string) error {
 		authStore = as
 	}
 
-	// Brand context (parity with the CLI flow's project bindings): the brand
+	// Voice context (parity with the CLI flow's project bindings): the voice
 	// store + workspace-default resolver bind the project's voice into
 	// every AI translation the worker runs, and the terms store resolver supplies
-	// the per-locale terminology glossary. All optional — a failure here (or an
+	// the per-locale terminology. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
 	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
 		slog.Warn("voice store unavailable; translation jobs run without voice", "error", err)
 	} else {
 		translationDeps.VoiceStore = bs
+
+		// Both stores came from this one PgDB, so one transaction covers both.
+		// A push reconciles collections and writes voice profiles before its
+		// content lands; binding them to the same transition is what stops a
+		// failed push from leaving the workspace governed by a declaration
+		// whose content never arrived.
+		translationDeps.PushTransition = func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error {
+			return pgdb.Transition(ctx, func(tx storage.Runner) error {
+				return fn(pgCS.Bind(tx), bs.Bind(tx))
+			})
+		}
 	}
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
