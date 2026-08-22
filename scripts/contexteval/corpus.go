@@ -69,15 +69,15 @@ type Check struct {
 	// contractions, exclamation, digits, verbatim, spelling.
 	Kind string
 
-	Term         *GlossaryTerm
+	Term         *PreferredTermPair
 	DNT          string
 	VocabClean   bool
 	MustMatch    string
 	MustNotMatch string
 }
 
-// GlossaryTerm is a source term with its mandated target rendering.
-type GlossaryTerm struct {
+// PreferredTermPair is a source term with its mandated target rendering.
+type PreferredTermPair struct {
 	Source string
 	Target string
 }
@@ -106,7 +106,7 @@ type Context struct {
 	// Glossary is the term → mandated-rendering map the prompt's glossary
 	// section renders. Do-not-translate names ride here as identity pins, which
 	// is how a terms store concept whose preferred target term equals the source
-	// term reaches generation in production (ResolveProjectGlossary).
+	// term reaches generation in production (ResolveProjectPreferredTerms).
 	Glossary map[string]string
 	// DNT lists the names that must survive verbatim — what dnt-check enforces.
 	DNT []string
@@ -402,9 +402,9 @@ func allFixtures() []Fixture {
 			Source: "Open the dashboard to review today's traffic.",
 			Note:   "naive: the anglicism (de) / tableau de bord (fr); the glossary mandates the house term",
 			Checks: map[string][]Check{
-				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "Leitstand"}}},
-				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "poste de pilotage"}}},
-				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "styringspanel"}}},
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "Leitstand"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "poste de pilotage"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "styringspanel"}}},
 			},
 		},
 		{
@@ -413,18 +413,18 @@ func allFixtures() []Fixture {
 			Note:   "term trap (alert) plus the digits instruction on a spelled-out number",
 			Checks: map[string][]Check{
 				"de": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "Warnmeldung"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"alert", "Warnmeldung"}},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\bzwei\b`},
 				},
 				"fr": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "avis de vigilance"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"alert", "avis de vigilance"}},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\bdeux\b`},
 				},
 				"en-GB": {
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\btwo\b`},
 				},
 				"nb": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "alarmmelding"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"alert", "alarmmelding"}},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)(^|[^\p{L}])to($|[^\p{L}])`},
 				},
 			},
@@ -434,9 +434,9 @@ func allFixtures() []Fixture {
 			Source: "The last sync failed. Check your connection and try again.",
 			Note:   "naive: Synchronisierung / synchronisation",
 			Checks: map[string][]Check{
-				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "Datenabgleich"}}},
-				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "rapprochement des données"}}},
-				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "samstilling"}}},
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"sync", "Datenabgleich"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"sync", "rapprochement des données"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"sync", "samstilling"}}},
 			},
 		},
 		{
@@ -444,9 +444,9 @@ func allFixtures() []Fixture {
 			Source: "Generate a report for the selected period.",
 			Note:   "reverse trap in German: the brand mandates the anglicism 'Report', naive is 'Bericht'",
 			Checks: map[string][]Check{
-				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "Report"}}},
-				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "compte rendu"}}},
-				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "driftsrapport"}}},
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"report", "Report"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"report", "compte rendu"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"report", "driftsrapport"}}},
 			},
 		},
 		{
@@ -455,16 +455,16 @@ func allFixtures() []Fixture {
 			Note:   "two mandates in one string; naive de: Liegeplatz/Schiff, fr: poste à quai/navire",
 			Checks: map[string][]Check{
 				"de": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "Anlegeplatz"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "Wasserfahrzeug"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"berth", "Anlegeplatz"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "Wasserfahrzeug"}},
 				},
 				"fr": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "appontement"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "bâtiment"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"berth", "appontement"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "bâtiment"}},
 				},
 				"nb": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "fortøyningsplass"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "farkost"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"berth", "fortøyningsplass"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "farkost"}},
 				},
 			},
 		},
@@ -473,7 +473,7 @@ func allFixtures() []Fixture {
 			Source: "Open your settings to change how alerts appear.",
 			Note:   "en-GB mandate: settings → preferences; models keep 'settings'",
 			Checks: map[string][]Check{
-				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"settings", "preferences"}}},
+				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"settings", "preferences"}}},
 			},
 		},
 		{
@@ -481,7 +481,7 @@ func allFixtures() []Fixture {
 			Source: "Sign in to view your fleet.",
 			Note:   "en-GB mandate: sign in → log on",
 			Checks: map[string][]Check{
-				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sign in", "log on"}}},
+				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"sign in", "log on"}}},
 			},
 		},
 		{
@@ -500,7 +500,7 @@ func allFixtures() []Fixture {
 			Note:   "declared conflict: glossary pins 'Nutzer-ID' while the profile forbids 'Nutzer' — the pin wins",
 			Checks: map[string][]Check{
 				"de": {
-					{Dimension: DimTerminology, Kind: "term-conflict", Term: &GlossaryTerm{"user ID", "Nutzer-ID"}},
+					{Dimension: DimTerminology, Kind: "term-conflict", Term: &PreferredTermPair{"user ID", "Nutzer-ID"}},
 					{Dimension: DimVoice, Kind: "vocab-conflict", VocabClean: true},
 				},
 			},
@@ -517,7 +517,7 @@ func allFixtures() []Fixture {
 			Note:   "declared conflict: glossary pins 'bateau de service' while the profile forbids 'bateau' — the pin wins",
 			Checks: map[string][]Check{
 				"fr": {
-					{Dimension: DimTerminology, Kind: "term-conflict", Term: &GlossaryTerm{"workboat", "bateau de service"}},
+					{Dimension: DimTerminology, Kind: "term-conflict", Term: &PreferredTermPair{"workboat", "bateau de service"}},
 					{Dimension: DimVoice, Kind: "vocab-conflict", VocabClean: true},
 				},
 			},
@@ -753,30 +753,30 @@ func allFixtures() []Fixture {
 			Note: "prose where terminology, voice and instruction apply simultaneously",
 			Checks: map[string][]Check{
 				"de": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "Leitstand"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "Wasserfahrzeug"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "Leitstand"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "Wasserfahrzeug"}},
 					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
 					{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalDE},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bfünf\b`},
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
 				},
 				"fr": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "poste de pilotage"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "bâtiment"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "poste de pilotage"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "bâtiment"}},
 					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
 					{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalFR},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bcinq\b`},
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
 				},
 				"en-GB": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sign in", "log on"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"sign in", "log on"}},
 					{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bfive\b`},
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
 				},
 				"nb": {
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "styringspanel"}},
-					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "farkost"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"dashboard", "styringspanel"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &PreferredTermPair{"vessel", "farkost"}},
 					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)(^|[^\p{L}])fem($|[^\p{L}])`},
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},

@@ -32,8 +32,8 @@ const (
 	KindInstruction Kind = "instruction"
 	// KindVoice is voice profile guidance rendered from a VoiceProfile.
 	KindVoice Kind = "voice"
-	// KindGlossary pins terminology from the terms store.
-	KindGlossary Kind = "glossary"
+	// KindPreferredTerms pins terminology from the terms store.
+	KindPreferredTerms Kind = "preferred_terms"
 	// KindContent is the text to act on. Data, never instruction.
 	KindContent Kind = "content"
 	// KindContext is reference material about the block — its key, its

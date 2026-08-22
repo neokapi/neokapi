@@ -52,13 +52,13 @@ func seedConcept(t *testing.T, tb terms.Terminology, id, projectID, source, targ
 	}))
 }
 
-// TestResolveJobGlossary_BuildsFromTerms proves the glossary derivation:
+// TestResolveJobPreferredTerms_BuildsFromConcepts proves the glossary derivation:
 // workspace-scoped concepts and this project's concepts contribute
 // source→preferred-target pairs; other projects' concepts are excluded; a
 // concept with no target-locale rendering contributes nothing; and a
 // project-scoped rendering beats a workspace-scoped one for the same source
 // term.
-func TestResolveJobGlossary_BuildsFromTerms(t *testing.T) {
+func TestResolveJobPreferredTerms_BuildsFromConcepts(t *testing.T) {
 	tb := terms.NewInMemoryStore()
 	seedConcept(t, tb, "c1", "", "dashboard", "tableau de bord", model.TermPreferred)
 	seedConcept(t, tb, "c2", "proj-1", "berth", "poste d'amarrage", model.TermPreferred)
@@ -77,7 +77,7 @@ func TestResolveJobGlossary_BuildsFromTerms(t *testing.T) {
 	}
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "proj-1", TargetLocale: "fr"}
 
-	got := resolveJobGlossary(t.Context(), deps, job, "en", "fr")
+	got := resolveJobPreferredTerms(t.Context(), deps, job, "en", "fr")
 	assert.Equal(t, map[string]string{
 		"dashboard": "tableau de bord",
 		"berth":     "poste d'amarrage",
@@ -85,10 +85,10 @@ func TestResolveJobGlossary_BuildsFromTerms(t *testing.T) {
 	}, got)
 }
 
-// TestResolveJobGlossary_PrefersApprovedTargetTerm confirms the target
+// TestResolveJobPreferredTerms_PrefersApprovedTargetTerm confirms the target
 // rendering follows PreferredTerm semantics: a preferred term wins over other
 // candidates and forbidden/deprecated renderings are never mandated.
-func TestResolveJobGlossary_PrefersApprovedTargetTerm(t *testing.T) {
+func TestResolveJobPreferredTerms_PrefersApprovedTargetTerm(t *testing.T) {
 	tb := terms.NewInMemoryStore()
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
@@ -101,29 +101,29 @@ func TestResolveJobGlossary_PrefersApprovedTargetTerm(t *testing.T) {
 	deps := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil })}
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	got := resolveJobGlossary(t.Context(), deps, job, "en", "fr")
+	got := resolveJobPreferredTerms(t.Context(), deps, job, "en", "fr")
 	assert.Equal(t, map[string]string{"sync": "rapprochement des données"}, got)
 }
 
-// TestResolveJobGlossary_DegradesGracefully pins the never-fail contract: no
+// TestResolveJobPreferredTerms_DegradesGracefully pins the never-fail contract: no
 // resolver, a failing resolver, or an empty terms all yield a nil glossary
 // and never an error surface.
-func TestResolveJobGlossary_DegradesGracefully(t *testing.T) {
+func TestResolveJobPreferredTerms_DegradesGracefully(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	assert.Nil(t, resolveJobGlossary(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TermsResolver → bare")
+	assert.Nil(t, resolveJobPreferredTerms(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TermsResolver → bare")
 
 	failing := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
 		return nil, errors.New("db down")
 	})}
-	assert.Nil(t, resolveJobGlossary(t.Context(), failing, job, "en", "fr"), "resolver failure → bare, not fatal")
+	assert.Nil(t, resolveJobPreferredTerms(t.Context(), failing, job, "en", "fr"), "resolver failure → bare, not fatal")
 
 	empty := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
 		return terms.NewInMemoryStore(), nil
 	})}
-	assert.Nil(t, resolveJobGlossary(t.Context(), empty, job, "en", "fr"), "no terms for the pair → nil, not empty map")
+	assert.Nil(t, resolveJobPreferredTerms(t.Context(), empty, job, "en", "fr"), "no terms for the pair → nil, not empty map")
 
-	assert.Nil(t, resolveJobGlossary(t.Context(), empty, job, "", "fr"), "missing source locale → bare")
+	assert.Nil(t, resolveJobPreferredTerms(t.Context(), empty, job, "", "fr"), "missing source locale → bare")
 }
 
 // TestResolveJobVoiceProfile_WorkspaceDefault resolves the base rung of the
@@ -177,7 +177,7 @@ func TestJobTranslateConfig_BareWithoutVoiceDeps(t *testing.T) {
 
 	cfg := jobTranslateConfig(t.Context(), &WorkerDeps{}, job, proj)
 	assert.Nil(t, cfg.Profile)
-	assert.Nil(t, cfg.Glossary)
+	assert.Nil(t, cfg.PreferredTerms)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
 	assert.Equal(t, []string{"Kapi", "Bowrain"}, cfg.DNT)
@@ -216,5 +216,5 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, "Address the reader as a peer")
 	assert.Contains(t, guide, `"utilize" → "use"`)
-	assert.Equal(t, map[string]string{"dashboard": "tableau de bord"}, cfg.Glossary)
+	assert.Equal(t, map[string]string{"dashboard": "tableau de bord"}, cfg.PreferredTerms)
 }

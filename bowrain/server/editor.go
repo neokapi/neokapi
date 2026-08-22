@@ -860,7 +860,7 @@ func editorTranslateConfig(
 	// Terminology → the advisory glossary section of the prompt, so the model
 	// is told the mandated renderings at generation time instead of
 	// term-enforce only flagging them afterwards.
-	cfg.Glossary = editorGlossary(ctx, voiceCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
+	cfg.PreferredTerms = editorPreferredTerms(ctx, voiceCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
 	// Do-not-translate terms are ENFORCED, not merely prompted: the tool masks
 	// each protected span before the model and restores it verbatim after, so a
 	// product name / trademark / code identifier cannot be translated. Sourced
@@ -901,12 +901,12 @@ func editorVoiceProfile(
 	return profile
 }
 
-// editorGlossary builds the source→target glossary for an editor translation
+// editorPreferredTerms builds the source→target glossary for an editor translation
 // from the workspace terms, sharing the derivation with the worker
-// (jobs.GlossaryFromTerms) so both surfaces mandate identical renderings.
+// (jobs.PreferredTermsFromConcepts) so both surfaces mandate identical renderings.
 // Returns nil (and logs) when no terms resolves or a read fails:
 // terminology must never fail an interactive translation.
-func editorGlossary(
+func editorPreferredTerms(
 	ctx context.Context,
 	voiceCtx editorVoiceContext,
 	workspaceSlug, projectID string,
@@ -923,7 +923,7 @@ func editorGlossary(
 		}
 		return nil
 	}
-	glossary, err := jobs.GlossaryFromTerms(ctx, tb, projectID, sourceLocale, targetLocale)
+	glossary, err := jobs.PreferredTermsFromConcepts(ctx, tb, projectID, sourceLocale, targetLocale)
 	if err != nil {
 		slog.WarnContext(ctx, "terms read failed; translating without glossary",
 			"workspace", workspaceSlug, "error", err)

@@ -163,11 +163,11 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 		// Arm 1 — full context: the project's voice profile, glossary, and
 		// enforced DNT terms, exactly as jobTranslateConfig binds them.
 		ctxArm, ctxTokens, err := runSweepArm(ctx, prov, limiter, fixtures, aitools.AITranslateConfig{
-			SourceLocale: srcLocale,
-			TargetLocale: tgtLocale,
-			Profile:      sc.Profile,
-			Glossary:     sc.Glossary,
-			DNT:          sc.DNT,
+			SourceLocale:   srcLocale,
+			TargetLocale:   tgtLocale,
+			Profile:        sc.Profile,
+			PreferredTerms: sc.Glossary,
+			DNT:            sc.DNT,
 		}, tgtLocale, sc)
 		if err != nil {
 			return fmt.Errorf("model %q context arm: %w", candidate, err)

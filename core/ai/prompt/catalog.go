@@ -258,7 +258,7 @@ Report character offsets relative to each block's text. Only report genuinely us
 	if len(p.KnownTerms) > 0 {
 		terms := slices.Sorted(slices.Values(p.KnownTerms))
 		system = append(system, Section{
-			Kind:    KindGlossary,
+			Kind:    KindPreferredTerms,
 			Origin:  fmt.Sprintf("terms (%s)", plural(len(terms), "known term")),
 			Heading: "Existing terms (do not re-propose):",
 			Text:    strings.Join(terms, ", "),

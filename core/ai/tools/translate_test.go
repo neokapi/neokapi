@@ -472,7 +472,7 @@ func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
 
 	base := singleBlockConfig()
 	base.Profile = profile
-	base.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	base.PreferredTerms = map[string]string{"widget": "gadget", "login": "connexion"}
 	baseFP := stampedFingerprint(t, base)
 	require.NotEmpty(t, baseFP)
 
@@ -481,14 +481,14 @@ func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
 	// happened; this is the regression test for that.
 	reordered := singleBlockConfig()
 	reordered.Profile = profile
-	reordered.Glossary = map[string]string{"login": "connexion", "widget": "gadget"}
+	reordered.PreferredTerms = map[string]string{"login": "connexion", "widget": "gadget"}
 	assert.Equal(t, baseFP, stampedFingerprint(t, reordered),
 		"identical terminology must hash identically regardless of map order")
 
 	// A changed term → different fingerprint.
 	changedTerms := singleBlockConfig()
 	changedTerms.Profile = profile
-	changedTerms.Glossary = map[string]string{"widget": "doohickey", "login": "connexion"}
+	changedTerms.PreferredTerms = map[string]string{"widget": "doohickey", "login": "connexion"}
 	assert.NotEqual(t, baseFP, stampedFingerprint(t, changedTerms),
 		"changed terminology must move the fingerprint")
 
@@ -496,7 +496,7 @@ func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
 	// engine's config fingerprint, which must move here so the cache invalidates.
 	changedModel := singleBlockConfig()
 	changedModel.Profile = profile
-	changedModel.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	changedModel.PreferredTerms = map[string]string{"widget": "gadget", "login": "connexion"}
 	changedModel.Model = "claude-y"
 	assert.Equal(t, baseFP, stampedFingerprint(t, changedModel),
 		"swapping the model is not a governance change and must not move the fingerprint")

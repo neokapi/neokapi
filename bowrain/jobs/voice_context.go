@@ -63,14 +63,14 @@ func resolveJobVoiceProfile(ctx context.Context, deps *WorkerDeps, job *Translat
 	return profile
 }
 
-// resolveJobGlossary builds the source→target glossary for a translation job
-// from the workspace terms, mirroring the CLI's ResolveProjectGlossary via
-// the shared GlossaryFromTerms derivation.
+// resolveJobPreferredTerms builds the source→target glossary for a translation job
+// from the workspace terms, mirroring the CLI's ResolveProjectPreferredTerms via
+// the shared PreferredTermsFromConcepts derivation.
 //
 // Returns nil (and logs) when no terms resolves, it has no terms for the
 // locale pair, or any read fails: terminology must never fail a translation
 // job.
-func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) map[string]string {
+func resolveJobPreferredTerms(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) map[string]string {
 	if deps == nil || deps.TermsResolver == nil {
 		return nil
 	}
@@ -89,7 +89,7 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 		return nil
 	}
-	glossary, err := GlossaryFromTerms(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
+	glossary, err := PreferredTermsFromConcepts(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
 	if err != nil {
 		slog.WarnContext(ctx, "terms read failed; translating without glossary",
 			"job_id", job.ID, "workspace", slug, "error", err)
@@ -98,7 +98,7 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	return glossary
 }
 
-// GlossaryFromTerms derives the source→target glossary a translation
+// PreferredTermsFromConcepts derives the source→target preferred terms a translation
 // prompt carries from a workspace terms: for each concept, the
 // source-locale term paired with the preferred (or first approved)
 // target-locale term becomes a glossary mandate. Workspace-scoped concepts
@@ -108,9 +108,9 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 // empty map) when the terms store has no terms for the locale pair.
 //
 // It is the single derivation shared by every server-side translation
-// surface — the worker's jobs (resolveJobGlossary) and the synchronous editor
+// surface — the worker's jobs (resolveJobPreferredTerms) and the synchronous editor
 // translate in bowrain/server — so both mandate identical renderings.
-func GlossaryFromTerms(ctx context.Context, tb terms.Terminology, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
+func PreferredTermsFromConcepts(ctx context.Context, tb terms.Terminology, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
 	if tb == nil || sourceLocale == "" || targetLocale == "" {
 		return nil, nil
 	}

@@ -26,15 +26,15 @@ type Translate struct {
 	// VoiceGuide is voice profile guidance rendered from a VoiceProfile, so output
 	// is on-brand at generation time rather than only corrected afterwards.
 	VoiceGuide string
-	// Glossary pins the translation of specific terms.
-	Glossary map[string]string
+	// PreferredTerms pins the translation of specific terms.
+	PreferredTerms map[string]string
 }
 
 // steering returns the project-owned sections — the ones that make output yours
 // rather than merely correct. Every translate prompt carries them, so guidance
 // applies identically whether a block goes through the single or batch path.
 //
-// Glossary terms are sorted, so the same inputs always render byte-identical
+// Preferred terms are sorted, so the same inputs always render byte-identical
 // prompt text. That determinism is load-bearing: the rendered prompt feeds the
 // translate config fingerprint, and a prompt that reordered itself between runs
 // would invalidate the cache on every run.
@@ -57,14 +57,14 @@ func (t Translate) steering() []Section {
 			Text:    g,
 		})
 	}
-	if len(t.Glossary) > 0 {
+	if len(t.PreferredTerms) > 0 {
 		var b strings.Builder
-		for _, k := range slices.Sorted(maps.Keys(t.Glossary)) {
-			fmt.Fprintf(&b, "- %s → %s\n", k, t.Glossary[k])
+		for _, k := range slices.Sorted(maps.Keys(t.PreferredTerms)) {
+			fmt.Fprintf(&b, "- %s → %s\n", k, t.PreferredTerms[k])
 		}
 		out = append(out, Section{
-			Kind:    KindGlossary,
-			Origin:  fmt.Sprintf("terms (%s)", plural(len(t.Glossary), "term")),
+			Kind:    KindPreferredTerms,
+			Origin:  fmt.Sprintf("terms (%s)", plural(len(t.PreferredTerms), "term")),
 			Heading: "Glossary:",
 			Text:    strings.TrimRight(b.String(), "\n"),
 		})

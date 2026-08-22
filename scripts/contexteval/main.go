@@ -418,7 +418,7 @@ func translatePass(ctx context.Context, provider aiprovider.LLMProvider, corpus 
 		BatchConcurrency: concurrency,
 	}
 	if steered {
-		cfg.Glossary = corpus.Ctx.Glossary
+		cfg.PreferredTerms = corpus.Ctx.Glossary
 		cfg.Instruction = corpus.Ctx.Instruction
 		cfg.Profile = corpus.Ctx.Profile
 	}

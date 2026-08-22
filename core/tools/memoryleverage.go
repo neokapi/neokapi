@@ -126,8 +126,8 @@ type MemoryLeverageConfig struct {
 	// by the flow's bindings. Recycling consults neither for matching, but a
 	// filled target is stamped with them so a recycled target is as attributable
 	// as a freshly translated one. See recycleOrigin for the fill-time decision.
-	Profile  *coreprofile.VoiceProfile `json:"-" schema:"-"`
-	Glossary map[string]string         `json:"glossary,omitempty" schema:"-"`
+	Profile        *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	PreferredTerms map[string]string         `json:"preferred_terms,omitempty" schema:"-"`
 
 	// Governing context resolved once at construction from Profile + Glossary and
 	// stamped onto every filled target's Origin.
@@ -176,7 +176,7 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.DowngradeIdenticalBestMatches = false
 	c.Point = ""
 	c.Profile = nil
-	c.Glossary = nil
+	c.PreferredTerms = nil
 	c.profileID = ""
 	c.profileVersion = ""
 	c.contextFP = ""
@@ -234,7 +234,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		cfg.FillTarget = true
 		cfg.FillTargetThreshold = 0 // 0 means accept any score
 	}
-	cfg.profileID, cfg.profileVersion, cfg.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.Glossary)
+	cfg.profileID, cfg.profileVersion, cfg.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
 
 	t := &tool.BaseTool{
 		ToolName:        "recycle",

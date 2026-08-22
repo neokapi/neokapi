@@ -148,15 +148,15 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Block.ID < sorted[j].Block.ID })
 
-	glossarySources := make([]string, 0, len(sc.Glossary))
+	preferredTermSources := make([]string, 0, len(sc.Glossary))
 	for src := range sc.Glossary {
-		glossarySources = append(glossarySources, src)
+		preferredTermSources = append(preferredTermSources, src)
 	}
-	sort.Strings(glossarySources)
+	sort.Strings(preferredTermSources)
 
 	classify := func(text string) string {
 		switch {
-		case containsAnyTerm(text, glossarySources):
+		case containsAnyTerm(text, preferredTermSources):
 			return "glossary"
 		case isVoiceTrap(text, sc.Profile):
 			return "voice"
@@ -321,18 +321,18 @@ func scoreSweepBlocks(ctx context.Context, blocks []*model.Block, locale model.L
 		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
 	}
 	if len(sc.Glossary) > 0 {
-		entries := make([]coretools.GlossaryEntry, 0, len(sc.Glossary))
+		entries := make([]coretools.PreferredTermPair, 0, len(sc.Glossary))
 		keys := make([]string, 0, len(sc.Glossary))
 		for k := range sc.Glossary {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			entries = append(entries, coretools.GlossaryEntry{Source: k, Target: sc.Glossary[k]})
+			entries = append(entries, coretools.PreferredTermPair{Source: k, Target: sc.Glossary[k]})
 		}
 		termTool := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-			Glossary:     entries,
-			TargetLocale: locale,
+			PreferredTerms: entries,
+			TargetLocale:   locale,
 		})
 		var err error
 		if parts, err = runToolOnParts(ctx, termTool, parts); err != nil {
@@ -404,7 +404,7 @@ func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *Translation
 	tgtLocale := model.LocaleID(job.TargetLocale)
 	return &SweepContext{
 		Profile:  resolveJobVoiceProfile(ctx, deps, job),
-		Glossary: resolveJobGlossary(ctx, deps, job, srcLocale, tgtLocale),
+		Glossary: resolveJobPreferredTerms(ctx, deps, job, srcLocale, tgtLocale),
 		DNT:      ProjectDNTTerms(proj),
 	}
 }

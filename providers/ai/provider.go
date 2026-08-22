@@ -112,7 +112,7 @@ type TranslateRequest struct {
 	Source         string            `json:"source"`
 	SourceLanguage model.LocaleID    `json:"source_language"`
 	TargetLocale   model.LocaleID    `json:"target_locale"`
-	Glossary       map[string]string `json:"glossary,omitempty"`
+	PreferredTerms map[string]string `json:"preferred_terms,omitempty"`
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
 	// VoiceGuide is voice profile guidance (rendered from a VoiceProfile) that the
 	// model should apply while translating, so output is on-brand at generation
@@ -145,11 +145,11 @@ func (req TranslateRequest) PromptTurns() []prompt.Turn {
 
 func (req TranslateRequest) Prompt() prompt.Translate {
 	return prompt.Translate{
-		SourceLocale: req.SourceLanguage,
-		TargetLocale: req.TargetLocale,
-		Instruction:  req.Instruction,
-		VoiceGuide:   req.VoiceGuide,
-		Glossary:     req.Glossary,
+		SourceLocale:   req.SourceLanguage,
+		TargetLocale:   req.TargetLocale,
+		Instruction:    req.Instruction,
+		VoiceGuide:     req.VoiceGuide,
+		PreferredTerms: req.PreferredTerms,
 	}
 }
 

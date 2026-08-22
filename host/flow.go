@@ -1608,7 +1608,7 @@ type ProjectBindings struct {
 	profile *coreprofile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
 	// (defaults.terms_source), injected into term-check steps. nil when unbound.
-	glossary []coretools.GlossaryEntry
+	glossary []coretools.PreferredTermPair
 	// ToolPresets holds the project-level tool presets (defaults.tools):
 	// per-tool config defaults merged under each step's own config wherever
 	// that tool runs in a project flow (the step wins per key). nil when the
@@ -1658,7 +1658,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		return nil, err
 	}
 
-	glossary, err := a.ResolveProjectGlossaryFor(cmd, a.TargetLang, point)
+	glossary, err := a.ResolveProjectPreferredTermsFor(cmd, a.TargetLang, point)
 	if err != nil {
 		return nil, err
 	}
@@ -1774,7 +1774,7 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 	return ""
 }
 
-// ResolveProjectGlossary builds a source→target glossary from the project's
+// ResolveProjectPreferredTerms builds the source→target preferred terms from the project's
 // terms, for the active source and target locales. It reads the committed
 // .terms.json serialization — the terms store's durable form (AD-010) — directly, so the
 // terminology gate validates the committed state and works at check time in CI,
@@ -1782,16 +1782,16 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 // the full precedence). Returns nil when no terms is in scope or it has
 // no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
-func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
-	return a.ResolveProjectGlossaryFor(cmd, targetLang, project.GovernancePoint{})
+func (a *App) ResolveProjectPreferredTerms(cmd Command, targetLang string) ([]coretools.PreferredTermPair, error) {
+	return a.ResolveProjectPreferredTermsFor(cmd, targetLang, project.GovernancePoint{})
 }
 
-// ResolveProjectGlossaryFor is ResolveProjectGlossary scoped to one point in the
+// ResolveProjectPreferredTermsFor is ResolveProjectPreferredTerms scoped to one point in the
 // context space: it reads the terms governing there (the profile's own `terms:`,
 // else defaults.terms_source), so a recipe governing two brands enforces each
 // brand's vocabulary over its own content. The zero point is the project-wide
 // resolution.
-func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coretools.GlossaryEntry, error) {
+func (a *App) ResolveProjectPreferredTermsFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coretools.PreferredTermPair, error) {
 	concepts, err := a.projectConcepts(cmd, point)
 	if err != nil || len(concepts) == 0 {
 		return nil, err
@@ -1803,7 +1803,7 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point pr
 		target = model.LocaleID(a.TargetLang)
 	}
 
-	var glossary []coretools.GlossaryEntry
+	var glossary []coretools.PreferredTermPair
 	for _, c := range concepts {
 		concept := c
 		src := concept.SourceTerm(source)
@@ -1814,7 +1814,7 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point pr
 		if tgt == nil || tgt.Text == "" {
 			continue
 		}
-		glossary = append(glossary, coretools.GlossaryEntry{
+		glossary = append(glossary, coretools.PreferredTermPair{
 			Source: src.Text,
 			Target: tgt.Text,
 		})
@@ -2136,7 +2136,7 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	if tb, _ := c.Flags().GetString("termstore"); tb == "" {
 		return nil
 	}
-	glossary, err := a.ResolveProjectGlossary(c, a.TargetLang)
+	glossary, err := a.ResolveProjectPreferredTerms(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(os.Stderr, "Warning: --termstore: %v\n", err)
@@ -2205,11 +2205,11 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		}
 	}
 
-	// Glossary → terms-requiring steps (term-check), as a []GlossaryEntry.
+	// Glossary → terms-requiring steps (term-check), as a []PreferredTermPair.
 	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTerms) {
-		if _, ok := config["glossary"]; !ok {
+		if _, ok := config["preferred_terms"]; !ok {
 			clone()
-			config["glossary"] = b.glossary
+			config["preferred_terms"] = b.glossary
 		}
 	}
 
@@ -2227,10 +2227,10 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// entry list, translate takes source→target — so the conversion happens here
 	// rather than either tool guessing.
 	if len(b.glossary) > 0 && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
-		if _, ok := config["glossary"]; !ok {
-			if terms := GlossaryTerms(b.glossary); len(terms) > 0 {
+		if _, ok := config["preferred_terms"]; !ok {
+			if terms := PreferredTermMap(b.glossary); len(terms) > 0 {
 				clone()
-				config["glossary"] = terms
+				config["preferred_terms"] = terms
 			}
 		}
 	}
@@ -2238,7 +2238,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	return config
 }
 
-// GlossaryTerms projects a resolved glossary into the source→target map a
+// PreferredTermMap projects resolved preferred terms into the source→target map a
 // translation producer takes.
 //
 // It is the one definition of that projection, and it has to be: the map is an
@@ -2250,7 +2250,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 // A duplicated source term keeps its FIRST entry, so one glossary resolves the
 // same way on every run — a prompt has to be deterministic, and so does a
 // fingerprint over it.
-func GlossaryTerms(entries []coretools.GlossaryEntry) map[string]string {
+func PreferredTermMap(entries []coretools.PreferredTermPair) map[string]string {
 	terms := make(map[string]string, len(entries))
 	for _, e := range entries {
 		if e.Source == "" || e.Target == "" {
@@ -2287,7 +2287,7 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 }
 
 // isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
-// which accepts the governing context via config["profile"] and config["glossary"]
+// which accepts the governing context via config["profile"] and config["preferred_terms"]
 // to stamp onto the targets it fills.
 func isMemoryRecycleTool(toolName string, s *schema.ComponentSchema) bool {
 	if toolName == "recycle" {

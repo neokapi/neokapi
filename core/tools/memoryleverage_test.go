@@ -113,7 +113,7 @@ func TestMemoryLeverageToolStampsGovernance(t *testing.T) {
 		FuzzyThreshold: 70,
 		Provider:       provider,
 		Profile:        &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
-		Glossary:       map[string]string{"cart": "panier"},
+		PreferredTerms: map[string]string{"cart": "panier"},
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 

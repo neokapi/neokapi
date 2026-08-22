@@ -106,7 +106,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: formal")
 	assert.Contains(t, guide, "Address the reader as a peer")
-	assert.Equal(t, map[string]string{"software": "logiciel"}, cfg.Glossary)
+	assert.Equal(t, map[string]string{"software": "logiciel"}, cfg.PreferredTerms)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
 }
@@ -125,7 +125,7 @@ func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2})
 
 	assert.Nil(t, cfg.Profile)
-	assert.Nil(t, cfg.Glossary)
+	assert.Nil(t, cfg.PreferredTerms)
 	assert.Nil(t, cfg.DNT, "no dnt_terms in project settings → no DNT list")
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
@@ -176,7 +176,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
 
 	assert.Nil(t, cfg.Profile, "unresolvable profile → bare, not fatal")
-	assert.Nil(t, cfg.Glossary, "unopenable terms → bare, not fatal")
+	assert.Nil(t, cfg.PreferredTerms, "unopenable terms → bare, not fatal")
 }
 
 // TestEditorAITranslateWithVoiceContext runs the full editorAITranslate path

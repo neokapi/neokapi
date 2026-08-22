@@ -79,8 +79,8 @@ type MTTranslateConfig struct {
 	// target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps an
 	// MT target's governance stamp comparable to an AI or recycled one: all fall
 	// stale together when the profile or terms move.
-	Profile  *coreprofile.VoiceProfile `json:"-" schema:"-"`
-	Glossary map[string]string         `json:"glossary,omitempty" schema:"-"`
+	Profile        *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	PreferredTerms map[string]string         `json:"preferred_terms,omitempty" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -101,7 +101,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	t.configFP = tool.OverlayConfigFingerprint("mt", string(p.Name()), string(cfg.SourceLocale), string(cfg.TargetLocale))
-	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.Glossary)
+	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
 	// Translate: writes the target locale; source stays read-only.
 	t.Produce = t.translate
 	return t

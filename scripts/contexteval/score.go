@@ -160,8 +160,8 @@ func runCheck(ctx context.Context, corpus TestCorpus, chk Check, f Fixture, b *m
 // which are cleared afterwards so the next mandate reads its own verdict.
 func runTermCheck(ctx context.Context, chk Check, b *model.Block, loc model.LocaleID) (bool, string, error) {
 	t := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-		TargetLocale: loc,
-		Glossary:     []coretools.GlossaryEntry{{Source: chk.Term.Source, Target: chk.Term.Target}},
+		TargetLocale:   loc,
+		PreferredTerms: []coretools.PreferredTermPair{{Source: chk.Term.Source, Target: chk.Term.Target}},
 	})
 	if _, err := t.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: b}); err != nil {
 		return false, "", err
