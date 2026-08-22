@@ -228,6 +228,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	if err != nil {
 		return check.Report{}, err
 	}
+	defer voice.close()
 
 	validateMode, err := validateModeFromFlag(cmd)
 	if err != nil {
@@ -735,13 +736,22 @@ func (f *checkFormats) forFile(app *App, file string) (string, map[string]any) {
 }
 
 type checkVoice struct {
-	app   *App
-	cmd   Command
-	fixed *profile.VoiceProfile
-	proj  *project.KapiProject
-	root  string
-	store string
-	cache map[string]*profile.VoiceProfile
+	app     *App
+	cmd     Command
+	fixed   *profile.VoiceProfile
+	proj    *project.KapiProject
+	root    string
+	store   profile.Store
+	release func()
+	cache   map[string]*profile.VoiceProfile
+}
+
+// close releases the voice store, if this run opened one of its own. Inside a
+// project the store is the shared pool's and the release is a no-op.
+func (v *checkVoice) close() {
+	if v != nil && v.release != nil {
+		v.release()
+	}
 }
 
 // newCheckVoice builds the resolver for one run. A project that will not load
@@ -770,11 +780,11 @@ func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for voice: %w", lerr)
 	}
-	storePath, serr := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, serr := a.VoiceLookupStore(cmd)
 	if serr != nil {
 		return nil, serr
 	}
-	v.proj, v.root, v.store = proj, filepath.Dir(projectPath), storePath
+	v.proj, v.root, v.store, v.release = proj, filepath.Dir(projectPath), store, release
 	return v, nil
 }
 
@@ -881,8 +891,8 @@ func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoicePr
 		return p, nil
 	}
 	p, _, found, err := v.app.ResolveVoiceProfile(ctx, v.proj, v.root, VoiceResolveOptions{
-		StorePath: v.store,
-		Point:     point,
+		Store: v.store,
+		Point: point,
 	})
 	if err != nil {
 		return nil, err

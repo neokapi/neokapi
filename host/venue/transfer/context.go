@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
@@ -63,7 +62,11 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	}
 
 	kapiProject := &proj.Recipe.KapiProject
-	storePath := filepath.Join(proj.Root, "voice.db")
+	store, release, err := app.ProjectVoiceStore(ctx, proj.Root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open the project's voice store: %w", err)
+	}
+	defer release()
 
 	// Profiles are carried once per distinct name: several collections
 	// governed by one voice cost one copy of it on the wire, and the entries
@@ -87,8 +90,8 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 		// coordinates fall through with it.
 		point := app.GovernancePointFor(coll.Name, "")
 		profile, governance, _, found, err := app.LoadCollectionVoice(ctx, kapiProject, proj.Root, host.VoiceResolveOptions{
-			Point:     point,
-			StorePath: storePath,
+			Point: point,
+			Store: store,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve governance for collection %q: %w", coll.Name, err)

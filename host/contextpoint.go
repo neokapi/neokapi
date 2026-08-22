@@ -267,11 +267,12 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 
 	// The voice at the point, composed with the overrides that apply there —
 	// the same resolution `kapi voice guide` and a translating run take.
-	storePath, serr := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, serr := a.VoiceLookupStore(cmd)
 	if serr != nil {
-		storePath = filepath.Join(root, "voice.db")
+		src.Notes = append(src.Notes, "the voice store could not be opened: "+serr.Error())
 	}
-	voice, vsrc, found, verr := a.resolveVoiceForGovernance(ctx, root, storePath, rc, VoiceResolveOptions{
+	defer release()
+	voice, vsrc, found, verr := a.resolveVoiceForGovernance(ctx, root, store, rc, VoiceResolveOptions{
 		Locale: string(req.Locale),
 	})
 	switch {
@@ -316,9 +317,10 @@ func (a *App) adHocVoice(ctx context.Context, cmd Command, src *ContextPointSour
 		return "no kapi project is in scope and no profile was named, so there is no point to answer for"
 	}
 
-	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, err := a.VoiceLookupStore(cmd)
+	defer release()
 	if err == nil {
-		if p, lerr := lookupStoreProfileAt(ctx, storePath, req.Profile); lerr == nil {
+		if p, lerr := lookupProfileIn(ctx, store, req.Profile); lerr == nil {
 			src.Voice = coreprofile.ResolveProfile(p, req.Locale, "", "")
 			src.VoiceSource = "store:" + req.Profile
 			return "no recipe declares this profile: answered from the local voice store, so no terms or governance window applies"

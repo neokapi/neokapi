@@ -81,6 +81,7 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	if err != nil {
 		return gate, false, err
 	}
+	defer current.close()
 
 	blocks := newSourceBlockCache(a, ctx)
 	unstamped := 0
@@ -216,23 +217,32 @@ func orNone(s string) string {
 // approximation of them. A resolution that differed by one entry would report
 // the entire project stale against a context nobody had touched.
 type contextFingerprints struct {
-	app   *App
-	cmd   Command
-	proj  *project.KapiProject
-	root  string
-	store string
-	cache map[string]governingContext
+	app     *App
+	cmd     Command
+	proj    *project.KapiProject
+	root    string
+	store   coreprofile.Store
+	release func()
+	cache   map[string]governingContext
 }
 
 func newContextFingerprints(a *App, cmd Command, proj *project.KapiProject, root string) (*contextFingerprints, error) {
-	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, err := a.VoiceLookupStore(cmd)
 	if err != nil {
 		return nil, err
 	}
 	return &contextFingerprints{
-		app: a, cmd: cmd, proj: proj, root: root, store: storePath,
+		app: a, cmd: cmd, proj: proj, root: root, store: store, release: release,
 		cache: map[string]governingContext{},
 	}, nil
+}
+
+// close releases the voice store, if this run opened one of its own. Inside a
+// project the store is the shared pool's and the release is a no-op.
+func (c *contextFingerprints) close() {
+	if c != nil && c.release != nil {
+		c.release()
+	}
 }
 
 func (c *contextFingerprints) at(point project.GovernancePoint, locale string) (governingContext, error) {
@@ -242,8 +252,8 @@ func (c *contextFingerprints) at(point project.GovernancePoint, locale string) (
 	}
 
 	p, _, found, err := c.app.ResolveVoiceProfile(CmdContext(c.cmd), c.proj, c.root, VoiceResolveOptions{
-		StorePath: c.store,
-		Point:     point,
+		Store: c.store,
+		Point: point,
 	})
 	if err != nil {
 		return governingContext{}, err

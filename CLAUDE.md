@@ -266,11 +266,11 @@ that bite most often:
   **voice profile**: the recipe key is `defaults.voice`, the command family is
   `kapi voice`, the check gate is `--voice`, the tools are `voice-vocab-check` /
   `voice-check` / `voice-infer`, the annotation type is `voice`, the store
-  packages are `host/storage/voice` and `bowrain/voice`, the permission is
-  `manage_voice`, the tables are `voice_*` under `voice_schema_migrations`, the
-  on-disk store is `voice/voice.db` (beside `memory/memory.db` and
-  `terms/terms.db`), the scoring dimension is `compliance`, and the MCP tool is
-  `score_voice_compliance`. *Brand voice* belongs in prose describing the common
+  packages are `voice/` and `bowrain/voice`, the permission is `manage_voice`,
+  the tables are `voice_*`, the store inside a project is the shared pool
+  (`core/projectdb`, beside the content memory, the terms store and the block
+  cache) and a standalone one is `voice.db`, the scoring dimension is
+  `compliance`, and the MCP tool is `score_voice_compliance`. *Brand voice* belongs in prose describing the common
   use case, never as the name of the mechanism. A `brand`-named identifier is a
   leftover.
 

@@ -69,6 +69,7 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/voice"
 )
 
 // Primary tables the presence helpers probe. Presence is a row question, not a
@@ -80,6 +81,7 @@ const (
 	memoryTable   = "tm_entries"
 	termsTable    = "tb_concepts"
 	blocksTable   = "blocks"
+	voiceTable    = "voice_profiles"
 	overlaysTable = "overlays"
 )
 
@@ -96,6 +98,7 @@ type DB struct {
 	raw        *storage.DB
 	memory     *memory.SQLiteStore
 	terms      *terms.SQLiteStore
+	voice      *voice.SQLiteStore
 	blocks     blockstore.Store
 	blocksAuto blockstore.Store
 	work       *state.WorkStore
@@ -150,6 +153,10 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind terms store: %w", err)
 	}
+	vc, err := voice.NewSQLiteStore(d.raw)
+	if err != nil {
+		return fmt.Errorf("projectdb: bind voice store: %w", err)
+	}
 	blocks, err := sqlitestore.NewFromDB(d.raw, false)
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block store: %w", err)
@@ -162,7 +169,7 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind working store: %w", err)
 	}
-	d.memory, d.terms, d.blocks, d.blocksAuto, d.work = mem, tb, blocks, auto, work
+	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work = mem, tb, vc, blocks, auto, work
 	return nil
 }
 
@@ -198,6 +205,11 @@ func (d *DB) Memory() *memory.SQLiteStore { return d.memory }
 // file-backed SQLite driver.
 func (d *DB) Terms() *terms.SQLiteStore { return d.terms }
 
+// Voice returns the project's voice store — the profiles a recipe's
+// `voice: profile:` binding names — or nil where the build has no file-backed
+// SQLite driver.
+func (d *DB) Voice() *voice.SQLiteStore { return d.voice }
+
 // Blocks returns the session-transactional block store: a session is one
 // *sql.Tx, so writes land all-or-nothing at Commit. This is the mode for
 // extraction's purge-and-refill. nil where the build has no file-backed SQLite
@@ -224,6 +236,11 @@ func (d *DB) HasMemory(ctx context.Context) (bool, error) {
 // HasTerms reports whether the terms store holds any concept.
 func (d *DB) HasTerms(ctx context.Context) (bool, error) {
 	return d.hasRows(ctx, termsTable)
+}
+
+// HasVoice reports whether the voice store holds any profile.
+func (d *DB) HasVoice(ctx context.Context) (bool, error) {
+	return d.hasRows(ctx, voiceTable)
 }
 
 // HasBlocks reports whether the block cache holds any extracted block. It
@@ -265,7 +282,7 @@ func (d *DB) hasRows(ctx context.Context, table string) (bool, error) {
 // Close releases the connection pool. Idempotent; the subsystem handles are
 // detached rather than closed, since they never owned the pool.
 func (d *DB) Close() error {
-	d.memory, d.terms, d.blocks, d.blocksAuto, d.work = nil, nil, nil, nil, nil
+	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work = nil, nil, nil, nil, nil, nil
 	if d.raw == nil {
 		return nil
 	}

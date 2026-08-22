@@ -20,8 +20,8 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
-	voicestore "github.com/neokapi/neokapi/host/storage/voice"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	voicestore "github.com/neokapi/neokapi/voice"
 )
 
 // LocalScope is the profile scope for the local CLI voice store: a single-owner
@@ -191,21 +191,6 @@ examples:
 // helpers
 // ---------------------------------------------------------------------------
 
-// OpenVoiceStore opens the local SQLite voice store using the standard
-// --name/--local/--file resource flags (default ./voice.db), mirroring the
-// terms/tm pattern.
-func (a *App) OpenVoiceStore(cmd Command) (*voicestore.SQLiteStore, string, error) {
-	dbPath, err := resolveResourcePath(cmd, "voice", "voice.db")
-	if err != nil {
-		return nil, "", err
-	}
-	store, err := openVoiceStoreAt(dbPath)
-	if err != nil {
-		return nil, dbPath, err
-	}
-	return store, dbPath, nil
-}
-
 // openVoiceStoreAt opens (creating if needed) the local SQLite voice store at
 // dbPath — the cobra-free leg of OpenVoiceStore.
 func openVoiceStoreAt(dbPath string) (*voicestore.SQLiteStore, error) {
@@ -224,11 +209,11 @@ func openVoiceStoreAt(dbPath string) (*voicestore.SQLiteStore, error) {
 // SaveProfileToStore creates or updates a profile in the local store, returning
 // a typed import result.
 func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile, srcPath string) error {
-	store, _, err := a.OpenVoiceStore(cmd)
+	store, _, release, err := a.OpenVoiceStore(cmd)
 	if err != nil {
 		return err
 	}
-	defer store.Close()
+	defer release()
 
 	if profile.ID == "" {
 		profile.ID = slugify(profile.Name)
@@ -351,13 +336,13 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 		return nil, "", false, fmt.Errorf("load project for voice profile: %w", lerr)
 	}
 
-	// The local voice store from the standard --name/--local/--file resource
-	// flags; commands without those flags fall through to the ./voice.db
-	// default, exactly as before.
-	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
+	// The voice store the flags select: the project's own pool when none are
+	// given, a standalone file when one is.
+	store, release, err := a.VoiceLookupStore(cmd)
 	if err != nil {
 		return nil, "", false, err
 	}
+	defer release()
 
 	// Where the first named file sits, if any. A path outside every declared
 	// glob resolves the project defaults — the same answer as before this
@@ -380,7 +365,7 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 	}
 
 	return a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
-		Locale: locale, Channel: channel, Persona: persona, StorePath: storePath,
+		Locale: locale, Channel: channel, Persona: persona, Store: store,
 		Point: point,
 	})
 }
@@ -393,11 +378,12 @@ type VoiceResolveOptions struct {
 	Locale  string
 	Channel string
 	Persona string
-	// StorePath is the local SQLite voice store consulted when the recipe
-	// binds defaults.voice.profile. Empty means "voice.db" relative to
-	// the project root (the CLI's flag-free default resolves against the
-	// working directory instead, via its resource flags).
-	StorePath string
+	// Store is the voice store consulted when the recipe binds
+	// defaults.voice.profile by name. Inside a project it is the shared pool's
+	// (App.ProjectVoiceStore); a --name/--local/--file flag selects a
+	// standalone file instead (App.VoiceLookupStore). nil means there is
+	// nowhere to look, and a name-bound profile is reported as not found.
+	Store coreprofile.Store
 	// Point is the place in the context space whose governance to resolve: a
 	// content collection, or the finer point one file sits at. Its coordinates
 	// select the profile (hence the voice) and the channel; the zero point, and
@@ -449,7 +435,7 @@ func (a *App) ResolveVoiceAtPoint(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, nil, "", false, err
 	}
-	profile, src, found, err := a.resolveVoiceForGovernance(ctx, root, voiceStorePath(opts.StorePath, root), rc, opts)
+	profile, src, found, err := a.resolveVoiceForGovernance(ctx, root, opts.Store, rc, opts)
 	return profile, rc, src, found, err
 }
 
@@ -460,8 +446,8 @@ func (a *App) ResolveVoiceAtPoint(ctx context.Context, proj *project.KapiProject
 // reports the point AND the voice must resolve the point exactly once: two
 // resolutions of the same request is how a reported coordinate and the guidance
 // under it come to describe different places.
-func (a *App) resolveVoiceForGovernance(ctx context.Context, root, storePath string, rc *project.ResolvedGovernance, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, string, bool, error) {
-	profile, src, found, err := a.loadVoiceAtGovernance(ctx, root, storePath, rc)
+func (a *App) resolveVoiceForGovernance(ctx context.Context, root string, store coreprofile.Store, rc *project.ResolvedGovernance, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, string, bool, error) {
+	profile, src, found, err := a.loadVoiceAtGovernance(ctx, root, store, rc)
 	if err != nil || !found {
 		return nil, "", false, err
 	}
@@ -508,24 +494,14 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, nil, "", false, err
 	}
-	profile, src, found, lerr := a.loadVoiceAtGovernance(ctx, root, voiceStorePath(opts.StorePath, root), rc)
+	profile, src, found, lerr := a.loadVoiceAtGovernance(ctx, root, opts.Store, rc)
 	return profile, rc, src, found, lerr
-}
-
-// voiceStorePath defaults an unset local voice store to the project root's
-// (the CLI's flag-free default resolves against the working directory instead,
-// via its resource flags).
-func voiceStorePath(storePath, root string) string {
-	if storePath != "" {
-		return storePath
-	}
-	return filepath.Join(root, "voice.db")
 }
 
 // loadVoiceAtGovernance loads the voice profile an already-resolved governance
 // binds, AS AUTHORED — the ladder LoadCollectionVoice documents, once the point
 // itself has been resolved.
-func (a *App) loadVoiceAtGovernance(ctx context.Context, root, storePath string, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
+func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store coreprofile.Store, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
 	if rc == nil {
 		return nil, "", false, nil
 	}
@@ -543,7 +519,7 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root, storePath string,
 			return p, conv, true, nil
 		}
 	}
-	profile, src, found, err := a.loadBoundVoiceProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
+	profile, src, found, err := a.loadBoundVoiceProfile(ctx, rc.Voice, root, store, rc.VoiceField)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -590,8 +566,8 @@ func voiceProfileConventions(root string) []string {
 // project-wide). field names the recipe key the binding came from,
 // so a missing file names the line to fix. profile_file paths are resolved
 // relative to the project root; a profile name is looked up in the local voice
-// store at storePath.
-func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBinding, root, storePath, field string) (*coreprofile.VoiceProfile, string, bool, error) {
+// store.
+func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBinding, root string, store coreprofile.Store, field string) (*coreprofile.VoiceProfile, string, bool, error) {
 	if bv == nil {
 		return nil, "", false, nil
 	}
@@ -616,7 +592,7 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 		}
 		return p, "pack:" + bv.Pack, true, nil
 	case bv.Profile != "":
-		p, err := lookupStoreProfileAt(ctx, storePath, bv.Profile)
+		p, err := lookupProfileIn(ctx, store, bv.Profile)
 		if err != nil {
 			return nil, "", false, err
 		}
@@ -643,30 +619,25 @@ func loadProfileFile(path string) (*coreprofile.VoiceProfile, error) {
 	return p, nil
 }
 
-// lookupStoreProfile finds a profile in the local store by ID or by name,
-// resolving the store from the standard resource flags.
+// lookupStoreProfile finds a profile in the voice store this command resolves,
+// by ID or by name.
 func (a *App) lookupStoreProfile(cmd Command, name string) (*coreprofile.VoiceProfile, error) {
-	dbPath, err := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, err := a.VoiceLookupStore(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return lookupStoreProfileAt(CmdContext(cmd), dbPath, name)
+	defer release()
+	return lookupProfileIn(CmdContext(cmd), store, name)
 }
 
-// lookupStoreProfileAt finds a profile in the local voice store at dbPath by
-// ID, slugged name, then case-insensitive name — the cobra-free leg of
-// lookupStoreProfile. A store file that does not exist yet reads as
-// profile-not-found (without creating an empty database as a side effect).
-func lookupStoreProfileAt(ctx context.Context, dbPath, name string) (*coreprofile.VoiceProfile, error) {
+// lookupProfileIn finds a profile in a voice store by ID, slugged name, then
+// case-insensitive name. A nil store — no project, and no standalone file on
+// disk — reads as profile-not-found.
+func lookupProfileIn(ctx context.Context, store coreprofile.Store, name string) (*coreprofile.VoiceProfile, error) {
 	notFound := fmt.Errorf("voice profile %q not found in local store (try 'kapi voice pack %s' or 'kapi voice profiles')", name, name)
-	if _, err := os.Stat(dbPath); err != nil {
+	if store == nil {
 		return nil, notFound
 	}
-	store, err := openVoiceStoreAt(dbPath)
-	if err != nil {
-		return nil, err
-	}
-	defer store.Close()
 
 	if p, gerr := store.GetProfile(ctx, name); gerr == nil {
 		return p, nil
