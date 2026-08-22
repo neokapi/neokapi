@@ -124,6 +124,7 @@ export const TEST_IDS = {
     fieldConfidence: "context-scan-field-confidence",
     termRow: "context-scan-term-row",
     liveTester: "context-scan-live-tester",
+    axes: "context-scan-axes",
     approve: "context-scan-approve",
   },
 

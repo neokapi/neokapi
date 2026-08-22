@@ -24,6 +24,7 @@ import {
   povSpectrum,
   contractionsSpectrum,
 } from "../voice/data/tone-spectrums";
+import { ContextScanAxes } from "./ContextScanAxes";
 import { ContextScanLiveTester } from "./ContextScanLiveTester";
 import { scanAxes, scanTerms, scanVoice } from "./artefacts";
 import { TEST_IDS } from "../test-ids";
@@ -202,43 +203,7 @@ function ContextScanReviewEditor({
   return (
     <div data-testid={TEST_IDS.contextScan.review} className="flex gap-6">
       <div className="flex-1 min-w-0 space-y-4">
-        {proposedAxes.length > 0 && (
-          <Card className="p-5 space-y-3">
-            <div className="space-y-1">
-              <h2 className="text-sm font-semibold">Where this content varies</h2>
-              <p className="text-xs text-muted-foreground">
-                Dimensions the corpus distinguishes. Approving one proposes a coordinate for your
-                recipe; it lands in <code>kapi.yaml</code> on your next pull, where you review it in
-                git like any other change.
-              </p>
-            </div>
-            <ul className="space-y-2">
-              {proposedAxes.map((a) => (
-                <li key={a.axis} className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-                      {a.axis}
-                    </Badge>
-                    {a.values.map((v) => (
-                      <span
-                        key={v}
-                        className="text-xs rounded border px-1.5 py-0.5 text-muted-foreground"
-                      >
-                        {v}
-                      </span>
-                    ))}
-                    <span className="text-[10px] text-muted-foreground tabular-nums ml-auto">
-                      {Math.round(a.confidence * 100)}% confident
-                    </span>
-                  </div>
-                  {a.evidence && a.evidence.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground truncate">{a.evidence[0]}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        <ContextScanAxes axes={proposedAxes} />
 
         {/* Provenance */}
         <Card className="p-5 space-y-2">

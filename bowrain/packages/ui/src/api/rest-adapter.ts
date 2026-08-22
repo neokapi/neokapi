@@ -155,6 +155,8 @@ import type {
   CreditLedgerPage,
   ContextScanApproveRequest,
   ContextScanApproveResult,
+  ApproveAxisRequest,
+  PendingRecipeChange,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -2809,6 +2811,17 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify({ profile, text }),
     });
+  }
+
+  async approveAxis(
+    workspaceSlug: string,
+    projectId: string,
+    req: ApproveAxisRequest,
+  ): Promise<PendingRecipeChange> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/projects/${encodeURIComponent(projectId)}/axes`,
+      { method: "POST", body: JSON.stringify(req) },
+    );
   }
 
   // ── Activities (Bowrain AD-014) ─────────────────────────────────────────────────

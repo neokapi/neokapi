@@ -8,3 +8,5 @@ export { ContextScanLiveTester } from "./ContextScanLiveTester";
 export type { ContextScanLiveTesterProps } from "./ContextScanLiveTester";
 export { ContextScanLocalLaneCard } from "./ContextScanLocalLaneCard";
 export type { ContextScanLocalLaneCardProps } from "./ContextScanLocalLaneCard";
+export { ContextScanAxes } from "./ContextScanAxes";
+export type { ContextScanAxesProps } from "./ContextScanAxes";

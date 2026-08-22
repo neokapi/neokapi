@@ -850,6 +850,8 @@ export type {
   ContextScanCheckResult,
   ContextScanApprovedTerm,
   ContextScanApproveRequest,
+  ApproveAxisRequest,
+  PendingRecipeChange,
   ContextScanApproveResult,
 } from "./types/api";
 
