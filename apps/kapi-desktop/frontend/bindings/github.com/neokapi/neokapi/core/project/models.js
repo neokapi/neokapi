@@ -1346,13 +1346,17 @@ export class Profile {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms is a STANDALONE terms store governing this product's content — a
-             * file the recipe points at, resolved relative to the project root. Empty
+             * TermStore is a STANDALONE terms store governing this product's content —
+             * a file the recipe points at, resolved relative to the project root. Empty
              * is the ordinary case: the project's own store governs.
+             * 
+             * Spelled `termstore:` rather than `terms:` because a store is not its
+             * contents, and because `terms` is already the dnt-check tool's own key for
+             * a list of strings. It matches the `--termstore` selector.
              * @member
              * @type {string | undefined}
              */
-            this["terms"] = undefined;
+            this["termstore"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
