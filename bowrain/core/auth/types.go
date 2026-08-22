@@ -75,7 +75,7 @@ var ValidDashboardVisibility = map[DashboardVisibility]bool{
 
 // PulseTermSources controls which terminology sources are exposed on the Pulse dashboard.
 type PulseTermSources struct {
-	Terminology     bool `json:"terminology"`      // standard glossary terms
+	Terminology     bool `json:"terminology"`      // standard terminology
 	VoiceVocabulary bool `json:"brand_vocabulary"` // product names, taglines, do/don't
 }
 

@@ -36,7 +36,7 @@ import (
 //   - ABSENCE (RV-F): the source uses the concept and the concept now MANDATES a
 //     preferred/approved rendering for the target locale, yet the target FAILS to
 //     use it — the term-check / term-enforce direction. This is the more common
-//     case after a glossary term is added or marked preferred.
+//     case after a term is added or marked preferred.
 //
 // Both directions reuse the canonical terminology matchers (a single-concept
 // in-memory terms + LookupAll, plus the concept's per-locale target terms) so

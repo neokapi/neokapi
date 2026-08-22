@@ -44,7 +44,7 @@ func TestSinglePreserveTagsGatesTagRule(t *testing.T) {
 }
 
 // Rendering is deterministic: the same inputs must produce byte-identical
-// prompts, including glossary ordering, or the config fingerprint and any
+// prompts, including term ordering, or the config fingerprint and any
 // cached target drift against each other.
 func TestRenderingIsDeterministic(t *testing.T) {
 	t.Parallel()
@@ -64,13 +64,13 @@ func TestRenderingIsDeterministic(t *testing.T) {
 		assert.Equal(t, first, build().Single("Hello", false))
 	}
 
-	// Glossary terms are sorted, not map-ordered.
+	// Terms are sorted, not map-ordered.
 	sys := first[0].Text
 	assert.Less(t, strings.Index(sys, "alpha"), strings.Index(sys, "mu"))
 	assert.Less(t, strings.Index(sys, "mu"), strings.Index(sys, "zeta"))
 }
 
-// Directives carry instruction, voice profile and glossary into every path.
+// Directives carry instruction, voice profile and terms into every path.
 func TestDirectivesReachBothSingleAndBatch(t *testing.T) {
 	t.Parallel()
 
@@ -161,7 +161,7 @@ func TestNoDirectivesWhenUnset(t *testing.T) {
 
 	assert.Empty(t, basic().Directives())
 	sys := basic().Single("x", false)[0].Text
-	assert.NotContains(t, sys, "Glossary")
+	assert.NotContains(t, sys, "Terminology")
 	assert.NotContains(t, sys, "Voice profile")
 	assert.NotContains(t, sys, "Instruction")
 }
@@ -179,7 +179,7 @@ func TestFingerprintTracksEveryPromptInput(t *testing.T) {
 		"source locale": {SourceLocale: "nb", TargetLocale: "fr"},
 		"instruction":   {SourceLocale: "en", TargetLocale: "fr", Instruction: "Informal."},
 		"voice guide":   {SourceLocale: "en", TargetLocale: "fr", VoiceGuide: "Warm, direct."},
-		"glossary":      {SourceLocale: "en", TargetLocale: "fr", PreferredTerms: map[string]string{"utilize": "use"}},
+		"term rules":    {SourceLocale: "en", TargetLocale: "fr", PreferredTerms: map[string]string{"utilize": "use"}},
 	}
 
 	for name, v := range variants {

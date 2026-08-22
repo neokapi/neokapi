@@ -41,7 +41,7 @@ const (
 	CatElementsWithinText
 
 	// CatDomain is the Domain data category (§6.10). Tags content
-	// with subject-domain metadata for downstream MT/glossary
+	// with subject-domain metadata for downstream MT/terminology
 	// selection.
 	CatDomain
 

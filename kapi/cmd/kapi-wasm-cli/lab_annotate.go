@@ -214,7 +214,7 @@ func segmentSpans(ctx context.Context, runs []model.Run, engineName, locale stri
 }
 
 // termOverlay builds an OverlayTerm over the source runs from the seeded
-// terms. Each matched glossary term becomes a span carrying the matched
+// terms. Each matched term becomes a span carrying the matched
 // surface form (text), its required translation and domain. Returns nil when
 // the terms store is unseeded or nothing matches.
 func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Overlay {

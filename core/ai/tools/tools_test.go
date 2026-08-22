@@ -112,7 +112,7 @@ func TestAITranslateToolSkipsMatchedWhenConfigured(t *testing.T) {
 	assert.Empty(t, mock.TranslateCalls)
 }
 
-func TestAITranslateToolWithPreferredTerms(t *testing.T) {
+func TestAITranslateToolWithTermRules(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	var capturedReq aiprovider.TranslateRequest
 	mock.TranslateFunc = func(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
@@ -124,11 +124,10 @@ func TestAITranslateToolWithPreferredTerms(t *testing.T) {
 		}, nil
 	}
 
-	glossary := map[string]string{"hello": "bonjour"}
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale:   model.LocaleEnglish,
-		TargetLocale:   model.LocaleFrench,
-		PreferredTerms: glossary,
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+		TermRules:    []coreprofile.TermRule{{Term: "hello", Replacement: "bonjour"}},
 	})
 
 	ctx := t.Context()
@@ -143,7 +142,8 @@ func TestAITranslateToolWithPreferredTerms(t *testing.T) {
 	require.NoError(t, err)
 	<-out
 
-	assert.Equal(t, glossary, capturedReq.PreferredTerms)
+	// The rules reach the provider projected to the map its prompt renders.
+	assert.Equal(t, map[string]string{"hello": "bonjour"}, capturedReq.PreferredTerms)
 }
 
 func TestAITranslateToolInjectsVoiceProfile(t *testing.T) {

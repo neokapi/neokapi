@@ -14,7 +14,7 @@ import (
 var dntSentinelRe = regexp.MustCompile(`(?i)\[\[DNT_(\d+)\]\]`)
 
 // This file enforces do-not-translate (DNT) terms in the AI translate path
-// (strategy 2026-07-dogfood doc 07 / roadmap epic 019, item 4). The glossary is
+// (strategy 2026-07-dogfood doc 07 / roadmap epic 019, item 4). A term rule is
 // advisory — it asks the model to prefer a rendering; DNT is enforced — a
 // protected span is MASKED with a sentinel before the model sees it and RESTORED
 // to the exact original after, so the term survives verbatim regardless of what

@@ -242,7 +242,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.InitRegistries()
 
 	// The verify path threads cmd.Context() into ctx-aware content memory/terms lookups
-	// (e.g. ResolveProjectPreferredTerms). When computeVerify runs outside cobra's
+	// (e.g. ResolveTermRules). When computeVerify runs outside cobra's
 	// Execute — the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
 	// RunVerify directly — that context is nil, which panics deep in
 	// database/sql and then deadlocks on the deferred store Close. Seed a real
@@ -1043,11 +1043,11 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root string) 
 
 // --- terminology gate -------------------------------------------------------
 
-// verifyTerminology term-checks each target file against the glossary governing
-// it, reusing core/tools.NewTermCheckTool. The glossary is resolved per target
-// locale AND per point: the terms a profile binds govern that profile's content,
-// so a unit whose source sits under a per-item `channel:` override is checked
-// against the vocabulary in force there. A locale with no glossary entries
+// verifyTerminology term-checks each target file against the term rules
+// governing it, reusing core/tools.NewTermCheckTool. The rules are resolved per
+// target locale AND per point: the terms a profile binds govern that profile's
+// content, so a unit whose source sits under a per-item `channel:` override is
+// checked against the vocabulary in force there. A locale with no rules
 // contributes no findings; a missing target file (untranslated) is flagged by
 // the QA gate, so terminology skips it.
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
@@ -1059,29 +1059,29 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		root = filepath.Dir(projectPath)
 	}
 
-	// Cache the glossary per (point, locale) — building it opens the terms store.
-	glossaries := map[string][]coretools.PreferredTermPair{}
-	preferredTermsFor := func(u VerifyUnit) ([]coretools.PreferredTermPair, error) {
+	// Cache the rules per (point, locale) — building them opens the terms store.
+	ruleCache := map[string][]coreprofile.TermRule{}
+	termRulesFor := func(u VerifyUnit) ([]coreprofile.TermRule, error) {
 		point := a.unitGovernancePoint(root, u)
 		key := point.Collection + "\x00" + point.Path + "\x00" + u.Locale
-		if g, ok := glossaries[key]; ok {
+		if g, ok := ruleCache[key]; ok {
 			return g, nil
 		}
-		g, err := a.ResolveProjectPreferredTermsFor(cmd, u.Locale, point)
+		g, err := a.ResolveTermRulesFor(cmd, u.Locale, point)
 		if err != nil {
 			return nil, err
 		}
-		glossaries[key] = g
+		ruleCache[key] = g
 		return g, nil
 	}
 
 	for _, u := range units {
-		glossary, err := preferredTermsFor(u)
+		rules, err := termRulesFor(u)
 		if err != nil {
 			return gate, err
 		}
-		if len(glossary) == 0 {
-			// No bound glossary for this locale → nothing to enforce.
+		if len(rules) == 0 {
+			// Nothing bound at this point for this locale → nothing to enforce.
 			continue
 		}
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
@@ -1097,18 +1097,28 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 			continue
 		}
 		cfg := &coretools.TermCheckConfig{
-			PreferredTerms: glossary,
-			TargetLocale:   model.LocaleID(u.Locale),
+			TermRules:    rules,
+			TargetLocale: model.LocaleID(u.Locale),
 		}
 		tc := coretools.NewTermCheckTool(cfg)
 		for _, b := range blocks {
 			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
 				return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 			}
+			// A rule's severity decides whether it fails the gate or only
+			// reports: the tool has already sorted the violations into the two
+			// properties, so a minor rule warns here rather than blocking.
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
-				msg := b.Properties[coretools.PropTermCheckErrors]
-				for m := range strings.SplitSeq(msg, "; ") {
+			}
+			for _, v := range []struct {
+				prop     string
+				severity string
+			}{
+				{coretools.PropTermCheckErrors, "error"},
+				{coretools.PropTermCheckWarnings, "warning"},
+			} {
+				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
 					if strings.TrimSpace(m) == "" {
 						continue
 					}
@@ -1116,9 +1126,9 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 						Gate:       gateTerms,
 						File:       u.DisplayPath,
 						Locale:     u.Locale,
-						Severity:   "error",
+						Severity:   v.severity,
 						Message:    m,
-						Suggestion: "use the glossary's required translation",
+						Suggestion: "use the term rule's required translation",
 					})
 				}
 			}
@@ -1239,14 +1249,15 @@ func (a *App) verifyQA(cmd Command, proj *project.KapiProject, root string, unit
 // target is correct for such a string rather than untranslated. Returns nil on
 // any resolution error, which simply leaves the rule with nothing to suppress.
 func (a *App) doNotTranslateTerms(cmd Command, locale string) map[string]bool {
-	glossary, err := a.ResolveProjectPreferredTerms(cmd, locale)
-	if err != nil || len(glossary) == 0 {
+	rules, err := a.ResolveTermRules(cmd, locale)
+	if err != nil || len(rules) == 0 {
 		return nil
 	}
-	dnt := make(map[string]bool, len(glossary))
-	for _, e := range glossary {
-		if e.Source == e.Target {
-			dnt[e.Source] = true
+	dnt := make(map[string]bool, len(rules))
+	for _, r := range rules {
+		// A term whose required rendering is itself must survive verbatim.
+		if r.Term == r.Replacement {
+			dnt[r.Term] = true
 		}
 	}
 	return dnt

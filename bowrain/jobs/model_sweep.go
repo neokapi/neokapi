@@ -20,7 +20,7 @@ import (
 
 // Measured steerability (model recommendation sweeps): the platform
 // periodically measures how much each candidate model actually obeys THIS
-// project's standing brand context — voice profile, terminology glossary, and
+// project's standing context — voice profile, term rules, and
 // do-not-translate terms — and recommends the model with the highest measured
 // context lift. No customer authoring, no customer spend: the fixture set is
 // derived from the project's own content, both arms run on the PLATFORM
@@ -82,7 +82,7 @@ type ModelSweepSettings interface {
 type SweepFixture struct {
 	BlockID    string
 	SourceText string
-	// Trap classifies why the segment was selected: "glossary" (contains a
+	// Trap classifies why the segment was selected: "terms" (contains a
 	// terms source term), "voice" (tempts the profile's forbidden/competitor
 	// vocabulary or a mechanical style rule), or "dnt" (carries a
 	// do-not-translate term).
@@ -99,31 +99,31 @@ const (
 	sweepVoiceQuota       = 10
 	sweepDNTQuota         = 4
 	sweepMaxSourceLen     = 500 // skip very long segments; traps are short by nature
-	sweepFixtureDigestVer = "v1"
+	sweepFixtureDigestVer = "v2"
 )
 
-// SweepContext is the standing brand context one sweep measures against: the
-// same voice profile, glossary, and DNT terms the worker binds into every
+// SweepContext is the standing context one sweep measures against: the same
+// voice profile, term rules, and DNT terms the worker binds into every
 // translation job (#1334), captured once so both arms and the digest see one
 // consistent snapshot.
 type SweepContext struct {
-	Profile  *coreprofile.VoiceProfile
-	Glossary map[string]string // source term → mandated target rendering
-	DNT      []string          // do-not-translate terms
+	Profile   *coreprofile.VoiceProfile
+	TermRules []coreprofile.TermRule // term → mandated target rendering
+	DNT       []string               // do-not-translate terms
 }
 
 // Empty reports whether there is any context to measure. A project with no
-// profile, no glossary, and no DNT terms has nothing steerability can lift.
+// profile, no term rules, and no DNT terms has nothing steerability can lift.
 func (c *SweepContext) Empty() bool {
 	return (c.Profile == nil || c.Profile.Name == "" && c.Profile.ID == "") &&
-		len(c.Glossary) == 0 && len(c.DNT) == 0
+		len(c.TermRules) == 0 && len(c.DNT) == 0
 }
 
 // DeriveSweepFixtures selects up to maxSweepFixtures genuine trap segments
 // from the project's stored source blocks, deterministically (blocks are
 // visited in ID order; the same content + context always yields the same set):
 //
-//   - glossary traps: the source contains a terms store source term, so the
+//   - terms traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts the profile's forbidden/competitor
 //     vocabulary (coreprofile.MatchVocabulary against the source — a model that
@@ -148,16 +148,16 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Block.ID < sorted[j].Block.ID })
 
-	preferredTermSources := make([]string, 0, len(sc.Glossary))
-	for src := range sc.Glossary {
-		preferredTermSources = append(preferredTermSources, src)
+	ruledTerms := make([]string, 0, len(sc.TermRules))
+	for _, r := range sc.TermRules {
+		ruledTerms = append(ruledTerms, r.Term)
 	}
-	sort.Strings(preferredTermSources)
+	sort.Strings(ruledTerms)
 
 	classify := func(text string) string {
 		switch {
-		case containsAnyTerm(text, preferredTermSources):
-			return "glossary"
+		case containsAnyTerm(text, ruledTerms):
+			return "terms"
 		case isVoiceTrap(text, sc.Profile):
 			return "voice"
 		case containsAnyTerm(text, sc.DNT):
@@ -167,7 +167,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 	}
 
 	// Pass 1 — balanced quotas per trap kind.
-	quota := map[string]int{"glossary": sweepTermsQuota, "voice": sweepVoiceQuota, "dnt": sweepDNTQuota}
+	quota := map[string]int{"terms": sweepTermsQuota, "voice": sweepVoiceQuota, "dnt": sweepDNTQuota}
 	counts := map[string]int{}
 	selected := map[string]bool{}
 	var fixtures []SweepFixture
@@ -237,7 +237,7 @@ func isVoiceTrap(text string, profile *coreprofile.VoiceProfile) bool {
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
-// fixture content, the profile identity+version, and the glossary/DNT terms
+// fixture content, the profile identity+version, and the term rules/DNT terms
 // derived from the terms store and project settings. Any change to content or
 // context yields a new digest, so stale rows are never mistaken for a
 // measurement of the current state.
@@ -254,13 +254,10 @@ func SweepFixtureDigest(projectID, locale string, fixtures []SweepFixture, sc *S
 		write("profile", sc.Profile.ID, strconv.Itoa(sc.Profile.Version))
 	}
 	if sc != nil {
-		keys := make([]string, 0, len(sc.Glossary))
-		for k := range sc.Glossary {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			write("glossary", k, sc.Glossary[k])
+		rules := append([]coreprofile.TermRule(nil), sc.TermRules...)
+		sort.Slice(rules, func(i, j int) bool { return rules[i].Term < rules[j].Term })
+		for _, r := range rules {
+			write("term", r.Term, r.Replacement)
 		}
 		dnt := append([]string(nil), sc.DNT...)
 		sort.Strings(dnt)
@@ -295,7 +292,7 @@ func (s sweepArmScore) Rate() float64 {
 // REAL core check tools — the same ones the convergence loop's checks pass
 // runs (no LLM judge, zero extra AI spend):
 //
-//   - term-check (core/tools): every glossary source term present in the
+//   - term-check (core/tools): every ruled source term present in the
 //     source must have its mandated rendering in the target — read back from
 //     the tool's term-check-passed property;
 //   - dnt-check (core/tools): every DNT term present in the source must
@@ -320,19 +317,10 @@ func scoreSweepBlocks(ctx context.Context, blocks []*model.Block, locale model.L
 	for _, b := range blocks {
 		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
 	}
-	if len(sc.Glossary) > 0 {
-		entries := make([]coretools.PreferredTermPair, 0, len(sc.Glossary))
-		keys := make([]string, 0, len(sc.Glossary))
-		for k := range sc.Glossary {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			entries = append(entries, coretools.PreferredTermPair{Source: k, Target: sc.Glossary[k]})
-		}
+	if len(sc.TermRules) > 0 {
 		termTool := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-			PreferredTerms: entries,
-			TargetLocale:   locale,
+			TermRules:    sc.TermRules,
+			TargetLocale: locale,
 		})
 		var err error
 		if parts, err = runToolOnParts(ctx, termTool, parts); err != nil {
@@ -395,16 +383,16 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 	return coreprofile.CalculateScore(findings).Overall >= profile.ComplianceBar()
 }
 
-// resolveSweepContext captures the project's standing brand context for a
-// sweep, via the very same resolution the translation worker binds into every
-// AI job (#1334): the voicescope profile ladder, the workspace terms
-// glossary, and the project's DNT terms.
+// resolveSweepContext captures the project's standing context for a sweep, via
+// the very same resolution the translation worker binds into every AI job
+// (#1334): the voicescope profile ladder, the workspace term rules, and the
+// project's DNT terms.
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
 	return &SweepContext{
-		Profile:  resolveJobVoiceProfile(ctx, deps, job),
-		Glossary: resolveJobPreferredTerms(ctx, deps, job, srcLocale, tgtLocale),
-		DNT:      ProjectDNTTerms(proj),
+		Profile:   resolveJobVoiceProfile(ctx, deps, job),
+		TermRules: resolveJobTermRules(ctx, deps, job, srcLocale, tgtLocale),
+		DNT:       ProjectDNTTerms(proj),
 	}
 }

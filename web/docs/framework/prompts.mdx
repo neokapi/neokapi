@@ -80,8 +80,8 @@ provider: anthropic  model: claude-sonnet-5
   Instruction (apply when translating):
   Informal register. Keep product names in English.
 
-  [glossary · terms (12 terms)]
-  Glossary:
+  [preferred_terms · terms (12 terms)]
+  Terminology (use these renderings):
   - utilize → use
 
   ── user ──
@@ -121,7 +121,7 @@ that have **different owners**, and the distinction is the whole design:
       steps: [
         "instruction — from --instruction or the recipe",
         "voice profile — from your voice profile",
-        "glossary — from your terms store",
+        "terminology — from your terms store",
       ],
     },
     {
@@ -222,8 +222,8 @@ provider interface, where it belongs. Switching `--provider anthropic` to
 
 ## Determinism, and why it matters for cost
 
-The same inputs always render byte-identical prompt text. Terms in the `glossary`
-section are sorted rather than emitted in map order, and no timestamp, run id or
+The same inputs always render byte-identical prompt text. Terms in the
+terminology section are sorted rather than emitted in map order, and no timestamp, run id or
 machine detail is ever interpolated.
 
 This is not tidiness. kapi caches translations, and the cache key is derived

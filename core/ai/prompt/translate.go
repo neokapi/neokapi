@@ -65,7 +65,7 @@ func (t Translate) steering() []Section {
 		out = append(out, Section{
 			Kind:    KindPreferredTerms,
 			Origin:  fmt.Sprintf("terms (%s)", plural(len(t.PreferredTerms), "term")),
-			Heading: "Glossary:",
+			Heading: "Terminology (use these renderings):",
 			Text:    strings.TrimRight(b.String(), "\n"),
 		})
 	}

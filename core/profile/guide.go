@@ -127,7 +127,7 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 // competitor terms, with or without a replacement) — so no populated profile
 // field is silently dead context at generation time. Only the illustrative
 // material (preferred terms, examples) is left to the full guide; preferred
-// term renderings travel via the glossary instead. Output is deterministic.
+// term renderings travel as term rules instead. Output is deterministic.
 func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	if p == nil {
 		return ""

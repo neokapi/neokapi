@@ -124,13 +124,13 @@ func kapiAllowFail(t *testing.T, args ...string) (string, error) {
 
 // ─── User Story 1: Terminology QA ───────────────────────────────────────────
 // Verifies the complete workflow from terminology-qa.md:
-//   Import glossary → inspect stats → lookup terms → search →
-//   run QA on translations → export glossary
+//   Import terms → inspect stats → lookup terms → search →
+//   run QA on translations → export terms
 
 func TestTermsImport(t *testing.T) {
 	tb := tempDB(t, "tb")
 
-	out := kapi(t, "terms", "import", filepath.Join(testdata, "glossary.csv"),
+	out := kapi(t, "terms", "import", filepath.Join(testdata, "terms.csv"),
 		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
 	assert.Contains(t, out, "Imported 7") // 7 concepts imported
 }
@@ -319,7 +319,7 @@ func TestMemoryLeverage(t *testing.T) {
 // ─── Full Pipeline: content memory Leverage → Pseudo-Translate → QA + Terms ──────────
 
 // TestFullPipeline runs the supported standalone pipeline end-to-end:
-// pseudo-translate → qa → term-check against the project glossary.
+// pseudo-translate → qa → term-check against the project terms.
 // (content-memory leverage is covered separately by TestMemoryLeverage.)
 func TestFullPipeline(t *testing.T) {
 	tb := importedTerms(t)
@@ -340,7 +340,7 @@ func TestFullPipeline(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, qaOut)
 
-	// Step 3: Terminology QA against the glossary (informational, exit 0, no
+	// Step 3: Terminology QA against the terms (informational, exit 0, no
 	// stdout). Executes via `kapi exec` (not a curated top-level verb).
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
@@ -358,7 +358,7 @@ func tempDB(t *testing.T, prefix string) string {
 func importedTerms(t *testing.T) string {
 	t.Helper()
 	tb := tempDB(t, "tb")
-	kapi(t, "terms", "import", filepath.Join(testdata, "glossary.csv"),
+	kapi(t, "terms", "import", filepath.Join(testdata, "terms.csv"),
 		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
 	return tb
 }

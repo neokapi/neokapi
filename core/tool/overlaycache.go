@@ -11,7 +11,7 @@ import (
 // that shape a tool's per-block output. The session overlay cache stores it
 // alongside each cached result, and a tool reuses a cached result only when this
 // fingerprint matches its current config. So changing a model, prompt, brand
-// voice, or glossary re-runs the tool (the old output would be stale), while an
+// voice, or terminology re-runs the tool (the old output would be stale), while an
 // unchanged config still skips the work — the "never run unneeded processing,
 // never serve stale processing" contract of the project's overlay cache.
 //
@@ -38,19 +38,19 @@ func OverlayConfigFingerprint(parts ...string) string {
 // context share a fingerprint regardless of which engine produced them and fall
 // stale together when the context moves.
 //
-// The glossary is a map, so its keys are sorted before hashing: an unsorted walk
+// The terms come as a map, so its keys are sorted before hashing: an unsorted walk
 // would hash identical terminology differently on each run and report drift that
 // never happened. Returns "" when there is no governing context at all, so an
 // ungoverned run reads as ungoverned rather than as the constant hash of two
 // empty strings.
-func ContextFingerprint(voiceGuide string, glossary map[string]string) string {
-	if voiceGuide == "" && len(glossary) == 0 {
+func ContextFingerprint(voiceGuide string, terms map[string]string) string {
+	if voiceGuide == "" && len(terms) == 0 {
 		return ""
 	}
-	parts := make([]string, 0, len(glossary)*2+1)
+	parts := make([]string, 0, len(terms)*2+1)
 	parts = append(parts, voiceGuide)
-	for _, src := range slices.Sorted(maps.Keys(glossary)) {
-		parts = append(parts, src, glossary[src])
+	for _, src := range slices.Sorted(maps.Keys(terms)) {
+		parts = append(parts, src, terms[src])
 	}
 	return OverlayConfigFingerprint(parts...)
 }

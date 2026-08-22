@@ -13,7 +13,7 @@ import (
 )
 
 // Scoring reuses the framework's own check tools rather than reimplementing
-// them: term-check for glossary mandates, dnt-check for verbatim survival,
+// them: term-check for term mandates, dnt-check for verbatim survival,
 // voice-vocab-check for forbidden-term hits, pattern-check for the regex-shaped
 // rules. That is deliberate and load-bearing — a model that "games" this eval
 // is a model that satisfies the checks kapi actually ships, and a check tool
@@ -155,13 +155,13 @@ func runCheck(ctx context.Context, corpus TestCorpus, chk Check, f Fixture, b *m
 	return false, "", fmt.Errorf("check %s/%s declares no scoring backend", chk.Dimension, chk.Kind)
 }
 
-// runTermCheck drives the real term-check tool with a single-entry glossary, so
-// each mandate scores independently. The tool reports via block properties,
+// runTermCheck drives the real term-check tool with a single rule, so each
+// mandate scores independently. The tool reports via block properties,
 // which are cleared afterwards so the next mandate reads its own verdict.
 func runTermCheck(ctx context.Context, chk Check, b *model.Block, loc model.LocaleID) (bool, string, error) {
 	t := coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-		TargetLocale:   loc,
-		PreferredTerms: []coretools.PreferredTermPair{{Source: chk.Term.Source, Target: chk.Term.Target}},
+		TargetLocale: loc,
+		TermRules:    []profile.TermRule{{Term: chk.Term.Term, Replacement: chk.Term.Replacement}},
 	})
 	if _, err := t.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: b}); err != nil {
 		return false, "", err

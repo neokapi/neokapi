@@ -290,6 +290,31 @@ that bite most often:
   `kapi/e2e` drifted: #1462 rewrote the flag inside a suite no PR runs, and the
   nightly said so for a fortnight with nobody listening.
 
+  **A store is never called `terms`.** The recipe key followed the flag:
+  a profile binds one with `profiles.<n>.termstore`. `terms` names the
+  *contents* — the concepts, and dnt-check's list of strings.
+
+  **The constraint on wording is a term rule, at every scope.** One term, what
+  to use instead, how hard it bites: `profile.TermRule`, carrying an optional
+  `ConceptID` that ties it to the concept in the terms store and the graph. It
+  is what the voice profile has always written under `vocabulary:`, and since
+  #2170 it is also what term-check, translate and recycle take, under one key —
+  `term_rules:`. Each tool projects the list for itself; `profile.TermRuleMap`
+  is the single projection to the prompt's map, because that map feeds the
+  context fingerprint the staleness gate recomputes.
+
+  A rule's `severity` decides whether a violation fails or only reports —
+  `minor`/`neutral` warn, everything else (including unset) fails, because rules
+  resolved from a terms store carry no severity and must not be silently
+  downgraded. A rule with an empty `Replacement` is skipped by the tools: in a
+  voice profile a bare term is meaningful, but "say this instead" needs a this.
+
+  Three words were tried before `term_rules:` and all three were taken —
+  `terms:` by dnt-check, `concepts:` by `profiles.<n>.concept`, and
+  `preferred_terms:` (shipped in #2169) by the voice profile's
+  `vocabulary.preferred_terms`. Map the whole family before renaming any of it;
+  see `strategy/terms-vocabulary-alignment.md`.
+
   The persisted discriminators followed too (#1522): `model.Origin.Kind`, the
   KPZ content type, the sync `content_type` and apply change-set kinds all now
   write `"memory"`. That was possible because the standing decision is to

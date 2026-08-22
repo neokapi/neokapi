@@ -1600,15 +1600,16 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	return leverage.NewProvider(tm), func() { tm.Close() }, nil
 }
 
-// ProjectBindings holds the standing voice + glossary context resolved
+// ProjectBindings holds the standing voice + terminology context resolved
 // from a .kapi project, applied to project-flow steps that can honor them.
 type ProjectBindings struct {
 	// profile is the resolved voice profile (defaults.voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *coreprofile.VoiceProfile
-	// glossary is the source→target glossary built from the project terms store
-	// (defaults.terms_source), injected into term-check steps. nil when unbound.
-	glossary []coretools.PreferredTermPair
+	// termRules are the terminology constraints built from the project terms
+	// store (defaults.terms_source), injected into the steps governed by
+	// terminology as config["term_rules"]. nil when unbound.
+	termRules []coreprofile.TermRule
 	// ToolPresets holds the project-level tool presets (defaults.tools):
 	// per-tool config defaults merged under each step's own config wherever
 	// that tool runs in a project flow (the step wins per key). nil when the
@@ -1631,11 +1632,11 @@ type ProjectBindings struct {
 	point string
 }
 
-// resolveProjectBindings resolves the standing voice + glossary context
+// resolveProjectBindings resolves the standing voice + terminology context
 // for one point of a project flow run — the governance in force there. The
 // voice comes from the profile matching that point, else defaults.voice, else a
 // convention voice.yaml, with the point's channel selecting the override inside
-// it; the glossary comes from that profile's standalone terms, else the
+// it; the term rules come from that profile's standalone terms, else the
 // project's own store. Returns nil when the project carries neither, so ad-hoc
 // behavior is unchanged.
 //
@@ -1658,7 +1659,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		return nil, err
 	}
 
-	glossary, err := a.ResolveProjectPreferredTermsFor(cmd, a.TargetLang, point)
+	termRules, err := a.ResolveTermRulesFor(cmd, a.TargetLang, point)
 	if err != nil {
 		return nil, err
 	}
@@ -1672,13 +1673,13 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 	}
 	at := sqlmemory.NewPoint(gov.Profile, gov.Channel, "")
 
-	if profile == nil && len(glossary) == 0 && at == "" &&
+	if profile == nil && len(termRules) == 0 && at == "" &&
 		len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
 		return nil, nil
 	}
 	return &ProjectBindings{
 		profile:       profile,
-		glossary:      glossary,
+		termRules:     termRules,
 		ToolPresets:   proj.Defaults.Tools,
 		localePresets: proj.Defaults.Locales,
 		point:         at,
@@ -1758,7 +1759,7 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 	if rc == nil {
 		return ""
 	}
-	if bound := rc.Terms; bound != "" {
+	if bound := rc.TermStore; bound != "" {
 		if !filepath.IsAbs(bound) {
 			bound = filepath.Join(root, bound)
 		}
@@ -1774,24 +1775,25 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 	return ""
 }
 
-// ResolveProjectPreferredTerms builds the source→target preferred terms from the project's
-// terms, for the active source and target locales. It reads the committed
-// .terms.json serialization — the terms store's durable form (AD-010) — directly, so the
+// ResolveTermRules builds the term rules governing the project — for each
+// concept, the source term and the translation approved for the target locale —
+// for the active source and target locales. It reads the committed .terms.json
+// serialization, the terms store's durable form (AD-010), directly, so the
 // terminology gate validates the committed state and works at check time in CI,
 // where the gitignored working-store .db doesn't exist (see projectConcepts for
-// the full precedence). Returns nil when no terms is in scope or it has
-// no terms for the locale pair. The result is suitable for injection into a
-// term-check tool config under the "glossary" key.
-func (a *App) ResolveProjectPreferredTerms(cmd Command, targetLang string) ([]coretools.PreferredTermPair, error) {
-	return a.ResolveProjectPreferredTermsFor(cmd, targetLang, project.GovernancePoint{})
+// the full precedence). Returns nil when no terms store is in scope or it has
+// no terms for the locale pair. The result is what every governed step takes
+// under the "term_rules" key.
+func (a *App) ResolveTermRules(cmd Command, targetLang string) ([]coreprofile.TermRule, error) {
+	return a.ResolveTermRulesFor(cmd, targetLang, project.GovernancePoint{})
 }
 
-// ResolveProjectPreferredTermsFor is ResolveProjectPreferredTerms scoped to one point in the
+// ResolveTermRulesFor is ResolveTermRules scoped to one point in the
 // context space: it reads the terms governing there (the profile's own `terms:`,
 // else defaults.terms_source), so a recipe governing two brands enforces each
 // brand's vocabulary over its own content. The zero point is the project-wide
 // resolution.
-func (a *App) ResolveProjectPreferredTermsFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coretools.PreferredTermPair, error) {
+func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
 	concepts, err := a.projectConcepts(cmd, point)
 	if err != nil || len(concepts) == 0 {
 		return nil, err
@@ -1803,7 +1805,7 @@ func (a *App) ResolveProjectPreferredTermsFor(cmd Command, targetLang string, po
 		target = model.LocaleID(a.TargetLang)
 	}
 
-	var glossary []coretools.PreferredTermPair
+	var rules []coreprofile.TermRule
 	for _, c := range concepts {
 		concept := c
 		src := concept.SourceTerm(source)
@@ -1814,12 +1816,12 @@ func (a *App) ResolveProjectPreferredTermsFor(cmd Command, targetLang string, po
 		if tgt == nil || tgt.Text == "" {
 			continue
 		}
-		glossary = append(glossary, coretools.PreferredTermPair{
-			Source: src.Text,
-			Target: tgt.Text,
+		rules = append(rules, coreprofile.TermRule{
+			Term:        src.Text,
+			Replacement: tgt.Text,
 		})
 	}
-	return glossary, nil
+	return rules, nil
 }
 
 // projectConcepts loads the project's terms concepts for the read-only check
@@ -1922,7 +1924,7 @@ func conceptsFromKTB(path string) ([]sqlterms.Concept, error) {
 //
 // An explicit defaults.terms_source binding wins. With none, the well-known
 // locations are searched, mirroring the ladder the voice profile uses: a
-// project that keeps its glossary at the conventional path needs no recipe
+// project that keeps its terms at the conventional path needs no recipe
 // entry at all.
 //
 // A point whose profile binds its own terms has named the vocabulary for that
@@ -1965,7 +1967,7 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, point project.Governanc
 		src = filepath.Join(root, src)
 	}
 	if _, statErr := os.Stat(src); statErr != nil {
-		// Bound but missing — no glossary to enforce, not an error.
+		// Bound but missing — no terms to enforce, not an error.
 		return "", nil
 	}
 	return src, nil
@@ -1977,7 +1979,7 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, point project.Governanc
 // `.kapi/` is searched FIRST: it is committed, and it is where a project's
 // authored sources live, so the conventional home and the reviewed home are the
 // same directory. The root spelling stays second because a project that keeps
-// its glossary beside its content is not wrong, and dropping the rung would
+// its terms beside its content is not wrong, and dropping the rung would
 // silently unbind it.
 func firstExistingTermsBundle(root string) string {
 	for _, candidate := range []string{
@@ -2091,7 +2093,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 // request to use that terminology, and it used to reach only term-check (which
 // validates the output afterwards) and never translate (which could have got it
 // right the first time). That run now carries a binding set holding just the
-// glossary, so the terms are in the prompt.
+// terms, so they are in the prompt.
 //
 // inputPath is the file this chain will process; the content collection that
 // claims it decides which voice and which terms the run carries, so
@@ -2136,22 +2138,22 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	if tb, _ := c.Flags().GetString("termstore"); tb == "" {
 		return nil
 	}
-	glossary, err := a.ResolveProjectPreferredTerms(c, a.TargetLang)
+	termRules, err := a.ResolveTermRules(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(os.Stderr, "Warning: --termstore: %v\n", err)
 		}
 		return nil
 	}
-	if len(glossary) == 0 {
+	if len(termRules) == 0 {
 		return nil
 	}
-	return &ProjectBindings{glossary: glossary}
+	return &ProjectBindings{termRules: termRules}
 }
 
 // ApplyProjectBindings injects the project's standing context into a step's
 // config: the tool's project preset (defaults.tools, applied under the step's
-// own keys — the step wins), then the voice and glossary bindings when
+// own keys — the step wins), then the voice and terminology bindings when
 // the tool can honor them and the step did not set them explicitly. Returns
 // the (possibly cloned) config so the recipe's in-memory step config is never
 // mutated.
@@ -2184,7 +2186,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 
 	// Voice profile → translate steps and recycle. Translate consumes it as
 	// prompt guidance; recycle does not consult it, but stamps it (with the
-	// glossary below) onto every target it fills so a recycled target is as
+	// term rules below) onto every target it fills so a recycled target is as
 	// attributable to the governing context as a translated one.
 	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
 		if _, ok := config["profile"]; !ok {
@@ -2205,62 +2207,29 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		}
 	}
 
-	// Glossary → terms-requiring steps (term-check), as a []PreferredTermPair.
-	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTerms) {
-		if _, ok := config["preferred_terms"]; !ok {
+	// Term rules → the steps governed by terminology: term-check, which declares
+	// RequiresTerms, and the producers, which do not.
+	//
+	// Translate renders the rules straight into its prompt, but it declares
+	// Requires{TargetLanguage, Credentials} — not Terms — so the project's
+	// terminology never reached it. A project with a terms store had its
+	// terminology *checked* after the fact, yet never *enforced at generation*:
+	// the model was simply never told. Wired here the way the voice profile is
+	// above, rather than by adding Terms to translate's Requires, which gates
+	// nothing else and would imply a terms store is mandatory.
+	//
+	// One key, one shape, three tools: each takes the rule list and projects it
+	// for itself (a prompt line, a check, a stamped fingerprint), so no tool has
+	// to guess what a caller meant by a bare map.
+	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
+		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
+		if _, ok := config["term_rules"]; !ok {
 			clone()
-			config["preferred_terms"] = b.glossary
-		}
-	}
-
-	// Glossary → translate steps, as the map the prompt's glossary section wants.
-	//
-	// Translate carries a Glossary that renders straight into the prompt, but it
-	// declares Requires{TargetLanguage, Credentials} — not Terms — so the
-	// project's terminology never reached it. A project with a terms store had its
-	// terminology *checked* after the fact by term-check, yet never *enforced at
-	// generation*: the model was simply never told the terms store. Wired here the way
-	// voice profile is above (not by adding Terms to translate's Requires, which
-	// gates nothing else and would imply a terms store is mandatory).
-	//
-	// The two tools want the same key in different shapes — term-check takes the
-	// entry list, translate takes source→target — so the conversion happens here
-	// rather than either tool guessing.
-	if len(b.glossary) > 0 && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
-		if _, ok := config["preferred_terms"]; !ok {
-			if terms := PreferredTermMap(b.glossary); len(terms) > 0 {
-				clone()
-				config["preferred_terms"] = terms
-			}
+			config["term_rules"] = b.termRules
 		}
 	}
 
 	return config
-}
-
-// PreferredTermMap projects resolved preferred terms into the source→target map a
-// translation producer takes.
-//
-// It is the one definition of that projection, and it has to be: the map is an
-// input to the context fingerprint every producer stamps on what it writes, so
-// the staleness gate recomputes it to ask whether the governing context has
-// moved since. A second projection that dropped a different entry would make
-// every target read as stale against a context nobody changed.
-//
-// A duplicated source term keeps its FIRST entry, so one glossary resolves the
-// same way on every run — a prompt has to be deterministic, and so does a
-// fingerprint over it.
-func PreferredTermMap(entries []coretools.PreferredTermPair) map[string]string {
-	terms := make(map[string]string, len(entries))
-	for _, e := range entries {
-		if e.Source == "" || e.Target == "" {
-			continue
-		}
-		if _, dup := terms[e.Source]; !dup {
-			terms[e.Source] = e.Target
-		}
-	}
-	return terms
 }
 
 // MergeToolPreset overlays a step's config onto its project-level tool preset
@@ -2287,7 +2256,7 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 }
 
 // isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
-// which accepts the governing context via config["profile"] and config["preferred_terms"]
+// which accepts the governing context via config["profile"] and config["term_rules"]
 // to stamp onto the targets it fills.
 func isMemoryRecycleTool(toolName string, s *schema.ComponentSchema) bool {
 	if toolName == "recycle" {

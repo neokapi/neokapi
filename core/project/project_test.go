@@ -814,7 +814,7 @@ func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 	assert.Equal(t, "bowrain", platform.Profile)
 	assert.Equal(t, "base.yaml", platform.Voice.ProfileFile)
 	assert.Equal(t, DefaultVoiceField, platform.VoiceField)
-	assert.Empty(t, platform.Terms)
+	assert.Empty(t, platform.TermStore)
 }
 
 // TestResolveGovernance_NoDefaults covers the project that binds no governance
@@ -834,14 +834,14 @@ func TestResolveGovernance_NoDefaults(t *testing.T) {
 	rc, err := proj.ResolveGovernance("docs")
 	require.NoError(t, err)
 	assert.Nil(t, rc.Voice)
-	assert.Empty(t, rc.Terms)
+	assert.Empty(t, rc.TermStore)
 	assert.Equal(t, DefaultVoiceField, rc.VoiceField)
 }
 
 // TestBindsTermsByProfile_VoiceOnly is the negative side of the venue warning:
 // a voice travels to a connected server on the context content type, so binding
 // one per profile is not what makes a run resolve differently by venue. Only
-// `terms:` — a local path with nothing on the wire — does.
+// `termstore:` — a local path with nothing on the wire — does.
 func TestBindsTermsByProfile_VoiceOnly(t *testing.T) {
 	bare := &KapiProject{Version: "v1"}
 	assert.False(t, bare.HasContextSpace())

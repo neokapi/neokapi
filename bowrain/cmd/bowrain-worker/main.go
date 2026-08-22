@@ -731,10 +731,10 @@ func (a *workerWorkspaceDefault) WorkspaceVoiceProfileID(ctx context.Context, wo
 
 // newWorkerTermsResolver returns a per-workspace terms resolver backed by the
 // same PostgreSQL terms the server uses (NewPostgresStoreFromDB), so a
-// translation job's prompt glossary reads the very terminology the editor and
+// translation job's prompt reads the very terminology the editor and
 // term-check enforce. It caches one store per workspace slug (mirrors
 // newWorkerMemoryResolver); a resolution failure yields nil so the job degrades to
-// a glossary-less translation rather than failing.
+// a translation without terminology rather than failing.
 func newWorkerTermsResolver(pgdb *storage.PgDB) jobs.TermsResolver {
 	var cache sync.Map // workspaceSlug -> fwterms.Terminology
 	return jobs.TermsResolverFunc(func(workspaceSlug string) (fwterms.Terminology, error) {

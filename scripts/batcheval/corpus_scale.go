@@ -57,7 +57,7 @@ func generate(i int) Case {
 
 var (
 	uiVerbs = []string{"Open", "Close", "Rename", "Duplicate", "Archive", "Restore", "Publish", "Unpublish", "Export", "Import", "Share", "Lock"}
-	uiNouns = []string{"project", "invoice", "folder", "report", "workspace", "branch", "release", "glossary", "segment", "comment", "draft", "snapshot"}
+	uiNouns = []string{"project", "invoice", "folder", "report", "workspace", "branch", "release", "vocabulary", "segment", "comment", "draft", "snapshot"}
 
 	sections = []string{"billing", "settings", "editor", "review", "catalog", "members", "search", "audit"}
 
@@ -97,7 +97,7 @@ var (
 	}
 	proseMiddles = []string{
 		"The engine reads it, hands each translatable unit to the tools you configured, and writes the result back in the original format, touching nothing else in the file.",
-		"Caching is keyed on the content and on the configuration that produced it, so changing the model or the glossary re-translates exactly the strings that depended on them and no others.",
+		"Caching is keyed on the content and on the configuration that produced it, so changing the model or the terms re-translates exactly the strings that depended on them and no others.",
 		"Checks are deterministic and run on everything; review is a judgement call, made by a model, on the few blocks the checks could not settle.",
 		"Terminology is enforced at generation time rather than corrected afterwards, because it is cheaper to ask for the right word than to detect the wrong one.",
 		"A plugin runs as a separate process and speaks over gRPC, so a crash in it cannot corrupt the engine that launched it.",

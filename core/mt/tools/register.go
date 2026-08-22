@@ -38,7 +38,7 @@ func NewMTTranslateFromConfig(id mtprovider.ProviderID) registry.ToolConfigFacto
 	return func(config map[string]any, targetLang string) (tool.Tool, error) {
 		// The voice profile is injected by the flow bindings as a live pointer, not
 		// a serializable value, so it is lifted out before the JSON round-trip that
-		// ApplyConfig performs. The glossary is a plain map and binds directly.
+		// ApplyConfig performs. The term rules bind directly.
 		var profile *coreprofile.VoiceProfile
 		if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
 			profile = pf

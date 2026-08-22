@@ -69,16 +69,16 @@ func TestResolveTermsImportFormat(t *testing.T) {
 	for _, tt := range []struct {
 		flag, path, want string
 	}{
-		{"auto", "seeds/glossary.terms.json", "bundle"},
+		{"auto", "seeds/product.terms.json", "bundle"},
 		{"auto", "terms.json", "bundle"}, // the conventional bare name
 		{"auto", ".kapi/terms.json", "bundle"},
-		{"auto", "glossary.csv", "csv"},
-		{"auto", "glossary.tsv", "tsv"},
+		{"auto", "product.csv", "csv"},
+		{"auto", "product.tsv", "tsv"},
 		{"auto", "vocab.json", "json"},
 		{"auto", "terms.tbx", "tbx"},
 		{"auto", "TERMS.TBX", "tbx"},
 		// An explicit --format always wins, even over a native bundle path.
-		{"tbx", "seeds/glossary.terms.json", "tbx"},
+		{"tbx", "seeds/product.terms.json", "tbx"},
 		{"CSV", "out.terms.json", "csv"},
 	} {
 		got, err := ResolveTermsImportFormat(tt.flag, tt.path)
@@ -100,16 +100,16 @@ func TestResolveTermsImportFormat(t *testing.T) {
 // `kapi terms export -o seeds/terms.json` writes the lossless bundle rather
 // than the lossy JSON interchange doc.
 func TestResolveTermsExportFormat(t *testing.T) {
-	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", "seeds/glossary.terms.json", false))
+	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", "seeds/product.terms.json", false))
 	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", "terms.json", false), "the conventional bare name is a bundle")
 	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", ".kapi/terms.json", false))
-	assert.Equal(t, "csv", ResolveTermsExportFormat("csv", "glossary.csv", false))
+	assert.Equal(t, "csv", ResolveTermsExportFormat("csv", "product.csv", false))
 	assert.Equal(t, "json", ResolveTermsExportFormat("json", "", false), "stdout takes the default")
 	// A plain .json path is not a bundle: the compound suffix is what
 	// identifies one, and `--format json` is a different, lossy serialization.
 	assert.Equal(t, "json", ResolveTermsExportFormat("json", "vocab.json", false))
 	// Explicit --format always wins, even over a native bundle path.
-	assert.Equal(t, "tbx", ResolveTermsExportFormat("tbx", "seeds/glossary.terms.json", true))
+	assert.Equal(t, "tbx", ResolveTermsExportFormat("tbx", "seeds/product.terms.json", true))
 	assert.Equal(t, "csv", ResolveTermsExportFormat("CSV", "out.terms.json", true))
 }
 
@@ -258,9 +258,9 @@ func TestUnidentifiedImportFailsRatherThanReportingSuccess(t *testing.T) {
 			func() *cobra.Command { return newMemoryImportCmd(a) }},
 		// Quote-free, comma-free prose is *valid* CSV — one column per row —
 		// so nothing downstream can catch it. Only refusing to guess does.
-		{"terms: prose", "glossary.dat", "hello world\nsecond line\n",
+		{"terms: prose", "product.dat", "hello world\nsecond line\n",
 			func() *cobra.Command { return newTermsImportCmd(a) }},
-		{"terms: binary", "glossary.zip", "PK\x03\x04rubbish",
+		{"terms: binary", "product.zip", "PK\x03\x04rubbish",
 			func() *cobra.Command { return newTermsImportCmd(a) }},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -290,8 +290,8 @@ func TestIdentifiableImportIsNotRejected(t *testing.T) {
 		require.NoError(t, err, "%s names a format the memory importer reads", path)
 	}
 	for _, path := range []string{
-		"seeds/glossary.terms.json", "terms.json", ".kapi/terms.json",
-		"glossary.csv", "glossary.tsv", "vocab.json", "terms.tbx",
+		"seeds/product.terms.json", "terms.json", ".kapi/terms.json",
+		"product.csv", "product.tsv", "vocab.json", "terms.tbx",
 	} {
 		_, err := ResolveTermsImportFormat("auto", path)
 		require.NoError(t, err, "%s names a format the terms importer reads", path)

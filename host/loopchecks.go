@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -74,13 +75,13 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 		return nil, err
 	}
 
-	// Glossary per locale, resolved once (opens the terms store).
-	preferredTermsByLocale := map[string][]coretools.PreferredTermPair{}
-	preferredTermsFor := func(locale string) ([]coretools.PreferredTermPair, error) {
+	// Term rules per locale, resolved once (opens the terms store).
+	preferredTermsByLocale := map[string][]coreprofile.TermRule{}
+	termRulesFor := func(locale string) ([]coreprofile.TermRule, error) {
 		if g, ok := preferredTermsByLocale[locale]; ok {
 			return g, nil
 		}
-		g, err := a.ResolveProjectPreferredTerms(cmd, locale)
+		g, err := a.ResolveTermRules(cmd, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -100,15 +101,15 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 			continue // untranslated — there is no translation to check
 		}
 
-		glossary, gerr := preferredTermsFor(u.Locale)
+		rules, gerr := termRulesFor(u.Locale)
 		if gerr != nil {
 			return nil, gerr
 		}
 		var termTool BlockProcessor
-		if len(glossary) > 0 {
+		if len(rules) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
-				PreferredTerms: glossary,
-				TargetLocale:   model.LocaleID(u.Locale),
+				TermRules:    rules,
+				TargetLocale: model.LocaleID(u.Locale),
 			})
 		}
 

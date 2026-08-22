@@ -23,7 +23,7 @@ func TestExtPrefersCompoundSuffix(t *testing.T) {
 		{"app.overlays.jsonl", ".overlays.jsonl"},
 		{"context/memory/cli-nb.memory.json", ".memory.json"},
 		{"context/terms.json", ".json"},
-		{"seeds/glossary.terms.json", ".terms.json"},
+		{"seeds/product.terms.json", ".terms.json"},
 
 		// Bare suffixes keep resolving to themselves — the compound rule must
 		// not capture unrelated files.

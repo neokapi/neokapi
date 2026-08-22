@@ -18,7 +18,7 @@ import (
 // processModelSweepJob executes one durable model recommendation sweep for a
 // (project, locale): derive the fixture set from the project's own content,
 // translate it twice per candidate model — once with the project's full brand
-// context (voice + glossary + DNT, the #1334 binding) and once bare — score
+// context (voice + term rules + DNT, the #1334 binding) and once bare — score
 // both arms deterministically with the real core check tools, and persist one
 // (project, locale, model, fixture_digest) row per candidate.
 //
@@ -97,7 +97,7 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 	// translation worker applies to every AI job.
 	sc := resolveSweepContext(ctx, deps, job, proj)
 	if sc.Empty() {
-		slog.InfoContext(ctx, "model sweep: project has no brand context (no profile, glossary, or DNT); nothing to measure",
+		slog.InfoContext(ctx, "model sweep: project has no context (no profile, term rules, or DNT); nothing to measure",
 			"job_id", job.ID, "project", job.ProjectID)
 		return nil
 	}
@@ -160,14 +160,14 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 		}
 		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
 
-		// Arm 1 — full context: the project's voice profile, glossary, and
+		// Arm 1 — full context: the project's voice profile, term rules, and
 		// enforced DNT terms, exactly as jobTranslateConfig binds them.
 		ctxArm, ctxTokens, err := runSweepArm(ctx, prov, limiter, fixtures, aitools.AITranslateConfig{
-			SourceLocale:   srcLocale,
-			TargetLocale:   tgtLocale,
-			Profile:        sc.Profile,
-			PreferredTerms: sc.Glossary,
-			DNT:            sc.DNT,
+			SourceLocale: srcLocale,
+			TargetLocale: tgtLocale,
+			Profile:      sc.Profile,
+			TermRules:    sc.TermRules,
+			DNT:          sc.DNT,
 		}, tgtLocale, sc)
 		if err != nil {
 			return fmt.Errorf("model %q context arm: %w", candidate, err)

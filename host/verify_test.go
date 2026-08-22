@@ -62,7 +62,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyVoiceYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (voice fail) and a
-	// {name} placeholder plus a glossary term "Save".
+	// {name} placeholder plus a ruled term "Save".
 	src := `{
   "greeting": "Hello {name}, welcome to Globex!",
   "save": "Save"
@@ -71,7 +71,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"), []byte(src), 0o644))
 
 	// Target: drops the {name} placeholder (QA fail) and mistranslates "Save"
-	// (terminology fail — glossary requires "Enregistrer").
+	// (terminology fail — the rule requires "Enregistrer").
 	bad := `{
   "greeting": "Bonjour, bienvenue chez Globex!",
   "save": "Sauvegarder"
@@ -392,7 +392,7 @@ func TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent(t *testing.
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer")
 }
 
-// TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate glossary
+// TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate
 // term whose target legitimately equals the source (e.g. the brand "KapiMart")
 // is not reported as untranslated by the QA gate.
 func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
@@ -410,7 +410,7 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 }
 
 // writeTermsProjectUnbound builds the same project as writeTermsSourceProject
-// but with NO defaults.terms_source binding, committing the glossary at the
+// but with NO defaults.terms_source binding, committing the terms at the
 // conventional location rel instead.
 func writeTermsProjectUnbound(t *testing.T, rel string) string {
 	t.Helper()
@@ -454,7 +454,7 @@ collections:
 }
 
 // TestVerify_PreferredTermsFromConventionalLocation covers the well-known-location
-// ladder for terms: with no defaults.terms_source binding, a glossary
+// ladder for terms: with no defaults.terms_source binding, a terms file
 // committed at either conventional path is still found and still gates.
 func TestVerify_PreferredTermsFromConventionalLocation(t *testing.T) {
 	tests := []struct {
@@ -471,7 +471,7 @@ func TestVerify_PreferredTermsFromConventionalLocation(t *testing.T) {
 
 			_, runErr := runVerifyJSON(t)
 			require.ErrorIs(t, runErr, ErrQualityGate,
-				"an unbound project must find the conventional glossary and fail on the mistranslated term")
+				"an unbound project must find the conventional terms and fail on the mistranslated term")
 		})
 	}
 }
@@ -483,7 +483,7 @@ func TestVerify_PreferredTermsFromConventionalLocation(t *testing.T) {
 func TestVerify_ConventionalPreferredTermsPreferContextDir(t *testing.T) {
 	root := writeTermsProjectUnbound(t, project.RelStatePath("terms.json"))
 
-	// A root glossary that would PASS the gate. If the ladder still preferred
+	// A root terms file that would PASS the gate. If the ladder still preferred
 	// the root, the run would come back clean and this test would fail.
 	stray := ktb.FromConcepts([]terms.Concept{{
 		ID: "save",
@@ -499,5 +499,5 @@ func TestVerify_ConventionalPreferredTermsPreferContextDir(t *testing.T) {
 	t.Chdir(root)
 	_, runErr := runVerifyJSON(t)
 	require.ErrorIs(t, runErr, ErrQualityGate,
-		"the context-directory glossary must win over the one at the root")
+		"the context-directory terms must win over the one at the root")
 }

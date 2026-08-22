@@ -342,7 +342,7 @@ func executeContextScan(ctx context.Context, deps *ContextScanWorkerDeps, job *C
 		slog.WarnContext(ctx, "brand-scan token bookkeeping failed", "job_id", job.ID, "error", terr)
 	}
 
-	// Phase: extract candidate glossary terms over the corpus using the
+	// Phase: extract candidate terms over the corpus using the
 	// existing term-extract tool machinery. A failure here degrades to the
 	// vocabulary-derived candidates rather than discarding the drafted voice.
 	setContextScanProgress(ctx, deps, job.ID, epoch, contextScanProgressTerms, "extracting-terms")
@@ -769,7 +769,7 @@ func extractContextScanTerms(ctx context.Context, prov aiprovider.LLMProvider, c
 }
 
 // mergeContextScanTerms folds the drafted vocabulary's preferred terms into the
-// candidate glossary (they are product/brand vocabulary the corpus itself
+// candidate terms (they are product vocabulary the corpus itself
 // evidenced) and deduplicates case-insensitively, keeping first occurrence.
 func mergeContextScanTerms(terms []tools.TermEntry, draft *coreprofile.VoiceProfile, domain string) []tools.TermEntry {
 	if draft != nil {

@@ -56,7 +56,7 @@ func TestTermsImport_Monolingual(t *testing.T) {
 // CSV path still imports source/target term pairs.
 func TestTermsImport_BilingualUnchanged(t *testing.T) {
 	dir := t.TempDir()
-	csvPath := filepath.Join(dir, "glossary.csv")
+	csvPath := filepath.Join(dir, "terms.csv")
 	require.NoError(t, os.WriteFile(csvPath, []byte("dashboard,tableau de bord\nsettings,paramètres\n"), 0o644))
 
 	a := &App{TermsBackend: terms.NewInMemoryStore()}

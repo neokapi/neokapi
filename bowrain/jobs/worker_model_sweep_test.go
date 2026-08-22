@@ -75,7 +75,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 	}))
 
 	// Workspace terms: "save" → "enregistrer" is deliberately a rendering
-	// the demo lexicon also produces, so glossary fixtures measure the check
+	// the demo lexicon also produces, so terms fixtures measure the check
 	// plumbing without depending on prompt adherence a stub cannot offer.
 	tb, err := sqlterms.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		},
 	}))
 
-	// Trap-bearing content: 6 glossary traps, 4 voice traps, 4 DNT traps.
+	// Trap-bearing content: 6 terms traps, 4 voice traps, 4 DNT traps.
 	var blocks []*model.Block
 	for i := range 6 {
 		blocks = append(blocks, model.NewBlock(fmt.Sprintf("gloss-%d", i),
@@ -131,7 +131,7 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 	require.Len(t, rows, 2)
 	assert.Equal(t, rows[0].FixtureDigest, rows[1].FixtureDigest)
 	for _, r := range rows {
-		assert.Equal(t, 14, r.FixtureCount, "6 glossary + 4 voice + 4 dnt traps")
+		assert.Equal(t, 14, r.FixtureCount, "6 terms + 4 voice + 4 dnt traps")
 		// The context arm's DNT mask/restore preserves "Send"; the bare arm
 		// lets the stub translate it away — a genuine, deterministic context
 		// lift measured by the real dnt-check.

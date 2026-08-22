@@ -21,7 +21,7 @@ const (
 
 // ContextScanJob is an async AI brand-onboarding scan (epic 016): the worker
 // assembles a corpus from the request's sources, infers a draft voice profile
-// plus candidate glossary terms, and persists the result for review. The job
+// plus candidate terms, and persists the result for review. The job
 // mirrors ExtractionJob in shape, but carries the translation store's
 // claim-epoch lease and retry-attempt tracking because the scan is billed
 // against platform credits.

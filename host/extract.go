@@ -1126,7 +1126,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	}
 
 	// Terms context: the whole bound terms (terms are small and the
-	// reviewer needs the glossary).
+	// reviewer needs the terms).
 	var tbFile *ktb.File
 	if task.tb != nil {
 		if concepts, cerr := task.tb.Concepts(ctx); cerr == nil && len(concepts) > 0 {

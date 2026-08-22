@@ -82,7 +82,7 @@ func editorVoiceContextFixture(t *testing.T) (platstore.ContentStore, editorVoic
 		},
 	}
 	voiceCtx := editorVoiceContext{
-		Brand:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
+		Voice:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "bp-1"},
 		Stores:           wsStores,
 	}
@@ -92,7 +92,7 @@ func editorVoiceContextFixture(t *testing.T) (platstore.ContentStore, editorVoic
 // TestEditorTranslateConfigCarriesVoiceContext proves the interactive editor
 // translate config carries the same standing brand context a worker job does:
 // the voice profile resolved through the voicescope ladder (with the target
-// locale's override applied) and the terms store-derived glossary — the exact
+// locale's override applied) and the terms store-derived rules — the exact
 // fields the AI translate tool injects into every prompt.
 func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	cs, voiceCtx, proj := editorVoiceContextFixture(t)
@@ -106,14 +106,14 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: formal")
 	assert.Contains(t, guide, "Address the reader as a peer")
-	assert.Equal(t, map[string]string{"software": "logiciel"}, cfg.PreferredTerms)
+	assert.Equal(t, []coreprofile.TermRule{{Term: "software", Replacement: "logiciel"}}, cfg.TermRules)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
 }
 
 // TestEditorTranslateConfigBareWithoutVoiceContext pins the control case: a
-// server with no brand/terms wiring (or a workspace with nothing bound)
-// constructs exactly the pre-existing bare config — no profile, no glossary,
+// server with no voice/terms wiring (or a workspace with nothing bound)
+// constructs exactly the pre-existing bare config — no profile, no term rules,
 // locales and batching intact.
 func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 	cs, err := bstore.NewSQLiteStore(":memory:")
@@ -125,7 +125,7 @@ func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2})
 
 	assert.Nil(t, cfg.Profile)
-	assert.Nil(t, cfg.PreferredTerms)
+	assert.Nil(t, cfg.TermRules)
 	assert.Nil(t, cfg.DNT, "no dnt_terms in project settings → no DNT list")
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
@@ -166,7 +166,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 
 	voiceCtx := editorVoiceContext{
 		// The workspace default names a profile the store cannot resolve.
-		Brand:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{}},
+		Voice:            &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "gone"},
 		// No pgDB and no factory: getTerms fails.
 		Stores: newWorkspaceStores(),
@@ -176,11 +176,11 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
 
 	assert.Nil(t, cfg.Profile, "unresolvable profile → bare, not fatal")
-	assert.Nil(t, cfg.PreferredTerms, "unopenable terms → bare, not fatal")
+	assert.Nil(t, cfg.TermRules, "unopenable terms → bare, not fatal")
 }
 
 // TestEditorAITranslateWithVoiceContext runs the full editorAITranslate path
-// with the deterministic demo provider and a bound brand context, proving the
+// with the deterministic demo provider and a bound governing context, proving the
 // brand-context binding never breaks the interactive translation: blocks are
 // translated and stored, and stats report the work.
 func TestEditorAITranslateWithVoiceContext(t *testing.T) {

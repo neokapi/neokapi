@@ -172,11 +172,11 @@ func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
 	}
 }
 
-// TestResolveProjectPreferredTerms_FromProjectStore asserts that with no --termstore
+// TestResolveTermRules_FromProjectStore asserts that with no --termstore
 // flag and no profile binding, the project's own store builds the vocabulary.
 // That is the whole binding story now: a recipe carries no terms path, so being
 // in a project IS the binding.
-func TestResolveProjectPreferredTerms_FromProjectStore(t *testing.T) {
+func TestResolveTermRules_FromProjectStore(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -190,19 +190,19 @@ defaults:
 	// A command without a --termstore flag still resolves the project terms.
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
+	rules, err := a.ResolveTermRules(cmd, "fr")
 	require.NoError(t, err)
-	require.Len(t, glossary, 1)
-	assert.Equal(t, "Save", glossary[0].Source)
-	assert.Equal(t, "Enregistrer", glossary[0].Target)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "Save", rules[0].Term)
+	assert.Equal(t, "Enregistrer", rules[0].Replacement)
 }
 
-// TestResolveProjectPreferredTerms_FromProfileTerms asserts a profile's standalone
-// `terms:` (relative to the project root) governs a collection whose channel
+// TestResolveTermRules_FromProfileTerms asserts a profile's standalone
+// `termstore:` (relative to the project root) governs a collection whose channel
 // resolves to that profile, over the project's own store. Vocabulary is bound
 // per point through the collection: resolution scoped to no collection sits at
 // the default point and reads the project store instead.
-func TestResolveProjectPreferredTerms_FromProfileTerms(t *testing.T) {
+func TestResolveTermRules_FromProfileTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -211,7 +211,7 @@ defaults:
 profiles:
   press:
     channels: [docs]
-    terms: brand-terms.db
+    termstore: brand-terms.db
 collections:
   - name: press-docs
     channel: press/docs
@@ -237,11 +237,11 @@ collections:
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectPreferredTermsFor(cmd, "fr", project.GovernancePoint{Collection: "press-docs"})
+	rules, err := a.ResolveTermRulesFor(cmd, "fr", project.GovernancePoint{Collection: "press-docs"})
 	require.NoError(t, err)
-	require.Len(t, glossary, 1)
-	assert.Equal(t, "Cancel", glossary[0].Source)
-	assert.Equal(t, "Annuler", glossary[0].Target)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "Cancel", rules[0].Term)
+	assert.Equal(t, "Annuler", rules[0].Replacement)
 }
 
 // TestTermstoreFlagIsRegisteredAndRead is the wiring guard for --termstore.
@@ -286,27 +286,27 @@ defaults:
 	require.NoError(t, termCheck.Flags().Set("termstore", named))
 
 	a := &App{SourceLang: "en"}
-	glossary, err := a.ResolveProjectPreferredTerms(termCheck, "fr")
+	rules, err := a.ResolveTermRules(termCheck, "fr")
 	require.NoError(t, err)
-	require.Len(t, glossary, 1)
-	assert.Equal(t, "Cancel", glossary[0].Source,
+	require.Len(t, rules, 1)
+	assert.Equal(t, "Cancel", rules[0].Term,
 		"--termstore must select the named store, not fall back to the project's")
-	assert.Equal(t, "Annuler", glossary[0].Target)
+	assert.Equal(t, "Annuler", rules[0].Replacement)
 }
 
-// TestResolveProjectPreferredTerms_NoProject returns nil (no error) when there is no
+// TestResolveTermRules_NoProject returns nil (no error) when there is no
 // project in scope.
-func TestResolveProjectPreferredTerms_NoProject(t *testing.T) {
+func TestResolveTermRules_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
-	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
+	rules, err := a.ResolveTermRules(cmd, "fr")
 	require.NoError(t, err)
-	assert.Nil(t, glossary)
+	assert.Nil(t, rules)
 }
 
 // TestTermCheck_EnforcesProjectPreferredTerms proves the end-to-end chain: the
-// project terms store glossary, injected as the term-check tool's config, makes
+// project term rules, injected as the term-check tool's config, make
 // the tool flag the violation. This mirrors what the term-check command's
 // newTool closure does inside a project.
 func TestTermCheck_EnforcesProjectPreferredTerms(t *testing.T) {
@@ -323,16 +323,16 @@ defaults:
 	a.InitRegistries()
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectPreferredTerms(cmd, "fr")
+	rules, err := a.ResolveTermRules(cmd, "fr")
 	require.NoError(t, err)
-	require.Len(t, glossary, 1)
+	require.Len(t, rules, 1)
 
 	// Build term-check exactly as the toolcmds newTool closure would.
-	config := map[string]any{"preferred_terms": glossary}
+	config := map[string]any{"term_rules": rules}
 	tl, err := a.ToolReg.NewToolWithConfig(registryToolID("term-check"), config, "fr")
 	require.NoError(t, err)
 
-	// A target that violates the glossary (Save → not Enregistrer).
+	// A target that violates a rule (Save → not Enregistrer).
 	block := model.NewBlock("tu1", "Save the file")
 	block.SetTargetText(model.LocaleFrench, "Sauvegarder le fichier")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -340,6 +340,6 @@ defaults:
 	out := runPartThroughTool(t, tl, part)
 	resultBlock := out.Resource.(*model.Block)
 	assert.Equal(t, "false", resultBlock.Properties["term-check-passed"],
-		"project glossary should be enforced flag-free")
+		"project term rules should be enforced flag-free")
 	assert.Contains(t, resultBlock.Properties["term-check-errors"], "Enregistrer")
 }

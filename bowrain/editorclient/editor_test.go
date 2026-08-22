@@ -217,10 +217,10 @@ func TestEditorConcepts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5, js)
 
-	exp, err := c.ExportTermsJSON(context.Background(), "acme", "glossary")
+	exp, err := c.ExportTermsJSON(context.Background(), "acme", "product")
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"concepts":[]}`, exp)
-	assert.Contains(t, got.query, "name=glossary")
+	assert.Contains(t, got.query, "name=product")
 }
 
 func TestEditorProviders(t *testing.T) {

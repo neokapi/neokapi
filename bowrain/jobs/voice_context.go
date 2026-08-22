@@ -3,6 +3,8 @@ package jobs
 import (
 	"context"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
@@ -10,19 +12,19 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// This file resolves the brand context — voice profile + terminology glossary —
+// This file resolves the governing context — voice profile + term rules —
 // for a server-side translation job, so every AI translation the worker runs
 // (convergence-created jobs, manual enqueue, automation) carries the same
 // standing context the CLI flow binds via ApplyProjectBindings. Resolution is
-// strictly best-effort: a missing profile, an unreadable terms, or a store
+// strictly best-effort: a missing profile, an unreadable terms store, or a store
 // error degrades the job to a bare translation, never fails it — the context
 // is advisory and the checks still report what the model got wrong.
 
 // TermsResolver returns the workspace's server terms, so a translation job can
-// build the per-locale glossary that reaches the model's prompt. It mirrors the
+// build the per-locale term rules that reach the model's prompt. It mirrors the
 // server's workspaceStores.getTerms: a per-workspace, PostgreSQL-backed terms
 // keyed by the workspace slug. Optional on WorkerDeps — when nil the job
-// translates without a glossary.
+// translates without terminology.
 type TermsResolver interface {
 	GetTB(workspaceSlug string) (terms.Terminology, error)
 }
@@ -63,14 +65,14 @@ func resolveJobVoiceProfile(ctx context.Context, deps *WorkerDeps, job *Translat
 	return profile
 }
 
-// resolveJobPreferredTerms builds the source→target glossary for a translation job
-// from the workspace terms, mirroring the CLI's ResolveProjectPreferredTerms via
-// the shared PreferredTermsFromConcepts derivation.
+// resolveJobTermRules builds the term rules governing a translation job from
+// the workspace terms, mirroring the CLI's ResolveTermRules via the shared
+// TermRulesFromConcepts derivation.
 //
-// Returns nil (and logs) when no terms resolves, it has no terms for the
+// Returns nil (and logs) when no terms store resolves, it has no terms for the
 // locale pair, or any read fails: terminology must never fail a translation
 // job.
-func resolveJobPreferredTerms(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) map[string]string {
+func resolveJobTermRules(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) []coreprofile.TermRule {
 	if deps == nil || deps.TermsResolver == nil {
 		return nil
 	}
@@ -84,33 +86,38 @@ func resolveJobPreferredTerms(ctx context.Context, deps *WorkerDeps, job *Transl
 	tb, err := deps.TermsResolver.GetTB(slug)
 	if err != nil || tb == nil {
 		if err != nil {
-			slog.WarnContext(ctx, "terms resolution failed; translating without glossary",
+			slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
 				"job_id", job.ID, "workspace", slug, "error", err)
 		}
 		return nil
 	}
-	glossary, err := PreferredTermsFromConcepts(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
+	rules, err := TermRulesFromConcepts(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
 	if err != nil {
-		slog.WarnContext(ctx, "terms read failed; translating without glossary",
+		slog.WarnContext(ctx, "terms read failed; translating without terminology",
 			"job_id", job.ID, "workspace", slug, "error", err)
 		return nil
 	}
-	return glossary
+	return rules
 }
 
-// PreferredTermsFromConcepts derives the source→target preferred terms a translation
-// prompt carries from a workspace terms: for each concept, the
-// source-locale term paired with the preferred (or first approved)
-// target-locale term becomes a glossary mandate. Workspace-scoped concepts
-// (empty ProjectID) and concepts scoped to this project both apply; concepts
-// scoped to other projects are excluded, and a project-scoped rendering wins
-// over a workspace-scoped one for the same source term. Returns nil (not an
-// empty map) when the terms store has no terms for the locale pair.
+// TermRulesFromConcepts derives the term rules a translation carries from a
+// workspace terms store: for each concept, the source-locale term paired with
+// the preferred (or first approved) target-locale term becomes one rule —
+// Term in the source, Replacement required in the target. Workspace-scoped
+// concepts (empty ProjectID) and concepts scoped to this project both apply;
+// concepts scoped to other projects are excluded, and a project-scoped
+// rendering wins over a workspace-scoped one for the same source term. Returns
+// nil (not an empty slice) when the terms store has no terms for the locale
+// pair.
 //
-// It is the single derivation shared by every server-side translation
-// surface — the worker's jobs (resolveJobPreferredTerms) and the synchronous editor
-// translate in bowrain/server — so both mandate identical renderings.
-func PreferredTermsFromConcepts(ctx context.Context, tb terms.Terminology, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
+// Rules come back ordered by term, so one terms store yields one prompt and one
+// fingerprint however the concepts were read.
+//
+// It is the single derivation shared by every server-side translation surface —
+// the worker's jobs (resolveJobTermRules) and the synchronous editor translate
+// in bowrain/server — so both mandate identical renderings, and it is the
+// server's mirror of the CLI's host.ResolveTermRules.
+func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID string, sourceLocale, targetLocale model.LocaleID) ([]coreprofile.TermRule, error) {
 	if tb == nil || sourceLocale == "" || targetLocale == "" {
 		return nil, nil
 	}
@@ -119,7 +126,7 @@ func PreferredTermsFromConcepts(ctx context.Context, tb terms.Terminology, proje
 		return nil, err
 	}
 
-	glossary := make(map[string]string)
+	replacement := make(map[string]string)
 	projectScoped := make(map[string]bool)
 	for i := range concepts {
 		concept := &concepts[i]
@@ -135,18 +142,22 @@ func PreferredTermsFromConcepts(ctx context.Context, tb terms.Terminology, proje
 			continue
 		}
 		scoped := concept.ProjectID == projectID && concept.ProjectID != ""
-		if _, exists := glossary[src.Text]; exists && (projectScoped[src.Text] || !scoped) {
-			// Keep the existing entry unless this one is more specific: a
+		if _, exists := replacement[src.Text]; exists && (projectScoped[src.Text] || !scoped) {
+			// Keep the existing rule unless this one is more specific: a
 			// project-scoped rendering replaces a workspace-scoped one; equal
 			// specificity keeps the first (Concepts is ordered by ID, so the
 			// pick is deterministic across runs).
 			continue
 		}
-		glossary[src.Text] = tgt.Text
+		replacement[src.Text] = tgt.Text
 		projectScoped[src.Text] = scoped
 	}
-	if len(glossary) == 0 {
+	if len(replacement) == 0 {
 		return nil, nil
 	}
-	return glossary, nil
+	rules := make([]coreprofile.TermRule, 0, len(replacement))
+	for _, term := range slices.Sorted(maps.Keys(replacement)) {
+		rules = append(rules, coreprofile.TermRule{Term: term, Replacement: replacement[term]})
+	}
+	return rules, nil
 }

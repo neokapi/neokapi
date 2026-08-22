@@ -164,7 +164,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			// content-memory provider resolved from --memory or the project store,
 			// opened once and shared across every input file. Without this
 			// the tool's config factory falls back to NullMemoryProvider and
-			// leverages nothing. Mirrors the terms store glossary injection
+			// leverages nothing. Mirrors the term-rule injection
 			// below and reuses the flow path's content memory opening logic.
 			var memoryProvider coretools.MemoryProvider
 			if ToolRequires(ToolSchema, schema.RequiresMemory) {
@@ -196,17 +196,17 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			newTool := func() (tool.Tool, error) {
 				config := ReadAllSchemaFlags(cmd, ToolSchema)
 				// Tools that require a terms store (e.g. term-check) get the
-				// project's bound glossary injected when no glossary was
-				// supplied programmatically. This makes `kapi term-check
-				// fr.json` enforce the project terms store with no flag.
+				// project's term rules injected when none were supplied
+				// programmatically. This makes `kapi term-check fr.json`
+				// enforce the project terms store with no flag.
 				if ToolRequires(ToolSchema, schema.RequiresTerms) {
-					if _, ok := config["preferred_terms"]; !ok {
-						glossary, gerr := a.ResolveProjectPreferredTerms(cmd, effectiveLang)
+					if _, ok := config["term_rules"]; !ok {
+						rules, gerr := a.ResolveTermRules(cmd, effectiveLang)
 						if gerr != nil {
 							return nil, gerr
 						}
-						if len(glossary) > 0 {
-							config["preferred_terms"] = glossary
+						if len(rules) > 0 {
+							config["term_rules"] = rules
 						}
 					}
 				}

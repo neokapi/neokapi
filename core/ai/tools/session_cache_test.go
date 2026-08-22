@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ import (
 
 // TestAITranslate_SessionCacheIsConfigAware verifies the config-aware overlay
 // cache: an unchanged-config re-run is served from the cache (no LLM call), but a
-// changed model or glossary re-translates rather than serving the stale cached
+// changed model or term rule re-translates rather than serving the stale cached
 // target — the "never run unneeded processing, never serve stale processing"
 // contract.
 func TestAITranslate_SessionCacheIsConfigAware(t *testing.T) {
@@ -66,8 +67,8 @@ func TestAITranslate_SessionCacheIsConfigAware(t *testing.T) {
 	run(changedModel)
 	assert.Equal(t, 2, calls, "a changed model re-translates instead of serving the stale target")
 
-	changedPreferredTerms := base
-	changedPreferredTerms.PreferredTerms = map[string]string{"Hello": "Salut"}
-	run(changedPreferredTerms)
-	assert.Equal(t, 3, calls, "a changed glossary re-translates")
+	changedTermRules := base
+	changedTermRules.TermRules = []coreprofile.TermRule{{Term: "Hello", Replacement: "Salut"}}
+	run(changedTermRules)
+	assert.Equal(t, 3, calls, "a changed term rule re-translates")
 }

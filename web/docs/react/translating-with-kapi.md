@@ -128,7 +128,7 @@ kapi terms import product-terms.csv -s en -t fr --name product-terms
 kapi exec term-check i18n/ --target-lang fr --termstore product-terms
 ```
 
-To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's `glossary` section.
+To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's terminology section.
 
 See [Terminology](/framework/terminology).
 

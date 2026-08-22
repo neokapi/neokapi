@@ -41,7 +41,7 @@ collections:
 
 // writeProfileTermsProject creates a project whose `press` profile binds a
 // STANDALONE terms store, and one collection whose channel resolves to that
-// profile. A profile's `terms:` is the one place a recipe names a terms file:
+// profile. A profile's `termstore:` is the one place a recipe names a terms file:
 // it is a path into the local project with nothing on the wire for it, so it
 // stays a path.
 func writeProfileTermsProject(t *testing.T) (root, boundPath string) {
@@ -56,7 +56,7 @@ defaults:
 profiles:
   press:
     channels: [docs]
-    terms: press-terms.db
+    termstore: press-terms.db
 collections:
   - name: docs
     channel: press/docs
@@ -83,7 +83,7 @@ func TestResolveTermsCmdStore_ProjectAware(t *testing.T) {
 }
 
 // TestResolveTermsStore_ProfileBindingWins pins where a profile's standalone
-// `terms:` applies: a collection whose channel resolves to that profile is
+// `termstore:` applies: a collection whose channel resolves to that profile is
 // governed by the bound file, and nothing else is. An empty collection sits at
 // the project's default point, which has no profile and so keeps the project
 // store — the resolution every `kapi terms` subcommand gets, since they ask for
@@ -95,7 +95,7 @@ func TestResolveTermsStore_ProfileBindingWins(t *testing.T) {
 	a := &App{}
 	got, err := a.ResolveTermsStore(newTermsTestCmd(), project.GovernancePoint{Collection: "docs"})
 	require.NoError(t, err)
-	assert.False(t, got.InProject(), "a profile's terms: names a standalone store")
+	assert.False(t, got.InProject(), "a profile's termstore: names a standalone store")
 	assert.Equal(t, bound, got.Path)
 
 	got, err = a.ResolveTermsStore(newTermsTestCmd(), project.GovernancePoint{})

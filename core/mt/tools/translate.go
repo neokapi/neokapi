@@ -72,15 +72,15 @@ type MTTranslateConfig struct {
 	// name is derived from the provider id (<provider>-translate).
 	ToolName string `json:"-" schema:"-"`
 
-	// Profile and Glossary carry the governing context the flow's bindings inject
-	// into the unified translate tool. A classic MT engine takes neither voice
-	// guidance nor a glossary, so they are never sent to the provider — but they
-	// are the context governing the collection, so they are recorded on the
-	// target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps an
-	// MT target's governance stamp comparable to an AI or recycled one: all fall
-	// stale together when the profile or terms move.
-	Profile        *coreprofile.VoiceProfile `json:"-" schema:"-"`
-	PreferredTerms map[string]string         `json:"preferred_terms,omitempty" schema:"-"`
+	// Profile and TermRules carry the governing context the flow's bindings
+	// inject into the unified translate tool. A classic MT engine takes neither
+	// voice guidance nor terminology, so they are never sent to the provider —
+	// but they are the context governing the collection, so they are recorded on
+	// the target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps
+	// an MT target's governance stamp comparable to an AI or recycled one: all
+	// fall stale together when the profile or terms move.
+	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -101,7 +101,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	t.configFP = tool.OverlayConfigFingerprint("mt", string(p.Name()), string(cfg.SourceLocale), string(cfg.TargetLocale))
-	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.PreferredTerms)
+	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 	// Translate: writes the target locale; source stays read-only.
 	t.Produce = t.translate
 	return t

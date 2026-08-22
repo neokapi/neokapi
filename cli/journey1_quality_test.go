@@ -59,7 +59,7 @@ profiles:
     channels: [docs, reference]
   northsea-record:
     channels: [reference]
-    terms: .kapi/profiles/northsea-record/terms.json
+    termstore: .kapi/profiles/northsea-record/terms.json
 collections:
   - name: northsea-docs
     channel: northsea/docs

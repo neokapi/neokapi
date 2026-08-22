@@ -174,7 +174,7 @@ func TestAITranslate_SessionCachedOverlaySkipsSecondPass(t *testing.T) {
 	assert.Equal(t, 2, *calls, "a different source file must not reuse another file's overlay")
 }
 
-// Config-fingerprint invalidation (changed model/glossary re-translates
+// Config-fingerprint invalidation (changed model/term rules re-translates
 // instead of serving the stale cached target) is covered by
 // TestAITranslate_SessionCacheIsConfigAware in session_cache_test.go.
 
@@ -472,23 +472,32 @@ func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
 
 	base := singleBlockConfig()
 	base.Profile = profile
-	base.PreferredTerms = map[string]string{"widget": "gadget", "login": "connexion"}
+	base.TermRules = []coreprofile.TermRule{
+		{Term: "widget", Replacement: "gadget"},
+		{Term: "login", Replacement: "connexion"},
+	}
 	baseFP := stampedFingerprint(t, base)
 	require.NotEmpty(t, baseFP)
 
-	// Same context, different order in the map literal → same fingerprint. Map
-	// iteration is randomised, so an unsorted walk would report drift that never
-	// happened; this is the regression test for that.
+	// The same rules in a different order → the same fingerprint. Two terms
+	// stores can list one vocabulary in either order without that reading as a
+	// governance change, so the projection sorts before it hashes.
 	reordered := singleBlockConfig()
 	reordered.Profile = profile
-	reordered.PreferredTerms = map[string]string{"login": "connexion", "widget": "gadget"}
+	reordered.TermRules = []coreprofile.TermRule{
+		{Term: "login", Replacement: "connexion"},
+		{Term: "widget", Replacement: "gadget"},
+	}
 	assert.Equal(t, baseFP, stampedFingerprint(t, reordered),
-		"identical terminology must hash identically regardless of map order")
+		"identical terminology must hash identically regardless of rule order")
 
 	// A changed term → different fingerprint.
 	changedTerms := singleBlockConfig()
 	changedTerms.Profile = profile
-	changedTerms.PreferredTerms = map[string]string{"widget": "doohickey", "login": "connexion"}
+	changedTerms.TermRules = []coreprofile.TermRule{
+		{Term: "widget", Replacement: "doohickey"},
+		{Term: "login", Replacement: "connexion"},
+	}
 	assert.NotEqual(t, baseFP, stampedFingerprint(t, changedTerms),
 		"changed terminology must move the fingerprint")
 
@@ -496,7 +505,7 @@ func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
 	// engine's config fingerprint, which must move here so the cache invalidates.
 	changedModel := singleBlockConfig()
 	changedModel.Profile = profile
-	changedModel.PreferredTerms = map[string]string{"widget": "gadget", "login": "connexion"}
+	changedModel.TermRules = base.TermRules
 	changedModel.Model = "claude-y"
 	assert.Equal(t, baseFP, stampedFingerprint(t, changedModel),
 		"swapping the model is not a governance change and must not move the fingerprint")

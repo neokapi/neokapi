@@ -12,7 +12,7 @@ import (
 //   - the framework owns Task and Constraint — the rules that make output usable
 //     (return only the translation; reproduce every tag). A user who overrides
 //     these gets broken round-trips, so they are not a configuration surface.
-//   - the project owns Instruction, Voice and Glossary — the steering that makes
+//   - the project owns Instruction, Voice and Terminology — the steering that makes
 //     output *yours*. These are declared in the recipe, the voice profile and the
 //     terms, and they are the supported way to change what the model does.
 //   - the document owns Content. It is data, never instruction.

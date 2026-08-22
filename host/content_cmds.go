@@ -184,8 +184,8 @@ func contextArtifacts(proj *coreproj.KapiProject, recipeName string) []string {
 	}
 	for _, prof := range proj.Profiles {
 		voice(prof.Voice)
-		if prof.Terms != "" {
-			out = append(out, filepath.ToSlash(prof.Terms))
+		if prof.TermStore != "" {
+			out = append(out, filepath.ToSlash(prof.TermStore))
 		}
 	}
 	return out
