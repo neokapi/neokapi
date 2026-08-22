@@ -599,6 +599,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	if err != nil {
 		return nil, err
 	}
+	defer voice.close()
 
 	minScore, _ := cmd.Flags().GetInt("min-score")
 

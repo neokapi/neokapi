@@ -102,8 +102,8 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	// vocabulary family off rather than failing a check the other families can
 	// still answer.
 	if opts.profile == nil {
-		//nolint:contextcheck // ctx travels inside the synthetic command; the resolver reads it back with CmdContext
 		if voice, verr := a.newCheckVoice(NewEnvCommand(ctx, "check_file")); verr == nil {
+			defer voice.close()
 			if p, perr := voice.forFile(ctx, in.File); perr == nil {
 				opts.profile = p
 			}
