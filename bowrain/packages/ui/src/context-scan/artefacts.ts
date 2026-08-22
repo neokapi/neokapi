@@ -1,5 +1,10 @@
 import type { VoiceProfile } from "../brand/types";
-import type { ContextScanArtefact, ContextScanDraft, ContextScanTerm } from "../types/api";
+import type {
+  ContextScanArtefact,
+  ContextScanAxis,
+  ContextScanDraft,
+  ContextScanTerm,
+} from "../types/api";
 
 /**
  * Reading a scan's proposals by kind, in one place.
@@ -55,4 +60,15 @@ export function scanPoints(draft: ContextScanDraft): Record<string, string>[] {
 export function scanIsSinglePoint(draft: ContextScanDraft): boolean {
   const points = scanPoints(draft);
   return points.length <= 1 && Object.keys(points[0] ?? {}).length === 0;
+}
+
+/**
+ * The axes a scan proposed, strongest evidence first.
+ *
+ * Empty is the ordinary answer — a corpus with no internal variation has no
+ * axes — so a caller renders nothing rather than an empty state pretending
+ * something went wrong.
+ */
+export function scanAxes(draft: ContextScanDraft): ContextScanAxis[] {
+  return draft.axes ?? [];
 }
