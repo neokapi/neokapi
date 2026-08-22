@@ -183,7 +183,7 @@ i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
 ├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
 ├── terms.json     voice vocabulary (git source)
-└── brand-voice.yaml        voice profile (git source)
+└── voice.yaml              voice profile (git source)
 ```
 
 Content memory and pseudo-locale output are rebuildable state, so they live
