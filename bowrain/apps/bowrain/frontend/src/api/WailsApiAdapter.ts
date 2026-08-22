@@ -140,6 +140,7 @@ import type {
   ContextScanUploadResult,
   ContextScanJob,
   ContextScanCheckResult,
+  PendingRecipeChange,
   ContextProfilesResponse,
   ChannelAliasJudgement,
   ChannelAliasProposal,
@@ -1533,6 +1534,13 @@ export class WailsApiAdapter implements ApiAdapter {
     _profile: VoiceProfile,
     _text: string,
   ): Promise<ContextScanCheckResult> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  // Approving an axis proposes a recipe change for a pull to write. The desktop
+  // app edits kapi.yaml directly, so it has no use for a change queued on a
+  // server — the local edit is the change.
+  async approveAxis(): Promise<PendingRecipeChange> {
     throw new Error("not implemented in desktop app");
   }
 

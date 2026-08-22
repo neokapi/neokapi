@@ -426,6 +426,9 @@ export const sampleCollection: CollectionInfo = {
   kind: "uploaded",
   item_label: "file",
   is_default: false,
+  item_count: 12,
+  created_at: "2026-08-01T09:00:00Z",
+  updated_at: "2026-08-01T09:00:00Z",
 };
 
 /** A completed brand-scan job carrying the sample draft. */
