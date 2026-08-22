@@ -1645,13 +1645,14 @@ type ProjectBindings struct {
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
-	storePath, err := resolveResourcePath(cmd, "voice", "voice.db")
+	store, release, err := a.VoiceLookupStore(cmd)
 	if err != nil {
 		return nil, err
 	}
+	defer release()
 	profile, _, _, err := a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
-		StorePath: storePath,
-		Point:     point,
+		Store: store,
+		Point: point,
 	})
 	if err != nil {
 		return nil, err

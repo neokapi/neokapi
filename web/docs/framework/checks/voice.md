@@ -184,7 +184,7 @@ type Store interface {
 `profile` package; `model.LocaleID` is the BCP-47 locale type from
 `github.com/neokapi/neokapi/core/model`.
 
-The framework ships a SQLite backend (`host/storage/voice/sqlite.go`) built on
+The framework ships a SQLite backend (`voice/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex
 tone/style/vocabulary fields. The interface is designed for extension — server
 deployments can add a workspace-scoped PostgreSQL backend.

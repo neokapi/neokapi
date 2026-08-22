@@ -250,9 +250,9 @@ func newVoiceProfilesCmd(a *App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var summaries []output.VoiceProfileSummary
 
-			store, _, err := a.OpenVoiceStore(cmd)
+			store, _, release, err := a.OpenVoiceStore(cmd)
 			if err == nil {
-				defer store.Close()
+				defer release()
 				profiles, lerr := store.ListProfiles(cmd.Context(), LocalScope)
 				if lerr == nil {
 					for _, p := range profiles {

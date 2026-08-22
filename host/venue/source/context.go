@@ -3,7 +3,6 @@ package source
 import (
 	"context"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -145,10 +144,15 @@ func (c *BowrainSourceConnector) voiceDivergesFrom(ctx context.Context, collecti
 	if c.app == nil || c.project == nil || c.project.Recipe == nil {
 		return false
 	}
+	store, release, serr := c.app.ProjectVoiceStore(ctx, c.project.Root)
+	if serr != nil {
+		return false
+	}
+	defer release()
 	profile, _, _, found, err := c.app.LoadCollectionVoice(ctx, &c.project.Recipe.KapiProject, c.project.Root,
 		host.VoiceResolveOptions{
-			Point:     c.app.GovernancePointFor(collection, ""),
-			StorePath: filepath.Join(c.project.Root, voiceStoreName),
+			Point: c.app.GovernancePointFor(collection, ""),
+			Store: store,
 		})
 	if err != nil {
 		return false
@@ -159,11 +163,6 @@ func (c *BowrainSourceConnector) voiceDivergesFrom(ctx context.Context, collecti
 	}
 	return local != serverProfile
 }
-
-// voiceStoreName is the project-local voice store the push resolves a bound
-// profile through; the pull must read the same one or the two halves of a
-// round trip would disagree about what the recipe binds.
-const voiceStoreName = "voice.db"
 
 // declaredCollection finds the recipe's collection of that name, or nil.
 func (c *BowrainSourceConnector) declaredCollection(name string) *coreproj.Collection {

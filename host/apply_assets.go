@@ -843,11 +843,11 @@ func (a *App) compileVoiceProfile(ctx context.Context, cmd Command, profilePath 
 		return fmt.Errorf("load voice profile: %w", err)
 	}
 
-	store, _, err := a.OpenVoiceStore(cmd)
+	store, _, release, err := a.OpenVoiceStore(cmd)
 	if err != nil {
 		return fmt.Errorf("open voice store: %w", err)
 	}
-	defer store.Close()
+	defer release()
 
 	if profile.ID == "" {
 		profile.ID = slugify(profile.Name)
