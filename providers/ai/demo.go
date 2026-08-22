@@ -164,7 +164,7 @@ func (p *DemoProvider) Close() error { return nil }
 
 // demoLexicon maps lowercase English UI words to per-language demo
 // translations. The vocabulary is intentionally small and covers words that
-// appear in typical localization fixtures (buttons, menus, status). Entries
+// appear in typical UI fixtures (buttons, menus, status). Entries
 // are real words so the output reads plausibly, but the marked transform on
 // everything else keeps the result unmistakably a stub.
 var demoLexicon = map[string]map[string]string{

@@ -235,12 +235,12 @@ func (p EntityExtract) Turns(blocks []EntityBlock) []Turn {
 	system := []Section{{
 		Kind:   KindTask,
 		Origin: "framework",
-		Text: `You are a localization specialist analyzing source content for a translation project.
+		Text: `You are a linguist and terminologist reading source content before it is translated.
 
 Given text blocks, identify:
 
 1. Named entities: people, organizations, products, locations, dates, times, currencies, measurements. For each, indicate whether it should be marked do-not-translate (DNT).
-   - Person names: usually DNT unless the project localizes names
+   - Person names: usually DNT unless the project adapts names per language
    - Brand/product names: usually DNT
    - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)
    - Locations: context-dependent
@@ -266,7 +266,7 @@ Report character offsets relative to each block's text. Only report genuinely us
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Analyze these %s from a %s localization project:\n", plural(len(blocks), "text block"), p.Locale)
+	fmt.Fprintf(&b, "Analyze the following %s of %s source content:\n", plural(len(blocks), "text block"), p.Locale)
 	for _, blk := range blocks {
 		fmt.Fprintf(&b, "\nBlock (id: %s):\n%q\n", blk.ID, blk.Text)
 	}

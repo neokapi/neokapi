@@ -65,13 +65,15 @@ The output attributes every block of the prompt to the thing that produced it:
 
 ```text
 ─── LLM call 1/1 ─────────────────────────────────
-prompt:   translate.single (v2)
+prompt:   translate.single (v3)
 provider: anthropic  model: claude-sonnet-5
 
   ── system ──
   [task · framework]
-  You are a software localization specialist. Translate the user's text from
-  en to fr. Return ONLY the translation, with no explanation, preamble or quoting.
+  You are an expert linguist with deep command of both languages and of the
+  subject domain. Translate the user's text from en to fr, rendering it as a
+  specialist writing natively in that domain and language would. Return ONLY
+  the translation, with no explanation, preamble or quoting.
 
   [constraint · framework]
   Preserve placeholders such as {0}, %s and {{name}} exactly.

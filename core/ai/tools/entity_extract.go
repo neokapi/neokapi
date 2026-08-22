@@ -390,7 +390,7 @@ type llmTermCandidate struct {
 func extractionSchema() aiprovider.JSONSchema {
 	return aiprovider.JSONSchema{
 		Name:        "extraction_result",
-		Description: "Named entities and terminology candidates extracted from localization content",
+		Description: "Named entities and terminology candidates extracted from source content",
 		Strict:      true,
 		Schema: map[string]any{
 			"type": "object",

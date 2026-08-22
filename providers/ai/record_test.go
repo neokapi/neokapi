@@ -51,7 +51,7 @@ func TestRecorderCapturesTranslateExactlyOnce(t *testing.T) {
 	// the task framing, and a user turn holding only the content.
 	require.Len(t, ex.Messages, 2)
 	assert.Equal(t, RoleSystem, ex.Messages[0].Role)
-	assert.Contains(t, ex.Messages[0].Text(), "localization specialist")
+	assert.Contains(t, ex.Messages[0].Text(), "Translate the user's text")
 	assert.Equal(t, RoleUser, ex.Messages[1].Role)
 	assert.Equal(t, "Save", ex.Messages[1].Text())
 
