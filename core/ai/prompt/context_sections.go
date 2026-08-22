@@ -28,7 +28,7 @@ type Context struct {
 	// Key is the block's key or path — `app.settings.title`, not `Save`.
 	//
 	// The cheapest disambiguation signal there is: it is already in the document,
-	// it costs a handful of tokens, and it is what every localization vendor
+	// it costs a handful of tokens, and it is what every translation vendor
 	// sends. It is also *stable*: a block's key is a function of the block, so
 	// sending it cannot make a cached translation wrong.
 	Key string

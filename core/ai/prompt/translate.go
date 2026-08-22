@@ -160,13 +160,26 @@ func (t Translate) constraints(preserveTags bool) []Section {
 	return out
 }
 
+// linguistPersona opens every translate prompt.
+//
+// It claims two competences rather than a job title: command of both languages,
+// and command of the subject the content is about. Both are what separates a
+// usable translation from a literal one — a term of art rendered by its
+// dictionary gloss is grammatical and wrong — and naming them is the cheapest
+// steer there is.
+//
+// Stated once because the single and batch tasks both open with it, and a model
+// told it is two different people would write in two registers for one project.
+const linguistPersona = "You are an expert linguist with deep command of both languages and of the subject domain."
+
 // task states the job for a single-block translation.
 func (t Translate) task() Section {
 	return Section{
 		Kind:   KindTask,
 		Origin: "framework",
 		Text: fmt.Sprintf(
-			"You are a software localization specialist. Translate the user's text from %s to %s. "+
+			linguistPersona+" Translate the user's text from %s to %s, rendering it "+
+				"as a specialist writing natively in that domain and language would. "+
 				"Return ONLY the translation, with no explanation, preamble or quoting.",
 			t.SourceLocale, t.TargetLocale,
 		),
@@ -292,7 +305,8 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 		Kind:   KindTask,
 		Origin: "framework",
 		Text: fmt.Sprintf(
-			"You are a software localization specialist. Translate each segment in the user's JSON payload from %s to %s. "+
+			linguistPersona+" Translate each segment in the user's JSON payload from %s to %s, "+
+				"rendering each as a specialist writing natively in that domain and language would. "+
 				"Return one translation per segment, echoing each segment's id exactly. "+
 				"Return every id you were given, and no others.%s",
 			t.SourceLocale, t.TargetLocale, keyRule,

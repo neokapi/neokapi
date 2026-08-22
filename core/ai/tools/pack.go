@@ -31,13 +31,13 @@ import (
 // On the ceiling: batch-prompting studies find accuracy dropping measurably by
 // N≈16 and sharply past it, and the failure mode is not worse wording — it is
 // dropped, merged and renumbered items. That is a correctness failure in a
-// localization pipeline, not a quality one. So MaxBlocksPerCall started at the
+// translation pipeline, not a quality one. So MaxBlocksPerCall started at the
 // conservative end of that evidence, pending our own measurement on translation
 // specifically.
 //
 // We have now measured it (scripts/batcheval, published at /batch-eval), and the
 // borrowed N≈16 does not survive contact with the task. Sweeping a 600-block
-// corpus of real localization stressors — ambiguous UI strings, placeholders,
+// corpus of real translation stressors — ambiguous UI strings, placeholders,
 // inline tags, prose — at N = 8…600 against gemini-3.5-flash, gemini-3.1-flash-lite
 // and Claude Sonnet 4.6 on Bedrock, structural integrity was 100% at every batch
 // size from 32 up, on every model. The only structural damage measured anywhere in

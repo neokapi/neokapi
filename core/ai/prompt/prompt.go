@@ -25,7 +25,7 @@ package prompt
 // and cached translations produced by a prompt that no longer exists get served
 // as current. (That happened during development of this package.) Bump Version
 // when the change is worth announcing; correctness does not depend on it.
-const Version = "v2"
+const Version = "v3"
 
 // Role names a Turn's speaker. These mirror aiprovider's role constants; this
 // package deliberately does not import aiprovider, so that aiprovider can
