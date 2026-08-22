@@ -41,6 +41,7 @@ import { stashAcquisitionSource } from "./acquisition";
 import type { PlatformAdapter } from "../platform";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
+import { resolveActiveWorkspace } from "./active-workspace";
 import { WorkspaceLayout } from "./workspace-layout";
 import { ProjectDashboardRoute } from "./workspace/dashboard";
 import { ProjectDetailRoute } from "./workspace/project-detail";
@@ -372,16 +373,21 @@ const workspaceRoute = createRoute({
       workspaces = fetchedWorkspaces;
     }
 
-    const match = workspaces.find((w) => w.slug === params.workspace);
-    if (!match && workspaces.length > 0) {
+    const resolved = resolveActiveWorkspace(workspaces, params.workspace);
+    if (resolved.kind === "none") {
+      // The index route already knows how to say "no workspaces"; hand over
+      // rather than describing it a second time.
+      throw redirect({ to: "/", search: { plan: undefined, seats: undefined }, replace: true });
+    }
+    if (resolved.kind === "fallback") {
       throw redirect({
         to: "/$workspace",
-        params: { workspace: workspaces[0].slug },
+        params: { workspace: resolved.workspace.slug },
         replace: true,
       });
     }
 
-    const activeWorkspace = match ?? workspaces[0];
+    const activeWorkspace = resolved.workspace;
     useUIStore.getState().setLastWorkspaceSlug(activeWorkspace.slug);
 
     return {
