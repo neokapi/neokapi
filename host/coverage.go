@@ -391,10 +391,11 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	}
 
 	tally := convergence.NewCoverageTally()
+	docs := a.documentIndexOrEmpty(ctx, root)
 
 	for _, u := range units {
 		s := convergence.Scope{Collection: u.Collection, Locale: u.Locale}
-		scope := DecisionScope(root, u.SourcePath)
+		scope := docs.Scope(root, u.SourcePath)
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if !errors.Is(berr, errTargetUnreadable) {

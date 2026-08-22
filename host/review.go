@@ -53,6 +53,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 	if err != nil {
 		return nil, err
 	}
+	docs := a.documentIndexOrEmpty(ctx, root)
 	var items []ReviewItem
 	for _, u := range units {
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
@@ -66,7 +67,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			continue // nothing translated for this locale yet
 		}
 		loc := model.LocaleID(u.Locale)
-		scope := DecisionScope(root, u.SourcePath)
+		scope := docs.Scope(root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue

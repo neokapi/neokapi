@@ -287,6 +287,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 			basis.reviewed = idx
 		}
 		basis.settled = a.recordSettlement(ctx, db, proj, projectPath, layout.Root)
+		basis.docs = a.documentIndexOrEmpty(ctx, layout.Root)
 	} else if basis.memory == nil {
 		// No store on disk — a fresh checkout, which is exactly the leg a
 		// pull-request CI job runs. The corpus a run recycles from is still
@@ -455,8 +456,11 @@ type upPlanBasis struct {
 	// settled keys absolute target paths; see App.recordSettlement.
 	settled map[string]bool
 	// root is the project root a unit's source path is resolved against to name
-	// the document its decision was recorded in (DecisionScope).
+	// the document its decision was recorded in.
 	root string
+	// docs turns that path into the document's durable key, so a decision made
+	// before the file was renamed still answers for it.
+	docs DocumentIndex
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units, against
@@ -501,7 +505,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		// on disk, which decides whether the corpus's silence about its units is
 		// final (see App.recordSettlement).
 		settled := basis.settled[u.TargetPath]
-		scope := DecisionScope(basis.root, u.SourcePath)
+		scope := basis.docs.Scope(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue

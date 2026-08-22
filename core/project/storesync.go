@@ -8,6 +8,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -155,6 +157,18 @@ type BlockStoreStamper interface {
 	SaveSourceStamps(ctx context.Context, stamps map[string]SourceStamp) error
 }
 
+// DocumentAdopter resolves which document each source file IS and records it.
+//
+// Optional, and separate from BlockStoreStamper, because a stamp is a cache
+// hint and this is not: a document's key is half of every decision's identity.
+// A store that cannot answer it leaves decisions keyed on the path they were
+// made at, which is what happened before any of this existed.
+type DocumentAdopter interface {
+	// AdoptDocuments resolves the read against what the project knows and
+	// returns each path's durable key.
+	AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error)
+}
+
 // ExtractToBlockStore extracts the given resolved source files into the
 // project's persistent block store — the single extract-into-store path shared
 // by the desktop's Re-extract and the CLI's auto-extract-on-drift.
@@ -196,6 +210,11 @@ func ExtractToBlockStore(
 	}
 
 	stamps := make(map[string]SourceStamp, len(files))
+	// What each document held, for identity resolution below. Gathered here
+	// because this is the one pass that reads every source file: asking again
+	// afterwards would re-read the whole project to answer a question about
+	// names.
+	docs := make([]reconcile.DocUnit, 0, len(files))
 	for _, rf := range files {
 		if rf.Format == "" {
 			stats.Skipped = append(stats.Skipped, ExtractSkip{
@@ -216,6 +235,7 @@ func ExtractToBlockStore(
 			continue
 		}
 		collection := CollectionLabel(rf.Collection)
+		doc := reconcile.DocUnit{Path: rf.Relative, Content: make([]string, 0, len(blocks))}
 		for _, b := range blocks {
 			// Key the block globally-unique per (source file, in-file id) so
 			// blocks from different files/collections don't collide in the
@@ -236,8 +256,10 @@ func ExtractToBlockStore(
 				_ = sess.Rollback()
 				return stats, fmt.Errorf("write block from %q: %w", rf.Relative, perr)
 			}
+			doc.Content = append(doc.Content, model.ComputeContentHash(b.SourceText()))
 			stats.Blocks++
 		}
+		docs = append(docs, doc)
 		stats.Files++
 
 		// The drift stamp is not optional bookkeeping: DetectStoreDrift treats a
@@ -275,6 +297,19 @@ func ExtractToBlockStore(
 	// that kapi is inexplicably slow and re-does finished work forever. That is
 	// precisely the failure nobody diagnoses, because nothing ever said it
 	// happened.
+	// Which document each file IS, resolved against what the project already
+	// knows and recorded before anything reads a decision back. Unlike the
+	// stamps below, a failure here is reported rather than swallowed: a run
+	// that could not resolve identity files its decisions against paths, and a
+	// rename after that orphans them.
+	if adopter, ok := stamper.(DocumentAdopter); ok {
+		if _, aerr := adopter.AdoptDocuments(ctx, docs); aerr != nil {
+			stats.Warnings = append(stats.Warnings, fmt.Sprintf(
+				"could not resolve document identity: %v — decisions will be filed against file paths, "+
+					"so renaming a file will detach the approvals inside it", aerr))
+		}
+	}
+
 	if err := stamper.StampBlockStoreVersion(ctx); err != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
 			"could not record the block-store version stamp: %v — the store will read as stale and re-extract on every run", err))

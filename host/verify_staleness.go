@@ -83,6 +83,7 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	}
 	defer current.close()
 
+	docs := a.documentIndexOrEmpty(ctx, root)
 	blocks := newSourceBlockCache(a, ctx)
 	unstamped := 0
 	var scopes []stalenessScope
@@ -99,7 +100,7 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		}
 
 		scope := stalenessScope{unit: u}
-		document := DecisionScope(root, u.SourcePath)
+		document := docs.Scope(root, u.SourcePath)
 		for _, b := range bl {
 			if !b.Translatable {
 				continue

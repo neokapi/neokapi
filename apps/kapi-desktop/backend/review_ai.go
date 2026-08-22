@@ -86,7 +86,8 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 
 	loc := model.LocaleID(locale)
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	scope := host.DecisionScope(filepath.Dir(op.Path), rf.Path)
+	root := filepath.Dir(op.Path)
+	scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
 
 	switch action {
 	case ReviewAIExplain:

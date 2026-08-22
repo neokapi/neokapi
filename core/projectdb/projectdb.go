@@ -65,6 +65,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
@@ -227,6 +228,19 @@ func (d *DB) BlocksAutocommit() blockstore.Store { return d.blocksAuto }
 // every build: where there is no SQLite driver it is backed by the JSON
 // sidecar, because a staged decision has no other copy.
 func (d *DB) Work() *state.WorkStore { return d.work }
+
+// AdoptDocuments resolves which document each freshly read source file is,
+// against what the project already knows, and records the result — the
+// project.DocumentAdopter an extraction looks for.
+//
+// It is on the handle rather than reached through Work() so extraction names a
+// capability instead of a store, the same way it does for the drift stamps.
+func (d *DB) AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error) {
+	if d.work == nil {
+		return nil, ErrNoStore
+	}
+	return d.work.AdoptDocuments(ctx, current)
+}
 
 // HasMemory reports whether the content memory holds any entry.
 func (d *DB) HasMemory(ctx context.Context) (bool, error) {

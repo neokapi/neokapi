@@ -105,6 +105,11 @@ func (r RecordAbsorbResult) Absorbed() bool { return r.Learned > 0 || r.Reconcil
 // record absorber pairs.
 type recordUnit struct {
 	sourcePath, sourceRel string
+	// scope is the document the source file IS — its durable key, or its path
+	// where the project holds none. sourceRel is its ADDRESS, which is what the
+	// block store places a block by; the two are the same string until a file
+	// is renamed, and telling them apart is the whole point of holding both.
+	scope                 string
 	targetPath, targetRel string
 	format                string
 	config                map[string]any
@@ -284,7 +289,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	if sourceLocale == "" {
 		sourceLocale = model.LocaleID("en")
 	}
-	units, err := recordUnits(a, proj, pctx, layout.Root)
+	units, err := recordUnits(ctx, a, proj, pctx, layout.Root)
 	if err != nil {
 		return res, err
 	}
@@ -341,7 +346,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		}
 		res.Documents++
 		for _, b := range blocks {
-			e, basis, applies := reviewed.grade(u.sourceRel, b, string(u.locale))
+			e, basis, applies := reviewed.grade(u.scope, b, string(u.locale))
 			srcRuns, tgtRuns, keep := recordRuns(b, u.locale, approvesTarget(e, applies))
 			if !keep {
 				continue
@@ -454,7 +459,7 @@ func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProjec
 	if err != nil || db.Memory() == nil {
 		return
 	}
-	units, err := recordUnits(a, proj, project.NewProjectContext(proj, projectPath), layout.Root)
+	units, err := recordUnits(ctx, a, proj, project.NewProjectContext(proj, projectPath), layout.Root)
 	if err != nil {
 		return
 	}
@@ -492,7 +497,7 @@ func (a *App) recordSettlement(ctx context.Context, db *projectdb.DB, proj *proj
 	if len(stamps) == 0 {
 		return settled
 	}
-	units, err := recordUnits(a, proj, project.NewProjectContext(proj, projectPath), root)
+	units, err := recordUnits(ctx, a, proj, project.NewProjectContext(proj, projectPath), root)
 	if err != nil {
 		return settled
 	}
@@ -965,13 +970,14 @@ func (a *App) pairedRecordBlocks(ctx context.Context, u recordUnit, sourceLocale
 // recordUnits enumerates the (source, target, locale) triples whose target the
 // recipe names — the same resolution `kapi up` writes through, so the absorber
 // reads back exactly where the loop writes.
-func recordUnits(a *App, proj *project.KapiProject, pctx *project.ProjectContext, root string) ([]recordUnit, error) {
+func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *project.ProjectContext, root string) ([]recordUnit, error) {
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
 	var units []recordUnit
 	points := map[string]string{}
+	docs := a.documentIndexOrEmpty(ctx, root)
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
@@ -989,6 +995,7 @@ func recordUnits(a *App, proj *project.KapiProject, pctx *project.ProjectContext
 			units = append(units, recordUnit{
 				sourcePath: rf.Path,
 				sourceRel:  relSlash(root, rf.Path),
+				scope:      docs.Scope(root, rf.Path),
 				targetPath: targetPath,
 				targetRel:  relSlash(root, targetPath),
 				format:     rf.Format,
