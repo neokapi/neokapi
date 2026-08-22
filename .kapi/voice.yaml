@@ -82,19 +82,24 @@ style:
     # mdx readers do not extract code as content — so a quoted identifier like
     # `SideEffect = "termbase-read"` needs no exception here.
     - regex: '\btermbases?\b'
-      description: 'termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)'
+      description: "termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)"
       severity: major
     - regex: '\bglossar(y|ies)\b'
-      description: 'glossary: the store is the terms store (XLIFF 2.x''s Glossary module keeps its name)'
+      description: "glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)"
       severity: major
     - regex: '(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b'
       description: Say multilingual content, or language — and recast the sentence rather than substituting a word for "localize"
       severity: major
-    - regex: '(?i)\bl10n\b'
+    # The leading (^|[^\w-]) is the third-party guard, the same shape the count
+    # rule above uses: RE2 has no lookbehind, so the delimiter is matched rather
+    # than asserted. It keeps another project's tool name out — Flutter's
+    # `gen-l10n`, and anything else hyphen-prefixed — while a bare `l10n` in our
+    # own prose still fails.
+    - regex: '(?i)(^|[^\w-])l10n\b'
       description: Say multilingual content, or language (the l10n-* make targets are developer-facing internals and are not this rule)
       severity: major
     - regex: '(?i)\btranslation memor(y|ies)\b'
-      description: 'translation memory: say content memory'
+      description: "translation memory: say content memory"
       severity: major
     # `brand_voice` with an underscore is bowrain's recipe extension key, which a
     # doc is right to name; the space and hyphen forms are prose and the retired
