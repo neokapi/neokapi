@@ -1117,6 +1117,22 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Refresh server metadata so we have up-to-date target locales.
 	c.fetchAndCacheMetadata(ctx)
 
+	// Recipe first, content second. A coordinate is minted by the recipe, so
+	// content arriving at a point the recipe cannot yet account for is the same
+	// divergence the venue refuses on the other side.
+	for _, r := range c.applyPendingRecipeChanges(ctx) {
+		switch {
+		case r.Err != nil:
+			slog.WarnContext(ctx, "a recipe change from the venue could not be applied",
+				"path", r.Path, "error", r.Err)
+		case r.Conflict != "":
+			slog.WarnContext(ctx, "the recipe already says something else here; left as it is",
+				"path", r.Path, "recipe", r.Conflict)
+		case r.Applied:
+			slog.InfoContext(ctx, "recipe updated from the venue; review it with git diff", "path", r.Path)
+		}
+	}
+
 	// Resolve target locales: CLI args > config > server cache.
 	pullLocales := opts.Locales
 	if len(pullLocales) == 0 {
