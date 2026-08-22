@@ -49,7 +49,7 @@ const CONVERGING: ConvergenceReport = {
       locale: "nb",
       file: "src/locales/en.json",
       key: "hero.title",
-      source: "Ship localized content without the toil",
+      source: "Ship every language without the toil",
     },
     { locale: "ja", file: "src/locales/en.json", key: "cta.primary", source: "Get started" },
     { locale: "ja", file: "src/locales/en.json", key: "nav.docs", source: "Documentation" },

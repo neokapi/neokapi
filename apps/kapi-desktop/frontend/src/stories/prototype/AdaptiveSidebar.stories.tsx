@@ -1,3 +1,12 @@
+/**
+ * SUPERSEDED. This is prototype v1, kept as a record of a design the product did
+ * not take: a fork between a "content project" and a "localization project",
+ * with a feature to step from one to the other. Prototype v2 replaced it with
+ * one project shape whose languages are an ordinary property — see
+ * Prototype v2/Sidebar. The retired vocabulary below is the rejected design's
+ * own, not current product language.
+ */
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import { Languages, Sparkles } from "lucide-react";
@@ -12,7 +21,7 @@ import { AdaptiveSidebar, DesktopFrame, ProjectKindBadge } from "./_shared";
  * l10n surface.
  */
 const meta = {
-  title: "Prototype/AdaptiveSidebar",
+  title: "Prototype v1 (superseded)/AdaptiveSidebar",
   parameters: { layout: "fullscreen" },
 } satisfies Meta;
 

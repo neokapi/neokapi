@@ -4,7 +4,7 @@
 // On macOS the Wails runtime is served through the native WKWebView's custom
 // scheme handler (not TCP), so a plain browser can't reach it. wbridge hosts the
 // same backend.App and dispatches calls by method name via reflection, reading
-// the same SQLite termbases/Memories the app reads. Point it at an isolated config
+// the same SQLite terms stores and memories the app reads. Point it at an isolated config
 // root for testing:
 //
 //	KAPI_CONFIG_DIR=/tmp/iso/kapi WBRIDGE_PORT=5175 \

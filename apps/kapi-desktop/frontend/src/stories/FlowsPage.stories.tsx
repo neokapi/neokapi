@@ -19,7 +19,7 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
     ],
   },
   "full-pipeline": {
-    description: "Complete localization pipeline",
+    description: "Source to every target language, end to end",
     steps: [
       { tool: "recycle", label: "Memory Leverage" },
       { tool: "translate", label: "AI Translate" },

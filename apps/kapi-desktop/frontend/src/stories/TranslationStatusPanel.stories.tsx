@@ -19,7 +19,7 @@ type Story = StoryObj<typeof TranslationStatusPanel>;
 
 const mixedStatus: ProjectStatus = {
   projectPath: "/Users/dev/app/kapi.yaml",
-  projectName: "My App Localization",
+  projectName: "My App",
   collections: [
     {
       name: "ui",

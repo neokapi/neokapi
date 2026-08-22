@@ -180,13 +180,13 @@ function SimulatedMemoriesPage() {
   const resources = [
     {
       name: "my-project",
-      path: "~/.config/kapi/tm/my-project.db",
+      path: "~/.config/kapi/memory/my-project.db",
       size: 524288,
       modified: new Date(Date.now() - 3600000).toISOString(),
     },
     {
       name: "global-tm",
-      path: "~/.config/kapi/tm/global-memory.db",
+      path: "~/.config/kapi/memory/global-memory.db",
       size: 1048576,
       modified: new Date(Date.now() - 86400000).toISOString(),
     },
@@ -277,13 +277,13 @@ export const WithResources: StoryObj<typeof MemoriesPage> = {
       resources={[
         {
           name: "my-project",
-          path: "~/.config/kapi/tm/my-project.db",
+          path: "~/.config/kapi/memory/my-project.db",
           size: 524288,
           modified: new Date(Date.now() - 3600000).toISOString(),
         },
         {
           name: "global-tm",
-          path: "~/.config/kapi/tm/global-memory.db",
+          path: "~/.config/kapi/memory/global-memory.db",
           size: 1048576,
           modified: new Date(Date.now() - 86400000).toISOString(),
         },

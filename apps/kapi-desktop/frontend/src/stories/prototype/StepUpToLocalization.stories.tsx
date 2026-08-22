@@ -1,3 +1,12 @@
+/**
+ * SUPERSEDED. This is prototype v1, kept as a record of a design the product did
+ * not take: a fork between a "content project" and a "localization project",
+ * with a feature to step from one to the other. Prototype v2 replaced it with
+ * one project shape whose languages are an ordinary property — see
+ * Prototype v2/Sidebar. The retired vocabulary below is the rejected design's
+ * own, not current product language.
+ */
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { ArrowRight, Check, Languages, Sparkles } from "lucide-react";
@@ -12,7 +21,7 @@ import { AdaptiveSidebar, DesktopFrame } from "./_shared";
  * the project sidebar.
  */
 const meta = {
-  title: "Prototype/StepUpToLocalization",
+  title: "Prototype v1 (superseded)/StepUpToLocalization",
   parameters: { layout: "fullscreen" },
 } satisfies Meta;
 

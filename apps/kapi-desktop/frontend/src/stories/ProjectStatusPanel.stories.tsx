@@ -21,7 +21,7 @@ type Story = StoryObj<typeof ProjectStatusPanel>;
 
 const WORKING: ProjectStatus = {
   projectPath: "/Users/dev/app/kapi.yaml",
-  projectName: "My App Localization",
+  projectName: "My App",
   collections: [
     {
       name: "ui",
@@ -34,7 +34,7 @@ const WORKING: ProjectStatus = {
 };
 
 const SHIP: ConvergenceReport = {
-  project: "My App Localization",
+  project: "My App",
   source: {
     total: 42,
     pct: { authored: 100, checked: 90, approved: 0 },
@@ -64,7 +64,7 @@ const SHIP: ConvergenceReport = {
       locale: "nb",
       file: "src/locales/en.json",
       key: "hero.title",
-      source: "Ship localized content without the toil",
+      source: "Ship every language without the toil",
     },
     { locale: "ja", file: "src/locales/en.json", key: "cta.primary", source: "Get started" },
   ],

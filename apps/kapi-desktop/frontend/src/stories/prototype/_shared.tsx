@@ -157,6 +157,7 @@ export interface AdaptiveSidebarProps {
 
 /**
  * The adaptive project sidebar. Content items always show; the grouped
+ * Part of the SUPERSEDED v1 prototype — see any Prototype v1 story. The
  * Localization set only appears when the project enabled the localization
  * feature — and renders inside a faintly lit container so it reads as a
  * module that "switched on".

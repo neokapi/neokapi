@@ -1,3 +1,12 @@
+/**
+ * SUPERSEDED. This is prototype v1, kept as a record of a design the product did
+ * not take: a fork between a "content project" and a "localization project",
+ * with a feature to step from one to the other. Prototype v2 replaced it with
+ * one project shape whose languages are an ordinary property — see
+ * Prototype v2/Sidebar. The retired vocabulary below is the rejected design's
+ * own, not current product language.
+ */
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Pencil, Play, Plus, Workflow } from "lucide-react";
 import { Badge, Button, ConfirmDeleteButton, ItemCard, PageHeader } from "@neokapi/ui-primitives";
@@ -11,7 +20,7 @@ import { configuredFlows, ProjectKindBadge } from "./_shared";
  * flows; they're just managed in one place.
  */
 const meta = {
-  title: "Prototype/ConfiguredFlows",
+  title: "Prototype v1 (superseded)/ConfiguredFlows",
   parameters: { layout: "fullscreen" },
 } satisfies Meta;
 

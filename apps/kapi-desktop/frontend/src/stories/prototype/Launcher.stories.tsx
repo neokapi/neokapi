@@ -1,3 +1,12 @@
+/**
+ * SUPERSEDED. This is prototype v1, kept as a record of a design the product did
+ * not take: a fork between a "content project" and a "localization project",
+ * with a feature to step from one to the other. Prototype v2 replaced it with
+ * one project shape whose languages are an ordinary property — see
+ * Prototype v2/Sidebar. The retired vocabulary below is the rejected design's
+ * own, not current product language.
+ */
+
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ArrowRight, FolderKanban, FolderOpen, Languages, ShieldCheck, Wrench } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
@@ -11,7 +20,7 @@ import { Chip, JourneyCard, LocaleRoute, ProjectKindBadge, recentProjects } from
  * below. Content-first, but localization is unmistakably present.
  */
 const meta = {
-  title: "Prototype/Launcher",
+  title: "Prototype v1 (superseded)/Launcher",
   parameters: { layout: "fullscreen" },
 } satisfies Meta;
 
