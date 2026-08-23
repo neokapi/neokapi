@@ -15,6 +15,17 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 )
 
+// ErrUnknownFormat reports that no reader or writer is registered under a name.
+//
+// It is a sentinel because the answer is not always "the recipe is wrong". A
+// format can be supplied by a plugin, so the same recipe reads on a machine
+// that has the plugin and does not on one that doesn't — and a project-wide
+// walk should say which collection it could not open rather than abort over a
+// missing optional dependency. Callers that need to tell "unknown format" from
+// "the file is broken" match this with errors.Is; nothing should match the
+// message text.
+var ErrUnknownFormat = errors.New("unknown format")
+
 // FormatReaderFactory creates a new DataFormatReader instance.
 type FormatReaderFactory func() format.DataFormatReader
 
@@ -640,7 +651,7 @@ func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, erro
 			return withResolver(r, f()), nil
 		}
 	}
-	return nil, fmt.Errorf("unknown format: %s", name)
+	return nil, fmt.Errorf("%w: %s", ErrUnknownFormat, name)
 }
 
 // withResolver hands a freshly constructed reader or writer the registry as its
@@ -684,7 +695,7 @@ func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, erro
 			return withResolver(r, f()), nil
 		}
 	}
-	return nil, fmt.Errorf("unknown format writer: %s", name)
+	return nil, fmt.Errorf("%w writer: %s", ErrUnknownFormat, name)
 }
 
 // findReader looks up a reader factory by exact name or latest versioned entry.

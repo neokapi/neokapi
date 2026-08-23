@@ -577,11 +577,24 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// (and hard-failed on) above.
 		var blockedOnSource, totalSource int
 		if sourceGate != model.SourceGateNone {
-			held, total, herr := a.settleAndCountHeldSource(ctx, sourceGate, admissionUnits)
+			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, sourceGate, admissionUnits)
 			if herr != nil {
 				return fmt.Errorf("settle source for the %q gate: %w", sourceGate, herr)
 			}
 			blockedOnSource, totalSource = held, total
+			// A collection whose format has no reader on this machine was never
+			// opened, so it contributed nothing to the two counts above. That is
+			// survivable (the plugin supplying it is optional), but it is not
+			// silent: a gate that reports "0 held" over content it could not read
+			// is indistinguishable from one that read it and found it clean.
+			for _, f := range unreadable {
+				emitter.Emit(convergence.Event{
+					Type:  convergence.EventLog,
+					Stage: convergence.StageSettleSource,
+					Message: fmt.Sprintf("No reader for format %q — its content is not counted in the source gate. "+
+						"Install the plugin that supplies it (kapi plugins install %s).", f, f),
+				})
+			}
 			emitter.Emit(convergence.Event{
 				Type:            convergence.EventLog,
 				Stage:           convergence.StageSettleSource,

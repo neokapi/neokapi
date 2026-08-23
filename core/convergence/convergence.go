@@ -94,6 +94,13 @@ type SourceCoverage struct {
 	Gated     bool             `json:"gated"`
 	Shippable bool             `json:"shippable"`
 	Pending   []gate.Shortfall `json:"pending,omitempty"`
+	// Unreadable names the formats this machine has no reader for, so the files
+	// declaring them contributed nothing to the numbers above. A format can come
+	// from a plugin, so a recipe that reads on one machine may not on another;
+	// the rollup continues rather than aborting, and says so here. Empty is the
+	// normal case. Never let this go unreported — coverage computed over content
+	// that was never opened reads as progress.
+	Unreadable []string `json:"unreadable,omitempty"`
 }
 
 // ReviewItem is one translatable unit awaiting human review (a translated unit not

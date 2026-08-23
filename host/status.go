@@ -613,9 +613,14 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 
 		out := StatusOutput{Project: proj.Name, Locales: cov, Monolingual: !proj.DeclaresTargetLanguages()}
-		if src.Total > 0 {
+		// Unreadable alone is reason enough to emit the source block: a project
+		// whose every collection needs an uninstalled plugin has Total 0, and
+		// omitting the block would report that as "no source content" rather than
+		// "nothing could be opened".
+		if src.Total > 0 || len(src.Unreadable) > 0 {
 			out.Source = &src
 		}
+		a.warnUnreadableFormats(cmd, src.Unreadable)
 		out.Staged = a.PendingDecisions(ctxOrBackground(cmd.Context()), root)
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
