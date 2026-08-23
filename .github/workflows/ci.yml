@@ -695,15 +695,17 @@ jobs:
           retention-days: 1
 
   # ── Plugin modules ────────────────────────────────────────────────────────
-  # plugins/{sat,check,vision,asr} are separate go.mod modules outside go.work,
-  # so no other job here compiles them, let alone tests them: 15 test files
-  # across four modules ran in no workflow at all. `make test-plugins` needs
+  # plugins/{sat,check,vision,asr,sourcecode} are separate go.mod modules outside
+  # go.work, so no other job here compiles them, let alone tests them: 15 test
+  # files across four modules ran in no workflow at all. `make test-plugins` needs
   # nothing but a Go toolchain, so unlike the Postgres-backed lanes this one
   # belongs on the PR gate, where a break is cheapest to fix.
   #
   # Not covered here on purpose: plugins/pdfium links libpdfium, and the
   # `-tags onnx` suites for vision and sat need a real onnxruntime — those stay
   # in the nightly vision-onnx / vision-pdf-e2e jobs. plugins/av ships no tests.
+  # plugins/sourcecode IS covered: its cgo is vendored grammar C with no system
+  # library behind it, so it builds anywhere the Go toolchain does.
   test-plugins:
     name: Test (plugins)
     runs-on: ubuntu-latest

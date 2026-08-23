@@ -1,0 +1,29 @@
+{
+  "manifest_version": "1",
+  "plugin": "sourcecode",
+  "version": "0.1.0",
+  "description": "Reads the prose out of source files — product strings and, on request, comments — using a tree-sitter grammar so a string that is a path, a flag or an identifier is never graded as a sentence. Read-only: it never writes a program back.",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sourcecode",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-sourcecode",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "selfcheck": true,
+    "formats": [
+      {
+        "name": "sourcecode",
+        "display_name": "Source code (tree-sitter)",
+        "description": "Prose held in source files, located by syntax rather than by pattern.",
+        "extensions": [".rb"],
+        "mime_types": ["text/x-ruby"],
+        "capabilities": ["read"],
+        "schema": "formats/sourcecode/schema.json"
+      }
+    ]
+  },
+  "daemon": {
+    "handshake": { "type": "stdio-handshake", "fields": ["socket", "version"] }
+  }
+}

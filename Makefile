@@ -641,7 +641,8 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 # so the module that no job builds still cannot rot.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
 	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
-	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium; do \
+	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium \
+	            plugins/sourcecode; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -1187,11 +1188,29 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
-test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr)
+test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr, sourcecode)
 	@$(MAKE) --no-print-directory test-sat-plugin
 	@$(MAKE) --no-print-directory test-check-plugin
 	@$(MAKE) --no-print-directory test-vision-plugin
 	@$(MAKE) --no-print-directory test-asr-plugin
+	@$(MAKE) --no-print-directory test-sourcecode-plugin
+
+# ── kapi-sourcecode reader plugin ────────────────────────────────────────────
+# Reads the prose out of source files with tree-sitter grammars, so a string
+# that is a path, a flag or an identifier is never graded as a sentence.
+#
+# cgo, but no system dependency: the grammars are vendored C compiled by the Go
+# build, so unlike kapi-pdfium this needs nothing on PKG_CONFIG_PATH and its
+# tests belong on the PR gate. Isolated in a subprocess anyway — a parser fault
+# on a malformed file stays in the plugin.
+#
+# READ-ONLY by design: the manifest declares capabilities ["read"] and there is
+# no writer. See plugins/sourcecode/internal/proseread for why.
+build-sourcecode-plugin: ## Build the kapi-sourcecode reader plugin → bin/kapi-sourcecode
+	cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 $(GO) build -o $(BIN_DIR)/kapi-sourcecode ./cmd/kapi-sourcecode
+
+test-sourcecode-plugin: ## Run kapi-sourcecode tests (grammar-driven prose extraction)
+	cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 $(GO) test ./...
 
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
