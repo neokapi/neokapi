@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -280,6 +280,9 @@ check-package-licenses: ## Guard: every non-private package.json declares a lice
 
 check-archive-licenses: ## Guard: every release archive ships the license text of the work inside it
 	@./scripts/check-archive-licenses.sh
+
+check-plugin-licenses: ## Guard: every plugin tarball ships the license text of the work inside it
+	@./scripts/check-plugin-licenses.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
 	@./scripts/check-tracked-binaries.sh
@@ -2711,7 +2714,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-comment-history check-run-projection check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-comment-history check-run-projection check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

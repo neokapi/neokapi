@@ -15,6 +15,7 @@
 #
 #     kapi-av[.exe]        the plugin binary
 #     manifest.json        the plugin manifest
+#     LICENSE              Apache-2.0, the license of the work
 #     NOTICE               FFmpeg LGPL notice
 #     ffmpeg[.exe]         the bundled LGPL ffmpeg
 #     ffprobe[.exe]        the bundled LGPL ffprobe
@@ -66,6 +67,12 @@ else
 fi
 
 cp "$repo/plugins/av/manifest.json" "$stage/manifest.json"
+# Apache-2.0 §4(a): "You must give any other recipients of the Work or
+# Derivative Works a copy of this License." An SPDX string in the manifest, the
+# registry entry or a Homebrew formula is a label — it is not the grant, and it
+# is not a copy. Same argument scripts/check-archive-licenses.sh makes for the
+# CLI archives; check-plugin-licenses.sh holds this end of it.
+cp "$repo/LICENSE" "$stage/LICENSE"
 # Stamp the release version into the staged manifest so the published plugin
 # version matches its tag (manifest.json's source value is a dev default). Only
 # the top-level "version" (2-space indent) is rewritten, not nested model versions.
