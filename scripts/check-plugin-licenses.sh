@@ -40,6 +40,12 @@ trap 'rm -rf "$work"' EXIT
 # license fails rather than passing on file existence alone.
 readonly APACHE_MARKER='Apache License'
 
+# kapi-av bundles LGPL-2.1+ ffmpeg/ffprobe, so its own Apache-2.0 grant is not
+# the whole obligation: LGPL-2.1 §1 wants a copy of that license travelling with
+# the library too. Checked separately from the Apache sweep because it applies
+# to exactly one plugin and for a different reason.
+readonly LGPL_MARKER='GNU LESSER GENERAL PUBLIC LICENSE'
+
 rc=0
 
 # ── PACKAGED ─────────────────────────────────────────────────────────────────
@@ -105,6 +111,19 @@ for row in "asr:kapi-asr/LICENSE" "av:kapi-av/LICENSE" "sourcecode:LICENSE"; do
     echo "ERROR: $(basename "$archive"): $path is not Apache-2.0 text" >&2
     rc=1
   fi
+
+  # The copyleft half, for the one plugin that has one.
+  if [ "$plugin" = av ]; then
+    lgpl=$(tar -xOf "$archive" "kapi-av/COPYING.LGPLv2.1" 2>/dev/null || true)
+    if [ -z "$lgpl" ]; then
+      echo "ERROR: $(basename "$archive") bundles LGPL ffmpeg but ships no LGPL text" >&2
+      echo "       at kapi-av/COPYING.LGPLv2.1. See plugins/av/licenses/README.md." >&2
+      rc=1
+    elif ! printf '%s' "$lgpl" | grep -q "$LGPL_MARKER"; then
+      echo "ERROR: $(basename "$archive"): kapi-av/COPYING.LGPLv2.1 is not LGPL text" >&2
+      rc=1
+    fi
+  fi
 done
 
 # ── DECLARED ─────────────────────────────────────────────────────────────────
@@ -134,5 +153,6 @@ done
 
 [ $rc -eq 0 ] || exit 1
 echo "check-plugin-licenses: every plugin tarball ships its license text"
+echo "  kapi-av also ships the LGPL-2.1 text for its bundled ffmpeg"
 echo "  packaged and read: asr, av, sourcecode"
 echo "  declared only (native SDK build cannot be faked): check, sat, vision, pdfium"

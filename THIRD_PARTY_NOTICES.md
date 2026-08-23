@@ -56,18 +56,12 @@ sample frames (to PNG). This needs only demuxers, native decoders, and the
       `core/av` model), **not** statically linked into the plugin binary.
 - [x] Include **FFmpeg's attribution** in the `kapi-av` bundle `NOTICE`
       (`plugins/av/NOTICE`, shipped in every tarball).
-- [ ] Include the **LGPL-2.1 license text itself** in the `kapi-av` bundle.
-      **Still open.** The tarball now carries `LICENSE` (our Apache-2.0, which
-      Apache-2.0 §4(a) requires) and `NOTICE` (FFmpeg's attribution and the
-      bundling rationale), but not a verbatim copy of LGPL-2.1 — and LGPL-2.1 §1
-      wants one to travel with the binary. The text is not in this repo and must
-      not be retyped: it should be copied from the FFmpeg distribution the
-      release already downloads or builds (BtbN archives and the FFmpeg source
-      tree both carry `COPYING.LGPLv2.1`), so the licence travels from the
-      artifact it belongs to. That means an extra input to
-      `scripts/package-av-plugin.sh` and a step in `release-av.yml`, and the
-      packager should hard-fail without it rather than ship a tarball that is
-      quietly non-compliant.
+- [x] Include the **LGPL-2.1 license text itself** in the `kapi-av` bundle, at
+      `COPYING.LGPLv2.1`. It is FFmpeg's own copy, taken verbatim from the tag
+      the release builds; see `plugins/av/licenses/README.md` for where it came
+      from and why it is vendored rather than fetched at release time.
+      `scripts/check-plugin-licenses.sh` packages the plugin and reads the text
+      back out of the tarball, so its removal fails CI.
 - [ ] Provide **corresponding source**: pin the exact FFmpeg version and the
       `configure` flags used, and link the source (or include a written offer to
       provide it). The build script that produces the bundled FFmpeg per platform
