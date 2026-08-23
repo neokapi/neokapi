@@ -295,6 +295,33 @@ message, never for dispatch, which stays manifest-driven; and a drift test in th
 plugin's own module pins each entry to that plugin's real manifest, so adding or
 removing a verb fails the build until the table follows.
 
+### Missing-plugin formats
+
+A collection can name a format a plugin supplies, so the same recipe reads on a
+machine that installed the plugin and cannot on one that has not. A project-wide
+command — `kapi status`, `kapi check --ship`, the source settle inside `kapi up`
+— therefore has to answer what it does when one collection out of twenty cannot
+be opened.
+
+It reports the collection as unread and measures the rest. Aborting would make a
+whole project unreportable over one optional dependency, and the collections that
+read perfectly well are the overwhelming majority of what the command was asked
+about.
+
+The skip is never silent, because the failure it would cause is worse than the
+one it avoids: coverage computed over content that was never opened is
+indistinguishable from coverage over content that was read and found complete. So
+the format names travel back out of the rollup and are reported three ways — as
+`source.unreadable` in the JSON, as a warning naming the plugin to install, and
+as an event on the convergence stream.
+
+Only a **missing reader** is survivable, and the discrimination is a sentinel
+(`registry.ErrUnknownFormat`) rather than a string match. An unknown format means
+the file was never opened; any other read error means it was opened and is
+broken, and that still fails. A gate over content declared in a plugin format
+belongs in a target that installs the plugin — the project-wide sweep is what
+degrades, not the gate written for that collection.
+
 ### Registry and signing
 
 A registry is a JSON index served over HTTPS. The default registry is
