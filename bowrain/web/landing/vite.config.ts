@@ -66,6 +66,18 @@ function localeHtml(): PluginOption {
         `    <link rel="alternate" hreflang="x-default" href="${origin}${rootBase}" />`,
       ].join("\n");
       let out = html.replace("</head>", `${alternates}\n  </head>`);
+      // qps is the pseudo-locale build: real pages, machine-mangled text, used
+      // to see at a glance which strings run through the catalogs and which are
+      // hardcoded. It ships so that check is one URL rather than a local build,
+      // and it is noindex so it never competes with the English page in search.
+      // It is deliberately absent from the hreflang set above, which is built
+      // from locale-meta.json and lists shippable locales only.
+      if (locale === "qps") {
+        out = out.replace(
+          "</head>",
+          '  <meta name="robots" content="noindex, nofollow" />\n  </head>',
+        );
+      }
       if (locale && locale in localeMeta) {
         const meta: LocaleMeta = localeMeta[locale as keyof typeof localeMeta];
         out = out.replace('<html lang="en">', `<html lang="${locale}">`);

@@ -62,6 +62,21 @@ jobs:
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build
 
+      # The pseudo-locale build, served at /qps/. Every string that runs through
+      # a catalog renders mangled (▒ Ĥöŵ îţ ŵöŕķš ▒); anything still in plain
+      # English is hardcoded in a component or lives outside the loop. Shipping
+      # it makes that check one URL instead of a local build, which is how the
+      # landing's <head> was found to be untranslated (issue #2187).
+      #
+      # noindex is applied by vite.config.ts for this locale, and qps is absent
+      # from the hreflang set, so it never competes with the English page.
+      - name: Build bowrain-web-landing (pseudo-locale at /qps/)
+        working-directory: bowrain/web/landing
+        env:
+          VITE_BASE: /
+          LOCALE: qps
+        run: vp run build
+
       # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
       # workspace, by design — see PR #425); install it on its own.
       - name: Install bowrain docs site dependencies
@@ -85,6 +100,10 @@ jobs:
           set -euo pipefail
           rm -rf site && mkdir -p site
           cp -r bowrain/web/landing/dist/. site/
+          # dist/qps is a subdirectory of dist/, so the copy above already
+          # placed it at site/qps/. Assert rather than assume: a missing
+          # pseudo-locale is invisible until someone goes looking for it.
+          test -f site/qps/index.html || { echo "::error::qps build missing from the site tree"; exit 1; }
           mkdir -p site/docs
           cp -r bowrain/web/docs/build/. site/docs/
 

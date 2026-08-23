@@ -7,6 +7,7 @@
     "dev": "vp dev",
     "build": "vp build",
     "build:nb": "LOCALE=nb vp build",
+    "build:qps": "LOCALE=qps vp build",
     "compile": "vpx neokapi-i18n compile i18n-qps/ --out translations",
     "compile:nb": "vpx neokapi-i18n compile i18n-nb/ --out translations --locale nb",
     "extract": "vpx neokapi-i18n extract --out i18n/ --target-locale qps --src \"src/**/*.{tsx,jsx}\"",
