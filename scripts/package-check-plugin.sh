@@ -20,6 +20,7 @@
 #
 #     kapi-check[.exe]          the plugin binary, at the tarball root
 #     manifest.json             the plugin manifest, at the tarball root
+#     LICENSE                   Apache-2.0, the license of the work
 #     lib/libonnxruntime.dylib  onnxruntime shared lib (darwin)
 #       | libonnxruntime.so     (linux)
 #       | onnxruntime.dll       (windows)
@@ -154,6 +155,12 @@ fi
 
 # ── stage manifest ────────────────────────────────────────────────────────────
 cp "$PLUGIN_DIR/manifest.json" "$STAGE/manifest.json"
+# Apache-2.0 §4(a): "You must give any other recipients of the Work or
+# Derivative Works a copy of this License." An SPDX string in the manifest, the
+# registry entry or a Homebrew formula is a label — it is not the grant, and it
+# is not a copy. Same argument scripts/check-archive-licenses.sh makes for the
+# CLI archives; check-plugin-licenses.sh holds this end of it.
+cp "$REPO_ROOT/LICENSE" "$STAGE/LICENSE"
 # Stamp the release version into the staged manifest so the published plugin
 # version matches its tag (manifest.json's source value is a dev default). Only
 # the top-level "version" (2-space indent) is rewritten, not nested model versions.
@@ -230,7 +237,7 @@ fi
 TARBALL="kapi-check_${VERSION}_${GOOS}_${GOARCH}.tar.gz"
 TARBALL_PATH="$OUT_DIR/$TARBALL"
 
-tar -czf "$TARBALL_PATH" -C "$STAGE" "$BIN_NAME" manifest.json lib
+tar -czf "$TARBALL_PATH" -C "$STAGE" "$BIN_NAME" manifest.json lib LICENSE
 
 # ── sha256 (portable across linux/macos) ──────────────────────────────────────
 if command -v sha256sum >/dev/null 2>&1; then
