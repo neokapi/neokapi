@@ -443,6 +443,28 @@ the same discovery and daemon pool, so there is one engine rather than one per
 host. The full PDF subsystem is described in
 [E-08](e-08-document-structure-tiers.md).
 
+**kapi-sourcecode** (`plugins/sourcecode/`) is a first-party Mode-C format
+plugin providing a `sourcecode` reader over tree-sitter grammars. It answers a
+question no other reader can: which strings in a program are prose. In a
+Homebrew cask both `desc "Desktop workbench…"` and `zap trash:
+["~/Library/Caches/Kapi"]` are string literals, and a pattern cannot tell them
+apart — the syntax tree can, because it knows one is the argument of `desc` and
+the other an element of an array. A recipe then names the calls that hold prose
+with `nodePathPatterns`, the way it already names the keys that hold prose in
+YAML or JSON.
+
+It is **read-only**, declared as `capabilities: ["read"]` and backed by the
+absence of a writer on either side of the boundary. A round-trip error in a
+document mangles a paragraph; in a program it yields something that does not
+compile, or worse something that does with a changed string escape. Writing into
+source is a codemod — a different discipline with different correctness
+conditions — and deliberately out of scope.
+
+Like the PDF reader it runs as a daemon so a parser fault stays in the
+subprocess, and like it the config lives in core (`core/formats/sourcecode`)
+while the cgo stays in the plugin, so the format has one config definition and
+the framework keeps no grammar.
+
 A **separately-licensed platform plugin** demonstrates the licence boundary the
 model exists for: it attaches over the manifest model, is distributed on its own
 terms through its own Homebrew formula (which depends on `kapi` and drops its

@@ -140,8 +140,10 @@ Engine gate (as in scorer v2) and the Corpus gate, so one cited judgment moves
 both axes coherently rather than publishing an inconsistent state.
 
 **Applicability.** Dimensions that cannot apply score `na` and are excluded
-from the gate (writer dimensions for the read-only `pdf`; parity for harvest
-formats; vocabulary write cells for read-only formats). `na` on any
+from the gate (writer dimensions for the read-only `pdf` and `sourcecode`;
+parity for harvest formats; vocabulary write cells for read-only formats; the
+whole Structure/Geometry axis for `sourcecode`, whose files have no layout to
+comprehend). `na` on any
 **tier-gating** criterion is a *countersigned* state: the claim lives in the
 relevant artifact with `reviewed_by` + date, applied through the `tier-review`
 ritual — never a bare self-declaration.
