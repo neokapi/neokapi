@@ -181,7 +181,7 @@ without `--unsafe`.
   subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg,
   tree-sitter grammars) never enters the portable `kapi` binary: `kapi-sat`
   (segmentation), `kapi-vision` (OCR/layout), `kapi-asr` (speech-to-text),
-  `kapi-av` (audio/video), `kapi-pdfium` (PDF), and `kapi-sourcecode` (the prose
+  `kapi-av` (audio/video), `kapi-pdfium` (PDF), and `kapi-sourcecode` (product copy
   inside source files).
 
 For on-device **LLM** text generation (translation, chat, QA, voice), kapi

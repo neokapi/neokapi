@@ -329,6 +329,7 @@ collections:
   - name: neokapi-cli-package
     channel: neokapi/cli
     base: packaging
+    source_only: true
     content:
       # Only `description` holds prose. maintainer, vendor, license and homepage
       # are identifiers, and `contents` is a list of file paths — grading those
@@ -343,6 +344,7 @@ collections:
   - name: neokapi-desktop-build
     channel: neokapi/desktop
     base: apps/kapi-desktop/build
+    source_only: true
     content:
       # extractAllPairs off + exceptions as an INCLUDE list: the file is mostly
       # version numbers and company/product names, and only these two keys are
@@ -357,15 +359,15 @@ collections:
   # what Homebrew prints after install — product copy in a file kapi could not
   # open until the sourcecode reader existed.
   #
-  # Source-only, and here by necessity rather than by choice: the format is
-  # read-only (no writer in core or in the plugin), so there is nothing a
-  # `target:` could mean.
+  # `source_only:` here is not a preference: the format registers a reader and
+  # no writer, so there is nothing a `target:` could mean.
   #
   # Needs the kapi-sourcecode plugin. Without it the format is unsupported and
   # this collection contributes nothing — the same posture pdf has.
   - name: neokapi-desktop-cask
     channel: neokapi/desktop
     base: deploy/homebrew
+    source_only: true
     content:
       - path: "*.rb"
         format:

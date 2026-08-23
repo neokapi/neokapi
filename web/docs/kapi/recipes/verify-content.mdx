@@ -93,56 +93,49 @@ The **staleness** gate is the one that reads provenance rather than content. Eve
 
 The two are different bars, not variants of one: a bare `kapi check <files>` gates the *files you name* (a checkset over content — the test runner), while `--ship` gates the *project* against its [`ship_gates:`](/reference/project-file#ship-gates) coverage thresholds across every target language (the release bar).
 
-## Content you only check
+## Check-only content in other assets
 
-Some product copy lives in a file that is a program. The description a package
-manager prints before anything is installed, the summary Windows shows in file
-properties, the lines a Homebrew cask displays after installing — a reader meets
-these sentences early, and often before they meet the documentation, but the
-file around them is Ruby, or a build manifest, or an installer script.
+Product copy is not confined to the documentation. A package manager prints a
+description before anything installs. Windows shows a summary in file
+properties. Homebrew prints cask notes after an install finishes. Readers often
+meet these lines before they open the docs.
 
-kapi reads that prose and grades it. It does not write it back. A format
-declares which half it supports, and the [`sourcecode`](/reference/formats/sourcecode)
-format registers a reader with no writer: it locates prose by parsing the
-file with a [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar
-and naming the syntax nodes that hold sentences, so a path, a flag or an
-identifier is never graded as one.
+kapi can read this copy and check it. It cannot write these files back, because
+the formats that parse them supply a reader and no writer.
+
+Declare such a collection with `source_only: true`:
 
 ```yaml title="kapi.yaml"
 collections:
   - name: desktop-cask
     channel: acme/desktop
     base: deploy/homebrew
+    source_only: true
     content:
       - path: "*.rb"
         format:
           name: sourcecode
           config:
             language: ruby
-            # Everything else in a cask is a path, a URL, a bundle id or a
-            # version. This says which two calls hold the sentences.
+            # The calls whose arguments hold sentences. Everything else in a
+            # cask is a path, a version or an identifier.
             nodePathPatterns: [desc, caveats]
 ```
 
-The collection names no `target:`, and that is what makes it source-only: there
-is nothing to translate into, so `kapi up` has no work to do here and the
-[ship gates](/kapi/recipes/ship-gates-and-ci) that measure target coverage do
-not count it. What does apply is everything that reads: the project's voice
-profile, its terms, and the hygiene rules. `kapi check 'deploy/homebrew/*.rb'`
-grades those sentences against the same rules as the documentation, because they
-are the same rules — one profile, not a second copy of it kept in a script.
+`source_only: true` says the collection has no target language. `kapi up` leaves
+it alone, and the [ship gates](/kapi/recipes/ship-gates-and-ci) that measure
+target coverage exclude it. The rules that only read still apply: the voice
+profile bound to this point, the project's terms, and the hygiene rules.
 
-There is no `readonly:` switch, deliberately. Read-only is a property of the
-*format* — the reader exists, the writer does not — and a collection that
-declared it separately could contradict the format it names. What a collection
-declares is where its content sits and what it converges toward; naming no
-target is the whole statement.
+Check it the way you check anything else:
 
-:::note
-A source-only collection is currently indistinguishable from a collection whose
-target was forgotten. Both are "no `target:`". Making the intent explicit — so
-the loader can tell a deliberate omission from an accidental one — is open work.
-:::
+```bash
+kapi check 'deploy/homebrew/*.rb'
+```
+
+kapi rejects a recipe that sets `source_only: true` on a collection that also
+carries a target. Without that check, a deliberate omission and a forgotten
+target look the same in the file.
 
 ## Next
 

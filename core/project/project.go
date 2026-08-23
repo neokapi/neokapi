@@ -563,6 +563,17 @@ type Collection struct {
 	// The structural axes come from `channel:` above and are not written here.
 	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 
+	// SourceOnly declares that this collection has no target language and is
+	// never translated: a run reads it, checks it, and writes nothing back.
+	// Package descriptions and installer strings are the usual case.
+	//
+	// It is an assertion, not a mode. Naming no target already made a
+	// collection source-only, so this flag adds no behaviour — what it adds is
+	// the difference between meaning it and forgetting. Validate rejects a
+	// collection that sets it and also carries a target, so the declaration and
+	// the items cannot drift into disagreeing.
+	SourceOnly bool `yaml:"source_only,omitempty" json:"source_only,omitempty"`
+
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
@@ -577,6 +588,43 @@ type Collection struct {
 // IsBareEntry reports whether this is a bare entry (has path, no content).
 func (c *Collection) IsBareEntry() bool {
 	return c.Path != "" && len(c.Content) == 0
+}
+
+// validateSourceOnly rejects a collection that declares source_only and then
+// contradicts it.
+//
+// Without the flag, a collection with no target and a collection whose target
+// was forgotten are the same recipe, so the mistake reads as a decision and the
+// content is quietly never translated. The flag is only worth having if it is
+// checked: an unchecked one drifts away from the items under it and becomes a
+// second, wrong answer to the question the items already answer.
+//
+// Both spellings of a target are covered — the collection's own
+// target_languages, and each item's target path — because either alone would
+// leave a way to declare the contradiction.
+func (c *Collection) validateSourceOnly(i int) error {
+	if !c.SourceOnly {
+		return nil
+	}
+	where := fmt.Sprintf("collections[%d]", i)
+	if c.Name != "" {
+		where = fmt.Sprintf("%s (%q)", where, c.Name)
+	}
+	if len(c.TargetLanguages) > 0 {
+		return fmt.Errorf("%s: source_only is set, so target_languages must be empty (found %v)", where, c.TargetLanguages)
+	}
+	if c.Target != "" {
+		return fmt.Errorf("%s: source_only is set, so the entry cannot have a target (found %q)", where, c.Target)
+	}
+	for j, item := range c.Content {
+		if item.Target != "" {
+			return fmt.Errorf("%s: source_only is set, so content[%d] cannot have a target (found %q)", where, j, item.Target)
+		}
+		if len(item.TargetLanguages) > 0 {
+			return fmt.Errorf("%s: source_only is set, so content[%d] cannot have target_languages (found %v)", where, j, item.TargetLanguages)
+		}
+	}
+	return nil
 }
 
 // EffectiveItems returns the collection's items with Base folded in: every
@@ -891,6 +939,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return err
 	}
 	for i, c := range p.Collections {
+		if err := c.validateSourceOnly(i); err != nil {
+			return err
+		}
 		if c.IsBareEntry() {
 			if c.Path == "" {
 				return fmt.Errorf("collections[%d]: path is required for bare entries", i)

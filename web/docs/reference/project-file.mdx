@@ -123,12 +123,19 @@ collections:
 | `content`          | ContentItem[]   | The collection's content items                                                                            |
 | `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
 | `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
+| `source_only`      | bool            | The collection has no target language: `kapi up` skips it and target-coverage gates exclude it. Rejected if the collection or any item also carries a target |
 | `path`             | string          | Bare entries only: the glob, written instead of `content:`                                                |
 | `format`           | string or map   | Bare entries only                                                                                         |
 | `target`           | string          | Bare entries only                                                                                          |
 
 A named collection needs at least one item under `content:` and cannot also
 carry a `path:`; a bare entry needs a `path:`.
+
+Set `source_only: true` on content kapi reads but never writes, such as package
+descriptions and installer strings. The flag changes no behaviour on its own,
+since a collection with no target was already source-only. It records the
+intent, and loading fails if the collection contradicts it. See
+[Check-only content in other assets](/kapi/recipes/verify-content#check-only-content-in-other-assets).
 
 #### ContentItem
 
