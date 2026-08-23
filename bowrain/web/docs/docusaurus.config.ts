@@ -2,6 +2,8 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 // Build freshness stamp ("<YYYY-MM-DD HH:MM> UTC · <short-sha>"), appended to
 // the footer copyright so the deployed docs reveal when/from-what they built.
@@ -45,9 +47,17 @@ const posthogKey = process.env.POSTHOG_KEY ?? "";
 const posthogHost = process.env.POSTHOG_HOST ?? "https://eu.i.posthog.com";
 const analyticsEnvironment = docsBaseUrl.includes("/prs/") ? "preview" : "prod";
 
+// The tagline lives in brand.json rather than here, so kapi governs it. This
+// file is TypeScript and kapi has no reader for it; brand.json is content in a
+// format it reads, declared as a collection and checked on every PR. Reading a
+// sibling file at config-eval time is the same thing models.version does below.
+const brand = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "brand.json"), "utf8"),
+) as { tagline: string };
+
 const config: Config = {
   title: "Bowrain",
-  tagline: "The context graph your people and your AI agents plug into",
+  tagline: brand.tagline,
   favicon: "img/favicon.png",
 
   url: "https://bowrain.cloud",

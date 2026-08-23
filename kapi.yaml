@@ -239,6 +239,12 @@ collections:
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: docs/**/*.mdx
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+      # The site tagline. It used to sit in docusaurus.config.ts, which is
+      # TypeScript and has no reader, so the only thing checking it was the bash
+      # guard. Moving it into JSON put it where kapi governs it. No key
+      # narrowing: the file holds the tagline and nothing else, so the reader
+      # yields exactly one block. Add keys here only if the file grows.
+      - path: brand.json
   # The Format and Tool Reference pages under web/docs/reference/ carry a
   # DO-NOT-EDIT banner and no prose of their own: `make generate-reference-pages`
   # writes a frontmatter block and one React component, and every sentence a
@@ -298,6 +304,12 @@ collections:
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: docs/**/*.mdx
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+      # The site tagline. It used to sit in docusaurus.config.ts, which is
+      # TypeScript and has no reader, so the only thing checking it was the bash
+      # guard. Moving it into JSON put it where kapi governs it. No key
+      # narrowing: the file holds the tagline and nothing else, so the reader
+      # yields exactly one block. Add keys here only if the file grows.
+      - path: brand.json
   - name: bowrain-email
     channel: bowrain/email
     base: bowrain/emails

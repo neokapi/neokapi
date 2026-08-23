@@ -2432,6 +2432,11 @@ check-docs-prose: build ## Gate: the documentation passes `kapi check` under the
 		-p $(CURDIR)/kapi.yaml --max-major 0
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'bowrain/web/docs/docs/**/*.md' 'bowrain/web/docs/docs/**/*.mdx' \
 		-p $(CURDIR)/kapi.yaml --max-major 0
+	@# The two site taglines. They are declared in the docs collections but sit
+	@# beside docs/ rather than inside it, so the globs above do not reach them.
+	@# A collection that nothing gates is a declaration, not a check.
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/brand.json' 'bowrain/web/docs/brand.json' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
 	@# The two READMEs: prose kapi has always been able to read, that no
 	@# collection declared. A reader meets the README before anything else.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
