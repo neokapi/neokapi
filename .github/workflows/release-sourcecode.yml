@@ -1,0 +1,286 @@
+name: Release sourcecode plugin
+
+# The kapi-sourcecode plugin releases independently of the neokapi CLI, on its
+# own `sourcecode-v*` tag (e.g. `sourcecode-v0.1.0` -> kapi-sourcecode 0.1.0),
+# like every other plugin here.
+#
+# It is the SIMPLEST plugin release in the repo, and the comments below say so
+# where a reader would otherwise look for the missing steps. kapi-sourcecode is
+# cgo — the tree-sitter grammars are C — but the grammar sources are vendored
+# and compiled INTO the binary. There is no shared library to download, none to
+# bundle, no install id to relocate, and no rpath to bake. So this workflow has
+# no native-dependency job, and the macOS leg signs one Mach-O rather than a
+# staged set. cgo does still mean native runners: nothing here cross-compiles.
+on:
+  push:
+    tags:
+      - "sourcecode-v*"
+  # Build-only dry run for iterating on the matrix WITHOUT publishing a release
+  # or writing to the plugin registry. The publish + register jobs are gated to
+  # tag pushes.
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  # cosign keyless needs a fresh Actions OIDC token to mint a short-lived
+  # Fulcio cert for signing the tarballs.
+  id-token: write
+
+jobs:
+  build-sourcecode-plugin:
+    name: Build kapi-sourcecode (${{ matrix.build.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          # The house four. Intel macOS is omitted as everywhere else (cgo can't
+          # cross-compile and a native macos-13 runner is scarce), and
+          # windows/arm64 is omitted because it would need the whole MSYS2
+          # CLANGARM64 toolchain dance that release-sat.yml carries — worth it
+          # for an ML runtime, not yet for a grammar.
+          - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64 }
+          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64 }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+
+      - name: Install cosign (tarball signing)
+        if: startsWith(github.ref, 'refs/tags/sourcecode-v')
+        uses: sigstore/cosign-installer@v3
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/sourcecode-v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#sourcecode-v}" >> "$GITHUB_OUTPUT"
+          else
+            # Build-only dispatch from a branch: a filename-safe placeholder,
+            # since a branch ref can contain "/" and would break tarball paths.
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The plugin module sits outside go.work deliberately, so every Go command
+      # here runs with GOWORK=off — including the test, which is the gate that
+      # the vendored grammars actually parse on this platform.
+      - name: Test
+        shell: bash
+        env:
+          GOWORK: "off"
+          CGO_ENABLED: "1"
+        run: go test ./... --timeout 5m
+        working-directory: plugins/sourcecode
+
+      # macOS: sign the binary BEFORE packaging, then hand the signed artifact to
+      # the packager. There are no dylibs to stage — see the header.
+      - name: Build for signing (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/prebuilt"
+          (cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 \
+            go build -trimpath \
+            -ldflags "-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION}" \
+            -o "$RUNNER_TEMP/prebuilt/kapi-sourcecode" ./cmd/kapi-sourcecode)
+          echo "SOURCECODE_PREBUILT_BIN=$RUNNER_TEMP/prebuilt/kapi-sourcecode" >> "$GITHUB_ENV"
+
+      - name: Sign + notarize macOS Mach-O
+        if: runner.os == 'macOS'
+        uses: ./.github/actions/macos-sign
+        with:
+          label: kapi-sourcecode
+          binaries: ${{ env.SOURCECODE_PREBUILT_BIN }}
+          notarize: ${{ startsWith(github.ref, 'refs/tags/sourcecode-v') }}
+          developer-id-p12-base64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          developer-id-p12-password: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          sign-identity: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          api-key-p8-base64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-issuer-id: ${{ secrets.APPLE_API_ISSUER_ID }}
+
+      # On non-macOS legs SOURCECODE_PREBUILT_BIN is unset, so the packager
+      # builds the binary itself.
+      - name: Package tarball
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GOOS: ${{ matrix.build.goos }}
+          GOARCH: ${{ matrix.build.goarch }}
+          PREBUILT_BIN: ${{ env.SOURCECODE_PREBUILT_BIN }}
+        run: |
+          scripts/package-sourcecode-plugin.sh \
+            --version "${VERSION}" \
+            --out-dir "$RUNNER_TEMP/sourcecode-out"
+
+      - name: Cosign sign tarball (keyless)
+        if: startsWith(github.ref, 'refs/tags/sourcecode-v')
+        shell: bash
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          # --new-bundle-format emits a real Sigstore protobuf bundle. WITHOUT
+          # it, `cosign sign-blob --bundle` writes the LEGACY cosign bundle,
+          # which sigstore-go's parser rejects — the bug that once broke
+          # `kapi plugins install sat`. A new plugin has no legacy artifacts, so
+          # this format is the only one it will ever have published.
+          cosign sign-blob --yes --new-bundle-format \
+            --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
+
+      # Upload as workflow ARTIFACTS rather than straight to the release: matrix
+      # legs run concurrently, and several release writers racing can silently
+      # drop an asset. One publish job below does all the uploading.
+      - name: Upload tarball + signature artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sourcecode-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          # Glob a native runner.temp path, NOT the script's stdout path: on the
+          # Windows runner the bash script prints a git-bash path (/d/a/_temp/…)
+          # that the JS action cannot resolve, and would upload nothing.
+          path: |
+            ${{ runner.temp }}/sourcecode-out/*.tar.gz
+            ${{ runner.temp }}/sourcecode-out/*.tar.gz.sigstore.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write checksum artifact
+        shell: bash
+        env:
+          SHA256: ${{ steps.package.outputs.sha256 }}
+          TARBALL_NAME: ${{ steps.package.outputs.tarball_name }}
+          LEG_GOOS: ${{ matrix.build.goos }}
+          LEG_GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sourcecode-checksums"
+          echo "${SHA256}  ${TARBALL_NAME}" \
+            > "$RUNNER_TEMP/sourcecode-checksums/${LEG_GOOS}_${LEG_GOARCH}.sha256"
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sourcecode-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: ${{ runner.temp }}/sourcecode-checksums/*.sha256
+          retention-days: 14
+
+  # Single-writer publish: every leg's assets uploaded in ONE call.
+  publish-sourcecode-release:
+    name: Publish kapi-sourcecode release
+    if: startsWith(github.ref, 'refs/tags/sourcecode-v')
+    needs: build-sourcecode-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all tarball + signature artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: sourcecode-tarball-*
+          path: sourcecode-release
+          merge-multiple: true
+
+      - name: Upload all assets to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          # This plugin has its own tag line; it must NOT become the repo's
+          # "latest" release, or setup-kapi's resolve-version (which reads
+          # releases/latest) would resolve the kapi CLI to this tag.
+          make_latest: false
+          files: |
+            sourcecode-release/*.tar.gz
+            sourcecode-release/*.tar.gz.sigstore.json
+
+  # Register the version into neokapi/registry so `kapi plugins install
+  # sourcecode` resolves to this build.
+  #
+  # PREREQUISITE: neokapi/registry's manifest-plugins.json must already carry a
+  # "sourcecode" stub entry — registry-update refuses to create new top-level
+  # plugins ("plugin not declared"). Add the stub once, mirroring "sat".
+  register-sourcecode-plugin:
+    name: Register kapi-sourcecode in plugin registry
+    if: startsWith(github.ref, 'refs/tags/sourcecode-v')
+    needs: publish-sourcecode-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download checksum artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: sourcecode-checksum-*
+          path: sourcecode-checksums
+          merge-multiple: true
+
+      - name: Update manifest plugin registry (sourcecode)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#sourcecode-v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "REGISTRY_TOKEN not set; skipping registry update"
+            exit 0
+          fi
+
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
+
+          declare -A SHAS
+          for f in sourcecode-checksums/*.sha256; do
+            [ -f "$f" ] || continue
+            sum=$(awk '{print $1}' "$f")
+            file=$(awk '{print $2}' "$f")
+            SHAS[$file]=$sum
+          done
+
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-sourcecode.yml@refs/tags/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64; do
+            os=${plat%/*}
+            arch=${plat#*/}
+            file="kapi-sourcecode_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=(
+                "--platform" "$plat"
+                "--url" "${REPO_URL}/${file}"
+                "--sha256" "${SHAS[$file]}"
+                "--signature" "${REPO_URL}/${file}.sigstore.json"
+              )
+            else
+              echo "::warning::no checksum for ${file}; skipping ${plat}"
+            fi
+          done
+
+          if [ ${#ARGS[@]} -eq 0 ]; then
+            echo "::error::no platform artifacts found for sourcecode ${VERSION}"
+            exit 1
+          fi
+
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          /tmp/registry-update \
+            --registry /tmp/registry/manifest-plugins.json \
+            --plugin sourcecode \
+            --version "$VERSION" \
+            --channel stable \
+            --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
+            "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"
+          git config user.name "release-bot"
+          git add manifest-plugins.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Register sourcecode ${VERSION}"
+            git push
+          fi

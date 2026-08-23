@@ -178,10 +178,11 @@ without `--unsafe`.
   against released kapi versions. Any plugin repository can verify itself against
   the contract the same way.
 - **On-device ML sidecars** — cgo plugins that run native ML in their own
-  subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg) never
-  enters the portable `kapi` binary: `kapi-sat` (segmentation), `kapi-vision`
-  (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), and
-  `kapi-pdfium` (PDF).
+  subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg,
+  tree-sitter grammars) never enters the portable `kapi` binary: `kapi-sat`
+  (segmentation), `kapi-vision` (OCR/layout), `kapi-asr` (speech-to-text),
+  `kapi-av` (audio/video), `kapi-pdfium` (PDF), and `kapi-sourcecode` (the prose
+  inside source files).
 
 For on-device **LLM** text generation (translation, chat, QA, voice), kapi
 drives a local [Ollama](https://ollama.com) runtime rather than bundling an

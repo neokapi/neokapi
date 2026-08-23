@@ -676,6 +676,19 @@ export class SourceCoverage {
              */
             this["pending"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unreadable names the formats this machine has no reader for, so the files
+             * declaring them contributed nothing to the numbers above. A format can come
+             * from a plugin, so a recipe that reads on one machine may not on another;
+             * the rollup continues rather than aborting, and says so here. Empty is the
+             * normal case. Never let this go unreported — coverage computed over content
+             * that was never opened reads as progress.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["unreadable"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -688,12 +701,16 @@ export class SourceCoverage {
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType1;
         const $$createField4_0 = $$createType3;
+        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField1_0($$parsedSource["pct"]);
         }
         if ("pending" in $$parsedSource) {
             $$parsedSource["pending"] = $$createField4_0($$parsedSource["pending"]);
+        }
+        if ("unreadable" in $$parsedSource) {
+            $$parsedSource["unreadable"] = $$createField5_0($$parsedSource["unreadable"]);
         }
         return new SourceCoverage(/** @type {Partial<SourceCoverage>} */($$parsedSource));
     }

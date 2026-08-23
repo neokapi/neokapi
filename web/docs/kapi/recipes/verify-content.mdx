@@ -93,6 +93,57 @@ The **staleness** gate is the one that reads provenance rather than content. Eve
 
 The two are different bars, not variants of one: a bare `kapi check <files>` gates the *files you name* (a checkset over content — the test runner), while `--ship` gates the *project* against its [`ship_gates:`](/reference/project-file#ship-gates) coverage thresholds across every target language (the release bar).
 
+## Content you only check
+
+Some product copy lives in a file that is a program. The description a package
+manager prints before anything is installed, the summary Windows shows in file
+properties, the lines a Homebrew cask displays after installing — a reader meets
+these sentences early, and often before they meet the documentation, but the
+file around them is Ruby, or a build manifest, or an installer script.
+
+kapi reads that prose and grades it. It does not write it back. A format
+declares which half it supports, and the [`sourcecode`](/reference/formats/sourcecode)
+format registers a reader with no writer: it locates prose by parsing the
+file with a [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar
+and naming the syntax nodes that hold sentences, so a path, a flag or an
+identifier is never graded as one.
+
+```yaml title="kapi.yaml"
+collections:
+  - name: desktop-cask
+    channel: acme/desktop
+    base: deploy/homebrew
+    content:
+      - path: "*.rb"
+        format:
+          name: sourcecode
+          config:
+            language: ruby
+            # Everything else in a cask is a path, a URL, a bundle id or a
+            # version. This says which two calls hold the sentences.
+            nodePathPatterns: [desc, caveats]
+```
+
+The collection names no `target:`, and that is what makes it source-only: there
+is nothing to translate into, so `kapi up` has no work to do here and the
+[ship gates](/kapi/recipes/ship-gates-and-ci) that measure target coverage do
+not count it. What does apply is everything that reads: the project's voice
+profile, its terms, and the hygiene rules. `kapi check 'deploy/homebrew/*.rb'`
+grades those sentences against the same rules as the documentation, because they
+are the same rules — one profile, not a second copy of it kept in a script.
+
+There is no `readonly:` switch, deliberately. Read-only is a property of the
+*format* — the reader exists, the writer does not — and a collection that
+declared it separately could contradict the format it names. What a collection
+declares is where its content sits and what it converges toward; naming no
+target is the whole statement.
+
+:::note
+A source-only collection is currently indistinguishable from a collection whose
+target was forgotten. Both are "no `target:`". Making the intent explicit — so
+the loader can tell a deliberate omission from an accidental one — is open work.
+:::
+
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — `kapi check --ship` on every PR.

@@ -3,13 +3,16 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 )
 
@@ -23,14 +26,14 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		return SourceCoverage{}, err
 	}
 
-	states, _, err := a.settleSourceStates(ctx, model.SourceGateNone, units)
+	states, _, unreadable, err := a.settleSourceStates(ctx, model.SourceGateNone, units)
 	if err != nil {
 		return SourceCoverage{}, err
 	}
 
 	ladder := gate.SourceLadder()
 	cov := gate.NewCoverage(states)
-	sc := SourceCoverage{Total: cov.Total, Pct: map[string]int{}}
+	sc := SourceCoverage{Total: cov.Total, Pct: map[string]int{}, Unreadable: unreadable}
 	for _, st := range ladder {
 		sc.Pct[st] = int(math.Round(cov.AtLeastPct(ladder, st)))
 	}
@@ -74,8 +77,19 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 // gateLevel == SourceGateNone holds nothing (the convergence opt-out) but still
 // settles, because the report is owed either way — a project that turned the
 // gate off did not ask to be told its source is unchecked.
-func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, err error) {
+// A format with no registered reader is the ONE survivable outcome here, and
+// only because it is not a read failure at all: the file was never opened. A
+// format can be supplied by a plugin, so a recipe that reads on a machine with
+// the plugin installed cannot read on one without it — and a project-wide
+// rollup that aborted would make every unrelated collection unreportable
+// because one optional dependency is missing. The names are returned, never
+// swallowed: coverage measured over content that was never opened reads as
+// progress, which is the failure this whole file exists to avoid. Every other
+// error still propagates, for the reasons host/converge.go states at the call
+// site.
+func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
 	seen := map[string]bool{}
+	noReader := map[string]bool{}
 	for _, u := range units {
 		if seen[u.SourcePath] {
 			continue
@@ -83,7 +97,11 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 		seen[u.SourcePath] = true
 		blocks, berr := a.readSource(ctx, u)
 		if berr != nil {
-			return nil, 0, berr
+			if errors.Is(berr, registry.ErrUnknownFormat) {
+				noReader[u.SourceFormat] = true
+				continue
+			}
+			return nil, 0, nil, berr
 		}
 		for _, b := range blocks {
 			if !b.Translatable {
@@ -96,7 +114,7 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 			}
 		}
 	}
-	return states, held, nil
+	return states, held, sortedFormatSet(noReader), nil
 }
 
 // settleAndCountHeldSource settles the project's source-locale blocks (deduped
@@ -106,15 +124,15 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 // same core.check settle derivation. A disabled gate (SourceGateNone) settles
 // nothing and holds nothing (the opt-out never pays the settlement cost). total
 // is how many translatable source blocks were considered.
-func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, err error) {
+func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
 	if gateLevel == model.SourceGateNone {
-		return 0, 0, nil
+		return 0, 0, nil, nil
 	}
-	states, held, err := a.settleSourceStates(ctx, gateLevel, units)
+	states, held, unreadable, err := a.settleSourceStates(ctx, gateLevel, units)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
-	return held, len(states), nil
+	return held, len(states), unreadable, nil
 }
 
 // reviewedIndex maps each unit (document + block identity + locale) to its
@@ -466,4 +484,37 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	}
 
 	return tally.RollupGates(rs, vs), nil
+}
+
+// warnUnreadableFormats tells a human what the rollup could not open. The JSON
+// output carries the same names under source.unreadable; this is the line a
+// person reading the terminal sees, because a coverage table that silently
+// omitted a collection looks exactly like one where that collection is fine.
+func (a *App) warnUnreadableFormats(cmd Command, unreadable []string) {
+	if a.Quiet {
+		return
+	}
+	for _, f := range unreadable {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"warning: no reader for format %q — content declaring it was not measured; "+
+				"install the plugin that supplies it (kapi plugins install %s)\n", f, f)
+	}
+}
+
+// sortedFormatSet renders a set of format names as a stable, sorted slice. A
+// name is empty when the recipe left the format to extension detection, which
+// never reaches a plugin format — say so rather than printing "".
+func sortedFormatSet(set map[string]bool) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for f := range set {
+		if f == "" {
+			f = "(detected by extension)"
+		}
+		out = append(out, f)
+	}
+	slices.Sort(out)
+	return out
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-22T11:42:19Z",
+  "generatedAt": "2026-08-23T15:46:09Z",
   "kind": "format",
   "entries": [
     {
@@ -3530,6 +3530,44 @@
           }
         ],
         "wikiUrl": "https://doc.qt.io/qt-6/linguist-ts-file-format.html"
+      }
+    },
+    {
+      "id": "sourcecode",
+      "source": "plugin",
+      "kind": "format",
+      "displayName": "Source code (tree-sitter)",
+      "description": "Prose held in source files, located by syntax rather than by pattern.",
+      "extensions": [
+        ".rb"
+      ],
+      "mimeTypes": [
+        "text/x-ruby"
+      ],
+      "hasReader": true,
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "https://neokapi.dev/schemas/sourcecode.json",
+        "title": "Source code (tree-sitter)",
+        "description": "Prose held in source files, located by syntax rather than by pattern. Read-only: this format has no writer, and a program is never written back.",
+        "type": "object",
+        "properties": {
+          "nodePathPatterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "Node paths",
+            "description": "The calls whose arguments hold prose, e.g. [\"desc\", \"caveats\"] for a Homebrew cask. The analogue of the JSON and YAML readers' key paths: a recipe already says which keys of a config file hold sentences, and says the same thing here about a call. Empty extracts every string the grammar exposes, which is how you find out what a file holds before narrowing it.",
+            "default": []
+          },
+          "comments": {
+            "type": "boolean",
+            "title": "Include comments",
+            "description": "Extract comment nodes as well as strings. Off by default: a comment is written for the next person reading the code, and holding it to the register of published prose is a separate decision from holding a product string to it.",
+            "default": false
+          }
+        }
       }
     },
     {

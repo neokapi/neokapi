@@ -629,6 +629,13 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	}
 
 	governed := false
+	// Formats this machine has no reader for. A voice profile can govern a
+	// collection whose format comes from a plugin, so the gate has to run on a
+	// machine that lacks it — reporting what it could not score rather than
+	// refusing to score anything. The targeted gate that exists for such a
+	// collection installs the plugin and checks it properly; this is the
+	// project-wide sweep degrading, out loud.
+	noReader := map[string]bool{}
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
 		profile, perr := voice.forFile(ctx, f)
@@ -642,12 +649,19 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if terr != nil {
 			return nil, terr
 		}
-		governed = true
 		fmtName, fmtCfg := formats.forFile(a, f)
 		blocks, rerr := a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
 		if rerr != nil {
+			if errors.Is(rerr, registry.ErrUnknownFormat) {
+				noReader[fmtName] = true
+				continue
+			}
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
 		}
+		// Set only once a file has actually been READ. A project whose every
+		// governed file needs an uninstalled plugin contributes no voice gate,
+		// which is honest; claiming a gate that scored nothing is not.
+		governed = true
 		// Findings name the file the way `kapi check` does — relative to the
 		// project, with the block — so one location format reads the same in a
 		// terminal, a CI log and a recording, and none of them carries the
@@ -677,6 +691,8 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		}
 		allFindings = append(allFindings, docFindings...)
 	}
+
+	a.warnUnreadableFormats(cmd, sortedFormatSet(noReader))
 
 	if !governed {
 		// Nothing bound a voice at any of these files — there is no gate to

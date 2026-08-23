@@ -129,7 +129,7 @@ export OKAPI_REPO
 # discovers no globally-installed plugins at all.
 # Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
 KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
-KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache KAPI_PLUGINS_DIR=$(KAPI_ISO_DIR)/plugins
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)
@@ -641,7 +641,8 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 # so the module that no job builds still cannot rot.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
 	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
-	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium; do \
+	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium \
+	            plugins/sourcecode; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -1187,11 +1188,29 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
-test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr)
+test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)
 	@$(MAKE) --no-print-directory test-sat-plugin
 	@$(MAKE) --no-print-directory test-check-plugin
 	@$(MAKE) --no-print-directory test-vision-plugin
 	@$(MAKE) --no-print-directory test-asr-plugin
+	@$(MAKE) --no-print-directory test-sourcecode-plugin
+
+# ── kapi-sourcecode reader plugin ────────────────────────────────────────────
+# Reads the prose out of source files with tree-sitter grammars, so a string
+# that is a path, a flag or an identifier is never graded as a sentence.
+#
+# cgo, but no system dependency: the grammars are vendored C compiled by the Go
+# build, so unlike kapi-pdfium this needs nothing on PKG_CONFIG_PATH and its
+# tests belong on the PR gate. Isolated in a subprocess anyway — a parser fault
+# on a malformed file stays in the plugin.
+#
+# READ-ONLY by design: the manifest declares capabilities ["read"] and there is
+# no writer. See plugins/sourcecode/internal/proseread for why.
+build-sourcecode-plugin: ## Build the kapi-sourcecode reader plugin → bin/kapi-sourcecode
+	cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 $(GO) build -o $(BIN_DIR)/kapi-sourcecode ./cmd/kapi-sourcecode
+
+test-sourcecode-plugin: ## Run kapi-sourcecode tests (grammar-driven prose extraction)
+	cd plugins/sourcecode && GOWORK=off CGO_ENABLED=1 $(GO) test ./...
 
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
@@ -2360,6 +2379,38 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # reads nothing of the developer's machine. Any critical, major or minor finding
 # fails it: the collection is clean, and a gate that tolerates its own findings
 # teaches the reader to stop reading them.
+# Stage a built plugin where the isolated kapi can discover it. The iso env
+# sets KAPI_PLUGINS_DIR_ONLY, so a developer's Homebrew-installed plugins are
+# deliberately invisible — which also means a gate needing one must put it here.
+stage-sourcecode-plugin: build-sourcecode-plugin
+	@mkdir -p $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode
+	@cp -f $(BIN_DIR)/kapi-sourcecode $(KAPI_ISO_DIR)/plugins/sourcecode/
+	@cp -f plugins/sourcecode/manifest.json $(KAPI_ISO_DIR)/plugins/sourcecode/
+	@cp -f plugins/sourcecode/formats/sourcecode/schema.json $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode/
+
+# ── The prose kapi governs, checked BY kapi ──────────────────────────────────
+#
+# These collections carry product copy in files no docs sweep reaches: the
+# description a package manager shows before anything is installed, the one
+# Windows shows in file properties, and the cask lines Homebrew prints. Each is
+# declared in kapi.yaml and governed by the project's voice profile, so the rule
+# is enforced by the engine rather than by a second implementation of it in
+# bash.
+#
+# scripts/check-vocabulary.sh keeps only what kapi cannot open. When a surface
+# moves under a collection it comes OUT of that script — one rule, one enforcer
+# per surface.
+check-governed-prose: build stage-sourcecode-plugin ## Gate: the collections holding distribution prose pass `kapi check`
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'apps/kapi-desktop/build/windows/info.json' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+	@# The cask needs the sourcecode plugin, staged above. Minors are allowed
+	@# here and nowhere else in this target: `caveats` embeds an aligned command
+	@# sample, so the consecutive-spaces rule fires on formatting that is correct.
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+
 check-reference-prose: build ## Register gate: the authored reference dossiers pass `kapi check` with no findings
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'scripts/gen-refs/nativedocs/*/*.yaml' \
 		-p $(CURDIR)/kapi.yaml --max-major 0 --max-minor 0

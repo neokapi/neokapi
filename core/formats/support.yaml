@@ -220,6 +220,22 @@ formats:
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
+  sourcecode:
+    tier: available
+    tier_since: "2026-08-23"
+    last_certified: null
+    grandfathered: true
+    notes: >-
+      Plugin-provided, out-of-core: the reader is the kapi-sourcecode plugin
+      (tree-sitter grammars, cgo), so core/formats/sourcecode carries config.go
+      and no reader.go. On the /format-maturity dashboard via the structure.yaml
+      allowlist seat, the same seat pdf uses. Read-only by design — the manifest
+      declares capabilities ["read"] and there is no writer, so the Engine
+      writer cells are N/A rather than unmet. The G axis is N/A too: a source
+      file has no layout to comprehend. Ruby only; a language arrives by mapping
+      its prose-bearing node kinds. Awaits first multi-axis certification.
+    gates:
+      - .github/workflows/ci.yml
   srt:
     tier: maintained
     tier_since: "2026-06-12"
