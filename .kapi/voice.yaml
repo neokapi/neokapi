@@ -158,12 +158,16 @@ locales:
       Never translate product names (neokapi, kapi, kapi-desktop, Bowrain),
       CLI commands, flags, file formats, code identifiers, or file paths.
       Headings in sentence case. Compound nouns close up in Norwegian
-      (oversettelsesminne, not "oversettelses minne") — never leave an English
-      noun pair half-translated.
+      (innholdsbase, not "innholds base") — never leave an English noun pair
+      half-translated.
     vocabulary_overrides:
-      - term: oversettelsesminne
-        note: translation memory — not "oversettingsminne"
-      - term: termbase
-        note: termbase stays "termbase" (established loan in Norwegian localization practice)
+      - term: innholdsbase
+        note: content memory — not "oversettelsesminne", which named the store kapi retired
+      - term: ordbank
+        note: terms store — not "termbase", the loan English itself retired
+      - term: målgruppeprofil
+        note: voice profile — not "merkevarestemme", which named the use case rather than the mechanism
+      - term: ordliste
+        note: term list — the source-to-target mapping fed to the translate prompt
       - term: arbeidsflyt
         note: Reserved for generic workflow prose; a kapi "flow" is "flyt" (see the project's terms)

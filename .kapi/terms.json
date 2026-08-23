@@ -402,11 +402,11 @@
         {
           "text": "ordliste",
           "locale": "nb",
-          "status": "admitted"
+          "status": "preferred"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-08-23T08:00:00Z"
     },
     {
       "id": "term:4097889236",
@@ -488,13 +488,18 @@
           "status": "preferred"
         },
         {
+          "text": "ordbank",
+          "locale": "nb",
+          "status": "preferred"
+        },
+        {
           "text": "termbase",
           "locale": "nb",
-          "status": "admitted"
+          "status": "deprecated"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-08-23T08:00:00Z"
     },
     {
       "id": "term:565bc8f298",
@@ -770,13 +775,18 @@
           "status": "deprecated"
         },
         {
-          "text": "merkevarestemme",
+          "text": "målgruppeprofil",
           "locale": "nb",
           "status": "preferred"
+        },
+        {
+          "text": "merkevarestemme",
+          "locale": "nb",
+          "status": "deprecated"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-08-22T21:10:00Z"
+      "updated_at": "2026-08-23T08:00:00Z"
     },
     {
       "id": "term:9cf8295e97",
@@ -912,13 +922,18 @@
           "status": "deprecated"
         },
         {
+          "text": "innholdsbase",
+          "locale": "nb",
+          "status": "preferred"
+        },
+        {
           "text": "oversettelsesminne",
           "locale": "nb",
-          "status": "admitted"
+          "status": "deprecated"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-08-23T08:00:00Z"
     },
     {
       "id": "term:cd71fe3074",
