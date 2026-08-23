@@ -1,6 +1,7 @@
 package pluginhost
 
 import (
+	"encoding/json"
 	"bytes"
 	"context"
 	"errors"
@@ -56,7 +57,24 @@ func (c *mapConfig) Reset()             { c.params = map[string]string{} }
 func (c *mapConfig) Validate() error    { return nil }
 func (c *mapConfig) ApplyMap(values map[string]any) error {
 	for k, v := range values {
-		c.params[k] = fmt.Sprint(v)
+		// A LIST is marshalled as JSON; everything else keeps fmt.Sprint.
+		//
+		// fmt.Sprint on a slice yields Go's debug rendering — `[desc caveats]` —
+		// which no plugin can parse back, and which silently produced an
+		// extraction that matched nothing when the sourcecode format's
+		// nodePathPatterns first crossed this boundary. Scalars keep their
+		// existing spelling on purpose: a bridge filter parameter reading
+		// "true" or "42" must not start seeing a quoted JSON string.
+		switch v.(type) {
+		case []any, []string:
+			b, err := json.Marshal(v)
+			if err != nil {
+				return fmt.Errorf("%s: encode %s: %w", c.format, k, err)
+			}
+			c.params[k] = string(b)
+		default:
+			c.params[k] = fmt.Sprint(v)
+		}
 	}
 	return nil
 }

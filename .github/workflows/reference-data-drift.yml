@@ -42,6 +42,15 @@ on:
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
       - "kapi.yaml"
+      # The prose `check-governed-prose` gates, and what decides the verdict:
+      # the rule lives in the voice profile, and the cask needs the plugin.
+      # Without these a change to the cask's desc would not run the gate that
+      # exists to read it.
+      - ".kapi/voice.yaml"
+      - "packaging/**"
+      - "deploy/homebrew/**"
+      - "apps/kapi-desktop/build/**"
+      - "plugins/sourcecode/**"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -70,6 +79,15 @@ on:
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
       - "kapi.yaml"
+      # The prose `check-governed-prose` gates, and what decides the verdict:
+      # the rule lives in the voice profile, and the cask needs the plugin.
+      # Without these a change to the cask's desc would not run the gate that
+      # exists to read it.
+      - ".kapi/voice.yaml"
+      - "packaging/**"
+      - "deploy/homebrew/**"
+      - "apps/kapi-desktop/build/**"
+      - "plugins/sourcecode/**"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -102,6 +120,14 @@ jobs:
 
       - name: Check reference dossier prose
         run: make check-reference-prose
+
+      # The distribution prose kapi governs: the package descriptions and the
+      # Homebrew cask. These used to be swept by scripts/check-vocabulary.sh;
+      # they are declared as collections now, so the rule is enforced by the
+      # engine rather than by a second implementation of it in bash. The cask
+      # needs the kapi-sourcecode plugin, which the target builds and stages.
+      - name: Check the prose kapi governs
+        run: make check-governed-prose
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types

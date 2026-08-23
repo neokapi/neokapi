@@ -353,6 +353,32 @@ collections:
           config:
             extractAllPairs: false
             exceptions: "FileDescription|Comments"
+  # The Homebrew cask. `desc` is the line `brew info` prints and `caveats` is
+  # what Homebrew prints after install — product copy in a file kapi could not
+  # open until the sourcecode reader existed.
+  #
+  # Source-only, and here by necessity rather than by choice: the format is
+  # read-only (no writer in core or in the plugin), so there is nothing a
+  # `target:` could mean.
+  #
+  # Needs the kapi-sourcecode plugin. Without it the format is unsupported and
+  # this collection contributes nothing — the same posture pdf has.
+  - name: neokapi-desktop-cask
+    channel: neokapi/desktop
+    base: deploy/homebrew
+    content:
+      - path: "*.rb"
+        format:
+          name: sourcecode
+          config:
+            # Declared rather than inferred from the extension: the host hands a
+            # plugin its input inline, and that path carries no filename to
+            # infer from.
+            language: ruby
+            # Everything else in a cask is a path, a URL, a bundle id or a
+            # version. The tree tells them apart; this says which two calls hold
+            # the sentences.
+            nodePathPatterns: [desc, caveats]
   - name: neokapi-demos
     channel: neokapi/demos
     base: harness/demos

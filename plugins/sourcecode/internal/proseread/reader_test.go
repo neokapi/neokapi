@@ -64,7 +64,7 @@ func read(t *testing.T, path string, opts proseread.Options) map[string]string {
 // prints after install — sit among a dozen paths, flags, URLs and bundle ids.
 func TestCaskProseIsSeparatedFromIdentifiers(t *testing.T) {
 	got := read(t, "testdata/kapi-desktop.rb", proseread.Options{
-		NodePaths: []string{"desc", "caveats"},
+		NodePathPatterns: []string{"desc", "caveats"},
 	})
 
 	assert.Equal(t, "Desktop workbench for a project's content context", got["desc"])

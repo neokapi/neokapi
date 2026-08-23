@@ -47,6 +47,14 @@
 # TestConvention_HelpTextUsesCurrentVocabulary in cli/, which walks the built
 # command tree rather than grepping Go source.
 #
+# What this guard is NOT for: prose kapi can read. The vocabulary rule lives in
+# .kapi/voice.yaml as prohibited_patterns, and every surface kapi has a reader
+# for is governed there — the docs, the reference dossiers, the package
+# descriptions, and (since the sourcecode format) the Homebrew cask. This script
+# covers the complement: .go, .ts, .tsx, .sh, installer scripts, and build
+# metadata in formats no reader handles. When a surface gains a collection it
+# leaves VOCAB_SURFACES; the rule does not get a second implementation.
+#
 # What this guard CANNOT catch: a hero that leads with translation. That is a
 # judgement about emphasis, not a phrase, and it stays a review question.
 #
@@ -140,10 +148,12 @@ readonly VOCAB_SURFACES=(
   apps/kapi-desktop/build
   # The desktop's own components — the window a user meets before any docs.
   apps/kapi-desktop/frontend/src/components
-  # The Linux package description and the Homebrew cask description: the two
-  # lines a user reads before installing anything.
-  packaging
-  deploy/homebrew
+  # NOT here any more, and deliberately: packaging/nfpm.yaml,
+  # apps/kapi-desktop/build/windows/info.json and deploy/homebrew/*.rb are
+  # declared as collections in kapi.yaml and gated by `make
+  # check-governed-prose`, which runs the rule through kapi. A surface that
+  # moves under a collection LEAVES this list — one rule, one enforcer per
+  # surface. What stays below is what kapi still cannot open.
   # The landing page's own components, and the head sidecar that carries its
   # per-locale <title> and social description. Both hold prose and nothing else;
   # the six-section rebuild left no retired spelling behind in either.

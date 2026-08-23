@@ -637,6 +637,11 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	// build-tagged seam — a no-op on native (the plugin registers at runtime),
 	// the wasm reader on js. See core/formats/register_pdf_*.go.
 	registerPDF(reg)
+
+	// sourcecode is read-only and provided out-of-core by the kapi-sourcecode
+	// plugin (cgo + tree-sitter grammars). Same seam as PDF above, minus the
+	// browser path: the grammars cannot link into wasm at all.
+	registerSourceCode(reg)
 }
 
 // registerSchemaAndDecoder registers a format's schema and config decoder

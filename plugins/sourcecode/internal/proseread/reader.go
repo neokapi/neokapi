@@ -25,41 +25,61 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/formats/sourcecode"
 	"github.com/neokapi/neokapi/core/model"
 	ts "github.com/tree-sitter/go-tree-sitter"
 	ruby "github.com/tree-sitter/tree-sitter-ruby/bindings/go"
 )
 
-// Options configure one read. NodePaths is the include list: when non-empty,
-// only prose sitting under one of those node paths is extracted.
-//
-// It is the direct analogue of the json reader's key paths and the yaml
-// reader's keyPathPatterns — a recipe already says "these keys hold prose" for
-// a config file, and says the same thing here about a call.
-type Options struct {
-	// NodePaths, when non-empty, restricts extraction to prose whose enclosing
-	// call is named here. Empty extracts every prose-bearing node, which is the
-	// honest default for a first look at an unfamiliar file.
-	NodePaths []string
+// Options is the format's config, defined in core so a recipe naming
+// `sourcecode` validates the same way whether or not this plugin is installed —
+// and so the config has one definition rather than one on each side of the
+// plugin boundary. See core/formats/sourcecode.
+type Options = sourcecode.Config
 
-	// Comments includes comment nodes. Off by default: a comment is written for
-	// the next person reading the code, and holding it to the register of
-	// published prose is a different decision from holding a product string to
-	// it. A project that wants both says so.
-	Comments bool
+// byName is the one place a language name maps to a grammar.
+func byName(lang string) (*ts.Language, string, bool) {
+	switch strings.ToLower(lang) {
+	case "ruby":
+		return ts.NewLanguage(ruby.Language()), "ruby", true
+	default:
+		return nil, "", false
+	}
 }
 
-// grammar picks the tree-sitter language for a path. An unknown extension is an
-// error rather than a silent empty read: a collection that declares a file this
-// reader cannot parse has a bug in the recipe, and reporting nothing would read
-// as "checked, clean".
-func grammar(path string) (*ts.Language, string, error) {
+// byExt is the convenience: infer the language from the file's extension.
+func byExt(path string) (*ts.Language, string, bool) {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".rb":
-		return ts.NewLanguage(ruby.Language()), "ruby", nil
+		return byName("ruby")
 	default:
-		return nil, "", fmt.Errorf("no grammar for %q", filepath.Ext(path))
+		return nil, "", false
 	}
+}
+
+// grammar resolves the language to parse with: the DECLARED one first, then the
+// extension.
+//
+// Declaration wins because inference is not always available. The host hands a
+// plugin its input inline and the ContentRef carries no filename on that path,
+// so a reader dispatching across grammars has nothing to infer from — which is
+// why the config takes `language` at all.
+//
+// Neither available is an error rather than a silent empty read: a collection
+// declaring a file this reader cannot parse has a bug in the recipe, and
+// reporting nothing would read as "checked, clean".
+func grammar(path, declared string) (*ts.Language, string, error) {
+	if declared != "" {
+		lang, name, ok := byName(declared)
+		if !ok {
+			return nil, "", fmt.Errorf("no grammar for language %q", declared)
+		}
+		return lang, name, nil
+	}
+	if lang, name, ok := byExt(path); ok {
+		return lang, name, nil
+	}
+	return nil, "", fmt.Errorf("no grammar for %q, and no language declared", filepath.Ext(path))
 }
 
 // proseKinds are the node kinds that can hold prose, per grammar. Everything
@@ -82,7 +102,7 @@ func Grammars() []string { return []string{"ruby"} }
 // ReadParts parses src and returns the layer + block sequence for the prose it
 // holds. uri names the layer and chooses the grammar.
 func ReadParts(src []byte, locale model.LocaleID, uri string, opts Options) ([]*model.Part, error) {
-	lang, name, err := grammar(uri)
+	lang, name, err := grammar(uri, opts.Language)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +125,7 @@ func ReadParts(src []byte, locale model.LocaleID, uri string, opts Options) ([]*
 	parts := []*model.Part{{Type: model.PartLayerStart, Resource: root}}
 
 	want := map[string]bool{}
-	for _, p := range opts.NodePaths {
+	for _, p := range opts.NodePathPatterns {
 		want[p] = true
 	}
 

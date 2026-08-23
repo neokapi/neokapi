@@ -35,4 +35,8 @@ const (
 	DesignTokens  registry.FormatID = "designtokens"
 	MDX           registry.FormatID = "mdx"
 	ASCIIDoc      registry.FormatID = "asciidoc"
+	// SourceCode is provided out-of-core by kapi-sourcecode. It is named
+	// `sourcecode` rather than `source` because `source` already names the
+	// source-vs-target axis (terms_source, source locale, source text).
+	SourceCode registry.FormatID = "sourcecode"
 )

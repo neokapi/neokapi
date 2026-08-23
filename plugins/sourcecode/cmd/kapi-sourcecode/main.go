@@ -68,7 +68,7 @@ func main() {
 // prose out of the structure. `kapi plugins doctor` runs this.
 func runDoctor() int {
 	parts, err := proseread.ReadParts([]byte(selfcheckRuby), model.LocaleID("en"), "selfcheck.rb",
-		proseread.Options{NodePaths: []string{"desc"}})
+		proseread.Options{NodePathPatterns: []string{"desc"}})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapi-sourcecode: self-check failed: %v\n", err)
 		return 1
@@ -147,7 +147,11 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 		return complete(stream, err.Error())
 	}
 
-	parts, err := proseread.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, optionsFrom(header.GetFilterParams()))
+	opts, err := optionsFrom(header.GetFilterParams())
+	if err != nil {
+		return complete(stream, err.Error())
+	}
+	parts, err := proseread.ReadParts(data, model.LocaleID(header.GetSourceLocale()), uri, opts)
 	if err != nil {
 		return complete(stream, err.Error())
 	}
@@ -166,16 +170,23 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 // optionsFrom decodes the recipe's format config, which arrives as flat strings.
 // nodePathPatterns is comma-separated; empty means "extract everything the
 // grammar exposes", which is the reader's own default.
-func optionsFrom(params map[string]string) proseread.Options {
-	opts := proseread.Options{Comments: params["comments"] == "true"}
-	if raw := strings.TrimSpace(params["nodePathPatterns"]); raw != "" {
-		for _, p := range strings.Split(raw, ",") {
-			if p = strings.TrimSpace(p); p != "" {
-				opts.NodePaths = append(opts.NodePaths, p)
-			}
-		}
+func optionsFrom(params map[string]string) (proseread.Options, error) {
+	opts := proseread.Options{
+		Comments: params["comments"] == "true",
+		Language: strings.TrimSpace(params["language"]),
 	}
-	return opts
+	// The host marshals list config as JSON (host/pluginhost/format_client.go).
+	// A value that does not decode is REPORTED rather than skipped: silently
+	// dropping the include list would widen extraction to every string in the
+	// file, which reads as a working check quietly doing something else.
+	if raw := strings.TrimSpace(params["nodePathPatterns"]); raw != "" {
+		var paths []string
+		if err := json.Unmarshal([]byte(raw), &paths); err != nil {
+			return opts, fmt.Errorf("nodePathPatterns: %w", err)
+		}
+		opts.NodePathPatterns = paths
+	}
+	return opts, nil
 }
 
 func complete(stream pb.BridgeService_ProcessServer, errMsg string) error {
@@ -197,14 +208,10 @@ func readInput(in *pb.ContentRef) ([]byte, string, error) {
 		return data, path, nil
 	}
 	if inline := in.GetInline(); len(inline) > 0 {
-		// The URI is the only name inline content carries, and the grammar is
-		// chosen by extension — so unlike a single-format reader, this one
-		// cannot fall back to a fixed filename. Refusing beats guessing at a
-		// language.
-		if uri := in.GetUri(); uri != "" {
-			return inline, uri, nil
-		}
-		return nil, "", fmt.Errorf("inline input needs a uri to choose a grammar")
+		// The uri may be empty — the host does not always name inline content —
+		// and that is fine: the reader falls back to the declared `language`,
+		// and reports honestly when neither is available.
+		return inline, in.GetUri(), nil
 	}
 	return nil, "", fmt.Errorf("empty input")
 }

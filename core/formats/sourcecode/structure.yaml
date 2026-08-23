@@ -1,0 +1,60 @@
+# core/formats/sourcecode/structure.yaml — Structure & Geometry (G) axis
+# declaration.
+#
+# See core/formats/docling/structure.yaml for the full schema header, and
+# core/formats/pdf/structure.yaml for the other plugin-provided seat.
+#
+# sourcecode has no in-core reader.go: the reader is the kapi-sourcecode plugin,
+# because tree-sitter grammars are C. This file is what earns it a dashboard
+# seat and a support.yaml tier — realFormatDirs allowlists plugin-provided
+# formats that ship a structure.yaml (core/formats/maturity_test.go, mirrored in
+# scripts/format-ops/lib.mjs).
+version: 1
+
+# A source file states its own structure: the grammar recovers the syntax tree
+# from the text, with nothing inferred from tags, geometry, or a model. Same
+# provenance as asciidoc, and for the same reason — the source IS the
+# declaration.
+#
+# What the tree buys here is not depth but DISCRIMINATION: it is what tells a
+# string that is prose from a string that is a path, which is the whole reason
+# this format exists. That belongs to extraction accuracy rather than to the
+# structural ladder, so it is not claimed as a rung.
+authority: native
+
+in_core: G0   # no reader in core; nothing to grep
+ceiling: G0   # and the plugin does not raise it — see the geometry cap below
+realized_by: >-
+  native: kapi-sourcecode plugin (tree-sitter grammars). No browser path: the
+  grammars are cgo, and the wasm build has no plugin host.
+
+# Geometry is the ceiling cap. Source code is text with no rendered layout —
+# no page, no bbox, no reading order beyond the byte order it already has. On
+# this cumulative ladder `na` is a COUNTERSIGNED state (rubric §2.7; SHARPEN §5
+# decision 6).
+geometry:
+  status: na
+  reviewed_by: claude-opus-5
+  date: "2026-08-23"
+  reason: >-
+    A source file has no intrinsic spatial layout: the reader emits the prose a
+    program contains, not a rendering of the program. Geometry is therefore not
+    applicable, and the axis is capped rather than unmet — the format should not
+    read as failing a ladder it is not on.
+
+in_core_evidence:
+  - "config.go only: the reader is out of core (see plugins/sourcecode)"
+
+plugin:
+  id: kapi-sourcecode
+  rungs: {}
+  # Nothing to certify on this axis. What the plugin does claim — that the tree
+  # separates prose from identifiers — is pinned by its own tests, which run on
+  # the PR gate via `make test-plugins` rather than in a nightly.
+  certified_by: n/a — the G axis is capped for this format
+
+notes: >-
+  Read-only by design, not by omission: the manifest declares capabilities
+  ["read"] and there is no writer, so the Engine writer cells are N/A the way
+  they are for pdf. Excluded from the in-core grep universe (no reader.go), on
+  the dashboard via this allowlist seat.
