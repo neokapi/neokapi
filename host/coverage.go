@@ -114,14 +114,7 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 			}
 		}
 	}
-	for f := range noReader {
-		if f == "" {
-			f = "(detected by extension)"
-		}
-		unreadable = append(unreadable, f)
-	}
-	slices.Sort(unreadable)
-	return states, held, unreadable, nil
+	return states, held, sortedFormatSet(noReader), nil
 }
 
 // settleAndCountHeldSource settles the project's source-locale blocks (deduped
@@ -506,4 +499,22 @@ func (a *App) warnUnreadableFormats(cmd Command, unreadable []string) {
 			"warning: no reader for format %q — content declaring it was not measured; "+
 				"install the plugin that supplies it (kapi plugins install %s)\n", f, f)
 	}
+}
+
+// sortedFormatSet renders a set of format names as a stable, sorted slice. A
+// name is empty when the recipe left the format to extension detection, which
+// never reaches a plugin format — say so rather than printing "".
+func sortedFormatSet(set map[string]bool) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for f := range set {
+		if f == "" {
+			f = "(detected by extension)"
+		}
+		out = append(out, f)
+	}
+	slices.Sort(out)
+	return out
 }
