@@ -318,6 +318,41 @@ collections:
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
+  # Distribution metadata: the description a user reads in a package manager
+  # before anything is installed, and the one Windows shows in file properties.
+  # Both are product copy that no docs sweep has ever looked at, and neither is
+  # reachable from any other collection's base.
+  #
+  # Source-only — the items name no `target:`. A package description is not
+  # translated today: nfpm builds one artifact and the Windows resource block is
+  # single-locale. Declaring them governs the English, which is the whole point.
+  - name: neokapi-cli-package
+    channel: neokapi/cli
+    base: packaging
+    content:
+      # Only `description` holds prose. maintainer, vendor, license and homepage
+      # are identifiers, and `contents` is a list of file paths — grading those
+      # as sentences is how a check earns the reputation that stops anyone
+      # reading its findings.
+      - path: nfpm.yaml
+        format:
+          name: yaml
+          config:
+            keyPathPatterns:
+              - description
+  - name: neokapi-desktop-build
+    channel: neokapi/desktop
+    base: apps/kapi-desktop/build
+    content:
+      # extractAllPairs off + exceptions as an INCLUDE list: the file is mostly
+      # version numbers and company/product names, and only these two keys are
+      # sentences a user reads in the file's properties dialog.
+      - path: windows/info.json
+        format:
+          name: json
+          config:
+            extractAllPairs: false
+            exceptions: "FileDescription|Comments"
   - name: neokapi-demos
     channel: neokapi/demos
     base: harness/demos
