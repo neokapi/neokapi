@@ -57,6 +57,14 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$OUT_DIR" "$STAGE/formats/sourcecode"
 
+# Normalize OUT_DIR to the shell's own path form before it reaches tar. On the
+# Windows runner the workflow hands in $RUNNER_TEMP as "D:\a\_temp\...", and GNU
+# tar reads the colon as a REMOTE host spec — "tar (child): Cannot connect to D:
+# resolve failed", then a broken pipe, with the archive never written. `cd` +
+# `pwd` under git-bash yields "/d/a/_temp/...", which tar treats as a local path.
+# The sibling packagers all do this for the same reason.
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
+
 if [ -n "$PREBUILT_BIN" ]; then
   cp "$PREBUILT_BIN" "$STAGE/$BIN_NAME"
 else
