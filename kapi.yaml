@@ -349,6 +349,18 @@ collections:
       # extractAllPairs off + exceptions as an INCLUDE list: the file is mostly
       # version numbers and company/product names, and only these two keys are
       # sentences a user reads in the file's properties dialog.
+      # The Wails build config. `description` and `comments` are the product
+      # line the installer and the .app bundle carry; everything else in the
+      # file is a version, a company name or a bundle identifier, so the keys
+      # are named rather than the file being read whole. Read without them the
+      # reader yields 26 blocks, of which two are prose.
+      - path: config.yml
+        format:
+          name: yaml
+          config:
+            keyPathPatterns:
+              - info.description
+              - info.comments
       - path: windows/info.json
         format:
           name: json
