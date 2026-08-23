@@ -69,3 +69,24 @@ bin/kapi-sourcecode doctor      # confirms the grammars load AND still separate 
 cgo, but no system dependency: the grammars are vendored C compiled by the Go
 build, so unlike `kapi-pdfium` this needs nothing on `PKG_CONFIG_PATH`. It still
 runs as a subprocess, so a parser fault on a malformed file stays in the plugin.
+
+## Release
+
+The plugin ships on its own tag line, `sourcecode-v*` — the kapi CLI release
+does not bundle plugin binaries.
+
+```bash
+scripts/package-sourcecode-plugin.sh --version 0.1.0 --out-dir dist/
+```
+
+The tarball is the binary, `manifest.json`, `formats/sourcecode/schema.json` and
+the `LICENSE` — no bundled shared library, because there isn't one. Pushing a
+`sourcecode-v<version>` tag runs `.github/workflows/release-sourcecode.yml`,
+which builds the four native platforms, signs each tarball with cosign, publishes
+them to the release and registers the version in `neokapi/registry` so `kapi
+plugins install sourcecode` resolves. `workflow_dispatch` on that workflow is a
+build-only dry run: it never publishes and never writes to the registry.
+
+The registry must already declare a `sourcecode` plugin — `registry-update`
+refuses to create new top-level entries, so the register job fails with "plugin
+not declared" until the stub is added there once.

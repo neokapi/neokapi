@@ -1188,7 +1188,7 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
-test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr, sourcecode)
+test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)
 	@$(MAKE) --no-print-directory test-sat-plugin
 	@$(MAKE) --no-print-directory test-check-plugin
 	@$(MAKE) --no-print-directory test-vision-plugin
