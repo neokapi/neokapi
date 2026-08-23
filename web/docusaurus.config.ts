@@ -96,9 +96,17 @@ const cdnModelsVersion = (() => {
 // every link-integrity setting below, so one policy governs them all.
 const linkIntegrity = (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn";
 
+// The tagline lives in brand.json rather than here, so kapi governs it. This
+// file is TypeScript and kapi has no reader for it; brand.json is content in a
+// format it reads, declared as a collection and checked on every PR. Reading a
+// sibling file at config-eval time is the same thing models.version does below.
+const brand = JSON.parse(fs.readFileSync(path.join(__dirname, "brand.json"), "utf8")) as {
+  tagline: string;
+};
+
 const config: Config = {
   title: "neokapi",
-  tagline: "The open-source, format-aware content engine — for people and AI agents",
+  tagline: brand.tagline,
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
