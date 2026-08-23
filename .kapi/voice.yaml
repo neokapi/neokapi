@@ -32,6 +32,26 @@ style:
     - regex: '\b(production-proven|everything you need|localize at scale|just point and go)\b'
       description: Brochure framing
       severity: major
+    # Retired positioning. The product is a content and language engine whose
+    # loop converges multilingual content; it is not a platform sold to a team,
+    # and "brand" is a coordinate rather than the subsystem. Each of these was
+    # the headline at some point, which is exactly why they survive in prose
+    # nobody re-reads.
+    - regex: '\bbrand[\s*_]+memor(?:y|ies)\b'
+      description: "Content memory is the store; brand is a coordinate on it, not a kind of memory"
+      severity: major
+    - regex: '\bbrand-first\b'
+      description: "Retired positioning — say what the product does, not which axis it leads with"
+      severity: major
+    - regex: '\bKapi[\s*_]+drafts\b'
+      description: "Retired positioning — kapi converges content; drafting is one step in the loop"
+      severity: major
+    - regex: '\bfor your whole team\b'
+      description: "Retired positioning — team framing belongs to the platform, not to kapi"
+      severity: major
+    - regex: '\blocali[sz]ation[\s*_]+platform\b'
+      description: "Retired positioning — this is a content and language engine"
+      severity: major
     - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
       description: Emoji in committed prose
       severity: major

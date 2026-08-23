@@ -129,6 +129,14 @@ jobs:
       - name: Check the prose kapi governs
         run: make check-governed-prose
 
+      # The documentation, gated per-PR for the first time. It was governed by
+      # the voice profile and checked by nothing on a PR: dogfood-sync.yml runs
+      # `kapi up` on a schedule, so a violation merged on a Tuesday surfaced on
+      # Wednesday, on main. This is what lets check-vocabulary.sh stop carrying
+      # a second copy of the rule for these surfaces.
+      - name: Check the documentation prose
+        run: make check-docs-prose
+
       - name: Check shared TS contract types for drift
         run: make check-contract-types
 
