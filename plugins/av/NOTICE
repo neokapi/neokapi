@@ -1,8 +1,10 @@
 kapi-av plugin — third-party notices
 ====================================
 
-This plugin bundles the following third-party software. See the repository's
-THIRD_PARTY_NOTICES.md for the full bundling policy and the FFmpeg LGPL checklist.
+This plugin bundles the following third-party software. The LGPL-2.1 text that
+covers the bundled FFmpeg binaries is in COPYING.LGPLv2.1, beside this file. The
+repository's THIRD_PARTY_NOTICES.md carries the full bundling policy and the
+FFmpeg LGPL checklist.
 
 FFmpeg (ffmpeg, ffprobe)
   License: LGPL-2.1-or-later (LGPL build — configured with --disable-gpl

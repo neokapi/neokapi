@@ -17,6 +17,7 @@
 #     manifest.json        the plugin manifest
 #     LICENSE              Apache-2.0, the license of the work
 #     NOTICE               FFmpeg LGPL notice
+#     COPYING.LGPLv2.1     FFmpeg's LGPL-2.1 text, for the bundled binaries
 #     ffmpeg[.exe]         the bundled LGPL ffmpeg
 #     ffprobe[.exe]        the bundled LGPL ffprobe
 #     <shared libs>        any runtime libraries (static builds bundle none)
@@ -79,6 +80,12 @@ cp "$repo/LICENSE" "$stage/LICENSE"
 sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$stage/manifest.json" > "$stage/manifest.json.tmp" \
   && mv "$stage/manifest.json.tmp" "$stage/manifest.json"
 cp "$repo/plugins/av/NOTICE" "$stage/NOTICE"
+# The bundled ffmpeg/ffprobe are LGPL-2.1+. LGPL-2.1 §1 wants a copy of the
+# license to travel with the library, and the NOTICE beside it is attribution,
+# not the grant. This is FFmpeg's own COPYING.LGPLv2.1, taken verbatim from the
+# tag the release builds (see plugins/av/licenses/README.md), so the text ships
+# from the project it covers rather than from a retyped copy.
+cp "$repo/plugins/av/licenses/COPYING.LGPLv2.1" "$stage/COPYING.LGPLv2.1"
 
 echo "==> bundle ffmpeg + ffprobe from $FFMPEG_DIR"
 for tool in ffmpeg ffprobe; do
