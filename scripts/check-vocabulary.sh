@@ -47,13 +47,27 @@
 # TestConvention_HelpTextUsesCurrentVocabulary in cli/, which walks the built
 # command tree rather than grepping Go source.
 #
-# What this guard is NOT for: prose kapi can read. The vocabulary rule lives in
-# .kapi/voice.yaml as prohibited_patterns, and every surface kapi has a reader
-# for is governed there — the docs, the reference dossiers, the package
-# descriptions, and (since the sourcecode format) the Homebrew cask. This script
-# covers the complement: .go, .ts, .tsx, .sh, installer scripts, and build
-# metadata in formats no reader handles. When a surface gains a collection it
-# leaves VOCAB_SURFACES; the rule does not get a second implementation.
+# What this guard is NOT for: prose kapi can read AND CI gates. Both halves of
+# the rule now live in .kapi/voice.yaml — the vocabulary as forbidden_terms, the
+# retired framing as prohibited_patterns — and three make targets run them
+# through kapi on every PR: check-docs-prose (the docs and the READMEs),
+# check-governed-prose (packaging, the Windows build metadata, the Homebrew
+# cask) and check-reference-prose (the authored dossiers).
+#
+# What is left here is the complement, and it is meant to keep shrinking:
+#
+#   * .ts and .tsx source, which has no reader. Note this is NOT a candidate for
+#     a grammar: prose in a component is an externalization defect, and
+#     @neokapi/i18n-react-lint is the check that belongs there. The catalogs are
+#     the governed artefact and kapi already reads them.
+#   * the two docusaurus.config.ts files and the landing HTML shell, which hold
+#     a tagline and a social card in formats with no reader.
+#   * build metadata and Storybook fixtures under apps/, plus the CLI module.
+#     CLI help text specifically is held by a Go test that walks the built cobra
+#     tree (cli/conventions_test.go), which is exact where a file scan is not.
+#
+# See strategy/source-vocabulary-checking.md for the boundary and the plan to
+# delete this script.
 #
 # What this guard CANNOT catch: a hero that leads with translation. That is a
 # judgement about emphasis, not a phrase, and it stays a review question.
@@ -98,11 +112,13 @@ readonly VOCAB_BOUNDARY_RE='"termbases"'
 #
 # The surfaces swept to R12. Adding a surface here is how a sweep gets locked in.
 readonly SWEPT_SURFACES=(
-  README.md
-  bowrain/README.md
-  web/docs
+  # NOT here any more, and deliberately: README.md, bowrain/README.md, web/docs
+  # and bowrain/web/docs/docs are gated per-PR by `make check-docs-prose`, which
+  # runs the rule through kapi under the project's voice profile. The framing
+  # patterns this script used to own for them now live in
+  # .kapi/voice.yaml:style.prohibited_patterns. A surface kapi can read and CI
+  # gates leaves this list; what stays below is the complement.
   web/src
-  bowrain/web/docs/docs
   bowrain/web/docs/src
   # The Docusaurus tagline is the fallback <meta description> for every doc
   # page that carries no frontmatter of its own, and the HTML shell holds the
@@ -119,11 +135,9 @@ readonly SWEPT_SURFACES=(
   # The desktop app: its window chrome, its first-run copy, and the build
   # metadata below.
   apps
-  # Distribution metadata. A package description and a signed binary's file
-  # properties are read long after anyone reviews the prose that produced them,
-  # and they are the one product surface no docs sweep has ever looked at.
-  packaging
-  deploy/homebrew
+  # Distribution metadata (packaging, deploy/homebrew) is gated by `make
+  # check-governed-prose` through kapi. Its vocabulary half moved when those
+  # collections were declared; the framing half moved with the patterns.
   # Transactional email is the highest-REACH prose in the product: its header
   # goes out with every message the platform sends. It carried "Localization
   # platform" through four sweeps because the emails are a separate build with

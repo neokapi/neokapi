@@ -2414,6 +2414,36 @@ check-governed-prose: build stage-sourcecode-plugin ## Gate: the collections hol
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
 		-p $(CURDIR)/kapi.yaml --max-major 0
 
+# ── The prose kapi reads, gated on every PR ──────────────────────────────────
+#
+# The docs were governed by the voice profile and checked by nothing per-PR:
+# dogfood-sync.yml runs `kapi up` on a SCHEDULE, so a violation merged on a
+# Tuesday was found on Wednesday, by a bot, on main. scripts/check-vocabulary.sh
+# was the only per-PR enforcement, and it holds a second copy of the rule.
+#
+# This is the gate that lets the script stop owning these surfaces. Minors are
+# allowed (--max-major 0): TBX, the XLIFF Glossary module and a handful of
+# concept pages name the external standards they document, and those read as
+# MINOR by design. Majors and criticals fail.
+#
+# 379 + 71 files in under two seconds, so it is cheap enough to run on every PR.
+check-docs-prose: build ## Gate: the documentation passes `kapi check` under the project's voice
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/docs/**/*.md' 'web/docs/**/*.mdx' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'bowrain/web/docs/docs/**/*.md' 'bowrain/web/docs/docs/**/*.mdx' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+	@# The two READMEs: prose kapi has always been able to read, that no
+	@# collection declared. A reader meets the README before anything else.
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
+		-p $(CURDIR)/kapi.yaml --max-major 0
+	@# NOT the agent skill, and not by omission. Gating cli/skills reports 30
+	@# majors, every one of them correct-by-design: @angular/localize and
+	@# expo-localization are third-party identifiers, gen-l10n is a Flutter tool,
+	@# and EVALS.md quotes user prompts verbatim because the skill description is
+	@# intent-matching vocabulary — it must contain the words a user types.
+	@# check-vocabulary.sh lists it under PENDING_SURFACES for the same reason.
+	@# Deciding what a matching surface owes the vocabulary rule comes first.
+
 check-reference-prose: build ## Register gate: the authored reference dossiers pass `kapi check` with no findings
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'scripts/gen-refs/nativedocs/*/*.yaml' \
 		-p $(CURDIR)/kapi.yaml --max-major 0 --max-minor 0
