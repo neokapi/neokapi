@@ -157,6 +157,22 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * SourceOnly declares that this collection has no target language and is
+             * never translated: a run reads it, checks it, and writes nothing back.
+             * Package descriptions and installer strings are the usual case.
+             * 
+             * It is an assertion, not a mode. Naming no target already made a
+             * collection source-only, so this flag adds no behaviour — what it adds is
+             * the difference between meaning it and forgetting. Validate rejects a
+             * collection that sets it and also carries a target, so the declaration and
+             * the items cannot drift into disagreeing.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["source_only"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -190,7 +206,7 @@ export class Collection {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
         const $$createField6_0 = $$createType3;
-        const $$createField8_0 = $$createType5;
+        const $$createField9_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -202,7 +218,7 @@ export class Collection {
             $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
         }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField8_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField9_0($$parsedSource["format"]);
         }
         return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
     }
