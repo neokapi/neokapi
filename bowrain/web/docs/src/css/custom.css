@@ -65,3 +65,40 @@
   color: var(--ifm-color-emphasis-500);
   opacity: 0.85;
 }
+
+/* Locale dropdown: icon-only, matching the neokapi docs. Docusaurus already
+   renders a translate-glyph SVG in the toggle; this only hides the
+   active-locale label. font-size:0 hides the label (the SVG keeps its
+   width/height attributes) and collapses the em-based caret, leaving the icon.
+   The dropdown menu is a sibling <ul>, so the locale names inside it — English,
+   Norsk (bokmål), Þšéüđö Éñĝļîšĥ — are untouched. */
+.navbar__link.navbar-locale-icon {
+  font-size: 0;
+  /* With the label collapsed the inline SVG would align to an empty baseline
+     and sit too high. */
+  display: flex;
+  align-items: center;
+}
+
+/* Even spacing between the right-side navbar items: the container ships with
+   gap:normal (0) and the icon items carry different paddings, so the glyphs sit
+   at irregular intervals without this. */
+.navbar__items--right {
+  gap: 0.9rem;
+  align-items: center;
+}
+.navbar__item.dropdown:has(> .navbar__link.navbar-locale-icon),
+.navbar__link.navbar-locale-icon {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Docusaurus hides dropdown navbar items below 996px (they move into the
+   sidebar). The icon-only locale control is small enough to stay, so the
+   language switcher does not silently vanish on mobile. */
+@media (max-width: 996px) {
+  .navbar__item.dropdown:has(.navbar__link.navbar-locale-icon) {
+    display: flex;
+    align-items: center;
+  }
+}

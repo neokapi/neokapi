@@ -2,6 +2,7 @@ import { Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { GithubIcon } from "./GithubIcon";
+import { LocaleSwitch } from "./LocaleSwitch";
 import { Logo } from "./Logo";
 import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";
 import { isDark, toggleMode } from "../theme";
@@ -77,6 +78,7 @@ export function Nav() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <LocaleSwitch />
           <button
             type="button"
             onClick={() => setDark(toggleMode())}
@@ -186,6 +188,7 @@ export function Nav() {
                   Get started
                 </a>
               )}
+              <LocaleSwitch />
               <button
                 type="button"
                 onClick={() => setDark(toggleMode())}

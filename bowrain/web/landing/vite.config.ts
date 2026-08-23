@@ -54,13 +54,51 @@ type LocaleMeta = Partial<{
   ogDescription: string;
 }>;
 
+// The locale menu, built where the deploy shape is known. Each label is written
+// IN its own locale, the convention every language menu follows: a reader finds
+// their language written the way they write it. For the pseudo-locale that
+// means the label is itself pseudo-mangled, so the entry demonstrates the
+// transformation before it is chosen.
+//
+// English first and always present; the rest come from locale-meta.json, which
+// is the one declaration of what this deploy BUILDS. Driving the menu from it
+// means an entry can never point at a locale that is not there — the failure
+// this replaced, where the menu would have offered Norwegian (not built, served
+// the English page) and omitted the pseudo-locale (built).
+//
+// hreflang is filtered further, because "built" and "shippable" are different
+// questions: qps is built and must not be advertised to a search engine.
+const LOCALE_LABELS: Record<string, string> = {
+  en: "English",
+  nb: "Norsk (bokmål)",
+  qps: "Þšéüđö Éñĝļîšĥ",
+};
+
+const localeMenu = [
+  { code: "en", label: LOCALE_LABELS.en, href: rootBase },
+  ...targetLocales.map((l) => ({
+    code: l,
+    label: LOCALE_LABELS[l] ?? l,
+    href: `${rootBase}${l}/`,
+  })),
+];
+
 function localeHtml(): PluginOption {
   return {
     name: "landing-locale-html",
     transformIndexHtml(html: string): string {
+      // qps is a probe, not a language anyone reads: it is noindex, and telling
+      // a search engine a pseudo-locale is an alternate of the English page
+      // would be a claim about content that does not exist. Every other built
+      // locale belongs here.
+      // string[], not the narrowed key union: qps is the only key in
+      // locale-meta.json today, so filtering it out narrows to `never` and the
+      // template below stops type-checking. The list is legitimately empty
+      // right now and gains entries when a real target locale ships.
+      const shippable: string[] = targetLocales.filter((l) => l !== "qps");
       const alternates = [
         `    <link rel="alternate" hreflang="en" href="${origin}${rootBase}" />`,
-        ...targetLocales.map(
+        ...shippable.map(
           (l) => `    <link rel="alternate" hreflang="${l}" href="${origin}${rootBase}${l}/" />`,
         ),
         `    <link rel="alternate" hreflang="x-default" href="${origin}${rootBase}" />`,
@@ -102,7 +140,18 @@ function localeHtml(): PluginOption {
 
 export default defineConfig({
   base,
-  define: { __BUILD_STAMP__: JSON.stringify(buildStamp) },
+  // __DOCS_BASE__ is computed here rather than in the app because only the
+  // config knows the deploy shape. The landing for a locale sits at
+  // <rootBase><locale>/ while the docs for that locale sit at
+  // <rootBase>docs/<locale>/ — the segments are in the opposite order, so an
+  // app deriving one from import.meta.env.BASE_URL would produce /qps/docs/ and
+  // send a pseudo-locale reader to the English docs.
+  define: {
+    __BUILD_STAMP__: JSON.stringify(buildStamp),
+    __DOCS_BASE__: JSON.stringify(`${rootBase}docs/${locale ? `${locale}/` : ""}`),
+    __LOCALES__: JSON.stringify(localeMenu),
+    __LOCALE__: JSON.stringify(locale || "en"),
+  },
   // neokapi() is an unplugin `.vite` adapter; bound to vite's own
   // PluginOption to keep vite-plus's config types from recursing (same
   // pattern as apps/kapi-desktop/frontend/vite.config.ts).

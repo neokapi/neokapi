@@ -101,10 +101,21 @@ const config: Config = {
 
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "nb"],
+    // nb is NOT listed. Docusaurus builds every locale in `locales` and, with no
+    // Norwegian content, would emit the English pages at /docs/nb/ while the
+    // switcher advertised them as Norwegian. That is the defect the apex router
+    // had on the landing side, reintroduced one level down. nb returns here in
+    // the change that starts producing Norwegian docs.
+    locales: ["en", "qps"],
     localeConfigs: {
       en: { label: "English" },
-      nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
+      // The pseudo-locale probe. Its own label is written in the pseudo
+      // alphabet, so the switcher demonstrates the transformation it selects:
+      // a reader who cannot parse this entry has learned what the build does
+      // before clicking it. htmlLang stays "en" because the text IS English,
+      // mangled — telling a screen reader or a translator otherwise would be a
+      // lie, and qps is noindex so no crawler acts on it.
+      qps: { label: "Þšéüđö Éñĝļîšĥ", htmlLang: "en" },
     },
   },
 
@@ -335,6 +346,15 @@ const config: Config = {
           href: "https://github.com/neokapi/neokapi",
           label: "GitHub",
           position: "right",
+        },
+        {
+          // Same control the neokapi docs carry, icon-only via the shared
+          // .navbar-locale-icon rule. Docusaurus rewrites the current path into
+          // the chosen locale, so switching keeps the reader on the page they
+          // were reading rather than dropping them at the docs root.
+          type: "localeDropdown",
+          position: "right",
+          className: "navbar-locale-icon",
         },
       ],
     },

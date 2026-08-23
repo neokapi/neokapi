@@ -1,0 +1,74 @@
+{
+  "version.label": {
+    "message": "▒ Ñéẋţ ▒",
+    "description": "The label for version current"
+  },
+  "sidebar.gettingStartedSidebar.category.Get Started": {
+    "message": "▒ Ĝéţ Šţàŕţéđ ▒",
+    "description": "The label for category 'Get Started' in sidebar 'gettingStartedSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Overview": {
+    "message": "▒ Öṽéŕṽîéŵ ▒",
+    "description": "The label for category 'Overview' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Workspaces & members": {
+    "message": "▒ Ŵöŕķšþàçéš & ḿéḿƃéŕš ▒",
+    "description": "The label for category 'Workspaces & members' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.The editor": {
+    "message": "▒ Ţĥé éđîţöŕ ▒",
+    "description": "The label for category 'The editor' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Content memory & terminology": {
+    "message": "▒ Çöñţéñţ ḿéḿöŕý & ţéŕḿîñöļöĝý ▒",
+    "description": "The label for category 'Content memory & terminology' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Context & voice": {
+    "message": "▒ Çöñţéẋţ & ṽöîçé ▒",
+    "description": "The label for category 'Context & voice' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Connectors & automation": {
+    "message": "▒ Çöññéçţöŕš & àüţöḿàţîöñ ▒",
+    "description": "The label for category 'Connectors & automation' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.The desktop app": {
+    "message": "▒ Ţĥé đéšķţöþ àþþ ▒",
+    "description": "The label for category 'The desktop app' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.usingBowrainSidebar.category.Trust & support": {
+    "message": "▒ Ţŕüšţ & šüþþöŕţ ▒",
+    "description": "The label for category 'Trust & support' in sidebar 'usingBowrainSidebar'"
+  },
+  "sidebar.cliSidebar.category.Overview": {
+    "message": "▒ Öṽéŕṽîéŵ ▒",
+    "description": "The label for category 'Overview' in sidebar 'cliSidebar'"
+  },
+  "sidebar.cliSidebar.category.Commands": {
+    "message": "▒ Çöḿḿàñđš ▒",
+    "description": "The label for category 'Commands' in sidebar 'cliSidebar'"
+  },
+  "sidebar.cliSidebar.category.Flows": {
+    "message": "▒ Ƒļöŵš ▒",
+    "description": "The label for category 'Flows' in sidebar 'cliSidebar'"
+  },
+  "sidebar.cliSidebar.category.Continuous integration": {
+    "message": "▒ Çöñţîñüöüš îñţéĝŕàţîöñ ▒",
+    "description": "The label for category 'Continuous integration' in sidebar 'cliSidebar'"
+  },
+  "sidebar.cliSidebar.category.Guides": {
+    "message": "▒ Ĝüîđéš ▒",
+    "description": "The label for category 'Guides' in sidebar 'cliSidebar'"
+  },
+  "sidebar.cliSidebar.category.Walkthroughs": {
+    "message": "▒ Ŵàļķţĥŕöüĝĥš ▒",
+    "description": "The label for category 'Walkthroughs' in sidebar 'cliSidebar'"
+  },
+  "sidebar.forDevelopersSidebar.category.Self-hosting": {
+    "message": "▒ Šéļƒ-ĥöšţîñĝ ▒",
+    "description": "The label for category 'Self-hosting' in sidebar 'forDevelopersSidebar'"
+  },
+  "sidebar.forDevelopersSidebar.category.Architecture": {
+    "message": "▒ Àŕçĥîţéçţüŕé ▒",
+    "description": "The label for category 'Architecture' in sidebar 'forDevelopersSidebar'"
+  }
+}
