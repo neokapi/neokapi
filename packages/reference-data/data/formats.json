@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-23T15:46:09Z",
+  "generatedAt": "2026-08-23T19:16:35Z",
   "kind": "format",
   "entries": [
     {
@@ -3536,8 +3536,8 @@
       "id": "sourcecode",
       "source": "plugin",
       "kind": "format",
-      "displayName": "Source code (tree-sitter)",
-      "description": "Prose held in source files, located by syntax rather than by pattern.",
+      "displayName": "Source code",
+      "description": "Product copy held in source files, such as package descriptions and installer notes.",
       "extensions": [
         ".rb"
       ],

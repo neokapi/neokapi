@@ -297,30 +297,30 @@ removing a verb fails the build until the table follows.
 
 ### Missing-plugin formats
 
-A collection can name a format a plugin supplies, so the same recipe reads on a
-machine that installed the plugin and cannot on one that has not. A project-wide
-command — `kapi status`, `kapi check --ship`, the source settle inside `kapi up`
-— therefore has to answer what it does when one collection out of twenty cannot
-be opened.
+A collection can name a format that a plugin supplies. The same recipe therefore
+reads on a machine with the plugin installed and fails to read on one without it,
+which forces an answer for every project-wide command: `kapi status`,
+`kapi check --ship`, and the source settle inside `kapi up`. Each may find that
+one collection out of twenty cannot be opened.
 
-It reports the collection as unread and measures the rest. Aborting would make a
-whole project unreportable over one optional dependency, and the collections that
-read perfectly well are the overwhelming majority of what the command was asked
-about.
+They report that collection as unread and measure the rest. Aborting would make
+an entire project unreportable because of one optional dependency, and the
+collections that do read are almost always the ones the command was asked about.
 
-The skip is never silent, because the failure it would cause is worse than the
-one it avoids: coverage computed over content that was never opened is
-indistinguishable from coverage over content that was read and found complete. So
-the format names travel back out of the rollup and are reported three ways — as
-`source.unreadable` in the JSON, as a warning naming the plugin to install, and
-as an event on the convergence stream.
+The skip is reported, never silent. Coverage computed over content that was
+never opened looks identical to coverage over content that was read and found
+complete, so the unreadable format names travel back out of the rollup. Three
+consumers surface them: `source.unreadable` in the JSON output, a warning naming
+the plugin to install, and an event on the convergence stream.
 
-Only a **missing reader** is survivable, and the discrimination is a sentinel
-(`registry.ErrUnknownFormat`) rather than a string match. An unknown format means
-the file was never opened; any other read error means it was opened and is
-broken, and that still fails. A gate over content declared in a plugin format
-belongs in a target that installs the plugin — the project-wide sweep is what
-degrades, not the gate written for that collection.
+Only a missing reader survives. `registry.ErrUnknownFormat` is a sentinel, so
+callers match it with `errors.Is` rather than on message text. An unknown format
+means the file was never opened. Any other read error means it was opened and is
+broken, and that still fails the command.
+
+A gate written for content in a plugin format installs that plugin
+(`make check-governed-prose` stages it). Degrading applies to the project-wide
+sweep, not to the gate built for the collection.
 
 ### Registry and signing
 
@@ -472,25 +472,24 @@ host. The full PDF subsystem is described in
 
 **kapi-sourcecode** (`plugins/sourcecode/`) is a first-party Mode-C format
 plugin providing a `sourcecode` reader over tree-sitter grammars. It answers a
-question no other reader can: which strings in a program are prose. In a
-Homebrew cask both `desc "Desktop workbench…"` and `zap trash:
-["~/Library/Caches/Kapi"]` are string literals, and a pattern cannot tell them
-apart — the syntax tree can, because it knows one is the argument of `desc` and
-the other an element of an array. A recipe then names the calls that hold prose
-with `nodePathPatterns`, the way it already names the keys that hold prose in
-YAML or JSON.
+question no other reader can: which strings in a program are prose. A Homebrew
+cask spells both `desc "Desktop workbench…"` and `zap trash:
+["~/Library/Caches/Kapi"]` as string literals. A pattern cannot separate them.
+The syntax tree can, because it knows the first is an argument to `desc` and the
+second an element of an array. A recipe names the prose-bearing calls with
+`nodePathPatterns`, the way it already names prose-bearing keys in YAML or JSON.
 
 It is **read-only**, declared as `capabilities: ["read"]` and backed by the
 absence of a writer on either side of the boundary. A round-trip error in a
-document mangles a paragraph; in a program it yields something that does not
-compile, or worse something that does with a changed string escape. Writing into
-source is a codemod — a different discipline with different correctness
-conditions — and deliberately out of scope.
+document mangles a paragraph. In a program it produces something that does not
+compile, or something that does compile with a changed string escape. Writing
+into source is a codemod, a different discipline with different correctness
+conditions, and it stays out of scope.
 
-Like the PDF reader it runs as a daemon so a parser fault stays in the
-subprocess, and like it the config lives in core (`core/formats/sourcecode`)
-while the cgo stays in the plugin, so the format has one config definition and
-the framework keeps no grammar.
+Like the PDF reader it runs as a daemon, so a parser fault stays in the
+subprocess. Its config also lives in core (`core/formats/sourcecode`) while the
+cgo stays in the plugin, giving the format one config definition and keeping
+grammars out of the framework.
 
 A **separately-licensed platform plugin** demonstrates the licence boundary the
 model exists for: it attaches over the manifest model, is distributed on its own

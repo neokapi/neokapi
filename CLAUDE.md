@@ -339,6 +339,43 @@ that bite most often:
   story under **Diagrams** in the Kapi Storybook. Code fences are for code only:
   CLI output, file trees, config snippets — not flows or relationships.
 
+### The tells that make prose read as machine-written
+
+An LLM writing English drifts toward a narrow band of constructions that rate
+well sentence by sentence and read as slop in aggregate. They are catalogued
+(Wikipedia's *Signs of AI writing*; the `avoid-ai-writing` skill), and this repo
+has shipped most of them. Check for these before committing prose:
+
+- **Em dashes.** The strongest single signal. Target zero; one per 1,000 words
+  is the ceiling. Use a comma, a full stop, or two sentences.
+- **Negation reveals.** "It does not write it back", "this is not X, it's Y".
+  State the positive: "It reads these files and never writes them."
+- **Abstract subjects doing human things.** "The collection names no target",
+  "the recipe decides", "the check wants". Name the actor, or rewrite around the
+  behaviour: "a collection with no `target:` is source-only".
+- **Aphorism endings.** A paragraph that closes on a quotable turn ("naming no
+  target is the whole statement") is building toward a phrase rather than
+  finishing a thought. Cut the flourish.
+- **Triads.** Three parallel items, over and over. Vary the grouping, or use two.
+- **Significance labels.** "worth stating plainly", "the real question is", "this
+  is the interesting part", "load-bearing". Delete the label; keep the claim.
+- **Diff-anchored writing.** "This used to…", "now finished", a note describing
+  work as open. Docs describe the current state; history lives in git. (The same
+  rule applies to code comments: describe what the code does, not what it used to.)
+
+Two more that apply specifically to end-user surfaces:
+
+- **Implementation vocabulary.** A user reads what a thing does for them, not how
+  it is built. tree-sitter, ONNX, cgo and the daemon model belong in
+  `web/docs/contribute/`, never in a recipe guide. Check the generated surfaces
+  too: a format's manifest `display_name` becomes the **title** of its reference
+  page, so jargon there ships to users without passing any prose review.
+- **Rejected-design rationale.** Why we did not build the other thing is
+  architecture-note material. A user guide says what to do.
+
+The register stays academic and restrained; none of this licenses marketing
+voice. Prefer the plainest sentence that is still precise.
+
 State each topic once and cross-link; verify every command, flag, import path,
 and flow name against the code before publishing.
 
