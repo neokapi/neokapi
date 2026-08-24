@@ -1,0 +1,111 @@
+- generic [ref=e2]:
+  - region "▒ Šķîþ ţö ḿàîñ çöñţéñţ ▒":
+    - link "▒ Šķîþ ţö ḿàîñ çöñţéñţ ▒" [ref=e3] [cursor=pointer]:
+      - /url: "#__docusaurus_skipToContent_fallback"
+  - navigation "▒ Ḿàîñ ▒" [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link "▒ Ƃöŵŕàîñ ▒ ▒ Ƃöŵŕàîñ ▒" [ref=e7] [cursor=pointer]:
+          - /url: https://bowrain.cloud/
+          - img "▒ Ƃöŵŕàîñ ▒" [ref=e9]
+          - generic [ref=e10]: ▒ Ƃöŵŕàîñ ▒
+        - link "▒ Ĥöḿé ▒" [ref=e11] [cursor=pointer]:
+          - /url: /docs/qps/
+        - link "▒ Ĝéţ Šţàŕţéđ ▒" [ref=e12] [cursor=pointer]:
+          - /url: /docs/qps/introduction
+        - link "▒ Üšîñĝ Ƃöŵŕàîñ ▒" [ref=e13] [cursor=pointer]:
+          - /url: /docs/qps/server/web-overview
+        - link "▒ Çöññéçţ (ÇĻÎ) ▒" [ref=e14] [cursor=pointer]:
+          - /url: /docs/qps/cli/overview
+        - link "▒ Ƒöŕ Đéṽéļöþéŕš ▒" [ref=e15] [cursor=pointer]:
+          - /url: /docs/qps/server/overview
+      - generic [ref=e16]:
+        - link [ref=e17] [cursor=pointer]:
+          - /url: https://neokapi.github.io/
+          - text: ▒ Ñéöķàþî & Ķàþî ▒
+          - img "▒ (öþéñš îñ ñéŵ ţàƃ) ▒" [ref=e18]
+        - link [ref=e20] [cursor=pointer]:
+          - /url: https://github.com/neokapi/neokapi
+          - text: ▒ ĜîţĤüƃ ▒
+          - img "▒ (öþéñš îñ ñéŵ ţàƃ) ▒" [ref=e21]
+        - button "Þšéüđö Éñĝļîšĥ" [ref=e24] [cursor=pointer]
+        - button "▒ Šŵîţçĥ ƃéţŵééñ đàŕķ àñđ ļîĝĥţ ḿöđé (çüŕŕéñţļý ▒ ļîĝĥţ ḿöđé ▒) ▒" [ref=e28] [cursor=pointer]
+  - generic [ref=e31]:
+    - banner [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - img "Bowrain" [ref=e35]
+          - heading "Bowrain" [level=1] [ref=e36]
+          - paragraph [ref=e37]:
+            - strong [ref=e38]: The context graph your people and agents plug into
+            - text: — record and steer the coordinates for content, so what you ship is on‑brand and on‑profile for the audience it was written for. Voice, vocabulary, approved wording, and corrections, versioned and learning from every review. Connected to the systems your content already lives in, with collaborative editing, review, and automation around them.
+          - generic [ref=e39]:
+            - link "Get Started" [ref=e40] [cursor=pointer]:
+              - /url: /docs/qps/quickstart
+            - link "Introduction" [ref=e41] [cursor=pointer]:
+              - /url: /docs/qps/introduction
+        - generic [ref=e43]:
+          - generic [ref=e44]: brand checks
+          - generic [ref=e49]:
+            - generic [ref=e50]: Suggested rules
+            - paragraph [ref=e51]: Repeated corrections become candidate rules.
+            - list [ref=e52]:
+              - listitem [ref=e53]
+              - listitem [ref=e60]
+            - paragraph [ref=e67]: Promoted → a versioned check, enforced on every future generation.
+    - main [ref=e68]:
+      - generic [ref=e71]:
+        - generic [ref=e73]:
+          - heading "One graph, every project" [level=3] [ref=e74]
+          - paragraph [ref=e75]: Profiles, vocabulary, and content memory held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction. kapi holds the same graph for one project; the difference is reach, not capability.
+          - link "The context graph →" [ref=e76] [cursor=pointer]:
+            - /url: /docs/qps/getting-started/the-context-graph
+        - generic [ref=e78]:
+          - heading "Real-time collaboration" [level=3] [ref=e79]
+          - paragraph [ref=e80]: "A web editor and a native desktop app connect to the same server: Visual and Table views with content memory and terminology, while edits and presence propagate live to every client."
+          - link "Collaboration →" [ref=e81] [cursor=pointer]:
+            - /url: /docs/qps/server/collaboration
+        - generic [ref=e83]:
+          - heading "Connectors" [level=3] [ref=e84]
+          - paragraph [ref=e85]: Content platforms, design tools, code repositories, and a developer's checkout are peer routes into one workspace. Most run server-side, with nothing installed and nothing checked out.
+          - link "Connectors →" [ref=e86] [cursor=pointer]:
+            - /url: /docs/qps/server/connectors
+        - generic [ref=e88]:
+          - heading "Content that stays current" [level=3] [ref=e89]
+          - paragraph [ref=e90]: "A connector sync, a push, or a developer's command starts a server run: reuse what memory holds, draft the rest, check everything, and park what needs a person into the review queue."
+          - link "Keeping content caught up →" [ref=e91] [cursor=pointer]:
+            - /url: /docs/qps/the-loop
+  - contentinfo [ref=e92]:
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - generic [ref=e96]: ▒ Ƃöŵŕàîñ ▒
+          - list [ref=e97]:
+            - listitem [ref=e98]:
+              - link "▒ Ĝéţţîñĝ Šţàŕţéđ ▒" [ref=e99] [cursor=pointer]:
+                - /url: /docs/qps/
+            - listitem [ref=e100]:
+              - link "▒ Üšîñĝ Ƃöŵŕàîñ ▒" [ref=e101] [cursor=pointer]:
+                - /url: /docs/qps/server/web-overview
+            - listitem [ref=e102]:
+              - link "▒ Çöññéçţöŕš ▒" [ref=e103] [cursor=pointer]:
+                - /url: /docs/qps/server/connectors
+            - listitem [ref=e104]:
+              - link "▒ Çöññéçţ (ÇĻÎ) ▒" [ref=e105] [cursor=pointer]:
+                - /url: /docs/qps/cli/overview
+        - generic [ref=e106]:
+          - generic [ref=e107]: ▒ Ƒŕàḿéŵöŕķ ▒
+          - list [ref=e108]:
+            - listitem [ref=e109]:
+              - link "▒ Ñéöķàþî & Ķàþî ▒▒ (öþéñš îñ ñéŵ ţàƃ) ▒" [ref=e110] [cursor=pointer]:
+                - /url: https://neokapi.github.io/
+        - generic [ref=e113]:
+          - generic [ref=e114]: ▒ Ḿöŕé ▒
+          - list [ref=e115]:
+            - listitem [ref=e116]:
+              - link "▒ ĜîţĤüƃ ▒▒ (öþéñš îñ ñéŵ ţàƃ) ▒" [ref=e117] [cursor=pointer]:
+                - /url: https://github.com/neokapi/neokapi
+            - listitem [ref=e120]:
+              - link "▒ Ĥöḿéƃŕéŵ Ţàþ ▒▒ (öþéñš îñ ñéŵ ţàƃ) ▒" [ref=e121] [cursor=pointer]:
+                - /url: https://github.com/neokapi/homebrew-tap
+      - generic [ref=e124]: ▒ Çöþýŕîĝĥţ © 2026 ñéöķàþî çöñţŕîƃüţöŕš. Ƃüîļţ ŵîţĥ Đöçüšàüŕüš. · ƃüîļţ 2026-08-23 21:59 ÜŢÇ · ƃ657ƒƒé8đ ▒

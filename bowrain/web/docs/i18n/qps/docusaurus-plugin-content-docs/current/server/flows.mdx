@@ -1,0 +1,233 @@
+---
+title: Server-Side Flows
+sidebar_position: 12
+description: Server-side flows run the same processing pipelines as the CLI, triggered by events, automations, or API calls — reading content from the store and writing results back with no local CLI.
+---
+
+import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
+
+# ▒ Šéŕṽéŕ-Šîđé Ƒļöŵš ▒
+
+▒ Ƒļöŵš öñ Ƃöŵŕàîñ Šéŕṽéŕ éẋéçüţé ţĥé šàḿé þŕöçéššîñĝ þîþéļîñéš àṽàîļàƃļé îñ ţĥé ÇĻÎ, ƃüţ ţŕîĝĝéŕéđ ƃý éṽéñţš, àüţöḿàţîöñš, öŕ ḿàñüàļ ÀÞÎ çàļļš. Šéŕṽéŕ-šîđé ƒļöŵš ŕüñ îñ ţĥé ƃàçķĝŕöüñđ, þŕöçéšš çöñţéñţ ƒŕöḿ ţĥé ÇöñţéñţŠţöŕé, àñđ ŵŕîţé ŕéšüļţš ƃàçķ — ñö ļöçàļ ÇĻÎ ñééđéđ. ▒
+
+## ▒ Ĥöŵ Šéŕṽéŕ-Šîđé Ƒļöŵš Ŵöŕķ ▒
+
+▒ Ŵĥéñ à ƒļöŵ ŕüñš öñ ţĥé šéŕṽéŕ, îţ ƒöļļöŵš ţĥîš ļîƒéçýçļé: ▒
+
+<PhaseFlow
+  nodes={[
+    { label: "Event", sub: "connector.push.completed" },
+    { label: "Automation rule matches", edge: "trigger" },
+    { label: "Enqueue translation jobs → worker", edge: "auto_translate" },
+    { label: "Read blocks from ContentStore", sub: "store binding", edge: "read", role: "io" },
+    { label: "Process through tool pipeline", edge: "tools", role: "translate" },
+    { label: "Write results to ContentStore", sub: "store binding", edge: "write", role: "io" },
+    { label: "Emit flow.completed / flow.failed", sub: "intended, not yet emitted", edge: "emit" },
+  ]}
+/>
+
+▒ Üñļîķé ÇĻÎ ƒļöŵš ţĥàţ ŕéàđ/ŵŕîţé ļöçàļ ƒîļéš, šéŕṽéŕ-šîđé ƒļöŵš öþéŕàţé öñ ţĥé ÇöñţéñţŠţöŕé — ţĥé šéŕṽéŕ'š þéŕšîšţéñţ ƃļöçķ šţöŕàĝé. Ţĥîš ḿéàñš ƒļöŵš çàñ ŕüñ ŵîţĥöüţ àñý ÇĻÎ çöññéçţéđ. ▒
+
+## ▒ Ţŕîĝĝéŕîñĝ Ƒļöŵš ▒
+
+### ▒ Ṽîà Àüţöḿàţîöñ Ŕüļéš ▒
+
+▒ Ţĥé ḿöšţ çöḿḿöñ ŵàý ţö ŕüñ šéŕṽéŕ-šîđé ƒļöŵš îš ţĥŕöüĝĥ àüţöḿàţîöñ ŕüļéš. Šéé [Àüţöḿàţîöñ](/server/automation) ƒöŕ đéţàîļš öñ çŕéàţîñĝ ŕüļéš. ▒
+
+▒ Éẋàḿþļé: àüţöḿàţîçàļļý ţŕàñšļàţé çöñţéñţ ŵĥéñ îţ àŕŕîṽéš ƒŕöḿ à çöññéçţöŕ þüšĥ: ▒
+
+```json
+{
+  "name": "auto-translate",
+  "trigger": "connector.push.completed",
+  "action": {
+    "type": "run_flow",
+    "config": {
+      "flow": "translate",
+      "target_locales": ["fr", "de", "ja"]
+    }
+  }
+}
+```
+
+### ▒ Ṽîà ÀÞÎ ▒
+
+▒ Ţŕîĝĝéŕ à ƒļöŵ ḿàñüàļļý ţĥŕöüĝĥ ţĥé ŔÉŠŢ ÀÞÎ: ▒
+
+```bash
+# Start a flow execution
+curl -X POST https://app.bowrain.cloud/api/v1/projects/:id/flows/run \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "flow": "translate",
+    "config": {
+      "target_locales": ["fr"],
+      "provider": "anthropic",
+      "model": "claude-sonnet-4.5"
+    }
+  }'
+
+# Response:
+# {
+#   "execution_id": "exec-abc123",
+#   "status": "running",
+#   "flow": "translate",
+#   "started_at": "2026-03-09T14:30:00Z"
+# }
+```
+
+### ▒ Ṽîà Ŵéƃ ÜÎ ▒
+
+▒ Ţĥé Ƃöŵŕàîñ ŵéƃ àþþ éẋþöšéš à **šüþéŕšéţ ƒļöŵ + àüţöḿàţîöñ éđîţöŕ** üñđéŕ
+**Þŕöĵéçţ > Àüţöḿàţîöñš**, ŵîţĥ ţĥŕéé ţàƃš: ▒
+
+1. ▒ **Ŕüñš** — àüţöḿàţîöñ ŕüñ ĥîšţöŕý (šéé [Àüţöḿàţîöñ](/server/automation)). ▒
+2. ▒ **Ŕüļéš** — ţŕîĝĝéŕ, ÇÉĻ çöñđîţîöñš, àñđ öŕđéŕéđ àçţîöñš. À `ŕüñ_ƒļöŵ`
+   àçţîöñ šéļéçţš à ƒļöŵ ƒŕöḿ ţĥé þŕöĵéçţ'š ƒļöŵ ŕéĝîšţŕý. ▒
+3. ▒ **Ƒļöŵš** — ţĥé ƒļöŵ çàñṽàš. Ţĥîš îš ţĥé šàḿé `@ñéöķàþî/ƒļöŵ-éđîţöŕ`
+   çöḿþöñéñţ ţĥé đéšķţöþ àþþš ŕéñđéŕ, ŵîŕéđ ţö ţĥé ƒļöŵ-đéƒîñîţîöñ ŔÉŠŢ ÀÞÎ.
+   Îţ ļîšţš ţĥé ƃüîļţ-îñ ƒļöŵš àļöñĝšîđé ţĥé þŕöĵéçţ'š šţöŕéđ ƒļöŵš àñđ éđîţš
+   ţĥé ļàţţéŕ öñ à ŕéàđéŕ → ţööļ(š) → ŵŕîţéŕ ĝŕàþĥ; ţŕàñšƒöŕḿéŕš šüçĥ àš
+   ŕéđàçţîöñ àñđ ñöŕḿàļîžàţîöñ àŕé öŕđîñàŕý öŕđéŕéđ šţéþš ŵĥöšé þļàçéḿéñţ îš
+   ṽàļîđàţéđ ŵĥéñ ţĥé ƒļöŵ îš ƃüîļţ. ▒
+
+▒ Ƒļöŵš àŕé **çöññéçţöŕ-àĝñöšţîç**: à ƒļöŵ ŕüñš šéŕṽéŕ-šîđé öñ çöñţéñţ ƒŕöḿ àñý
+[çöññéçţöŕ](/server/connectors). Ţĥé ĝŕàþĥ ñéṽéŕ ñàḿéš öñé — çöñţéñţ ţĥàţ
+àŕŕîṽéđ ƒŕöḿ à çöñţéñţ þļàţƒöŕḿ, à đéšîĝñ ţööļ, à ŕéþöšîţöŕý, öŕ à đéṽéļöþéŕ'š
+çĥéçķöüţ îš ĥàñđļéđ îđéñţîçàļļý. ▒
+
+## ▒ Ḿöñîţöŕîñĝ Éẋéçüţîöñš ▒
+
+### ▒ Þöļļîñĝ Šţàţüš ▒
+
+```bash
+# Check execution status
+curl https://app.bowrain.cloud/api/v1/projects/:id/flows/executions/:execId \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+# {
+#   "execution_id": "exec-abc123",
+#   "status": "completed",
+#   "flow": "translate",
+#   "started_at": "2026-03-09T14:30:00Z",
+#   "completed_at": "2026-03-09T14:30:42Z",
+#   "blocks_processed": 47,
+#   "summary": {
+#     "translated": 45,
+#     "skipped": 2
+#   }
+# }
+```
+
+### ▒ Éẋéçüţîöñ Šţàţéš ▒
+
+| Status      | Description                  |
+| ----------- | ---------------------------- |
+| `pending`   | Queued, waiting to start     |
+| `running`   | Currently processing blocks  |
+| `completed` | Finished successfully        |
+| `failed`    | Stopped due to an error      |
+| `cancelled` | Cancelled by user or timeout |
+
+### ▒ Ļîšţîñĝ Éẋéçüţîöñš ▒
+
+```bash
+# List recent executions for a project
+curl https://app.bowrain.cloud/api/v1/projects/:id/flows/executions \
+  -H "Authorization: Bearer $TOKEN"
+
+# Filter by flow name
+curl "https://app.bowrain.cloud/api/v1/projects/:id/flows/executions?flow=translate" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Filter by status
+curl "https://app.bowrain.cloud/api/v1/projects/:id/flows/executions?status=failed" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+## ▒ Éṽéñţ Ƒļöŵ Đîàĝŕàḿ ▒
+
+▒ Öñé éñđ-ţö-éñđ éẋàḿþļé — ţĥé đéṽéļöþéŕ ŕöüţé, ŵĥéŕé à çĥéçķöüţ þüšĥéš àñđ ţĥé
+šéŕṽéŕ ŕüñš ţĥé ƒļöŵ. Çöñţéñţ àŕŕîṽîñĝ ţĥŕöüĝĥ àñý öţĥéŕ çöññéçţöŕ ƒöļļöŵš ţĥé
+šàḿé šéŕṽéŕ-šîđé þàţĥ: ▒
+
+<SwimlaneDiagram
+  actors={[
+    { label: "Developer", sub: "kapi", role: "io" },
+    { label: "Bowrain Server", role: "translate" },
+    { label: "Translator", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "kapi push" },
+    { from: 1, to: 1, label: "Event: connector.push.completed" },
+    { from: 1, to: 1, label: "Automation: run translate", detail: "read → translate → write" },
+    { from: 1, to: 0, label: "kapi pull" },
+    { from: 2, to: 1, label: "Open editor, review, approve" },
+  ]}
+/>
+
+## ▒ Ḿàñàĝîñĝ Ƒļöŵ Đéƒîñîţîöñš ▒
+
+▒ Þŕöĵéçţ ƒļöŵ đéƒîñîţîöñš àŕé šţöŕéđ šéŕṽéŕ-šîđé àñđ éẋþöšéđ ţĥŕöüĝĥ à
+þŕöĵéçţ-šçöþéđ ŔÉŠŢ ÀÞÎ. Ţĥé ƒļöŵ éđîţöŕ îñ ţĥé ŵéƃ àþþ (àñđ ţĥé đéšķţöþ àþþš)
+đŕîṽéš ţĥéšé éñđþöîñţš; àüţöḿàţîöñš ŕéƒéŕéñçé à ƒļöŵ ƃý îţš `îđ`. ▒
+
+| Method   | Path                            | Description                                  |
+| -------- | ------------------------------- | -------------------------------------------- |
+| `GET`    | `/api/v1/:ws/:id/flows`         | List flows (built-in catalog + project flows) |
+| `GET`    | `/api/v1/:ws/:id/flows/:flowId` | Get one flow (built-in or project)           |
+| `POST`   | `/api/v1/:ws/:id/flows`         | Create a project flow                        |
+| `PUT`    | `/api/v1/:ws/:id/flows/:flowId` | Replace a project flow                       |
+| `DELETE` | `/api/v1/:ws/:id/flows/:flowId` | Delete a project flow                        |
+
+▒ Ƃüîļţ-îñ ƒļöŵš àŕé ŕéàđ-öñļý — ţĥé šéŕṽéŕ ŕéĵéçţš ŵŕîţéš ţö à ƒļöŵ ŵĥöšé `îđ`
+çöļļîđéš ŵîţĥ à ƃüîļţ-îñ. Ḿüţàţîöñš ŕéǫüîŕé ţĥé `ḿàñàĝé_àüţöḿàţîöñ` þéŕḿîššîöñ. ▒
+
+▒ À ƒļöŵ đéƒîñîţîöñ îš à ñöđé/éđĝé ĝŕàþĥ (ŕéàđéŕ → ţööļ(š) → ŵŕîţéŕ) ŕàţĥéŕ ţĥàñ
+à ƒļàţ šţéþ ļîšţ, šö îţ ŕöüñđ-ţŕîþš ļöššļéššļý ţĥŕöüĝĥ ţĥé ṽîšüàļ éđîţöŕ: ▒
+
+```bash
+curl -X POST https://app.bowrain.cloud/api/v1/acme/proj-1/flows \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "translate-with-qa",
+    "description": "Translate then run quality checks",
+    "nodes": [
+      {"id": "reader", "type": "reader", "name": "auto", "position": {"x": 0, "y": 0}},
+      {"id": "translate", "type": "tool", "name": "translate", "position": {"x": 250, "y": 0}},
+      {"id": "qa", "type": "tool", "name": "qa", "position": {"x": 500, "y": 0}},
+      {"id": "writer", "type": "writer", "name": "auto", "position": {"x": 750, "y": 0}}
+    ],
+    "edges": [
+      {"id": "e1", "source": "reader", "target": "translate"},
+      {"id": "e2", "source": "translate", "target": "qa"},
+      {"id": "e3", "source": "qa", "target": "writer"}
+    ]
+  }'
+```
+
+▒ Öñ ţĥé [đéṽéļöþéŕ ŕöüţé](/server/connectors/kapi), ƒļöŵ đéƒîñîţîöñš çàñ àļšö
+ļîṽé îñ à þŕöĵéçţ'š `.ķàþî/ƒļöŵš/` đîŕéçţöŕý àñđ ƃé þüšĥéđ ŵîţĥ ţĥé ŕéšţ öƒ ţĥé
+þŕöĵéçţ. ▒
+
+## ▒ Çöḿþöšîñĝ ḿüļţî-šţéþ ŵöŕķ ▒
+
+▒ Ḿüļţî-šţéþ ŵöŕķ çöḿþöšéš *îñšîđé* à šîñĝļé ƒļöŵ đéƒîñîţîöñ — ţĥé ñöđé ĝŕàþĥ
+àƃöṽé çĥàîñš ţŕàñšļàţé àñđ ǪÀ îñ öñé ŕüñ. Ţĥéŕé îš ñö ƒļöŵ-ţö-ƒļöŵ çĥàîñîñĝ:
+àüţöḿàţîöñš ŕéàçţ ţö çöñţéñţ éṽéñţš šüçĥ àš `çöññéçţöŕ.þüšĥ.çöḿþļéţéđ` ŵîţĥ à
+ƒîẋéđ šéţ öƒ àçţîöñš (ţŕàñšļàţé, éẋţŕàçţ, ñöţîƒý, ŕéṽîéŵ ţàšķš, öṽéŕļàý
+ŵŕîţéš — šéé [Àüţöḿàţîöñ](/server/automation)), àñđ ţĥé `ƒļöŵ.çöḿþļéţéđ`
+éṽéñţ îš đéƒîñéđ ƃüţ ñöţ ýéţ éḿîţţéđ, šö ñö àüţöḿàţîöñ çàñ ŕéàçţ ţö à ƒļöŵ
+ƒîñîšĥîñĝ. Šéé
+[Àüţöḿàţîöñ > Ļööþ Þŕéṽéñţîöñ](/server/automation#loop-prevention) ƒöŕ ĥöŵ
+ţĥé àüţöḿàţîöñ éñĝîñé ƃöüñđš éṽéñţ-đŕîṽéñ ŵöŕķ. ▒
+
+## ▒ Ŕéļàţéđ ▒
+
+- ▒ [Àüţöḿàţîöñ](/server/automation) — éṽéñţ-đŕîṽéñ àüţöḿàţîöñ ŕüļéš ▒
+- ▒ [Çöññéçţöŕš](/server/connectors) — ŵĥéŕé ƒļöŵ îñþüţ çöḿéš ƒŕöḿ ▒
+- ▒ [Ƒļöŵš öñ ţĥé đéṽéļöþéŕ ŕöüţé](/cli/flows/overview) — àüţĥöŕîñĝ ƒļöŵš îñ à þŕöĵéçţ ▒
+- ▒ [ķàþî üþ](/cli/commands/up) — çàţçĥ à çöññéçţéđ þŕöĵéçţ üþ (þüšĥ → ŕüñ → þüļļ) ▒
