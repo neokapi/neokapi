@@ -494,11 +494,8 @@ func (r *Reader) spanOffset(span []byte) int {
 // firstDifference returns the index of the first differing byte, or the length
 // of the shorter slice when one is a prefix of the other.
 func firstDifference(a, b []byte) int {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(a), len(b))
+	for i := range n {
 		if a[i] != b[i] {
 			return i
 		}
@@ -512,10 +509,7 @@ func excerptAt(b []byte, off int) string {
 	if off < 0 || off > len(b) {
 		return ""
 	}
-	end := off + 48
-	if end > len(b) {
-		end = len(b)
-	}
+	end := min(off+48, len(b))
 	// %q at the call site escapes newlines already.
 	return string(b[off:end])
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/translatability"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -2633,6 +2634,13 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 	var excludeStack []string
 	var excludeBuf strings.Builder
 	var excludeIsMath bool
+	// dntDepth counts open elements whose text the W3C table classifies
+	// non-translatable: <code>, <kbd>, <samp>, <var>. Kept apart from
+	// excludeStack, which mirrors okapi's EXCLUDE rule and folds content into
+	// an opaque placeholder. That would hide the text from content memory and
+	// the term checks; these keep their text in the block and mark it, the way
+	// a backtick span does.
+	dntDepth := 0
 	flushExclude := func() {
 		if excludeBuf.Len() == 0 {
 			return
@@ -2681,7 +2689,11 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				// regardless of how many spaces the source used (#1652).
 				seg = bytes.TrimRight(seg, " \t")
 			}
-			addTextWithEntities(b, string(seg), idCounter)
+			if dntDepth > 0 {
+				b.AddDNTText(string(seg))
+			} else {
+				addTextWithEntities(b, string(seg), idCounter)
+			}
 			if n.SoftLineBreak() {
 				b.AddText(softBreakContinuation(source, n.Segment.Stop))
 			}
@@ -2715,6 +2727,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				excludeStack = append(excludeStack, "")
 				continue
 			}
+			dntDepth += rawHTMLDNTDelta(n, source, dntDepth)
 			r.buildRawHTMLRuns(b, n, source, idCounter)
 
 		default:
@@ -2783,6 +2796,40 @@ func rawHTMLTagKind(n *ast.RawHTML, source []byte) rawHTMLKind {
 		return rawHTMLOpenExcluded
 	}
 	return rawHTMLOther
+}
+
+// rawHTMLDNTDelta reports how an inline HTML tag changes the do-not-translate
+// depth: +1 opening an element whose text the W3C table classifies
+// non-translatable, -1 closing one, 0 otherwise.
+//
+// It does not reuse rawHTMLTagKind, which answers a narrower question: that one
+// reports a close only for the okapi EXCLUDE set, so </code> comes back as
+// "other" and would raise the depth a second time.
+func rawHTMLDNTDelta(n *ast.RawHTML, source []byte, depth int) int {
+	var raw bytes.Buffer
+	for i := range n.Segments.Len() {
+		seg := n.Segments.At(i)
+		raw.Write(seg.Value(source))
+	}
+	s := raw.Bytes()
+	if len(s) < 2 || s[0] != '<' {
+		return 0
+	}
+	closing := s[1] == '/'
+	if translatability.Classify(rawHTMLTagName(n, source)) != translatability.No {
+		return 0
+	}
+	if closing {
+		if depth > 0 {
+			return -1
+		}
+		return 0
+	}
+	// A self-closing tag opens nothing.
+	if bytes.HasSuffix(bytes.TrimSpace(s), []byte("/>")) {
+		return 0
+	}
+	return 1
 }
 
 // rawHTMLTagName returns the lowercased element name of a RawHTML open/close
@@ -2930,10 +2977,13 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 			// table cell — and putting that back hands the writer a backslash
 			// to escape a second time.
 			if gap := source[prevStop:t.Segment.Start]; isLinePrefixGap(gap) {
-				b.AddText(string(gap))
+				b.AddDNTText(string(gap))
 			}
 		}
-		b.AddText(string(t.Segment.Value(source)))
+		// A code span's content is a command, a path or an identifier. The
+		// W3C table says so for <code>, and the backtick is its markdown
+		// spelling: core/translatability.Classify("code") is No.
+		b.AddDNTText(string(t.Segment.Value(source)))
 		prevStop = t.Segment.Stop
 	}
 	b.AddPcClose(id, "fmt:code", "md:code", closeMarker, info.Equiv)

@@ -96,6 +96,10 @@ message RunConstraints {
 // TextRunMessage is a plain text chunk.
 message TextRunMessage {
   string text = 1;
+  // Text that reads as prose but is not: the contents of a code span, a <kbd>,
+  // a <samp>. False means translatable, so a producer that predates the field
+  // keeps offering its runs.
+  bool no_translate = 2;
 }
 
 // PlaceholderRunMessage is a self-closing inline code (variable,

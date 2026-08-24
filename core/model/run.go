@@ -61,6 +61,23 @@ type RunConstraints struct {
 // TextRun is a plain text chunk.
 type TextRun struct {
 	Text string `json:"text"`
+	// NoTranslate marks text that reads as prose but is not: the contents of a
+	// code span, a <kbd> or a <samp>. It travels with the run because the span
+	// is a slice of a sentence, not a block of its own, and a translator asked
+	// for "run `kapi check --ship` in CI" must be free to translate the
+	// sentence and not the command.
+	//
+	// The polarity is inverted relative to Block.Translatable on purpose: the
+	// zero value has to mean translatable, or every run built by a caller that
+	// has not heard of this field would silently stop being offered.
+	NoTranslate bool `json:"noTranslate,omitempty"`
+}
+
+// Translatable reports whether this run's text belongs to the translator. Runs
+// that are not text are never translatable in themselves; their content, where
+// they have any, travels in the runs between them.
+func (r Run) Translatable() bool {
+	return r.Text != nil && !r.Text.NoTranslate
 }
 
 // Canonical, format-neutral attribute keys for the Attrs map carried by

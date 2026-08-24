@@ -377,7 +377,7 @@ func ProtoToDisplayHint(msg *pb.DisplayHintMessage) *model.DisplayHint {
 type protoRunBuilder struct{}
 
 func (protoRunBuilder) Text(t *model.TextRun) *pb.RunMessage {
-	return &pb.RunMessage{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: t.Text}}}
+	return &pb.RunMessage{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: t.Text, NoTranslate: t.NoTranslate}}}
 }
 
 func (protoRunBuilder) Ph(p *model.PlaceholderRun) *pb.RunMessage {
@@ -431,7 +431,7 @@ type protoRunParser struct{}
 
 func (protoRunParser) Text(m *pb.RunMessage) (*model.TextRun, bool) {
 	if k, ok := m.GetKind().(*pb.RunMessage_Text); ok {
-		return &model.TextRun{Text: k.Text.GetText()}, true
+		return &model.TextRun{Text: k.Text.GetText(), NoTranslate: k.Text.GetNoTranslate()}, true
 	}
 	return nil, false
 }

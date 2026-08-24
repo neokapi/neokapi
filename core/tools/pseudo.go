@@ -456,6 +456,12 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 	totalTextRunes := 0
 	for _, r := range runs {
 		switch {
+		case r.Text != nil && r.Text.NoTranslate:
+			// A code span, a <kbd>, a <samp>. Mangling it is how `kapi check
+			// --ship` became `ķàþî çĥéçķ --šĥîþ` on the docs site: the marker
+			// survived and the command did not. Carried through untouched,
+			// flag and all, so the writer puts back what it read.
+			out = append(out, model.Run{Text: &model.TextRun{Text: r.Text.Text, NoTranslate: true}})
 		case r.Text != nil:
 			accented := accentTransform(r.Text.Text)
 			totalTextRunes += len([]rune(accented))
