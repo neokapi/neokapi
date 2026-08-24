@@ -18,8 +18,12 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// `See [Ship gates &amp; CI](/x).` is the shape that does it. The same entity
-// outside a link reconstructs fine.
+// The fixture is a GFM task list, whose checkbox the rebuild drops. It is the
+// last shape in this repo's own docs that still diverges, which makes it the
+// honest subject here: these tests assert the reporting, and they will start
+// failing the day someone fixes the checkbox, at which point the fixture
+// should become whatever still diverges.
+const divergingSrc = "- [ ] `config.go` with a trailing clause.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -50,7 +54,7 @@ func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 }
 
 func TestOpaqueFallbackIsReported(t *testing.T) {
-	blocks, diags := readAll(t, "See [Ship gates &amp; CI](/x).\n")
+	blocks, diags := readAll(t, divergingSrc)
 
 	assert.Empty(t, blocks, "this is the shape that loses its blocks")
 	require.NotEmpty(t, diags,
@@ -67,14 +71,14 @@ func TestOpaqueFallbackIsReported(t *testing.T) {
 func TestFaithfulSpanIsSilent(t *testing.T) {
 	blocks, diags := readAll(t, "See [Ship gates & CI](/x).\n")
 
-	assert.NotEmpty(t, blocks, "a plain ampersand reconstructs")
+	assert.NotEmpty(t, blocks, "a plain link reconstructs")
 	assert.Empty(t, diags, "nothing was lost, so there is nothing to report")
 }
 
 // The diagnostic exists to end a bisect, so it has to name a position and show
 // the bytes that diverged.
 func TestDiagnosticLocatesTheDivergence(t *testing.T) {
-	_, diags := readAll(t, "First paragraph.\n\nSee [Ship gates &amp; CI](/x).\n")
+	_, diags := readAll(t, "First paragraph.\n\n"+divergingSrc)
 	require.NotEmpty(t, diags)
 
 	d := diags[0]
@@ -96,27 +100,22 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		opaque bool
 		want   string
 	}{
-		{
-			name:   "code span wrapping a blockquote continuation",
-			src:    "> A quoted line with `code that\n> wraps` across the break.\n",
-			opaque: true,
-			want:   "the > prefix is dropped on the continuation line",
-		},
-		{
-			name:   "code span wrapping a list continuation",
-			src:    "- An item with `code that\n  wraps` across the break.\n",
-			opaque: true,
-			want:   "the two-space indent is dropped on the continuation line",
-		},
-		{
-			name:   "entity in link text",
-			src:    "See [Ship gates &amp; CI](/x).\n",
-			opaque: true,
-			want:   "&amp; is decoded on read and not restored on render",
-		},
-		// The controls: same constructs without the wrapping code span, and
-		// the same entity outside a link. If these ever go opaque the fix
-		// above has over-reached.
+		// Both of these used to go opaque: a code span wrapping a line took
+		// its continuation prefix with it, because the span's runs were built
+		// by joining the parser's child segments and the prefix sits in the
+		// source BETWEEN them. Taking the content verbatim keeps it.
+		{name: "code span wrapping a blockquote continuation",
+			src: "> A quoted line with `code that\n> wraps` across the break.\n"},
+		{name: "code span wrapping a list continuation",
+			src: "- An item with `code that\n  wraps` across the break.\n"},
+		// An entity used to be left in the text as words. In a link it cost
+		// the region its blocks; in prose it was offered to the translator and
+		// came back as `&àḿþ;`. It is a placeholder now, so it survives both.
+		{name: "entity in link text", src: "See [Ship gates &amp; CI](/x).\n"},
+		{name: "entity in bold", src: "Ship gates **&amp; CI** here.\n"},
+		{name: "numeric entity", src: "Ship gates &#38; CI here.\n"},
+		// The controls: the same constructs without the wrapping code span.
+		// If these ever go opaque a fix above has over-reached.
 		{name: "plain wrapped blockquote", src: "> A quoted line that wraps onto\n> a second line here.\n"},
 		{name: "plain wrapped list item", src: "- An item that wraps onto\n  a second line here.\n"},
 		{name: "entity outside a link", src: "Ship gates &amp; CI here.\n"},

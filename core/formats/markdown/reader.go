@@ -53,14 +53,28 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 		b.AddText(text)
 		return
 	}
-	decoded := htmlEntityRE.ReplaceAllStringFunc(text, func(match string) string {
+	// An entity is markup, not prose. Left as text it is offered to the
+	// translator as words — `&amp;` came back pseudo-translated to `&àḿþ;` —
+	// and rewriting it to its character changes bytes the writer cannot put
+	// back, which costs the surrounding span its byte-exact rebuild and, with
+	// it, every translatable block it had.
+	//
+	// So each entity becomes a placeholder carrying its source bytes, with the
+	// decoded character as the equivalent so a translator and a length check
+	// still see one "&" rather than five characters of markup.
+	cursor := 0
+	for _, loc := range htmlEntityRE.FindAllStringIndex(text, -1) {
+		b.AddText(text[cursor:loc[0]])
+		raw := text[loc[0]:loc[1]]
+		*idCounter++
 		// xhtml.UnescapeString covers all HTML5 named entities plus
 		// decimal/hex numeric character references. If the lookup fails
 		// (unknown name) it returns the input unchanged.
-		return xhtml.UnescapeString(match)
-	})
-	b.AddText(decoded)
-	_ = idCounter
+		b.AddPh(strconv.Itoa(*idCounter), "code:html", "md:entity", raw,
+			"", xhtml.UnescapeString(raw), false, false, false)
+		cursor = loc[1]
+	}
+	b.AddText(text[cursor:])
 }
 
 // BlockPropLinePrefix is the per-block property holding the per-line
@@ -2892,12 +2906,54 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 	openMarker, closeMarker := codeSpanFences(n, source)
 	b.AddPcOpen(id, "fmt:code", "md:code", openMarker, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	// Join the child segments AND the source that sits between them. A code
+	// span may wrap across a line, and the continuation prefix the parser
+	// strips — "> " in a blockquote, the indent in a list item — lives in that
+	// gap. Dropping it fails the span's byte-exact rebuild, which costs the
+	// whole surrounding region its translatable blocks.
+	//
+	// The gap, rather than one verbatim slice of the whole span: inside a table
+	// cell the parser hands back segments with `\|` already unescaped, and
+	// re-reading those bytes from source would put the backslash back for the
+	// writer to escape a second time.
+	prevStop := -1
 	for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
-		if t, ok := gc.(*ast.Text); ok {
-			b.AddText(string(t.Segment.Value(source)))
+		t, isText := gc.(*ast.Text)
+		if !isText {
+			continue
 		}
+		if prevStop >= 0 && t.Segment.Start > prevStop && t.Segment.Start <= len(source) {
+			// Restore the gap only when it is spelled like a line prefix: the
+			// newline, indentation, and the blockquote markers that
+			// softBreakContinuation accepts. The other gap the parser leaves
+			// is an escape it deliberately dropped — the `\` of a `\|` in a
+			// table cell — and putting that back hands the writer a backslash
+			// to escape a second time.
+			if gap := source[prevStop:t.Segment.Start]; isLinePrefixGap(gap) {
+				b.AddText(string(gap))
+			}
+		}
+		b.AddText(string(t.Segment.Value(source)))
+		prevStop = t.Segment.Stop
 	}
 	b.AddPcClose(id, "fmt:code", "md:code", closeMarker, info.Equiv)
+}
+
+// isLinePrefixGap reports whether every byte of gap could belong to a line
+// continuation prefix, which is what separates "the parser stripped the `> `
+// that continues this blockquote" from "the parser dropped an escape".
+func isLinePrefixGap(gap []byte) bool {
+	if len(gap) == 0 {
+		return false
+	}
+	for _, c := range gap {
+		switch c {
+		case '\n', '\r', ' ', '\t', '>':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // codeSpanFences returns the opening and closing markers (each a run
