@@ -131,7 +131,11 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 		if err != nil {
 			return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 		}
-		v.SetTargetRuns(t.targetLocale, model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab))
+		// Whether a provider honours <code> is the provider's business, and a
+		// translated command is worse than an untranslated sentence, so the
+		// protected spans are put back rather than asked for.
+		translated := model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab)
+		v.SetTargetRuns(t.targetLocale, model.RestoreNonTranslatable(translated, sourceRuns))
 		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 		return nil
 	}
