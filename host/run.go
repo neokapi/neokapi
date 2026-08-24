@@ -80,6 +80,13 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 
 	// Create project context to resolve all defaults.
 	ctx := project.NewProjectContext(proj, projectPath)
+	// Set here, above the built-in-flow return below, because that path leaves
+	// this function directly. Downstream reader/writer configuration resolves
+	// each file's declared format through this context; without it a
+	// project-bound built-in flow falls back to extension detection and
+	// silently ignores the recipe's `format:` binding.
+	a.ProjectContext = ctx
+	defer func() { a.ProjectContext = nil }()
 
 	// Apply project defaults where CLI flags weren't explicitly set.
 	a.ResolveSourceLang(ctx.SourceLocale)
@@ -151,10 +158,6 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		}
 		return explainProjectFlowRun(cmd.OutOrStdout(), flowName, inputPaths, outputFlag, locales)
 	}
-
-	// Store project context for downstream reader/writer configuration.
-	a.ProjectContext = ctx
-	defer func() { a.ProjectContext = nil }()
 
 	// This run resolves the recipe's coordinates; a run at the server venue
 	// would not, until they are synced there.
