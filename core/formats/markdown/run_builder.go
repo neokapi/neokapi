@@ -18,14 +18,26 @@ func newRunBuilder() *runBuilder {
 // AppendText adds plain text. If the previous run is a TextRun, the new
 // text is appended to it rather than emitting a second adjacent TextRun.
 func (b *runBuilder) AddText(text string) {
+	b.addText(text, false)
+}
+
+// AddDNTText appends text that reads as prose but is not: the contents of a
+// code span, a <kbd>, a <samp>. It coalesces only with adjacent text of the
+// same kind, so a command never merges into the sentence around it and lose
+// its marking.
+func (b *runBuilder) AddDNTText(text string) {
+	b.addText(text, true)
+}
+
+func (b *runBuilder) addText(text string, noTranslate bool) {
 	if text == "" {
 		return
 	}
-	if n := len(b.runs); n > 0 && b.runs[n-1].Text != nil {
+	if n := len(b.runs); n > 0 && b.runs[n-1].Text != nil && b.runs[n-1].Text.NoTranslate == noTranslate {
 		b.runs[n-1].Text.Text += text
 		return
 	}
-	b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: text}})
+	b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: text, NoTranslate: noTranslate}})
 }
 
 // AddPh emits a self-closing placeholder run with the given metadata

@@ -2474,6 +2474,12 @@ generate-contract-types: ## Generate the shared TS contract + content-model type
 check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
 	$(GO) run ./scripts/gen-contract-types -check
 
+generate-translatability: ## Generate the W3C translatability table for the Go readers from packages/i18n-react (TS is the single definition)
+	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts
+
+check-translatability: ## Drift gate: fail if core/translatability/data/w3c.json is stale vs. the TypeScript table
+	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts -check
+
 generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
 	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
@@ -2797,6 +2803,7 @@ help: ## Show this help
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
         generate-contract-types check-contract-types \
+        generate-translatability check-translatability \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \

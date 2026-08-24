@@ -770,7 +770,11 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	t.addUsage(resp.Usage)
 
 	targetRuns := model.ParseRunsPlaceholderText(dntRestore(resp.Translation, dntRestoreMap), sourceRuns)
-	v.SetTargetRuns(t.targetLocale, targetRuns)
+	// The DNT masking above protects configured TERMS. A code span is
+	// protected structurally instead — the reader marked its runs — so it is
+	// restored from the source rather than matched by string, which cannot
+	// over-match a command that also appears in the prose.
+	v.SetTargetRuns(t.targetLocale, model.RestoreNonTranslatable(targetRuns, sourceRuns))
 	t.annotateTranslation(v, resp)
 
 	t.emitProgress(true, "")

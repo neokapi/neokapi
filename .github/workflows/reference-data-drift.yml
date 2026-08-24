@@ -27,6 +27,9 @@ on:
       - "packages/reference-data/data/**"
       - "packages/contract-types/src/contract.gen.ts"
       - "packages/contract-types/src/content.gen.ts"
+      - "packages/i18n-react/src/plugin/defaults.ts"
+      - "core/translatability/**"
+      - "scripts/gen-translatability.ts"
       - "core/proto/content/v1/**"
       - "cli/**/*.go"
       - "host/**/*.go"
@@ -64,6 +67,9 @@ on:
       - "packages/reference-data/data/**"
       - "packages/contract-types/src/contract.gen.ts"
       - "packages/contract-types/src/content.gen.ts"
+      - "packages/i18n-react/src/plugin/defaults.ts"
+      - "core/translatability/**"
+      - "scripts/gen-translatability.ts"
       - "core/proto/content/v1/**"
       - "cli/**/*.go"
       - "host/**/*.go"
@@ -139,6 +145,13 @@ jobs:
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types
+
+      # The W3C translatability table is defined once in TypeScript and
+      # generated into Go. Two hand-kept copies of a spec table drift the
+      # moment one side adds an element, and the symptom is a document that
+      # quietly stops being translated.
+      - name: Check the W3C translatability table for drift
+        run: make check-translatability
 
       - name: Validate format-ops ledger
         run: node scripts/format-ops/validate-ledger.mjs

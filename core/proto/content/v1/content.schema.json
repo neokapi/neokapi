@@ -665,6 +665,9 @@
     },
     "TextRunMessage": {
       "properties": {
+        "noTranslate": {
+          "type": "boolean"
+        },
         "text": {
           "type": "string"
         }

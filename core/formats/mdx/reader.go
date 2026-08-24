@@ -47,6 +47,10 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+	// promoted records elements the translatability table does not classify
+	// whose text was taken as translatable, so the inference is reported once
+	// each rather than once per paragraph.
+	promoted map[string]bool
 
 	// naming composes structural block names across the WHOLE document. One
 	// state, shared with every delegated markdown span, so the heading trail
@@ -356,9 +360,17 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 
 	// Reconstruct the untranslated span from blocks + skeleton and compare
 	// to the source bytes. Only splice when byte-identical.
-	if !r.spanReconstructsExactly(span, entries, blocksByOrigID) {
+	if ok, div := r.spanReconstructsExactly(span, entries, blocksByOrigID); !ok {
 		// Fall back to a single opaque region (verbatim skeleton + Data) so
 		// the byte-exact round-trip is preserved regardless of flag.
+		//
+		// Say so. The fallback costs this span every translatable block it
+		// had, and it is the right trade only while somebody can see it being
+		// made: a whole document can go opaque for one construct, and the
+		// symptom is a page that renders in the source language with no error
+		// anywhere. Recorded unconditionally rather than under ValidationMode,
+		// because the runs that most need to hear it are ordinary ones.
+		r.recordOpaqueFallback(span, div)
 		r.emitOpaque(ctx, ch, span, "markdown-opaque")
 		// When content surfacing is on, ALSO expose the prose the markdown
 		// sub-reader already parsed as non-translatable content (#928,
@@ -408,20 +420,102 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 // entries with each block's source runs reproduces span byte-for-byte.
 // This is exactly what the writer does for untranslated output, so a true
 // result guarantees the span round-trips faithfully.
-func (r *Reader) spanReconstructsExactly(span []byte, entries []spanSkelEntry, blocks map[string]*model.Block) bool {
+// spanDivergence locates the first byte at which a span failed to reconstruct,
+// which is the whole diagnostic: a reader that only says "this span did not
+// round-trip" leaves the reader of that message exactly where it started.
+type spanDivergence struct {
+	// offset is the byte offset into the span of the first difference.
+	offset int
+	// want and got are short excerpts from that offset, source and rebuild.
+	want string
+	got  string
+	// reason names the failure when it is not a byte difference.
+	reason string
+}
+
+func (r *Reader) spanReconstructsExactly(span []byte, entries []spanSkelEntry, blocks map[string]*model.Block) (bool, spanDivergence) {
 	var buf bytes.Buffer
 	for _, entry := range entries {
 		if entry.isRef {
 			block, ok := blocks[entry.refID]
 			if !ok {
-				return false
+				return false, spanDivergence{
+					offset: buf.Len(),
+					want:   excerptAt(span, buf.Len()),
+					reason: fmt.Sprintf("skeleton references block %q, which the markdown reader did not emit", entry.refID),
+				}
 			}
 			buf.WriteString(renderBlockSource(block))
 			continue
 		}
 		buf.Write(entry.text)
 	}
-	return bytes.Equal(buf.Bytes(), span)
+	rebuilt := buf.Bytes()
+	if bytes.Equal(rebuilt, span) {
+		return true, spanDivergence{}
+	}
+	off := firstDifference(rebuilt, span)
+	return false, spanDivergence{
+		offset: off,
+		want:   excerptAt(span, off),
+		got:    excerptAt(rebuilt, off),
+	}
+}
+
+// recordOpaqueFallback reports a span that lost every translatable block to the
+// round-trip guard, locating the divergence so the cause is a lookup rather
+// than a bisect.
+func (r *Reader) recordOpaqueFallback(span []byte, div spanDivergence) {
+	line, col := format.LineColumn(r.source, r.spanOffset(span)+div.offset)
+	detail := div.reason
+	if detail == "" {
+		detail = fmt.Sprintf("source has %q, rebuild has %q", div.want, div.got)
+	}
+	r.AddDiagnostic(format.Diagnostic{
+		Severity: format.SeverityMajor,
+		Category: "structure.markdown-span-opaque",
+		Message: "this span did not reconstruct byte-for-byte, so it carries no " +
+			"translatable content and will stay in the source language: " + detail,
+		Line:       line,
+		Column:     col,
+		ByteOffset: r.spanOffset(span) + div.offset,
+		Snippet:    div.want,
+	})
+}
+
+// spanOffset locates a span within the document, so a diagnostic reports a
+// position in the file rather than in a fragment nobody can see.
+func (r *Reader) spanOffset(span []byte) int {
+	if len(r.source) == 0 || len(span) == 0 {
+		return 0
+	}
+	if i := bytes.Index(r.source, span); i >= 0 {
+		return i
+	}
+	return 0
+}
+
+// firstDifference returns the index of the first differing byte, or the length
+// of the shorter slice when one is a prefix of the other.
+func firstDifference(a, b []byte) int {
+	n := min(len(a), len(b))
+	for i := range n {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
+}
+
+// excerptAt returns a short, single-line excerpt of b starting at off, so a
+// diagnostic can show what diverged without printing a document.
+func excerptAt(b []byte, off int) string {
+	if off < 0 || off > len(b) {
+		return ""
+	}
+	end := min(off+48, len(b))
+	// %q at the call site escapes newlines already.
+	return string(b[off:end])
 }
 
 // renderBlockSource renders a block's source runs the way the writer does

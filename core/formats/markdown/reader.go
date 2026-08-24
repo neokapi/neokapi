@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/core/translatability"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -53,14 +54,28 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 		b.AddText(text)
 		return
 	}
-	decoded := htmlEntityRE.ReplaceAllStringFunc(text, func(match string) string {
+	// An entity is markup, not prose. Left as text it is offered to the
+	// translator as words — `&amp;` came back pseudo-translated to `&àḿþ;` —
+	// and rewriting it to its character changes bytes the writer cannot put
+	// back, which costs the surrounding span its byte-exact rebuild and, with
+	// it, every translatable block it had.
+	//
+	// So each entity becomes a placeholder carrying its source bytes, with the
+	// decoded character as the equivalent so a translator and a length check
+	// still see one "&" rather than five characters of markup.
+	cursor := 0
+	for _, loc := range htmlEntityRE.FindAllStringIndex(text, -1) {
+		b.AddText(text[cursor:loc[0]])
+		raw := text[loc[0]:loc[1]]
+		*idCounter++
 		// xhtml.UnescapeString covers all HTML5 named entities plus
 		// decimal/hex numeric character references. If the lookup fails
 		// (unknown name) it returns the input unchanged.
-		return xhtml.UnescapeString(match)
-	})
-	b.AddText(decoded)
-	_ = idCounter
+		b.AddPh(strconv.Itoa(*idCounter), "code:html", "md:entity", raw,
+			"", xhtml.UnescapeString(raw), false, false, false)
+		cursor = loc[1]
+	}
+	b.AddText(text[cursor:])
 }
 
 // BlockPropLinePrefix is the per-block property holding the per-line
@@ -2619,6 +2634,13 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 	var excludeStack []string
 	var excludeBuf strings.Builder
 	var excludeIsMath bool
+	// dntDepth counts open elements whose text the W3C table classifies
+	// non-translatable: <code>, <kbd>, <samp>, <var>. Kept apart from
+	// excludeStack, which mirrors okapi's EXCLUDE rule and folds content into
+	// an opaque placeholder. That would hide the text from content memory and
+	// the term checks; these keep their text in the block and mark it, the way
+	// a backtick span does.
+	dntDepth := 0
 	flushExclude := func() {
 		if excludeBuf.Len() == 0 {
 			return
@@ -2667,7 +2689,11 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				// regardless of how many spaces the source used (#1652).
 				seg = bytes.TrimRight(seg, " \t")
 			}
-			addTextWithEntities(b, string(seg), idCounter)
+			if dntDepth > 0 {
+				b.AddDNTText(string(seg))
+			} else {
+				addTextWithEntities(b, string(seg), idCounter)
+			}
 			if n.SoftLineBreak() {
 				b.AddText(softBreakContinuation(source, n.Segment.Stop))
 			}
@@ -2701,6 +2727,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				excludeStack = append(excludeStack, "")
 				continue
 			}
+			dntDepth += rawHTMLDNTDelta(n, source, dntDepth)
 			r.buildRawHTMLRuns(b, n, source, idCounter)
 
 		default:
@@ -2769,6 +2796,40 @@ func rawHTMLTagKind(n *ast.RawHTML, source []byte) rawHTMLKind {
 		return rawHTMLOpenExcluded
 	}
 	return rawHTMLOther
+}
+
+// rawHTMLDNTDelta reports how an inline HTML tag changes the do-not-translate
+// depth: +1 opening an element whose text the W3C table classifies
+// non-translatable, -1 closing one, 0 otherwise.
+//
+// It does not reuse rawHTMLTagKind, which answers a narrower question: that one
+// reports a close only for the okapi EXCLUDE set, so </code> comes back as
+// "other" and would raise the depth a second time.
+func rawHTMLDNTDelta(n *ast.RawHTML, source []byte, depth int) int {
+	var raw bytes.Buffer
+	for i := range n.Segments.Len() {
+		seg := n.Segments.At(i)
+		raw.Write(seg.Value(source))
+	}
+	s := raw.Bytes()
+	if len(s) < 2 || s[0] != '<' {
+		return 0
+	}
+	closing := s[1] == '/'
+	if translatability.Classify(rawHTMLTagName(n, source)) != translatability.No {
+		return 0
+	}
+	if closing {
+		if depth > 0 {
+			return -1
+		}
+		return 0
+	}
+	// A self-closing tag opens nothing.
+	if bytes.HasSuffix(bytes.TrimSpace(s), []byte("/>")) {
+		return 0
+	}
+	return 1
 }
 
 // rawHTMLTagName returns the lowercased element name of a RawHTML open/close
@@ -2892,12 +2953,57 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 	openMarker, closeMarker := codeSpanFences(n, source)
 	b.AddPcOpen(id, "fmt:code", "md:code", openMarker, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	// Join the child segments AND the source that sits between them. A code
+	// span may wrap across a line, and the continuation prefix the parser
+	// strips — "> " in a blockquote, the indent in a list item — lives in that
+	// gap. Dropping it fails the span's byte-exact rebuild, which costs the
+	// whole surrounding region its translatable blocks.
+	//
+	// The gap, rather than one verbatim slice of the whole span: inside a table
+	// cell the parser hands back segments with `\|` already unescaped, and
+	// re-reading those bytes from source would put the backslash back for the
+	// writer to escape a second time.
+	prevStop := -1
 	for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
-		if t, ok := gc.(*ast.Text); ok {
-			b.AddText(string(t.Segment.Value(source)))
+		t, isText := gc.(*ast.Text)
+		if !isText {
+			continue
 		}
+		if prevStop >= 0 && t.Segment.Start > prevStop && t.Segment.Start <= len(source) {
+			// Restore the gap only when it is spelled like a line prefix: the
+			// newline, indentation, and the blockquote markers that
+			// softBreakContinuation accepts. The other gap the parser leaves
+			// is an escape it deliberately dropped — the `\` of a `\|` in a
+			// table cell — and putting that back hands the writer a backslash
+			// to escape a second time.
+			if gap := source[prevStop:t.Segment.Start]; isLinePrefixGap(gap) {
+				b.AddDNTText(string(gap))
+			}
+		}
+		// A code span's content is a command, a path or an identifier. The
+		// W3C table says so for <code>, and the backtick is its markdown
+		// spelling: core/translatability.Classify("code") is No.
+		b.AddDNTText(string(t.Segment.Value(source)))
+		prevStop = t.Segment.Stop
 	}
 	b.AddPcClose(id, "fmt:code", "md:code", closeMarker, info.Equiv)
+}
+
+// isLinePrefixGap reports whether every byte of gap could belong to a line
+// continuation prefix, which is what separates "the parser stripped the `> `
+// that continues this blockquote" from "the parser dropped an escape".
+func isLinePrefixGap(gap []byte) bool {
+	if len(gap) == 0 {
+		return false
+	}
+	for _, c := range gap {
+		switch c {
+		case '\n', '\r', ' ', '\t', '>':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // codeSpanFences returns the opening and closing markers (each a run

@@ -440,8 +440,12 @@ func (x *RunConstraints) GetReorderable() bool {
 
 // TextRunMessage is a plain text chunk.
 type TextRunMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Text  string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	// Text that reads as prose but is not: the contents of a code span, a <kbd>,
+	// a <samp>. False means translatable, so a producer that predates the field
+	// keeps offering its runs.
+	NoTranslate   bool `protobuf:"varint,2,opt,name=no_translate,json=noTranslate,proto3" json:"no_translate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -481,6 +485,13 @@ func (x *TextRunMessage) GetText() string {
 		return x.Text
 	}
 	return ""
+}
+
+func (x *TextRunMessage) GetNoTranslate() bool {
+	if x != nil {
+		return x.NoTranslate
+	}
+	return false
 }
 
 // PlaceholderRunMessage is a self-closing inline code (variable,
@@ -2386,9 +2397,10 @@ const file_core_proto_content_v1_content_proto_rawDesc = "" +
 	"\x0eRunConstraints\x12\x1c\n" +
 	"\tdeletable\x18\x01 \x01(\bR\tdeletable\x12\x1c\n" +
 	"\tcloneable\x18\x02 \x01(\bR\tcloneable\x12 \n" +
-	"\vreorderable\x18\x03 \x01(\bR\vreorderable\"$\n" +
+	"\vreorderable\x18\x03 \x01(\bR\vreorderable\"G\n" +
 	"\x0eTextRunMessage\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\"\xe0\x02\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12!\n" +
+	"\fno_translate\x18\x02 \x01(\bR\vnoTranslate\"\xe0\x02\n" +
 	"\x15PlaceholderRunMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +

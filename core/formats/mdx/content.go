@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/translatability"
 )
 
 // content.go implements MDX-specific non-translatable content surfacing
@@ -38,6 +41,14 @@ type contentSeg struct {
 	// fresh naming scope, so a cell is addressed by its row and column rather
 	// than by a count across the whole table. Zero means no such structure.
 	scope int
+	// element is the innermost JSX element this text sits in, in its source
+	// spelling, or "" at the top level of a region or inside a fragment.
+	element string
+	// translatable is the splitter's answer, not a default this struct
+	// supplies. emitContentSegs serves both the JSX and table paths, and a
+	// shared default is how the table's cells — which name no element — would
+	// quietly inherit whatever the JSX path decided.
+	translatable bool
 }
 
 // isASCIISpaceByte reports whether b is ASCII inter-token whitespace.
@@ -75,7 +86,35 @@ func segsReconstruct(segs []contentSeg, region []byte) bool {
 // JSX text children are surfaced VERBATIM (a single run, no inline parse) and
 // trimmed of leading/trailing ASCII whitespace, with that whitespace kept in
 // the skeleton so round-trip stays byte-exact.
-func splitJSXSegments(span []byte) ([]contentSeg, bool) {
+// jsxTextTranslatable answers whether text directly inside element belongs to
+// the translator, from the W3C table the JSX transform uses.
+//
+// An element the table does not classify is a container, and every React
+// component arrives that way. Containers are PROMOTED rather than skipped:
+// dropping the text of an unfamiliar component is how a page ends up half
+// translated with nothing to say why. Each promotion is recorded so the
+// inference is reported, exactly as the TypeScript transform reports it.
+//
+// Text with no enclosing element is at the top level of a JSX region or inside
+// a fragment, which is prose in a component's body.
+func jsxTextTranslatable(element string, promoted *[]string) bool {
+	if element == "" {
+		return true
+	}
+	switch translatability.Classify(strings.ToLower(element)) {
+	case translatability.Yes:
+		return true
+	case translatability.No:
+		return false
+	default:
+		*promoted = append(*promoted, element)
+		return true
+	}
+}
+
+// The second return names the elements promoted while splitting, so the
+// caller can report the inference.
+func splitJSXSegments(span []byte) ([]contentSeg, []string, bool) {
 	var segs []contentSeg
 	n := len(span)
 	structStart := 0
@@ -83,6 +122,19 @@ func splitJSXSegments(span []byte) ([]contentSeg, bool) {
 		if upto > structStart {
 			segs = append(segs, contentSeg{text: span[structStart:upto]})
 		}
+	}
+
+	// stack holds the open element names, innermost last, so a text run can
+	// be attributed to the element it sits in.
+	var stack []string
+	// promotedHere collects elements the table does not classify whose text
+	// was taken as translatable, for the caller to report.
+	var promotedHere []string
+	enclosing := func() string {
+		if len(stack) == 0 {
+			return ""
+		}
+		return stack[len(stack)-1]
 	}
 
 	i := 0
@@ -95,19 +147,38 @@ func splitJSXSegments(span []byte) ([]contentSeg, bool) {
 		}
 		switch span[i] {
 		case '<':
+			name := jsxTagNameAt(span, i)
 			sc := &jsxScanner{body: span, pos: i}
-			tok, _ := sc.consumeTag()
+			tok, selfClosing := sc.consumeTag()
 			if tok == jsxOther || sc.pos <= i {
 				// Not a clean JSX tag (e.g. a literal `<` in text) — bail and
 				// let the caller keep the region opaque.
-				return nil, false
+				return nil, nil, false
+			}
+			if tok == jsxStartTag {
+				// An attribute's value is copy the reader sees, so it leaves
+				// the skeleton and becomes a child of the tag it sits in.
+				for _, av := range jsxTranslatableAttrValues(span[i:sc.pos], name) {
+					vs, ve := i+av.start, i+av.end
+					flushStruct(vs)
+					segs = append(segs, contentSeg{
+						text: span[vs:ve], isChild: true, element: name, translatable: true,
+					})
+					structStart = ve
+				}
+			}
+			switch {
+			case tok == jsxStartTag && !selfClosing:
+				stack = append(stack, name)
+			case tok == jsxEndTag && len(stack) > 0:
+				stack = stack[:len(stack)-1]
 			}
 			i = sc.pos
 		case '{':
 			js := &jsScanner{body: span, pos: i + 1}
 			js.skipBraces()
 			if js.pos <= i {
-				return nil, false
+				return nil, nil, false
 			}
 			i = js.pos
 		default:
@@ -138,16 +209,20 @@ func splitJSXSegments(span []byte) ([]contentSeg, bool) {
 				te--
 			}
 			flushStruct(ls)
-			segs = append(segs, contentSeg{text: span[ls:te], isChild: true})
+			el := enclosing()
+			segs = append(segs, contentSeg{
+				text: span[ls:te], isChild: true, element: el,
+				translatable: jsxTextTranslatable(el, &promotedHere),
+			})
 			structStart = te
 		}
 	}
 	flushStruct(n)
 
 	if !segsReconstruct(segs, span) {
-		return nil, false
+		return nil, nil, false
 	}
-	return segs, true
+	return segs, promotedHere, true
 }
 
 // splitTableSegments partitions a GFM table region into structural skeleton
@@ -263,7 +338,7 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		block.Name = r.naming.Name(nameKind)
 		block.Type = blockType
 		block.SourceLocale = locale
-		block.Translatable = false
+		block.Translatable = s.translatable
 		block.PreserveWhitespace = true
 		// The segment is a byte slice of the region, so the writer must emit
 		// it unchanged — see BlockPropVerbatim.
@@ -279,13 +354,35 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 	return true
 }
 
+// notePromotion records, once per element, that an unclassified element's text
+// was taken as translatable.
+func (r *Reader) notePromotion(element string) {
+	if r.promoted == nil {
+		r.promoted = map[string]bool{}
+	}
+	if r.promoted[element] {
+		return
+	}
+	r.promoted[element] = true
+	r.AddDiagnostic(format.Diagnostic{
+		Severity: format.SeverityNeutral,
+		Category: "structure.jsx-promoted",
+		Message: "<" + element + "> is not in the translatability table, so its " +
+			"text was taken as translatable. Add translate=\"no\" to the element " +
+			"if it holds markup rather than prose.",
+	})
+}
+
 // emitJSX surfaces a block-level JSX region's text children as
 // Translatable:false content blocks when surfacing is enabled and feasible;
 // otherwise it preserves the region opaque (verbatim skeleton + Data),
 // identical to the prior behaviour.
 func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) bool {
 	if r.skeletonStore != nil && r.cfg.ExtractNonTranslatableContent() {
-		if segs, ok := splitJSXSegments(span); ok && anyChild(segs) {
+		if segs, promoted, ok := splitJSXSegments(span); ok && anyChild(segs) {
+			for _, el := range promoted {
+				r.notePromotion(el)
+			}
 			// The element is the structure its text children sit in, so it
 			// scopes their ordinals — as a list scopes its items.
 			defer r.naming.Push("jsx")()

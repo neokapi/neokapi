@@ -1,5 +1,7 @@
 package mdx
 
+import "github.com/neokapi/neokapi/core/translatability"
+
 // jsxTagToken classifies the next structural JSX event for tag-depth
 // balancing in scanJSX.
 type jsxTagToken int
@@ -12,6 +14,117 @@ const (
 	jsxFragmentClose                    // </>
 	jsxEOF
 )
+
+// attrValue is the byte range of one attribute's quoted value, relative to the
+// start of the tag it was found in.
+type attrValue struct{ start, end int }
+
+// jsxTranslatableAttrValues returns the quoted values in tag whose attribute
+// names carry user-visible text on this element, in source order.
+//
+// Only literal quoted values. An `{expression}` value is code: its bytes are
+// not a string a translator can be handed, and rewriting them would change the
+// program.
+func jsxTranslatableAttrValues(tag []byte, element string) []attrValue {
+	var out []attrValue
+	i := 0
+	// Skip `<` and the element name.
+	for i < len(tag) && tag[i] != ' ' && tag[i] != '\t' && tag[i] != '\n' && tag[i] != '>' {
+		i++
+	}
+	for i < len(tag) {
+		for i < len(tag) && (tag[i] == ' ' || tag[i] == '\t' || tag[i] == '\n' || tag[i] == '\r') {
+			i++
+		}
+		if i >= len(tag) || tag[i] == '>' || tag[i] == '/' {
+			break
+		}
+		nameStart := i
+		for i < len(tag) && (isTagNameByte(tag[i]) || tag[i] == '-') {
+			i++
+		}
+		name := string(tag[nameStart:i])
+		if name == "" {
+			i++
+			continue
+		}
+		for i < len(tag) && (tag[i] == ' ' || tag[i] == '\t') {
+			i++
+		}
+		if i >= len(tag) || tag[i] != '=' {
+			continue // a bare attribute carries no value
+		}
+		i++
+		for i < len(tag) && (tag[i] == ' ' || tag[i] == '\t') {
+			i++
+		}
+		if i >= len(tag) {
+			break
+		}
+		switch q := tag[i]; q {
+		case '"', '\'':
+			i++
+			valStart := i
+			for i < len(tag) && tag[i] != q {
+				i++
+			}
+			if i >= len(tag) {
+				return out
+			}
+			if valStart < i && translatability.IsTranslatableAttribute(name, element) {
+				out = append(out, attrValue{start: valStart, end: i})
+			}
+			i++
+		case '{':
+			js := &jsScanner{body: tag, pos: i + 1}
+			js.skipBraces()
+			if js.pos <= i {
+				return out
+			}
+			i = js.pos
+		default:
+			for i < len(tag) && tag[i] != ' ' && tag[i] != '>' {
+				i++
+			}
+		}
+	}
+	return out
+}
+
+// isTagNameByte reports whether b can appear in an element or attribute name.
+func isTagNameByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') ||
+		(b >= '0' && b <= '9') || b == '_' || b == '.' || b == '$' || b == ':'
+}
+
+// jsxTagNameAt returns the element name of the tag starting at pos (which must
+// be a '<'), or "" for a fragment or a non-tag. The scanner reports tag events
+// for depth balancing and does not need the name; translatability does,
+// because the W3C table answers per element.
+//
+// The name keeps its source spelling. Classification lowercases it, but a
+// diagnostic has to name the element the author actually wrote: <TabItem>
+// lowercased is a component nobody can find.
+func jsxTagNameAt(body []byte, pos int) string {
+	i := pos + 1
+	if i < len(body) && body[i] == '/' {
+		i++
+	}
+	start := i
+	for i < len(body) {
+		c := body[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+			c == '-' || c == '_' || c == '.' || c == '$' {
+			i++
+			continue
+		}
+		break
+	}
+	if i == start {
+		return ""
+	}
+	return string(body[start:i])
+}
 
 // jsxScanner walks block-level JSX, reporting tag-open/close events so the
 // caller can balance element nesting. Inside the scan it skips:

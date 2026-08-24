@@ -71,10 +71,14 @@ func opaqueData(parts []*model.Part, name string) []string {
 // --- Treatment A: block-level JSX text children (#928) ---
 
 // TestJSXChildrenSurfacedWhenOn verifies that with the flag ON, a block-level
-// JSX element's text children are surfaced as non-translatable content blocks
-// (RoleCode-free plain strings, PreserveWhitespace, single verbatim run) with
-// the tags/attributes/{expressions} kept in the skeleton, and that the
-// untranslated round-trip stays byte-for-byte.
+// JSX element's text children are surfaced as content blocks (RoleCode-free
+// plain strings, PreserveWhitespace, single verbatim run) with the
+// tags/attributes/{expressions} kept in the skeleton, and that the untranslated
+// round-trip stays byte-for-byte.
+//
+// <Callout> is not in the W3C translatability table, so it is a container, and
+// a container holding direct text is promoted: its prose is a component's
+// body, and dropping it is how a page ends up half translated.
 func TestJSXChildrenSurfacedWhenOn(t *testing.T) {
 	src := []byte(`# Title
 
@@ -90,7 +94,8 @@ Done.
 	children := contentBlocks(parts, "jsx-text")
 	require.NotEmpty(t, children, "expected JSX text children surfaced as content blocks")
 	for _, b := range children {
-		assert.False(t, b.Translatable, "JSX text children must be non-translatable")
+		assert.True(t, b.Translatable,
+			"an unclassified component's text is promoted, not dropped")
 		assert.True(t, b.PreserveWhitespace, "JSX text children ride verbatim")
 		assert.Len(t, b.Source, 1, "JSX text child must be a single verbatim run")
 		assert.NotContains(t, b.SourceText(), "<", "no tag bytes in a content block")
