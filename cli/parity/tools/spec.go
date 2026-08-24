@@ -45,7 +45,10 @@ var toolSpecs = []ToolSpec{
 	{ID: "b-o-m-conversion"},
 	{ID: "batch-tm-leveraging", Skip: SkipNeedsContext},
 	{ID: "batch-translation", Skip: SkipNeedsContext},
-	{ID: "char-listing"},
+	// Okapi defaults this step to autoOpen=true and writes charlist.txt,
+	// so running it launches the desktop handler for that file. A test
+	// suite must not open windows on the machine running it.
+	{ID: "char-listing", StepParams: map[string]string{"autoOpen": "false"}},
 	{ID: "character-count"},
 	{ID: "characters-checker"},
 	{ID: "cleanup"},
@@ -116,7 +119,7 @@ var toolSpecs = []ToolSpec{
 	{ID: "id-based-aligner", Skip: SkipNeedsContext},
 	{ID: "id-based-copy", Skip: SkipNeedsContext},
 	{ID: "image-modification", Skip: SkipNeedsParams},
-	{ID: "inconsistency-check"},
+	{ID: "inconsistency-check", StepParams: map[string]string{"autoOpen": "false"}},
 	{ID: "inline-codes-checker"},
 	{ID: "length-checker"},
 	{ID: "leveraging", Skip: SkipNeedsContext},
@@ -157,7 +160,9 @@ var toolSpecs = []ToolSpec{
 	{ID: "uri-conversion"},
 	{ID: "whitespace-correction"},
 	{ID: "word-count"},
-	{ID: "x-m-l-analysis"},
+	// Writes analysis.html and opens it: xmlanalysis/Parameters.reset()
+	// sets autoOpen(true), and XMLAnalyzer calls Util.openURL on it.
+	{ID: "x-m-l-analysis", StepParams: map[string]string{"autoOpen": "false"}},
 	{ID: "x-m-l-char-fixing"},
 	{ID: "x-m-l-validation"},
 	{ID: "x-s-l-transform", Skip: SkipNeedsParams},
