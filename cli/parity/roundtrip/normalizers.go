@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	stdhtml "html"
 	"io"
 	"regexp"
 	"sort"
@@ -218,13 +219,32 @@ func stripDoxygenMarker(line string) string {
 //     list-marker content; CommonMark spec is silent on the exact
 //     reflow, so two indents that differ by one space are treated as
 //     equivalent for canonical-equality.
+//   - HTML character references decode to the characters they denote.
+//     Okapi decodes an entity into the text it hands its writer, so
+//     `Ampere&#39;s` comes back as `Ampere's`. Native keeps the source
+//     spelling: decoding it into the block's text handed the entity to
+//     the translator as words and, worse, left the text unable to
+//     reconstruct the source byte-for-byte, so an entity inside link
+//     text failed the MDX faithfulness check and took its whole region
+//     opaque. CommonMark §6.5 makes reference and character equivalent
+//     in rendered output, which is what canonical-equality compares.
 type MarkdownCanonical struct{}
 
 // Name implements Normalizer.
 func (MarkdownCanonical) Name() string { return "markdown-canonical" }
 
+// markdownEntityRe matches one HTML character reference: a named entity or a
+// decimal/hex numeric reference.
+var markdownEntityRe = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
 // Normalize implements Normalizer.
 func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
+	// Decode character references first, so a reference on one side and the
+	// character on the other compare equal. html.UnescapeString returns an
+	// unknown name unchanged, so an invalid reference stays a byte difference.
+	in = markdownEntityRe.ReplaceAllFunc(in, func(m []byte) []byte {
+		return []byte(stdhtml.UnescapeString(string(m)))
+	})
 	lines := strings.Split(string(in), "\n")
 	for i, l := range lines {
 		// All-whitespace line → empty.
