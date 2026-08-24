@@ -55,14 +55,26 @@ n=0
 while IFS= read -r f; do
   rel="${f#docs/}"
   mkdir -p "$out/$(dirname "$rel")"
-  # -f mdx for BOTH extensions, which is what kapi.yaml already declares for
-  # these trees: "Docusaurus v3 parses .md as MDX by default and these files use
-  # ESM imports and JSX freely — so the mdx reader is the truthful format."
-  # Without it a .md page goes through the MARKDOWN reader, which does not know
-  # JSX and reads a multi-line <Component …/> as a paragraph of prose — so the
-  # tag name and its attribute names get translated and the page stops
-  # compiling. 33 of the neokapi docs failed exactly this way.
-  "$kapi" pseudo-translate "$f" --target-lang qps -f mdx -o "$out/$rel" -q >/dev/null
+  # -p binds the recipe, which is where the reader CONFIGURATION lives:
+  #
+  #     mdx:
+  #       config:
+  #         translateFrontMatter: true
+  #         frontMatterKeys: [title, description, sidebar_label]
+  #
+  # Without it the frontmatter passes through verbatim, so every sidebar entry,
+  # page title and meta description renders English in the pseudo build and
+  # reads as "not translatable" when it means "never offered". KAPI_NO_PROJECT
+  # stays set: it turns off the upward-walk DISCOVERY, and an explicit -p still
+  # wins, so this binds deliberately rather than by cwd.
+  #
+  # -f mdx stays too, for BOTH extensions. It names the format, which -p would
+  # also supply, but it does so independently of the collection globs: a .md
+  # read by the MARKDOWN reader takes a multi-line <Component …/> for a
+  # paragraph of prose and translates the tag and attribute names, and 33 pages
+  # stopped compiling that way. The recipe's own note says the same thing.
+  "$kapi" pseudo-translate "$f" --target-lang qps -p "$repo_root/kapi.yaml" \
+    -f mdx -o "$out/$rel" -q >/dev/null
   n=$((n + 1))
 done < <(find docs -name "*.md" -o -name "*.mdx" | sort)
 echo "==> $site: $n pages pseudo-translated into $out"
