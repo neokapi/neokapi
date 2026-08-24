@@ -155,6 +155,18 @@ func splitJSXSegments(span []byte) ([]contentSeg, []string, bool) {
 				// let the caller keep the region opaque.
 				return nil, nil, false
 			}
+			if tok == jsxStartTag {
+				// An attribute's value is copy the reader sees, so it leaves
+				// the skeleton and becomes a child of the tag it sits in.
+				for _, av := range jsxTranslatableAttrValues(span[i:sc.pos], name) {
+					vs, ve := i+av.start, i+av.end
+					flushStruct(vs)
+					segs = append(segs, contentSeg{
+						text: span[vs:ve], isChild: true, element: name, translatable: true,
+					})
+					structStart = ve
+				}
+			}
 			switch {
 			case tok == jsxStartTag && !selfClosing:
 				stack = append(stack, name)
