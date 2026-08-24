@@ -188,7 +188,11 @@ Done.
 			assert.NotContains(t, txt, "Callout", "component name leaked into block")
 			assert.NotContains(t, txt, "<", "a tag leaked into a content block")
 			if b.Type == "jsx-text" {
-				assert.False(t, b.Translatable, "JSX text children must be non-translatable")
+				// <Callout> and the fragment are containers by the W3C table,
+				// so their direct text is promoted. The round-trip assertion
+				// at the end is what proves promotion costs no fidelity.
+				assert.True(t, b.Translatable,
+					"a container's direct text is promoted, not dropped")
 				assert.True(t, b.PreserveWhitespace, "JSX text children ride verbatim")
 				jsxChildren = append(jsxChildren, txt)
 			}

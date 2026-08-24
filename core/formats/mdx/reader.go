@@ -47,6 +47,10 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+	// promoted records elements the translatability table does not classify
+	// whose text was taken as translatable, so the inference is reported once
+	// each rather than once per paragraph.
+	promoted map[string]bool
 
 	// naming composes structural block names across the WHOLE document. One
 	// state, shared with every delegated markdown span, so the heading trail
