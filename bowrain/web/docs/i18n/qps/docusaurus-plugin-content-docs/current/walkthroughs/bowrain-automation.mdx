@@ -1,0 +1,49 @@
+---
+id: bowrain-automation
+title: "Automate translation sync with local rules + CI"
+sidebar_label: "Automation"
+description: "Two layers of automation: local automations on the .kapi recipe + a CI pipeline or the server's converge-on-push policy."
+---
+
+import { PendingMedia } from "@neokapi/docs-shared";
+
+# ▒ Àüţöḿàţé ţŕàñšļàţîöñ šýñç ŵîţĥ ļöçàļ ŕüļéš + ÇÎ ▒
+
+▒ Ƃöŵŕàîñ ĥàš ţŵö ļàýéŕš öƒ àüţöḿàţîöñ: **ļöçàļ ŕüļéš** đéçļàŕéđ öñ ţĥé `ķàþî.ýàḿļ`
+ŕéçîþé (ţöþ-ļéṽéļ `àüţöḿàţîöñš:`) ţĥàţ ŕüñ öñ ţĥé đéṽéļöþéŕ ḿàçĥîñé
+(é.ĝ. þŕé-þüšĥ ǪÀ), àñđ ţĥé **šéŕṽéŕ šîđé** — ţĥé þŕöĵéçţ'š çöñṽéŕĝé-öñ-þüšĥ
+þöļîçý àñđ ÇÎ þîþéļîñéš. Ţöĝéţĥéŕ ţĥéý ḿàķé ţŕàñšļàţîöñ šýñç ƒüļļý àüţöḿàţéđ —
+çöđé ļàñđš, ţŕàñšļàţîöñš ƒöļļöŵ. ▒
+
+## ▒ Ļöçàļ ŕüļéš ▒
+
+▒ Đéçļàŕé `àüţöḿàţîöñš:` àţ ţĥé ţöþ ļéṽéļ öƒ ţĥé `ķàþî.ýàḿļ` ŕéçîþé. À
+þŕé-þüšĥ ǪÀ ŕüļé, ƒöŕ éẋàḿþļé, ƒîŕéš ƃéƒöŕé `ķàþî þüšĥ` çöḿþļéţéš, šö šöüŕçé
+ñéṽéŕ ŕéàçĥéš ţĥé šéŕṽéŕ ŵîţĥöüţ þàššîñĝ ýöüŕ çĥéçķš. Ļöçàļ ŕüļéš ĝîṽé à
+đéṽéļöþéŕ ĝüàŕđŕàîļš öñ ţĥéîŕ öŵñ ḿàçĥîñé. (Ţĥé ŕéçîþé àļšö àççéþţš à `ĥööķš:`
+ƃļöçķ, ƃüţ ĥööķš àŕé šçĥéḿà-öñļý ţöđàý — [ñöţ ýéţ éẋéçüţéđ](/cli/flows/hooks);
+üšé `àüţöḿàţîöñš:`.) ▒
+
+## ▒ Ţĥé šéŕṽéŕ šîđé ▒
+
+▒ Ŵîţĥ `ƃöŵŕàîñ.çöñṽéŕĝé: öñ-þüšĥ` (ţĥé đéƒàüļţ), ţĥé šéŕṽéŕ ŕüñš
+[à šéŕṽéŕ ŕüñ](/the-loop) àƒţéŕ éṽéŕý þüšĥ — ñö ŵöŕķƒļöŵ ƒîļé ñééđéđ. Ƒöŕ
+éẋþļîçîţ þîþéļîñéš, [Ţĥé ļööþ îñ ÇÎ](/cli/ci/overview) çöṽéŕš ĜîţĤüƃ Àçţîöñš,
+ĜîţĻàƃ ÇÎ, àñđ ţĥé Ƃöŵŕàîñ ĜîţĤüƃ Àþþ; ţĥé šîḿþļéšţ ĜîţĤüƃ ŵöŕķƒļöŵ ŕüñš
+`ķàþî üþ` öñ éṽéŕý þüšĥ ţö `ḿàîñ`, šö ţĥé ḿöḿéñţ çöđé ļàñđš ţĥé šéŕṽéŕ çàţçĥéš
+üþ öñ ţĥé ñéŵ šöüŕçé àñđ çöḿþļéţéđ ŵöŕķ ƒļöŵš ƃàçķ. ▒
+
+▒ Éṽéŕý ŕüñ — ƒŕöḿ à þüšĥ, ƒŕöḿ ÇÎ, öŕ šţàŕţéđ ḿàñüàļļý — ļàñđš îñ ţĥé þŕöĵéçţ'š
+**Ŕüñš** ṽîéŵ îñ ţĥé ŵéƃ àñđ đéšķţöþ àþþ: ▒
+
+<PendingMedia kind="video" scene="harness/demos/bowrain-desktop-automations/demo.yaml">
+  The desktop app's project Automations and Runs views: automation rules that
+  run the loop on the server on every push, and the run history — each run's
+  state (Running, Up to date, Parked), its trigger, pass count, and per-locale
+  summary — with a Run now button to start one by hand.
+</PendingMedia>
+
+## ▒ Ñéẋţ ▒
+
+▒ Ţĥé ƒüļļ àüţöḿàţîöñ ŕüļé šçĥéḿà àñđ éṽéñţ ţýþéš àŕé đöçüḿéñţéđ îñ
+[Àüţöḿàţîöñ](/server/automation). ▒

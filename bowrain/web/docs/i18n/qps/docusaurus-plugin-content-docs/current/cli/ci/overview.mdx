@@ -1,0 +1,147 @@
+---
+title: The loop in CI
+description: Every CI and delivery surface for a repository connected to a Bowrain server — GitHub Actions, GitLab CI, container runners, and the no-pipeline forge delivery — plus the exit-code contract and CI authentication.
+keywords: [kapi loop, CI, continuous translation, GitHub Actions, GitLab CI, GitHub App, forge, BOWRAIN_AUTH_TOKEN, ship gate]
+---
+
+import { LanesDiagram, KapiLink } from "@neokapi/docs-shared";
+
+# ▒ Ţĥé ļööþ îñ ÇÎ ▒
+
+▒ ÇÎ îš ŵĥéŕé đŕîƒţ îš ḿàđé: éṽéŕý ḿéŕĝé çĥàñĝéš šöüŕçé çöñţéñţ àñđ ļéàṽéš îţš
+ţŕàñšļàţîöñš, ţéŕḿîñöļöĝý, àñđ ƃŕàñđ çöñƒöŕḿàñçé ƃéĥîñđ. Îţ îš àļšö ţĥé
+ñàţüŕàļ þļàçé ţö çàţçĥ üþ. [Ţĥé ķàþî ļööþ](/the-loop) ŕüñš öñ éṽéŕý çĥàñĝé öŕ
+öñ à šçĥéđüļé; ŵĥàţ à ḿàçĥîñé çàññöţ đéçîđé **þàŕķš** îñţö ţĥé ţéàḿ'š ŕéṽîéŵ
+ǫüéüé öñ ţĥé šéŕṽéŕ; àñđ ţĥé šĥîþ ĝàţé þŕöţéçţš ŕéļéàšéš ŵîţĥöüţ éṽéŕ ƒàîļîñĝ
+àñ öŕđîñàŕý ƃüîļđ öñ ţàŕĝéţ-ļàñĝüàĝé đŕîƒţ. ▒
+
+▒ Öñ à þŕöĵéçţ çöññéçţéđ ţö à Ƃöŵŕàîñ šéŕṽéŕ, à ÇÎ ŕüñ öƒ `ķàþî üþ` éẋéçüţéš öñ
+ţĥé **šéŕṽéŕ ṽéñüé**: ţĥé ĵöƃ þüšĥéš ţĥé đŕîƒţ, ţĥé šéŕṽéŕ ŕüñš ţĥé ļööþ öñ
+ţĥé öŕĝàñîžàţîöñ'š ÀÎ ķéýš, šĥàŕéđ çöñţéñţ ḿéḿöŕý, àñđ ţéŕḿîñöļöĝý, àñđ
+ţĥé ŕéšüļţš çöḿé ƃàçķ ţö ţĥé ŵöŕķîñĝ ţŕéé. Ţĥé ŕüññéŕ ĥöļđš à šéŕṽéŕ ţöķéñ
+àñđ ñö þŕöṽîđéŕ ķéýš. ▒
+
+▒ Ţĥîš þàĝé ḿàþš ţĥé šüŕƒàçéš àñđ ţĥé çöñţŕàçţ ţĥéý šĥàŕé. Ţĥé šţéþ-ƃý-šţéþ
+ĝéñéŕîç ŵàļķţĥŕöüĝĥš — šçĥéđüļîñĝ, ĝàţîñĝ, çöšţ ŕéþöŕţîñĝ öñ ĜîţĤüƃ àñđ
+ĜîţĻàƃ — ļîṽé öñ ţĥé ķàþî šîţé: ▒
+<KapiLink to="/kapi/convergence-in-ci">The kapi loop in CI</KapiLink>▒ . ▒
+
+<LanesDiagram
+  lanes={[
+    {
+      title: "Your pipeline produces",
+      sub: "kapi-action · kapi-components · ghcr image",
+      role: "translate",
+      steps: [
+        "a merge or a schedule tick",
+        "kapi up — the loop runs on the server",
+        "a PR/MR with the run report",
+      ],
+    },
+    {
+      title: "Your pipeline gates",
+      sub: "kapi check --ship",
+      role: "qa",
+      steps: [
+        "a merge request opens",
+        "the bound gates run",
+        "exit 3 blocks the merge",
+      ],
+    },
+    {
+      title: "No pipeline",
+      sub: "forge connector · Bowrain GitHub App",
+      role: "io",
+      steps: [
+        "a push webhook reaches the server",
+        "the server re-ingests and converges",
+        "one PR/MR, updated in place",
+      ],
+    },
+  ]}
+  caption="Produce and gate from your own CI, or let the server do both with no pipeline at all."
+/>
+
+## ▒ Ţĥé çöñţŕàçţ ▒
+
+▒ Ţĥŕéé çöḿḿàñđš đîṽîđé ţĥé ŵöŕķ, àñđ ţĥéîŕ éẋîţ çöđéš àŕé ţĥé ŵĥöļé îñţéŕƒàçé
+à þîþéļîñé ñééđš: ▒
+
+| Command | Role | Exit behavior |
+|---|---|---|
+| `kapi status` | **Observe** — per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
+| `kapi up` | **Produce** — runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
+| `kapi check --ship` | **Enforce** — the release bar | `0` pass, `3` gate unmet, `1` operational error |
+
+▒ Þàŕķéđ ŵöŕķ îš þéñđîñĝ ŕéṽîéŵ, ñöţ àñ éŕŕöŕ. Ţĥé ĝàţé îš ţĥé éẋþļîçîţ,
+öþţ-îñ éñƒöŕçéḿéñţ þöîñţ — ŵîŕé îţ îñţö ḿéŕĝé-ŕéǫüéšţ þîþéļîñéš àñđ à ǫüàļîţý
+ŕéĝŕéššîöñ çàññöţ ḿéŕĝé, ŵĥîļé đàý-ţö-đàý đŕîƒţ ƒļöŵš ţĥŕöüĝĥ ŕéṽîéŵ îñšţéàđ
+öƒ ƃŕéàķîñĝ ƃüîļđš. ▒
+
+## ▒ Ţĥé šüŕƒàçéš ▒
+
+| Surface | How it runs | Guide |
+|---|---|---|
+| GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) installs the CLI (the bowrain plugin included by default); [`kapi-action`](https://github.com/neokapi/kapi-action) runs `kapi up` and commits or opens a pull request. The reusable [`kapi-workflows`](https://github.com/neokapi/kapi-workflows) (`up.yml@v1`, `gate.yml@v1`) compose both into one-line jobs | [GitHub Actions](/cli/use-cases/github-actions) |
+| GitLab CI | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog: `up` delivers a merge request, `check` gates merge-request pipelines | [GitLab CI](/cli/ci/gitlab) |
+| Any container runner | `ghcr.io/neokapi/kapi` (cosign-signed; the server-sync plugin is preinstalled, so `kapi up` / `push` / `pull` work out of the box) and the CLI directly — the exit codes above are the contract | this page |
+| No pipeline | The forge connector / Bowrain GitHub App: the server converges on every push to the tracked branch and delivers the results back as one PR/MR | [The Bowrain GitHub App](/cli/ci/github-app) |
+
+## ▒ Ŵĥîçĥ ţö üšé ŵĥéñ ▒
+
+▒ Îƒ ýöü öŵñ ţĥé ŕéþöšîţöŕý'š ÇÎ àñđ ŵàñţ çöñţŕöļ öṽéŕ ţŕîĝĝéŕš, đéļîṽéŕý, àñđ
+ĝàţîñĝ, üšé `ķàþî-àçţîöñ` öñ ĜîţĤüƃ öŕ `ķàþî-çöḿþöñéñţš` öñ ĜîţĻàƃ — éàçĥ ĵöƃ
+îš àñ öŕđîñàŕý þîþéļîñé šţéþ ýöü çàñ šĥàþé. Ƒöŕ ḿîñîḿàļ šéţüþ öñ ĜîţĤüƃ, ţĥé
+ŕéüšàƃļé ŵöŕķƒļöŵš ĝîṽé ýöü ţĥé ŵĥöļé þŕöđüçé-àñđ-đéļîṽéŕ öŕ ĝàţé ĵöƃ àš à
+šîñĝļé `üšéš:` ļîñé. Ŵĥéñ ñöƃöđý öŵñš ţĥé ŕéþöšîţöŕý'š ÇÎ — à đöçš,
+ḿàŕķéţîñĝ, öŕ çöñţéñţ ŕéþöšîţöŕý — öŕ ýöü ŵàñţ žéŕö çöñƒîĝüŕàţîöñ îñ ţĥé
+ŕéþöšîţöŕý àţ àļļ, çöññéçţ îţ šéŕṽéŕ-šîđé ŵîţĥ ţĥé
+[ƒöŕĝé çöññéçţöŕ öŕ ţĥé Ƃöŵŕàîñ ĜîţĤüƃ Àþþ](/cli/ci/github-app): ţĥé šéŕṽéŕ
+çöñṽéŕĝéš öñ éṽéŕý þüšĥ àñđ đéļîṽéŕš à þüļļ ŕéǫüéšţ ƃàçķ öñ îţš öŵñ. ▒
+
+## ▒ Àüţĥéñţîçàţîñĝ à ŕüññéŕ ▒
+
+▒ Ḿîñţ à ÇÎ ţöķéñ öñçé, ƒŕöḿ àñ àüţĥéñţîçàţéđ ḿàçĥîñé: ▒
+
+```bash
+kapi auth login
+kapi auth token create --name "ci" --expire-days 90
+```
+
+▒ Ţĥé ţöķéñ (`ƃŵţ_…`) îš šĥöŵñ öñçé — šţöŕé îţ àš à ÇÎ šéçŕéţ îḿḿéđîàţéļý. Öñ
+ţĥé ŕüññéŕ, `ƂÖŴŔÀÎÑ_ÀÜŢĤ_ŢÖĶÉÑ` çàŕŕîéš ţĥé çŕéđéñţîàļ, àñđ ţĥé ÇĻÎ çĥéçķš
+îţ ƃéƒöŕé àñý šţöŕéđ ļöĝîñ: ▒
+
+```bash
+BOWRAIN_AUTH_TOKEN=bwt_...
+BOWRAIN_SERVER_URL=https://bowrain.example.com   # self-hosted only
+```
+
+▒ `ƂÖŴŔÀÎÑ_ŠÉŔṼÉŔ_ÜŔĻ` îš öñļý ñééđéđ ƒöŕ à **šéļƒ-ĥöšţéđ** šéŕṽéŕ: ţĥé ĥöšţéđ
+šéŕṽîçé (`ĥţţþš://àþþ.ƃöŵŕàîñ.çļöüđ`) îš ţĥé ƃüîļţ-îñ đéƒàüļţ, àñđ þŕöĵéçţ
+çöḿḿàñđš (`ķàþî üþ`, `þüšĥ`, `þüļļ`, `çĥéçķ`) ŕéàđ ţĥé šéŕṽéŕ ƒŕöḿ ţĥé
+çĥéçķéđ-öüţ ŕéçîþé'š `ƃöŵŕàîñ:` ƃļöçķ îñ àñý çàšé. Öñ ĜîţĤüƃ Àçţîöñš,
+`šéţüþ-ķàþî`'š `àüţĥ-ţöķéñ` àñđ `šéŕṽéŕ` îñþüţš éẋþöŕţ éẋàçţļý ţĥéšé ţŵö
+ṽàŕîàƃļéš. Öñ ĜîţĻàƃ, šéţ ţĥéḿ àš ḿàšķéđ ÇÎ/ÇĐ ṽàŕîàƃļéš. Ļîšţ àñđ ŕéṽöķé
+ţöķéñš ŵîţĥ `ķàþî àüţĥ ţöķéñ ļîšţ` àñđ `ķàþî àüţĥ ţöķéñ đéļéţé`. ▒
+
+▒ Ŵĥàţ à ĵöƃ ñééđš ƃéýöñđ ţĥé šéŕṽéŕ ţöķéñ đéþéñđš öñ îţš ṽéñüé: ▒
+
+- ▒ **Šéŕṽéŕ ṽéñüé** (à çöññéçţéđ þŕöĵéçţ) — ñöţĥîñĝ. Ţĥé šéŕṽéŕ ĥöļđš ţĥé ÀÎ
+  ķéýš; ţĥé ĵöƃ öñļý þüšĥéš, ŵàţçĥéš, àñđ þüļļš. ▒
+- ▒ **Ļöçàļ ṽéñüé** (`ķàþî üþ --ļöçàļ`, öŕ à þŕöĵéçţ ŵîţĥ ñö `ƃöŵŕàîñ:` ƃļöçķ) —
+  ţĥé ļööþ ŕüñš îñšîđé ţĥé ĵöƃ àñđ ñééđš à þŕöṽîđéŕ ķéý, ƒöŕ éẋàḿþļé
+  `ÀÑŢĤŔÖÞÎÇ_ÀÞÎ_ĶÉÝ`, àš à ÇÎ šéçŕéţ. ▒
+- ▒ **Ĝàţé-öñļý ĵöƃš** — `ķàþî çĥéçķ --šĥîþ` ŕéàđš ţĥé ŵöŕķîñĝ ţŕéé àñđ ñééđš
+  ñö ÀÎ ķéýš; ŵĥéñ ţĥé ĝàţé éñƒöŕçéš ĝöṽéŕñéđ ţéŕḿîñöļöĝý, ţĥé ĵöƃ ŕüñš
+  `ķàþî þüļļ` ƒîŕšţ àñđ ñééđš ţĥé šéŕṽéŕ ţöķéñ. Šéé
+  [Ĝàţé ƃŕàñđ ţéŕḿîñöļöĝý îñ ÇÎ](/cli/use-cases/brand-terminology-ci). ▒
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [ĜîţĤüƃ Àçţîöñš](/cli/use-cases/github-actions) — ţĥé đééþ ĝüîđé: šéţüþ, çàţçĥ-üþ, ĝàţéš, šýñç, ŕéüšàƃļé ŵöŕķƒļöŵš ▒
+- ▒ [ĜîţĻàƃ ÇÎ](/cli/ci/gitlab) — ţĥé `üþ` àñđ `çĥéçķ` çöḿþöñéñţš àĝàîñšţ à Ƃöŵŕàîñ šéŕṽéŕ ▒
+- ▒ [Ţĥé Ƃöŵŕàîñ ĜîţĤüƃ Àþþ](/cli/ci/github-app) — ƒöŕĝé đéļîṽéŕý ŵîţĥ ñö þîþéļîñé, ĜîţĻàƃ îñçļüđéđ ▒
+- ▒ [Ĝàţé ƃŕàñđ ţéŕḿîñöļöĝý îñ ÇÎ](/cli/use-cases/brand-terminology-ci) — ĝöṽéŕñéđ ţéŕḿîñöļöĝý àš à ḿéŕĝé ĝàţé ▒
+- ▒ [Ķééþîñĝ çöñţéñţ çàüĝĥţ üþ](/the-loop) — ţĥé ḿöđéļ ƃéĥîñđ þŕöđüçé, þŕöḿöţé, ŕéļéàšé ▒
+- ▒ <KapiLink to="/kapi/convergence-in-ci">Ţĥé ķàþî ļööþ îñ ÇÎ</KapiLink> — ţĥé ƒüļļ ĝéñéŕîç ŵàļķţĥŕöüĝĥš öñ ţĥé ķàþî šîţé ▒

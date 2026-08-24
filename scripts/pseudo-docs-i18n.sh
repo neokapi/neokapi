@@ -1,67 +1,84 @@
 #!/usr/bin/env bash
 #
-# Regenerate a Docusaurus site's qps (pseudo-locale) translation files.
+# Regenerate a Docusaurus site's qps (pseudo-locale) translations.
 #
 # qps is the runtime-correctness probe: every string that goes through the i18n
-# machinery renders mangled (▒ Ĥöŵ îţ ŵöŕķš ▒), so one URL shows which chrome is
+# machinery renders mangled (▒ Ĥöŵ îţ ŵöŕķš ▒), so one URL shows which text is
 # translatable and which is hardcoded. It is not project content and not a
-# target language in the recipe — the same posture `make l10n-pseudo` takes for
-# the catalog-driven surfaces.
+# target language in the recipe — the posture `make l10n-pseudo` already takes
+# for the catalog-driven surfaces.
 #
-# Two steps, and the second is the reason this is a script rather than a
-# one-liner:
+# TWO TIERS, and they are separated because only one can run in CI.
 #
-#   1. `docusaurus write-translations --locale qps` writes the theme strings
-#      with ENGLISH defaults. It is idempotent and picks up navbar/footer items
-#      as they change, so it runs every time rather than being a one-off.
+#   CONTENT (--content-only, the default in `make l10n-pseudo`)
+#     The docs pages themselves, pseudo-translated with kapi into
+#     i18n/qps/docusaurus-plugin-content-docs/current/. Needs kapi and nothing
+#     else, so it rides the l10n pipeline and the autofix bot keeps it current
+#     as the docs change. Without that, a page added after the last manual run
+#     falls back to English in the pseudo build — which reads as "this string is
+#     not translatable" when it only means "not regenerated". A probe that lies
+#     is worse than no probe.
 #
-#   2. `kapi pseudo-translate` mangles them. But a Docusaurus translation file is
-#      {"key": {"message": …, "description": …}}, and only `message` is shown to
-#      a reader. `description` is authoring metadata that step 1 regenerates
-#      verbatim; mangling it makes every future write-translations diff
-#      unreadable. pseudo-translate has no key-path flag, so the descriptions are
-#      restored from the pre-pseudo file afterwards.
+#   THEME (--with-theme)
+#     navbar, footer, code.json, current.json. These come from
+#     `docusaurus write-translations`, which needs the site's own node_modules —
+#     and bowrain/web/docs is deliberately outside the pnpm workspace (PR #425),
+#     so the l10n CI job cannot install them. Run this by hand when navbar or
+#     footer items change; they change rarely and are committed.
 #
-# The output is COMMITTED, matching translations/qps.json on the landing side:
-# the intermediate catalogs are generated, the artifact the build loads is in
-# git. That is what lets the deploy build --locale qps without kapi on PATH.
+# The theme tier also needs a fix-up: a Docusaurus translation file is
+# {"key": {"message": …, "description": …}} and only `message` is shown to a
+# reader. `description` is authoring metadata that write-translations
+# regenerates verbatim, so mangling it makes every future diff unreadable.
+# pseudo-translate has no key-path flag, so the descriptions are restored after.
 #
 # Usage:
-#     scripts/pseudo-docs-i18n.sh bowrain/web/docs
+#     scripts/pseudo-docs-i18n.sh bowrain/web/docs                # content only
+#     scripts/pseudo-docs-i18n.sh bowrain/web/docs --with-theme   # + theme JSON
 set -euo pipefail
 
-site="${1:?usage: $0 <docusaurus-site-dir>}"
+site="${1:?usage: $0 <docusaurus-site-dir> [--with-theme]}"
+mode="${2:---content-only}"
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_root/$site"
 
 kapi="$repo_root/bin/kapi"
 [ -x "$kapi" ] || { echo "::error::$kapi not built — run 'make build' first"; exit 1; }
 
+export KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0
+
+# ── content ─────────────────────────────────────────────────────────────────
+out="i18n/qps/docusaurus-plugin-content-docs/current"
+rm -rf "$out"
+
+n=0
+while IFS= read -r f; do
+  rel="${f#docs/}"
+  mkdir -p "$out/$(dirname "$rel")"
+  "$kapi" pseudo-translate "$f" --target-lang qps -o "$out/$rel" -q >/dev/null
+  n=$((n + 1))
+done < <(find docs -name "*.md" -o -name "*.mdx" | sort)
+echo "==> $site: $n pages pseudo-translated into $out"
+
+[ "$mode" = "--with-theme" ] || exit 0
+
+# ── theme ───────────────────────────────────────────────────────────────────
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-echo "==> write-translations --locale qps ($site)"
+echo "==> write-translations --locale qps"
 vpx docusaurus write-translations --locale qps >/dev/null
 
-# Every translation file the step above wrote or refreshed. Listed with find
-# into a plain loop rather than `mapfile`, which bash 3.2 (the macOS default)
-# does not have — a developer running this locally would otherwise get a
-# "command not found" from a script that works in CI.
-count=$(find i18n/qps -name "*.json" | wc -l | tr -d ' ')
-[ "$count" -gt 0 ] || { echo "::error::write-translations produced no files"; exit 1; }
-
-find i18n/qps -name "*.json" | sort | while read -r f; do
+# Only the files write-translations owns; the content tree above is not its.
+find i18n/qps -maxdepth 2 -name "*.json" | sort | while read -r f; do
   cp "$f" "$work/pre.json"
-  KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 "$kapi" pseudo-translate "$f" \
-    --target-lang qps -f json -o "$work/post.json" -q
+  "$kapi" pseudo-translate "$f" --target-lang qps -f json -o "$work/post.json" -q
 
-  # Restore `description` from the pre-pseudo copy, keep the mangled `message`.
   python3 - "$work/pre.json" "$work/post.json" "$f" <<'PY'
 import json, sys
 
-pre, post, dest = sys.argv[1], sys.argv[2], sys.argv[3]
-src = json.load(open(pre))
-out = json.load(open(post))
+src = json.load(open(sys.argv[1]))
+out = json.load(open(sys.argv[2]))
 
 restored = 0
 for key, val in out.items():
@@ -70,13 +87,11 @@ for key, val in out.items():
             val["description"] = src[key]["description"]
             restored += 1
 
-with open(dest, "w") as fh:
+with open(sys.argv[3], "w") as fh:
     json.dump(out, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 
 msgs = sum(1 for v in out.values() if isinstance(v, dict) and "▒" in str(v.get("message", "")))
-print(f"    {dest}: {msgs}/{len(out)} messages pseudo-ized, {restored} descriptions restored")
+print(f"    {sys.argv[3]}: {msgs}/{len(out)} messages pseudo-ized, {restored} descriptions restored")
 PY
 done
-
-echo "==> done: i18n/qps is regenerated and ready to commit"

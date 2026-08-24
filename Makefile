@@ -1614,7 +1614,8 @@ L10N_DERIVED := \
 	bowrain/apps/ctrl/public/translations/qps.json \
 	bowrain/apps/pulse/public/translations/qps.json \
 	$(LANDING_DIR)/translations/qps.json \
-	bowrain/mailer/templates/qps
+	bowrain/mailer/templates/qps \
+	bowrain/web/docs/i18n/qps/docusaurus-plugin-content-docs/current
 
 # One locale's committed loop output. The Go catalog directories contribute
 # their <lang>.json — the compiled <lang>.mo beside them is gitignored build
@@ -1731,6 +1732,13 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 	done
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.json -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
+	@# The Docusaurus docs pages. Content tier only: the theme JSON needs
+	@# `docusaurus write-translations`, and bowrain/web/docs sits outside the
+	@# pnpm workspace so the l10n CI job has no node_modules for it. Content is
+	@# what changes daily, and a page added since the last run would otherwise
+	@# fall back to English in the pseudo build — reading as "not translatable"
+	@# when it means "not regenerated".
+	@./scripts/pseudo-docs-i18n.sh bowrain/web/docs
 
 # Stage 3: compile.
 # A catalog is not what a product loads. The SPAs and the landing page load

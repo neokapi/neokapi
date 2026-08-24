@@ -1,0 +1,139 @@
+---
+sidebar_position: 5
+title: Connectors
+description: How content reaches a Bowrain workspace — content platforms, design tools, code repositories, and a developer's checkout via kapi — and how approved results publish back.
+keywords: [connectors, wordpress, figma, hubspot, github, gitlab, git, kapi, sync, publish]
+---
+
+import { LanesDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
+
+# ▒ Çöññéçţöŕš ▒
+
+▒ Ƃöŵŕàîñ ĝöṽéŕñš çöñţéñţ ŵĥéŕé îţ àļŕéàđý ļîṽéš. À **çöññéçţöŕ** ļîñķš à
+ŵöŕķšþàçé ţö à šýšţéḿ ţĥàţ ĥöļđš šöüŕçé çöñţéñţ, ƃŕîñĝš ţĥàţ çöñţéñţ îñţö à
+þŕöĵéçţ šö ţĥé ŵöŕķšþàçé'š ṽöîçé, ţéŕḿš, àñđ çöñţéñţ ḿéḿöŕý àþþļý ţö îţ, àñđ
+þüƃļîšĥéš àþþŕöṽéđ ŕéšüļţš ƃàçķ ţö ŵĥéŕé ţĥéý çàḿé ƒŕöḿ. ▒
+
+▒ Ñö šîñĝļé çöññéçţöŕ îš ţĥé ŵàý îñ. À ŵöŕķšþàçé çàñ ŕüñ šéṽéŕàļ àţ öñçé — à
+ḿàŕķéţîñĝ šîţé, à đéšîĝñ ƒîļé, àñđ à þŕöđüçţ ŕéþöšîţöŕý çàñ àļļ çöñṽéŕĝé üñđéŕ
+öñé ĝöṽéŕñéđ ṽöçàƃüļàŕý. ▒
+
+## ▒ Ţĥé çöññéçţöŕ ŕöŵ ▒
+
+| Connector | What it holds | Where it runs | Direction |
+| --- | --- | --- | --- |
+| [WordPress](/server/connectors/wordpress) | Site posts — title, body, excerpt | Server-side | In and back out |
+| [HubSpot](/server/connectors/hubspot) | CMS page title and meta description | Server-side | In and back out |
+| [Figma](/server/connectors/figma) | Design text layers | Server-side | In only |
+| [GitHub / GitLab](/server/connectors/github) | Repository content files | Server-side | In, back out as a pull/merge request |
+| [kapi](/server/connectors/kapi) | A developer's working checkout | On the developer's machine, or in CI | In and back out |
+
+▒ Éṽéŕýţĥîñĝ àƃöṽé ţĥé ļàšţ ŕöŵ ŕüñš **šéŕṽéŕ-šîđé**: ñöƃöđý îñšţàļļš àñýţĥîñĝ,
+ñöţĥîñĝ îš çĥéçķéđ öüţ, àñđ ţĥé ŵöŕķšþàçé ŕéàçĥéš ţĥé šöüŕçé šýšţéḿ đîŕéçţļý
+öṽéŕ îţš ÀÞÎ. Ţĥé ļàšţ ŕöŵ îš ţĥé đéṽéļöþéŕ þàţĥ — à þéŕšöñ öŕ à ÇÎ ĵöƃ ŵöŕķîñĝ
+îñ à ŕéþöšîţöŕý, đŕîṽîñĝ çöñţéñţ îñ àñđ öüţ ƒŕöḿ ŵĥéŕé ţĥéý àļŕéàđý àŕé. ▒
+
+<LanesDiagram
+  lanes={[
+    {
+      title: "Content platforms",
+      sub: "wordpress · hubspot",
+      role: "io",
+      steps: ["fetch over the API", "converge in the workspace", "publish back"],
+    },
+    {
+      title: "Design tools",
+      sub: "figma",
+      role: "io",
+      steps: ["fetch text layers", "converge in the workspace", "export from the editor"],
+    },
+    {
+      title: "Code repositories",
+      sub: "github · gitlab · git",
+      role: "io",
+      steps: ["push webhook", "converge server-side", "deliver a pull request"],
+    },
+    {
+      title: "A developer's checkout",
+      sub: "kapi",
+      role: "io",
+      steps: ["kapi push / kapi up", "converge on the server", "results land in the tree"],
+    },
+  ]}
+  caption="Peer routes into the same workspace. The server-side routes need no checkout at all; the last is the developer and CI path."
+/>
+
+## ▒ Ŵĥàţ à çöññéçţöŕ đöéš ▒
+
+1. ▒ **Ƒéţçĥ** — ţĥé çöññéçţöŕ ŕéàđš šöüŕçé çöñţéñţ ƒŕöḿ ţĥé éẋţéŕñàļ šýšţéḿ àñđ
+   đéļîṽéŕš îţ îñţö ţĥé þŕöĵéçţ. ▒
+2. ▒ **Çöñṽéŕĝé** — ţĥé ŵöŕķšþàçé çàţçĥéš ţĥé çöñţéñţ üþ: ŕéüšé ŵĥàţ ḿéḿöŕý
+   àļŕéàđý ĥöļđš, đŕàƒţ ţĥé ŕéšţ, çĥéçķ éṽéŕýţĥîñĝ àĝàîñšţ ţĥé ṽöîçé þŕöƒîļé
+   àñđ ţĥé ŵöŕķšþàçé'š ţéŕḿš, àñđ þàŕķ ŵĥàţ ñééđš à þéŕšöñ. Šéé
+   [Ķééþîñĝ çöñţéñţ çàüĝĥţ üþ](/the-loop). ▒
+3. ▒ **Þüƃļîšĥ** — àþþŕöṽéđ ŕéšüļţš ĝö ƃàçķ ţö ţĥé šýšţéḿ ţĥéý çàḿé ƒŕöḿ. ▒
+
+<RoundTripDiagram
+  forward={[
+    { label: "Source system", sub: "content platform · design · repository · checkout" },
+    { label: "Bowrain workspace", sub: "governed content store", role: "io" },
+    { label: "People & agents", sub: "web · desktop · MCP", role: "translate" },
+  ]}
+  back={[
+    { label: "Source system", sub: "content platform · design · repository · checkout" },
+    { label: "Bowrain workspace", sub: "governed content store", role: "io" },
+    { label: "People & agents", sub: "web · desktop · MCP", role: "translate" },
+  ]}
+  hub={{ label: "Connector" }}
+  forwardIndex={0}
+  backIndex={0}
+  forwardLabel="fetch"
+  backLabel="publish"
+  ariaLabel="Round trip: a connector fetches source into the workspace, people and agents work on it, and approved results publish back."
+  caption="Every connector is the same round trip: source in, governed work in the middle, approved results back out."
+/>
+
+## ▒ Ḿàñàĝîñĝ çöññéçţöŕš ▒
+
+▒ Šéŕṽéŕ-šîđé çöññéçţöŕš àŕé šçöþéđ ţö à ŵöŕķšþàçé àñđ ḿàñàĝéđ ƒŕöḿ à þŕöĵéçţ'š
+**Çöññéçţöŕš** ṽîéŵ îñ ţĥé ŵéƃ àþþ: àđđ öñé ţĥéŕé, ƃŕöŵšé ţĥé çöñţéñţ îţ çàñ
+šéé, ƒéţçĥ îţ îñţö ţĥé þŕöĵéçţ, àñđ þüƃļîšĥ ŕéšüļţš ƃàçķ. Šàṽéđ çŕéđéñţîàļš àŕé
+ŵŕîţé-öñļý — üšéđ ƒöŕ šýñç, ñéṽéŕ đîšþļàýéđ àĝàîñ. Ţĥé šàḿé öþéŕàţîöñš àŕé
+àṽàîļàƃļé ţĥŕöüĝĥ ţĥé ŵöŕķšþàçé çöññéçţöŕš ÀÞÎ ƒöŕ šçŕîþţîñĝ. Ƃöţĥ šüŕƒàçéš
+ŕéǫüîŕé ţĥé **ḿàñàĝé çöññéçţöŕš** þéŕḿîššîöñ. ▒
+
+▒ Šýñç îš éẋþļîçîţ: çöñţéñţ ḿöṽéš ŵĥéñ ýöü šéļéçţ **Ƒéţçĥ ñöŵ** öŕ **Þüƃļîšĥ**, öŕ
+çàļļ ţĥé çöŕŕéšþöñđîñĝ éñđþöîñţš. À ƒéţçĥ đöéš ñöţ éḿîţ àñ éṽéñţ, šö àüţöḿàţîöñ
+ŕüļéš đö ñöţ ŕéàçţ ţö îţ — ţĥé çöñṽéŕĝéñçé öŕçĥéšţŕàţöŕ šüƃšçŕîƃéš ţö þüšĥ
+çöḿþļéţîöñ. Çàţçĥ ƒéţçĥéđ çöñţéñţ üþ ƃý šţàŕţîñĝ à ŕüñ öŕ à ƒļöŵ, öŕ ļéţ ţĥé
+þŕöĵéçţ'š `ƃöŵŕàîñ.çöñṽéŕĝé` þöļîçý þŕöđüçé àñđ ŕéṽîéŵ ţàŕĝéţš. ▒
+
+▒ Ţĥé ĜîţĤüƃ/ĜîţĻàƃ çöññéçţöŕ îš çöñƒîĝüŕéđ ţĥŕöüĝĥ ţĥé ŵöŕķšþàçé çöññéçţöŕš ÀÞÎ,
+öŕ ƒŕöḿ à þŕöĵéçţ'š Çöññéçţöŕš þàĝé öñçé ţĥé šéŕṽéŕ ĥàš à ĜîţĤüƃ Àþþ. Ţĥé þļàîñ
+`ĝîţ` àñđ ļöçàļ `ƒîļé` çöññéçţöŕš àŕé šéŕṽéŕ-šîđé ƃüîļđîñĝ ƃļöçķš ŵîţĥ ñö
+ŵéƃ-àþþ šüŕƒàçé — ţĥéý ƃàçķ ţĥé ŕéþöšîţöŕý çöññéçţöŕ àñđ šéŕṽéŕ-ĥöšţéđ
+đîŕéçţöŕîéš. Ţĥé ķàþî çöññéçţöŕ ñééđš ñö šéŕṽéŕ-šîđé çöñƒîĝüŕàţîöñ àţ àļļ: îţ
+àüţĥéñţîçàţéš àš ţĥé đéṽéļöþéŕ àñđ çöññéçţš à þŕöĵéçţ ƒŕöḿ ţĥé çöḿḿàñđ ļîñé. ▒
+
+## ▒ Çĥööšîñĝ à ŕöüţé ƒöŕ à ŕéþöšîţöŕý ▒
+
+▒ Šöüŕçé ƒîļéš îñ à ŕéþöšîţöŕý çàñ àŕŕîṽé éîţĥéŕ ŵàý, àñđ ţĥé çĥöîçé îš àƃöüţ ŵĥö
+đŕîṽéš: ▒
+
+- ▒ **[ĜîţĤüƃ / ĜîţĻàƃ](/server/connectors/github)** ŵĥéñ ñöƃöđý ŵàñţš à
+  þîþéļîñé. À þüšĥ ŵéƃĥööķ ţŕîĝĝéŕš ţĥé šéŕṽéŕ, àñđ ŕéšüļţš àŕŕîṽé àš öñé öþéñ
+  þüļļ/ḿéŕĝé ŕéǫüéšţ ţĥàţ éṽéŕý đéļîṽéŕý üþđàţéš îñ þļàçé. Ţĥéŕé îš ñö ÇÎ
+  çöñƒîĝüŕàţîöñ îñ ţĥé ŕéþöšîţöŕý àñđ ñö ÇĻÎ öñ àñýöñé'š ḿàçĥîñé. ▒
+- ▒ **[ķàþî](/server/connectors/kapi)** ŵĥéñ à đéṽéļöþéŕ ŵàñţš ţĥé ŵöŕķ üñđéŕ
+  ţĥéîŕ öŵñ ĥàñđ — ŕüññîñĝ îţ ļöçàļļý ƃéƒöŕé à çöḿḿîţ, ŵàţçĥîñĝ þŕöĝŕéšš šţŕéàḿ
+  îñţö ţĥéîŕ ţéŕḿîñàļ, öŕ ĝàţîñĝ à ŕéļéàšé îñ ÇÎ ŵîţĥ àñ éẋþļîçîţ éẋîţ çöđé. ▒
+
+▒ Ţĥéý àŕé ñöţ éẋçļüšîṽé. À ŕéþöšîţöŕý çàñ đéļîṽéŕ ţĥŕöüĝĥ ĜîţĤüƃ ŵĥîļé à
+đéṽéļöþéŕ àļšö ŕüñš ķàþî ļöçàļļý àĝàîñšţ ţĥé šàḿé þŕöĵéçţ. ▒
+
+## ▒ Ñéẋţ šţéþš ▒
+
+- ▒ [Ķééþîñĝ çöñţéñţ çàüĝĥţ üþ](/the-loop) — ŵĥàţ ĥàþþéñš ƃéţŵééñ ƒéţçĥ àñđ þüƃļîšĥ ▒
+- ▒ [Þüƃļîšĥ öñ ƃŕàñđ](/server/publish-on-brand) — ţĥé çöñţéñţ-þļàţƒöŕḿ ŕöüţé, éñđ ţö éñđ ▒
+- ▒ [Àüţöḿàţîöñ](/server/automation) — ŕüļéš ţĥàţ ŕüñ ŵĥéñ çöñţéñţ àŕŕîṽéš ▒
+- ▒ [Çöññéçţöŕ šýšţéḿ](/developer/connectors) — ţĥé Ĝö îñţéŕƒàçéš ƃéĥîñđ à çöññéçţöŕ ▒
