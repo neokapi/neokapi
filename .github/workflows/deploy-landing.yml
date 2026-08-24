@@ -106,13 +106,15 @@ jobs:
           set -euo pipefail
           rm -rf site && mkdir -p site
           cp -r bowrain/web/landing/dist/. site/
-          # dist/qps is a subdirectory of dist/, so the copy above already
-          # placed it at site/qps/. Assert rather than assume: a missing
-          # pseudo-locale is invisible until someone goes looking for it.
-          test -f site/qps/index.html || { echo "::error::landing qps build missing from the site tree"; exit 1; }
-          test -f site/docs/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
           mkdir -p site/docs
           cp -r bowrain/web/docs/build/. site/docs/
+          # Both locale trees are subdirectories of their build output, so the
+          # copies above already placed them. Assert rather than assume: a
+          # missing pseudo-locale is invisible until someone goes looking for
+          # it. These run AFTER both copies — an assertion ahead of the thing it
+          # asserts fails every time, which is how this step first broke.
+          test -f site/qps/index.html || { echo "::error::landing qps build missing from the site tree"; exit 1; }
+          test -f site/docs/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
 
       - name: Upload site artifact
         uses: actions/upload-artifact@v7
