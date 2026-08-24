@@ -355,7 +355,14 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 
 	// Build reader configuration callback: applies preset config + the recipe's
 	// configuration for this item.
+	// The runner builds the reader, and this callback is where it passes
+	// through, so it is also the only place to catch the instance whose
+	// diagnostics say what the run could not translate.
+	var readReader format.DataFormatReader
+	defer func() { a.reportReaderDiagnostics(cmd, inputPath, readReader) }()
+
 	configureReader := func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
+		readReader = reader
 		if err := applyFormatConfig(reader, mergedConfig); err != nil {
 			return fmt.Errorf("apply format config: %w", err)
 		}
@@ -932,7 +939,38 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		return traceNodes, err
 	}
 
+	// The reader may have skipped content it could not handle faithfully. That
+	// is the right call and a silent one: the run succeeds, the file is
+	// written, and a region of it is simply still in the source language. Say
+	// so here, on the ordinary run, rather than only under a validation flag
+	// nobody passes.
+	a.reportReaderDiagnostics(cmd, inputPath, reader)
+
 	return traceNodes, nil
+}
+
+// reportReaderDiagnostics prints what the reader could not translate. Discovery
+// is by assertion, so a reader that records nothing costs nothing.
+func (a *App) reportReaderDiagnostics(cmd Command, inputPath string, reader format.DataFormatReader) {
+	if a.Quiet || cmd == nil || reader == nil {
+		return
+	}
+	dr, ok := reader.(format.DiagnosticReader)
+	if !ok {
+		return
+	}
+	diags := dr.Diagnostics()
+	if len(diags) == 0 {
+		return
+	}
+	w := cmd.ErrOrStderr()
+	for _, d := range diags {
+		where := filepath.Base(inputPath)
+		if d.Line > 0 {
+			where = fmt.Sprintf("%s:%d:%d", where, d.Line, d.Column)
+		}
+		fmt.Fprintf(w, "%s: %s: %s\n", where, d.Category, d.Message)
+	}
 }
 
 // resolveOutputPath computes the output file path for one input file in a flow
