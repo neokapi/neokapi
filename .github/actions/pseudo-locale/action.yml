@@ -1,0 +1,46 @@
+name: Generate the qps pseudo-locale
+description: >
+  Build kapi and generate a Docusaurus site's qps (pseudo-locale) translations
+  into i18n/qps/, immediately before the site build that consumes them.
+
+  The output is NOT committed. It is a pure function of the docs plus the
+  extractor, it changes with every docs edit, and it runs to thousands of files
+  across the two sites — so committing it means either a large diff on every
+  docs PR or a probe that silently goes stale. A stale probe is worse than none:
+  a page added since the last regeneration falls back to English and reads as
+  "this string is not translatable" when it only means "not regenerated".
+
+inputs:
+  site:
+    description: Docusaurus site directory, relative to the repo root.
+    required: true
+  go-version:
+    description: Go version used to build kapi.
+    required: false
+    default: "1.26.0"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: true
+
+    # kapi links SQLite with FTS5 and ICU, so the build needs the toolchain
+    # even though the pseudo pass itself touches neither.
+    - name: Install ICU toolchain
+      uses: ./.github/actions/apt-install
+      with:
+        packages: libicu-dev pkg-config
+
+    - name: Build kapi
+      shell: bash
+      run: make build
+
+    # --with-theme regenerates code.json and the theme JSON as well as the
+    # pages, so the whole pseudo layer comes from this one step and nothing
+    # about it lives in git.
+    - name: Generate ${{ inputs.site }} qps translations
+      shell: bash
+      run: ./scripts/pseudo-docs-i18n.sh "${{ inputs.site }}" --with-theme

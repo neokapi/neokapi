@@ -137,10 +137,16 @@ const config: Config = {
 
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "nb"],
+    locales: ["en", "nb", "qps"],
     localeConfigs: {
       en: { label: "English" },
       nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
+      // The pseudo-locale probe. Its label is written in the pseudo alphabet, so
+      // the switcher demonstrates the transformation it selects: a reader who
+      // cannot parse this entry has learned what the build does before clicking
+      // it. htmlLang stays "en" because the text IS English, mangled — telling a
+      // screen reader otherwise would be a lie.
+      qps: { label: "Þšéüđö Éñĝļîšĥ", htmlLang: "en" },
     },
   },
 

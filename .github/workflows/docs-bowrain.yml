@@ -74,6 +74,14 @@ jobs:
             echo "docs_base=/web/bowrain/docs/" >> "$GITHUB_OUTPUT"
           fi
 
+      # The qps pseudo-locale is generated here, not committed — see
+      # .github/actions/pseudo-locale for why. It must run BEFORE the build that
+      # reads i18n/qps/.
+      - name: Generate the qps pseudo-locale
+        uses: ./.github/actions/pseudo-locale
+        with:
+          site: bowrain/web/docs
+
       - name: Build bowrain Docusaurus site
         run: vpx docusaurus build
         working-directory: bowrain/web/docs

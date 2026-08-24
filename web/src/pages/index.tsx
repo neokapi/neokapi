@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import Link from "@docusaurus/Link";
+import Translate, { translate } from "@docusaurus/Translate";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
@@ -16,29 +17,39 @@ function HomepageHeader() {
     <header className={clsx("hero", styles.heroBanner)}>
       <div className={clsx("container", styles.heroGrid)}>
         <div className={styles.heroIntro}>
-          <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
+          <img
+            src={useBaseUrl("/img/hero-logo.png")}
+            alt={translate({ id: "home.hero.logoAlt", message: "neokapi" })}
+            className={styles.heroLogo}
+          />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            Contextually consistent content, in any format.
+            <Translate id="home.hero.title">
+              Contextually consistent content, in any format.
+            </Translate>
           </Heading>
           <p className={styles.heroSubtitle}>
-            kapi holds your project&rsquo;s context &mdash; its terms, its voice, the rules it goes
-            by &mdash; and applies it inside your real files. Any format in,{" "}
-            <strong>the original back byte&#8209;for&#8209;byte</strong>, every tag and placeholder
-            intact.
+            <Translate id="home.hero.subtitle.lead">
+              kapi holds your project’s context — its terms, its voice, the rules it goes by — and
+              applies it inside your real files. Any format in,
+            </Translate>{" "}
+            <strong>
+              <Translate id="home.hero.subtitle.strong">the original back byte‑for‑byte</Translate>
+            </strong>
+            <Translate id="home.hero.subtitle.tail">, every tag and placeholder intact.</Translate>
           </p>
           <div className={styles.buttons}>
             <Link
               className="button button--lg button--primary"
               to="/kapi/get-started/first-project"
             >
-              Get started
+              <Translate id="home.cta.getStarted">Get started</Translate>
             </Link>
             <Link
               className={clsx("button button--secondary button--lg", styles.tryButton)}
               to="/kapi/get-started/use-with-claude"
             >
               <Sparkles size={18} aria-hidden="true" />
-              Use with Claude
+              <Translate id="home.cta.useWithClaude">Use with Claude</Translate>
             </Link>
           </div>
         </div>
@@ -65,22 +76,48 @@ type Tier = {
 // CLI + desktop app built on it). neokapi-i18n is a separate React i18n library
 // that lives in the same codebase — highlighted on its own below, not framed as
 // a third "way to use the engine".
+// translate() rather than <Translate>: a literal in a const never reaches the
+// JSX walker, so write-translations would not see it.
 const Tiers: Tier[] = [
   {
-    eyebrow: "The engine",
-    title: "Go framework",
-    description:
-      "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+    eyebrow: translate({
+      id: "home.tiers.engine.eyebrow",
+      message: "The engine",
+    }),
+    title: translate({
+      id: "home.tiers.engine.title",
+      message: "Go framework",
+    }),
+    description: translate({
+      id: "home.tiers.engine.description",
+      message:
+        "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+    }),
     link: "/framework/go-quickstart",
-    linkText: "Go quickstart",
+    linkText: translate({
+      id: "home.tiers.engine.linkText",
+      message: "Go quickstart",
+    }),
   },
   {
-    eyebrow: "Built on it",
-    title: "kapi — binary, agent skill, MCP server",
-    description:
-      "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
+    eyebrow: translate({
+      id: "home.tiers.kapi.eyebrow",
+      message: "Built on it",
+    }),
+    title: translate({
+      id: "home.tiers.kapi.title",
+      message: "kapi — binary, agent skill, MCP server",
+    }),
+    description: translate({
+      id: "home.tiers.kapi.description",
+      message:
+        "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
+    }),
     link: "/kapi/overview",
-    linkText: "Use kapi",
+    linkText: translate({
+      id: "home.tiers.kapi.linkText",
+      message: "Use kapi",
+    }),
   },
 ];
 
@@ -106,46 +143,100 @@ type ProductItem = {
 
 const NeokapiFeatures: ProductItem[] = [
   {
-    title: "One model, any format",
-    description:
-      "kapi reads your real files — JSON, Markdown, HTML, config, .docx — into one unified content model, and writes the originals back unchanged except for the text you touched.",
+    title: translate({
+      id: "home.feat.model.title",
+      message: "One model, any format",
+    }),
+    description: translate({
+      id: "home.feat.model.description",
+      message:
+        "kapi reads your real files — JSON, Markdown, HTML, config, .docx — into one unified content model, and writes the originals back unchanged except for the text you touched.",
+    }),
     link: "/framework/formats",
-    linkText: "Formats",
+    linkText: translate({
+      id: "home.feat.model.linkText",
+      message: "Formats",
+    }),
   },
   {
-    title: "Your project's context",
-    description:
-      "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content — the same answer for your checks, your AI agent, and you.",
+    title: translate({
+      id: "home.feat.context.title",
+      message: "Your project's context",
+    }),
+    description: translate({
+      id: "home.feat.context.description",
+      message:
+        "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content — the same answer for your checks, your AI agent, and you.",
+    }),
     link: "/kapi/overview",
-    linkText: "How it works",
+    linkText: translate({
+      id: "home.feat.context.linkText",
+      message: "How it works",
+    }),
   },
   {
-    title: "Edit it in place",
-    description:
-      "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there — tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
+    title: translate({
+      id: "home.feat.edit.title",
+      message: "Edit it in place",
+    }),
+    description: translate({
+      id: "home.feat.edit.description",
+      message:
+        "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there — tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
+    }),
     link: "/framework/checks",
-    linkText: "Checks",
+    linkText: translate({
+      id: "home.feat.edit.linkText",
+      message: "Checks",
+    }),
   },
   {
-    title: "Every language, gated",
-    description:
-      "One command — kapi up — catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+    title: translate({
+      id: "home.feat.langs.title",
+      message: "Every language, gated",
+    }),
+    description: translate({
+      id: "home.feat.langs.description",
+      message:
+        "One command — kapi up — catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+    }),
     link: "/kapi/get-started/add-languages",
-    linkText: "Go multilingual",
+    linkText: translate({
+      id: "home.feat.langs.linkText",
+      message: "Go multilingual",
+    }),
   },
   {
-    title: "Measured, not asserted",
-    description:
-      "We don't claim format support — we measure it. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
+    title: translate({
+      id: "home.feat.measured.title",
+      message: "Measured, not asserted",
+    }),
+    description: translate({
+      id: "home.feat.measured.description",
+      message:
+        "We don't claim format support — we measure it. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
+    }),
     link: "/format-maturity",
-    linkText: "See the dashboards",
+    linkText: translate({
+      id: "home.feat.measured.linkText",
+      message: "See the dashboards",
+    }),
   },
   {
-    title: "Open source, headless",
-    description:
-      "Open source, Apache-2.0, written in Go. Format-agnostic and headless — a content layer a person or an agent can drive.",
+    title: translate({
+      id: "home.feat.oss.title",
+      message: "Open source, headless",
+    }),
+    description: translate({
+      id: "home.feat.oss.description",
+      message:
+        "Open source, Apache-2.0, written in Go. Format-agnostic and headless — a content layer a person or an agent can drive.",
+    }),
     link: "/framework/architecture",
-    linkText: "Architecture",
+    linkText: translate({
+      id: "home.feat.oss.linkText",
+      message: "Architecture",
+    }),
   },
 ];
 
@@ -166,9 +257,13 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">Parse it, check it, write it back</Heading>
+          <Heading as="h2">
+            <Translate id="home.section.engine.title">Parse it, check it, write it back</Translate>
+          </Heading>
           <p className={styles.sectionSubtitle}>
-            One engine, end to end — in one language or twenty.
+            <Translate id="home.section.engine.subtitle">
+              One engine, end to end — in one language or twenty.
+            </Translate>
           </p>
         </div>
         <div className="row margin-bottom--xl">
@@ -177,10 +272,17 @@ function HomepageFeatures() {
           ))}
         </div>
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">Two ways in</Heading>
+          <Heading as="h2">
+            <Translate id="home.section.waysIn.title">Two ways in</Translate>
+          </Heading>
           <p className={styles.sectionSubtitle}>
-            neokapi is a Go framework. Use it directly as a library, or through{" "}
-            <strong>kapi</strong> — the CLI and desktop app built on it.
+            <Translate id="home.section.waysIn.subtitle.lead">
+              neokapi is a Go framework. Use it directly as a library, or through
+            </Translate>{" "}
+            <strong>kapi</strong>{" "}
+            <Translate id="home.section.waysIn.subtitle.tail">
+              — the CLI and desktop app built on it.
+            </Translate>
           </p>
         </div>
         <div className="row margin-bottom--lg">
@@ -192,11 +294,15 @@ function HomepageFeatures() {
           <div className="col col--10 col--offset-1">
             <div className={styles.familyRow}>
               <Link to="/react/introduction" className={styles.reactCallout}>
-                <span className={styles.reactCalloutBadge}>In the family</span>
+                <span className={styles.reactCalloutBadge}>
+                  <Translate id="home.family.badge">In the family</Translate>
+                </span>
                 <span className={styles.reactCalloutText}>
-                  <strong>neokapi-i18n</strong> — a zero-config i18n library for React. Its own
-                  framework, powered by neokapi under the hood for build-time string extraction and
-                  catalog compilation.
+                  <strong>neokapi-i18n</strong>{" "}
+                  <Translate id="home.family.i18n">
+                    — a zero-config i18n library for React. Its own framework, powered by neokapi
+                    under the hood for build-time string extraction and catalog compilation.
+                  </Translate>
                 </span>
                 <span className={styles.reactCalloutArrow} aria-hidden="true">
                   &rarr;
@@ -206,11 +312,16 @@ function HomepageFeatures() {
                 to="/toolbox/overview"
                 className={`${styles.reactCallout} ${styles.toolboxCallout}`}
               >
-                <span className={styles.reactCalloutBadge}>In the family</span>
+                <span className={styles.reactCalloutBadge}>
+                  <Translate id="home.family.badge2">In the family</Translate>
+                </span>
                 <span className={styles.reactCalloutText}>
                   <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
-                  <code>kcat</code>: format-aware grep, sed and cat that read and rewrite the text
-                  inside office files, JSON, HTML and more.
+                  <code>kcat</code>:{" "}
+                  <Translate id="home.family.tools">
+                    format-aware grep, sed and cat that read and rewrite the text inside office
+                    files, JSON, HTML and more.
+                  </Translate>
                 </span>
                 <span className={styles.reactCalloutArrow} aria-hidden="true">
                   &rarr;
@@ -229,7 +340,11 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="An open-source, format-aware content engine in Go. It holds a project's content context — its terms, voice and rules — and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty."
+      description={translate({
+        id: "home.meta.description",
+        message:
+          "An open-source, format-aware content engine in Go. It holds a project's content context — its terms, voice and rules — and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty.",
+      })}
     >
       <StructuredData />
       <HomepageHeader />
