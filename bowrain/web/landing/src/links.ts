@@ -29,6 +29,10 @@ export const GITHUB_URL = "https://github.com/neokapi";
 // path, not a published one.
 export const KAPI_SITE_URL = "https://neokapi.github.io/";
 
-// Relative to the deploy base: /web/bowrain/docs/ on GitHub Pages today,
-// /docs/ once bowrain.cloud serves the site.
-export const docsUrl = () => `${import.meta.env.BASE_URL}docs/`;
+// The docs for the locale this landing was built for. Computed by
+// vite.config.ts (__DOCS_BASE__), because the two paths nest in opposite
+// orders: the landing is <root><locale>/ and the docs are <root>docs/<locale>/.
+// Deriving it from import.meta.env.BASE_URL here would yield /qps/docs/ and
+// drop a reader from the pseudo-locale landing into the English docs — the
+// language must survive the jump between the two sites.
+export const docsUrl = () => __DOCS_BASE__;

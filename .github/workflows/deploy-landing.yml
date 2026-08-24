@@ -83,17 +83,23 @@ jobs:
         working-directory: bowrain/web/docs
         run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
 
-      # English only: nb is target-language drift (English is authoritative) and
-      # the nb locale root (/docs/nb/) needs directory-index routing the apex
-      # CloudFront function doesn't do yet. Deferred with the nb landing above.
-      - name: Build bowrain Docusaurus site (/docs/)
+      # Every locale in docusaurus.config.ts's i18n.locales, in one build: en at
+      # /docs/ and qps at /docs/qps/. A single-locale build cannot do this —
+      # `--locale qps` leaves baseUrl alone and emits a switcher whose sibling
+      # links all point at the locale being built, so English became unreachable
+      # from the pseudo page.
+      #
+      # nb is deliberately absent from i18n.locales: with no Norwegian content
+      # Docusaurus would emit the ENGLISH pages at /docs/nb/ while the switcher
+      # advertised them as Norwegian. It returns there when it has content.
+      - name: Build bowrain Docusaurus site (/docs/, /docs/qps/)
         working-directory: bowrain/web/docs
         env:
           DOCS_BASE_URL: /docs/
           DOCS_CDN_URL: ${{ env.CDN_URL }}
           POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
           POSTHOG_HOST: https://eu.i.posthog.com
-        run: vpx docusaurus build --locale en
+        run: vpx docusaurus build
 
       - name: Assemble site tree (landing at /, docs at /docs/)
         run: |
@@ -103,7 +109,8 @@ jobs:
           # dist/qps is a subdirectory of dist/, so the copy above already
           # placed it at site/qps/. Assert rather than assume: a missing
           # pseudo-locale is invisible until someone goes looking for it.
-          test -f site/qps/index.html || { echo "::error::qps build missing from the site tree"; exit 1; }
+          test -f site/qps/index.html || { echo "::error::landing qps build missing from the site tree"; exit 1; }
+          test -f site/docs/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
           mkdir -p site/docs
           cp -r bowrain/web/docs/build/. site/docs/
 
