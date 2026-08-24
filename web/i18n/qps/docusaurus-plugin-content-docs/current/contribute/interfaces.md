@@ -1,0 +1,537 @@
+---
+sidebar_position: 2
+title: Interface Reference
+description: The concrete Go interfaces and types that form neokapi's implementation contract — DataFormatReader, DataFormatWriter, Tool, Executor, LLMProvider, MTProvider — with signatures for writing formats, tools, and plugins.
+keywords: [interface reference, DataFormatReader, DataFormatWriter, Tool, Executor, Go interfaces, neokapi]
+---
+
+# ▒ Îñţéŕƒàçé Ŕéƒéŕéñçé ▒
+
+▒ Ţĥîš þàĝé çöļļéçţš ţĥé çöñçŕéţé Ĝö îñţéŕƒàçéš àñđ ţýþéš ţĥàţ ƒöŕḿ ñéöķàþî'š
+îḿþļéḿéñţàţîöñ çöñţŕàçţ — ţĥé šîĝñàţüŕéš ýöü îḿþļéḿéñţ ŵĥéñ ŵŕîţîñĝ à ƒöŕḿàţ, à
+ţööļ, öŕ à þļüĝîñ. Ƒöŕ ţĥé _çöñçéþţš_ ƃéĥîñđ ţĥéšé ţýþéš (ŵĥàţ à Þàŕţ îš, ŵĥý ţĥé
+çöñţéñţ ḿöđéļ îš šĥàþéđ ţĥîš ŵàý), šéé ţĥé ƒŕàḿéŵöŕķ šéçţîöñ:
+[Çöñţéñţ Ḿöđéļ](/framework/content-model), [Ţööļš](/framework/tools),
+[Ƒļöŵš](/framework/flows), àñđ [Þîþéļîñé](/framework/pipeline). ▒
+
+## ▒ Çöñţéñţ ḿöđéļ ▒
+
+### ▒ Þàŕţ (ţĥé šţŕéàḿîñĝ üñîţ) ▒
+
+```go
+package model
+
+// PartType identifies the kind of Part flowing through a Flow.
+type PartType int
+
+const (
+    // Explicit integer values preserve wire compatibility (JSON plugin DTOs,
+    // protobuf PartMessage.part_type). Do NOT renumber existing constants.
+    PartTypeUnknown PartType = 0  // zero value (uninitialized)
+    PartLayerStart  PartType = 1  // Start of a structural layer
+    PartLayerEnd    PartType = 2  // End of a structural layer
+    PartGroupStart  PartType = 3  // Start of a structural group within a layer
+    PartGroupEnd    PartType = 4  // End of a structural group
+    PartBlock       PartType = 5  // Translatable content
+    PartData        PartType = 6  // Non-translatable document structure
+    PartMedia       PartType = 7  // Binary/media content
+    // 8-11 reserved (formerly batch part types)
+    PartRawDocument PartType = 12 // Unprocessed document
+    PartCustom      PartType = 13 // Custom extension
+)
+
+// Part is the fundamental unit of content flowing through a Flow.
+type Part struct {
+    Type     PartType
+    Resource Resource
+}
+
+// PartResult pairs a Part with an optional error, used in channels.
+type PartResult struct {
+    Part  *Part
+    Error error
+}
+
+// Resource is the interface satisfied by all content payloads.
+type Resource interface {
+    ResourceID() string
+}
+```
+
+### ▒ Ļàýéŕ (šţŕüçţüŕàļ ĝŕöüþîñĝ) ▒
+
+```go
+// Layer is a top-level structural grouping: a document, a section,
+// or embedded content. Layers can nest — embedded content becomes
+// a child Layer with its own DataFormat.
+type Layer struct {
+    ID             string
+    Name           string
+    Format         string   // DataFormat ID (e.g., "html", "json")
+    Locale         LocaleID
+    Encoding       string
+    MimeType       string
+    LineBreak      string
+    IsMultilingual bool
+    ParentID       string   // ID of the parent Layer (empty for root)
+    Properties     map[string]string
+}
+
+func (l *Layer) ResourceID() string { return l.ID }
+func (l *Layer) IsRoot() bool { return l.ParentID == "" }
+func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
+```
+
+### ▒ Ƃļöçķ (ţŕàñšļàţàƃļé çöñţéñţ) ▒
+
+```go
+// Block is the primary modifiable content unit (Okapi: TextUnit). Source is a
+// single flat run sequence; translations are first-class Target records keyed by
+// VariantKey. Every interpretation of the runs is stand-off, in two carriers:
+// positional, run-anchored Overlays (segmentation, terms, entities, QA,
+// alignment) and block-scoped, typed Annotations (notes, alt-translations,
+// analysis results). There is no structural Segment type.
+type Block struct {
+    ID                 string
+    Name               string
+    Type               string
+    MimeType           string
+    Translatable       bool
+    SourceLocale       LocaleID // locale of the source runs (set by reader)
+    Skeleton           *Skeleton
+    Source             []Run
+    Targets            map[VariantKey]*Target
+    Overlays           []Overlay      // positional, run-anchored stand-off layers
+    Annotations        map[string]any // block-scoped typed metadata, keyed by type
+    Properties         map[string]string
+    Identity           *BlockIdentity // content-addressable hash for deduplication
+    ContentRef         *ContentRef    // link to external connector source
+    DisplayHint        *DisplayHint   // UI rendering guidance
+    PreserveWhitespace bool           // whitespace is significant in this block
+    IsReferent         bool           // block is referenced by a skeleton
+}
+
+func (b *Block) ResourceID() string { return b.ID }
+func (b *Block) SourceText() string { /* plain-text flattening of Source runs */ }
+func (b *Block) SourceRuns() []Run { /* the canonical source run sequence */ }
+func (b *Block) SetSourceRuns(runs []Run) { /* replace source runs */ }
+func (b *Block) SetSourceText(text string) { /* replace source with one TextRun */ }
+func (b *Block) HasTarget(locale LocaleID) bool { /* a locale-only variant exists */ }
+func (b *Block) TargetLocales() []LocaleID { /* sorted target locales */ }
+func (b *Block) Target(locale LocaleID) *Target { /* locale-only variant, or nil */ }
+func (b *Block) TargetRuns(locale LocaleID) []Run { /* target inline content */ }
+func (b *Block) TargetText(locale LocaleID) string { /* target plain text */ }
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* set target runs */ }
+func (b *Block) SetTargetText(locale LocaleID, text string) { /* set target text */ }
+func (b *Block) SetTargetVariant(key VariantKey, t *Target) { /* tone/channel variant */ }
+// Segmentation is one overlay among others; absent it, the block is one segment.
+func (b *Block) SourceSegmentation() *Overlay { /* source segmentation overlay, or nil */ }
+func (b *Block) SourceSegmentCount() int { /* span count, or 1 for a non-empty block */ }
+func (b *Block) SourceSegmentRuns(i int) []Run { /* runs of the i-th segment span */ }
+func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* replace overlay */ }
+
+// VariantKey identifies a translation: locale plus optional tone and channel.
+type VariantKey struct {
+    Locale  LocaleID
+    Tone    string // optional
+    Channel string // optional
+}
+
+func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+
+// Target is one translation: a flat run sequence with status and provenance.
+type Target struct {
+    Runs   []Run
+    Status TargetStatus // e.g. "", "translated", "reviewed"
+    Origin Origin       // tool/provider that produced it
+    Score  float64
+}
+
+// Overlay is a typed stand-off layer over one side of a Block — the source
+// (Variant nil) or a target variant — anchoring Spans to run-index ranges.
+type Overlay struct {
+    Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
+    Variant *VariantKey // nil = source side
+    Layer   string      // segmentation granularity; LayerPrimary = primary sentence segmentation
+    Spans   []Span
+}
+
+// Span is one entry in an Overlay: a run-anchored range with an optional id and
+// type-specific props. RunRange is half-open [start, end) over the runs, with an
+// intra-text-run rune offset so boundaries survive inline-code and edits.
+type Span struct {
+    ID    string
+    Range RunRange
+    Props map[string]string
+}
+
+type RunRange struct {
+    StartRun, StartOffset, EndRun, EndOffset int
+}
+```
+
+### ▒ Ŕüñ (îñļîñé çöñţéñţ) ▒
+
+▒ À ƃļöçķ'š šöüŕçé (àñđ éàçĥ ţàŕĝéţ) îš à ƒļàţ `[]Ŕüñ`. Éàçĥ `Ŕüñ` îš à
+đîšçŕîḿîñàţéđ üñîöñ — éẋàçţļý öñé þöîñţéŕ ƒîéļđ îš šéţ — đéƒîñéđ îñ
+`çöŕé/ḿöđéļ/ŕüñ.ĝö`: ▒
+
+```go
+// Run is one element of a flat inline-content sequence.
+type Run struct {
+    Text    *TextRun        // plain text chunk
+    Ph      *PlaceholderRun // self-closing token: variable, <br>, icon, redaction
+    PcOpen  *PcOpenRun      // opening half of a paired code (<b>, <a>, …)
+    PcClose *PcCloseRun     // closing half of a paired code (</b>, </a>, …)
+    Sub     *SubRun         // reference to a nested Block (subfilter output)
+    Plural  *PluralRun      // ICU plural with per-form Runs
+    Select  *SelectRun      // ICU select with per-case Runs
+}
+
+// RunKind names a Run's discriminator (see Run.Kind()).
+type RunKind string
+
+const (
+    RunKindText    RunKind = "text"
+    RunKindPh      RunKind = "ph"
+    RunKindPcOpen  RunKind = "pcOpen"
+    RunKindPcClose RunKind = "pcClose"
+    RunKindSub     RunKind = "sub"
+    RunKindPlural  RunKind = "plural"
+    RunKindSelect  RunKind = "select"
+)
+
+type TextRun struct {
+    Text string
+}
+
+// PlaceholderRun is a self-closing inline code. PcOpenRun is identical in
+// shape; PcCloseRun shares its ID with the matching PcOpen but omits Disp
+// and Constraints (the close inherits the opener's behavior).
+type PlaceholderRun struct {
+    ID          string
+    Type        string          // semantic type (e.g., "fmt:bold", "var")
+    SubType     string
+    Data        string          // original markup verbatim (e.g., "<br/>")
+    Equiv       string          // plain-text equivalent (e.g., "\n")
+    Disp        string          // editor display label (e.g., "[BR]")
+    Constraints *RunConstraints // deletable / cloneable / reorderable
+}
+
+// RunConstraints is the per-run editing policy.
+type RunConstraints struct {
+    Deletable   bool // translator may remove this code
+    Cloneable   bool // translator may duplicate this code
+    Reorderable bool // this code may move relative to others
+}
+```
+
+▒ À `Ŕüñ` šéŕîàļîžéš ţö ĴŠÖÑ àš àñ öƃĵéçţ ŵîţĥ éẋàçţļý öñé öƒ ţĥé ķéýš `ţéẋţ`,
+`þĥ`, `þçÖþéñ`, `þçÇļöšé`, `šüƃ`, `þļüŕàļ`, öŕ `šéļéçţ`. Šéé
+[Îḿþļéḿéñţîñĝ à Ƒöŕḿàţ](/contribute/formats#inline-code-handling) ƒöŕ à çöḿþļéţé
+ĝüîđé ţö ƃüîļđîñĝ àñđ ŕéçöñšţŕüçţîñĝ îñļîñé çöđéš ƒŕöḿ ŕüñš. ▒
+
+### ▒ Đàţà, Ḿéđîà, ŔàŵĐöçüḿéñţ ▒
+
+```go
+// Data holds non-translatable document structure.
+type Data struct {
+    ID         string
+    Name       string
+    Skeleton   *Skeleton
+    Properties map[string]string
+}
+
+// Media holds binary or media content as a *reference*, not inlined bytes, so a
+// large asset never streams through the Part channel / gRPC boundary. Resolution
+// precedence is BlobKey > URI > Data; tools pass the reference and a single helper
+// at the consuming boundary (a provider call, a writer) materializes the bytes.
+type Media struct {
+    ID         string
+    MimeType   string
+    Data       []byte // inline binary — small, pipeline-internal assets only
+    BlobKey    string // content-addressed key in the BlobStore — large assets
+    URI        string // external reference (CDN / signed URL)
+    Filename   string
+    AltText    string
+    Size       int64
+    Properties map[string]string
+}
+
+// RawDocument represents an unprocessed input document.
+type RawDocument struct {
+    URI          string
+    Encoding     string
+    SourceLocale LocaleID
+    TargetLocale LocaleID
+    MimeType     string
+    FormatID     string
+    Reader       io.ReadCloser
+}
+```
+
+### ▒ Šķéļéţöñ ▒
+
+```go
+// Skeleton preserves non-translatable document structure for reconstruction.
+type Skeleton struct {
+    Strategy  SkeletonStrategy
+    Parts     []SkeletonPart // Fragment-based strategy
+    SourceURI string         // Re-parse strategy
+}
+
+type SkeletonStrategy int
+
+const (
+    SkeletonFragmentBased SkeletonStrategy = iota
+    SkeletonReparse
+)
+```
+
+## ▒ Đàţà ƒöŕḿàţ îñţéŕƒàçéš ▒
+
+```go
+package format
+
+// DataFormatReader reads a document and produces a stream of Parts.
+type DataFormatReader interface {
+    Name() string
+    DisplayName() string
+    Signature() FormatSignature
+    Open(ctx context.Context, doc *model.RawDocument) error
+    Read(ctx context.Context) <-chan model.PartResult
+    Close() error
+    Config() DataFormatConfig
+    SetConfig(cfg DataFormatConfig) error
+}
+
+// DataFormatWriter reconstructs a document from Parts.
+type DataFormatWriter interface {
+    Name() string
+    SetOutput(path string) error
+    SetOutputWriter(w io.Writer) error
+    SetLocale(locale model.LocaleID)
+    SetEncoding(encoding string)
+    Write(ctx context.Context, parts <-chan *model.Part) error
+    Close() error
+}
+
+// FormatSignature describes how to detect a data format.
+type FormatSignature struct {
+    MIMETypes  []string
+    Extensions []string
+    MagicBytes [][]byte
+    Sniff      func([]byte) bool
+}
+```
+
+## ▒ Ţööļ îñţéŕƒàçéš ▒
+
+```go
+package tool
+
+// Tool processes Parts in a Flow.
+type Tool interface {
+    Name() string
+    Description() string
+    Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error
+    Config() ToolConfig
+    SetConfig(cfg ToolConfig) error
+}
+
+// ToolConfig holds configuration for a Tool.
+type ToolConfig interface {
+    ToolName() string
+    Reset()
+    Validate() error
+}
+
+// SchemaProvider is implemented by tools that declare a parameter schema,
+// enabling schema-driven CLI flags, config panels, and validation.
+type SchemaProvider interface {
+    Schema() *schema.ComponentSchema
+}
+```
+
+### ▒ ƂàšéŢööļ (éḿƃéđđîñĝ ţàŕĝéţ ŵîţĥ þàŕţ-ţýþé đîšþàţçĥ) ▒
+
+```go
+// PartHandler handles a single non-block Part, returning the (possibly
+// transformed) Part.
+type PartHandler func(part *model.Part) (*model.Part, error)
+
+// BaseTool implements Process once and dispatches each Part to the matching
+// handler. Embed it and set only the handlers you need; unset handlers pass the
+// Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
+// the view it receives bounds what the tool may write (immutability, E-03):
+//   Annotate(BlockView)  — read-only: overlays / annotations / properties
+//   Produce(VariantView) — writes the target; source read-only
+//   Transform(BlockView) — edit producer: returns an EditPlan the framework
+//                          applier applies to the source (the sole mutator —
+//                          it rewrites, rebases overlays, vaults secrets,
+//                          bounds-checks, atomically)
+type BaseTool struct {
+    ToolName        string
+    ToolDescription string
+    Cfg             ToolConfig
+    SchemaFn        func() *schema.ComponentSchema
+
+    Annotate  func(BlockView) error
+    Produce func(VariantView) error
+    Transform func(BlockView) (EditPlan, error)
+
+    // VaultSecrets is the sink the applier hands a plan's Secrets to, set by
+    // recoverable transformers (redaction). A plan with secrets and no sink
+    // is an apply error (fail closed).
+    VaultSecrets func(BlockView, []Secret) error
+
+    HandleDataFn       PartHandler
+    HandleMediaFn      PartHandler
+    HandleLayerStartFn PartHandler
+    HandleLayerEndFn   PartHandler
+    HandleGroupStartFn PartHandler
+    HandleGroupEndFn   PartHandler
+}
+
+// BlockView ⊂ VariantView are the read/write surfaces a block handler sees.
+// BlockView reads source/target and writes overlays, annotations and
+// properties; VariantView adds SetTarget*. There is no source-write view — a
+// Transform handler is a read-only producer and the framework applier is the
+// only code that rewrites source. A tool needing batching, 1→N fan-out, or
+// stream control overrides Process instead.
+```
+
+### ▒ ŠéššîöñŢööļ (ŕàñđöḿ àççéšš ţö þŕöĵéçţ ƃļöçķ šţàţé) ▒
+
+```go
+// SessionTool is an optional interface for tools that need random access to
+// the project's block state alongside the streaming channel contract. The
+// executor opens a blockstore session and passes it to SessionProcess.
+// Tools implementing SessionTool MUST also implement Tool.
+type SessionTool interface {
+    Tool
+    SessionProcess(
+        ctx context.Context,
+        sess blockstore.Session,
+        in <-chan *model.Part,
+        out chan<- *model.Part,
+    ) error
+}
+```
+
+▒ Šéé [Šéššîöñ Ţööļ Àüţĥöŕîñĝ](/contribute/implementation/engine/session-tool-authoring)
+ƒöŕ ţĥé ļîƒéçýçļé àñđ ŵĥéñ ţö üšé ţĥîš çöñţŕàçţ. ▒
+
+## ▒ Ƒļöŵ îñţéŕƒàçéš ▒
+
+```go
+package flow
+
+// ToolFactory creates a fresh Tool instance (parallel execution gives each
+// document its own tool chain).
+type ToolFactory func() (tool.Tool, error)
+
+// Flow is a configured sequence of Tools that Parts stream through.
+// Transformers (tool.CapTransform) are ordinary entries in the ordered list;
+// the framework applier rewrites the source inline, so each transformer
+// settles the block before later tools observe it. The placement pass
+// (core/flow/placement.go) validates transformer positions at build/load.
+type Flow struct {
+    Name string
+
+    Tools         []tool.Tool   // sequential / single-document execution
+    ToolFactories []ToolFactory // parallel: fresh tool chain per document
+}
+
+// Item represents a single document to process in a batch.
+type Item struct {
+    Input          *model.RawDocument
+    OutputPath     string
+    OutputEncoding string
+    TargetLocale   model.LocaleID
+    OutputBlocks   []*model.Block // populated after execution
+}
+
+// Executor orchestrates execution of a Flow across batch items.
+type Executor interface {
+    Execute(ctx context.Context, f *Flow, items []*Item) error
+}
+
+// ExecutorConfig configures the DefaultExecutor.
+type ExecutorConfig struct {
+    MaxConcurrency int             // 0 = runtime.NumCPU(); 1 = sequential
+    ChannelSize    int             // default 64
+    FailFast       bool            // default true
+    Collectors     []Collector
+    Store          blockstore.Store // backs SessionTool dispatch
+}
+```
+
+▒ Ţĥé `Ƃüîļđéŕ` þŕöṽîđéš à ƒļüéñţ ÀÞÎ ƒöŕ çöñšţŕüçţîñĝ ƒļöŵš: ▒
+
+```go
+f, err := flow.NewFlow("translate").
+    AddTool(tools.NewMemoryLeverageTool(memoryCfg)).
+    AddTool(aitools.NewAITranslateTool(llmProvider, translateCfg)).
+    Build()
+
+executor := flow.NewExecutor(
+    flow.WithMaxConcurrency(0),
+    flow.WithChannelSize(64),
+    flow.WithFailFast(true),
+)
+err = executor.Execute(ctx, f, items)
+```
+
+## ▒ Ŕéĝîšţŕý ▒
+
+```go
+package registry
+
+// FormatID and ToolID are string-typed identifiers.
+type FormatID string
+type ToolID string
+
+// FormatRegistry manages available DataFormats and their configurations.
+type FormatRegistry struct { /* readers, writers, configs */ }
+
+func (r *FormatRegistry) RegisterReader(name FormatID, factory FormatReaderFactory, sig format.FormatSignature, displayName string)
+func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFactory)
+func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error)
+func (r *FormatRegistry) Detector() *format.Detector
+
+// ToolRegistry manages available Tools.
+type ToolRegistry struct { /* name → factory */ }
+
+func (r *ToolRegistry) Register(name ToolID, factory ToolFactory)
+func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *schema.ComponentSchema)
+func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error)
+```
+
+## ▒ Þļüĝîñ þŕöţöçöļš ▒
+
+▒ Öüţ-öƒ-þŕöçéšš ƒöŕḿàţš, ţööļš, àñđ šöüŕçé çöññéçţöŕš ŕüñ àš Ḿöđé-Ç þļüĝîñ
+đàéḿöñš àñđ àŕé ŕéàçĥéđ öṽéŕ à šîñĝļé ĝŔÞÇ `ƂŕîđĝéŠéŕṽîçé`. À ƃîđîŕéçţîöñàļ
+`Þŕöçéšš` šţŕéàḿ çàŕŕîéš ţĥé ŵĥöļé đöçüḿéñţ ļîƒéçýçļé — îţš ḿöđé (ŕéàđ-öñļý,
+ŕéàđ-ŵŕîţé, öŕ ŵŕîţé-öñļý) îš šéļéçţéđ ƃý ţĥé ĥéàđéŕ ŕàţĥéŕ ţĥàñ ƃý šéþàŕàţé
+ŔÞÇš: ▒
+
+```protobuf
+service BridgeService {
+    // Full document cycle. The ProcessHeader selects read-only,
+    // read-write, or write-only mode.
+    rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
+    // Run a single Okapi pipeline step over a stream of parts.
+    rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
+    // Gracefully stop the daemon.
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+```
+
+▒ Ţĥé `ÞŕöçéššŔéǫüéšţ` / `ÞŕöçéššŔéšþöñšé` þàýļöàđš šţŕéàḿ `ÞàŕţḾéššàĝé`š ţĥàţ ḿàþ
+öñţö ţĥé îñ-þŕöçéšš `Þàŕţ` ḿöđéļ ṽîà `çöŕé/þļüĝîñ/þŕöţöçöñṽéŕţ`. Ţĥé ƒüļļ
+šéŕṽîçé îš đéƒîñéđ îñ `çöŕé/þļüĝîñ/þŕöţö/ṽ2/ñéöķàþî_ƃŕîđĝé.þŕöţö`. ▒
+
+▒ Šéé [Þļüĝîñ Šýšţéḿ](/contribute/plugins) àñđ
+[Þļüĝîñ þŕöţöçöļ ṽ1](/contribute/implementation/engine/plugin-protocol-v1) ƒöŕ ţĥé ƒüļļ
+çöñţŕàçţ. ▒

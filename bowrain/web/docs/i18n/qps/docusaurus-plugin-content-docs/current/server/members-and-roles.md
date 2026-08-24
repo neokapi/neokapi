@@ -18,12 +18,12 @@ sidebar_position: 10
 ▒ Éṽéŕý ŵöŕķšþàçé ḿéḿƃéŕ ĥöļđš öñé ŵöŕķšþàçé-ļéṽéļ ŕöļé, ŵĥîçĥ šéţš ŵĥàţ ţĥéý çàñ
 đö àçŕöšš ţĥé ŵĥöļé ŵöŕķšþàçé. ▒
 
-| ▒ Ŕöļé ▒ | ▒ Ŵĥàţ îţ çàñ đö ▒ |
+| Role | What it can do |
 | --- | --- |
-| ▒ **Öŵñéŕ** ▒ | ▒ Ƒüļļ çöñţŕöļ, îñçļüđîñĝ ƃîļļîñĝ àñđ đéļéţîñĝ ţĥé ŵöŕķšþàçé. Éàçĥ ŵöŕķšþàçé ĥàš öñé öŵñéŕ — îţš çŕéàţöŕ. ▒ |
-| ▒ **Àđḿîñ** ▒ | ▒ Ḿàñàĝé ḿéḿƃéŕš, šéţţîñĝš, ŕöļéš, ţöķéñš, àñđ àļļ þŕöĵéçţš. Çàññöţ ḿàñàĝé ƃîļļîñĝ öŕ đéļéţé ţĥé ŵöŕķšþàçé. ▒ |
-| ▒ **Ḿéḿƃéŕ** ▒ | ▒ Çŕéàţé àñđ éđîţ þŕöĵéçţš, àñđ þüšĥ àñđ þüļļ çöñţéñţ. ▒ |
-| ▒ **Ṽîéŵéŕ** ▒ | ▒ Ŕéàđ-öñļý àççéšš ţö þŕöĵéçţš àñđ ţŕàñšļàţîöñš. ▒ |
+| **Owner** | Full control, including billing and deleting the workspace. Each workspace has one owner — its creator. |
+| **Admin** | Manage members, settings, roles, tokens, and all projects. Cannot manage billing or delete the workspace. |
+| **Member** | Create and edit projects, and push and pull content. |
+| **Viewer** | Read-only access to projects and translations. |
 
 ▒ Ţĥéšé ŕöļéš àŕé àļšö šüḿḿàŕîžéđ öñ ţĥé [Ŵöŕķšþàçéš](/server/workspaces) þàĝé.
 Ƒöŕ ƒîñé-ĝŕàîñéđ çöñţŕöļ ŵîţĥîñ à šîñĝļé þŕöĵéçţ, üšé
@@ -54,13 +54,13 @@ sidebar_position: 10
 
 ▒ Éàçĥ ñéŵ ŵöŕķšþàçé îš šééđéđ ŵîţĥ ƃüîļţ-îñ ţéḿþļàţéš: ▒
 
-| ▒ Ţéḿþļàţé ▒ | ▒ Îñţéñđéđ ƒöŕ ▒ |
+| Template | Intended for |
 | --- | --- |
-| ▒ **Þŕöĵéçţ Àđḿîñ** ▒ | ▒ Ƒüļļ çöñţŕöļ öṽéŕ ţĥé þŕöĵéçţ. ▒ |
-| ▒ **Đéṽéļöþéŕ** ▒ | ▒ Ḿàñàĝé ƒîļéš, ŕüñ ƒļöŵš, ḿàñàĝé çöññéçţöŕš àñđ àüţöḿàţîöñ, àñđ çöñţŕîƃüţé ţŕàñšļàţîöñš. ▒ |
-| ▒ **Ţŕàñšļàţöŕ** ▒ | ▒ Ţŕàñšļàţé çöñţéñţ, šçöþéđ ţö šþéçîƒîç ļàñĝüàĝéš. ▒ |
-| ▒ **Ŕéṽîéŵéŕ** ▒ | ▒ Ţŕàñšļàţé, ŕéṽîéŵ, àñđ àþþŕöṽé ţŕàñšļàţîöñš, šçöþéđ ţö šþéçîƒîç ļàñĝüàĝéš. ▒ |
-| ▒ **Öƃšéŕṽéŕ** ▒ | ▒ Ŕéàđ-öñļý àççéšš ţö þŕöĵéçţ çöñţéñţ. ▒ |
+| **Project Admin** | Full control over the project. |
+| **Developer** | Manage files, run flows, manage connectors and automation, and contribute translations. |
+| **Translator** | Translate content, scoped to specific languages. |
+| **Reviewer** | Translate, review, and approve translations, scoped to specific languages. |
+| **Observer** | Read-only access to project content. |
 
 ▒ Ḿàñàĝé ţéḿþļàţéš ƒŕöḿ **Ŵöŕķšþàçé Šéţţîñĝš > Ŕöļéš**. Ýöü çàñ àđĵüšţ ţĥé
 þéŕḿîššîöñš öƒ à ƃüîļţ-îñ ţéḿþļàţé, àñđ çŕéàţé çüšţöḿ ţéḿþļàţéš öƒ ýöüŕ öŵñ;

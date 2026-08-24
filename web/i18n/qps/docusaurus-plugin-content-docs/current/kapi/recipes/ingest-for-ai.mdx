@@ -1,0 +1,72 @@
+---
+id: ingest-for-ai
+title: "Feed content to your AI"
+description: "Parse any document format into anchored content blocks for RAG or an AI assistant, survey size and structure first with kapi stats, then stream records with kapi inspect --jsonl. The stable content-hash anchor on every block lets you write edits back to the same blocks later."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# ▒ Ƒééđ çöñţéñţ ţö ýöüŕ ÀÎ ▒
+
+▒ **Ĝöàļ:** ţüŕñ àñý đöçüḿéñţ — Ŵöŕđ, ÞĐƑ, ĴŠÖÑ, Ḿàŕķđöŵñ, ĤŢḾĻ — îñţö à šţŕéàḿ öƒ çļéàñ, àñçĥöŕéđ çöñţéñţ ƃļöçķš àñ ÀÎ àššîšţàñţ öŕ ŔÀĜ þîþéļîñé çàñ ŕéàđ ŵîţĥöüţ ķñöŵîñĝ àñýţĥîñĝ àƃöüţ ţĥé šöüŕçé ƒöŕḿàţ. Ñö ţŕàñšļàţîöñ îš îñṽöļṽéđ. Éṽéŕý ƃļöçķ çàŕŕîéš à šţàƃļé `çöñţéñţ_ĥàšĥ` àñçĥöŕ — à ŕéţŕîéṽàļ ķéý đéŕîṽéđ ƒŕöḿ ţĥé ƃļöçķ'š ţéẋţ, ñöţ îţš þöšîţîöñ — šö àñ éđîţ þŕöđüçéđ ļàţéŕ çàñ ƃé ŵŕîţţéñ ƃàçķ ţö ţĥé šàḿé ƃļöçķ ŵîţĥ ţĥé šüŕŕöüñđîñĝ ḿàŕķüþ îñţàçţ. Çöñçéþţš: [Çöñţéñţ ḿöđéļ](/framework/content-model), [Çĥéçķš](/framework/checks). ▒
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+Ingestion is a pipeline job, so the desktop's role here is inspection, not export:
+
+1. **See what your AI will see.** Open a file in your project — the **Blocks** view is the same record stream `kapi inspect` emits: the text and its structural role, with the surrounding markup stripped away.
+2. **Judge the parse before you index.** **Preview** — plus **Structure** and **Layout** where the format carries them — shows whether headings, tables, and reading order came through; cheaper to catch here than in retrieval quality later.
+3. **Then stream.** The feed itself is `kapi inspect --jsonl` (CLI tab), or a connected assistant reading blocks directly (Agent tab).
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+A [connected assistant](/kapi/get-started/use-with-claude) needs no export step — the [MCP tools](/reference/mcp) are the feed:
+
+- `extract_content` streams the anchored blocks of any file it is pointed at;
+- `check_file` returns the structured `kapi.check/v1` Report, one finding per block;
+- `apply_edits` writes revisions back through the round-trip, drift-guarded by `content_hash`.
+
+You describe the outcome — "read the contract and flag every clause that mentions liability" — and the assistant reads blocks, not bytes.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+**Survey first.** `kapi stats` sizes the job — blocks, words, characters, a breakdown by structural role — to estimate token budget and decide how to chunk:
+
+```bash
+kapi stats --json report.docx docs/*.md | jq '.total.words'
+```
+
+**Extract blocks with anchors.** `kapi inspect` emits one record per block — the plain `text`, a stable `content_hash`, the structural `role`, the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
+
+```bash
+kapi inspect --jsonl report.docx docs/*.md | \
+  jq -c '{hash: .content_hash, role: .role, text: .text}'
+cat page.html | kapi inspect -f html --jsonl
+```
+
+**Write back; check any time.** `kapi apply` lands an assistant's edits on the original blocks by anchor; `kapi check` returns findings a program can act on (exit `0` pass, `3` gate tripped, `--no-fail` for fix-loops):
+
+```bash
+kapi apply edits.jsonl --diff             # review before writing
+kapi check report.docx --max-chars 300 --forbid "TODO"
+```
+
+An edit that drifted (the file changed since you read it) or would corrupt an inline code is rejected rather than written — [Edit content](/kapi/recipes/rewrite-content) documents the entry shape and the guards.
+
+</TabItem>
+</Tabs>
+
+## ▒ Îñ à þŕöĵéçţ ▒
+
+▒ Îñ à [`.ķàþî` þŕöĵéçţ](/kapi/get-started/first-project), `ķàþî šţàţš`, `ķàþî îñšþéçţ`, àñđ `ķàþî çĥéçķ` ŵîţĥ ñö ƒîļé àŕĝüḿéñţ šüŕṽéý éṽéŕý šöüŕçé ţĥé ŕéçîþé đéçļàŕéš — àñđ ţĥé šàḿé `çöñţéñţ_ĥàšĥ` àñçĥöŕš šţàý šţàƃļé àçŕöšš ŕüñš, šö àñ àššîšţàñţ îñđéẋîñĝ ýöüŕ þŕöĵéçţ çàñ ŕéţŕîéṽé àñđ ŕéŵŕîţé ţĥé šàḿé ƃļöçķš öṽéŕ ţîḿé. ▒
+
+## ▒ Ƒüŕţĥéŕ ŕéàđîñĝ ▒
+
+- ▒ [Éđîţ çöñţéñţ](/kapi/recipes/rewrite-content) — ţĥé îñšþéçţ → éđîţ → `àþþļý` ļööþ àñđ ţĥé þŕéšéŕṽàţîöñ çöñţŕàçţ. ▒
+- ▒ [ḾÇÞ šéŕṽéŕ](/reference/mcp) — éṽéŕý šţŕüçţüŕéđ ţööļ ƃéĥîñđ ţĥé šàḿé ļööþ. ▒
+- ▒ [Ŵĥàţ ĝéţš ţŕàñšļàţéđ](/kapi/recipes/prepare-content) — îƒ ýöüŕ ĝöàļ îš ţŕàñšļàţîöñ ŕàţĥéŕ ţĥàñ ÀÎ îñĝéšţîöñ. ▒

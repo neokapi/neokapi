@@ -1,0 +1,67 @@
+---
+id: translate-media
+title: "Translate audio & video"
+sidebar_label: "Translate audio & video"
+sidebar_position: 8
+description: "Turn speech and on-screen text into translated subtitle tracks, translate the text in an image, or swap a whole media file per locale."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
+# ▒ Ţŕàñšļàţé àüđîö & ṽîđéö ▒
+
+▒ Ţĥéŕé àŕé ţŵö ŵàýš ţö ţàķé à ḿéđîà ƒîļé îñţö àñöţĥéŕ ļàñĝüàĝé, üšàƃļé ţöĝéţĥéŕ öñ ţĥé šàḿé ƒîļé: ▒
+
+- ▒ **Ţŕàñšļàţé ţĥé ţéẋţ îñšîđé îţ** — šþééçĥ îñ àüđîö, đîàļöĝüé àñđ öñ-šçŕééñ ţéẋţ îñ ṽîđéö, ŵöŕđš îñ àñ îḿàĝé. ķàþî ŕéçöĝñîžéš ţĥé ţéẋţ, ţŕàñšļàţéš îţ, àñđ ŵŕîţéš à šüƃţîţļé ƒîļé öŕ à ţŕàñšļàţéđ çàþţîöñ. ▒
+- ▒ **Ŕéþļàçé ţĥé ŵĥöļé ƒîļé** — ŵĥéñ ţĥé ƒîļé îţšéļƒ îš ţĥé đéļîṽéŕàƃļé, šüþþļý à ţŕàñšļàţéđ ṽéŕšîöñ þéŕ ļàñĝüàĝé àñđ ķàþî çàŕŕîéš îţ ţĥŕöüĝĥ àš ţĥàţ ļàñĝüàĝé'š àššéţ (ñö ţéẋţ-ţö-šþééçĥ, ñö ŕé-éñçöđîñĝ — ýöü þŕöṽîđé ţĥé ƒîļé). ▒
+
+▒ Ŕéçöĝñîţîöñ ŕüñš öñ ýöüŕ ḿàçĥîñé; ţŕý îţ ŵîţĥ ñö îñšţàļļ îñ ţĥé [îñ-ƃŕöŵšéŕ ļàƃš](/lab/media). Ţĥé ţŕàñšļàţîñĝ ḿöđéļ îš ţĥé öñé ýöü àļŕéàđý çöñƒîĝüŕéđ — šéé [Çĥööšé à ţŕàñšļàţîöñ ḿöđéļ](/kapi/recipes/choose-a-translation-provider). ▒
+
+<PipelineDiagram
+  stages={[
+    { label: "Read media", sub: "demux → ASR + frame OCR", role: "io" },
+    { label: "Translate", role: "translate" },
+    { label: "Subtitle / caption", role: "io" },
+  ]}
+/>
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+1. **Install the engines.** In **Plugins**, install what you need: `asr` (speech), `av` (video), `vision` (text in images and frames). The replace-the-file path needs none of them.
+2. **Run the flow.** The media flows appear alongside the others once their plugin is installed — pick the flow, the file, and a target language, and run with live progress.
+3. **Whole-file assets** ride the project: put the translated file beside the source on the language path (for example `assets/fr/promo.mp4`) and kapi picks it up as that language's asset, as-is.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Ask for the deliverable:
+
+> Give me French subtitles for `talk.m4a`, and check the terminology against our approved terms.
+
+The assistant runs the recognition flow, translates the cues through kapi (so the terms store applies), and runs the checks on the subtitle file like any other content. When recognition is uncertain, it can have a multimodal model re-read the unclear lines (`media-refine`) before translating.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Install the engines once, then each job is one flow run — the subtitle format follows the extension you give:
+
+```bash
+kapi plugin install asr                  # speech; also: av (video), vision (image text)
+kapi run audio-to-subtitles -i talk.m4a -o talk.fr.vtt --target-lang fr
+kapi run video-to-subtitles -i clip.mp4 -o clip.fr.srt --target-lang fr
+kapi run image-ocr-translate -i banner.png --target-lang fr   # → banner.alt.txt
+```
+
+In a project, the flows run without `-i` across the declared content, and outputs follow the language path instead of `-o`. Every flow and flag is in the [command reference](/commands).
+
+</TabItem>
+</Tabs>
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [Îñ-ƃŕöŵšéŕ ļàƃš](/lab/media) — ţĥé šàḿé ŕéçöĝñîţîöñ, çļîéñţ-šîđé, ñöţĥîñĝ ţö îñšţàļļ. ▒
+- ▒ [Ķééþ ţéŕḿš çöñšîšţéñţ](/kapi/recipes/terminology-qa) — ţéŕḿîñöļöĝý éñƒöŕçéḿéñţ öñ šüƃţîţļé öüţþüţ. ▒

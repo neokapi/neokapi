@@ -56,6 +56,7 @@ automations:
       - type: run_flow
         config:
           flow: qa
+
   - name: sync-on-push
     trigger: post-push
     actions:
@@ -67,23 +68,23 @@ automations:
 
 ### ▒ Ţŕîĝĝéŕ ţýþéš ▒
 
-| ▒ Ţŕîĝĝéŕ ▒ | ▒ Ƒîŕéš ŵĥéñ ▒ |
+| Trigger     | Fires when                                           |
 | ----------- | ---------------------------------------------------- |
-| ▒ `þŕé-þüšĥ` ▒ | ▒ Ƃéƒöŕé `ķàþî þüšĥ` šéñđš çöñţéñţ ţö ţĥé šéŕṽéŕ ▒ |
-| ▒ `þöšţ-þüšĥ` ▒ | ▒ Àƒţéŕ `ķàþî þüšĥ` çöḿþļéţéš šüççéššƒüļļý ▒ |
-| ▒ `þŕé-þüļļ` ▒ | ▒ Ƃéƒöŕé `ķàþî þüļļ` ƒéţçĥéš çöñţéñţ ƒŕöḿ ţĥé šéŕṽéŕ ▒ |
-| ▒ `þöšţ-þüļļ` ▒ | ▒ Àƒţéŕ `ķàþî þüļļ` ŵŕîţéš ƒîļéš ļöçàļļý ▒ |
-| ▒ `þŕé-ƒļöŵ` ▒ | ▒ Ƃéƒöŕé `ķàþî ŕüñ` éẋéçüţéš à ƒļöŵ ▒ |
-| ▒ `þöšţ-ƒļöŵ` ▒ | ▒ Àƒţéŕ `ķàþî ŕüñ` çöḿþļéţéš ▒ |
+| `pre-push`  | Before `kapi push` sends content to the server       |
+| `post-push` | After `kapi push` completes successfully             |
+| `pre-pull`  | Before `kapi pull` fetches content from the server   |
+| `post-pull` | After `kapi pull` writes files locally               |
+| `pre-flow`  | Before `kapi run` executes a flow                    |
+| `post-flow` | After `kapi run` completes                           |
 
 ### ▒ Àçţîöñ ţýþéš ▒
 
-| ▒ Àçţîöñ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Action           | Description                                                               |
 | ---------------- | ------------------------------------------------------------------------- |
-| ▒ `ŕüñ_ƒļöŵ` ▒ | ▒ Éẋéçüţé à ƒļöŵ ƃý ñàḿé (îñļîñé öñ ţĥé ŕéçîþé, ƒŕöḿ `.ķàþî/ƒļöŵš/`, öŕ ƃüîļţ-îñ) ▒ |
-| ▒ `ŵàîţ_ţŕàñšļàţé` ▒ | ▒ Ŵàîţ ƒöŕ šéŕṽéŕ-šîđé ţŕàñšļàţîöñš ţö çöḿþļéţé (ŵîţĥ çöñƒîĝüŕàƃļé ţîḿéöüţ) ▒ |
-| ▒ `þüļļ` ▒ | ▒ Þüļļ ţŕàñšļàţéđ çöñţéñţ ƒŕöḿ ţĥé šéŕṽéŕ ▒ |
-| ▒ `þüšĥ` ▒ | ▒ Þüšĥ ļöçàļ çöñţéñţ ţö ţĥé šéŕṽéŕ ▒ |
+| `run_flow`       | Execute a flow by name (inline on the recipe, from `.kapi/flows/`, or built-in) |
+| `wait_translate` | Wait for server-side translations to complete (with configurable timeout) |
+| `pull`           | Pull translated content from the server                                   |
+| `push`           | Push local content to the server                                          |
 
 ### ▒ Éẋàḿþļé: ǪÀ ĝàţé ƃéƒöŕé þüšĥ ▒
 

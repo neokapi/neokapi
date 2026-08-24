@@ -1615,7 +1615,8 @@ L10N_DERIVED := \
 	bowrain/apps/pulse/public/translations/qps.json \
 	$(LANDING_DIR)/translations/qps.json \
 	bowrain/mailer/templates/qps \
-	bowrain/web/docs/i18n/qps/docusaurus-plugin-content-docs/current
+	bowrain/web/docs/i18n/qps/docusaurus-plugin-content-docs/current \
+	web/i18n/qps/docusaurus-plugin-content-docs/current
 
 # One locale's committed loop output. The Go catalog directories contribute
 # their <lang>.json — the compiled <lang>.mo beside them is gitignored build
@@ -1739,6 +1740,7 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 	@# fall back to English in the pseudo build — reading as "not translatable"
 	@# when it means "not regenerated".
 	@./scripts/pseudo-docs-i18n.sh bowrain/web/docs
+	@./scripts/pseudo-docs-i18n.sh web
 
 # Stage 3: compile.
 # A catalog is not what a product loads. The SPAs and the landing page load

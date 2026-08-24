@@ -71,16 +71,16 @@ keywords: [kapi, bowrain, context graph, reach, connectors, governed review, ope
 
 ## ▒ Àţ à ĝļàñçé ▒
 
-|  | ▒ **ķàþî** ▒ | ▒ **Ƃöŵŕàîñ** ▒ |
+| | **kapi** | **Bowrain** |
 | --- | --- | --- |
-| ▒ Ŕéàçĥ öƒ ţĥé ĝŕàþĥ ▒ | ▒ Öñé þŕöĵéçţ ▒ | ▒ Éṽéŕý þŕöĵéçţ îñ ţĥé ŵöŕķšþàçé ▒ |
-| ▒ Šĥàþé ▒ | ▒ À ÇĻÎ + đéšķţöþ àþþ ýöü îñšţàļļ ▒ | ▒ À šéŕṽéŕ + ŵéƃ àñđ đéšķţöþ çļîéñţš ▒ |
-| ▒ Ŵĥö đéçîđéš ▒ | ▒ Ýöü, îñ à çöḿḿîţ ▒ | ▒ À ŕéṽîéŵéŕ, öñ ţĥé ŕéçöŕđ ▒ |
-| ▒ Ŵĥéŕé ţĥé ĝŕàþĥ ļîṽéš ▒ | ▒ Çöḿḿîţţéđ ƒîļéš îñ ţĥé ŕéþöšîţöŕý ▒ | ▒ Ĥöšţéđ àñđ ṽéŕšîöñéđ (ţĥé đéšķţöþ ĥöļđš à **çàçĥé** öñļý) ▒ |
-| ▒ Ĥöŵ îţ ļéàŕñš ▒ | ▒ Ýöü éđîţ ţĥé þŕöƒîļé àñđ ţĥé ţéŕḿš ▒ | ▒ Çöŕŕéçţîöñš àĝĝŕéĝàţé îñţö çàñđîđàţé ŕüļéš à ŕéṽîéŵéŕ þŕöḿöţéš ▒ |
-| ▒ Çöñţéñţ šöüŕçéš ▒ | ▒ Ļöçàļ ƒîļéš ýöü öŵñ ▒ | ▒ Éṽéŕý [çöññéçţöŕ](/server/connectors) — çöñţéñţ þļàţƒöŕḿš, đéšîĝñ ţööļš, ŕéþöšîţöŕîéš, çĥéçķöüţš ▒ |
-| ▒ Àüţöḿàţîöñ ▒ | ▒ Ļöçàļ ŕéçîþé ĥööķš ▒ | ▒ Šéŕṽéŕ-šîđé, éṽéñţ-đŕîṽéñ ▒ |
-| ▒ Çöšţ ▒ | ▒ Ƒŕéé, öþéñ šöüŕçé ▒ | ▒ Ĥöšţéđ þļàñš / šéļƒ-ĥöšţ ▒ |
+| Reach of the graph | One project | Every project in the workspace |
+| Shape | A CLI + desktop app you install | A server + web and desktop clients |
+| Who decides | You, in a commit | A reviewer, on the record |
+| Where the graph lives | Committed files in the repository | Hosted and versioned (the desktop holds a **cache** only) |
+| How it learns | You edit the profile and the terms | Corrections aggregate into candidate rules a reviewer promotes |
+| Content sources | Local files you own | Every [connector](/server/connectors) — content platforms, design tools, repositories, checkouts |
+| Automation | Local recipe hooks | Server-side, event-driven |
+| Cost | Free, open source | Hosted plans / self-host |
 
 ## ▒ Ŵĥîçĥ öñé ţö ŕéàçĥ ƒöŕ ▒
 

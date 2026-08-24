@@ -13,11 +13,11 @@ keywords: [quick start, bowrain, connectors, workspace, brand scan, review, publ
 šàḿé çöñţéñţ ḿéḿöŕý, ţĥé šàḿé ŕéṽîéŵ ǫüéüé. Þîçķ ţĥé ŕöüţé ţĥàţ ḿàţçĥéš ŵĥéŕé
 ýöüŕ šöüŕçé ļîṽéš. ▒
 
-| ▒ Ýöüŕ šöüŕçé ļîṽéš îñ ▒ | ▒ Šţàŕţ ĥéŕé ▒ | ▒ Àñýţĥîñĝ ţö îñšţàļļ? ▒ |
+| Your source lives in | Start here | Anything to install? |
 | --- | --- | --- |
-| ▒ À çöñţéñţ þļàţƒöŕḿ, à đéšîĝñ ţööļ, öŕ đöçüḿéñţš ▒ | ▒ [Ƒŕöḿ ýöüŕ çöñţéñţ](#from-your-content) ▒ | ▒ Ñö ▒ |
-| ▒ À ŕéþöšîţöŕý, àñđ ñöƃöđý ŵàñţš à þîþéļîñé ▒ | ▒ [Ƒŕöḿ à ŕéþöšîţöŕý](#from-a-repository) ▒ | ▒ Ñö ▒ |
-| ▒ À ŕéþöšîţöŕý à đéṽéļöþéŕ ŵöŕķš îñ éṽéŕý đàý ▒ | ▒ [Ƒŕöḿ à çĥéçķöüţ](#from-a-checkout) ▒ | ▒ Ţĥé ķàþî ÇĻÎ ▒ |
+| A content platform, a design tool, or documents | [From your content](#from-your-content) | No |
+| A repository, and nobody wants a pipeline | [From a repository](#from-a-repository) | No |
+| A repository a developer works in every day | [From a checkout](#from-a-checkout) | The kapi CLI |
 
 ## ▒ Ƒŕöḿ ýöüŕ çöñţéñţ ▒
 

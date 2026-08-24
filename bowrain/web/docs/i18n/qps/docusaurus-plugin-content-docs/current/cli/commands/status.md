@@ -19,6 +19,7 @@ kapi status
 ```bash
 # Show current project status
 kapi status
+
 # Example output (connected to server):
 # Project root: /Users/me/my-project
 # Recipe:       /Users/me/my-project/kapi.yaml
@@ -26,6 +27,7 @@ kapi status
 # Local blocks: 142
 # Pending push: 3 blocks changed locally
 # Last sync:    2026-02-15 10:30:00 UTC
+
 # Example output (no server configured):
 # Project root: /Users/me/my-project
 # Recipe:       /Users/me/my-project/kapi.yaml

@@ -62,6 +62,7 @@ my-app/
 ```yaml
 version: v1
 name: My App
+
 defaults:
   source_language: en
   target_languages: [fr, de, ja]
@@ -69,6 +70,7 @@ defaults:
   exclude:
     - "**/*.test.json"
     - "node_modules/**"
+
 collections:
   - path: src/locales/**/*.json
     format: json
@@ -79,38 +81,46 @@ collections:
     format: json
     source_language: es      # per-entry source language override
     collection: spanish-ui   # per-entry collection routing override
+
 plugins:
   okapi-bridge: "^1.47.0"    # map form: name → version constraint
+
 flows:
   pseudo:
     steps:
       - tool: pseudo-translate
         config: { method: extended }
+
 # The bowrain: block depends on the bowrain plugin. init declares the
 # requirement so a plain kapi binary (without the plugin) fails fast instead of
 # silently ignoring the connection.
 requires:
   bowrain: "*"
+
 # Optional bowrain-server connection — presence enables push/pull and makes the
 # server the default venue for `kapi up`.
 bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto              # auto-detect from git branch / CI
   converge: on-push          # on-push (default) | manual
+
 # Top-level lifecycle policy:
 hooks:
   pre-push: [qa]
   post-pull: [update-stats]
+
 automations:
   - name: notify-on-parked
     trigger: run-parked
     actions:
       - type: slack
         config: { channel: "#translation" }
+
 # Top-level governance / asset policy:
 assets:
   enabled: true
   max_size: 100MB
+
 brand_voice:
   profile: company-profile
   channel: marketing
@@ -118,43 +128,43 @@ brand_voice:
 
 ### ▒ Ţöþ-ļéṽéļ ƒîéļđš ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Ţýþé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field          | Type           | Description                                                            |
 | -------------- | -------------- | ---------------------------------------------------------------------- |
-| ▒ `ṽéŕšîöñ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Šçĥéḿà ṽéŕšîöñ (çüŕŕéñţļý `ṽ1`) ▒ |
-| ▒ `ñàḿé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Þŕöĵéçţ đîšþļàý ñàḿé ▒ |
-| ▒ `đéƒàüļţš` ▒ | ▒ öƃĵéçţ ▒ | ▒ Þŕöĵéçţ-ŵîđé ļàñĝüàĝé àñđ éẋéçüţîöñ đéƒàüļţš ▒ |
-| ▒ `çöļļéçţîöñš` ▒ | ▒ ļîšţ ▒ | ▒ Çöñţéñţ çöļļéçţîöñš (šéé [Çöñţéñţ Çöļļéçţîöñš](#content-collections)) ▒ |
-| ▒ `þŕöƒîļéš` ▒ | ▒ ḿàþ ▒ | ▒ Ĝöṽéŕñàñçé ƃöüñđ þéŕ þŕöđüçţ, ķéýéđ ƃý þŕöƒîļé ñàḿé (šéé [Þŕöƒîļéš àñđ çĥàññéļš](#profiles-and-channels)) ▒ |
-| ▒ `þļüĝîñš` ▒ | ▒ ḿàþ ▒ | ▒ Þļüĝîñ đéþéñđéñçîéš àš `ñàḿé: ṽéŕšîöñ-çöñšţŕàîñţ` (é.ĝ. ḿàþ ƒöŕḿ) ▒ |
-| ▒ `ŕéǫüîŕéš` ▒ | ▒ ḿàþ ▒ | ▒ Þļüĝîñ ñàḿé → ṽéŕšîöñ çöñšţŕàîñţ ţĥàţ ĝàţéš ļöàđîñĝ; à `ƃöŵŕàîñ:` ƃļöçķ àđđš `ƃöŵŕàîñ` šö à þļàîñ ķàþî ƃîñàŕý ŕéƒüšéš ţĥé ŕéçîþé ▒ |
-| ▒ `ƒļöŵš` ▒ | ▒ ḿàþ ▒ | ▒ Îñļîñé ƒļöŵ đéƒîñîţîöñš (ƒîļé-þéŕ-ƒļöŵ üñđéŕ `.ķàþî/ƒļöŵš/` àļšö ŵöŕķ) ▒ |
-| ▒ `ƃöŵŕàîñ` ▒ | ▒ öƃĵéçţ ▒ | ▒ Öþţîöñàļ ƃöŵŕàîñ-šéŕṽéŕ çöññéçţîöñ çööŕđîñàţéš ▒ |
-| ▒ `ĥööķš` ▒ | ▒ ḿàþ ▒ | ▒ Ƒļöŵš ţĥàţ ŕüñ àţ ļîƒéçýçļé þöîñţš (`þŕé-þüšĥ`, `þöšţ-þüļļ`, ...) ▒ |
-| ▒ `àüţöḿàţîöñš` ▒ | ▒ ļîšţ ▒ | ▒ Ļöçàļ àüţöḿàţîöñ ŕüļéš (šéé [Àüţöḿàţîöñš](#automations)) ▒ |
-| ▒ `àššéţš` ▒ | ▒ öƃĵéçţ ▒ | ▒ Àššéţ (îḿàĝé/ƃîñàŕý) þöļîçý ▒ |
-| ▒ `ṽöîçé` ▒ | ▒ öƃĵéçţ ▒ | ▒ Ṽöîçé þŕöƒîļé àñđ çĥàññéļ ▒ |
+| `version`      | string         | Schema version (currently `v1`)                                        |
+| `name`         | string         | Project display name                                                   |
+| `defaults`     | object         | Project-wide language and execution defaults                           |
+| `collections`  | list           | Content collections (see [Content Collections](#content-collections))  |
+| `profiles`     | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels)) |
+| `plugins`      | map            | Plugin dependencies as `name: version-constraint` (e.g. map form)      |
+| `requires`     | map            | Plugin name → version constraint that gates loading; a `bowrain:` block adds `bowrain` so a plain kapi binary refuses the recipe |
+| `flows`        | map            | Inline flow definitions (file-per-flow under `.kapi/flows/` also work) |
+| `bowrain`      | object         | Optional bowrain-server connection coordinates                         |
+| `hooks`        | map            | Flows that run at lifecycle points (`pre-push`, `post-pull`, ...)      |
+| `automations`  | list           | Local automation rules (see [Automations](#automations))               |
+| `assets`       | object         | Asset (image/binary) policy                                            |
+| `voice`        | object         | Voice profile and channel                                              |
 
 ### ▒ `đéƒàüļţš` ƃļöçķ ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Ţýþé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field              | Type   | Description                                              |
 | ------------------ | ------ | -------------------------------------------------------- |
-| ▒ `šöüŕçé_ļàñĝüàĝé` ▒ | ▒ šţŕîñĝ ▒ | ▒ ƂÇÞ-47 šöüŕçé ļàñĝüàĝé (é.ĝ. `éñ`) ▒ |
-| ▒ `ţàŕĝéţ_ļàñĝüàĝéš` ▒ | ▒ ļîšţ ▒ | ▒ ƂÇÞ-47 ţàŕĝéţ ļàñĝüàĝéš ▒ |
-| ▒ `çöļļéçţîöñ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Đéƒàüļţ çöļļéçţîöñ ñàḿé ƒöŕ öŕĝàñîžîñĝ çöñţéñţ ▒ |
-| ▒ `éẋçļüđé` ▒ | ▒ ļîšţ ▒ | ▒ Ĝļöƃ þàţţéŕñš ţö šķîþ đüŕîñĝ šçàññîñĝ ▒ |
-| ▒ `ƒöŕḿàţš` ▒ | ▒ ḿàþ ▒ | ▒ Þéŕ-ƒöŕḿàţ đéƒàüļţ þŕéšéţš àñđ çöñƒîĝ öṽéŕŕîđéš ▒ |
-| ▒ `ţéŕḿš_šöüŕçé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Þàţĥ ţö ţĥé çöḿḿîţţéđ ţéŕḿš šöüŕçé (é.ĝ. `.ķàþî/ţéŕḿš.ĵšöñ`) ▒ |
-| ▒ `ḿéḿöŕý_šöüŕçé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Þàţĥ ţö ţĥé çöḿḿîţţéđ çöñţéñţ ḿéḿöŕý šöüŕçé (é.ĝ. `.ķàþî/ḿéḿöŕý/ḿéḿöŕý.ĵšöñ`) ▒ |
+| `source_language`  | string | BCP-47 source language (e.g. `en`)                       |
+| `target_languages` | list   | BCP-47 target languages                                  |
+| `collection`       | string | Default collection name for organizing content           |
+| `exclude`          | list   | Glob patterns to skip during scanning                    |
+| `formats`          | map    | Per-format default presets and config overrides          |
+| `terms_source`     | string | Path to the committed terms source (e.g. `.kapi/terms.json`) |
+| `memory_source`    | string | Path to the committed content memory source (e.g. `.kapi/memory/memory.json`) |
 
 ### ▒ `ƃöŵŕàîñ` ƃļöçķ ▒
 
 ▒ Öñļý ţĥé çöññéçţîöñ çööŕđîñàţéš šîţ üñđéŕ `ƃöŵŕàîñ:`: ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field      | Description                                                                  |
 | ---------- | ---------------------------------------------------------------------------- |
-| ▒ `üŕļ` ▒ | ▒ Çöḿþöüñđ ÜŔĻ: `<šéŕṽéŕ>/<ŵöŕķšþàçé>/<þŕöĵéçţ-îđ>` öŕ `<šéŕṽéŕ>/þŕöĵéçţš/<îđ>` ▒ |
-| ▒ `šţŕéàḿ` ▒ | ▒ Šéŕṽéŕ-šîđé šţŕéàḿ ţö šýñç àĝàîñšţ; `$àüţö` àüţö-đéţéçţš ƒŕöḿ ÇÎ / ĝîţ ƃŕàñçĥ ▒ |
-| ▒ `çöñṽéŕĝé` ▒ | ▒ Šéŕṽéŕ-šîđé çöñṽéŕĝéñçé þöļîçý: `öñ-þüšĥ` (đéƒàüļţ) öŕ `ḿàñüàļ` ▒ |
+| `url`      | Compound URL: `<server>/<workspace>/<project-id>` or `<server>/projects/<id>` |
+| `stream`   | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
+| `converge` | Server-side convergence policy: `on-push` (default) or `manual`              |
 
 ▒ Ļîƒéçýçļé (`ĥööķš`, `àüţöḿàţîöñš`) àñđ çöñţéñţ/ĝöṽéŕñàñçé (`àššéţš`, `ƃŕàñđ_ṽöîçé`) ļîṽé àţ ţĥé **ţöþ ļéṽéļ** öƒ ţĥé ŕéçîþé, ñöţ üñđéŕ `ƃöŵŕàîñ:` — ţĥéý đéšçŕîƃé þŕöĵéçţ-öŵñéđ þöļîçý, ñöţ šéŕṽéŕ îđéñţîţý. ▒
 
@@ -181,15 +191,18 @@ collections:
   # Bare entry — single source pattern
   - path: src/locales/**/*.json
     format: json
+
   # With output path template
   - path: content/docs/**/*.md
     format: markdown
     target: i18n/{lang}/docs/{path}/{filename}
+
   # Per-entry overrides
   - path: legacy/**/*.properties
     format: java-properties
     source_language: en-GB
     collection: legacy
+
   # Named collection — its items live under content:, relative to base:
   - name: ui
     channel: app
@@ -206,29 +219,29 @@ collections:
 
 ### ▒ Çöļļéçţîöñ ƒîéļđš ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Ţýþé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field              | Type            | Description                                                                |
 | ------------------ | --------------- | -------------------------------------------------------------------------- |
-| ▒ `ñàḿé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Çöļļéçţîöñ ñàḿé; ŕéǫüîŕéđ ţö ƃîñđ à `çĥàññéļ:` ▒ |
-| ▒ `ƃàšé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Ţĥé đîŕéçţöŕý ţĥîš çöļļéçţîöñ ļîṽéš îñ — éṽéŕý `þàţĥ`, `ţàŕĝéţ` àñđ îţéḿ `ƃàšé` ƃéļöŵ îš ŵŕîţţéñ ŕéļàţîṽé ţö îţ ▒ |
-| ▒ `çĥàññéļ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Ţĥé þöîñţ îñ ţĥé çöñţéẋţ šþàçé ţĥîš çöñţéñţ šîţš àţ: `þŕöƒîļé/çĥàññéļ`, öŕ à ƃàŕé `çĥàññéļ` (šéé [Þŕöƒîļéš àñđ çĥàññéļš](#profiles-and-channels)) ▒ |
-| ▒ `çöñţéñţ` ▒ | ▒ ļîšţ ▒ | ▒ Ţĥé çöļļéçţîöñ'š çöñţéñţ îţéḿš ▒ |
-| ▒ `çöļļéçţîöñ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Çöļļéçţîöñ ŕöüţîñĝ öṽéŕŕîđé ▒ |
-| ▒ `šöüŕçé_ļàñĝüàĝé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Šöüŕçé ļàñĝüàĝé öṽéŕŕîđé ▒ |
-| ▒ `ţàŕĝéţ_ļàñĝüàĝéš` ▒ | ▒ ļîšţ ▒ | ▒ Ţàŕĝéţ ļàñĝüàĝé öṽéŕŕîđé ▒ |
+| `name`             | string          | Collection name; required to bind a `channel:`                             |
+| `base`             | string          | The directory this collection lives in — every `path`, `target` and item `base` below is written relative to it |
+| `channel`          | string          | The point in the context space this content sits at: `profile/channel`, or a bare `channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `content`          | list            | The collection's content items                                             |
+| `collection`       | string          | Collection routing override                                                |
+| `source_language`  | string          | Source language override                                                   |
+| `target_languages` | list            | Target language override                                                   |
 
 ### ▒ Çöñţéñţ îţéḿ ƒîéļđš ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Ţýþé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field              | Type            | Description                                                                |
 | ------------------ | --------------- | -------------------------------------------------------------------------- |
-| ▒ `þàţĥ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Ĝļöƃ þàţţéŕñ ƒöŕ šöüŕçé ƒîļéš (šüþþöŕţš `{lang}` þļàçéĥöļđéŕ) ▒ |
-| ▒ `ƒöŕḿàţ` ▒ | ▒ šţŕîñĝ / öƃĵéçţ ▒ | ▒ Ƒîļé ƒöŕḿàţ ÎĐ (é.ĝ. `ĵšöñ`, `ĥţḿļ`) öŕ öƃĵéçţ ŵîţĥ `ñàḿé`/`çöñƒîĝ`/`þŕéšéţ` ▒ |
-| ▒ `ţàŕĝéţ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Öüţþüţ þàţĥ þàţţéŕñ ƒöŕ ţàŕĝéţ ƒîļéš (šüþþöŕţš `{lang}` àñđ `{path}`) ▒ |
-| ▒ `ƃàšé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Đîŕéçţöŕý à ḿàţçĥéđ ƒîļé'š þàţĥ îš ḿàđé ŕéļàţîṽé ţö ƒöŕ ţàŕĝéţ-ţöķéñ éẋþàñšîöñ; đéƒàüļţš ţö ţĥé ĝļöƃ'š ƒîẋéđ þŕéƒîẋ ▒ |
-| ▒ `çöļļéçţîöñ` ▒ | ▒ šţŕîñĝ ▒ | ▒ Çöļļéçţîöñ ŕöüţîñĝ öṽéŕŕîđé ƒöŕ ţĥîš éñţŕý ▒ |
-| ▒ `šöüŕçé_ļàñĝüàĝé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Šöüŕçé ļàñĝüàĝé öṽéŕŕîđé ƒöŕ ţĥîš éñţŕý ▒ |
-| ▒ `ţàŕĝéţ_ļàñĝüàĝéš` ▒ | ▒ ļîšţ ▒ | ▒ Ţàŕĝéţ ļàñĝüàĝé öṽéŕŕîđé ƒöŕ ţĥîš éñţŕý ▒ |
-| ▒ `àššéţš` ▒ | ▒ öƃĵéçţ ▒ | ▒ Þéŕ-éñţŕý àššéţ þöļîçý öṽéŕŕîđé ▒ |
-| ▒ `àššéţ_ḿàẋ_šîžé` ▒ | ▒ šţŕîñĝ ▒ | ▒ Þéŕ-éñţŕý àššéţ ḿàẋ šîžé öṽéŕŕîđé ▒ |
+| `path`             | string          | Glob pattern for source files (supports `{lang}` placeholder)              |
+| `format`           | string / object | File format ID (e.g. `json`, `html`) or object with `name`/`config`/`preset` |
+| `target`           | string          | Output path pattern for target files (supports `{lang}` and `{path}`)      |
+| `base`             | string          | Directory a matched file's path is made relative to for target-token expansion; defaults to the glob's fixed prefix |
+| `collection`       | string          | Collection routing override for this entry                                 |
+| `source_language`  | string          | Source language override for this entry                                    |
+| `target_languages` | list            | Target language override for this entry                                    |
+| `assets`           | object          | Per-entry asset policy override                                            |
+| `asset_max_size`   | string          | Per-entry asset max size override                                          |
 
 ▒ À ƃàŕé éñţŕý çàŕŕîéš `þàţĥ`, `ƒöŕḿàţ` àñđ `ţàŕĝéţ` đîŕéçţļý öñ ţĥé çöļļéçţîöñ àñđ ĥàš ñö `çöñţéñţ:` ļîšţ. ▒
 
@@ -245,6 +258,7 @@ profiles:
     channels: [app]
     voice: .kapi/profiles/acme-labs/voice.yaml
     terms: .kapi/profiles/acme-labs/terms.json
+
 collections:
   - name: acme-docs
     channel: docs        # only acme declares it — the bare form resolves
@@ -271,6 +285,7 @@ collections:
       name: exec
       config:
         command: "vp neokapi-i18n extract --stream"
+
   - path: "docs/**/*.html"
     format:
       name: html
@@ -290,6 +305,7 @@ automations:
         config:
           flow: qa
       - type: wait_translate
+
   - name: auto-pull-after-push
     trigger: post-push
     actions:
@@ -298,12 +314,12 @@ automations:
 
 ### ▒ Àüţöḿàţîöñ ƒîéļđš ▒
 
-| ▒ Ƒîéļđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Field     | Description                                                                                |
 | --------- | ------------------------------------------------------------------------------------------ |
-| ▒ `ñàḿé` ▒ | ▒ Ŕüļé ñàḿé ▒ |
-| ▒ `ţŕîĝĝéŕ` ▒ | ▒ Ļîƒéçýçļé þöîñţ: `þŕé-þüšĥ`, `þöšţ-þüšĥ`, `þŕé-þüļļ`, `þöšţ-þüļļ`, `þŕé-ƒļöŵ`, `þöšţ-ƒļöŵ` ▒ |
-| ▒ `àçţîöñš` ▒ | ▒ Ļîšţ öƒ àçţîöñš (`ŕüñ_ƒļöŵ`, `ŵàîţ_ţŕàñšļàţé`, `þüļļ`, `þüšĥ`) ▒ |
-| ▒ `éñàƃļéđ` ▒ | ▒ Öþţîöñàļ ƃööļéàñ (đéƒàüļţš ţö `ţŕüé`) ▒ |
+| `name`    | Rule name                                                                                  |
+| `trigger` | Lifecycle point: `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, `post-flow` |
+| `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`)                             |
+| `enabled` | Optional boolean (defaults to `true`)                                                      |
 
 ▒ Ƒöŕ ļîĝĥţŵéîĝĥţ þŕé/þöšţ ĥööķš ţĥàţ đö ñöţĥîñĝ ƃüţ çàļļ éẋîšţîñĝ ƒļöŵš, þŕéƒéŕ ţĥé ţöþ-ļéṽéļ `ĥööķš:` ḿàþ. ▒
 
@@ -358,26 +374,29 @@ kapi init
 ```bash
 # Local-only project (no bowrain: block written)
 kapi init --source en --targets fr,de,ja
+
 # Connect to a server (anonymous claim)
 kapi init --server https://app.bowrain.cloud --anonymous
+
 # Apply a framework preset
 kapi init --preset nextjs
+
 # Connect to an existing project
 kapi init --server https://app.bowrain.cloud --project abc123
 ```
 
 ### ▒ Îñîţ ƒļàĝš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag          | Description                                                       |
 | ------------- | ----------------------------------------------------------------- |
-| ▒ `--šéŕṽéŕ` ▒ | ▒ Šéŕṽéŕ ÜŔĻ ▒ |
-| ▒ `--þŕöĵéçţ` ▒ | ▒ Çöññéçţ ţö àñ éẋîšţîñĝ þŕöĵéçţ ƃý ÎĐ ▒ |
-| ▒ `--ñàḿé` ▒ | ▒ Þŕöĵéçţ ñàḿé (đéƒàüļţ: çüŕŕéñţ đîŕéçţöŕý ñàḿé) ▒ |
-| ▒ `--šöüŕçé` ▒ | ▒ Šöüŕçé ļöçàļé (đéƒàüļţ: `éñ`) ▒ |
-| ▒ `--ţàŕĝéţš` ▒ | ▒ Ţàŕĝéţ ļöçàļéš, çöḿḿà-šéþàŕàţéđ (é.ĝ. `ñƃ,ƒŕ`) ▒ |
-| ▒ `--àñöñýḿöüš` ▒ | ▒ Çŕéàţé à þŕöĵéçţ ŵîţĥöüţ šîĝñîñĝ îñ ▒ |
-| ▒ `--éḿàîļ` ▒ | ▒ Çŕéàţé à þŕöĵéçţ àñđ éḿàîļ à ļîñķ ţö çļàîḿ îţ ▒ |
-| ▒ `--þŕéšéţ` ▒ | ▒ Àþþļý à ƒŕàḿéŵöŕķ þŕéšéţ (é.ĝ. `ñéẋţĵš`, `ŕéàçţ-îñţļ`, `àñĝüļàŕ`) ▒ |
+| `--server`    | Server URL                                                        |
+| `--project`   | Connect to an existing project by ID                              |
+| `--name`      | Project name (default: current directory name)                    |
+| `--source`    | Source locale (default: `en`)                                     |
+| `--targets`   | Target locales, comma-separated (e.g. `nb,fr`)                    |
+| `--anonymous` | Create a project without signing in                               |
+| `--email`     | Create a project and email a link to claim it                     |
+| `--preset`    | Apply a framework preset (e.g. `nextjs`, `react-intl`, `angular`) |
 
 ▒ `ķàþî îñîţ` ŵŕîţéš: ▒
 
@@ -394,8 +413,10 @@ kapi init --server https://app.bowrain.cloud --project abc123
 bowrain:
   # Workspace project
   url: https://app.bowrain.cloud/my-team/abc123
+
   # Direct project (no workspace)
   # url: https://app.bowrain.cloud/projects/abc123
+
   stream: $auto
 ```
 

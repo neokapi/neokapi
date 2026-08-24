@@ -37,6 +37,7 @@ sidebar_label: Gate brand terminology in CI
 ```bash
 # 1. Pull translations and governed terminology from the workspace.
 kapi pull
+
 # 2. Gate the project against its bound gates, terminology included.
 kapi check --ship
 ```
@@ -61,23 +62,28 @@ kapi check --ship --locale fr
 
 ```yaml
 name: Brand terminology gate
+
 on:
   pull_request:
     paths:
       - "src/locales/**"
       - "kapi.yaml"
       - ".kapi/**"
+
 jobs:
   terminology:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
+
       - name: Pull translations and governed terminology
         run: kapi pull
+
       - name: Gate against the project's bound gates
         run: kapi check --ship
 ```
@@ -91,11 +97,11 @@ jobs:
 
 ▒ `ķàþî çĥéçķ --šĥîþ` ŕéţüŕñš à šîñĝļé éẋîţ çöđé ţĥé ÇÎ ŕüññéŕ ĝàţéš öñ: ▒
 
-| ▒ Éẋîţ ▒ | ▒ Ḿéàñîñĝ ▒ |
+| Exit | Meaning                                                                 |
 | ---- | ---------------------------------------------------------------------- |
-| ▒ `0` ▒ | ▒ Þàšš — éṽéŕý ƃöüñđ ĝàţé þàššéđ ▒ |
-| ▒ `3` ▒ | ▒ À ĝàţé ƒàîļéđ ▒ |
-| ▒ `1` ▒ | ▒ Öþéŕàţîöñàļ éŕŕöŕ (þŕöĵéçţ ñöţ ƒöüñđ, üñŕéàđàƃļé ƒîļé, …) ▒ |
+| `0`  | Pass — every bound gate passed                                         |
+| `3`  | A gate failed                                                          |
+| `1`  | Operational error (project not found, unreadable file, …)             |
 
 ▒ Éẋîţ `3` ḿéàñš "ñöţ öñ-šþéç ýéţ", ñöţ à çŕàšĥ: ŕéàđ ţĥé ƒîñđîñĝš àñđ ƒîẋ ţĥéḿ.
 Þàšš `--ñö-ƒàîļ` ţö àļŵàýš éẋîţ `0` (ŕéþöŕţ ḿöđé) — üšéƒüļ îñšîđé àñ àššîšţàñţ

@@ -1,0 +1,77 @@
+---
+title: Add languages
+description: Take a source-only project multilingual — declare target locales, run kapi up until every language clears its ship gate, and review what parks.
+keywords: [kapi, target languages, multilingual, kapi up, ship gate, review, coverage]
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia } from "@neokapi/docs-shared";
+
+# ▒ Àđđ ļàñĝüàĝéš ▒
+
+▒ Ĝöîñĝ ḿüļţîļîñĝüàļ îš öñé ļööþ: đéçļàŕé ţĥé ţàŕĝéţ ļöçàļéš, ļéţ `ķàþî üþ` çàţçĥ éṽéŕý ļàñĝüàĝé üþ ţö îţš šĥîþ ĝàţé, ŕéṽîéŵ ŵĥàţ ñééđš à þéŕšöñ, àñđ ĝàţé ţĥé ŕéļéàšé öñ `ķàþî çĥéçķ --šĥîþ`. Ţŕàñšļàţîöñ đŕîƒţ ñéṽéŕ ƃŕéàķš à ƃüîļđ — à ļàñĝüàĝé ţĥàţ îš ƃéĥîñđ îš þéñđîñĝ ŵöŕķ, ñöţ àñ éŕŕöŕ. ▒
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`).
+2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first — content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date** — kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
+3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the `reviewed` coverage that a `{ reviewed: … }` gate measures.
+
+<PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
+  Adding two target locales in Project Settings, pressing Bring up to date,
+  watching coverage climb, and opening the Review queue from a gate cell.
+</PendingMedia>
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Ask for the outcome:
+
+> Add French and German to this project and bring both up to date.
+
+Claude adds `target_languages` to the recipe, runs `kapi up`, reads `kapi status` for what parked, and walks you through the review worklist conversationally — you approve, it records the decisions with `kapi apply`. See [Use with Claude](/kapi/get-started/use-with-claude).
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Declare the locales in the recipe (or pass `--target-locale` at `kapi init` time):
+
+```yaml title="kapi.yaml"
+defaults:
+  source_language: en
+  target_languages: [fr, de]
+collections:
+  - path: "src/locales/en/*.json"
+    target: "src/locales/{lang}"
+```
+
+The `target:` says where a translated file goes. `kapi add` writes it for you —
+`kapi add "src/locales/en/*.json" --target "src/locales/{lang}"` — and refuses a
+target that lands back inside the pattern it comes from, which would make the
+collection re-track its own output as source.
+
+Then catch up, inspect, and gate:
+
+```bash
+kapi up                  # run the default flow until every gated scope ships or parks
+kapi status              # per-locale coverage and ship-gate standing (never fails)
+kapi status --review     # the worklist: translated units awaiting a person
+kapi check --ship        # enforce the gates — the pre-release bar, exit 3 when unmet
+```
+
+`kapi up` needs a translation provider for LLM translation — see [Choose a translation model](/kapi/recipes/choose-a-translation-provider). Approve reviewed units with `kapi apply` (`kind:"review"`); see [Review & approve](/kapi/recipes/review-and-approve).
+
+</TabItem>
+</Tabs>
+
+## ▒ Ĥöŵ ţĥé ĝàţé ţĥîñķš ▒
+
+▒ Éàçĥ ţŕàñšļàţîöñ çļîḿƃš à ļàđđéŕ — đŕàƒţ, ţŕàñšļàţéđ, ŕéṽîéŵéđ, šîĝñéđ-öƒƒ — àñđ à **šĥîþ ĝàţé** îš çöṽéŕàĝé ţĥŕéšĥöļđš öṽéŕ ţĥàţ ļàđđéŕ (`{ translated: 100, reviewed: 80 }`). `ķàþî üþ` þŕöđüçéš, ŕéṽîéŵ þŕöḿöţéš, `ķàþî çĥéçķ --šĥîþ` ŕéļéàšéš. [Ţĥé ķàþî ļööþ](/kapi/convergence) éẋþļàîñš ţĥé ḿöđéļ. ▒
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [Ţŕàñšļàţé ŵîţĥ ýöüŕ ÀÎ](/kapi/recipes/translate-content) — ţĥé ţŕàñšļàţîöñ ļööþ îñ đéþţĥ. ▒
+- ▒ [Šĥîþ ĝàţéš & ÇÎ](/kapi/recipes/ship-gates-and-ci) — ŕüñ `ķàþî çĥéçķ --šĥîþ` öñ éṽéŕý ÞŔ. ▒
+- ▒ [Ŕéṽîéŵ & àþþŕöṽé](/kapi/recipes/review-and-approve) — ţĥé ĥüḿàñ ĥàļƒ öƒ ţĥé ļööþ. ▒

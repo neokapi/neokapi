@@ -31,39 +31,47 @@ kapi flows
 ```bash
 # Translate with AI (top-level tool command)
 kapi translate -i input.html -o output.html --source-lang en --target-lang fr
+
 # Translate then quality-check (composed flow)
 kapi run translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+
 # Pseudo-translate for testing (top-level tool command)
 kapi pseudo-translate input.html -o output.html --target-lang fr
+
 # Process multiple files in parallel (top-level tool command)
 kapi translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
+
 # Reuse from content memory (top-level tool command)
 kapi exec recycle -i input.html -o output.html --source-lang en --target-lang fr
+
 # Run quality checks (top-level tool command)
 kapi exec qa -i translations.html -o qa-report.html --target-lang fr
+
 # Run a custom project flow
 kapi run translate-review
+
 # List available flows
 kapi flows
+
 # List available tools
 kapi tools
 ```
 
 ## ▒ Ƒļàĝš (ķàþî ŕüñ) ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Šĥöŕţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag            | Short | Description                                                  |
 | --------------- | ----- | ------------------------------------------------------------ |
-| ▒ `--îñþüţ` ▒ | ▒ `-î` ▒ | ▒ Îñþüţ ƒîļé þàţĥ(š); ŕéþéàţ ƒöŕ ḿüļţîþļé ƒîļéš (ŕéǫüîŕéđ) ▒ |
-| ▒ `--öüţþüţ` ▒ | ▒ `-ö` ▒ | ▒ Öüţþüţ ƒîļé þàţĥ (šîñĝļé-ƒîļé ḿöđé); öḿîţ îñ à þŕöĵéçţ ƒöŕ à þŕöçéšš-öñļý ŕüñ ţö ţĥé šţöŕé ▒ |
-| ▒ `--éẋþļàîñ` ▒ |  | ▒ Þŕîñţ ţĥé ŕéšöļṽéđ `šöüŕçé → šîñķ` ƃîñđîñĝš àñđ éẋîţ ŵîţĥöüţ ŕüññîñĝ ▒ |
-| ▒ `--ƒöŕḿàţ` ▒ | ▒ `-ƒ` ▒ | ▒ Öṽéŕŕîđé îñþüţ ƒöŕḿàţ đéţéçţîöñ ▒ |
-| ▒ `--éñçöđîñĝ` ▒ | ▒ `-é` ▒ | ▒ Îñþüţ éñçöđîñĝ (đéƒàüļţ: ÜŢƑ-8) ▒ |
-| ▒ `--šöüŕçé-ļàñĝ` ▒ |  | ▒ Šöüŕçé ļàñĝüàĝé, ƂÇÞ 47 (đéƒàüļţ: éñ) ▒ |
-| ▒ `--ţàŕĝéţ-ļàñĝ` ▒ |  | ▒ Ţàŕĝéţ ļàñĝüàĝé, ƂÇÞ 47 (ŕéǫüîŕéđ) ▒ |
-| ▒ `--çöñçüŕŕéñçý` ▒ | ▒ `-ĵ` ▒ | ▒ Ḿàẋ þàŕàļļéļ đöçüḿéñţš (0 = àüţö, 1 = šéǫüéñţîàļ) ▒ |
-| ▒ `--þŕöṽîđéŕ` ▒ |  | ▒ ĻĻḾ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, öļļàḿà (đéƒàüļţ: àñţĥŕöþîç) ▒ |
-| ▒ `--àþî-ķéý` ▒ |  | ▒ ÀÞÎ ķéý ƒöŕ ĻĻḾ þŕöṽîđéŕ ▒ |
-| ▒ `--ḿöđéļ` ▒ |  | ▒ ĻĻḾ ḿöđéļ ñàḿé ▒ |
+| `--input`       | `-i`  | Input file path(s); repeat for multiple files (required)     |
+| `--output`      | `-o`  | Output file path (single-file mode); omit in a project for a process-only run to the store |
+| `--explain`     |       | Print the resolved `source → sink` bindings and exit without running |
+| `--format`      | `-f`  | Override input format detection                              |
+| `--encoding`    | `-e`  | Input encoding (default: UTF-8)                              |
+| `--source-lang` |       | Source language, BCP 47 (default: en)                        |
+| `--target-lang` |       | Target language, BCP 47 (required)                           |
+| `--concurrency` | `-j`  | Max parallel documents (0 = auto, 1 = sequential)            |
+| `--provider`    |       | LLM provider: anthropic, openai, ollama (default: anthropic) |
+| `--api-key`     |       | API key for LLM provider                                     |
+| `--model`       |       | LLM model name                                               |
 
 ▒ :::ñöţé
 Ţĥé `--ƒöŕḿàţ`, `--éñçöđîñĝ`, `--šöüŕçé-ļàñĝ`, àñđ `--ţàŕĝéţ-ļàñĝ` ƒļàĝš àŕé
@@ -78,17 +86,20 @@ kapi tools
 # .kapi/flows/translate-review.yaml
 name: translate-review
 description: Translate with AI then run QA checks
+
 steps:
   - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4.5
+
   - tool: qa
     config:
       rules:
         - whitespace
         - punctuation
         - placeholders
+
   - tool: term-check
     config:
       caseSensitive: false
@@ -119,21 +130,21 @@ kapi run translate-qa -i input.html -o output.html --source-lang en --target-lan
 
 ▒ Àṽàîļàƃļé ƃüîļţ-îñ çöḿþöšéđ ƒļöŵš: ▒
 
-| ▒ Ƒļöŵ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flow              | Description                               |
 | ----------------- | ----------------------------------------- |
-| ▒ `ţŕàñšļàţé-ǫà` ▒ | ▒ Ţŕàñšļàţé ţĥéñ ǫüàļîţý çĥéçķ üšîñĝ ÀÎ/ĻĻḾ ▒ |
-| ▒ `šéĝḿéñţàţîöñ` ▒ | ▒ Šþļîţ šöüŕçé ţéẋţ îñţö šéñţéñçé šéĝḿéñţš ▒ |
+| `translate-qa` | Translate then quality check using AI/LLM |
+| `segmentation`    | Split source text into sentence segments  |
 
 ## ▒ Ţöþ-Ļéṽéļ Ţööļ Çöḿḿàñđš ▒
 
 ▒ Šîñĝļé ţööļš ŕüñ đîŕéçţļý àš ţöþ-ļéṽéļ çöḿḿàñđš: ▒
 
-| ▒ Çöḿḿàñđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Command                    | Description                                   |
 | -------------------------- | --------------------------------------------- |
-| ▒ `ķàþî ţŕàñšļàţé` ▒ | ▒ Ţŕàñšļàţé çöñţéñţ üšîñĝ ÀÎ/ĻĻḾ ▒ |
-| ▒ `ķàþî þšéüđö-ţŕàñšļàţé` ▒ | ▒ Ĝéñéŕàţé þšéüđö-ţŕàñšļàţîöñš ƒöŕ ţéšţîñĝ ▒ |
-| ▒ `ķàþî éẋéç ǫà` ▒ | ▒ Ŕüñ ŕüļé-ƃàšéđ ǫüàļîţý çĥéçķš öñ ţŕàñšļàţîöñš ▒ |
-| ▒ `ķàþî éẋéç ŕéçýçļé` ▒ | ▒ Þŕé-ƒîļļ ţŕàñšļàţîöñš ƒŕöḿ çöñţéñţ ḿéḿöŕý ▒ |
+| `kapi translate`     | Translate content using AI/LLM                |
+| `kapi pseudo-translate` | Generate pseudo-translations for testing      |
+| `kapi exec qa`         | Run rule-based quality checks on translations |
+| `kapi exec recycle`      | Pre-fill translations from content memory |
 
 ## ▒ Ļîšţîñĝ Àṽàîļàƃļé Ţööļš ▒
 

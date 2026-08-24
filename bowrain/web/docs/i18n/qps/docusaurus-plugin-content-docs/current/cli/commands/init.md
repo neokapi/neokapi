@@ -22,12 +22,12 @@ kapi init [flags]
 
 ▒ **Îƒ ýöü àŕé ñöţ šîĝñéđ îñ**, ţĥé ŵîžàŕđ öƒƒéŕš ƒöüŕ þàţĥš: ▒
 
-| ▒ Öþţîöñ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Option                          | Description                                                                    |
 | ------------------------------- | ------------------------------------------------------------------------------ |
-| ▒ **Šîĝñ îñ ţö Ƃöŵŕàîñ** ▒ | ▒ Àüţĥéñţîçàţé ṽîà ƃŕöŵšéŕ (ÖÀüţĥ đéṽîçé ƒļöŵ), šéļéçţ ŵöŕķšþàçé, çŕéàţé þŕöĵéçţ ▒ |
-| ▒ **Éḿàîļ ḿé à çļàîḿ ļîñķ** ▒ | ▒ Çŕéàţé àñöñýḿöüš þŕöĵéçţ, ŕéçéîṽé çļàîḿ éḿàîļ ▒ |
-| ▒ **Çöñţîñüé ŵîţĥöüţ šîĝñîñĝ îñ** ▒ | ▒ Çŕéàţé àñöñýḿöüš þŕöĵéçţ, þŕîñţ çļàîḿ ÜŔĻ ▒ |
-| ▒ **Ļöçàļ öñļý** ▒ | ▒ Ñö šéŕṽéŕ çöññéçţîöñ — þüŕé ļöçàļ þŕöĵéçţ ▒ |
+| **Sign in to Bowrain**          | Authenticate via browser (OAuth device flow), select workspace, create project |
+| **Email me a claim link**       | Create anonymous project, receive claim email                                  |
+| **Continue without signing in** | Create anonymous project, print claim URL                                      |
+| **Local only**                  | No server connection — pure local project                                      |
 
 ▒ Àļļ îñţéŕàçţîṽé þàţĥš îñçļüđé à **ƂÇÞ-47 ļöçàļé šéļéçţöŕ** ŵîţĥ ţýþé-àĥéàđ
 ƒîļţéŕîñĝ (þŕéšš `/` ţö šéàŕçĥ) ƒöŕ ţĥé šöüŕçé ļöçàļé. ▒
@@ -40,12 +40,16 @@ kapi init [flags]
 ```bash
 # Interactive mode (recommended)
 kapi init
+
 # Non-interactive: local project with locales
 kapi init --name "My App" --source en --targets fr,de,ja
+
 # Non-interactive: anonymous project (prints claim URL)
 kapi init --anonymous --name "My App" --source en
+
 # Non-interactive: anonymous project with email claim
 kapi init --name "My App" --email alex@example.com
+
 # Non-interactive: connect to existing server project
 kapi init --server https://app.bowrain.cloud --project abc123
 ```
@@ -64,17 +68,17 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 ## ▒ Öþţîöñš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Đéƒàüļţ ▒ |
+| Flag          | Description                                 | Default                        |
 | ------------- | ------------------------------------------- | ------------------------------ |
-| ▒ `--ñàḿé` ▒ | ▒ Þŕöĵéçţ ñàḿé ▒ | ▒ Đîŕéçţöŕý ñàḿé ▒ |
-| ▒ `--šöüŕçé` ▒ | ▒ Šöüŕçé ļöçàļé çöđé (ƂÇÞ 47) ▒ | ▒ `éñ` ▒ |
-| ▒ `--ţàŕĝéţš` ▒ | ▒ Çöḿḿà-šéþàŕàţéđ ţàŕĝéţ ļöçàļé çöđéš ▒ | ▒ (ñöñé) ▒ |
-| ▒ `--šéŕṽéŕ` ▒ | ▒ Ƃöŵŕàîñ Šéŕṽéŕ ÜŔĻ ▒ | ▒ `ƂÖŴŔÀÎÑ_ŠÉŔṼÉŔ_ÜŔĻ` öŕ çöñƒîĝ ▒ |
-| ▒ `--þŕöĵéçţ` ▒ | ▒ Šéŕṽéŕ þŕöĵéçţ ÎĐ (çöññéçţ ţö éẋîšţîñĝ) ▒ | ▒ (ñöñé) ▒ |
-| ▒ `--àñöñýḿöüš` ▒ | ▒ Çŕéàţé àñöñýḿöüš þŕöĵéçţ (þŕîñţš çļàîḿ ÜŔĻ) ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--éḿàîļ` ▒ | ▒ Çŕéàţé àñöñýḿöüš þŕöĵéçţ, šéñđ çļàîḿ éḿàîļ ▒ | ▒ (ñöñé) ▒ |
-| ▒ `--ĵšöñ` ▒ | ▒ Öüţþüţ îñ ĴŠÖÑ ƒöŕḿàţ ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--ţéẋţ` ▒ | ▒ Öüţþüţ îñ ţéẋţ ƒöŕḿàţ (đéƒàüļţ) ▒ | ▒ `ţŕüé` ▒ |
+| `--name`      | Project name                                | Directory name                 |
+| `--source`    | Source locale code (BCP 47)                 | `en`                           |
+| `--targets`   | Comma-separated target locale codes         | (none)                         |
+| `--server`    | Bowrain Server URL                          | `BOWRAIN_SERVER_URL` or config |
+| `--project`   | Server project ID (connect to existing)     | (none)                         |
+| `--anonymous` | Create anonymous project (prints claim URL) | `false`                        |
+| `--email`     | Create anonymous project, send claim email  | (none)                         |
+| `--json`      | Output in JSON format                       | `false`                        |
+| `--text`      | Output in text format (default)             | `true`                         |
 
 ## ▒ ĴŠÖÑ Öüţþüţ ▒
 
@@ -105,18 +109,22 @@ kapi init --anonymous --name "My App" --source en --json
 ```yaml
 version: v1
 name: my-app
+
 defaults:
   source_language: en
   target_languages: [fr, de, ja]
+
 collections:
   - path: src/locales/**/*.json
     format: json
   - path: content/*.md
     format: markdown
+
 # Optional: connect to Bowrain Server (compound URL)
 bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto
+
 # Hooks: flows to run at lifecycle points (schema only — not yet executed; see /cli/flows/hooks)
 hooks:
   pre-push: [qa, term-enforce]

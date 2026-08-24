@@ -22,6 +22,7 @@ sidebar_label: GitHub Actions
 ```yaml
 steps:
   - uses: actions/checkout@v4
+
   - uses: neokapi/setup-kapi@v1
 ```
 
@@ -29,19 +30,19 @@ steps:
 
 ### ▒ Àçţîöñ Îñþüţš ▒
 
-| ▒ Îñþüţ ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Đéƒàüļţ ▒ |
+| Input        | Description                                                | Default  |
 | ------------ | ---------------------------------------------------------- | -------- |
-| ▒ `ṽéŕšîöñ` ▒ | ▒ ÇĻÎ ṽéŕšîöñ (é.ĝ. `1.1.0` öŕ `ļàţéšţ`) ▒ | ▒ `ļàţéšţ` ▒ |
-| ▒ `þļüĝîñš` ▒ | ▒ Çöḿḿà öŕ ñéŵļîñé-šéþàŕàţéđ þļüĝîñ ŕéƒš ţö îñšţàļļ, àš ţĥé ŕéĝîšţŕý ñàḿéš ţĥéḿ (`''` ţö îñšţàļļ ñöţĥîñĝ) ▒ | ▒ `ƃöŵŕàîñ` ▒ |
-| ▒ `àüţĥ-ţöķéñ` ▒ | ▒ Ƃöŵŕàîñ šéŕṽéŕ ĴŴŢ (éẋþöŕţéđ àš `ƂÖŴŔÀÎÑ_ÀÜŢĤ_ŢÖĶÉÑ`) ▒ | ▒ `""` ▒ |
-| ▒ `šéŕṽéŕ` ▒ | ▒ Ƃöŵŕàîñ šéŕṽéŕ ÜŔĻ (éẋþöŕţéđ àš `ƂÖŴŔÀÎÑ_ŠÉŔṼÉŔ_ÜŔĻ`) — šéļƒ-ĥöšţéđ öñļý; ţĥé ĥöšţéđ šéŕṽîçé îš ţĥé đéƒàüļţ ▒ | ▒ `""` ▒ |
+| `version`    | CLI version (e.g. `1.1.0` or `latest`)                     | `latest` |
+| `plugins`    | Comma or newline-separated plugin refs to install, as the registry names them (`''` to install nothing) | `bowrain` |
+| `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
+| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`) — self-hosted only; the hosted service is the default | `""`     |
 
 ### ▒ Àçţîöñ Öüţþüţš ▒
 
-| ▒ Öüţþüţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Output      | Description                      |
 | ----------- | -------------------------------- |
-| ▒ `ṽéŕšîöñ` ▒ | ▒ Îñšţàļļéđ ṽéŕšîöñ (é.ĝ. `1.1.0`) ▒ |
-| ▒ `çàçĥé-ĥîţ` ▒ | ▒ Ŵĥéţĥéŕ ţĥé þļüĝîñ çàçĥé ŵàš ĥîţ ▒ |
+| `version`   | Installed version (e.g. `1.1.0`) |
+| `cache-hit` | Whether the plugin cache was hit |
 
 ## ▒ Ŕéçöḿḿéñđéđ: Çàţçĥ üþ ŵîţĥ `ķàþî-àçţîöñ` ▒
 
@@ -52,27 +53,33 @@ steps:
 
 ```yaml
 name: Catch up translations
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "src/locales/en/**"
+
 permissions:
   contents: write
+
 jobs:
   up:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
+
       - uses: neokapi/kapi-action@v1
         id: up
         with:
           command: up
+
       - name: Summary
         if: steps.up.outputs.committed == 'true'
         run: echo "Translations committed at ${{ steps.up.outputs.commit-sha }}"
@@ -80,31 +87,31 @@ jobs:
 
 ▒ Ŵîţĥ `çöḿḿàñđ: üþ` (ţĥé đéƒàüļţ), ţĥé àçţîöñ ŕüñš `ķàþî üþ` — ţĥé ķàþî ļööþ öñ ţĥé šéŕṽéŕ (þüšĥ → çàţçĥ üþ → þüļļ) — ţĥéñ çĥéçķš ƒöŕ çĥàñĝéš, çöḿḿîţš, àñđ þüšĥéš. À ŕüñ ţĥàţ **çàüĝĥţ üþ** (`çöñṽéŕĝéđ` — éṽéŕý ĝàţéđ šçöþé çļéàŕéđ îţš šĥîþ ĝàţé) çöḿḿîţš ţĥé þŕöđüçéđ ţŕàñšļàţîöñš; à ŕüñ ţĥàţ **þàŕķéđ** (ŵöŕķ ŕéḿàîñš ţĥàţ ñééđš à þéŕšöñ) çöḿḿîţš ŵĥàţ đîđ çàţçĥ üþ àñđ àññöţàţéš ţĥé þàŕķéđ ļöçàļéš; à **ƒàîļéđ** ŕüñ éẋîţš ñöñ-žéŕö àñđ çöḿḿîţš ñöţĥîñĝ. Îţ šéţš öüţþüţš ýöü çàñ üšé îñ šüƃšéǫüéñţ šţéþš: ▒
 
-| ▒ Öüţþüţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Output           | Description                                                        |
 | ---------------- | ------------------------------------------------------------------ |
-| ▒ `šţàţüš` ▒ | ▒ `šüççéšš`, `ñö-çĥàñĝéš`, öŕ `ƒàîļéđ` ▒ |
-| ▒ `öüţçöḿé` ▒ | ▒ Ŵîţĥ `çöḿḿàñđ: üþ`: `çöñṽéŕĝéđ` öŕ `þàŕķéđ` ▒ |
-| ▒ `þàššéš` ▒ | ▒ Ŵîţĥ `çöḿḿàñđ: üþ`: ĥöŵ ḿàñý ŕéçöñçîļîàţîöñ þàššéš ţĥé ŕüñ ţööķ ▒ |
-| ▒ `þàŕķéđ-ļöçàļéš` ▒ | ▒ Ŵîţĥ `çöḿḿàñđ: üþ`: çöḿḿà-šéþàŕàţéđ ļöçàļéš šţîļļ šĥöŕţ öƒ ţĥéîŕ ĝàţé ▒ |
-| ▒ `çöḿḿîţţéđ` ▒ | ▒ `ţŕüé` îƒ à çöḿḿîţ ŵàš çŕéàţéđ ▒ |
-| ▒ `çöḿḿîţ-šĥà` ▒ | ▒ ŠĤÀ öƒ ţĥé çŕéàţéđ çöḿḿîţ ▒ |
+| `status`         | `success`, `no-changes`, or `failed`                               |
+| `outcome`        | With `command: up`: `converged` or `parked`                        |
+| `passes`         | With `command: up`: how many reconciliation passes the run took    |
+| `parked-locales` | With `command: up`: comma-separated locales still short of their gate |
+| `committed`      | `true` if a commit was created                                     |
+| `commit-sha`     | SHA of the created commit                                          |
 
 ### ▒ ķàþî-àçţîöñ Îñþüţš ▒
 
-| ▒ Îñþüţ ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Input            | Default                                 | Description                              |
 | ---------------- | --------------------------------------- | ---------------------------------------- |
-| ▒ `çöḿḿàñđ` ▒ | ▒ `üþ` ▒ | ▒ Ţĥé `ķàþî` çöḿḿàñđ ţö ŕüñ ▒ |
-| ▒ `àŕĝš` ▒ | ▒ `""` ▒ | ▒ Àđđîţîöñàļ àŕĝüḿéñţš ▒ |
-| ▒ `þŕöĵéçţ` ▒ | ▒ `""` ▒ | ▒ Þàţĥ ţö ţĥé `ķàþî.ýàḿļ` ŕéçîþé (`-þ` ƒļàĝ) ▒ |
-| ▒ `þļàñ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Ŵîţĥ `çöḿḿàñđ: üþ`, đŕý-ŕüñ îñšţéàđ (`ķàþî üþ --þļàñ`): ŕéþöŕţ þéñđîñĝ ŵöŕķ, ḿéḿöŕý ŕéüšé, àñđ à ţöķéñ éšţîḿàţé — ñö ŵŕîţéš, ñö þŕöṽîđéŕ çàļļš. Þàîŕš ŵîţĥ `þŕ-çöḿḿéñţ` ţö þöšţ ţĥé çöšţ öƒ à çĥàñĝé öñ îţš ÞŔ ▒ |
-| ▒ `ƒàîļ-öñ-þàŕķéđ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Ŵîţĥ `çöḿḿàñđ: üþ`, ƒàîļ ţĥé ŵöŕķƒļöŵ ŵĥéñ ţĥé ŕüñ þàŕķš îñšţéàđ öƒ çöḿḿîţţîñĝ þàŕţîàļ þŕöĝŕéšš ▒ |
-| ▒ `çöḿḿîţ` ▒ | ▒ `ţŕüé` ▒ | ▒ Ŵĥéţĥéŕ ţö çöḿḿîţ çĥàñĝéš ▒ |
-| ▒ `çöḿḿîţ-ḿéššàĝé` ▒ | ▒ `çĥöŕé: üþđàţé ţŕàñšļàţîöñš ṽîà ķàþî` ▒ | ▒ Çöḿḿîţ ḿéššàĝé ▒ |
-| ▒ `çŕéàţé-þüļļ-ŕéǫüéšţ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Đéļîṽéŕ ţĥé çĥàñĝéš àš à ƃŕàñçĥ àñđ þüļļ ŕéǫüéšţ îñšţéàđ öƒ çöḿḿîţţîñĝ ţö ţĥé çüŕŕéñţ ƃŕàñçĥ ▒ |
-| ▒ `þŕ-çöḿḿéñţ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Öñ þüļļ-ŕéǫüéšţ éṽéñţš, þöšţ öñé šţîçķý çöḿḿéñţ ŵîţĥ ţĥé ŕéþöŕţ — þļàñ, `ķàþî üþ` öüţçöḿé, öŕ ĝàţé ŕéšüļţ — ţĥàţ ŕé-ŕüñš üþđàţé îñ þļàçé ▒ |
-| ▒ `ĝîţ-üšéŕ-ñàḿé` ▒ | ▒ `Ķàþî Ƃöţ` ▒ | ▒ Ĝîţ çöḿḿîţţéŕ ñàḿé ▒ |
-| ▒ `ĝîţ-üšéŕ-éḿàîļ` ▒ | ▒ `ƃöţ@ķàþî.đéṽ` ▒ | ▒ Ĝîţ çöḿḿîţţéŕ éḿàîļ ▒ |
-| ▒ `þàţĥš` ▒ | ▒ `""` (àļļ çĥàñĝéš) ▒ | ▒ Šþàçé-šéþàŕàţéđ þàţĥš ţö šţàĝé ƒöŕ çöḿḿîţ ▒ |
+| `command`        | `up`                                    | The `kapi` command to run                |
+| `args`           | `""`                                    | Additional arguments                     |
+| `project`        | `""`                                    | Path to the `kapi.yaml` recipe (`-p` flag)   |
+| `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, memory reuse, and a token estimate — no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
+| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
+| `commit`         | `true`                                  | Whether to commit changes                |
+| `commit-message` | `chore: update translations via kapi`   | Commit message                           |
+| `create-pull-request` | `false`                            | Deliver the changes as a branch and pull request instead of committing to the current branch |
+| `pr-comment`     | `false`                                 | On pull-request events, post one sticky comment with the report — plan, `kapi up` outcome, or gate result — that re-runs update in place |
+| `git-user-name`  | `Kapi Bot`                              | Git committer name                       |
+| `git-user-email` | `bot@kapi.dev`                          | Git committer email                      |
+| `paths`          | `""` (all changes)                      | Space-separated paths to stage for commit |
 
 ▒ :::ñöţé
 Ţĥé ŵöŕķƒļöŵ ñééđš `þéŕḿîššîöñš: çöñţéñţš: ŵŕîţé` ƒöŕ ţĥé àçţîöñ ţö þüšĥ
@@ -120,10 +127,12 @@ jobs:
 
 ```yaml
 name: Translations
+
 on:
   schedule:
     - cron: "0 6 * * 1-5"
   workflow_dispatch:
+
 jobs:
   up:
     uses: neokapi/kapi-workflows/.github/workflows/up.yml@v1
@@ -147,12 +156,14 @@ jobs:
 
 ```yaml
 name: Ship gate
+
 on:
   pull_request:
     paths:
       - "src/locales/**"
       - "kapi.yaml"
       - ".kapi/**"
+
 jobs:
   ship-gate:
     uses: neokapi/kapi-workflows/.github/workflows/gate.yml@v1
@@ -173,18 +184,22 @@ jobs:
 
 ```yaml
 name: Ship gate
+
 on:
   pull_request:
     paths:
       - "src/locales/**"
       - "kapi.yaml"
       - ".kapi/**"
+
 jobs:
   ship-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
+
       - name: Enforce the ship gates
         run: kapi check --ship
 ```
@@ -202,20 +217,24 @@ jobs:
 
 ```yaml
 name: Sync Translations
+
 on:
   push:
     branches: [main]
     paths:
       - "src/locales/**"
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
+
       - name: Push to Bowrain Cloud
         run: kapi push
 ```
@@ -230,20 +249,25 @@ jobs:
 
 ```yaml
 name: Nightly catch-up
+
 on:
   schedule:
     - cron: "0 2 * * *" # 2 AM UTC
+
 permissions:
   contents: write
+
 jobs:
   up:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
+
       - uses: neokapi/kapi-action@v1
 ```
 
@@ -258,21 +282,26 @@ jobs:
 
 ```yaml
 name: Pull Translations
+
 on:
   workflow_dispatch:
   schedule:
     - cron: "0 8 * * 1" # Monday 8 AM UTC
+
 jobs:
   pull:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
+
       - name: Pull from Bowrain Cloud
         run: kapi pull
+
       - name: Create PR if changed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -294,10 +323,10 @@ jobs:
 
 ▒ ķàþî šüþþöŕţš ţŵö àüţĥéñţîçàţîöñ ḿéţĥöđš îñ ÇÎ: ▒
 
-| ▒ Ḿéţĥöđ ▒ | ▒ Ĥöŵ ▒ | ▒ Ƃéšţ Ƒöŕ ▒ |
+| Method                   | How                                    | Best For                                |
 | ------------------------ | -------------------------------------- | --------------------------------------- |
-| ▒ **Éñṽîŕöñḿéñţ ṽàŕîàƃļé** ▒ | ▒ Šéţ `ƂÖŴŔÀÎÑ_ÀÜŢĤ_ŢÖĶÉÑ` ▒ | ▒ ĜîţĤüƃ Àçţîöñš (ṽîà `àüţĥ-ţöķéñ` îñþüţ) ▒ |
-| ▒ **Đéṽîçé ƒļöŵ** ▒ | ▒ Ŕüñ `ķàþî àüţĥ ļöĝîñ` îñţéŕàçţîṽéļý ▒ | ▒ Ļöçàļ đéṽéļöþḿéñţ ▒ |
+| **Environment variable** | Set `BOWRAIN_AUTH_TOKEN`               | GitHub Actions (via `auth-token` input) |
+| **Device flow**          | Run `kapi auth login` interactively | Local development                       |
 
 ▒ Ţĥé `àüţĥ-ţöķéñ` îñþüţ öñ ţĥé šéţüþ àçţîöñ îš ţĥé šîḿþļéšţ àþþŕöàçĥ — îţ éẋþöŕţš ţĥé ţöķéñ àš `ƂÖŴŔÀÎÑ_ÀÜŢĤ_ŢÖĶÉÑ`, ŵĥîçĥ ţĥé ÇĻÎ çĥéçķš ƃéƒöŕé ļööķîñĝ ƒöŕ šţöŕéđ çŕéđéñţîàļš. ▒
 

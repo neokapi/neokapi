@@ -1,0 +1,83 @@
+---
+id: prepare-content
+title: "What gets translated"
+sidebar_label: "Prepare content"
+sidebar_position: 6
+description: "Get a source ready so translation is cheaper, safer, and consistent — protect sensitive content, reuse past translations, and keep terminology and quality in check, in one repeatable pass."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# ▒ Ŵĥàţ ĝéţš ţŕàñšļàţéđ ▒
+
+▒ **Ĝöàļ:** đéçîđé ŵĥàţ àçţüàļļý ñééđš ţŕàñšļàţîñĝ ƃéƒöŕé àñýţĥîñĝ ĝöéš öüţ îñ àñöţĥéŕ ļàñĝüàĝé. Ţĥŕéé öüţçöḿéš, öñé þàšš: šéñšîţîṽé ḿàţéŕîàļ šţàýš öñ ýöüŕ ḿàçĥîñé ([Ŕéđàçţîöñ](/framework/redaction)), àñýţĥîñĝ ýöü'ṽé àļŕéàđý ţŕàñšļàţéđ çöḿéš ƃàçķ ƒöŕ ƒŕéé ([Çöñţéñţ ḿéḿöŕý](/framework/content-memory)), àñđ éṽéŕý ļàñĝüàĝé îš ĥéļđ ţö ţĥé šàḿé ƃàŕ àš ţĥé šöüŕçé ([Çĥéçķš](/framework/checks)). Éàçĥ ĵöƃ ŕüñš àđ-ĥöç öñ àñý ƒîļé; à [`.ķàþî` þŕöĵéçţ](/kapi/get-started/first-project) ḿàķéš ţĥé þàšš ŕéþéàţàƃļé àñđ ļéţš ŕéüšé àççüḿüļàţé îñ à þŕöĵéçţ-ļöçàļ çöñţéñţ ḿéḿöŕý àñđ ţéŕḿš šţöŕé. ▒
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+1. **See what goes out.** Open a file from a content collection — the **Blocks** view is exactly the text a translation run works on; everything else is structure the round-trip preserves. What isn't a block doesn't get translated.
+2. **Protect and reuse.** In the **Toolbox**'s Flows tab, put `redact` and `recycle` steps ahead of `translate` in the project's flow: sensitive spans become placeholders before any provider is called, and memory matches fill first, so a run pays only for what's new.
+3. **Hold every language to the bar.** Import the term list in the **Terms** view and bind the voice profile in project settings; the **Checks** view then reports terminology and quality findings per block, and a locale doesn't reach its ship gate past a failing check.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcomes, not the machinery:
+
+> Prepare this catalog for French — protect names, reuse what we've already translated, enforce our terms.
+
+The assistant runs the same pass through kapi: the `secure-translate` flow for protection, `recycle` for reuse, `check` for the bar — then reports what was redacted, what came back from memory, and what still needs a person.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+**Protect sensitive content** — redact, translate against placeholders, restore locally:
+
+```bash
+kapi run secure-translate -i src/locales/en.json --target-lang fr
+```
+
+**Reuse past translations** — fill from content memory first, translate only what's left ([the deterministic version](/kapi/recipes/pre-translate-from-memory)):
+
+```bash
+kapi exec recycle src/locales/en.json --target-lang fr
+```
+
+**Keep terminology and quality consistent** — import the term list once, then gate:
+
+```bash
+kapi terms import terms.json --name product-terms
+kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
+```
+
+When a check flags a block, fix it through the inspect → apply loop ([Edit content](/kapi/recipes/rewrite-content)) and re-check. To make the pass one repeatable verb, name it as a flow in your project:
+
+```yaml
+# .kapi/flows/prepare.yaml
+steps:
+  - tool: redact # protect sensitive content
+  - tool: segmentation # per-sentence units, so reuse and checks land precisely
+  - tool: entity-extract # detect names so memory reuse generalizes over them
+  - tool: recycle # reuse past translations
+  - tool: translate # translate the remainder
+  - tool: qa # gate on findings
+```
+
+```bash
+kapi run prepare -i src/locales/en.json --target-lang fr
+```
+
+</TabItem>
+</Tabs>
+
+## ▒ Îñ à þŕöĵéçţ ▒
+
+▒ Îñ à [`.ķàþî` þŕöĵéçţ](/kapi/get-started/first-project) ţĥé šàḿé þàšš ŕüñš àĝàîñšţ ţĥé ŕéçîþé'š đéçļàŕéđ çöñţéñţ àñđ ļöçàļéš — `ķàþî ŕüñ þŕéþàŕé` ŵîţĥ ñö ƒîļé àŕĝüḿéñţ ŕéšöļṽéš ţĥé šöüŕçéš ƒŕöḿ ţĥé þŕöĵéçţ, àñđ ţĥé çöñţéñţ ḿéḿöŕý àñđ ţéŕḿš šţöŕé îţ ƃüîļđš àŕé ţĥé þŕöĵéçţ'š öŵñ. Ƒöŕ ţĥé ḿöđéļ ƃéĥîñđ ţĥîš — éàçĥ šţéþ à ñöñ-đéšţŕüçţîṽé öṽéŕļàý öñ öñé šéţţļéđ šöüŕçé — šéé [Çöñţéñţ þŕéþàŕàţîöñ](/framework/content-preparation). ▒
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [Ŕéđàçţîöñ](/framework/redaction) — ŕüļéš ƒîļéš, éñţîţý đéţéçţîöñ, àñđ ţĥé éẋţŕàçţ/ḿéŕĝé þàţĥ ƒöŕ ĥüḿàñ ţŕàñšļàţöŕš. ▒
+- ▒ [Ŕéüšé ŵĥàţ ýöü'ṽé ţŕàñšļàţéđ](/kapi/recipes/pre-translate-from-memory) — ţĥé çöñţéñţ-ḿéḿöŕý þàšš éñđ ţö éñđ. ▒
+- ▒ [Ķééþ ţéŕḿš çöñšîšţéñţ](/kapi/recipes/terminology-qa) — ţéŕḿîñöļöĝý éñƒöŕçéḿéñţ îñ ƒüļļ. ▒

@@ -42,6 +42,7 @@ type ContentStore interface {
     VersionStore    // named versions + diffs (stream-scoped)
     ChangeFeed      // incremental sync change log (stream-scoped)
     AssetStore      // assets and locale variants
+
     Close() error
 }
 ```
@@ -52,6 +53,7 @@ type ContentStore interface {
 // BlockStore
 StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
+
 // VersionStore
 CreateVersion(ctx context.Context, projectID, stream, label, description string) (*Version, error)
 Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
@@ -70,6 +72,7 @@ Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
 
 ```go
 import "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+
 store, err := sqlitestore.NewSQLiteStore("working-copy.db")
 if err != nil {
     log.Fatal(err)
@@ -103,8 +106,10 @@ identity := model.ComputeIdentity(block)
 ```go
 // Create a snapshot of a stream
 v, err := store.CreateVersion(ctx, projectID, "main", "v1.0", "Initial release")
+
 // List a stream's versions
 versions, err := store.ListVersions(ctx, projectID, "main")
+
 // Diff two versions
 diff, err := store.Diff(ctx, v1.ID, v2.ID)
 for _, change := range diff.Changes {

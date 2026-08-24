@@ -27,6 +27,7 @@ workspace / acme
 ├── Project: Website
 ├── Project: Mobile App
 └── Members: alice, bob, carol
+
 workspace / contoso
 ├── Project: Documentation
 └── Members: dave, eve

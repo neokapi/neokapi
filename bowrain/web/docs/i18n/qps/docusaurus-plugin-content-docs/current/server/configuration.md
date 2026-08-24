@@ -39,47 +39,47 @@ BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 
 ### ▒ Çöŕé ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Default | Description |
 | --- | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÞöšţĝŕéŠǪĻ çöññéçţîöñ šţŕîñĝ (`þöšţĝŕéš://…`) — **ŕéǫüîŕéđ** ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÀÜŢĤ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ `àžüŕé` ţö üšé Éñţŕà ÎĐ ḿàñàĝéđ-îđéñţîţý ţöķéñš; öţĥéŕŵîšé þàššŵöŕđ àüţĥ ƒŕöḿ ţĥé ÜŔĻ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞÖŔŢ` ▒ | ▒ `8080` ▒ | ▒ ĤŢŢÞ þöŕţ ţö ļîšţéñ öñ (ĝŔÞÇ îš ḿüļţîþļéẋéđ öñţö ţĥé šàḿé þöŕţ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĤÖŠŢ` ▒ | ▒ `0.0.0.0` ▒ | ▒ Àđđŕéšš ţö ƃîñđ ţö ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀ_ĐÎŔ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Đîŕéçţöŕý ƒöŕ ţéḿþöŕàŕý ƒîļéš đüŕîñĝ þŕöçéššîñĝ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ǪÜÉÜÉ_ƂÀÇĶÉÑĐ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ `šǫš` šéļéçţš ţĥé ŠǪŠ ĵöƃ-ǫüéüé ƃàçķéñđ; üñšéţ üšéš àñ îñ-þŕöçéšš ǫüéüé (šîñĝļé-îñšţàñçé đéṽéļöþḿéñţ öñļý) ▒ |
-| ▒ `ŠǪŠ_ÉÑĐÞÖÎÑŢ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ŠǪŠ éñđþöîñţ öṽéŕŕîđé ƒöŕ ŠǪŠ-çöḿþàţîƃļé éḿüļàţöŕš (ÉļàšţîçḾǪ, ĻöçàļŠţàçķ); éḿþţý öñ ÀŴŠ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠǪŠ_ǪÜÉÜÉ_ÞŔÉƑÎẊ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Öþţîöñàļ ñàḿé þŕéƒîẋ àþþļîéđ ţö éṽéŕý ĵöƃ ǫüéüé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÉṼÉÑŢ_ƂÀÇĶÉÑĐ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ `ŕéđîš` ŕüñš ţĥé éṽéñţ ƃüš öñ Ŕéđîš Šţŕéàḿš (ŕéǫüîŕéš `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ`); üñšéţ üšéš ţĥé îñ-ḿéḿöŕý ƃüš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Ŕéđîš ÜŔĻ ƒöŕ çàçĥîñĝ, šéššîöñ šţàţé, àñđ ţĥé Ŕéđîš Šţŕéàḿš éṽéñţ ƃüš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÞÀŠŠŴÖŔĐ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Ŕéđîš þàššŵöŕđ (öṽéŕŕîđéš àñý þàššŵöŕđ îñ `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ`) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ḾÀẊ_ÞÜŠĤ_ƂÝŢÉŠ` ▒ | ▒ `256ḾƂ` ▒ | ▒ Ḿàẋ ţöţàļ üþļöàđ šîžé þéŕ þüšĥ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŴÉƂ_ÜÎ_ĐÎŔ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Þàţĥ ţö ƃüîļţ ŵéƃ ÜÎ šţàţîç ƒîļéš (đéṽ öñļý; þŕöđüçţîöñ šéŕṽéš ţĥé ÜÎ ƒŕöḿ à šéþàŕàţé çöñţàîñéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞÜĻŠÉ_ÉÑÀƂĻÉĐ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Ḿöüñţš ţĥé þüƃļîç Þüļšé àçţîṽîţý đàšĥƃöàŕđ (`/àþî/ṽ1/þüļšé` ŕöüţéš + ţĥé þüļšé šüƃđöḿàîñ ŠÞÀ). Üñḿöüñţéđ ƃý đéƒàüļţ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĻÖĜ_ƑÖŔḾÀŢ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ `ţéẋţ` öŕ `ĵšöñ` ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĻÖĜ_ĻÉṼÉĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ `đéƃüĝ`, `îñƒö`, `ŵàŕñ`, `éŕŕöŕ` ▒ |
+| `BOWRAIN_DATABASE_URL` | _(empty)_ | PostgreSQL connection string (`postgres://…`) — **required** |
+| `BOWRAIN_DATABASE_AUTH` | _(empty)_ | `azure` to use Entra ID managed-identity tokens; otherwise password auth from the URL |
+| `BOWRAIN_PORT` | `8080` | HTTP port to listen on (gRPC is multiplexed onto the same port) |
+| `BOWRAIN_HOST` | `0.0.0.0` | Address to bind to |
+| `BOWRAIN_DATA_DIR` | _(empty)_ | Directory for temporary files during processing |
+| `BOWRAIN_QUEUE_BACKEND` | _(empty)_ | `sqs` selects the SQS job-queue backend; unset uses an in-process queue (single-instance development only) |
+| `SQS_ENDPOINT` | _(empty)_ | SQS endpoint override for SQS-compatible emulators (ElasticMQ, LocalStack); empty on AWS |
+| `BOWRAIN_SQS_QUEUE_PREFIX` | _(empty)_ | Optional name prefix applied to every job queue |
+| `BOWRAIN_EVENT_BACKEND` | _(empty)_ | `redis` runs the event bus on Redis Streams (requires `BOWRAIN_REDIS_URL`); unset uses the in-memory bus |
+| `BOWRAIN_REDIS_URL` | _(empty)_ | Redis URL for caching, session state, and the Redis Streams event bus |
+| `BOWRAIN_REDIS_PASSWORD` | _(empty)_ | Redis password (overrides any password in `BOWRAIN_REDIS_URL`) |
+| `BOWRAIN_MAX_PUSH_BYTES` | `256MB` | Max total upload size per push |
+| `BOWRAIN_WEB_UI_DIR` | _(empty)_ | Path to built web UI static files (dev only; production serves the UI from a separate container) |
+| `BOWRAIN_PULSE_ENABLED` | `false` | Mounts the public Pulse activity dashboard (`/api/v1/pulse` routes + the pulse subdomain SPA). Unmounted by default |
+| `BOWRAIN_LOG_FORMAT` | _(empty)_ | `text` or `json` |
+| `BOWRAIN_LOG_LEVEL` | _(empty)_ | `debug`, `info`, `warn`, `error` |
 
 ### ▒ Àüţĥéñţîçàţîöñ ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Default | Description |
 | --- | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ĴŴŢ_ŠÉÇŔÉŢ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ĴŴŢ šîĝñîñĝ šéçŕéţ. Ŵĥéñ šéţ, àüţĥ, ÖÎĐÇ ļöĝîñ, àñđ ŵöŕķšþàçé ḿàñàĝéḿéñţ àŕé éñàƃļéđ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÎŠŠÜÉŔ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ îššüéŕ ÜŔĻ (îñţéŕñàļ, üšéđ ƒöŕ ţöķéñ ṽàļîđàţîöñ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÞÜƂĻÎÇ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Ƃŕöŵšéŕ-ƒàçîñĝ ÜŔĻ öƒ ţĥé îđéñţîţý þŕöṽîđéŕ, ŵĥéñ îţ đîƒƒéŕš ƒŕöḿ ţĥé îššüéŕ ÜŔĻ (ƒöŕ ŕéđîŕéçţš) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ÎĐ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ ÖÀüţĥ çļîéñţ ÎĐ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ŠÉÇŔÉŢ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ ÖÀüţĥ çļîéñţ šéçŕéţ ▒ |
+| `BOWRAIN_JWT_SECRET` | _(empty)_ | JWT signing secret. When set, auth, OIDC login, and workspace management are enabled |
+| `BOWRAIN_OIDC_ISSUER_URL` | _(empty)_ | OIDC issuer URL (internal, used for token validation) |
+| `BOWRAIN_OIDC_PUBLIC_URL` | _(empty)_ | Browser-facing URL of the identity provider, when it differs from the issuer URL (for redirects) |
+| `BOWRAIN_OIDC_CLIENT_ID` | _(empty)_ | OIDC OAuth client ID |
+| `BOWRAIN_OIDC_CLIENT_SECRET` | _(empty)_ | OIDC OAuth client secret |
 
 ▒ Ţĥé Ķéýçļöàķ àđḿîñ ÀÞÎ (üšéđ ţö ŵŕîţé ƃàçķ éḿàîļ çĥàñĝéš îñîţîàţéđ ƒŕöḿ ţĥé ÜÎ)
 àñđ ţĥé àđḿîñ çöñţŕöļ þļàñé àŕé öþţîöñàļ: ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ĶÉÝÇĻÖÀĶ_ÀĐḾÎÑ_ÜŔĻ` ▒ | ▒ Îñ-çļüšţéŕ Ķéýçļöàķ àđḿîñ ÜŔĻ (éñàƃļéš Ƃöŵŕàîñ-ḿàñàĝéđ éḿàîļ çĥàñĝé) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĶÉÝÇĻÖÀĶ_ŔÉÀĻḾ` ▒ | ▒ Ŕéàļḿ ñàḿé (đéƒàüļţ `ƃöŵŕàîñ`) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĶÉÝÇĻÖÀĶ_ÀĐḾÎÑ_ÇĻÎÉÑŢ_ÎĐ` ▒ | ▒ Šéŕṽîçé-àççöüñţ çļîéñţ ŵîţĥ `ŕéàļḿ-ḿàñàĝéḿéñţ:ḿàñàĝé-üšéŕš` ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĶÉÝÇĻÖÀĶ_ÀĐḾÎÑ_ÇĻÎÉÑŢ_ŠÉÇŔÉŢ` ▒ | ▒ Šéŕṽîçé-àççöüñţ çļîéñţ šéçŕéţ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĐḾÎÑ_ÖÎĐÇ_ÎŠŠÜÉŔ_ÜŔĻ` ▒ | ▒ Îššüéŕ ÜŔĻ ƒöŕ ţĥé `/àþî/àđḿîñ/*` çöñţŕöļ þļàñé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĐḾÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ÎĐ` ▒ | ▒ Àđḿîñ çöñţŕöļ-þļàñé çļîéñţ ÎĐ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĐḾÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ŠÉÇŔÉŢ` ▒ | ▒ Àđḿîñ çöñţŕöļ-þļàñé çļîéñţ šéçŕéţ ▒ |
+| `BOWRAIN_KEYCLOAK_ADMIN_URL` | In-cluster Keycloak admin URL (enables Bowrain-managed email change) |
+| `BOWRAIN_KEYCLOAK_REALM` | Realm name (default `bowrain`) |
+| `BOWRAIN_KEYCLOAK_ADMIN_CLIENT_ID` | Service-account client with `realm-management:manage-users` |
+| `BOWRAIN_KEYCLOAK_ADMIN_CLIENT_SECRET` | Service-account client secret |
+| `BOWRAIN_ADMIN_OIDC_ISSUER_URL` | Issuer URL for the `/api/admin/*` control plane |
+| `BOWRAIN_ADMIN_OIDC_CLIENT_ID` | Admin control-plane client ID |
+| `BOWRAIN_ADMIN_OIDC_CLIENT_SECRET` | Admin control-plane client secret |
 
 ▒ :::ţîþ ÖÎĐÇ þüƃļîç ÜŔĻ
 Ŵĥéñ ýöüŕ ÖÎĐÇ þŕöṽîđéŕ ĥàš à đîƒƒéŕéñţ îñţéŕñàļ ĥöšţñàḿé ţĥàñ ţĥé ƃŕöŵšéŕ-ƒàçîñĝ
@@ -100,12 +100,12 @@ BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 ▒ Ţĥéšé đéçîđé ŵĥîçĥ öţĥéŕ öŕîĝîñš ḿàý ţàļķ ţö ţĥé ÀÞÎ, àñđ ŵĥéţĥéŕ šéššîöñ
 çööķîéš àŕé ḿàŕķéđ `Šéçüŕé`. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Default | Description |
 | --- | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ÀÞÞ_ÞÜƂĻÎÇ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Ţĥîš àþþļîçàţîöñ'š ƃŕöŵšéŕ-ƒàçîñĝ öŕîĝîñ (é.ĝ. `ĥţţþš://àþþ.ƃöŵŕàîñ.çļöüđ`). Üšéđ ţö ƃüîļđ ţĥé ÇÖŔŠ àñđ ŴéƃŠöçķéţ öŕîĝîñ àļļöŵļîšţš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞÜƂĻÎÇ_ŠÎŢÉ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Ḿàŕķéţîñĝ ļàñđîñĝ öŕîĝîñ, àļļöŵéđ öñé çŕéđéñţîàļéđ çŕöšš-öŕîĝîñ ŕéàđ (`ĜÉŢ /àþî/ṽ1/àüţĥ/ŵĥöàḿî`) šö ţĥé ļàñđîñĝ çàñ ŕéñđéŕ à šîĝñéđ-îñ ļîñķ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ƑÖŔÇÉ_ŠÉÇÜŔÉ_ÇÖÖĶÎÉŠ` ▒ | ▒ `ţŕüé`, öŕ `ƒàļšé` îñ đéṽéļöþḿéñţ ▒ | ▒ Ḿàŕķš šéššîöñ çööķîéš `Šéçüŕé` ŕéĝàŕđļéšš öƒ ţĥé ŕéǫüéšţ šçĥéḿé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĻĻÖŴ_ÎÑŠÉÇÜŔÉ_ĐÉṼ` ▒ | ▒ `ƒàļšé` ▒ | ▒ Ḿàŕķš ţĥé þŕöçéšš à đéṽéļöþḿéñţ îñšţàñçé. Àļšö ŕéļàẋéš šţàŕţüþ çöñƒîĝüŕàţîöñ çĥéçķš àñđ éñàƃļéš đîŕéçţ đéṽîçé àþþŕöṽàļ ▒ |
+| `BOWRAIN_APP_PUBLIC_URL` | _(empty)_ | This application's browser-facing origin (e.g. `https://app.bowrain.cloud`). Used to build the CORS and WebSocket origin allowlists |
+| `BOWRAIN_PUBLIC_SITE_URL` | _(empty)_ | Marketing landing origin, allowed one credentialed cross-origin read (`GET /api/v1/auth/whoami`) so the landing can render a signed-in link |
+| `BOWRAIN_FORCE_SECURE_COOKIES` | `true`, or `false` in development | Marks session cookies `Secure` regardless of the request scheme |
+| `BOWRAIN_ALLOW_INSECURE_DEV` | `false` | Marks the process a development instance. Also relaxes startup configuration checks and enables direct device approval |
 
 ▒ :::ŵàŕñîñĝ Đéṽéļöþḿéñţ ḿöđé îš öþţéđ îñţö, ñéṽéŕ îñƒéŕŕéđ
 À šéŕṽéŕ îš þŕöđüçţîöñ üñļéšš `ƂÖŴŔÀÎÑ_ÀĻĻÖŴ_ÎÑŠÉÇÜŔÉ_ĐÉṼ` (öŕ
@@ -136,13 +136,13 @@ BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 ▒ Ƃöŵŕàîñ šţöŕéš îñ-ƒļîĝĥţ šýñç þüšĥ þàýļöàđš îñ à ƃļöƃ šţöŕé, šĥàŕéđ ŵîţĥ ţĥé
 ŵöŕķéŕ. Ţĥé ƃàçķéñđ đéƒàüļţš ţö `ļöçàļ`. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Default | Description |
 | --- | --- | --- |
-| ▒ `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ƂÀÇĶÉÑĐ` ▒ | ▒ `ļöçàļ` ▒ | ▒ `ļöçàļ` öŕ `àžüŕé` ▒ |
-| ▒ `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ĻÖÇÀĻ_ĐÎŔ` ▒ | ▒ `$ƂÖŴŔÀÎÑ_ĐÀŢÀ_ĐÎŔ/ƃļöƃš` (öŕ à ţéḿþ đîŕ) ▒ | ▒ Ļöçàļ ƃļöƃ šţöŕàĝé đîŕéçţöŕý (šéŕṽéŕ) ▒ |
-| ▒ `ÀŽÜŔÉ_ŠŢÖŔÀĜÉ_ÀÇÇÖÜÑŢ_ÜŔĻ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Àžüŕé Ƃļöƃ Šţöŕàĝé àççöüñţ ÜŔĻ ▒ |
-| ▒ `ÀŽÜŔÉ_ŠŢÖŔÀĜÉ_ÇÖÑŢÀÎÑÉŔ` ▒ | ▒ `ƃöŵŕàîñ-àššéţš` ▒ | ▒ Àžüŕé Ƃļöƃ Šţöŕàĝé çöñţàîñéŕ ▒ |
-| ▒ `ÀŽÜŔÉ_ŠŢÖŔÀĜÉ_ÇÖÑÑÉÇŢÎÖÑ_ŠŢŔÎÑĜ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Àžüŕé çöññéçţîöñ šţŕîñĝ (đéṽ / Àžüŕîţé) ▒ |
+| `BLOB_STORAGE_BACKEND` | `local` | `local` or `azure` |
+| `BLOB_STORAGE_LOCAL_DIR` | `$BOWRAIN_DATA_DIR/blobs` (or a temp dir) | Local blob storage directory (server) |
+| `AZURE_STORAGE_ACCOUNT_URL` | _(empty)_ | Azure Blob Storage account URL |
+| `AZURE_STORAGE_CONTAINER` | `bowrain-assets` | Azure Blob Storage container |
+| `AZURE_STORAGE_CONNECTION_STRING` | _(empty)_ | Azure connection string (dev / Azurite) |
 
 ### ▒ Éḿàîļ ▒
 
@@ -150,38 +150,38 @@ BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 (ļöçàļ đéṽ / Ḿàîļþîţ), àđđ üšéŕñàḿé/þàššŵöŕđ ƒöŕ àüţĥéñţîçàţéđ ŠḾŢÞ, öŕ šéţ
 `ƂÖŴŔÀÎÑ_ŔÉŠÉÑĐ_ÀÞÎ_ĶÉÝ` ţö šéñđ ṽîà Ŕéšéñđ îñšţéàđ. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ĤÖŠŢ` ▒ | ▒ ŠḾŢÞ šéŕṽéŕ îñ `ĥöšţ:þöŕţ` ƒöŕḿàţ (éḿþţý = éḿàîļ đîšàƃļéđ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ƑŔÖḾ` ▒ | ▒ Šéñđéŕ éḿàîļ àđđŕéšš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ÜŠÉŔÑÀḾÉ` ▒ | ▒ ŠḾŢÞ àüţĥ üšéŕñàḿé (éḿþţý = ñö àüţĥ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ÞÀŠŠŴÖŔĐ` ▒ | ▒ ŠḾŢÞ àüţĥ þàššŵöŕđ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ÜŠÉ_ŢĻŠ` ▒ | ▒ `ţŕüé`/`1` ƒöŕ îḿþļîçîţ ŢĻŠ (ŠḾŢÞŠ); öţĥéŕŵîšé ŠŢÀŔŢŢĻŠ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔÉŠÉÑĐ_ÀÞÎ_ĶÉÝ` ▒ | ▒ Ŕéšéñđ ÀÞÎ ķéý (üšéđ îñšţéàđ öƒ ŠḾŢÞ ŵĥéñ šéţ; ŕéüšéš `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ƑŔÖḾ`) ▒ |
+| `BOWRAIN_SMTP_HOST` | SMTP server in `host:port` format (empty = email disabled) |
+| `BOWRAIN_SMTP_FROM` | Sender email address |
+| `BOWRAIN_SMTP_USERNAME` | SMTP auth username (empty = no auth) |
+| `BOWRAIN_SMTP_PASSWORD` | SMTP auth password |
+| `BOWRAIN_SMTP_USE_TLS` | `true`/`1` for implicit TLS (SMTPS); otherwise STARTTLS |
+| `BOWRAIN_RESEND_API_KEY` | Resend API key (used instead of SMTP when set; reuses `BOWRAIN_SMTP_FROM`) |
 
 ### ▒ Àĝéñţ (@ƃŕàṽö) ▒
 
 ▒ Ţĥé îñ-þŕöđüçţ àĝéñţ ŕüñš îñ çöñţàîñéŕš. Ŵĥéñ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ŔÜÑŢÎḾÉ` îš üñšéţ îţ
 ƒàļļš ƃàçķ ţö ļöçàļ ḿöçķ ŕéšþöñšéš. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ŔÜÑŢÎḾÉ` ▒ | ▒ `đöçķéŕ` öŕ `àçà` (Àžüŕé Çöñţàîñéŕ Àþþš) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ÎḾÀĜÉ` ▒ | ▒ Àĝéñţ çöñţàîñéŕ îḿàĝé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ḾÀẊ_ÇÖÑÇÜŔŔÉÑŢ` ▒ | ▒ Ḿàẋ çöñçüŕŕéñţ àĝéñţ çöñţàîñéŕš þéŕ ŵöŕķšþàçé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ĐÖÇĶÉŔ_ĤÖŠŢ` / `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ĐÖÇĶÉŔ_ÑÉŢŴÖŔĶ` ▒ | ▒ Đöçķéŕ ŕüñţîḿé šéţţîñĝš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ÀÇÀ_ŠÜƂŠÇŔÎÞŢÎÖÑ` / `_ŔÉŠÖÜŔÇÉ_ĜŔÖÜÞ` / `_ÉÑṼÎŔÖÑḾÉÑŢ_ÎĐ` / `_ĻÖÇÀŢÎÖÑ` ▒ | ▒ Àžüŕé Çöñţàîñéŕ Àþþš šéţţîñĝš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀĜÉÑŢ_ḾÖĐÉĻ_ÞŔÖṼÎĐÉŔ` / `_ḾÖĐÉĻ_ÑÀḾÉ` / `_ḾÖĐÉĻ_ÀÞÎ_ƂÀŠÉ` / `_ḾÖĐÉĻ_ÀÞÎ_ĶÉÝ` ▒ | ▒ Àĝéñţ ḿöđéļ çöñƒîĝüŕàţîöñ ▒ |
+| `BOWRAIN_AGENT_RUNTIME` | `docker` or `aca` (Azure Container Apps) |
+| `BOWRAIN_AGENT_IMAGE` | Agent container image |
+| `BOWRAIN_AGENT_MAX_CONCURRENT` | Max concurrent agent containers per workspace |
+| `BOWRAIN_AGENT_DOCKER_HOST` / `BOWRAIN_AGENT_DOCKER_NETWORK` | Docker runtime settings |
+| `BOWRAIN_AGENT_ACA_SUBSCRIPTION` / `_RESOURCE_GROUP` / `_ENVIRONMENT_ID` / `_LOCATION` | Azure Container Apps settings |
+| `BOWRAIN_AGENT_MODEL_PROVIDER` / `_MODEL_NAME` / `_MODEL_API_BASE` / `_MODEL_API_KEY` | Agent model configuration |
 
 ### ▒ Ƃîļļîñĝ, àñàļýţîçš, àüđîţ ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ŠŢŔÎÞÉ_ŠÉÇŔÉŢ_ĶÉÝ` / `ŠŢŔÎÞÉ_ŴÉƂĤÖÖĶ_ŠÉÇŔÉŢ` ▒ | ▒ Šţŕîþé ÀÞÎ + ŵéƃĥööķ šéçŕéţš ▒ |
-| ▒ `ŠŢŔÎÞÉ_ÞŔÖ_ÞŔÎÇÉ_ÎĐ` / `ŠŢŔÎÞÉ_ŢÉÀḾ_ÞŔÎÇÉ_ÎĐ` / `ŠŢŔÎÞÉ_ÇŔÉĐÎŢ_ÞŔÎÇÉ_ÎĐ` ▒ | ▒ Šţŕîþé þŕîçé ÎĐš ▒ |
-| ▒ `ÞÖŠŢĤÖĜ_ÀÞÎ_ĶÉÝ` / `ÞÖŠŢĤÖĜ_ĤÖŠŢ` ▒ | ▒ ÞöšţĤöĝ àñàļýţîçš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀÜĐÎŢ_ŔÉŢÉÑŢÎÖÑ_ĐÀÝŠ` ▒ | ▒ Þŕüñé àüđîţ-ļöĝ ŕöŵš öļđéŕ ţĥàñ Ñ đàýš (0 = ķééþ ƒöŕéṽéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀÜĐÎŢ_ŠÎÉḾ_ŴÉƂĤÖÖĶ_ÜŔĻ` ▒ | ▒ Ƒöŕŵàŕđ éṽéŕý àüđîţ éṽéñţ àš ÑĐĴŠÖÑ ţö àñ éẋţéŕñàļ ŠÎÉḾ ▒ |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe API + webhook secrets |
+| `STRIPE_PRO_PRICE_ID` / `STRIPE_TEAM_PRICE_ID` / `STRIPE_CREDIT_PRICE_ID` | Stripe price IDs |
+| `POSTHOG_API_KEY` / `POSTHOG_HOST` | PostHog analytics |
+| `BOWRAIN_AUDIT_RETENTION_DAYS` | Prune audit-log rows older than N days (0 = keep forever) |
+| `BOWRAIN_AUDIT_SIEM_WEBHOOK_URL` | Forward every audit event as NDJSON to an external SIEM |
 
 ### ▒ Ŕàţé ļîḿîţîñĝ ▒
 
@@ -190,40 +190,40 @@ BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 çàþš àŕé öñ ţĥé üñàüţĥéñţîçàţéđ àñđ éḿàîļ-šéñđîñĝ ŕöüţéš. Àļļ ļîḿîţš àŕé
 ŕéǫüéšţš þéŕ ḿîñüţé éẋçéþţ ţĥé çļàîḿ-éḿàîļ çàþ, ŵĥîçĥ îš þéŕ ĥöüŕ. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Ļîḿîţš ▒ |
+| Variable | Default | Limits |
 | --- | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÑÖÑ_ÞÉŔ_ḾÎÑ` ▒ | ▒ `10` ▒ | ▒ Àñöñýḿöüš þŕöĵéçţ çŕéàţîöñ (üñàüţĥéñţîçàţéđ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÑÖÑ_ƂÜŔŠŢ` ▒ | ▒ `5` ▒ | ▒ Ƃüŕšţ ƒöŕ ţĥé àñöñýḿöüš ļîḿîţéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÇĻÀÎḾ_ÉḾÀÎĻ_ÞÉŔ_ĤÖÜŔ` ▒ | ▒ `5` ▒ | ▒ Çļàîḿ éḿàîļš þéŕ çļîéñţ ÎÞ (ĥöüŕļý) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÜŢĤ_ÞÉŔ_ḾÎÑ` ▒ | ▒ `30` ▒ | ▒ Þŕé-àüţĥ ţöķéñ éñđþöîñţš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÜŢĤ_ƂÜŔŠŢ` ▒ | ▒ `15` ▒ | ▒ Ƃüŕšţ ƒöŕ ţĥé àüţĥ ļîḿîţéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÎÑṼÎŢÉ_ÞÉŔ_ḾÎÑ` ▒ | ▒ `20` ▒ | ▒ Îñṽîţé ŕöüţéš (ḿàý šéñđ éḿàîļ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÎÑṼÎŢÉ_ƂÜŔŠŢ` ▒ | ▒ `10` ▒ | ▒ Ƃüŕšţ ƒöŕ ţĥé îñṽîţé ļîḿîţéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÎ_ÞÉŔ_ḾÎÑ` ▒ | ▒ `20` ▒ | ▒ ÀÎ-çöñšüḿîñĝ ŕöüţéš (ÀÎ ţŕàñšļàţé, ƃŕàñđ çĥéçķ, ƃŕàñđ šçàñ, @ƃŕàṽö) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔĻ_ÀÎ_ƂÜŔŠŢ` ▒ | ▒ `10` ▒ | ▒ Ƃüŕšţ ƒöŕ ţĥé ÀÎ ļîḿîţéŕ ▒ |
+| `BOWRAIN_RL_ANON_PER_MIN` | `10` | Anonymous project creation (unauthenticated) |
+| `BOWRAIN_RL_ANON_BURST` | `5` | Burst for the anonymous limiter |
+| `BOWRAIN_RL_CLAIM_EMAIL_PER_HOUR` | `5` | Claim emails per client IP (hourly) |
+| `BOWRAIN_RL_AUTH_PER_MIN` | `30` | Pre-auth token endpoints |
+| `BOWRAIN_RL_AUTH_BURST` | `15` | Burst for the auth limiter |
+| `BOWRAIN_RL_INVITE_PER_MIN` | `20` | Invite routes (may send email) |
+| `BOWRAIN_RL_INVITE_BURST` | `10` | Burst for the invite limiter |
+| `BOWRAIN_RL_AI_PER_MIN` | `20` | AI-consuming routes (AI translate, brand check, brand scan, @bravo) |
+| `BOWRAIN_RL_AI_BURST` | `10` | Burst for the AI limiter |
 
 ### ▒ Àžüŕé îñţéĝŕàţîöñ ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ÀŽÜŔÉ_ÇĻÎÉÑŢ_ÎĐ` ▒ | ▒ Ḿàñàĝéđ-îđéñţîţý çļîéñţ ÎĐ (üšéđ ŵĥéñ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÀÜŢĤ=àžüŕé`) ▒ |
+| `AZURE_CLIENT_ID` | Managed-identity client ID (used when `BOWRAIN_DATABASE_AUTH=azure`) |
 
 ## ▒ Ŵöŕķéŕ éñṽîŕöñḿéñţ ṽàŕîàƃļéš ▒
 
 ▒ Ţĥé ŵöŕķéŕ (`ƃöŵŕàîñ-ŵöŕķéŕ`) šĥàŕéš ţĥé đàţàƃàšé àñđ ĵöƃ ǫüéüé ŵîţĥ ţĥé šéŕṽéŕ
 àñđ ŕüñš ţĥé àüţö-ţŕàñšļàţé-öñ-þüšĥ àüţöḿàţîöñ. ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable | Description |
 | --- | --- |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÜŔĻ` ▒ | ▒ Šàḿé ÞöšţĝŕéŠǪĻ çöññéçţîöñ šţŕîñĝ àš ţĥé šéŕṽéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ǪÜÉÜÉ_ƂÀÇĶÉÑĐ` / `ŠǪŠ_ÉÑĐÞÖÎÑŢ` ▒ | ▒ Šàḿé ĵöƃ-ǫüéüé šéļéçţîöñ àš ţĥé šéŕṽéŕ (ţĥé ţŵö ḿüšţ àĝŕéé öñ ţĥé ƃŕöķéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÉṼÉÑŢ_ƂÀÇĶÉÑĐ` / `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ` ▒ | ▒ Šàḿé éṽéñţ-ƃüš šéļéçţîöñ àš ţĥé šéŕṽéŕ ▒ |
-| ▒ `ĻÖÇÀĻ_ƂĻÖƂ_ĐÎŔ` ▒ | ▒ Šýñç þüšĥ þàýļöàđ đîŕ — ḿüšţ þöîñţ àţ ţĥé šàḿé šĥàŕéđ ṽöļüḿé àš ţĥé šéŕṽéŕ'š `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ĻÖÇÀĻ_ĐÎŔ` ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ÞŔÖṼÎĐÉŔ` ▒ | ▒ Ţŕàñšļàţîöñ þŕöṽîđéŕ: `ĝéḿîñî`, `öþéñàî`, `àñţĥŕöþîç`, `öļļàḿà`, öŕ `đéḿö` (öƒƒļîñé) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ÀÞÎ_ĶÉÝ` ▒ | ▒ Þŕöṽîđéŕ ÀÞÎ ķéý (öŕ à þŕöṽîđéŕ-šþéçîƒîç ṽàŕîàƃļé šüçĥ àš `ĜÉḾÎÑÎ_ÀÞÎ_ĶÉÝ`) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ḾÖĐÉĻ` ▒ | ▒ Đéƒàüļţ ḿöđéļ ƒöŕ ţĥé þŕöṽîđéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ƂÀŠÉ_ÜŔĻ` ▒ | ▒ Þŕöṽîđéŕ ÀÞÎ ƃàšé ÜŔĻ (é.ĝ. šéļƒ-ĥöšţéđ Öļļàḿà) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÞÉÑÀÎ_ÉÑĐÞÖÎÑŢ` ▒ | ▒ Àžüŕé ÖþéñÀÎ éñđþöîñţ (ĥöšţéđ-çļöüđ þàţĥ; üšéš ḿàñàĝéđ îđéñţîţý) ▒ |
+| `BOWRAIN_DATABASE_URL` | Same PostgreSQL connection string as the server |
+| `BOWRAIN_QUEUE_BACKEND` / `SQS_ENDPOINT` | Same job-queue selection as the server (the two must agree on the broker) |
+| `BOWRAIN_EVENT_BACKEND` / `BOWRAIN_REDIS_URL` | Same event-bus selection as the server |
+| `LOCAL_BLOB_DIR` | Sync push payload dir — must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
+| `BOWRAIN_PLATFORM_PROVIDER` | Translation provider: `gemini`, `openai`, `anthropic`, `ollama`, or `demo` (offline) |
+| `BOWRAIN_PLATFORM_API_KEY` | Provider API key (or a provider-specific variable such as `GEMINI_API_KEY`) |
+| `BOWRAIN_PLATFORM_MODEL` | Default model for the provider |
+| `BOWRAIN_PLATFORM_BASE_URL` | Provider API base URL (e.g. self-hosted Ollama) |
+| `BOWRAIN_OPENAI_ENDPOINT` | Azure OpenAI endpoint (hosted-cloud path; uses managed identity) |
 
 ▒ :::ñöţé Ƃļöƃ đîŕéçţöŕý éñṽ ṽàŕ đîƒƒéŕš ƃý šéŕṽîçé
 Ţĥé šéŕṽéŕ ŕéàđš `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ĻÖÇÀĻ_ĐÎŔ`; ţĥé ŵöŕķéŕ ŕéàđš `ĻÖÇÀĻ_ƂĻÖƂ_ĐÎŔ`.
@@ -248,17 +248,17 @@ bowrain-server \
   --web-ui-dir /path/to/web/dist
 ```
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag | Default | Description |
 | --- | --- | --- |
-| ▒ `--þöŕţ` ▒ | ▒ `8080` ▒ | ▒ ĤŢŢÞ þöŕţ ţö ļîšţéñ öñ ▒ |
-| ▒ `--ĥöšţ` ▒ | ▒ `0.0.0.0` ▒ | ▒ Àđđŕéšš ţö ƃîñđ ţö ▒ |
-| ▒ `--đàţà-đîŕ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Đîŕéçţöŕý ƒöŕ ţéḿþöŕàŕý ƒîļéš ▒ |
-| ▒ `--đàţàƃàšé-üŕļ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÞöšţĝŕéŠǪĻ çöññéçţîöñ šţŕîñĝ (`þöšţĝŕéš://…`) ▒ |
-| ▒ `--ĵŵţ-šéçŕéţ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ĴŴŢ šîĝñîñĝ šéçŕéţ ▒ |
-| ▒ `--öîđç-îššüéŕ-üŕļ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ îššüéŕ ÜŔĻ ▒ |
-| ▒ `--öîđç-çļîéñţ-îđ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ ÖÀüţĥ çļîéñţ ÎĐ ▒ |
-| ▒ `--öîđç-çļîéñţ-šéçŕéţ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ ÖÎĐÇ ÖÀüţĥ çļîéñţ šéçŕéţ ▒ |
-| ▒ `--ŵéƃ-üî-đîŕ` ▒ | ▒ _(éḿþţý)_ ▒ | ▒ Þàţĥ ţö ƃüîļţ ŵéƃ ÜÎ šţàţîç ƒîļéš ▒ |
+| `--port` | `8080` | HTTP port to listen on |
+| `--host` | `0.0.0.0` | Address to bind to |
+| `--data-dir` | _(empty)_ | Directory for temporary files |
+| `--database-url` | _(empty)_ | PostgreSQL connection string (`postgres://…`) |
+| `--jwt-secret` | _(empty)_ | JWT signing secret |
+| `--oidc-issuer-url` | _(empty)_ | OIDC issuer URL |
+| `--oidc-client-id` | _(empty)_ | OIDC OAuth client ID |
+| `--oidc-client-secret` | _(empty)_ | OIDC OAuth client secret |
+| `--web-ui-dir` | _(empty)_ | Path to built web UI static files |
 
 ## ▒ Ñéẋţ šţéþš ▒
 

@@ -62,37 +62,37 @@ BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
 
 ### ▒ Šéŕṽéŕ (`ƃöŵŕàîñ-šéŕṽéŕ`) ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéƒàüļţ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable                     | Default   | Description                                                      |
 | ---------------------------- | --------- | ---------------------------------------------------------------- |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÜŔĻ` ▒ |  | ▒ ÞöšţĝŕéŠǪĻ çöññéçţîöñ šţŕîñĝ (`þöšţĝŕéš://…`) — **ŕéǫüîŕéđ** ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĴŴŢ_ŠÉÇŔÉŢ` ▒ |  | ▒ ĴŴŢ šîĝñîñĝ šéçŕéţ — ŕéǫüîŕéđ ƒöŕ àüţĥ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÎŠŠÜÉŔ_ÜŔĻ` ▒ |  | ▒ ÖÎĐÇ îššüéŕ ÜŔĻ (îñţéŕñàļ, ŕéàçĥàƃļé ƒŕöḿ ţĥé šéŕṽéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÞÜƂĻÎÇ_ÜŔĻ` ▒ |  | ▒ Ƃŕöŵšéŕ-ƒàçîñĝ ÜŔĻ öƒ ţĥé îđéñţîţý þŕöṽîđéŕ, îƒ îţ đîƒƒéŕš ƒŕöḿ ţĥé îššüéŕ ÜŔĻ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÀÞÞ_ÞÜƂĻÎÇ_ÜŔĻ` ▒ |  | ▒ Ţĥé ÜŔĻ ƃŕöŵšéŕš üšé ţö ŕéàçĥ Ƃöŵŕàîñ — šéţš ţĥé ÇÖŔŠ àñđ ŴéƃŠöçķéţ öŕîĝîñ àļļöŵļîšţš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ƑÖŔÇÉ_ŠÉÇÜŔÉ_ÇÖÖĶÎÉŠ` ▒ | ▒ `ţŕüé` ▒ | ▒ Ḿàŕķš šéššîöñ çööķîéš `Šéçüŕé` ŕéĝàŕđļéšš öƒ ţĥé ŕéǫüéšţ šçĥéḿé ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ÎĐ` ▒ | ▒ `ƃöŵŕàîñ` ▒ | ▒ ÖÎĐÇ çļîéñţ ÎĐ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÖÎĐÇ_ÇĻÎÉÑŢ_ŠÉÇŔÉŢ` ▒ |  | ▒ ÖÎĐÇ çļîéñţ šéçŕéţ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ǪÜÉÜÉ_ƂÀÇĶÉÑĐ` ▒ |  | ▒ `šǫš` šéļéçţš ţĥé ŠǪŠ ĵöƃ-ǫüéüé ƃàçķéñđ ▒ |
-| ▒ `ŠǪŠ_ÉÑĐÞÖÎÑŢ` ▒ |  | ▒ ŠǪŠ éñđþöîñţ öṽéŕŕîđé ƒöŕ ÉļàšţîçḾǪ/ĻöçàļŠţàçķ; éḿþţý öñ ÀŴŠ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÉṼÉÑŢ_ƂÀÇĶÉÑĐ` ▒ |  | ▒ `ŕéđîš` ŕüñš ţĥé éṽéñţ ƃüš öñ Ŕéđîš Šţŕéàḿš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ` ▒ |  | ▒ Ŕéđîš ÜŔĻ (éṽéñţ ƃüš, çàçĥîñĝ, šéššîöñ šţàţé) ▒ |
-| ▒ `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ĻÖÇÀĻ_ĐÎŔ` ▒ |  | ▒ Đîŕéçţöŕý ƒöŕ šýñç þüšĥ þàýļöàđš (šĥàŕéđ ŵîţĥ ţĥé ŵöŕķéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ĤÖŠŢ` ▒ |  | ▒ ŠḾŢÞ šéŕṽéŕ `ĥöšţ:þöŕţ` ƒöŕ ţŕàñšàçţîöñàļ éḿàîļš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠḾŢÞ_ƑŔÖḾ` ▒ |  | ▒ Šéñđéŕ éḿàîļ àđđŕéšš ƒöŕ ţŕàñšàçţîöñàļ éḿàîļš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞÖŔŢ` ▒ | ▒ `8080` ▒ | ▒ ĤŢŢÞ þöŕţ ţö ļîšţéñ öñ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ĤÖŠŢ` ▒ | ▒ `0.0.0.0` ▒ | ▒ Àđđŕéšš ţö ƃîñđ ţö ▒ |
+| `BOWRAIN_DATABASE_URL`       |           | PostgreSQL connection string (`postgres://…`) — **required**     |
+| `BOWRAIN_JWT_SECRET`         |           | JWT signing secret — required for auth                           |
+| `BOWRAIN_OIDC_ISSUER_URL`    |           | OIDC issuer URL (internal, reachable from the server)            |
+| `BOWRAIN_OIDC_PUBLIC_URL`    |           | Browser-facing URL of the identity provider, if it differs from the issuer URL |
+| `BOWRAIN_APP_PUBLIC_URL`     |           | The URL browsers use to reach Bowrain — sets the CORS and WebSocket origin allowlists |
+| `BOWRAIN_FORCE_SECURE_COOKIES` | `true`  | Marks session cookies `Secure` regardless of the request scheme  |
+| `BOWRAIN_OIDC_CLIENT_ID`     | `bowrain` | OIDC client ID                                                   |
+| `BOWRAIN_OIDC_CLIENT_SECRET` |           | OIDC client secret                                               |
+| `BOWRAIN_QUEUE_BACKEND`      |           | `sqs` selects the SQS job-queue backend                          |
+| `SQS_ENDPOINT`               |           | SQS endpoint override for ElasticMQ/LocalStack; empty on AWS     |
+| `BOWRAIN_EVENT_BACKEND`      |           | `redis` runs the event bus on Redis Streams                      |
+| `BOWRAIN_REDIS_URL`          |           | Redis URL (event bus, caching, session state)                    |
+| `BLOB_STORAGE_LOCAL_DIR`     |           | Directory for sync push payloads (shared with the worker)        |
+| `BOWRAIN_SMTP_HOST`          |           | SMTP server `host:port` for transactional emails                 |
+| `BOWRAIN_SMTP_FROM`          |           | Sender email address for transactional emails                    |
+| `BOWRAIN_PORT`               | `8080`    | HTTP port to listen on                                           |
+| `BOWRAIN_HOST`               | `0.0.0.0` | Address to bind to                                              |
 
 ### ▒ Ŵöŕķéŕ (`ƃöŵŕàîñ-ŵöŕķéŕ`) ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Variable                    | Description                                                                                          |
 | --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| ▒ `ƂÖŴŔÀÎÑ_ĐÀŢÀƂÀŠÉ_ÜŔĻ` ▒ | ▒ Šàḿé ÞöšţĝŕéŠǪĻ çöññéçţîöñ šţŕîñĝ àš ţĥé šéŕṽéŕ ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ǪÜÉÜÉ_ƂÀÇĶÉÑĐ` / `ŠǪŠ_ÉÑĐÞÖÎÑŢ` ▒ | ▒ Šàḿé ĵöƃ-ǫüéüé šéļéçţîöñ àš ţĥé šéŕṽéŕ (ţĥé ţŵö ḿüšţ àĝŕéé öñ ţĥé ƃŕöķéŕ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÉṼÉÑŢ_ƂÀÇĶÉÑĐ` / `ƂÖŴŔÀÎÑ_ŔÉĐÎŠ_ÜŔĻ` ▒ | ▒ Šàḿé éṽéñţ-ƃüš šéļéçţîöñ àš ţĥé šéŕṽéŕ ▒ |
-| ▒ `ĻÖÇÀĻ_ƂĻÖƂ_ĐÎŔ` ▒ | ▒ Šýñç þüšĥ þàýļöàđ đîŕ — ḿüšţ þöîñţ àţ ţĥé šàḿé šĥàŕéđ ṽöļüḿé àš ţĥé šéŕṽéŕ'š `ƂĻÖƂ_ŠŢÖŔÀĜÉ_ĻÖÇÀĻ_ĐÎŔ` ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ÞŔÖṼÎĐÉŔ` ▒ | ▒ Ţŕàñšļàţîöñ þŕöṽîđéŕ: `ĝéḿîñî`, `öþéñàî`, `àñţĥŕöþîç`, `öļļàḿà` (öŕ `đéḿö` ƒöŕ öƒƒļîñé öüţþüţ) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ÀÞÎ_ĶÉÝ` ▒ | ▒ Þŕöṽîđéŕ ÀÞÎ ķéý (öŕ à þŕöṽîđéŕ-šþéçîƒîç ṽàŕîàƃļé šüçĥ àš `ĜÉḾÎÑÎ_ÀÞÎ_ĶÉÝ`) ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ÞĻÀŢƑÖŔḾ_ḾÖĐÉĻ` ▒ | ▒ Đéƒàüļţ ḿöđéļ ƒöŕ ţĥé þŕöṽîđéŕ ▒ |
+| `BOWRAIN_DATABASE_URL`      | Same PostgreSQL connection string as the server                                                      |
+| `BOWRAIN_QUEUE_BACKEND` / `SQS_ENDPOINT` | Same job-queue selection as the server (the two must agree on the broker)               |
+| `BOWRAIN_EVENT_BACKEND` / `BOWRAIN_REDIS_URL` | Same event-bus selection as the server                                             |
+| `LOCAL_BLOB_DIR`            | Sync push payload dir — must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
+| `BOWRAIN_PLATFORM_PROVIDER` | Translation provider: `gemini`, `openai`, `anthropic`, `ollama` (or `demo` for offline output)       |
+| `BOWRAIN_PLATFORM_API_KEY`  | Provider API key (or a provider-specific variable such as `GEMINI_API_KEY`)                          |
+| `BOWRAIN_PLATFORM_MODEL`    | Default model for the provider                                                                       |
 
 ## ▒ ÖÎĐÇ Þŕöṽîđéŕ Šéţüþ ▒
 
@@ -168,8 +168,10 @@ volumes:
 server {
     listen 443 ssl;
     server_name bowrain.example.com;
+
     ssl_certificate /etc/ssl/certs/bowrain.crt;
     ssl_certificate_key /etc/ssl/private/bowrain.key;
+
     location / {
         proxy_pass http://localhost:80;
         proxy_set_header Host $host;
@@ -199,10 +201,10 @@ server {
 ▒ À đéþļöýḿéñţ üšéš ţĥŕéé îḿàĝéš — `ƃöŵŕàîñ-šéŕṽéŕ`, `ƃöŵŕàîñ-ŵöŕķéŕ`, àñđ
 `ƃöŵŕàîñ-ŵéƃ` — þüƃļîšĥéđ üñđéŕ `ĝĥçŕ.îö/ñéöķàþî/`: ▒
 
-| ▒ Ţàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Tag      | Description                      |
 | -------- | -------------------------------- |
-| ▒ `ļàţéšţ` ▒ | ▒ Ḿöšţ ŕéçéñţ ŕéļéàšé ▒ |
-| ▒ `Ẋ.Ý.Ž` ▒ | ▒ Šþéçîƒîç ṽéŕšîöñ (é.ĝ., `0.5.0`) ▒ |
+| `latest` | Most recent release              |
+| `X.Y.Z`  | Specific version (e.g., `0.5.0`) |
 
 ▒ Þüļļ à šþéçîƒîç ṽéŕšîöñ (ķééþ šéŕṽéŕ, ŵöŕķéŕ, àñđ ŵéƃ öñ ţĥé šàḿé ţàĝ): ▒
 

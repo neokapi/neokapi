@@ -14,11 +14,11 @@ sidebar_position: 10
 
 ▒ Ţĥéŕé àŕé ţĥŕéé ŵàýš ţö ŕüñ ţĥîš ļöçàļļý, đéþéñđîñĝ öñ ŵĥàţ ýöü àŕé ŵöŕķîñĝ öñ: ▒
 
-| ▒ Ḿöđé ▒ | ▒ Ŵĥàţ ŕüñš ŵĥéŕé ▒ | ▒ Éñţŕý þöîñţ ▒ | ▒ Çöḿḿàñđ ▒ |
+| Mode                            | What runs where                                                  | Entry point             | Command                |
 | ------------------------------- | ---------------------------------------------------------------- | ----------------------- | ---------------------- |
-| ▒ **À · Ĥöšţ + ĤḾŔ** ▒ | ▒ đéþš + Ţŕàéƒîķ îñ Đöçķéŕ; šéŕṽéŕ + ŵéƃ öñ ţĥé ĥöšţ (ĥöţ ŕéļöàđ) ▒ | ▒ `ĥţţþš://ƃöŵŕàîñ.ḿýḿàç` ▒ | ▒ `đöçķéŕ çöḿþöšé üþ` + `ḿàķé đéṽ-šéŕṽéŕ`/`đéṽ-ŵéƃ` ▒ |
-| ▒ **Ƃ · Ƒüļļ Đöçķéŕ (šĥàŕéđ)** ▒ | ▒ šéŕṽéŕ + ŵöŕķéŕ + ŵéƃ îñ Đöçķéŕ, ŕéüšîñĝ ḿöđé À'š đéþš + Ţŕàéƒîķ ▒ | ▒ `ĥţţþš://ƃöŵŕàîñ.ḿýḿàç` ▒ | ▒ `ḿàķé šţàçķ-üþ-šĥàŕéđ` ▒ |
-| ▒ **Ƃ · Ƒüļļ Đöçķéŕ (šţàñđàļöñé)** ▒ | ▒ éṽéŕýţĥîñĝ îñ Đöçķéŕ, þļàîñ ĤŢŢÞ, šéļƒ-çöñţàîñéđ, ñö ĥöšţ šéţüþ ▒ | ▒ `ĥţţþ://ļöçàļĥöšţ:8080` ▒ | ▒ `ḿàķé šţàçķ-üþ` ▒ |
+| **A · Host + HMR**              | deps + Traefik in Docker; server + web on the host (hot reload)  | `https://bowrain.mymac` | `docker compose up` + `make dev-server`/`dev-web` |
+| **B · Full Docker (shared)**    | server + worker + web in Docker, reusing mode A's deps + Traefik | `https://bowrain.mymac` | `make stack-up-shared` |
+| **B · Full Docker (standalone)**| everything in Docker, plain HTTP, self-contained, no host setup  | `http://localhost:8080` | `make stack-up`        |
 
 ▒ Ḿöđéš À àñđ ţĥé *šĥàŕéđ* ƒüļļ-Đöçķéŕ ḿöđé àŕé ţĥé **šàḿé Çöḿþöšé þŕöĵéçţ** àñđ
 ţĥéŕéƒöŕé šĥàŕé **öñé** Ţŕàéƒîķ — ţĥéŕé îš ñö `:80/:443` çļàšĥ. Ýöü ḿöṽé ƃéţŵééñ à
@@ -41,10 +41,10 @@ sidebar_position: 10
 
   ```bash
   brew install dnsmasq mkcert
-echo 'address=/.mymac/127.0.0.1' >> "$(brew --prefix)/etc/dnsmasq.conf"
-sudo brew services restart dnsmasq
-sudo mkdir -p /etc/resolver && echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/mymac
-mkcert -install && make certs
+  echo 'address=/.mymac/127.0.0.1' >> "$(brew --prefix)/etc/dnsmasq.conf"
+  sudo brew services restart dnsmasq
+  sudo mkdir -p /etc/resolver && echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/mymac
+  mkcert -install && make certs
   ```
 
   ▒ Ţĥé šţàñđàļöñé ḿöđé ñééđš ñöñé öƒ ţĥîš. ▒
@@ -62,11 +62,11 @@ make dev-web                   # Vite HMR for apps/web on :5173
 make dev-worker                # optional: the worker, for push → translate → pull
 ```
 
-| ▒ Šéŕṽîçé ▒ | ▒ ÜŔĻ ▒ |
+| Service  | URL                                      |
 | -------- | ---------------------------------------- |
-| ▒ Ŵéƃ + ÀÞÎ ▒ | ▒ `ĥţţþš://ƃöŵŕàîñ.ḿýḿàç` ▒ |
-| ▒ Ķéýçļöàķ ▒ | ▒ `ĥţţþš://àüţĥ.ƃöŵŕàîñ.ḿýḿàç` (àđḿîñ/àđḿîñ) ▒ |
-| ▒ Ḿàîļþîţ ▒ | ▒ `ĥţţþš://ḿàîļ.ƃöŵŕàîñ.ḿýḿàç` ▒ |
+| Web + API| `https://bowrain.mymac`                  |
+| Keycloak | `https://auth.bowrain.mymac` (admin/admin) |
+| Mailpit  | `https://mail.bowrain.mymac`             |
 
 ## ▒ Ḿöđé Ƃ (šĥàŕéđ) — ƒüļļ šţàçķ ƃéĥîñđ ţĥé šàḿé Ţŕàéƒîķ ▒
 

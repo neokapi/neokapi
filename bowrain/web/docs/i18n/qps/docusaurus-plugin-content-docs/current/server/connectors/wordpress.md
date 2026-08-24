@@ -25,10 +25,10 @@ description: The WordPress connector reads posts from a WordPress site over the 
 ▒ Ţĥé çöññéçţöŕ ŵöŕķš àĝàîñšţ ŴöŕđÞŕéšš þöšţš ţĥŕöüĝĥ ţĥé `ŵþ/ṽ2/þöšţš` ŔÉŠŢ
 éñđþöîñţ. ▒
 
-| ▒ Đîŕéçţîöñ ▒ | ▒ Çöñţéñţ ▒ |
+| Direction | Content |
 | --------- | ------- |
-| ▒ Ƒéţçĥ (îñ) ▒ | ▒ Ƒöŕ éàçĥ þöšţ: ţĥé ţîţļé, ţĥé çöñţéñţ ƃöđý, àñđ ţĥé éẋçéŕþţ (ŵĥéñ ţĥé þöšţ ĥàš öñé). Çöñţéñţ îš ŕéàđ ƒŕöḿ ţĥé ŔÉŠŢ ÀÞÎ'š ŕéñđéŕéđ ƒîéļđš àñđ ţŕéàţéđ àš ĤŢḾĻ. ▒ |
-| ▒ Þüƃļîšĥ (öüţ) ▒ | ▒ Ţĥé ţîţļé, çöñţéñţ, àñđ éẋçéŕþţ ƒîéļđš öƒ à þöšţ ţĥàţ ŵàš þŕéṽîöüšļý ƒéţçĥéđ. ▒ |
+| Fetch (in) | For each post: the title, the content body, and the excerpt (when the post has one). Content is read from the REST API's rendered fields and treated as HTML. |
+| Publish (out) | The title, content, and excerpt fields of a post that was previously fetched. |
 
 ▒ Ţĥé çöññéçţöŕ ŕéàđš þöšţš öñļý. Þàĝéš, çüšţöḿ þöšţ ţýþéš, ţàẋöñöḿîéš, ḿéđîà,
 àñđ çüšţöḿ ƒîéļđš àŕé ñöţ îñçļüđéđ. ▒
@@ -40,13 +40,13 @@ description: The WordPress connector reads posts from a WordPress site over the 
 
 ▒ Ţĥé çöññéçţöŕ àççéþţš ţĥé ƒöļļöŵîñĝ çöñƒîĝüŕàţîöñ ķéýš: ▒
 
-| ▒ Ķéý ▒ | ▒ Ŕéǫüîŕéđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Key | Required | Description |
 | --- | -------- | ----------- |
-| ▒ `üŕļ` ▒ | ▒ Ýéš ▒ | ▒ Ţĥé šîţé'š ƃàšé ÜŔĻ, ƒöŕ éẋàḿþļé `ĥţţþš://ƃļöĝ.éẋàḿþļé.çöḿ`. À ţŕàîļîñĝ šļàšĥ îš ţŕîḿḿéđ. ▒ |
-| ▒ `üšéŕñàḿé` ▒ | ▒ Ƒöŕ þüƃļîšĥîñĝ ▒ | ▒ Ţĥé ŴöŕđÞŕéšš üšéŕñàḿé üšéđ ƒöŕ àüţĥéñţîçàţîöñ. ▒ |
-| ▒ `þàššŵöŕđ` ▒ | ▒ Ƒöŕ þüƃļîšĥîñĝ ▒ | ▒ Ţĥé çŕéđéñţîàļ þàîŕéđ ŵîţĥ `üšéŕñàḿé`. Üšé à ŴöŕđÞŕéšš [àþþļîçàţîöñ þàššŵöŕđ](https://wordpress.org/documentation/article/application-passwords/) ŕàţĥéŕ ţĥàñ ţĥé àççöüñţ ļöĝîñ þàššŵöŕđ. ▒ |
-| ▒ `ñàḿé` ▒ | ▒ Ñö ▒ | ▒ À ĥüḿàñ-ŕéàđàƃļé ñàḿé ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. ▒ |
-| ▒ `îđ` ▒ | ▒ Ñö ▒ | ▒ À šţàƃļé îđéñţîƒîéŕ ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. Ŵĥéñ öḿîţţéđ, öñé îš đéŕîṽéđ ƒŕöḿ ţĥé ÜŔĻ. ▒ |
+| `url` | Yes | The site's base URL, for example `https://blog.example.com`. A trailing slash is trimmed. |
+| `username` | For publishing | The WordPress username used for authentication. |
+| `password` | For publishing | The credential paired with `username`. Use a WordPress [application password](https://wordpress.org/documentation/article/application-passwords/) rather than the account login password. |
+| `name` | No | A human-readable name for the connector instance. |
+| `id` | No | A stable identifier for the connector instance. When omitted, one is derived from the URL. |
 
 ▒ Àüţĥéñţîçàţîöñ üšéš ĤŢŢÞ Ƃàšîç àüţĥ. Îƒ `üšéŕñàḿé` îš éḿþţý ţĥé çöññéçţöŕ ḿàķéš
 üñàüţĥéñţîçàţéđ ŕéǫüéšţš, ŵĥîçĥ îš šüƒƒîçîéñţ ţö ƒéţçĥ þüƃļîç þöšţš ƃüţ ñöţ ţö

@@ -119,11 +119,14 @@ service NeokapiService {
 conn, err := grpc.NewClient("bowrain.example.com:443",
     grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 )
+
 // Local dev: the server speaks cleartext h2c on its HTTP port.
 // conn, err := grpc.NewClient("localhost:8080",
 //     grpc.WithTransportCredentials(insecure.NewCredentials()),
 // )
+
 client := serverv1.NewNeokapiServiceClient(conn)
+
 // Stream flow-execution progress
 stream, _ := client.ExecuteFlow(ctx, &serverv1.ExecuteFlowRequest{
     ProjectId:  "proj-1",

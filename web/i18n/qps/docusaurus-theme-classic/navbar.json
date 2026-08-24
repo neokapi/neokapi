@@ -1,0 +1,118 @@
+{
+  "title": {
+    "message": "▒ ñéöķàþî ▒",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "▒ ñéöķàþî ▒",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Kapi": {
+    "message": "▒ Ķàþî ▒",
+    "description": "Navbar item with label Kapi"
+  },
+  "item.label.Labs": {
+    "message": "▒ Ļàƃš ▒",
+    "description": "Navbar item with label Labs"
+  },
+  "item.label.Reference": {
+    "message": "▒ Ŕéƒéŕéñçé ▒",
+    "description": "Navbar item with label Reference"
+  },
+  "item.label.Toolbox": {
+    "message": "▒ Ţööļƃöẋ ▒",
+    "description": "Navbar item with label Toolbox"
+  },
+  "item.label.Framework": {
+    "message": "▒ Ƒŕàḿéŵöŕķ ▒",
+    "description": "Navbar item with label Framework"
+  },
+  "item.label.Labs overview": {
+    "message": "▒ Ļàƃš öṽéŕṽîéŵ ▒",
+    "description": "Navbar item with label Labs overview"
+  },
+  "item.label.Content Model Workspace": {
+    "message": "▒ Çöñţéñţ Ḿöđéļ Ŵöŕķšþàçé ▒",
+    "description": "Navbar item with label Content Model Workspace"
+  },
+  "item.label.Segmentation": {
+    "message": "▒ Šéĝḿéñţàţîöñ ▒",
+    "description": "Navbar item with label Segmentation"
+  },
+  "item.label.File Conversion": {
+    "message": "▒ Ƒîļé Çöñṽéŕšîöñ ▒",
+    "description": "Navbar item with label File Conversion"
+  },
+  "item.label.Structure & Layout": {
+    "message": "▒ Šţŕüçţüŕé & Ļàýöüţ ▒",
+    "description": "Navbar item with label Structure & Layout"
+  },
+  "item.label.Vision": {
+    "message": "▒ Ṽîšîöñ ▒",
+    "description": "Navbar item with label Vision"
+  },
+  "item.label.Audio & Video": {
+    "message": "▒ Àüđîö & Ṽîđéö ▒",
+    "description": "Navbar item with label Audio & Video"
+  },
+  "item.label.CLI Playground": {
+    "message": "▒ ÇĻÎ Þļàýĝŕöüñđ ▒",
+    "description": "Navbar item with label CLI Playground"
+  },
+  "item.label.KBF Anatomy": {
+    "message": "▒ ĶƂƑ Àñàţöḿý ▒",
+    "description": "Navbar item with label KBF Anatomy"
+  },
+  "item.label.Reference Overview": {
+    "message": "▒ Ŕéƒéŕéñçé Öṽéŕṽîéŵ ▒",
+    "description": "Navbar item with label Reference Overview"
+  },
+  "item.label.Kapi CLI Commands": {
+    "message": "▒ Ķàþî ÇĻÎ Çöḿḿàñđš ▒",
+    "description": "Navbar item with label Kapi CLI Commands"
+  },
+  "item.label.Formats": {
+    "message": "▒ Ƒöŕḿàţš ▒",
+    "description": "Navbar item with label Formats"
+  },
+  "item.label.Tools": {
+    "message": "▒ Ţööļš ▒",
+    "description": "Navbar item with label Tools"
+  },
+  "item.label.AI Models": {
+    "message": "▒ ÀÎ Ḿöđéļš ▒",
+    "description": "Navbar item with label AI Models"
+  },
+  "item.label.Project file": {
+    "message": "▒ Þŕöĵéçţ ƒîļé ▒",
+    "description": "Navbar item with label Project file"
+  },
+  "item.label.kapi serialization formats": {
+    "message": "▒ ķàþî šéŕîàļîžàţîöñ ƒöŕḿàţš ▒",
+    "description": "Navbar item with label kapi serialization formats"
+  },
+  "item.label.MCP Server": {
+    "message": "▒ ḾÇÞ Šéŕṽéŕ ▒",
+    "description": "Navbar item with label MCP Server"
+  },
+  "item.label.Scripting & JSON contract": {
+    "message": "▒ Šçŕîþţîñĝ & ĴŠÖÑ çöñţŕàçţ ▒",
+    "description": "Navbar item with label Scripting & JSON contract"
+  },
+  "item.label.Engine service (gRPC)": {
+    "message": "▒ Éñĝîñé šéŕṽîçé (ĝŔÞÇ) ▒",
+    "description": "Navbar item with label Engine service (gRPC)"
+  },
+  "item.label.Telemetry": {
+    "message": "▒ Ţéļéḿéţŕý ▒",
+    "description": "Navbar item with label Telemetry"
+  },
+  "item.label.CLI tools": {
+    "message": "▒ ÇĻÎ ţööļš ▒",
+    "description": "Navbar item with label CLI tools"
+  },
+  "item.label.neokapi-i18n": {
+    "message": "▒ ñéöķàþî-î18ñ ▒",
+    "description": "Navbar item with label neokapi-i18n"
+  }
+}

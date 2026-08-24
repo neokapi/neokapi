@@ -32,14 +32,14 @@ title: Overview
 
 ▒ ķàþî šĥîþš à šḿàļļ šéţ öƒ çöḿþöšéđ ƒļöŵš ýöü çàñ ŕüñ ƃý ñàḿé: ▒
 
-| ▒ Ƒļöŵ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flow               | Description                                                       |
 | ------------------ | ----------------------------------------------------------------- |
-| ▒ `ţŕàñšļàţé` ▒ | ▒ Ţŕàñšļàţé ŵîţĥ àñ ÀÎ/ĻĻḾ þŕöṽîđéŕ ▒ |
-| ▒ `ţŕàñšļàţé-ǫà` ▒ | ▒ ÀÎ ţŕàñšļàţîöñ ƒöļļöŵéđ ƃý ǫüàļîţý çĥéçķš ▒ |
-| ▒ `þšéüđö-ţŕàñšļàţé` ▒ | ▒ Ĝéñéŕàţé þšéüđö-ţŕàñšļàţîöñš ƒöŕ ÜÎ ţéšţîñĝ ▒ |
-| ▒ `ǫà` ▒ | ▒ Ŕüļé-ƃàšéđ ǫüàļîţý çĥéçķš (ŵĥîţéšþàçé, þüñçţüàţîöñ, þļàçéĥöļđéŕš) ▒ |
-| ▒ `ŕéçýçļé` ▒ | ▒ Þŕé-ƒîļļ ţŕàñšļàţîöñš ƒŕöḿ çöñţéñţ ḿéḿöŕý ▒ |
-| ▒ `šéĝḿéñţàţîöñ` ▒ | ▒ Šþļîţ šöüŕçé ţéẋţ îñţö šéñţéñçé šéĝḿéñţš ▒ |
+| `translate`     | Translate with an AI/LLM provider                                 |
+| `translate-qa`  | AI translation followed by quality checks                         |
+| `pseudo-translate` | Generate pseudo-translations for UI testing                       |
+| `qa`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
+| `recycle`      | Pre-fill translations from content memory                         |
+| `segmentation`     | Split source text into sentence segments                          |
 
 ▒ Ļîšţ ŵĥàţ îš àṽàîļàƃļé îñ ýöüŕ îñšţàļļàţîöñ — îñçļüđîñĝ àñý ţööļš àñđ ƒöŕḿàţš
 àđđéđ ƃý þļüĝîñš — ŕàţĥéŕ ţĥàñ ŕéļýîñĝ öñ à ƒîẋéđ ļîšţ: ▒
@@ -55,6 +55,7 @@ kapi formats   # supported formats
 ```bash
 # Standalone (no project)
 kapi run translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+
 # In a project, against the recipe's content collections
 kapi run translate-qa
 ```
@@ -68,16 +69,20 @@ kapi run translate-qa
 ```yaml
 name: translate-with-qa
 description: AI translation with quality checks and terminology enforcement
+
 steps:
   - tool: term-lookup
+
   - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4.5
       temperature: 0.3
+
   - tool: term-enforce
     config:
       required: true
+
   - tool: qa
     config:
       rules:

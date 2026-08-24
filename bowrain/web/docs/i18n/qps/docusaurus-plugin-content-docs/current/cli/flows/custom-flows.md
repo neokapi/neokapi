@@ -12,11 +12,13 @@ title: Custom Flows
 ```yaml
 name: my-flow
 description: Brief description of what this flow does
+
 steps:
   - tool: tool-name
     config:
       option1: value1
       option2: value2
+
   - tool: another-tool
     config:
       optionA: valueA
@@ -31,6 +33,7 @@ steps:
 ```yaml
 name: translate-simple
 description: Basic AI translation without extras
+
 steps:
   - tool: translate
     config:
@@ -45,16 +48,19 @@ steps:
 ```yaml
 name: full-translation
 description: Complete translation workflow with all bells and whistles
+
 steps:
   # 1. Look up terminology before translating
   - tool: term-lookup
     config:
       fuzzy_threshold: 85
+
   # 2. Pre-fill from content memory
   - tool: recycle
     config:
       fuzzy_threshold: 70
       provider: memory
+
   # 3. Translate untranslated blocks with AI
   - tool: translate
     config:
@@ -62,11 +68,13 @@ steps:
       model: claude-sonnet-4.5
       temperature: 0.3
       skip_translated: true # Only translate empty targets
+
   # 4. Validate terminology compliance
   - tool: term-enforce
     config:
       required: true
       fail_on_violation: true
+
   # 5. Run quality checks
   - tool: qa
     config:
@@ -85,15 +93,18 @@ steps:
 ```yaml
 name: multi-mt
 description: Try DeepL, fall back to Google, finally use AI
+
 steps:
   - tool: translate
     config:
       provider: deepl
       skip_translated: true
+
   - tool: translate
     config:
       provider: google
       skip_translated: true
+
   - tool: translate
     config:
       provider: anthropic
@@ -107,6 +118,7 @@ steps:
 ```yaml
 name: qa-only
 description: Quality assurance checks without translation
+
 steps:
   - tool: qa
     config:
@@ -116,7 +128,9 @@ steps:
         - placeholders
         - case
         - spelling
+
   - tool: term-enforce
+
   - tool: qa
     config:
       provider: anthropic
@@ -185,6 +199,7 @@ steps:
   config:
     fuzzy_threshold: 85
     domain: software # Filter by domain
+
 - tool: term-enforce
   config:
     required: true # Block must use term if available
@@ -207,8 +222,10 @@ steps:
 ```bash
 # List all flows (built-in + custom)
 kapi flows
+
 # Run your custom flow
 kapi run my-flow
+
 # Run with verbose output
 kapi run my-flow --verbose
 ```

@@ -38,12 +38,16 @@ kapi push [paths...] [flags]
 ```bash
 # Push all local changes to server
 kapi push
+
 # Push specific files
 kapi push src/locales/en/
+
 # Show what would be pushed without uploading
 kapi push --dry-run
+
 # Force re-push all blocks (ignoring sync cache)
 kapi push --force
+
 # Example output:
 # Pushed 47 blocks (scanned 12 files)
 #   (sent in 1 batches)
@@ -51,11 +55,11 @@ kapi push --force
 
 ## ▒ Öþţîöñš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Đéƒàüļţ ▒ |
+| Flag        | Description                               | Default |
 | ----------- | ----------------------------------------- | ------- |
-| ▒ `--ƒöŕçé` ▒ | ▒ Þüšĥ àļļ ƃļöçķš, îĝñöŕîñĝ šýñç çàçĥé ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--đŕý-ŕüñ` ▒ | ▒ Šĥöŵ ŵĥàţ ŵöüļđ ƃé þüšĥéđ ŵîţĥöüţ šéñđîñĝ ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--çöñçéþţš` ▒ | ▒ Šýñç öñļý ļöçàļ ţéŕḿîñöļöĝý éđîţš ţö ţĥé ŵöŕķšþàçé (đîŕéçţ éđîţš + ĝöṽéŕñéđ çĥàñĝé-šéţ) — ñö çöñţéñţ ţŕàñšþöŕţ, ñö ĥööķš ▒ | ▒ `ƒàļšé` ▒ |
+| `--force`   | Push all blocks, ignoring sync cache      | `false` |
+| `--dry-run` | Show what would be pushed without sending | `false` |
+| `--concepts` | Sync only local terminology edits to the workspace (direct edits + governed change-set) — no content transport, no hooks | `false` |
 
 ## ▒ Ŵĥàţ Ĥàþþéñš ▒
 

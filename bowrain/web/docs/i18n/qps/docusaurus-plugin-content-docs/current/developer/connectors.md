@@ -21,23 +21,30 @@ type ConnectorBase interface {
     Configure(config map[string]string) error
     Close() error
 }
+
 // IntegrationConnector represents a system that Bowrain reaches into.
 // Used by server-side integrations (WordPress, Figma, HubSpot, filesystem, Git).
 type IntegrationConnector interface {
     ConnectorBase
+
     // Fetch retrieves source content FROM the external system INTO Bowrain.
     Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error)
+
     // Publish sends translated content FROM Bowrain TO the external system.
     Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error
+
     // List returns available content items without fetching full content.
     List(ctx context.Context) ([]*ContentItem, error)
 }
+
 // SourceConnector represents a content source that pushes to and pulls from
 // Bowrain. Used by systems outside Bowrain (kapi CLI, Git hooks, CI/CD).
 type SourceConnector interface {
     ConnectorBase
+
     // Push sends source content FROM the source system TO Bowrain.
     Push(ctx context.Context, opts PushOptions) (*PushResult, error)
+
     // Pull retrieves translated content FROM Bowrain TO the source system.
     Pull(ctx context.Context, opts PullOptions) (*PullResult, error)
 }
@@ -49,13 +56,13 @@ type SourceConnector interface {
 
 ▒ Çöññéçţöŕš àŕé öŕĝàñîžéđ ƃý çàţéĝöŕý: ▒
 
-| ▒ Çàţéĝöŕý ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Ƃüîļţ-îñ ▒ |
+| Category    | Description                | Built-in                    |
 | ----------- | -------------------------- | --------------------------- |
-| ▒ `ƒîļé` ▒ | ▒ Ļöçàļ ƒîļéšýšţéḿ çöñţéñţ ▒ | ▒ ƑîļéÇöññéçţöŕ ▒ |
-| ▒ `çöđé` ▒ | ▒ Šöüŕçé çöđé ŕéþöšîţöŕîéš ▒ | ▒ ĜîţÇöññéçţöŕ, ƑöŕĝéÇöññéçţöŕ ▒ |
-| ▒ `çḿš` ▒ | ▒ Çöñţéñţ ḿàñàĝéḿéñţ šýšţéḿš ▒ | ▒ ŴöŕđÞŕéššÇöññéçţöŕ ▒ |
-| ▒ `đéšîĝñ` ▒ | ▒ Đéšîĝñ ţööļš ▒ | ▒ ƑîĝḿàÇöññéçţöŕ ▒ |
-| ▒ `ḿàŕķéţîñĝ` ▒ | ▒ Ḿàŕķéţîñĝ þļàţƒöŕḿš ▒ | ▒ ĤüƃŠþöţÇöññéçţöŕ ▒ |
+| `file`      | Local filesystem content   | FileConnector               |
+| `code`      | Source code repositories   | GitConnector, ForgeConnector |
+| `cms`       | Content management systems | WordPressConnector          |
+| `design`    | Design tools               | FigmaConnector              |
+| `marketing` | Marketing platforms        | HubSpotConnector            |
 
 ## ▒ Ƃüîļţ-îñ Çöññéçţöŕš ▒
 
@@ -125,19 +132,21 @@ config := map[string]string{
 
 ▒ Ŵĥîçĥ ţýþéš à ŕéĝîšţŕý öƒƒéŕš îš à šéçüŕîţý ƃöüñđàŕý, ñöţ à çàþàƃîļîţý ļîšţ, šö ţĥéŕé îš ñö "ŕéĝîšţéŕ éṽéŕýţĥîñĝ" ĥéļþéŕ — éàçĥ ĥöšţ ñàḿéš ţĥé šüŕƒàçé îţ îš: ▒
 
-| ▒ Ĥéļþéŕ ▒ | ▒ Ŕéĝîšţéŕš ▒ | ▒ Üšéđ ƃý ▒ |
+| Helper           | Registers                                     | Used by                     |
 | ---------------- | --------------------------------------------- | --------------------------- |
-| ▒ `ŔéĝîšţéŕŠéŕṽéŕ` ▒ | ▒ ƒöŕĝé, ŵöŕđþŕéšš, ƒîĝḿà, ĥüƃšþöţ ▒ | ▒ Ƃöŵŕàîñ šéŕṽéŕ, îñĝéšţ ŵöŕķéŕ ▒ |
-| ▒ `ŔéĝîšţéŕĻöçàļ` ▒ | ▒ ƒîļé, ĝîţ, ƒöŕĝé, ŵöŕđþŕéšš, ƒîĝḿà, ĥüƃšþöţ ▒ | ▒ šîñĝļé-ţéñàñţ ĥöšţš ▒ |
-| ▒ `ŔéĝîšţéŕŔéḿöţé` ▒ | ▒ ŵöŕđþŕéšš, ƒîĝḿà, ĥüƃšþöţ ▒ | ▒ đéšķţöþ àþþ ▒ |
+| `RegisterServer` | forge, wordpress, figma, hubspot              | Bowrain server, ingest worker |
+| `RegisterLocal`  | file, git, forge, wordpress, figma, hubspot   | single-tenant hosts          |
+| `RegisterRemote` | wordpress, figma, hubspot                     | desktop app                 |
 
 ▒ À çöññéçţöŕ îš ƃüîļţ ƒŕöḿ à çöñƒîĝ ḿàþ, àñđ öñ à ḿüļţî-ţéñàñţ šéŕṽéŕ ţĥàţ ḿàþ àŕŕîṽéš öṽéŕ ţĥé ŵöŕķšþàçé çöññéçţöŕš ÀÞÎ ƒŕöḿ àñýöñé ĥöļđîñĝ `ÞéŕḿḾàñàĝéÇöññéçţöŕš`. Ţĥé `ƒîļé` àñđ `ĝîţ` çöññéçţöŕš ţàķé à ƒîļéšýšţéḿ þàţĥ ƒŕöḿ ţĥàţ çöñƒîĝ, šö `ŔéĝîšţéŕŠéŕṽéŕ` öḿîţš ţĥéḿ: à ţéñàñţ ḿüšţ ñöţ ƃé àƃļé ţö ñàḿé à þàţĥ öñ ţĥé ĥöšţ ţĥé šéŕṽéŕ ŕüñš öñ. Šéŕṽéŕ-šîđé ŵöŕķ ţĥàţ ĝéñüîñéļý ñééđš à ļöçàļ çĥéçķöüţ (ţĥé ƃŕàñđ-šçàñ ŕéþöšîţöŕý ĥàŕṽéšţ, ƒöŕ éẋàḿþļé) çöñšţŕüçţš îţš çöññéçţöŕ đîŕéçţļý îñ Ĝö ŵîţĥ à þàţĥ ţĥé šéŕṽéŕ çĥöšé. ▒
 
 ```go
 reg := connector.NewRegistry()
 bowrainconn.RegisterServer(reg, formatReg) // forge, wordpress, figma, hubspot
+
 // Create a connector instance
 c, err := reg.NewConnector("wordpress", config)
+
 // List available types
 types := reg.List()
 ```

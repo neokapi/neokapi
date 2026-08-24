@@ -134,10 +134,10 @@ title: Walkthroughs
 1. ▒ Þŕéþàŕé à ÇŠṼ ƒîļé ŵîţĥ çöļüḿñš: `šöüŕçé_ţéŕḿ`, `ţàŕĝéţ_ţéŕḿ`, `šöüŕçé_ļöçàļé`, `ţàŕĝéţ_ļöçàļé`, `đöḿàîñ`, `šţàţüš` ▒
    ```csv
    source_term,target_term,source_locale,target_locale,domain,status
-login,connexion,en,fr,UI,approved
-password,mot de passe,en,fr,security,preferred
-dashboard,tableau de bord,en,fr,UI,preferred
-settings,paramètres,en,fr,UI,approved
+   login,connexion,en,fr,UI,approved
+   password,mot de passe,en,fr,security,preferred
+   dashboard,tableau de bord,en,fr,UI,preferred
+   settings,paramètres,en,fr,UI,approved
    ```
 2. ▒ Ñàṽîĝàţé ţö **Ƃŕàñđ → Çöñçéþţš** îñ ţĥé šîđéƃàŕ ▒
 3. ▒ Çļîçķ **Îḿþöŕţ ÇŠṼ** ▒

@@ -25,8 +25,10 @@ kapi diff [paths...] [flags]
 ```bash
 # Summarize all local changes since the last sync
 kapi diff
+
 # Limit to a directory
 kapi diff src/locales/
+
 # List the changed block ids/keys with a source preview
 kapi diff --verbose
 ```
@@ -35,8 +37,10 @@ kapi diff --verbose
 
 ```text
   src/locales/fr/messages.json   +1 ~2 -1
+
 1 file(s) changed: +1 ~2 -1
 Remote: 3 change(s) available to pull
+
 Use --verbose to see changed block ids/keys.
 ```
 
@@ -45,18 +49,18 @@ Use --verbose to see changed block ids/keys.
 
 ## ▒ Öþţîöñš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag        | Description                                       |
 | ----------- | ------------------------------------------------- |
-| ▒ `--ṽéŕƃöšé` ▒ | ▒ Ļîšţ çĥàñĝéđ ƃļöçķ îđš/ķéýš ŵîţĥ à šöüŕçé þŕéṽîéŵ ▒ |
+| `--verbose` | List changed block ids/keys with a source preview |
 
 ▒ Öüţþüţ ƒöŕḿàţ àñđ çöļöŕ çöḿé ƒŕöḿ ţĥé šĥàŕéđ ĝļöƃàļ ƒļàĝš: ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag                            | Description                                |
 | ------------------------------- | ------------------------------------------ |
-| ▒ `--ĵšöñ` ▒ | ▒ Éḿîţ ḿàçĥîñé-ŕéàđàƃļé ĴŠÖÑ îñšţéàđ öƒ ţéẋţ ▒ |
-| ▒ `--öüţþüţ-ƒöŕḿàţ <ĵšöñ\|ţéẋţ>` ▒ | ▒ Šéļéçţ ţĥé öüţþüţ ƒöŕḿàţ ▒ |
-| ▒ `--ĵǫ <éẋþŕ>` ▒ | ▒ Ƒîļţéŕ ĴŠÖÑ öüţþüţ ţĥŕöüĝĥ à ĵǫ éẋþŕéššîöñ ▒ |
-| ▒ `--çöļöŕ <àüţö\|àļŵàýš\|ñéṽéŕ>` ▒ | ▒ Çöļöŕîžé ĴŠÖÑ öüţþüţ ▒ |
+| `--json`                        | Emit machine-readable JSON instead of text |
+| `--output-format <json\|text>`  | Select the output format                   |
+| `--jq <expr>`                   | Filter JSON output through a jq expression |
+| `--color <auto\|always\|never>` | Colorize JSON output                       |
 
 ## ▒ Ĥöŵ îţ ŵöŕķš ▒
 

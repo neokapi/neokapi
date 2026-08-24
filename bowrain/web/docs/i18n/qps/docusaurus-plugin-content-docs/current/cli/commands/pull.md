@@ -27,26 +27,31 @@ kapi pull [flags]
 ```bash
 # Pull all changes from server
 kapi pull
+
 # Pull only French translations
 kapi pull --locale fr
+
 # Pull multiple locales
 kapi pull --locale fr --locale de
+
 # Show what would be pulled without making changes
 kapi pull --dry-run
+
 # Force pull from beginning (ignore sync cursor)
 kapi pull --force
+
 # Example output:
 # Pulled 12 blocks for 2 locales
 ```
 
 ## ▒ Öþţîöñš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Đéƒàüļţ ▒ |
+| Flag        | Description                                      | Default |
 | ----------- | ------------------------------------------------ | ------- |
-| ▒ `--ļöçàļé` ▒ | ▒ Ţàŕĝéţ ļöçàļéš ţö þüļļ (ŕéþéàţàƃļé) ▒ | ▒ àļļ ▒ |
-| ▒ `--ƒöŕçé` ▒ | ▒ Þüļļ ƒŕöḿ ƃéĝîññîñĝ, îĝñöŕîñĝ šýñç çüŕšöŕ ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--đŕý-ŕüñ` ▒ | ▒ Šĥöŵ ŵĥàţ ŵöüļđ ƃé þüļļéđ ŵîţĥöüţ çĥàñĝîñĝ ƒîļéš ▒ | ▒ `ƒàļšé` ▒ |
-| ▒ `--çöñçéþţš` ▒ | ▒ Šýñç öñļý ţĥé ŵöŕķšþàçé ţéŕḿîñöļöĝý (çöñçéþţš + ŕéļàţîöñš) îñţö ţĥé ļöçàļ ţéŕḿš šţöŕé — ñö çöñţéñţ ţŕàñšþöŕţ, ñö ĥööķš ▒ | ▒ `ƒàļšé` ▒ |
+| `--locale`  | Target locales to pull (repeatable)              | all     |
+| `--force`   | Pull from beginning, ignoring sync cursor        | `false` |
+| `--dry-run` | Show what would be pulled without changing files | `false` |
+| `--concepts` | Sync only the workspace terminology (concepts + relations) into the local terms store — no content transport, no hooks | `false` |
 
 ## ▒ Ŵĥàţ Ĥàþþéñš ▒
 
@@ -64,6 +69,7 @@ kapi pull --force
 ```bash
 # Only French
 kapi pull --locale fr
+
 # French and German
 kapi pull --locale fr --locale de
 ```

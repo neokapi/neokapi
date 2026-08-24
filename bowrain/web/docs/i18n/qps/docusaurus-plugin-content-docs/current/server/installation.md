@@ -27,12 +27,12 @@ docker compose -f bowrain/compose.full.yaml up -d --build --wait
 
 ▒ Éñđþöîñţš öñçé îţ îš üþ: ▒
 
-| ▒ ÜŔĻ ▒ | ▒ Šéŕṽîçé ▒ |
+| URL | Service |
 | --- | --- |
-| ▒ `ĥţţþ://ļöçàļĥöšţ:8080` ▒ | ▒ ƃöŵŕàîñ-šéŕṽéŕ ÀÞÎ (àñđ ţĥé ŵéƃ ÜÎ ŵîţĥ `--þŕöƒîļé ŵéƃ`) ▒ |
-| ▒ `ĥţţþ://ļöçàļĥöšţ:8080/àþî/ṽ1/ĥéàļţĥ` ▒ | ▒ Ĥéàļţĥ çĥéçķ ▒ |
-| ▒ `ĥţţþ://ļöçàļĥöšţ:8180` ▒ | ▒ Ķéýçļöàķ àđḿîñ çöñšöļé (àđḿîñ / àđḿîñ) ▒ |
-| ▒ `ĥţţþ://ļöçàļĥöšţ:8025` ▒ | ▒ Ḿàîļþîţ (çàþţüŕéđ éḿàîļš) ▒ |
+| `http://localhost:8080` | bowrain-server API (and the web UI with `--profile web`) |
+| `http://localhost:8080/api/v1/health` | Health check |
+| `http://localhost:8180` | Keycloak admin console (admin / admin) |
+| `http://localhost:8025` | Mailpit (captured emails) |
 
 ▒ Ţö šéŕṽé ţĥé ŵéƃ ÜÎ ƒŕöḿ ţĥé šéŕṽéŕ, àđđ ţĥé `ŵéƃ` þŕöƒîļé: ▒
 
@@ -98,6 +98,7 @@ bowrain-server \
 [Unit]
 Description=Bowrain Server
 After=network.target
+
 [Service]
 Type=simple
 User=bowrain
@@ -115,6 +116,7 @@ ExecStart=/usr/local/bin/bowrain-server \
   --port 8080
 Restart=on-failure
 RestartSec=5s
+
 [Install]
 WantedBy=multi-user.target
 ```

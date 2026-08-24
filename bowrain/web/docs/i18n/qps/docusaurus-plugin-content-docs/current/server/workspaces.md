@@ -23,12 +23,12 @@ description: A workspace is the top-level unit in Bowrain — it groups projects
 
 ▒ Éàçĥ ŵöŕķšþàçé ḿéḿƃéŕ ĥàš à ŕöļé ţĥàţ đéţéŕḿîñéš ţĥéîŕ þéŕḿîššîöñš: ▒
 
-| ▒ Ŕöļé ▒ | ▒ Đéšçŕîþţîöñ ▒ | ▒ Þéŕḿîššîöñš ▒ |
+| Role       | Description             | Permissions                                    |
 | ---------- | ----------------------- | ---------------------------------------------- |
-| ▒ **Öŵñéŕ** ▒ | ▒ Ŵöŕķšþàçé çŕéàţöŕ ▒ | ▒ Ƒüļļ çöñţŕöļ, đéļéţé ŵöŕķšþàçé, ḿàñàĝé ƃîļļîñĝ ▒ |
-| ▒ **Àđḿîñ** ▒ | ▒ Ŵöŕķšþàçé àđḿîñîšţŕàţöŕ ▒ | ▒ Ḿàñàĝé ḿéḿƃéŕš, šéţţîñĝš, àļļ þŕöĵéçţš ▒ |
-| ▒ **Ḿéḿƃéŕ** ▒ | ▒ Ŕéĝüļàŕ ţéàḿ ḿéḿƃéŕ ▒ | ▒ Çŕéàţé àñđ éđîţ þŕöĵéçţš, þüšĥ àñđ þüļļ çöñţéñţ ▒ |
-| ▒ **Ṽîéŵéŕ** ▒ | ▒ Ŕéàđ-öñļý àççéšš ▒ | ▒ Ṽîéŵ þŕöĵéçţš àñđ ţŕàñšļàţîöñš ▒ |
+| **Owner**  | Workspace creator       | Full control, delete workspace, manage billing |
+| **Admin**  | Workspace administrator | Manage members, settings, all projects         |
+| **Member** | Regular team member     | Create and edit projects, push and pull content |
+| **Viewer** | Read-only access        | View projects and translations                 |
 
 ### ▒ Ƃéƒöŕé ýöü çöññéçţ ▒
 

@@ -26,8 +26,10 @@ sidebar_position: 3
 ```bash
 # Run QA checks on source content
 kapi exec qa -i src/locales/en/ --source-lang en
+
 # Check terminology consistency
 kapi exec term-check -i src/locales/en/ --termstore terms.tbx
+
 # Validate XML/HTML structure in source strings
 kapi xml-validation -i src/locales/en/
 ```
@@ -36,15 +38,15 @@ kapi xml-validation -i src/locales/en/
 
 ▒ Ţĥé `ǫà` ţööļ ṽàļîđàţéš: ▒
 
-| ▒ Ŕüļé ▒ | ▒ Ŵĥàţ Îţ Çĥéçķš ▒ |
+| Rule           | What It Checks                                                 |
 | -------------- | -------------------------------------------------------------- |
-| ▒ `ŵĥîţéšþàçé` ▒ | ▒ Ļéàđîñĝ/ţŕàîļîñĝ ŵĥîţéšþàçé, đöüƃļé šþàçéš, ḿîẋéđ ļîñé éñđîñĝš ▒ |
-| ▒ `þüñçţüàţîöñ` ▒ | ▒ Ḿîššîñĝ öŕ ḿîšḿàţçĥéđ šéñţéñçé-éñđîñĝ þüñçţüàţîöñ ▒ |
-| ▒ `þļàçéĥöļđéŕš` ▒ | ▒ Þļàçéĥöļđéŕ ƒöŕḿàţ çöñšîšţéñçý àñđ çöḿþļéţéñéšš ▒ |
-| ▒ `ţéŕḿîñöļöĝý` ▒ | ▒ Ŕéǫüîŕéđ ţéŕḿš þŕéšéñţ àñđ çöŕŕéçţļý üšéđ ▒ |
-| ▒ `ļéñĝţĥ` ▒ | ▒ Šţŕîñĝ ļéñĝţĥ ŵîţĥîñ çöñƒîĝüŕéđ ļîḿîţš ▒ |
-| ▒ `þàţţéŕñš` ▒ | ▒ Çüšţöḿ ŕéĝéẋ þàţţéŕñš (é.ĝ., ƃŕàñđ ñàḿé çàþîţàļîžàţîöñ) ▒ |
-| ▒ `çĥàŕàçţéŕš` ▒ | ▒ Îñṽàļîđ öŕ üñéẋþéçţéđ Üñîçöđé çĥàŕàçţéŕš ▒ |
+| `whitespace`   | Leading/trailing whitespace, double spaces, mixed line endings |
+| `punctuation`  | Missing or mismatched sentence-ending punctuation              |
+| `placeholders` | Placeholder format consistency and completeness                |
+| `terminology`  | Required terms present and correctly used                      |
+| `length`       | String length within configured limits                         |
+| `patterns`     | Custom regex patterns (e.g., brand name capitalization)        |
+| `characters`   | Invalid or unexpected Unicode characters                       |
 
 ## ▒ Éẋàḿþļé Ƒļöŵš ƒöŕ Šöüŕçé Þŕéþ ▒
 
@@ -61,13 +63,16 @@ kapi xml-validation -i src/locales/en/
 ```yaml
 name: source-qa
 description: Validate source content quality before translation
+
 steps:
   - tool: term-check
     config:
       caseSensitive: true
+
   - tool: placeholder-check
     config:
       flagExtra: true
+
   - tool: qa
     config:
       checkDoubleSpaces: true
@@ -92,6 +97,7 @@ kapi check src/locales/en/*.json --target src/locales/fr/app.json \
 ```bash
 # Content stats (blocks, words, characters) across all source files
 kapi stats src/locales/en/*.json
+
 # Memory reuse, remaining work, and token estimate for the pending locales
 kapi up --plan
 ```
@@ -107,11 +113,13 @@ kapi up --plan
 ```yaml
 name: cleanup
 description: Normalize source case, then tidy the target's whitespace
+
 steps:
   - tool: case-transform
     config:
       mode: title
       applySource: true
+
   - tool: whitespace-correct
     config:
       normalizeSpaces: true
@@ -142,20 +150,25 @@ automations:
 
 ```yaml
 name: Source QA
+
 on:
   pull_request:
     paths:
       - "src/locales/en/**"
+
 jobs:
   source-qa:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: neokapi/setup-kapi@v1
         with:
           plugins: bowrain
+
       - name: Run source QA
         run: kapi run source-qa
+
       - name: Content stats report
         run: kapi stats src/locales/en/*.json --json
 ```

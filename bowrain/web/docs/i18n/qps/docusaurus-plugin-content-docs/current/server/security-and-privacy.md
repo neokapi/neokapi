@@ -34,11 +34,11 @@ description: How Bowrain handles authentication, access control, the audit log, 
 ▒ Ţöķéñš àŕé ĥéļđ đîƒƒéŕéñţļý þéŕ çļîéñţ, šö à ţöķéñ ţĥàţ ļéàķš ƒŕöḿ öñé šüŕƒàçé
 đöéš ñöţ çöḿþŕöḿîšé ţĥé öţĥéŕš: ▒
 
-| ▒ Çļîéñţ ▒ | ▒ Ŵĥéŕé ţĥé šéššîöñ ţöķéñ ļîṽéš ▒ |
+| Client       | Where the session token lives                                             |
 | ------------ | ------------------------------------------------------------------------- |
-| ▒ Ŵéƃ àþþ ▒ | ▒ ĤţţþÖñļý, Šéçüŕé, ŠàḿéŠîţé çööķîéš — ĴàṽàŠçŕîþţ îñ ţĥé þàĝé çàññöţ ŕéàđ ţĥéḿ ▒ |
-| ▒ Đéšķţöþ àþþ ▒ | ▒ Ţĥé öþéŕàţîñĝ-šýšţéḿ ķéýçĥàîñ (ḿàçÖŠ Ķéýçĥàîñ, Ŵîñđöŵš Çŕéđéñţîàļ Ḿàñàĝéŕ, Ļîñüẋ Šéçŕéţ Šéŕṽîçé) ▒ |
-| ▒ ÇĻÎ (ķàþî) ▒ | ▒ Ţĥé šàḿé öþéŕàţîñĝ-šýšţéḿ ķéýçĥàîñ; öñļý ñöñ-šéçŕéţ ḿéţàđàţà îš ŵŕîţţéñ ţö đîšķ, šçöþéđ ƃý ƒîļé þéŕḿîššîöñš ▒ |
+| Web app      | HttpOnly, Secure, SameSite cookies — JavaScript in the page cannot read them |
+| Desktop app  | The operating-system keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service) |
+| CLI (kapi)   | The same operating-system keychain; only non-secret metadata is written to disk, scoped by file permissions |
 
 ▒ Çļîéñţš çöḿḿüñîçàţé ŵîţĥ ţĥé šéŕṽéŕ öṽéŕ ĤŢŢÞŠ. ▒
 
@@ -56,12 +56,12 @@ description: How Bowrain handles authentication, access control, the audit log, 
 
 ▒ Éàçĥ ŵöŕķšþàçé ḿéḿƃéŕ ĥöļđš à ŕöļé ţĥàţ šéţš à çéîļîñĝ öñ ŵĥàţ ţĥéý çàñ đö: ▒
 
-| ▒ Ŕöļé ▒ | ▒ Šçöþé ▒ |
+| Role   | Scope                                                              |
 | ------ | ----------------------------------------------------------------- |
-| ▒ Öŵñéŕ ▒ | ▒ Ƒüļļ çöñţŕöļ, îñçļüđîñĝ đéļéţîñĝ ţĥé ŵöŕķšþàçé àñđ ḿàñàĝîñĝ ƃîļļîñĝ ▒ |
-| ▒ Àđḿîñ ▒ | ▒ Ḿàñàĝé ḿéḿƃéŕš, šéţţîñĝš, çöññéçţöŕš, àñđ àļļ þŕöĵéçţš ▒ |
-| ▒ Ḿéḿƃéŕ ▒ | ▒ Çŕéàţé àñđ éđîţ çöñţéñţ, ŕüñ ƒļöŵš, þüšĥ àñđ þüļļ ▒ |
-| ▒ Ṽîéŵéŕ ▒ | ▒ Ŕéàđ-öñļý àççéšš ▒ |
+| Owner  | Full control, including deleting the workspace and managing billing |
+| Admin  | Manage members, settings, connectors, and all projects            |
+| Member | Create and edit content, run flows, push and pull                 |
+| Viewer | Read-only access                                                  |
 
 ▒ À þŕöĵéçţ ḿéḿƃéŕšĥîþ çàñ ñàŕŕöŵ à ḿéḿƃéŕ'š ŵöŕķšþàçé ŕöļé ƒüŕţĥéŕ — ƃý ŕöļé
 ţéḿþļàţé àñđ ƃý ļàñĝüàĝé šçöþé — šö à ţŕàñšļàţöŕ çàñ ƃé ĝŕàñţéđ éđîţ ŕîĝĥţš ţö

@@ -13,36 +13,39 @@ sidebar_position: 13
 
 ```go
 bus := event.NewChannelEventBus()
+
 // Subscribe to specific event types
 sub := bus.Subscribe(event.EventBlockStored, func(e event.Event) {
     fmt.Printf("Block %s stored in project %s\n", e.Data["block_id"], e.ProjectID)
 })
+
 // Subscribe to all events
 allSub := bus.SubscribeAll(func(e event.Event) {
     fmt.Printf("Event: %s\n", e.Type)
 })
+
 // Unsubscribe
 bus.Unsubscribe(sub)
 ```
 
 ## ▒ Éṽéñţ Ţýþéš ▒
 
-| ▒ Éṽéñţ ▒ | ▒ Éḿîţţéđ Ŵĥéñ ▒ |
+| Event              | Emitted When                         |
 | ------------------ | ------------------------------------ |
-| ▒ `ƃļöçķ.šţöŕéđ` ▒ | ▒ Ƃļöçķš àŕé šţöŕéđ öŕ üþđàţéđ ▒ |
-| ▒ `ƃļöçķ.đéļéţéđ` ▒ | ▒ À ƃļöçķ îš đéļéţéđ ▒ |
-| ▒ `þŕöĵéçţ.çŕéàţéđ` ▒ | ▒ À þŕöĵéçţ îš çŕéàţéđ ▒ |
-| ▒ `þŕöĵéçţ.üþđàţéđ` ▒ | ▒ À þŕöĵéçţ îš üþđàţéđ ▒ |
-| ▒ `þŕöĵéçţ.đéļéţéđ` ▒ | ▒ À þŕöĵéçţ îš đéļéţéđ ▒ |
-| ▒ `ṽéŕšîöñ.çŕéàţéđ` ▒ | ▒ À ṽéŕšîöñ šñàþšĥöţ îš çŕéàţéđ ▒ |
-| ▒ `çöññéçţöŕ.þüļļéđ` ▒ | ▒ Çöñţéñţ îš þüļļéđ ƒŕöḿ à çöññéçţöŕ ▒ |
-| ▒ `çöññéçţöŕ.þüšĥéđ` ▒ | ▒ Çöñţéñţ îš þüšĥéđ ţö à çöññéçţöŕ ▒ |
-| ▒ `ƒļöŵ.šţàŕţéđ` ▒ | ▒ À ƒļöŵ ƃéĝîñš éẋéçüţîöñ ▒ |
-| ▒ `ƒļöŵ.çöḿþļéţéđ` ▒ | ▒ À ƒļöŵ çöḿþļéţéš šüççéššƒüļļý (đéƒîñéđ; ñöţ ýéţ éḿîţţéđ) ▒ |
-| ▒ `ƒļöŵ.ƒàîļéđ` ▒ | ▒ À ƒļöŵ ƒàîļš (đéƒîñéđ; ñöţ ýéţ éḿîţţéđ) ▒ |
-| ▒ `ǫüàļîţý.þàššéđ` ▒ | ▒ Ǫüàļîţý ĝàţé þàššéš ▒ |
-| ▒ `ǫüàļîţý.ƒàîļéđ` ▒ | ▒ Ǫüàļîţý ĝàţé ƒàîļš ▒ |
-| ▒ `ǫüàļîţý.ŵàŕñîñĝ` ▒ | ▒ Ǫüàļîţý ĝàţé îššüéš àđṽîšöŕý ŵàŕñîñĝ ▒ |
+| `block.stored`     | Blocks are stored or updated         |
+| `block.deleted`    | A block is deleted                   |
+| `project.created`  | A project is created                 |
+| `project.updated`  | A project is updated                 |
+| `project.deleted`  | A project is deleted                 |
+| `version.created`  | A version snapshot is created        |
+| `connector.pulled` | Content is pulled from a connector   |
+| `connector.pushed` | Content is pushed to a connector     |
+| `flow.started`     | A flow begins execution              |
+| `flow.completed`   | A flow completes successfully (defined; not yet emitted) |
+| `flow.failed`      | A flow fails (defined; not yet emitted) |
+| `quality.passed`   | Quality gate passes                  |
+| `quality.failed`   | Quality gate fails                   |
+| `quality.warning`  | Quality gate issues advisory warning |
 
 ## ▒ ÉṽéñţÉḿîţţîñĝŠţöŕé ▒
 
@@ -96,6 +99,7 @@ gates := []event.QualityGate{
         },
     },
 }
+
 results, err := event.EvaluateGates(gates, projectID)
 ```
 

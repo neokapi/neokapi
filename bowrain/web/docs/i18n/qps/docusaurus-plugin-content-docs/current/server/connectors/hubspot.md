@@ -25,10 +25,10 @@ description: The HubSpot connector reads CMS site pages from HubSpot, delivers t
 ▒ Ţĥé çöññéçţöŕ ŵöŕķš àĝàîñšţ ĤüƃŠþöţ ÇḾŠ šîţé þàĝéš ţĥŕöüĝĥ ţĥé
 `çḿš/ṽ3/þàĝéš/šîţé-þàĝéš` ÀÞÎ. ▒
 
-| ▒ Đîŕéçţîöñ ▒ | ▒ Çöñţéñţ ▒ |
+| Direction | Content |
 | --------- | ------- |
-| ▒ Ƒéţçĥ (îñ) ▒ | ▒ Ƒöŕ éàçĥ šîţé þàĝé: ţĥé ĤŢḾĻ ţîţļé, àñđ ţĥé ḿéţà đéšçŕîþţîöñ (ŵĥéñ ţĥé þàĝé ĥàš öñé). ▒ |
-| ▒ Þüƃļîšĥ (öüţ) ▒ | ▒ Ţĥé ĤŢḾĻ ţîţļé àñđ ḿéţà đéšçŕîþţîöñ öƒ à þŕéṽîöüšļý ƒéţçĥéđ þàĝé. ▒ |
+| Fetch (in) | For each site page: the HTML title, and the meta description (when the page has one). |
+| Publish (out) | The HTML title and meta description of a previously fetched page. |
 
 ▒ Ţĥé çöññéçţöŕ ŕéàđš ţĥé þàĝé ţîţļé àñđ ḿéţà đéšçŕîþţîöñ öñļý. Þàĝé ƃöđý
 çöñţéñţ, ḿöđüļéš, ƃļöĝ þöšţš, éḿàîļš, àñđ ļàñđîñĝ þàĝéš àŕé ñöţ îñçļüđéđ. ▒
@@ -40,11 +40,11 @@ description: The HubSpot connector reads CMS site pages from HubSpot, delivers t
 
 ▒ Ţĥé çöññéçţöŕ àççéþţš ţĥé ƒöļļöŵîñĝ çöñƒîĝüŕàţîöñ ķéýš: ▒
 
-| ▒ Ķéý ▒ | ▒ Ŕéǫüîŕéđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Key | Required | Description |
 | --- | -------- | ----------- |
-| ▒ `àþî_ķéý` ▒ | ▒ Ýéš ▒ | ▒ À ĤüƃŠþöţ [þŕîṽàţé àþþ](https://developers.hubspot.com/docs/api/private-apps) àççéšš ţöķéñ. Îţ îš šéñţ àš à ƃéàŕéŕ ţöķéñ îñ ţĥé `Àüţĥöŕîžàţîöñ` ĥéàđéŕ. ▒ |
-| ▒ `ñàḿé` ▒ | ▒ Ñö ▒ | ▒ À ĥüḿàñ-ŕéàđàƃļé ñàḿé ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. ▒ |
-| ▒ `îđ` ▒ | ▒ Ñö ▒ | ▒ À šţàƃļé îđéñţîƒîéŕ ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. Ŵĥéñ öḿîţţéđ, îţ đéƒàüļţš ţö `ĥüƃšþöţ`. ▒ |
+| `api_key` | Yes | A HubSpot [private app](https://developers.hubspot.com/docs/api/private-apps) access token. It is sent as a bearer token in the `Authorization` header. |
+| `name` | No | A human-readable name for the connector instance. |
+| `id` | No | A stable identifier for the connector instance. When omitted, it defaults to `hubspot`. |
 
 ## ▒ Šéţüþ ▒
 

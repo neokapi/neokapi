@@ -1,0 +1,129 @@
+---
+id: review-and-approve
+title: "Review & approve"
+sidebar_label: "Review & approve"
+description: "The human half of the loop: work the review queue in Kapi Desktop — inspect, edit, approve, reject, sign off — or drive the same worklist from the CLI or your assistant. Approvals land in the committed unit-state record and raise the coverage a ship gate measures."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
+
+# ▒ Ŕéṽîéŵ & àþþŕöṽé ▒
+
+▒ **Ĝöàļ:** ţàķé ţŕàñšļàţîöñš þàšţ ŵĥàţ à ḿàçĥîñé çàñ đéçîđé. [`ķàþî üþ`](/kapi/recipes/translate-content) þŕöđüçéš — îţ ƃŕîñĝš éṽéŕý üñîţ ţö *ţŕàñšļàţéđ* àñđ þàŕķš ţĥé ŕéšţ; à þéŕšöñ þŕöḿöţéš — *ŕéṽîéŵéđ*, ţĥéñ öþţîöñàļļý *šîĝñéđ-öƒƒ*. Éàçĥ ŕéṽîéŵ ļàñđš îñ ţĥé þŕöĵéçţ'š çöḿḿîţţéđ üñîţ-šţàţé ŕéçöŕđ, ƃöüñđ ţö ţĥé çöñţéñţ ĥàšĥ öƒ ţĥé éẋàçţ ţŕàñšļàţîöñ îţ ƃļéššéš, šö àñ àþþŕöṽàļ çàñ ñéṽéŕ šîļéñţļý öüţļîṽé ţĥé ţéẋţ îţ àþþŕöṽéđ. Ţĥé ḿöđéļ îš [ţĥé ķàþî ļööþ](/kapi/convergence); ţĥé šţöŕé îš [ţĥé þŕöĵéçţ šţöŕé](/kapi/project-store). ▒
+
+## ▒ Šéţţļé ţĥé šöüŕçé ƒîŕšţ ▒
+
+▒ Ţĥé ļööþ ĥàš à ĝàţé ƃéƒöŕé ţĥé ţàŕĝéţ ŵöŕķ: `ķàþî üþ` **šéţţļéš ýöüŕ šöüŕçé àñđ ĥöļđš ţĥéŕé üñţîļ îţ çļéàŕš îţš ƃàŕ**, šö àñ üñ-çĥéçķéđ, öƒƒ-ƃŕàñđ, öŕ éḿþţý šöüŕçé îš ñéṽéŕ ţŕàñšļàţéđ îñţö éṽéŕý ļàñĝüàĝé öñļý ţö ƃé ŕéđöñé ŵĥéñ ýöü ƒîẋ îţ. À ƃļöçķ ŵĥöšé šöüŕçé ĥàš ñöţ šéţţļéđ îš *ĥéļđ* — îţš ţŕàñšļàţîöñš àŕé ñöţ þŕöđüçéđ — àñđ ţĥé ŕüñ šàýš šö þļàîñļý ŕàţĥéŕ ţĥàñ šþéñđîñĝ ÀÎ öñ îţ. ▒
+
+<GatedLoopDiagram
+  nodes={[
+    {
+      kind: "phase",
+      role: "source",
+      label: "settle source",
+      steps: ["terminology + protect DNT", "voice check", "source QA"],
+    },
+    {
+      kind: "gate",
+      label: "source gate",
+      sub: "defaults.source_gate",
+      hold: "hold — settle your source first",
+    },
+    {
+      kind: "phase",
+      role: "translate",
+      label: "translate the ready blocks",
+      steps: ["recycle (memory-first)", "AI remainder"],
+    },
+    { kind: "done", label: "caught up" },
+  ]}
+  caption="kapi up settles the source, holds any block below defaults.source_gate, and translates only the blocks that cleared it — the held ones wait for you to settle them."
+/>
+
+▒ Ţĥé ļöçàļ šöüŕçé-šéţţļé ļööþ, éñđ ţö éñđ: ▒
+
+1. ▒ **Ŕüñ.** `ķàþî üþ` šéţţļéš éàçĥ šöüŕçé ƃļöçķ (ţéŕḿîñöļöĝý, ṽöîçé, šöüŕçé ǪÀ), šţàḿþš îţš àüţĥöŕîñĝ šţàţüš (*àüţĥöŕéđ → çĥéçķéđ → àþþŕöṽéđ*), àñđ ĥöļđš àñý ƃļöçķ ƃéļöŵ ţĥé ĝàţé. Ŕéàđý ƃļöçķš ţŕàñšļàţé; ĥéļđ ƃļöçķš đö ñöţ. À ŕüñ ţĥàţ çöüļđ ţŕàñšļàţé ñöţĥîñĝ šüŕƒàçéš àš *ĥéļđ öñ šöüŕçé* — ñéṽéŕ à šîļéñţ šķîþ. ▒
+2. ▒ **Šéé ŵĥàţ'š ĥéļđ.** `ķàþî šţàţüš` šĥöŵš šöüŕçé ŕéàđîñéšš àļöñĝšîđé çöṽéŕàĝé; `ķàþî çĥéçķ --šĥîþ` éñƒöŕçéš ţĥé šàḿé šöüŕçé ƃàŕ àñđ ļîšţš ţĥé ƃļöçķš ţĥàţ ƒàîļ îţ. ▒
+3. ▒ **Šéţţļé.** Ƒîẋ ţĥé ƒļàĝĝéđ ţéŕḿš, ṽöîçé ƒîñđîñĝš, öŕ šöüŕçé ţéẋţ — ţĥŕöüĝĥ ţĥé ŕöüñđ-ţŕîþ (`ķàþî àþþļý`) öŕ ýöüŕ éđîţöŕ — šö ţĥé ñéẋţ çĥéçķ çļéàŕš ţĥéḿ. Àñ éẋþļîçîţ šöüŕçé šîĝñ-öƒƒ îš à `ķîñđ:"ŕéṽîéŵ"` éñţŕý öñ ţĥé šöüŕçé, ƒöŕ ţĥé šţŕîçţ `àþþŕöṽéđ` ĝàţé. ▒
+4. ▒ **Ŕé-ŕüñ.** `ķàþî üþ` ŕé-šéţţļéš öñļý ţĥé ƃļöçķš ŵĥöšé šöüŕçé çĥàñĝéđ àñđ ţŕàñšļàţéš ţĥé ñéŵļý-çļéàŕéđ öñéš. Ŕéþéàţ üñţîļ ñöţĥîñĝ îš ĥéļđ. ▒
+
+▒ Ţĥé ĝàţé ļéṽéļ îš `đéƒàüļţš.šöüŕçé_ĝàţé` îñ ţĥé ŕéçîþé: ▒
+
+```yaml
+defaults:
+  source_gate: checked   # the default: source must clear its automated
+                         # terminology + voice + source-QA checks before translating
+```
+
+▒ `çĥéçķéđ` îš ţĥé đéƒàüļţ ŵĥéñ üñšéţ — ţĥé šàḿé ƃàŕ ţĥé šéŕṽéŕ ĥöļđš ţö, ŵîţĥ ñö ĥüḿàñ ƃöţţļéñéçķ. `àþþŕöṽéđ` àđđîţîöñàļļý ŕéǫüîŕéš à ĥüḿàñ šöüŕçé šîĝñ-öƒƒ (ṽöîçé-çŕîţîçàļ öŕ ŕéĝüļàţéđ çöñţéñţ). `ñöñé` đîšàƃļéš ţĥé ĝàţé éñţîŕéļý — ţĥé đéļîƃéŕàţé "đŕàƒţ ƒŕééļý, ŕàŵ ḾŢ" öþţ-öüţ ƒöŕ šîñĝļé-þļàýéŕ ŵöŕķ ţĥàţ ŵàñţš ţŕàñšļàţîöñš ŕéĝàŕđļéšš öƒ šöüŕçé šţàţé: ▒
+
+```yaml
+defaults:
+  source_gate: none      # opt out: translate every block, settled or not
+```
+
+▒ Ţĥéñ ţĥé þéŕšöñ'š ĥàļƒ öƒ ţĥé ļööþ — þŕöḿöţîñĝ ţĥé ţŕàñšļàţîöñš ţĥéḿšéļṽéš — îš ţĥé ŕéšţ öƒ ţĥîš þàĝé. ▒
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+The **Review** surface is a queue you work through, keyboard-first:
+
+1. **Enter from a gate cell.** Click a ship-gate cell on the project view (or open **Review** from the sidebar) — the queue narrows to that collection and locale, ordered findings-first so the risky units come up first.
+2. **Inspect.** Each unit shows source and target side by side, with its check findings, provenance, and memory match below.
+3. **Decide.** `a` approves, `r` rejects (with a note — the unit drops back to draft for the next `up` pass to redo), `s` signs off, `space` skips, `j`/`k` move. Edit the target text first when it needs a touch-up — save, then approve; the record binds to the edited text.
+4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings — you read the exceptions, not the bulk.
+5. **Let the AI read first.** **AI pre-review…** scores the pending units with your model before you look; each unit then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
+
+Approvals raise `reviewed` coverage immediately; the gate cell you entered from goes green when its threshold clears.
+
+<PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
+  Entering the review queue from a pending ship-gate cell, working units with
+  the keyboard verbs, editing a target before approving, rejecting one with a
+  note, and batch-approving the clean remainder.
+</PendingMedia>
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Review conversationally — useful when you're the reviewer but not at the desktop:
+
+> What's awaiting review in French? Show me the ones with findings first.
+
+The assistant reads `kapi status --review --json`, presents each unit with its findings, and records your verdicts with `kapi apply` (`kind:"review"`). You say "approve", "reject — the tone is off", or "fix the term and approve"; for the last one it edits the target through the round-trip first, then records the approval against the new hash.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+The worklist and the approval are one command each:
+
+```bash
+kapi status --review        # translated units not yet approved: file, id, locale
+kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
+```
+
+Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The state record lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit-state record under `.kapi/state/`, which you **commit with your sources** so it travels with the project:
+
+```bash
+kapi status                 # what is staged but not yet committed
+kapi commit                 # → .kapi/state/*.jsonl
+git add .kapi/state/
+```
+
+Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different — it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
+
+</TabItem>
+</Tabs>
+
+▒ :::ñöţé[Ŵöŕķš ŵîţĥ Ƃöŵŕàîñ]
+Ţĥîš ŕéçîþé'š ŵöŕķļîšţ ļîṽéš îñ ýöüŕ çĥéçķöüţ àñđ îţš üñîţ šţàţé îñ ţĥé çöḿḿîţţéđ ŕéçöŕđ — öñé ŕéṽîéŵéŕ, öñé ŵöŕķîñĝ çöþý àţ à ţîḿé. Ŵĥéñ šéṽéŕàļ ŕéṽîéŵéŕš (öŕ à ŕéṽîéŵéŕ àļöñĝšîđé àñ àĝéñţ) ñééđ öñé šĥàŕéđ ǫüéüé — àššîĝñḿéñţš, ļîṽé þŕéšéñçé, þéŕ-ƃļöçķ ĥîšţöŕý — ţĥàţ îš ŵĥàţ çöññéçţîñĝ ţĥé þŕöĵéçţ ţö à Ƃöŵŕàîñ šéŕṽéŕ àđđš. Šéé ţĥé [Ƃöŵŕàîñ đöçüḿéñţàţîöñ](https://bowrain.cloud/docs/).
+::: ▒
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [Šĥîþ ĝàţéš & ÇÎ](/kapi/recipes/ship-gates-and-ci) — ţĥé `ŕéṽîéŵéđ` ţĥŕéšĥöļđš ţĥîš šţàţé šàţîšƒîéš. ▒
+- ▒ [Ţĥé ķàþî ļööþ](/kapi/convergence) — þŕöđüçé / þŕöḿöţé / ŕéļéàšé, ķéþţ šéþàŕàţé. ▒
+- ▒ [Ţĥé þŕöĵéçţ šţöŕé](/kapi/project-store) — ŵĥý ţĥé üñîţ-šţàţé ŕéçöŕđ îš ţĥé çöḿḿîţţéđ ĥàļƒ àñđ `šţöŕé.đƃ` ţĥé đéŕîṽéđ öñé. ▒

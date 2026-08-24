@@ -55,7 +55,14 @@ n=0
 while IFS= read -r f; do
   rel="${f#docs/}"
   mkdir -p "$out/$(dirname "$rel")"
-  "$kapi" pseudo-translate "$f" --target-lang qps -o "$out/$rel" -q >/dev/null
+  # -f mdx for BOTH extensions, which is what kapi.yaml already declares for
+  # these trees: "Docusaurus v3 parses .md as MDX by default and these files use
+  # ESM imports and JSX freely — so the mdx reader is the truthful format."
+  # Without it a .md page goes through the MARKDOWN reader, which does not know
+  # JSX and reads a multi-line <Component …/> as a paragraph of prose — so the
+  # tag name and its attribute names get translated and the page stops
+  # compiling. 33 of the neokapi docs failed exactly this way.
+  "$kapi" pseudo-translate "$f" --target-lang qps -f mdx -o "$out/$rel" -q >/dev/null
   n=$((n + 1))
 done < <(find docs -name "*.md" -o -name "*.mdx" | sort)
 echo "==> $site: $n pages pseudo-translated into $out"

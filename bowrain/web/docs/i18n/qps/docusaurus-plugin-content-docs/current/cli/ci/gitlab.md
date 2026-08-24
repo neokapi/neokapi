@@ -16,11 +16,11 @@ sidebar_label: GitLab CI
 
 ▒ Šéţ ţĥéšé üñđéŕ **Šéţţîñĝš → ÇÎ/ÇĐ → Ṽàŕîàƃļéš**: ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Þüŕþöšé ▒ |
+| Variable | Purpose |
 |---|---|
-| ▒ `ƂÖŴŔÀÎÑ_ÀÜŢĤ_ŢÖĶÉÑ` ▒ | ▒ Šéŕṽéŕ àüţĥ ţöķéñ, ḿîñţéđ ŵîţĥ `ķàþî àüţĥ ţöķéñ çŕéàţé` — ḿàŕķ îţ **ḿàšķéđ** ▒ |
-| ▒ `ĜÎŢĻÀƂ_ÀÞÎ_ŢÖĶÉÑ` ▒ | ▒ Þŕöĵéçţ àççéšš ţöķéñ ŵîţĥ **àþî** šçöþé — öþéñš àñđ üþđàţéš ţĥé ḾŔ, þöšţš ḾŔ ñöţéš ▒ |
-| ▒ `ƂÖŴŔÀÎÑ_ŠÉŔṼÉŔ_ÜŔĻ` ▒ | ▒ **Šéļƒ-ĥöšţéđ öñļý.** Ţĥé ĥöšţéđ šéŕṽîçé (`ĥţţþš://àþþ.ƃöŵŕàîñ.çļöüđ`) îš ţĥé ƃüîļţ-îñ đéƒàüļţ, àñđ þŕöĵéçţ çöḿḿàñđš ŕéàđ ţĥé šéŕṽéŕ ƒŕöḿ ţĥé çĥéçķéđ-öüţ ŕéçîþé'š `ƃöŵŕàîñ:` ƃļöçķ ▒ |
+| `BOWRAIN_AUTH_TOKEN` | Server auth token, minted with `kapi auth token create` — mark it **masked** |
+| `GITLAB_API_TOKEN` | Project access token with **api** scope — opens and updates the MR, posts MR notes |
+| `BOWRAIN_SERVER_URL` | **Self-hosted only.** The hosted service (`https://app.bowrain.cloud`) is the built-in default, and project commands read the server from the checked-out recipe's `bowrain:` block |
 
 ▒ Öñ à çöññéçţéđ þŕöĵéçţ (à ŕéçîþé ŵîţĥ à `ƃöŵŕàîñ:` ƃļöçķ), `ķàþî üþ` ŕüñš ţĥé
 ļööþ öñ ţĥé **šéŕṽéŕ**: ţĥé öŕĝàñîžàţîöñ'š ÀÎ ķéýš, šĥàŕéđ ţŕàñšļàţîöñ
@@ -46,11 +46,11 @@ include:
 
 ▒ Ţĥé ĵöƃ þüƃļîšĥéš îţš ŕéšüļţ àš đöţéñṽ ṽàŕîàƃļéš ƒöŕ đöŵñšţŕéàḿ ĵöƃš: ▒
 
-| ▒ Ṽàŕîàƃļé ▒ | ▒ Ṽàļüé ▒ |
+| Variable | Value |
 |---|---|
-| ▒ `ĶÀÞÎ_ÖÜŢÇÖḾÉ` ▒ | ▒ `çöñṽéŕĝéđ` öŕ `þàŕķéđ` ▒ |
-| ▒ `ĶÀÞÎ_ÞÀŠŠÉŠ` ▒ | ▒ Ŕéçöñçîļîàţîöñ þàššéš ţĥé ŕüñ ţööķ ▒ |
-| ▒ `ĶÀÞÎ_ÞÀŔĶÉĐ_ĻÖÇÀĻÉŠ` ▒ | ▒ Çöḿḿà-šéþàŕàţéđ ļöçàļéš šţîļļ šĥöŕţ öƒ ţĥéîŕ ĝàţé ▒ |
+| `KAPI_OUTCOME` | `converged` or `parked` |
+| `KAPI_PASSES` | Reconciliation passes the run took |
+| `KAPI_PARKED_LOCALES` | Comma-separated locales still short of their gate |
 
 ```yaml title=".gitlab-ci.yml"
 report:

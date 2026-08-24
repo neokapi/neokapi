@@ -1,0 +1,73 @@
+---
+id: content-governance-for-ai
+title: "Content governance for AI"
+sidebar_label: "Content governance for AI"
+description: "Encode your content rules — voice profile, terminology, checks — as machine-enforceable guardrails, so what an AI agent writes passes review instead of creating it."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# ▒ Çöñţéñţ ĝöṽéŕñàñçé ƒöŕ ÀÎ ▒
+
+▒ **Ĝöàļ:** ŵĥéñ ÀÎ ŵŕîţéš ḿöšţ öƒ ýöüŕ çöñţéñţ, ţĥé ƃöţţļéñéçķ ḿöṽéš ţö ŕéṽîéŵ. Ĝöṽéŕñàñçé ţüŕñš ýöüŕ çöñţéñţ ŕüļéš îñţö àŕţîƒàçţš à ḿàçĥîñé éñƒöŕçéš — šö àĝéñţ öüţþüţ àŕŕîṽéš *àļŕéàđý çöḿþļîàñţ*, àñđ ĥüḿàñš ŕéàđ éẋçéþţîöñš îñšţéàđ öƒ éṽéŕýţĥîñĝ. Ţĥé àŕţîƒàçţš àŕé ţĥé [çöñţéẋţ](/kapi/context) à þöîñţ îñ ýöüŕ þŕöĵéçţ ƃîñđš; ţĥîš þàĝé îš ţĥé ĥöŵ-ţö ƒöŕ àüţĥöŕîñĝ àñđ ĝàţîñĝ öñ ţĥéḿ. Ţĥŕéé àŕţîƒàçţš, àļļ çöḿḿîţţéđ ţö ĝîţ, àļļ ṽéŕšîöñéđ ļîķé çöđé: ▒
+
+| Artifact | Encodes | Enforced by |
+|---|---|---|
+| **Voice profile** (YAML) | tone, forbidden/preferred vocabulary, competitor terms | the `voice` gate in every check |
+| **Terms store** | approved terms, per language | `term-check` and the terminology gate |
+| **Checkset** | length budgets, required/forbidden patterns, hygiene | `kapi check`, in the loop and in CI |
+
+▒ Ţĥé ŕüļéš ŕüñ îñ **ţŵö đîŕéçţîöñš** àŕöüñđ ţĥé àĝéñţ: îñĵéçţéđ *ƃéƒöŕé* îţ ŵŕîţéš (ţĥé ṽöîçé ĝüîđé àñđ àþþŕöṽéđ ţéŕḿš ĝö îñţö îţš çöñţéẋţ, šö đŕàƒţš šţàŕţ çöḿþļîàñţ) àñđ ĝàţéđ *àƒţéŕ* (`ķàþî çĥéçķ` šçöŕéš ţĥé ŕéšüļţ, ƃļöçķ ƃý ƃļöçķ, éẋîţ çöđé àñđ àļļ). Šţýļé ļîñţéŕš ƒöŕ þŕöšé šţöþ àţ ŕéĝéẋ öṽéŕ þļàîñ ţéẋţ; ķàþî'š çĥéçķš àŕé ƒöŕḿàţ-àŵàŕé àñđ ƃļöçķ-àñçĥöŕéđ — ţĥéý ŕéàđ ţĥé çöñţéñţ îñšîđé `.đöçẋ`, ĴŠÖÑ çàţàļöĝš, àñđ ĤŢḾĻ, ļöçàţé éàçĥ ƒîñđîñĝ ţö àñ àđđŕéššàƃļé ƃļöçķ àñ àĝéñţ çàñ ƒîẋ, àñđ éẋţéñđ àçŕöšš éṽéŕý ţàŕĝéţ ļàñĝüàĝé. ▒
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+1. **Bind the artifacts.** In **Project Settings**, bind the voice profile; the approved terms live in the **Terms** view. From then on the project enforces both everywhere.
+2. **Watch the gates.** The **Checks** view shows standing against the rules continuously; the ship-gate cells fold the voice and terminology gates into each locale's release bar.
+3. **Review the exceptions.** Units that fail a rule surface findings-first in the [Review queue](/kapi/recipes/review-and-approve) — the human reads what the rules flagged, not the bulk.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+With the rules bound in the project, governance is automatic — the [skill](/kapi/get-started/use-with-claude) pulls the guide and terms into context before writing and runs the gate after. Two prompts to bootstrap the artifacts themselves:
+
+> Draft a voice profile from our README and landing copy, and bind it in the recipe.
+
+> Extract candidate terms from `docs/` and add the ones I approve to our terms store.
+
+With the Claude Code plugin, the Stop hook makes the gate a guarantee: Claude cannot declare a task finished while `kapi check --ship` fails. Rules the agent proposes (a new forbidden term, a new approved term) land through `kapi apply` as change-set entries in the committed artifacts — `git diff` is the review surface for the *rules*, exactly as for code.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Author the artifacts, bind them once, and gate on them everywhere:
+
+```bash
+kapi voice new --pack technical-docs -o brand/voice.yaml   # scaffold, then edit
+kapi terms import terms.json --name product-terms
+kapi check docs/*.md --profile-file brand/voice.yaml       # the loop's gate
+kapi check --ship                                          # the release bar, in CI
+```
+
+Bind in the recipe so no invocation needs flags:
+
+```yaml title="kapi.yaml"
+defaults:
+  voice:
+    profile_file: brand/voice.yaml
+  terms: product-terms
+```
+
+`kapi check` exits non-zero on a gate failure, so the same rules hold in CI with no assistant in the loop — see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+
+</TabItem>
+</Tabs>
+
+## ▒ Ñéẋţ ▒
+
+- ▒ [Šéţ üþ ýöüŕ ƃŕàñđ ĝüîđé îñ 10 ḿîñüţéš](/kapi/recipes/brand-guide-in-10-minutes) — ţĥé ƒàšţéšţ þàţĥ ţö ţĥé ƒîŕšţ àŕţîƒàçţ. ▒
+- ▒ [Ķééþ ţéŕḿš çöñšîšţéñţ](/kapi/recipes/terminology-qa) — ƃüîļđîñĝ àñđ éñƒöŕçîñĝ ţĥé ţéŕḿš šţöŕé. ▒
+- ▒ [Çĥéçķ çöñţéñţ ļîķé ţéšţš](/kapi/recipes/verify-content) — ţĥé ĝàţé ḿéçĥàñîçš. ▒
+- ▒ [Ṽöîçé þŕöƒîļé](/framework/checks/voice) — ţĥé þŕöƒîļé ƒöŕḿàţ îñ ƒüļļ. ▒

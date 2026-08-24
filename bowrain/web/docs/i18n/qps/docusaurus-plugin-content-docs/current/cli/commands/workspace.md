@@ -28,6 +28,7 @@ kapi workspace create --name "<name>" [--slug <slug>]
 
 ```bash
 kapi workspace list
+
 # Example output:
 # alice (Alice) [personal]
 # acme (Acme Corp)
@@ -47,17 +48,18 @@ kapi workspace list --json
 ```bash
 kapi workspace create --name "Acme Corp"
 # Workspace created: acme-corp (Acme Corp)
+
 kapi workspace create --name "Acme Corp" --slug acme
 # Workspace created: acme (Acme Corp)
 ```
 
 ## ▒ Ƒļàĝš ▒
 
-| ▒ Ƒļàĝ ▒ | ▒ Àþþļîéš ţö ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Flag       | Applies to | Description                                      |
 | ---------- | ---------- | ------------------------------------------------ |
-| ▒ `--šéŕṽéŕ` ▒ | ▒ ƃöţĥ ▒ | ▒ Šéŕṽéŕ ÜŔĻ (öṽéŕŕîđéš çöñƒîĝ àñđ šţöŕéđ ļöĝîñ) ▒ |
-| ▒ `--ñàḿé` ▒ | ▒ `çŕéàţé` ▒ | ▒ Ŵöŕķšþàçé ñàḿé (ŕéǫüîŕéđ) ▒ |
-| ▒ `--šļüĝ` ▒ | ▒ `çŕéàţé` ▒ | ▒ ÜŔĻ-ƒŕîéñđļý šļüĝ (đéŕîṽéđ ƒŕöḿ `--ñàḿé` îƒ öḿîţţéđ) ▒ |
+| `--server` | both       | Server URL (overrides config and stored login)   |
+| `--name`   | `create`   | Workspace name (required)                        |
+| `--slug`   | `create`   | URL-friendly slug (derived from `--name` if omitted) |
 
 ## ▒ Éẋîţ Çöđéš ▒
 

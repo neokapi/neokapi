@@ -1,0 +1,338 @@
+{
+  "version.label": {
+    "message": "▒ Ñéẋţ ▒",
+    "description": "The label for version current"
+  },
+  "sidebar.kapiSidebar.category.Get started": {
+    "message": "▒ Ĝéţ šţàŕţéđ ▒",
+    "description": "The label for category 'Get started' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Concepts": {
+    "message": "▒ Çöñçéþţš ▒",
+    "description": "The label for category 'Concepts' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Guides · your source": {
+    "message": "▒ Ĝüîđéš · ýöüŕ šöüŕçé ▒",
+    "description": "The label for category 'Guides · your source' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Guides · translate & ship": {
+    "message": "▒ Ĝüîđéš · ţŕàñšļàţé & šĥîþ ▒",
+    "description": "The label for category 'Guides · translate & ship' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Advanced": {
+    "message": "▒ Àđṽàñçéđ ▒",
+    "description": "The label for category 'Advanced' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.category.Kapi Desktop": {
+    "message": "▒ Ķàþî Đéšķţöþ ▒",
+    "description": "The label for category 'Kapi Desktop' in sidebar 'kapiSidebar'"
+  },
+  "sidebar.kapiSidebar.doc.kapi-overview": {
+    "message": "▒ Öṽéŕṽîéŵ ▒",
+    "description": "The label for the doc item 'Overview' in sidebar 'kapiSidebar', linking to the doc kapi/overview"
+  },
+  "sidebar.kapiSidebar.doc.CLI or Desktop?": {
+    "message": "▒ ÇĻÎ öŕ Đéšķţöþ? ▒",
+    "description": "The label for the doc item 'CLI or Desktop?' in sidebar 'kapiSidebar', linking to the doc kapi/get-started/cli-vs-desktop"
+  },
+  "sidebar.kapiSidebar.doc.Your first project": {
+    "message": "▒ Ýöüŕ ƒîŕšţ þŕöĵéçţ ▒",
+    "description": "The label for the doc item 'Your first project' in sidebar 'kapiSidebar', linking to the doc kapi/get-started/first-project"
+  },
+  "sidebar.kapiSidebar.doc.Add languages": {
+    "message": "▒ Àđđ ļàñĝüàĝéš ▒",
+    "description": "The label for the doc item 'Add languages' in sidebar 'kapiSidebar', linking to the doc kapi/get-started/add-languages"
+  },
+  "sidebar.kapiSidebar.doc.Use with Claude": {
+    "message": "▒ Üšé ŵîţĥ Çļàüđé ▒",
+    "description": "The label for the doc item 'Use with Claude' in sidebar 'kapiSidebar', linking to the doc kapi/get-started/use-with-claude"
+  },
+  "sidebar.kapiSidebar.doc.Projects": {
+    "message": "▒ Þŕöĵéçţš ▒",
+    "description": "The label for the doc item 'Projects' in sidebar 'kapiSidebar', linking to the doc kapi/projects"
+  },
+  "sidebar.kapiSidebar.doc.The project store": {
+    "message": "▒ Ţĥé þŕöĵéçţ šţöŕé ▒",
+    "description": "The label for the doc item 'The project store' in sidebar 'kapiSidebar', linking to the doc kapi/project-store"
+  },
+  "sidebar.kapiSidebar.doc.Context": {
+    "message": "▒ Çöñţéẋţ ▒",
+    "description": "The label for the doc item 'Context' in sidebar 'kapiSidebar', linking to the doc kapi/context"
+  },
+  "sidebar.kapiSidebar.doc.The kapi loop": {
+    "message": "▒ Ţĥé ķàþî ļööþ ▒",
+    "description": "The label for the doc item 'The kapi loop' in sidebar 'kapiSidebar', linking to the doc kapi/convergence"
+  },
+  "sidebar.kapiSidebar.doc.The kapi loop in CI": {
+    "message": "▒ Ţĥé ķàþî ļööþ îñ ÇÎ ▒",
+    "description": "The label for the doc item 'The kapi loop in CI' in sidebar 'kapiSidebar', linking to the doc kapi/convergence-in-ci"
+  },
+  "sidebar.kapiSidebar.doc.kapi-recipes-overview": {
+    "message": "▒ Àļļ ĝüîđéš ▒",
+    "description": "The label for the doc item 'All guides' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/index"
+  },
+  "sidebar.kapiSidebar.doc.Check content like tests": {
+    "message": "▒ Çĥéçķ çöñţéñţ ļîķé ţéšţš ▒",
+    "description": "The label for the doc item 'Check content like tests' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/verify-content"
+  },
+  "sidebar.kapiSidebar.doc.Keep source on brand": {
+    "message": "▒ Ķééþ šöüŕçé öñ ƃŕàñđ ▒",
+    "description": "The label for the doc item 'Keep source on brand' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/keep-source-on-brand"
+  },
+  "sidebar.kapiSidebar.doc.Brand guide in 10 minutes": {
+    "message": "▒ Ƃŕàñđ ĝüîđé îñ 10 ḿîñüţéš ▒",
+    "description": "The label for the doc item 'Brand guide in 10 minutes' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/brand-guide-in-10-minutes"
+  },
+  "sidebar.kapiSidebar.doc.Content governance for AI": {
+    "message": "▒ Çöñţéñţ ĝöṽéŕñàñçé ƒöŕ ÀÎ ▒",
+    "description": "The label for the doc item 'Content governance for AI' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/content-governance-for-ai"
+  },
+  "sidebar.kapiSidebar.doc.Bulk rewrite with an agent": {
+    "message": "▒ Ƃüļķ ŕéŵŕîţé ŵîţĥ àñ àĝéñţ ▒",
+    "description": "The label for the doc item 'Bulk rewrite with an agent' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/bulk-rewrite-with-an-agent"
+  },
+  "sidebar.kapiSidebar.doc.Edit content": {
+    "message": "▒ Éđîţ çöñţéñţ ▒",
+    "description": "The label for the doc item 'Edit content' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/rewrite-content"
+  },
+  "sidebar.kapiSidebar.doc.Create content": {
+    "message": "▒ Çŕéàţé çöñţéñţ ▒",
+    "description": "The label for the doc item 'Create content' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/create-content"
+  },
+  "sidebar.kapiSidebar.doc.Feed content to your AI": {
+    "message": "▒ Ƒééđ çöñţéñţ ţö ýöüŕ ÀÎ ▒",
+    "description": "The label for the doc item 'Feed content to your AI' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/ingest-for-ai"
+  },
+  "sidebar.kapiSidebar.doc.What gets translated": {
+    "message": "▒ Ŵĥàţ ĝéţš ţŕàñšļàţéđ ▒",
+    "description": "The label for the doc item 'What gets translated' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/prepare-content"
+  },
+  "sidebar.kapiSidebar.doc.Translate with your AI": {
+    "message": "▒ Ţŕàñšļàţé ŵîţĥ ýöüŕ ÀÎ ▒",
+    "description": "The label for the doc item 'Translate with your AI' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/translate-content"
+  },
+  "sidebar.kapiSidebar.doc.Review & approve": {
+    "message": "▒ Ŕéṽîéŵ & àþþŕöṽé ▒",
+    "description": "The label for the doc item 'Review & approve' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/review-and-approve"
+  },
+  "sidebar.kapiSidebar.doc.Ship gates & CI": {
+    "message": "▒ Šĥîþ ĝàţéš & ÇÎ ▒",
+    "description": "The label for the doc item 'Ship gates & CI' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/ship-gates-and-ci"
+  },
+  "sidebar.kapiSidebar.doc.Tier gates per market": {
+    "message": "▒ Ţîéŕ ĝàţéš þéŕ ḿàŕķéţ ▒",
+    "description": "The label for the doc item 'Tier gates per market' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/machine-ship-strategy"
+  },
+  "sidebar.kapiSidebar.doc.Choose a model": {
+    "message": "▒ Çĥööšé à ḿöđéļ ▒",
+    "description": "The label for the doc item 'Choose a model' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/choose-a-translation-provider"
+  },
+  "sidebar.kapiSidebar.doc.Estimate a run's cost": {
+    "message": "▒ Éšţîḿàţé à ŕüñ'š çöšţ ▒",
+    "description": "The label for the doc item 'Estimate a run's cost' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/estimate-cost"
+  },
+  "sidebar.kapiSidebar.doc.Reuse what you've translated": {
+    "message": "▒ Ŕéüšé ŵĥàţ ýöü'ṽé ţŕàñšļàţéđ ▒",
+    "description": "The label for the doc item 'Reuse what you've translated' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/pre-translate-from-memory"
+  },
+  "sidebar.kapiSidebar.doc.Keep terms consistent": {
+    "message": "▒ Ķééþ ţéŕḿš çöñšîšţéñţ ▒",
+    "description": "The label for the doc item 'Keep terms consistent' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/terminology-qa"
+  },
+  "sidebar.kapiSidebar.doc.Preview before you ship": {
+    "message": "▒ Þŕéṽîéŵ ƃéƒöŕé ýöü šĥîþ ▒",
+    "description": "The label for the doc item 'Preview before you ship' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/pseudo-translate"
+  },
+  "sidebar.kapiSidebar.doc.Translate audio & video": {
+    "message": "▒ Ţŕàñšļàţé àüđîö & ṽîđéö ▒",
+    "description": "The label for the doc item 'Translate audio & video' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/translate-media"
+  },
+  "sidebar.kapiSidebar.doc.Pause & resume a big run": {
+    "message": "▒ Þàüšé & ŕéšüḿé à ƃîĝ ŕüñ ▒",
+    "description": "The label for the doc item 'Pause & resume a big run' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/resumable-workspace"
+  },
+  "sidebar.kapiSidebar.doc.Where translations & terms live": {
+    "message": "▒ Ŵĥéŕé ţŕàñšļàţîöñš & ţéŕḿš ļîṽé ▒",
+    "description": "The label for the doc item 'Where translations & terms live' in sidebar 'kapiSidebar', linking to the doc kapi/recipes/memory-and-terms-storage"
+  },
+  "sidebar.kapiSidebar.doc.Hand off to translators": {
+    "message": "▒ Ĥàñđ öƒƒ ţö ţŕàñšļàţöŕš ▒",
+    "description": "The label for the doc item 'Hand off to translators' in sidebar 'kapiSidebar', linking to the doc kapi/bilingual-workflow"
+  },
+  "sidebar.kapiSidebar.doc.Understanding the CLI layers": {
+    "message": "▒ Üñđéŕšţàñđîñĝ ţĥé ÇĻÎ ļàýéŕš ▒",
+    "description": "The label for the doc item 'Understanding the CLI layers' in sidebar 'kapiSidebar', linking to the doc kapi/direct-execution-layer"
+  },
+  "sidebar.kapiSidebar.doc.kapi-desktop-overview": {
+    "message": "▒ Öṽéŕṽîéŵ ▒",
+    "description": "The label for the doc item 'Overview' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/overview"
+  },
+  "sidebar.kapiSidebar.doc.A guided tour": {
+    "message": "▒ À ĝüîđéđ ţöüŕ ▒",
+    "description": "The label for the doc item 'A guided tour' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/tour"
+  },
+  "sidebar.kapiSidebar.doc.Author a project": {
+    "message": "▒ Àüţĥöŕ à þŕöĵéçţ ▒",
+    "description": "The label for the doc item 'Author a project' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/recipes/author-a-project-visually"
+  },
+  "sidebar.kapiSidebar.doc.Build a flow visually": {
+    "message": "▒ Ƃüîļđ à ƒļöŵ ṽîšüàļļý ▒",
+    "description": "The label for the doc item 'Build a flow visually' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/recipes/build-a-flow-visually"
+  },
+  "sidebar.kapiSidebar.doc.Manage plugins": {
+    "message": "▒ Ḿàñàĝé þļüĝîñš ▒",
+    "description": "The label for the doc item 'Manage plugins' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/recipes/manage-plugins"
+  },
+  "sidebar.kapiSidebar.doc.Store AI credentials": {
+    "message": "▒ Šţöŕé ÀÎ çŕéđéñţîàļš ▒",
+    "description": "The label for the doc item 'Store AI credentials' in sidebar 'kapiSidebar', linking to the doc kapi/desktop/recipes/store-ai-credentials"
+  },
+  "sidebar.frameworkSidebar.category.Concepts": {
+    "message": "▒ Çöñçéþţš ▒",
+    "description": "The label for category 'Concepts' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Format support & maturity": {
+    "message": "▒ Ƒöŕḿàţ šüþþöŕţ & ḿàţüŕîţý ▒",
+    "description": "The label for category 'Format support & maturity' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Checks": {
+    "message": "▒ Çĥéçķš ▒",
+    "description": "The label for category 'Checks' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Integration & migration": {
+    "message": "▒ Îñţéĝŕàţîöñ & ḿîĝŕàţîöñ ▒",
+    "description": "The label for category 'Integration & migration' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Extending the Framework": {
+    "message": "▒ Éẋţéñđîñĝ ţĥé Ƒŕàḿéŵöŕķ ▒",
+    "description": "The label for category 'Extending the Framework' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Architecture Decisions": {
+    "message": "▒ Àŕçĥîţéçţüŕé Đéçîšîöñš ▒",
+    "description": "The label for category 'Architecture Decisions' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.F — Foundations": {
+    "message": "▒ Ƒ — Ƒöüñđàţîöñš ▒",
+    "description": "The label for category 'F — Foundations' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.E — Engine": {
+    "message": "▒ É — Éñĝîñé ▒",
+    "description": "The label for category 'E — Engine' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.C — Context": {
+    "message": "▒ Ç — Çöñţéẋţ ▒",
+    "description": "The label for category 'C — Context' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.S — Surfaces": {
+    "message": "▒ Š — Šüŕƒàçéš ▒",
+    "description": "The label for category 'S — Surfaces' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.M — Multilingual": {
+    "message": "▒ Ḿ — Ḿüļţîļîñĝüàļ ▒",
+    "description": "The label for category 'M — Multilingual' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.A — Assurance": {
+    "message": "▒ À — Àššüŕàñçé ▒",
+    "description": "The label for category 'A — Assurance' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Implementation Notes": {
+    "message": "▒ Îḿþļéḿéñţàţîöñ Ñöţéš ▒",
+    "description": "The label for category 'Implementation Notes' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Foundations": {
+    "message": "▒ Ƒöüñđàţîöñš ▒",
+    "description": "The label for category 'Foundations' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Engine": {
+    "message": "▒ Éñĝîñé ▒",
+    "description": "The label for category 'Engine' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Context": {
+    "message": "▒ Çöñţéẋţ ▒",
+    "description": "The label for category 'Context' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Surfaces": {
+    "message": "▒ Šüŕƒàçéš ▒",
+    "description": "The label for category 'Surfaces' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Multilingual": {
+    "message": "▒ Ḿüļţîļîñĝüàļ ▒",
+    "description": "The label for category 'Multilingual' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.frameworkSidebar.category.Repo infrastructure": {
+    "message": "▒ Ŕéþö îñƒŕàšţŕüçţüŕé ▒",
+    "description": "The label for category 'Repo infrastructure' in sidebar 'frameworkSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Commands, formats & tools": {
+    "message": "▒ Çöḿḿàñđš, ƒöŕḿàţš & ţööļš ▒",
+    "description": "The label for category 'Commands, formats & tools' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Every command": {
+    "message": "▒ Éṽéŕý çöḿḿàñđ ▒",
+    "description": "The label for category 'Every command' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Every format": {
+    "message": "▒ Éṽéŕý ƒöŕḿàţ ▒",
+    "description": "The label for category 'Every format' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Every tool": {
+    "message": "▒ Éṽéŕý ţööļ ▒",
+    "description": "The label for category 'Every tool' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Configuration & integration": {
+    "message": "▒ Çöñƒîĝüŕàţîöñ & îñţéĝŕàţîöñ ▒",
+    "description": "The label for category 'Configuration & integration' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Serialization formats": {
+    "message": "▒ Šéŕîàļîžàţîöñ ƒöŕḿàţš ▒",
+    "description": "The label for category 'Serialization formats' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.category.Project status": {
+    "message": "▒ Þŕöĵéçţ šţàţüš ▒",
+    "description": "The label for category 'Project status' in sidebar 'referenceSidebar'"
+  },
+  "sidebar.referenceSidebar.link.Browse all commands": {
+    "message": "▒ Ƃŕöŵšé àļļ çöḿḿàñđš ▒",
+    "description": "The label for link 'Browse all commands' in sidebar 'referenceSidebar', linking to '/commands'"
+  },
+  "sidebar.referenceSidebar.link.Browse all formats": {
+    "message": "▒ Ƃŕöŵšé àļļ ƒöŕḿàţš ▒",
+    "description": "The label for link 'Browse all formats' in sidebar 'referenceSidebar', linking to '/formats'"
+  },
+  "sidebar.referenceSidebar.link.Browse all tools": {
+    "message": "▒ Ƃŕöŵšé àļļ ţööļš ▒",
+    "description": "The label for link 'Browse all tools' in sidebar 'referenceSidebar', linking to '/tools'"
+  },
+  "sidebar.referenceSidebar.link.Bundle anatomy": {
+    "message": "▒ Ƃüñđļé àñàţöḿý ▒",
+    "description": "The label for link 'Bundle anatomy' in sidebar 'referenceSidebar', linking to '/kbf-lab'"
+  },
+  "sidebar.referenceSidebar.link.Bundle tests": {
+    "message": "▒ Ƃüñđļé ţéšţš ▒",
+    "description": "The label for link 'Bundle tests' in sidebar 'referenceSidebar', linking to '/kbf-tests'"
+  },
+  "sidebar.referenceSidebar.link.Format maturity": {
+    "message": "▒ Ƒöŕḿàţ ḿàţüŕîţý ▒",
+    "description": "The label for link 'Format maturity' in sidebar 'referenceSidebar', linking to '/format-maturity'"
+  },
+  "sidebar.referenceSidebar.link.Benchmarks": {
+    "message": "▒ Ƃéñçĥḿàŕķš ▒",
+    "description": "The label for link 'Benchmarks' in sidebar 'referenceSidebar', linking to '/pseudobench'"
+  },
+  "sidebar.referenceSidebar.link.ML benchmark": {
+    "message": "▒ ḾĻ ƃéñçĥḿàŕķ ▒",
+    "description": "The label for link 'ML benchmark' in sidebar 'referenceSidebar', linking to '/ml-benchmark'"
+  },
+  "sidebar.referenceSidebar.link.Check eval": {
+    "message": "▒ Çĥéçķ éṽàļ ▒",
+    "description": "The label for link 'Check eval' in sidebar 'referenceSidebar', linking to '/check-eval'"
+  },
+  "sidebar.referenceSidebar.link.Context eval": {
+    "message": "▒ Çöñţéẋţ éṽàļ ▒",
+    "description": "The label for link 'Context eval' in sidebar 'referenceSidebar', linking to '/context-eval'"
+  },
+  "sidebar.referenceSidebar.link.Batch eval": {
+    "message": "▒ Ƃàţçĥ éṽàļ ▒",
+    "description": "The label for link 'Batch eval' in sidebar 'referenceSidebar', linking to '/batch-eval'"
+  }
+}

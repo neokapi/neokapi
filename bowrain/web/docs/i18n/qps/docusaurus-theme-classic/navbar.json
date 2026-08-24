@@ -1,38 +1,38 @@
 {
   "title": {
-    "message": "▒ Ƃöŵŕàîñ ▒",
+    "message": "▒ ▒ Ƃöŵŕàîñ ▒ ▒",
     "description": "The title in the navbar"
   },
   "logo.alt": {
-    "message": "▒ Ƃöŵŕàîñ ▒",
+    "message": "▒ ▒ Ƃöŵŕàîñ ▒ ▒",
     "description": "The alt text of navbar logo"
   },
   "item.label.Home": {
-    "message": "▒ Ĥöḿé ▒",
+    "message": "▒ ▒ Ĥöḿé ▒ ▒",
     "description": "Navbar item with label Home"
   },
   "item.label.Get Started": {
-    "message": "▒ Ĝéţ Šţàŕţéđ ▒",
+    "message": "▒ ▒ Ĝéţ Šţàŕţéđ ▒ ▒",
     "description": "Navbar item with label Get Started"
   },
   "item.label.Using Bowrain": {
-    "message": "▒ Üšîñĝ Ƃöŵŕàîñ ▒",
+    "message": "▒ ▒ Üšîñĝ Ƃöŵŕàîñ ▒ ▒",
     "description": "Navbar item with label Using Bowrain"
   },
   "item.label.Connect (CLI)": {
-    "message": "▒ Çöññéçţ (ÇĻÎ) ▒",
+    "message": "▒ ▒ Çöññéçţ (ÇĻÎ) ▒ ▒",
     "description": "Navbar item with label Connect (CLI)"
   },
   "item.label.For Developers": {
-    "message": "▒ Ƒöŕ Đéṽéļöþéŕš ▒",
+    "message": "▒ ▒ Ƒöŕ Đéṽéļöþéŕš ▒ ▒",
     "description": "Navbar item with label For Developers"
   },
   "item.label.Neokapi & Kapi": {
-    "message": "▒ Ñéöķàþî & Ķàþî ▒",
+    "message": "▒ ▒ Ñéöķàþî & Ķàþî ▒ ▒",
     "description": "Navbar item with label Neokapi & Kapi"
   },
   "item.label.GitHub": {
-    "message": "▒ ĜîţĤüƃ ▒",
+    "message": "▒ ▒ ĜîţĤüƃ ▒ ▒",
     "description": "Navbar item with label GitHub"
   }
 }

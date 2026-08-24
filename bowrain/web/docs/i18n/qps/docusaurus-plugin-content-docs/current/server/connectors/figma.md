@@ -25,10 +25,10 @@ description: The Figma connector reads the text layers of a Figma design file ov
 
 ▒ Ţĥé çöññéçţöŕ ŕéàđš à šîñĝļé Ƒîĝḿà ƒîļé, îđéñţîƒîéđ ƃý îţš ƒîļé ķéý. ▒
 
-| ▒ Đîŕéçţîöñ ▒ | ▒ Çöñţéñţ ▒ |
+| Direction | Content |
 | --------- | ------- |
-| ▒ Ƒéţçĥ (îñ) ▒ | ▒ Éṽéŕý ţéẋţ ļàýéŕ îñ ţĥé ƒîļé ŵîţĥ ñöñ-éḿþţý çöñţéñţ. Éàçĥ ţéẋţ ļàýéŕ ƃéçöḿéš öñé ƃļöçķ, ñàḿéđ àƒţéŕ ţĥé ļàýéŕ. Ŵĥéŕé ţĥé ļàýéŕ ĥàš à ƃöüñđîñĝ ƃöẋ, ţĥé ƃļöçķ çàŕŕîéš à đîšþļàý ĥîñţ ŕéçöŕđîñĝ ţĥé ƒŕàḿé þöšîţîöñ àñđ à ŕöüĝĥ çĥàŕàçţéŕ-ļéñĝţĥ éšţîḿàţé, ŵĥîçĥ đöŵñšţŕéàḿ ţööļš çàñ üšé ƒöŕ ļéñĝţĥ-àŵàŕé ţŕàñšļàţîöñ. ▒ |
-| ▒ Þüƃļîšĥ (öüţ) ▒ | ▒ Ñöţ šüþþöŕţéđ. ▒ |
+| Fetch (in) | Every text layer in the file with non-empty content. Each text layer becomes one block, named after the layer. Where the layer has a bounding box, the block carries a display hint recording the frame position and a rough character-length estimate, which downstream tools can use for length-aware translation. |
+| Publish (out) | Not supported. |
 
 ## ▒ Þŕéŕéǫüîšîţéš àñđ çŕéđéñţîàļš ▒
 
@@ -36,12 +36,12 @@ description: The Figma connector reads the text layers of a Figma design file ov
 
 ▒ Ţĥé çöññéçţöŕ àççéþţš ţĥé ƒöļļöŵîñĝ çöñƒîĝüŕàţîöñ ķéýš: ▒
 
-| ▒ Ķéý ▒ | ▒ Ŕéǫüîŕéđ ▒ | ▒ Đéšçŕîþţîöñ ▒ |
+| Key | Required | Description |
 | --- | -------- | ----------- |
-| ▒ `ƒîļé_ķéý` ▒ | ▒ Ýéš ▒ | ▒ Ţĥé ƒîļé ķéý ƒŕöḿ ţĥé Ƒîĝḿà ƒîļé ÜŔĻ — ţĥé šéĝḿéñţ àƒţéŕ `/ƒîļé/` öŕ `/đéšîĝñ/` îñ `ĥţţþš://ŵŵŵ.ƒîĝḿà.çöḿ/đéšîĝñ/<ƒîļé_ķéý>/...`. ▒ |
-| ▒ `ţöķéñ` ▒ | ▒ Ýéš ▒ | ▒ À Ƒîĝḿà [þéŕšöñàļ àççéšš ţöķéñ](https://www.figma.com/developers/api#access-tokens). Îţ îš šéñţ îñ ţĥé `Ẋ-Ƒîĝḿà-Ţöķéñ` ŕéǫüéšţ ĥéàđéŕ. ▒ |
-| ▒ `ñàḿé` ▒ | ▒ Ñö ▒ | ▒ À ĥüḿàñ-ŕéàđàƃļé ñàḿé ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. ▒ |
-| ▒ `îđ` ▒ | ▒ Ñö ▒ | ▒ À šţàƃļé îđéñţîƒîéŕ ƒöŕ ţĥé çöññéçţöŕ îñšţàñçé. Ŵĥéñ öḿîţţéđ, öñé îš đéŕîṽéđ ƒŕöḿ ţĥé ƒîļé ķéý. ▒ |
+| `file_key` | Yes | The file key from the Figma file URL — the segment after `/file/` or `/design/` in `https://www.figma.com/design/<file_key>/...`. |
+| `token` | Yes | A Figma [personal access token](https://www.figma.com/developers/api#access-tokens). It is sent in the `X-Figma-Token` request header. |
+| `name` | No | A human-readable name for the connector instance. |
+| `id` | No | A stable identifier for the connector instance. When omitted, one is derived from the file key. |
 
 ## ▒ Šéţüþ ▒
 

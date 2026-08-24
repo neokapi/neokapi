@@ -3,33 +3,33 @@ sidebar_position: 8
 title: Release Process
 ---
 
-# ▒ Ŕéļéàšé Þŕöçéšš ▒
+# Release Process
 
-▒ Ƃöŵŕàîñ ŕéļéàšéš öñ îţš **öŵñ ţŕàçķ**, îñđéþéñđéñţ öƒ ţĥé ķàþî ÇĻÎ. Îţ îš
-**ţàĝ-đŕîṽéñ**: þüšĥîñĝ à `ƃöŵŕàîñ-ṽẊ.Ý.Ž` ţàĝ ţö `ñéöķàþî/ñéöķàþî` ţŕîĝĝéŕš
-[`.ĝîţĥüƃ/ŵöŕķƒļöŵš/ŕéļéàšé-ƃöŵŕàîñ.ýḿļ`](https://github.com/neokapi/neokapi/blob/main/.github/workflows/release-bowrain.yml),
-ŵĥîçĥ ƃüîļđš àñđ þüƃļîšĥéš éṽéŕýţĥîñĝ éẋçéþţ ţĥé Ŵîñđöŵš ƃîñàŕîéš — ţĥöšé àŕé
-þŕöđüçéđ àš ÇÎ àŕţîƒàçţš àñđ šîĝñéđ ļöçàļļý öñ à Ḿàç, ţĥéñ àđđéđ ţö ţĥé
-þüƃļîšĥéđ ŕéļéàšé. ▒
+Bowrain releases on its **own track**, independent of the kapi CLI. It is
+**tag-driven**: pushing a `bowrain-vX.Y.Z` tag to `neokapi/neokapi` triggers
+[`.github/workflows/release-bowrain.yml`](https://github.com/neokapi/neokapi/blob/main/.github/workflows/release-bowrain.yml),
+which builds and publishes everything except the Windows binaries — those are
+produced as CI artifacts and signed locally on a Mac, then added to the
+published release.
 
-▒ Ţĥé ķàþî ÇĻÎ àñđ Ķàþî Đéšķţöþ ŕéļéàšé šéþàŕàţéļý öñ þļàîñ `ṽẊ.Ý.Ž` ţàĝš
-(`ŕéļéàšé.ýḿļ`); ţĥé ţŵö ţŕàçķš ĥàṽé ñöñ-öṽéŕļàþþîñĝ ţàĝ þŕéƒîẋéš àñđ ñéṽéŕ
-ţŕîĝĝéŕ éàçĥ öţĥéŕ. Ƃéçàüšé ƃöţĥ ƃüîļđ ƒŕöḿ ţĥé šĥàŕéđ ƒŕàḿéŵöŕķ + `çļî`
-ḿöđüļéš, çüţ à `ƃöŵŕàîñ-ṽ*` ŕéļéàšé ƒŕöḿ à çöḿḿîţ ŵĥöšé `ķàþî-ƃöŵŕàîñ` þļüĝîñ îš
-þŕöţöçöļ-çöḿþàţîƃļé ŵîţĥ à ŕéļéàšéđ ķàþî — ţĥéý ñééđ ñöţ ƃé ţĥé šàḿé çöḿḿîţ, ƃüţ
-ķééþ ţĥéḿ çļöšé. ▒
+The kapi CLI and Kapi Desktop release separately on plain `vX.Y.Z` tags
+(`release.yml`); the two tracks have non-overlapping tag prefixes and never
+trigger each other. Because both build from the shared framework + `cli`
+modules, cut a `bowrain-v*` release from a commit whose `kapi-bowrain` plugin is
+protocol-compatible with a released kapi — they need not be the same commit, but
+keep them close.
 
-▒ Ţĥîš þàĝé îš ţĥé ƃöŵŕàîñ-ƒöçüšéđ öṽéŕṽîéŵ. Ţĥé ƒüļļ ḿàîñţàîñéŕ ŕüñƃööķ —
-šîĝñîñĝ îđéñţîţîéš, šéçŕéţš, àñđ ţĥé Ŵîñđöŵš šţéþ — ļîṽéš îñ
-[`ŔÉĻÉÀŠÉ.ḿđ`](https://github.com/neokapi/neokapi/blob/main/RELEASE.md). ▒
+This page is the bowrain-focused overview. The full maintainer runbook —
+signing identities, secrets, and the Windows step — lives in
+[`RELEASE.md`](https://github.com/neokapi/neokapi/blob/main/RELEASE.md).
 
-## ▒ Þŕéŕéǫüîšîţéš ▒
+## Prerequisites
 
-- ▒ Ţĥé `ñéöķàþî/ĥöḿéƃŕéŵ-ţàþ` ŕéþöšîţöŕý éẋîšţš ŵîţĥ à `Çàšķš/` đîŕéçţöŕý ▒
-- ▒ Ţĥé `ĤÖḾÉƂŔÉŴ_ŢÀÞ_ŢÖĶÉÑ` šéçŕéţ îš çöñƒîĝüŕéđ îñ ţĥé `ñéöķàþî/ñéöķàþî` ŕéþöšîţöŕý šéţţîñĝš (à ĜîţĤüƃ ÞÀŢ ŵîţĥ ŵŕîţé àççéšš ţö `ñéöķàþî/ĥöḿéƃŕéŵ-ţàþ`) ▒
-- ▒ Ƒöŕ ţĥé Ŵîñđöŵš šîĝñîñĝ šţéþ: à Ḿàç ŵîţĥ **ŠîḿþļýŠîĝñ Đéšķţöþ** ļöĝĝéđ îñ (šéé ţĥé ḿàîñţàîñéŕ ŕüñƃööķ) ▒
+- The `neokapi/homebrew-tap` repository exists with a `Casks/` directory
+- The `HOMEBREW_TAP_TOKEN` secret is configured in the `neokapi/neokapi` repository settings (a GitHub PAT with write access to `neokapi/homebrew-tap`)
+- For the Windows signing step: a Mac with **SimplySign Desktop** logged in (see the maintainer runbook)
 
-## ▒ Çüţţîñĝ à ŕéļéàšé ▒
+## Cutting a release
 
 ```bash
 make release-bowrain v=2.1.0          # pre-flight + annotated tag bowrain-v2.1.0 + push → CI builds & publishes
@@ -37,82 +37,83 @@ gh run watch                          # follow the release workflow
 make release-bowrain-windows v=2.1.0  # after CI: sign the Windows .exe's locally and finalize
 ```
 
-▒ À ļéàđîñĝ `ṽ` îš ţöļéŕàţéđ: `ṽ=2.1.0` ţàĝš `ƃöŵŕàîñ-ṽ2.1.0`. `ḿàķé ŕéļéàšé-ƃöŵŕàîñ`
-ĝüàŕđš ţĥàţ ţĥé ţŕéé îš çļéàñ, ýöü àŕé öñ `ḿàîñ` àñđ îñ šýñç ŵîţĥ `öŕîĝîñ/ḿàîñ`,
-àñđ ţĥé ţàĝ đöéš ñöţ àļŕéàđý éẋîšţ. `ŕéļéàšé-ƃöŵŕàîñ.ýḿļ` àđđîţîöñàļļý ĝàţéš öñ
-ţĥé þàŕîţý ŵöŕķƒļöŵ ĥàṽîñĝ þàššéđ ƒöŕ ţĥé ţàĝĝéđ çöḿḿîţ. ▒
+A leading `v` is tolerated: `v=2.1.0` tags `bowrain-v2.1.0`. `make release-bowrain`
+guards that the tree is clean, you are on `main` and in sync with `origin/main`,
+and the tag does not already exist. `release-bowrain.yml` additionally gates on
+the parity workflow having passed for the tagged commit.
 
-## ▒ Ŵĥàţ ĥàþþéñš àüţöḿàţîçàļļý ▒
+## What happens automatically
 
-▒ Ţĥé ţàĝ þüšĥ ţŕîĝĝéŕš `ŕéļéàšé-ƃöŵŕàîñ.ýḿļ`, ŵĥîçĥ: ▒
+The tag push triggers `release-bowrain.yml`, which:
 
-1. ▒ **Ƃüîļđš àñđ þüƃļîšĥéš** ţĥé Ƃöŵŕàîñ đéšķţöþ àþþ (ĐḾĜ ƒöŕ ḿàçÖŠ, ŽÎÞ ƒöŕ
-   Ŵîñđöŵš, ţàŕƃàļļ ƒöŕ Ļîñüẋ) àñđ ţĥé `ķàþî-ƃöŵŕàîñ` þļüĝîñ — ƒöŕ àļļ þļàţƒöŕḿš
-   (ļîñüẋ/đàŕŵîñ/ŵîñđöŵš, àḿđ64/àŕḿ64) — àñđ çŕéàţéš ţĥé ĜîţĤüƃ ŕéļéàšé ŵîţĥ
-   ñöţéš àñđ `çĥéçķšüḿš.ţẋţ`. (Ţĥé `ķàþî` ÇĻÎ îţšéļƒ šĥîþš öñ ţĥé ķàþî ţŕàçķ.) ▒
-2. ▒ **Šîĝñš ḿàçÖŠ àŕţîƒàçţš** îñ ÇÎ — ţĥé đéšķţöþ `.àþþ`/ĐḾĜ îš Đéṽéļöþéŕ ÎĐ
-   šîĝñéđ àñđ ñöţàŕîžéđ. ▒
-3. ▒ **Šîĝñš ţĥé `ķàþî-ƃöŵŕàîñ` þļüĝîñ** ţàŕƃàļļš ŵîţĥ çöšîĝñ/Šîĝšţöŕé (šüþþļý-çĥàîñ
-   ţŕüšţ ƒöŕ ţĥé þļüĝîñ ŕéĝîšţŕý). ▒
-4. ▒ **Þüƃļîšĥéš Đöçķéŕ îḿàĝéš** (ƃöŵŕàîñ-šéŕṽéŕ, ƃöŵŕàîñ-ŵöŕķéŕ, ƃöŵŕàîñ-ŵéƃ,
-   ƃöŵŕàîñ-ķéýçļöàķ), üþđàţéš ţĥé `ƃöŵŕàîñ-çļî` ƒöŕḿüļà àñđ `ƃöŵŕàîñ` çàšķ îñ
-   `ñéöķàþî/ĥöḿéƃŕéŵ-ţàþ`, àñđ ŕéĝîšţéŕš ţĥé þļüĝîñ îñ `ḿàñîƒéšţ-þļüĝîñš.ĵšöñ`
-   šö `ķàþî þļüĝîñ îñšţàļļ ƃöŵŕàîñ` ŕéšöļṽéš ţö ţĥîš ƃüîļđ. ▒
+1. **Builds and publishes** the Bowrain desktop app (DMG for macOS, ZIP for
+   Windows, tarball for Linux) and the `kapi-bowrain` plugin — for all platforms
+   (linux/darwin/windows, amd64/arm64) — and creates the GitHub release with
+   notes and `checksums.txt`. (The `kapi` CLI itself ships on the kapi track.)
+2. **Signs macOS artifacts** in CI — the desktop `.app`/DMG is Developer ID
+   signed and notarized.
+3. **Signs the `kapi-bowrain` plugin** tarballs with cosign/Sigstore (supply-chain
+   trust for the plugin registry).
+4. **Publishes Docker images** (bowrain-server, bowrain-worker, bowrain-web,
+   bowrain-keycloak), updates the `bowrain-cli` formula and `bowrain` cask in
+   `neokapi/homebrew-tap`, and registers the plugin in `manifest-plugins.json`
+   so `kapi plugin install bowrain` resolves to this build.
 
-▒ Ŵîñđöŵš ƃîñàŕîéš àŕé éḿîţţéđ àš ŵöŕķƒļöŵ **àŕţîƒàçţš**; `ḿàķé ŕéļéàšé-ŵîñđöŵš`
-šîĝñš ţĥéḿ ļöçàļļý (Àüţĥéñţîçöđé ṽîà ţĥé Çéŕţüḿ çéŕţîƒîçàţé ţĥŕöüĝĥ ŠîḿþļýŠîĝñ,
-ŵĥîçĥ öñļý ŕüñš öñ à ļöĝĝéđ-îñ Ḿàç), üþļöàđš ţĥéḿ ţö ţĥé ŕéļéàšé, àñđ ŕéƒŕéšĥéš
-`çĥéçķšüḿš.ţẋţ`. Üñţîļ ţĥàţ šţéþ ŕüñš, ţĥé ŕéļéàšé ĥàš ḿàçÖŠ/Ļîñüẋ àššéţš ƃüţ ñö
-Ŵîñđöŵš àššéţš ýéţ. ▒
+Windows binaries are emitted as workflow **artifacts**; `make release-windows`
+signs them locally (Authenticode via the Certum certificate through SimplySign,
+which only runs on a logged-in Mac), uploads them to the release, and refreshes
+`checksums.txt`. Until that step runs, the release has macOS/Linux assets but no
+Windows assets yet.
 
-> ▒ Ţĥéŕé îš ñö šţàñđàļöñé `ƃöŵŕàîñ` ƃîñàŕý — àļļ ƃöŵŕàîñ çöḿḿàñđš ŕüñ àš
-> `ķàþî <çöḿḿàñđ>` öñçé ţĥé `ķàþî-ƃöŵŕàîñ` þļüĝîñ îš îñšţàļļéđ. ▒
+> There is no standalone `bowrain` binary — all bowrain commands run as
+> `kapi <command>` once the `kapi-bowrain` plugin is installed.
 
-## ▒ Çööŕđîñàţéđ ŕéļéàšé (ļàüñçĥ ţöĝéţĥéŕ ŵîţĥ ķàþî) ▒
+## Coordinated release (launch together with kapi)
 
-▒ Îñđéþéñđéñţ çàđéñçé îš ţĥé đéƒàüļţ. Ţö ḿàķé à `ƃöŵŕàîñ-ṽ*` ŕéļéàšé àþþéàŕ îñ ţĥé
-þàçķàĝé ḿàñàĝéŕš àţ ţĥé **šàḿé ḿöḿéñţ** àš à ķàþî `ṽ*` ŕéļéàšé — é.ĝ. à ƒéàţüŕé
-ţĥàţ šþàñš ţĥé ÇĻÎ àñđ ţĥé þļüĝîñ — üšé ţĥé çööŕđîñàţéđ þàţĥ îñšţéàđ öƒ ţŵö
-šéþàŕàţé ţàĝš: ▒
+Independent cadence is the default. To make a `bowrain-v*` release appear in the
+package managers at the **same moment** as a kapi `v*` release — e.g. a feature
+that spans the CLI and the plugin — use the coordinated path instead of two
+separate tags:
 
 ```bash
 make release-coordinated kapi=1.3.4 bowrain=2.1.0   # either may be blank
 ```
 
-▒ Ţĥîš đîšþàţçĥéš
-[`ŕéļéàšé-çööŕđîñàţéđ.ýḿļ`](https://github.com/neokapi/neokapi/blob/main/.github/workflows/release-coordinated.yml),
-ŵĥîçĥ ŕüñš ƃöţĥ ţŕàçķš ṽîà ţĥéîŕ ŕéüšàƃļé `ŵöŕķƒļöŵ_çàļļ` éñţŕý þöîñţš ŵîţĥ
-`çööŕđîñàţéđ: ţŕüé`. Ƃöţĥ ƃüîļđ îñ þàŕàļļéļ àñđ ţĥéñ **ŵàîţ àţ à ḿàñüàļ-àþþŕöṽàļ
-ĝàţé** — ţĥé `çööŕđîñàţéđ-ŕéļéàšé` ĜîţĤüƃ Éñṽîŕöñḿéñţ — ƃéƒöŕé àñý ţàþ/ŕéĝîšţŕý
-ŵŕîţé. Àþþŕöṽîñĝ ƃöţĥ þéñđîñĝ đéþļöýḿéñţš ţöĝéţĥéŕ ļàñđš ţĥé Ĥöḿéƃŕéŵ
-ƒöŕḿüļàé/çàšķš àñđ ţĥé þļüĝîñ/ÇĻÎ ŕéĝîšţŕý çöḿḿîţš ŵîţĥîñ šéçöñđš öƒ éàçĥ öţĥéŕ.
-Ŵîñđöŵš šîĝñîñĝ šţàýš ţĥé þéŕ-ţŕàçķ Ḿàç-ļöçàļ ƒöļļöŵ-üþ. ▒
+This dispatches
+[`release-coordinated.yml`](https://github.com/neokapi/neokapi/blob/main/.github/workflows/release-coordinated.yml),
+which runs both tracks via their reusable `workflow_call` entry points with
+`coordinated: true`. Both build in parallel and then **wait at a manual-approval
+gate** — the `coordinated-release` GitHub Environment — before any tap/registry
+write. Approving both pending deployments together lands the Homebrew
+formulae/casks and the plugin/CLI registry commits within seconds of each other.
+Windows signing stays the per-track Mac-local follow-up.
 
-> ▒ **Ŕéǫüîŕéđ öñé-ţîḿé šéţüþ:** à ŕéþö Éñṽîŕöñḿéñţ ñàḿéđ `çööŕđîñàţéđ-ŕéļéàšé`
-> ŵîţĥ *ŕéǫüîŕéđ ŕéṽîéŵéŕš* ḿüšţ éẋîšţ, öŕ ţĥé ĝàţé îš à ñö-öþ (ƃöţĥ ţŕàçķš
-> þüƃļîšĥ îḿḿéđîàţéļý, šö àþþéàŕàñçé îš öñļý àš šîḿüļţàñéöüš àš ţĥé ţŵö ƃüîļđ
-> ţîḿéš). Ţĥé ĝàţé îš ƃýþàššéđ éñţîŕéļý ƒöŕ ŕöüţîñé `ƃöŵŕàîñ-ṽ*` / `ṽ*` ţàĝ
-> þüšĥéš. Öñ ţĥé **ƒîŕšţ** çööŕđîñàţéđ ŕéļéàšé, ṽéŕîƒý ţĥé çöšîĝñ šîĝñéŕ îđéñţîţý
-> ŕéçöŕđéđ îñ `ḿàñîƒéšţ-þļüĝîñš.ĵšöñ` — ŕüññîñĝ ṽîà `ŵöŕķƒļöŵ_çàļļ` çàñ çĥàñĝé
-> ţĥé ķéýļéšš ÖÎĐÇ çéŕţîƒîçàţé îđéñţîţý, ŵĥîçĥ ŵöüļđ ḿàķé `ķàþî þļüĝîñ îñšţàļļ`
-> ŕéĵéçţ ţĥé àŕţîƒàçţ. Ƒüļļ đéţàîļ (çöšîĝñ çàṽéàţ + ƒàļļƃàçķ) îš îñ ţĥé
-> ḿàîñţàîñéŕ ŕüñƃööķ:
-> [ŔÉĻÉÀŠÉ.ḿđ → "Çööŕđîñàţéđ (šîḿüļţàñéöüš) ŕéļéàšé"](https://github.com/neokapi/neokapi/blob/main/RELEASE.md). ▒
+> **Required one-time setup:** a repo Environment named `coordinated-release`
+> with *required reviewers* must exist, or the gate is a no-op (both tracks
+> publish immediately, so appearance is only as simultaneous as the two build
+> times). The gate is bypassed entirely for routine `bowrain-v*` / `v*` tag
+> pushes. On the **first** coordinated release, verify the cosign signer identity
+> recorded in `manifest-plugins.json` — running via `workflow_call` can change
+> the keyless OIDC certificate identity, which would make `kapi plugin install`
+> reject the artifact. Full detail (cosign caveat + fallback) is in the
+> maintainer runbook:
+> [RELEASE.md → "Coordinated (simultaneous) release"](https://github.com/neokapi/neokapi/blob/main/RELEASE.md).
 
-## ▒ Ṽéŕîƒýîñĝ à ŕéļéàšé ▒
+## Verifying a release
 
 ```bash
 gh release view bowrain-v2.1.0
 gh release view bowrain-v2.1.0 --json assets -q '.assets[].name'
+
 brew update
 brew install --cask neokapi/tap/bowrain
 kapi version
 ```
 
-▒ Öñ ḿàçÖŠ, ţĥé đöŵñļöàđéđ ĐḾĜ šĥöüļđ öþéñ ŵîţĥ ñö Ĝàţéķééþéŕ ŵàŕñîñĝ
-(`šþçţļ -à -ţ îñšţàļļ -ṽṽṽ <Àþþ>.đḿĝ`). ▒
+On macOS, the downloaded DMG should open with no Gatekeeper warning
+(`spctl -a -t install -vvv <App>.dmg`).
 
-## ▒ Çļéàñîñĝ üþ à ƒàîļéđ ŕéļéàšé ▒
+## Cleaning up a failed release
 
 ```bash
 gh release delete bowrain-v2.1.0 --yes
@@ -120,16 +121,16 @@ git push origin :refs/tags/bowrain-v2.1.0
 git tag -d bowrain-v2.1.0
 ```
 
-## ▒ Ŕéļéàšé çĥéçķļîšţ ▒
+## Release checklist
 
-- ▒ Àļļ ÇÎ çĥéçķš þàšš öñ `ḿàîñ` ▒
-- ▒ Ṽéŕšîöñ ţàĝ ƒöļļöŵš šéḿṽéŕ ŵîţĥ ţĥé ƃöŵŕàîñ þŕéƒîẋ (`ƃöŵŕàîñ-ṽ2.1.0`) ▒
-- ▒ Ţàĝ îš àññöţàţéđ (`ĝîţ ţàĝ -à`, ŵĥîçĥ `ḿàķé ŕéļéàšé-ƃöŵŕàîñ` đöéš ƒöŕ ýöü) ▒
-- ▒ Ŕéļéàšé ŵöŕķƒļöŵ çöḿþļéţéš àļļ ĵöƃš ▒
-- ▒ `ḿàķé ŕéļéàšé-ƃöŵŕàîñ-ŵîñđöŵš` ĥàš üþļöàđéđ ţĥé šîĝñéđ Ŵîñđöŵš àššéţš ▒
-- ▒ ĜîţĤüƃ ŕéļéàšé ĥàš àļļ éẋþéçţéđ àššéţš ▒
-- ▒ `ƃŕéŵ îñšţàļļ --çàšķ ñéöķàþî/ţàþ/ƃöŵŕàîñ` ŵöŕķš àñđ `ķàþî ṽéŕšîöñ` îš çöŕŕéçţ ▒
-- ▒ Đöçš đöŵñļöàđ ļîñķš ŕéĝéñéŕàţéđ:
-      `./šçŕîþţš/üþđàţé-ŵéƃšîţé-đöŵñļöàđš.šĥ --ƃöŵŕàîñ ƃöŵŕàîñ-ṽẊ.Ý.Ž`, ŕéṽîéŵ ţĥé
-      đîƒƒ öñ `ƃöŵŕàîñ/ŵéƃ/đöçš/đöçš/ĝéţţîñĝ-šţàŕţéđ/îñšţàļļàţîöñ.ḿđ`, çöḿḿîţ.
-      Ŕé-ŕüñ àƒţéŕ ţĥé öüţ-öƒ-ƃàñđ Ŵîñđöŵš šîĝñîñĝ šö ţĥé Ŵîñđöŵš ŕöŵš àþþéàŕ. ▒
+- [ ] All CI checks pass on `main`
+- [ ] Version tag follows semver with the bowrain prefix (`bowrain-v2.1.0`)
+- [ ] Tag is annotated (`git tag -a`, which `make release-bowrain` does for you)
+- [ ] Release workflow completes all jobs
+- [ ] `make release-bowrain-windows` has uploaded the signed Windows assets
+- [ ] GitHub release has all expected assets
+- [ ] `brew install --cask neokapi/tap/bowrain` works and `kapi version` is correct
+- [ ] Docs download links regenerated:
+      `./scripts/update-website-downloads.sh --bowrain bowrain-vX.Y.Z`, review the
+      diff on `bowrain/web/docs/docs/getting-started/installation.md`, commit.
+      Re-run after the out-of-band Windows signing so the Windows rows appear.
