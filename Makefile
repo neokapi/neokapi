@@ -351,6 +351,7 @@ _fw-fmt:
 
 _fw-test: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1
+	cd host && $(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 # The eval harnesses are their own workspace modules (they import bowrain's
@@ -361,21 +362,25 @@ _fw-test: i18n-catalogs
 
 _fw-test-fast: i18n-catalogs
 	$(GOTEST_BASE) ./...
+	cd host && $(GOTEST_BASE) ./...
 	cd cli && $(GOTEST_BASE) ./...
 	cd kapi && $(GOTEST_BASE) ./...
 
 _fw-test-unit: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1 -short
+	cd host && $(GOTEST_BASE) ./... -count=1 -short
 	cd cli && $(GOTEST_BASE) ./... -count=1 -short
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -short
 
 _fw-test-race: i18n-catalogs
 	$(GOTEST) -race -shuffle=on ./... -count=1
+	cd host && $(GOTEST) -race -shuffle=on ./... -count=1
 	cd cli && $(GOTEST) -race -shuffle=on ./... -count=1
 	cd kapi && $(GOTEST) -race -shuffle=on ./... -count=1
 
 _fw-test-verbose: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1 -v
+	cd host && $(GOTEST_BASE) ./... -count=1 -v
 	cd cli && $(GOTEST_BASE) ./... -count=1 -v
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -v
 
