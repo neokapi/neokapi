@@ -92,6 +92,14 @@ jobs:
       # nb is deliberately absent from i18n.locales: with no Norwegian content
       # Docusaurus would emit the ENGLISH pages at /docs/nb/ while the switcher
       # advertised them as Norwegian. It returns there when it has content.
+      # The qps pseudo-locale is generated here, not committed — see
+      # .github/actions/pseudo-locale for why. It must run BEFORE the build that
+      # reads i18n/qps/.
+      - name: Generate the qps pseudo-locale
+        uses: ./.github/actions/pseudo-locale
+        with:
+          site: bowrain/web/docs
+
       - name: Build bowrain Docusaurus site (/docs/, /docs/qps/)
         working-directory: bowrain/web/docs
         env:
