@@ -76,6 +76,7 @@ export interface RunConstraints {
  */
 export interface TextRunMessage {
   text?: string;
+  noTranslate?: boolean;
 }
 
 /**
