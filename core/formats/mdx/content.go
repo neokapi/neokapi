@@ -340,7 +340,15 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		}
 		r.blockCounter++
 		id := fmt.Sprintf("tu%d", r.blockCounter)
-		block := model.NewBlock(id, string(s.text)) // single verbatim run
+		block := model.NewBlock(id, string(s.text))
+		// A surfaced segment is verbatim, but it is not opaque: a table cell
+		// reading "`docker compose up` + `make dev-server`" is prose around two
+		// commands. Left as one text run the commands are ordinary characters,
+		// which is how `docker compose up` reached the docs site as
+		// `đöçķéŕ çöḿþöšé üþ`. Splitting marks them do-not-translate; the runs
+		// still concatenate to the same bytes, which is what BlockPropVerbatim
+		// promises the writer.
+		block.Source = protectCodeSpans(string(s.text))
 		block.Name = r.naming.Name(nameKind)
 		block.Type = blockType
 		block.SourceLocale = locale
@@ -358,6 +366,71 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		}
 	}
 	return true
+}
+
+// protectCodeSpans splits verbatim segment text into runs, marking each
+// backtick code span do-not-translate. The fences travel inside the protected
+// run rather than becoming paired codes: the block is written back verbatim, so
+// what matters is that the bytes survive, and a run carrying its own delimiters
+// cannot have them separated from their content by a translator.
+//
+// Concatenating the result reproduces the input exactly — the invariant every
+// surfaced segment in this file relies on. Text with no complete span comes
+// back as the single run it arrived as.
+//
+// Span matching follows CommonMark §6.1: a run of N backticks opens, and the
+// next run of exactly N closes. An unmatched opener is ordinary text, so a
+// stray backtick in prose costs nothing.
+func protectCodeSpans(text string) []model.Run {
+	var runs []model.Run
+	addText := func(s string, dnt bool) {
+		if s == "" {
+			return
+		}
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: s, NoTranslate: dnt}})
+	}
+
+	cursor, i := 0, 0
+	for i < len(text) {
+		if text[i] != '`' {
+			i++
+			continue
+		}
+		open := i
+		for i < len(text) && text[i] == '`' {
+			i++
+		}
+		fence := i - open
+		close := -1
+		for j := i; j < len(text); j++ {
+			if text[j] != '`' {
+				continue
+			}
+			end := j
+			for end < len(text) && text[end] == '`' {
+				end++
+			}
+			if end-j == fence {
+				close = end
+				break
+			}
+			j = end - 1
+		}
+		if close < 0 {
+			// No closing fence of the same length: not a code span. Keep
+			// scanning after the opener rather than swallowing the rest.
+			continue
+		}
+		addText(text[cursor:open], false)
+		addText(text[open:close], true)
+		cursor, i = close, close
+	}
+	addText(text[cursor:], false)
+
+	if len(runs) == 0 {
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
+	}
+	return runs
 }
 
 // notePromotion records, once per element, that an unclassified element's text

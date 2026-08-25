@@ -432,6 +432,15 @@ func runsHaveInline(runs []model.Run) bool {
 		if r.Text == nil {
 			return true
 		}
+		// A sequence of nothing but text runs still has to go the run route
+		// when one of them is protected. The text route flattens the block to
+		// SourceText() and mangles the lot, which loses the marking without a
+		// trace — a table cell reading "`docker compose up` + `make dev-server`"
+		// is all text runs, and that is how those commands reached the docs site
+		// mangled while the same span in a sentence survived.
+		if r.Text.NoTranslate {
+			return true
+		}
 	}
 	return false
 }
