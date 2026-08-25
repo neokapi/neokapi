@@ -117,6 +117,10 @@ func PseudoTranslateSchema() *schema.ComponentSchema {
 // NewPseudoTranslateFromConfig creates a pseudo-translate tool from a config map.
 func NewPseudoTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg PseudoConfig
+	// Start from the declared defaults so an explicitly empty prefix or suffix
+	// in the config map overrides them. Applying onto a zero struct cannot tell
+	// "the caller asked for no markers" from "the caller said nothing".
+	cfg.Reset()
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("pseudo-translate config: %w", err)
 	}
@@ -148,12 +152,10 @@ var _ tool.SessionTool = (*PseudoTranslateTool)(nil)
 // NewPseudoTranslateTool creates a new pseudo-translation tool.
 // It replaces ASCII characters with accented equivalents, wraps text
 // with brackets, and adds padding for string length testing.
+// The caller owns the defaults: cfg is taken as given, including empty markers.
+// Reset() declares what unset means, and the callers that cannot tell set from
+// unset apply it themselves.
 func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
-	if cfg.Prefix == "" && cfg.Suffix == "" {
-		cfg.Prefix = "\u2592 "
-		cfg.Suffix = " \u2592"
-	}
-
 	base := &tool.BaseTool{
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Generates pseudo-translations for testing localization readiness",
@@ -501,9 +503,18 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 
 	// Pass 3: wrap the whole sequence exactly once. Prefix goes in
 	// a new leading text run, suffix in a new trailing text run.
+	// An empty marker adds NO run. A wrap run carrying "" still changes the
+	// run sequence, and a consumer that compares a target's shape against its
+	// source rejects the target for it — which is how a paragraph came back
+	// untranslated on a site configured for markerless pseudo: the KBF
+	// compiler dropped every block whose runs no longer matched.
 	prefix, suffix := effectiveWrap(cfg)
-	out = append([]model.Run{model.TextR(prefix)}, out...)
-	out = append(out, model.TextR(suffix))
+	if prefix != "" {
+		out = append([]model.Run{model.TextR(prefix)}, out...)
+	}
+	if suffix != "" {
+		out = append(out, model.TextR(suffix))
+	}
 	return out
 }
 
@@ -567,17 +578,13 @@ func accentTransform(text string) string {
 	return b.String()
 }
 
-// effectiveWrap resolves the prefix/suffix to actually emit,
-// falling back to the shade-marker default when the config leaves
-// them empty.
+// effectiveWrap returns the markers to emit, exactly as configured.
+//
+// It used to substitute the shade markers for an empty field, which made "wrap
+// nothing" impossible to ask for: a demo site wants the mangled text as its
+// signal and the brackets are scaffolding. Reset() declares the default, and
+// every entry point applies it before this runs, so an empty field here means
+// the caller asked for empty.
 func effectiveWrap(cfg *PseudoConfig) (string, string) {
-	prefix := cfg.Prefix
-	suffix := cfg.Suffix
-	if prefix == "" {
-		prefix = "\u2592 "
-	}
-	if suffix == "" {
-		suffix = " \u2592"
-	}
-	return prefix, suffix
+	return cfg.Prefix, cfg.Suffix
 }
