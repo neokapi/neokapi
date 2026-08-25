@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -36,13 +37,19 @@ type ResolvedScope struct {
 // ResolvedScopes is the combined result of parsing all scopes on a token.
 type ResolvedScopes struct {
 	Permissions Permission // union of all scope permissions
-	Languages   []string   // intersection of language constraints (empty = all)
-	ProjectIDs  []string   // allowed projects (empty = all)
+	// Languages is the union of the languages the token's scopes name, sorted.
+	// Empty means all, which happens only when no scope named one.
+	//
+	// It used to INTERSECT, which widened rather than narrowed: two disjoint
+	// scopes — "translate:fr" and "review:de" — intersected to the empty set,
+	// and empty means *all*, so a token granted two specific locales came out
+	// able to act in every one. Permissions and Coordinates both union; this now
+	// matches them.
+	Languages  []string
+	ProjectIDs []string // allowed projects (empty = all)
 	// Coordinates is the union of the regions the token's scopes name — a token
-	// holding two regions holds both. This deliberately differs from Languages,
-	// which intersects: a reach is a set of places the holder may act, so
-	// intersecting two disjoint regions would leave a token that can act nowhere
-	// while plainly having been granted two places.
+	// holding two regions holds both. Empty means the whole space, which happens
+	// only when no scope named a region.
 	Coordinates  CoordinateReach
 	IsFullAccess bool // true if "*" scope present
 }
@@ -226,10 +233,7 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 
 	result := &ResolvedScopes{}
 	projectSet := map[string]struct{}{}
-	allLanguages := true // track whether all scopes are unconstrained
-
-	// For language intersection: collect per-scope language sets.
-	var langSets []map[string]struct{}
+	langSet := map[string]struct{}{}
 
 	for _, s := range scopes {
 		resolved, err := ParseScope(s)
@@ -253,36 +257,37 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 			projectSet[resolved.ProjectID] = struct{}{}
 		}
 
-		// Track languages.
-		if len(resolved.Languages) > 0 {
-			allLanguages = false
-			set := make(map[string]struct{}, len(resolved.Languages))
-			for _, l := range resolved.Languages {
-				set[l] = struct{}{}
-			}
-			langSets = append(langSets, set)
+		// A constraint a scope names is added; a scope that names none adds
+		// nothing. See the note below on why silence does not widen.
+		for _, l := range resolved.Languages {
+			langSet[l] = struct{}{}
 		}
-
-		// Union regions. Add collapses the reach to unconstrained as soon as one
-		// scope names no region, which is the correct reading: a token that may
-		// act anywhere is not narrowed by also being told it may act in acme.
-		result.Coordinates = result.Coordinates.Add(resolved.Coordinates)
+		if !resolved.Coordinates.Unconstrained() {
+			result.Coordinates = result.Coordinates.Add(resolved.Coordinates)
+		}
 	}
 
-	// Compute language intersection. If any scope has no language constraint,
-	// then languages are unrestricted (empty = all).
-	if !allLanguages && len(langSets) > 0 {
-		intersection := langSets[0]
-		for _, set := range langSets[1:] {
-			for lang := range intersection {
-				if _, ok := set[lang]; !ok {
-					delete(intersection, lang)
-				}
-			}
-		}
-		for lang := range intersection {
-			result.Languages = append(result.Languages, lang)
-		}
+	// Constraints UNION across scopes, and a scope that names none contributes
+	// nothing rather than opening everything. The whole token is unconstrained
+	// only when no scope named a constraint at all.
+	//
+	// Union is what fixes the widening bug: languages used to INTERSECT, so
+	// "translate:fr" plus "review:de" intersected to the empty set — and empty
+	// means *all* — handing every language to a token granted two.
+	//
+	// Silence not widening is the other half, and it is the fail-closed choice.
+	// "translate:fr" plus "review" cannot be expressed exactly by one flattened
+	// language list, so one of the two acts is misrepresented either way. Taking
+	// ["fr"] under-grants review; taking "all" over-grants translate. On an
+	// authorization surface the first is the safe direction, and it is also what
+	// this returned before.
+	result.Languages = make([]string, 0, len(langSet))
+	for lang := range langSet {
+		result.Languages = append(result.Languages, lang)
+	}
+	sort.Strings(result.Languages) // stable for logs, audit lines and tests
+	if len(result.Languages) == 0 {
+		result.Languages = nil
 	}
 
 	// Collect project IDs.

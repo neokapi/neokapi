@@ -92,10 +92,19 @@ func TestParseScopesUnionsRegions(t *testing.T) {
 	assert.False(t, got.Coordinates.Reaches(map[string]string{"brand": "third"}))
 }
 
-func TestParseScopesUnboundedScopeOpensTheSpace(t *testing.T) {
-	// A token that may act anywhere is not narrowed by also being told it may
-	// act in acme.
+func TestParseScopesSilenceDoesNotWidenTheSpace(t *testing.T) {
+	// A scope naming no region contributes nothing rather than opening
+	// everything, matching the language rule: silence must never widen a
+	// constraint another scope named.
 	got, err := ParseScopes(`["review@brand=acme","translate"]`)
+	require.NoError(t, err)
+	assert.False(t, got.Coordinates.Unconstrained())
+	assert.True(t, got.Coordinates.Reaches(map[string]string{"brand": "acme"}))
+	assert.False(t, got.Coordinates.Reaches(map[string]string{"brand": "other"}))
+}
+
+func TestParseScopesUnconstrainedOnlyWhenNobodyNamedARegion(t *testing.T) {
+	got, err := ParseScopes(`["review","translate"]`)
 	require.NoError(t, err)
 	assert.True(t, got.Coordinates.Unconstrained())
 }

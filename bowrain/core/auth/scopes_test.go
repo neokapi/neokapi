@@ -99,24 +99,39 @@ func TestScopeParseScopes_Union(t *testing.T) {
 	assert.Equal(t, PermViewContent|PermTranslate, result.Permissions)
 }
 
-func TestScopeParseScopes_LanguageIntersection(t *testing.T) {
+func TestScopeParseScopes_LanguagesUnion(t *testing.T) {
+	// Each scope is a grant, and grants add. This list plainly names es, so the
+	// token holds it; intersecting used to drop it.
 	result, err := ParseScopes(`["translate:fr,de,es", "translate:fr,de"]`)
 	require.NoError(t, err)
-	slices.Sort(result.Languages)
-	assert.Equal(t, []string{"de", "fr"}, result.Languages)
+	assert.Equal(t, []string{"de", "es", "fr"}, result.Languages, "sorted, so logs and callers are stable")
 }
 
-func TestScopeParseScopes_NoLanguageConstraintIfAnyUnconstrained(t *testing.T) {
-	// One scope has languages, one doesn't — result is unconstrained.
+func TestScopeParseScopes_DisjointLanguagesNoLongerOpenEverything(t *testing.T) {
+	// The bug this fixes: intersecting two disjoint scopes gave the empty set,
+	// and empty means ALL — so a token granted exactly two locales came out able
+	// to act in every one.
+	result, err := ParseScopes(`["translate:fr", "review:de"]`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"de", "fr"}, result.Languages)
+	assert.NotEmpty(t, result.Languages, "a token granted two locales must not resolve to all of them")
+}
+
+func TestScopeParseScopes_SilenceDoesNotWiden(t *testing.T) {
+	// "translate:fr" plus "review" cannot be expressed exactly by one flattened
+	// language list, so one of the two acts is misrepresented either way.
+	// Under-granting review is the safe direction on an authorization surface,
+	// and it is also what this returned before the union landed.
 	result, err := ParseScopes(`["translate:fr", "review"]`)
 	require.NoError(t, err)
 	assert.Equal(t, PermViewContent|PermTranslate|PermReview, result.Permissions)
-	// "review" has no language constraint, so the union is unconstrained.
-	// But since we do intersection of only the constrained scopes, and
-	// "review" doesn't contribute to langSets, we get ["fr"].
-	// However the spec says "intersection of language constraints (empty = all)".
-	// With only one constrained scope, the result is that scope's languages.
 	assert.Equal(t, []string{"fr"}, result.Languages)
+}
+
+func TestScopeParseScopes_UnconstrainedOnlyWhenNobodyNamedOne(t *testing.T) {
+	result, err := ParseScopes(`["translate", "review"]`)
+	require.NoError(t, err)
+	assert.Nil(t, result.Languages, "no scope named a language, so every language is in scope")
 }
 
 func TestScopeParseScopes_ProjectIDs(t *testing.T) {
