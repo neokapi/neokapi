@@ -273,7 +273,13 @@ func splitTableSegments(region []byte) ([]contentSeg, bool) {
 				}
 				if ce > cs {
 					flushStruct(cs)
-					segs = append(segs, contentSeg{text: region[cs:ce], isChild: true, scope: row})
+					// A table cell holds prose a reader reads, so it belongs to
+					// the translator like any paragraph. The cell's padding and
+					// the pipes stay in the skeleton, and BlockPropVerbatim
+					// keeps the writer from re-escaping what it emits.
+					segs = append(segs, contentSeg{
+						text: region[cs:ce], isChild: true, scope: row, translatable: true,
+					})
 					structStart = ce
 				}
 			}

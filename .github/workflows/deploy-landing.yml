@@ -14,6 +14,8 @@ on:
       - "bowrain/web/landing/**"
       - "bowrain/web/docs/**"
       - "packages/docs-shared/**"
+      - "packages/i18n-react/**"
+      - ".github/actions/pseudo-locale/**"
       - ".github/workflows/deploy-landing.yml"
 
 concurrency:

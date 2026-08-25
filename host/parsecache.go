@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // cachedPart is one Part with its concrete Resource hoisted into a typed field —
@@ -233,6 +234,13 @@ func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.Pa
 		return nil, ""
 	}
 	h := sha256.New()
+	// The build stamp, first: a cached parse is only replayable by a reader
+	// that would produce the same parse. Nothing else in this key moves when a
+	// reader's behaviour does, so without it an upgraded kapi replays the old
+	// binary's classification — the same content, silently no longer offered
+	// to the translator, with nothing failing to say so. A table whose cells
+	// became translatable kept coming back untranslated exactly this way.
+	fmt.Fprintf(h, "%s\x00%s\x00", version.Version, version.Commit)
 	fmt.Fprintf(h, "%s\x00", a.SourceLocale())
 	if len(mergedConfig) > 0 {
 		if b, err := json.Marshal(mergedConfig); err == nil {
