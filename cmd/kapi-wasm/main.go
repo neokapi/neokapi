@@ -214,12 +214,19 @@ func run(filename string, input []byte, opts pseudoOpts) (runResult, error) {
 	}
 	reader.Close()
 
-	pt := tools.NewPseudoTranslateTool(&tools.PseudoConfig{
-		TargetLocale:     target,
-		Prefix:           opts.Prefix,
-		Suffix:           opts.Suffix,
-		ExpansionPercent: opts.Expansion,
-	})
+	// The playground's options arrive as plain strings with no way to say
+	// "unset", so blank means "use the default" here.
+	pcfg := &tools.PseudoConfig{}
+	pcfg.Reset()
+	pcfg.TargetLocale = target
+	pcfg.ExpansionPercent = opts.Expansion
+	if opts.Prefix != "" {
+		pcfg.Prefix = opts.Prefix
+	}
+	if opts.Suffix != "" {
+		pcfg.Suffix = opts.Suffix
+	}
+	pt := tools.NewPseudoTranslateTool(pcfg)
 	f, err := flow.NewFlow("pseudo").AddTool(pt).Build()
 	if err != nil {
 		return runResult{}, fmt.Errorf("build flow: %w", err)

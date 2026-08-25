@@ -1552,6 +1552,13 @@ LANDING_EXTRACT_FLAGS       := $(LANDING_EXTRACT_CONFIG) --out i18n/ --target-lo
 # the recipe's collections both key off this shape, so it is one list.
 L10N_KBF_DIRS := $(KAPI_DESKTOP_FRONTEND) $(BOWRAIN_APP_DIR) bowrain/apps/ctrl bowrain/apps/pulse $(EMAILS_DIR) $(LANDING_DIR)
 
+# The landing page is the one entry in that list whose qps build is PUBLISHED
+# (bowrain.cloud/qps/) rather than read locally by a developer. It takes its
+# marker setting from the recipe, the way the docs sites do; every other surface
+# keeps the ▒ brackets, because there they are how an untranslated string is
+# spotted at a glance.
+L10N_KBF_PROBE_DIRS := $(filter-out $(LANDING_DIR),$(L10N_KBF_DIRS))
+
 # <surface dir>:<compile output, relative to it>. The bowrain app compiles the
 # one catalog tree into both shells that render it.
 L10N_COMPILE_TARGETS := \
@@ -1731,9 +1738,14 @@ l10n-converge: l10n-extract bin/kapi ## Stage 2: the whole recipe, one `kapi up`
 # byte-gated where the loop's is not.
 
 l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe locale
-	@for dir in $(L10N_KBF_DIRS); do \
+	@for dir in $(L10N_KBF_PROBE_DIRS); do \
 		$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $$dir/i18n --target-lang qps -o $$dir/i18n-qps -q || exit 1; \
 	done
+	@# -p binds the recipe, where `defaults.locales.qps` turns the markers off
+	@# for the published pseudo builds. An explicit -p outranks the
+	@# KAPI_NO_PROJECT in $(KAPI_ISO_ENV), so config, plugins and caches stay
+	@# isolated while the recipe still supplies the tool settings.
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n --target-lang qps -p $(CURDIR)/kapi.yaml -o $(LANDING_DIR)/i18n-qps -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.json -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
 	@# The Docusaurus sites, for a LOCAL preview only. Their qps trees are

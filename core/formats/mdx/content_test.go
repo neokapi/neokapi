@@ -199,7 +199,8 @@ After.
 	cells := contentBlocks(parts, "table-cell")
 	require.NotEmpty(t, cells, "expected table cells surfaced as content blocks")
 	for _, b := range cells {
-		assert.False(t, b.Translatable, "table cells must be non-translatable")
+		assert.True(t, b.Translatable,
+			"a table cell holds prose a reader reads")
 		assert.True(t, b.PreserveWhitespace, "table cells ride verbatim")
 		assert.Equal(t, model.RoleTableCell, b.SemanticRole(), "table cells carry the table-cell role")
 		assert.NotContains(t, b.SourceText(), "|", "pipe leaked into a content block")

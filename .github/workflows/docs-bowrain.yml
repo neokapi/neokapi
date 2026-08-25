@@ -11,6 +11,7 @@ on:
     paths:
       - "bowrain/web/docs/**"
       - "packages/docs-shared/**"
+      - ".github/actions/pseudo-locale/**"
       - ".github/workflows/docs-bowrain.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.

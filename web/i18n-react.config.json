@@ -1,0 +1,6 @@
+{
+  "componentMap": {
+    "Link": "a",
+    "Heading": "h2"
+  }
+}

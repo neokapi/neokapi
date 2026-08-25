@@ -181,10 +181,9 @@ func TestInvariantCodeFenceAndTableByteIdentical(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			// Translate prose only. Table cell prose is surfaced as
-			// Translatable:false content (#928); a translation tool that
-			// respects Translatable leaves the table — pipes, padding, and
-			// cell text — byte-identical, which is what we assert below.
+			// Translate everything a translator would be handed, table cells
+			// included: a cell holds prose a reader reads. The table's SHAPE is
+			// what has to survive that, which is what we assert below.
 			if b.Translatable && strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 				pseudoTranslate(b, fr)
 			}
@@ -198,9 +197,44 @@ func TestInvariantCodeFenceAndTableByteIdentical(t *testing.T) {
 		}
 		assert.Contains(t, out, ln, "code-fence line must be byte-identical in translated output: %q", ln)
 	}
+	// A cell's text changes under translation, so its line cannot be
+	// byte-identical. What must survive is the structure the writer rebuilt it
+	// from: the delimiter row verbatim, and every row still the same shape.
+	outLines := strings.Split(out, "\n")
 	for _, ln := range tableLines {
-		assert.Contains(t, out, ln, "table line (incl. cell padding) must be byte-identical: %q", ln)
+		if isDelimiterRow(ln) {
+			assert.Contains(t, out, ln,
+				"a table's delimiter row carries no prose and must be byte-identical: %q", ln)
+			continue
+		}
+		want := strings.Count(ln, "|")
+		var matched bool
+		for _, got := range outLines {
+			if strings.Count(got, "|") == want && strings.HasPrefix(strings.TrimSpace(got), "|") {
+				matched = true
+				break
+			}
+		}
+		assert.True(t, matched,
+			"no output row kept this row's cell count (%d pipes): %q", want, ln)
 	}
+}
+
+// isDelimiterRow reports whether a GFM table line is the ---|--- separator,
+// which is structure with no prose in it.
+func isDelimiterRow(line string) bool {
+	t := strings.TrimSpace(line)
+	if !strings.HasPrefix(t, "|") {
+		return false
+	}
+	for _, r := range t {
+		switch r {
+		case '|', '-', ':', ' ', '\t':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // TestInvariantInlineCodeMarkupPreservedUnderTranslation guards the specific
