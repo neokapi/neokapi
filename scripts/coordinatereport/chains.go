@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
@@ -285,9 +286,5 @@ func readablePoint(p string) string {
 }
 
 func joinRungs(rungs []string) string {
-	out := rungs[0]
-	for _, r := range rungs[1:] {
-		out += " / " + r
-	}
-	return out
+	return strings.Join(rungs, " / ")
 }

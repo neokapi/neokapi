@@ -64,7 +64,7 @@ func TestPromptPairsDifferWhenAReferenceIsOffered(t *testing.T) {
 
 	for _, p := range report.Prompts {
 		if p.Withheld != "" {
-			assert.Equal(t, len(p.Without), len(p.With),
+			assert.Len(t, p.With, len(p.Without),
 				"%s: nothing was offered, so the two prompts are the same prompt", p.Case)
 			assert.Equal(t, p.Digests.Without, p.Digests.With,
 				"%s: and the cache key does not move", p.Case)
