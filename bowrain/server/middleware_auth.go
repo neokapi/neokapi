@@ -539,6 +539,20 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				}
 			}
 
+			// 5. Custodial authority lapses when the workspace's plan carries no
+			// custodian seats — the state a lapsed trial leaves behind. Nothing
+			// is deleted: the voice, terms, rules and coordinates stay exactly as
+			// they are, and the authority returns the moment a plan does.
+			//
+			// Only BOUNDED custody lapses. Blanket authority — the workspace
+			// owner — is untouched, so an expired workspace can still approve its
+			// own work rather than being bricked by its billing state.
+			if plan, _ := c.Get("workspace_plan").(string); custodialAuthoritySuspended(plan) &&
+				platauth.IsCustodian(perms, resolved.Coordinates) {
+				perms &^= platauth.CustodialPermissions
+				s.recordCustodyLapse(c, resolved.Coordinates)
+			}
+
 			c.Set("project_permissions", perms)
 			c.Set("project_languages", resolved.Languages)
 			c.Set("project_coordinates", resolved.Coordinates)

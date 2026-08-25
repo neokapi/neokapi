@@ -299,6 +299,8 @@ export interface ApiAdapter {
       user_id: string;
       role_id: string;
       languages?: string[];
+      /** The region of the context space this member governs. Absent = all of it. */
+      coordinates?: Record<string, string>;
     },
   ): Promise<ProjectMembership>;
   updateProjectMember(
@@ -308,6 +310,7 @@ export interface ApiAdapter {
     data: {
       role_id: string;
       languages?: string[];
+      coordinates?: Record<string, string>;
     },
   ): Promise<ProjectMembership>;
   removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void>;

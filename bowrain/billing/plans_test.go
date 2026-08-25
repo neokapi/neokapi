@@ -85,14 +85,21 @@ func TestPlanLimits(t *testing.T) {
 		limitName string
 		want      int
 	}{
-		{"free max projects", PlanFree, "max-projects", 1},
-		{"free max seats", PlanFree, "max-seats", 1},
-		{"pro max projects", PlanPro, "max-projects", 10},
-		{"pro max seats", PlanPro, "max-seats", 3},
-		{"team unlimited projects", PlanTeam, "max-projects", -1},
-		{"team unlimited seats", PlanTeam, "max-seats", -1},
-		{"enterprise unlimited projects", PlanEnterprise, "max-projects", -1},
+		{"free carries no custodian", PlanFree, LimitMaxCustodians, 0},
+		{"free markets", PlanFree, LimitMaxMarkets, 2},
+		{"free brands", PlanFree, LimitMaxBrands, 1},
+		{"pro carries one custodian", PlanPro, LimitMaxCustodians, 1},
+		{"pro markets", PlanPro, LimitMaxMarkets, 5},
+		{"team custodians", PlanTeam, LimitMaxCustodians, 5},
+		{"team markets", PlanTeam, LimitMaxMarkets, 25},
+		{"team brands", PlanTeam, LimitMaxBrands, 3},
+		{"enterprise unlimited custodians", PlanEnterprise, LimitMaxCustodians, -1},
+		{"enterprise unlimited markets", PlanEnterprise, LimitMaxMarkets, -1},
 		{"unknown limit returns -1", PlanFree, "unknown-limit", -1},
+		// Members, projects and checks are not metered at all, so their old
+		// limit names resolve to unlimited like any other name nobody set.
+		{"members are not metered", PlanFree, "max-seats", -1},
+		{"projects are not metered", PlanFree, "max-projects", -1},
 	}
 
 	for _, tt := range tests {

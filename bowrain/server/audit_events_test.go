@@ -88,5 +88,8 @@ func TestPhase1_AuthzDenialEmitted(t *testing.T) {
 	ev, _ := findEvent(snapshot(), platev.EventAuthzDenied)
 	assert.Equal(t, "member-evt", ev.Actor)
 	assert.Equal(t, "deny", ev.Effect)
-	assert.Contains(t, ev.Data["required_permission"], "manage_tm")
+	// The audit line names the permission by its current spelling. Entries
+	// already in the chain keep the words they were written with — nothing
+	// rewrites history — so the vocabulary simply changes at a point in time.
+	assert.Contains(t, ev.Data["required_permission"], "manage_memory")
 }

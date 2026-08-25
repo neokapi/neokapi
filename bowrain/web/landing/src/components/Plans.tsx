@@ -55,7 +55,8 @@ const MARKETING: Record<PlanId, Marketing> = {
       t("{credits} one-time AI trial credits", {
         credits: formatCredits(plansCatalog.trialGrantCredits),
       }),
-      t("{projects} project, {seats} seat", { projects: f.maxProjects, seats: f.maxSeats }),
+      t("{markets} markets, {brands} brand", { markets: f.maxMarkets, brands: f.maxBrands }),
+      t("Unlimited members and unlimited checks"),
       t("All formats and workflow tools"),
       t("Content memory & terminology"),
       t("Shared editor with review"),
@@ -74,7 +75,10 @@ const MARKETING: Record<PlanId, Marketing> = {
     features: (f) => [
       t("Everything in Free, plus:"),
       t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
-      t("Up to {projects} projects, {seats} seats", { projects: f.maxProjects, seats: f.maxSeats }),
+      t("Up to {markets} markets, {brands} brand", { markets: f.maxMarkets, brands: f.maxBrands }),
+      t("{custodians} custodian — someone who governs a brand, product or channel", {
+        custodians: f.maxCustodians,
+      }),
       t("Git connector"),
     ],
   },
@@ -90,7 +94,11 @@ const MARKETING: Record<PlanId, Marketing> = {
     features: (f) => [
       t("Everything in Pro, plus:"),
       t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
-      t("Unlimited projects & seats"),
+      t("Up to {markets} markets across {brands} brands", {
+        markets: f.maxMarkets,
+        brands: f.maxBrands,
+      }),
+      t("Up to {custodians} custodians", { custodians: f.maxCustodians }),
       t("Custom connectors"),
       t("Priority support"),
     ],
@@ -104,6 +112,7 @@ const MARKETING: Record<PlanId, Marketing> = {
     cta: t("Talk to us"),
     features: () => [
       t("Everything in Team, plus:"),
+      t("Unlimited markets, brands and custodians"),
       t("Unlimited AI credits"),
       t("SSO / SAML"),
       t("Audit trails"),

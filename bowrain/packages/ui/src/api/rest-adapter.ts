@@ -792,6 +792,7 @@ export class RestApiAdapter implements ApiAdapter {
       user_id: string;
       role_id: string;
       languages?: string[];
+      coordinates?: Record<string, string>;
     },
   ): Promise<ProjectMembership> {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members`, {
@@ -807,6 +808,7 @@ export class RestApiAdapter implements ApiAdapter {
     data: {
       role_id: string;
       languages?: string[];
+      coordinates?: Record<string, string>;
     },
   ): Promise<ProjectMembership> {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members/${userId}`, {

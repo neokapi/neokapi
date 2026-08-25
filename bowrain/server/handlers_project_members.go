@@ -133,6 +133,11 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	// Members are free and uncapped; custody is not. This is the only place a
+	// plan meters people.
+	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, req.UserID); err != nil {
+		return err
+	}
 
 	pm := &platauth.ProjectMembership{
 		ProjectID:   projectID,
@@ -189,6 +194,9 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 	coords, err := coordinatesFrom(req.Coordinates)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, userID); err != nil {
+		return err
 	}
 
 	pm := &platauth.ProjectMembership{

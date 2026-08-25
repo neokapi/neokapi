@@ -352,19 +352,11 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 
-	// Enforce seat limit based on workspace plan.
-	if w.Plan != "" {
-		limit := billing.GetLimit(billing.Plan(w.Plan), "max-seats")
-		if limit > 0 {
-			members, err := s.AuthStore.ListMembers(ctx, w.ID)
-			if err == nil && len(members) >= limit {
-				return apiErr(c, http.StatusForbidden, "seat_limit_reached", map[string]any{
-					"current": len(members),
-					"limit":   limit,
-				})
-			}
-		}
-	}
+	// No seat cap. Members are free and uncapped on every plan: the people most
+	// worth having in the system are the ones who notice what no rule caught —
+	// the country manager, the brand owner, the support lead — and a seat cap is
+	// a standing reason not to invite them. What a plan meters is custody, which
+	// is checked where a membership becomes custodial (HandleAddProjectMember).
 
 	role := platauth.Role(req.Role)
 	if err := s.AuthStore.AddMember(ctx, w.ID, req.UserID, role); err != nil {
@@ -538,28 +530,10 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
-	// Enforce project limit based on workspace plan.
-	plan, _ := c.Get("workspace_plan").(string)
-	if plan != "" {
-		limit := billing.GetLimit(billing.Plan(plan), "max-projects")
-		if limit > 0 {
-			allProjects, err := s.Services.Project.ListProjects(ctx)
-			if err == nil {
-				count := 0
-				for _, p := range allProjects {
-					if p.WorkspaceID == workspaceID {
-						count++
-					}
-				}
-				if count >= limit {
-					return apiErr(c, http.StatusForbidden, "project_limit_reached", map[string]any{
-						"current": count,
-						"limit":   limit,
-					})
-				}
-			}
-		}
-	}
+	// No project cap. A project is a container, not value: customers split and
+	// merge them for tooling reasons, so metering one only made them contort
+	// their structure to fit the bill. What a plan bounds is the scope of custody
+	// — markets and brands — and how many custodians hold it.
 
 	p := &store.Project{
 		Name:                  req.Name,
