@@ -19,6 +19,11 @@ import { useState, useEffect, useCallback } from "react";
 import type { ProjectMembership, RoleTemplate, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
 import { ErrorNotice } from "../errors";
+import { CoordinateLine } from "../context-hub/profiles/Coordinates";
+import {
+  formatCoordinateFilter,
+  parseCoordinateFilter,
+} from "../context-hub/profiles/coordinateFilter";
 import { Users, UserPlus, Trash2, Pencil } from "./icons";
 
 interface ProjectMemberManagerProps {
@@ -41,6 +46,8 @@ export function ProjectMemberManager({
   const [userId, setUserId] = useState("");
   const [roleId, setRoleId] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [coordinateText, setCoordinateText] = useState("");
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
@@ -72,6 +79,15 @@ export function ProjectMemberManager({
   const handleSave = async () => {
     if (!editingMember && !userId.trim()) return;
     if (!roleId) return;
+    // A malformed region is refused rather than dropped: an axis the filter does
+    // not name is an axis it does not constrain, so discarding one would widen
+    // the grant instead of failing to save it.
+    const region = parseCoordinateFilter(coordinateText);
+    if (region.error) {
+      setCoordinateError(region.error);
+      return;
+    }
+    setCoordinateError(null);
     setSaving(true);
     setError(null);
     try {
@@ -83,6 +99,7 @@ export function ProjectMemberManager({
           {
             role_id: roleId,
             languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
+            coordinates: region.coordinates,
           },
         );
         setMembers((prev) => prev.map((m) => (m.user_id === editingMember.user_id ? updated : m)));
@@ -91,6 +108,7 @@ export function ProjectMemberManager({
           user_id: userId.trim(),
           role_id: roleId,
           languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
+          coordinates: region.coordinates,
         });
         setMembers((prev) => [added, ...prev]);
       }
@@ -116,6 +134,8 @@ export function ProjectMemberManager({
     setUserId(member.user_id);
     setRoleId(member.role_id);
     setSelectedLanguages(member.languages ?? []);
+    setCoordinateText(formatCoordinateFilter(member.coordinates));
+    setCoordinateError(null);
     setError(null);
     setShowDialog(true);
   };
@@ -130,6 +150,8 @@ export function ProjectMemberManager({
     setUserId("");
     setRoleId("");
     setSelectedLanguages([]);
+    setCoordinateText("");
+    setCoordinateError(null);
     setError(null);
     setShowDialog(false);
   };
@@ -199,6 +221,9 @@ export function ProjectMemberManager({
                   <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
                     Languages
                   </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Governs
+                  </th>
                   <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[100px]">
                     Actions
                   </th>
@@ -229,6 +254,13 @@ export function ProjectMemberManager({
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">All languages</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {member.coordinates && Object.keys(member.coordinates).length > 0 ? (
+                        <CoordinateLine coordinates={member.coordinates} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Everywhere</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5">
@@ -322,6 +354,31 @@ export function ProjectMemberManager({
                   );
                 })}
               </div>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">Governs</Label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                The region of the context space this member governs, as axis=value pairs —
+                brand=acme,channel=support. Leave empty for the whole space. Paired with a role that
+                can edit voice or terms, a region makes this member its custodian.
+              </p>
+              <Input
+                value={coordinateText}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setCoordinateText(e.target.value)
+                }
+                placeholder="brand=acme,channel=support"
+                className="mt-1 font-mono text-sm"
+                data-testid="project-member-coordinates-input"
+              />
+              {coordinateError && (
+                <p
+                  className="mt-1.5 text-xs text-destructive"
+                  data-testid="project-member-coordinates-error"
+                >
+                  {coordinateError}
+                </p>
+              )}
             </div>
             {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
           </div>

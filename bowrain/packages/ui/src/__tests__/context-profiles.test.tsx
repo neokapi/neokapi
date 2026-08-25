@@ -82,6 +82,24 @@ describe("ProfilesView", () => {
     expect(screen.getAllByText("Support voice")).toHaveLength(2);
   });
 
+  it("names who holds a point, and says plainly when nobody does", async () => {
+    renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(populatedProfiles));
+
+    await waitFor(() => expect(screen.getByText("Mira Halvorsen")).toBeInTheDocument());
+    expect(screen.getByText(/Nobody holds this point/)).toBeInTheDocument();
+    // Reported, never blocked: the uncovered point still says where approvals go.
+    expect(screen.getByText(/falls back to the workspace owner/)).toBeInTheDocument();
+  });
+
+  it("counts the uncovered points without gating anything", async () => {
+    renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(populatedProfiles));
+
+    await waitFor(() =>
+      expect(screen.getByText(/point has nobody holding it/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Content there still ships/)).toBeInTheDocument();
+  });
+
   it("carries each point's check standing, and says so when a point has none", async () => {
     renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(populatedProfiles));
 

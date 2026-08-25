@@ -2184,8 +2184,15 @@ export interface BillingPlanInfo {
   name: string;
   /** -1 means unlimited; 0 means no recurring allowance (Free). */
   monthly_credits: number;
-  max_projects: number;
-  max_seats: number;
+  /** How much of the world this plan's custody covers. -1 = unlimited. */
+  max_markets: number;
+  /** The coarser boundary beside markets. -1 = unlimited. */
+  max_brands: number;
+  /**
+   * How many people may author what governs content over a bounded region.
+   * 0 on Free, -1 = unlimited. Every other member is free and uncapped.
+   */
+  max_custodians: number;
   per_seat: boolean;
   purchasable: boolean;
   current: boolean;
@@ -2356,13 +2363,22 @@ export interface RoleTemplate {
   updated_at: string;
 }
 
-/** Project membership — links a user to a project with a role and language scope */
+/**
+ * Project membership — links a user to a project with a role, a language scope,
+ * and a region of the project's context space.
+ */
 export interface ProjectMembership {
   project_id: string;
   user_id: string;
   role_id: string;
   workspace_id: string;
   languages: string[];
+  /**
+   * The region this membership governs — a partial point, absent meaning the
+   * whole space. Combined with a role that can author what governs content, it
+   * is what makes this member a custodian of that region.
+   */
+  coordinates?: Record<string, string>;
   created_at: string;
   user?: User;
   role_template?: RoleTemplate;

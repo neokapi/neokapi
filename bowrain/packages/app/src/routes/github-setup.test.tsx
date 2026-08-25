@@ -387,9 +387,7 @@ describe("GithubSetupRoute project path", () => {
 
     const notice = await screen.findByTestId("connect-error-acme/website");
     expect(notice).toHaveTextContent("This workspace's plan allows 1 project and already has 1");
-    expect(notice).toHaveTextContent(
-      "Create a new workspace, choose another, or upgrade the plan.",
-    );
+    expect(notice).toHaveTextContent("Create a new workspace, choose another, or get in touch.");
     expect(screen.getByTestId("connect-error-acme/website-reference")).toHaveTextContent(
       "req-limit-1",
     );

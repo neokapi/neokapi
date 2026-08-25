@@ -134,17 +134,20 @@ var messages = map[string]string{
 func MessageFor(code string, details map[string]any) string {
 	switch code {
 	case "project_limit_reached":
+		// Free's project ceiling is an abuse guard rather than a plan feature —
+		// see billing.ProjectAbuseCap — so the sentence does not offer an
+		// upgrade the way a metered limit's would.
 		if limit, ok := details["limit"]; ok {
-			return fmt.Sprintf("This workspace's plan allows %v project(s) and it already has %v.",
+			return fmt.Sprintf("A free workspace can hold %v projects and this one already has %v. Get in touch if you need more.",
 				limit, detailOr(details, "current", limit))
 		}
-		return "This workspace has reached its plan's project limit."
-	case "seat_limit_reached":
+		return "A free workspace cannot hold more projects. Get in touch if you need more."
+	case "custodian_limit_reached":
 		if limit, ok := details["limit"]; ok {
-			return fmt.Sprintf("This workspace's plan allows %v seat(s) and it already has %v.",
+			return fmt.Sprintf("This workspace's plan allows %v custodian(s) and this would make %v. A custodian governs a brand, product or channel; every other member is free.",
 				limit, detailOr(details, "current", limit))
 		}
-		return "This workspace has reached its plan's seat limit."
+		return "This workspace has reached its plan's custodian limit."
 	case "upgrade_required":
 		if p, ok := details["minimum_plan"]; ok {
 			return fmt.Sprintf("This workspace's plan does not include this feature; it requires the %v plan or higher.", p)

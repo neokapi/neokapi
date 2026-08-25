@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -67,6 +69,52 @@ type ProjectMemberRequest struct {
 	UserID    string   `json:"user_id"`
 	RoleID    string   `json:"role_id"`
 	Languages []string `json:"languages,omitempty"` // empty = all languages
+	// Coordinates binds the member to a region of the project's context space —
+	// a partial point, empty meaning the whole space. Combined with a
+	// coordinate-scoped role it is what makes this member a custodian of that
+	// region: `{"brand": "acme", "channel": "support"}`.
+	Coordinates map[string]string `json:"coordinates,omitempty"`
+}
+
+// requireGrantWithinReach refuses a grant of custody the caller does not hold
+// themselves.
+//
+// Without it, the coordinate model would open an escalation it also created: a
+// custodian of one brand whose role carries manage_members holds that power
+// bounded to their brand, and could hand somebody else custody of a different
+// one. Delegation cannot exceed the grantor, so the region being granted must
+// lie inside the region the caller reaches. An unbounded caller — the workspace
+// owner — grants anywhere, as before.
+func (s *Server) requireGrantWithinReach(c echo.Context, coords platauth.CoordinateFilter) error {
+	if coords.Unconstrained() {
+		// Granting no region grants no custody, so there is nothing to exceed.
+		return nil
+	}
+	reach := callerReach(c)
+	if reach.Reaches(coords) {
+		return nil
+	}
+	s.emitAuthzDenied(c, platauth.PermManageMembers, "grant_outside_custody")
+	return deny(c, "cannot grant custody outside your own: "+coords.String())
+}
+
+// coordinatesFrom validates a request's region and returns it as a filter. Axis
+// names and values are required to be non-empty: a half-written axis would
+// silently widen custody, since an axis a filter does not name is an axis it
+// does not constrain.
+func coordinatesFrom(raw map[string]string) (platauth.CoordinateFilter, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	out := make(platauth.CoordinateFilter, len(raw))
+	for axis, value := range raw {
+		axis, value = strings.TrimSpace(axis), strings.TrimSpace(value)
+		if axis == "" || value == "" {
+			return nil, errors.New("coordinates must name a non-empty axis and value")
+		}
+		out[axis] = value
+	}
+	return out, nil
 }
 
 // HandleListProjectMembers returns all members of a project.
@@ -103,12 +151,26 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role_id"})
 	}
 
+	coords, err := coordinatesFrom(req.Coordinates)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	// Members are free and uncapped; custody is not. This is the only place a
+	// plan meters people.
+	if err := s.requireGrantWithinReach(c, coords); err != nil {
+		return err
+	}
+	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, req.UserID); err != nil {
+		return err
+	}
+
 	pm := &platauth.ProjectMembership{
 		ProjectID:   projectID,
 		UserID:      req.UserID,
 		RoleID:      req.RoleID,
 		WorkspaceID: workspaceID,
 		Languages:   req.Languages,
+		Coordinates: coords,
 	}
 
 	if err := s.AuthStore.AddProjectMember(c.Request().Context(), pm); err != nil {
@@ -119,7 +181,14 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 		ProjectID:    projectID,
 		ResourceType: "project_member",
 		ResourceID:   req.UserID,
-		Data:         map[string]string{"role_id": req.RoleID, "scope": "project"},
+		Data: map[string]string{
+			"role_id": req.RoleID,
+			"scope":   "project",
+			// The region is part of what was granted, so it belongs in the audit
+			// line beside the role — "added as reviewer" and "added as reviewer
+			// for acme support" are different grants.
+			"coordinates": coords.String(),
+		},
 	})
 	return c.JSON(http.StatusCreated, pm)
 }
@@ -147,12 +216,24 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 		}
 	}
 
+	coords, err := coordinatesFrom(req.Coordinates)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireGrantWithinReach(c, coords); err != nil {
+		return err
+	}
+	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, userID); err != nil {
+		return err
+	}
+
 	pm := &platauth.ProjectMembership{
 		ProjectID:   projectID,
 		UserID:      userID,
 		RoleID:      req.RoleID,
 		WorkspaceID: workspaceID,
 		Languages:   req.Languages,
+		Coordinates: coords,
 	}
 
 	if err := s.AuthStore.UpdateProjectMember(c.Request().Context(), pm); err != nil {
@@ -163,7 +244,11 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 		ProjectID:    projectID,
 		ResourceType: "project_member",
 		ResourceID:   userID,
-		After:        map[string]string{"role_id": req.RoleID, "scope": "project"},
+		After: map[string]string{
+			"role_id":     req.RoleID,
+			"scope":       "project",
+			"coordinates": coords.String(),
+		},
 	})
 	return c.JSON(http.StatusOK, pm)
 }

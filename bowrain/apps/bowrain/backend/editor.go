@@ -959,9 +959,19 @@ func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string)
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	pseudoTool := libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
-		TargetLocale: model.LocaleID(targetLocale),
-	})
+	// Reset() declares the defaults, and a caller building the config as a
+	// literal has to apply them: since markers became switchable, an unset
+	// Prefix/Suffix means "no marker" rather than "the default one", so a struct
+	// literal silently produced unmarked pseudo text. The config path and the
+	// wasm playground apply them for the same reason.
+	//
+	// The desktop wants the markers. They are what makes a pseudo string
+	// identifiable in the editor; the demo-site case that motivated turning them
+	// off is about a page someone is being shown, which this is not.
+	pseudoCfg := &libtools.PseudoConfig{}
+	pseudoCfg.Reset()
+	pseudoCfg.TargetLocale = model.LocaleID(targetLocale)
+	pseudoTool := libtools.NewPseudoTranslateTool(pseudoCfg)
 
 	outParts, err := tool.RunOnParts(ctx, pseudoTool, parts)
 	if err != nil {

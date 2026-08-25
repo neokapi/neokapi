@@ -1,4 +1,5 @@
 import { Button, Skeleton } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { ContextHub } from "../shell/ContextHub";
 import { EmptyState } from "../shell/atoms";
 import { ChannelProposalsPanel } from "../proposals";
@@ -43,6 +44,10 @@ export function ProfilesView({ onOpenProfile, onScanVoice, serverUrl }: Profiles
   const points = profiles.filter((p) => p.declared || p.is_default);
   const unbound = profiles.filter((p) => !p.declared && !p.is_default);
   const declaredPoints = points.filter((p) => !p.is_default);
+  // Coverage is the same list read a third way: the grid shows who holds each
+  // point, and this counts the ones nobody does. It is a fact about the
+  // workspace, never a gate — the points still ship.
+  const uncovered = points.filter((p) => p.custody && !p.custody.covered).length;
   // Nothing has been pushed and nothing governs anything: the front door of the
   // hub is this workspace's first screen, so it offers the ways in rather than
   // the next refinement.
@@ -62,6 +67,16 @@ export function ProfilesView({ onOpenProfile, onScanVoice, serverUrl }: Profiles
       }
     >
       <div className="space-y-8">
+        {uncovered > 0 && (
+          <p className="text-sm text-muted-foreground">
+            <Plural count={uncovered}>
+              <One>{uncovered} point has nobody holding it.</One>
+              <Other>{uncovered} points have nobody holding them.</Other>
+            </Plural>{" "}
+            Content there still ships; approvals fall back to the workspace owner.
+          </p>
+        )}
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {points.map((profile) => (
             <ProfileCard

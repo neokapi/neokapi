@@ -122,16 +122,17 @@ func (s *PostgresAuthStore) AddGroupRoleBinding(ctx context.Context, b *platauth
 		langs = marshalLanguages(b.Languages)
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO group_role_bindings (id, group_id, workspace_id, project_id, role_id, languages, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		b.ID, b.GroupID, b.WorkspaceID, b.ProjectID, b.RoleID, langs, b.CreatedAt)
+		`INSERT INTO group_role_bindings (id, group_id, workspace_id, project_id, role_id, languages, coordinates, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		b.ID, b.GroupID, b.WorkspaceID, b.ProjectID, b.RoleID, langs,
+		platauth.MarshalCoordinates(b.Coordinates), b.CreatedAt)
 	return err
 }
 
 // ListGroupRoleBindings returns the bindings for a group.
 func (s *PostgresAuthStore) ListGroupRoleBindings(ctx context.Context, groupID string) ([]*platauth.GroupRoleBinding, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, group_id, workspace_id, project_id, role_id, languages, created_at
+		`SELECT id, group_id, workspace_id, project_id, role_id, languages, coordinates, created_at
 		 FROM group_role_bindings WHERE group_id = $1 ORDER BY created_at`, groupID)
 	if err != nil {
 		return nil, err
@@ -140,11 +141,12 @@ func (s *PostgresAuthStore) ListGroupRoleBindings(ctx context.Context, groupID s
 	var out []*platauth.GroupRoleBinding
 	for rows.Next() {
 		var b platauth.GroupRoleBinding
-		var langs string
-		if err := rows.Scan(&b.ID, &b.GroupID, &b.WorkspaceID, &b.ProjectID, &b.RoleID, &langs, &b.CreatedAt); err != nil {
+		var langs, coords string
+		if err := rows.Scan(&b.ID, &b.GroupID, &b.WorkspaceID, &b.ProjectID, &b.RoleID, &langs, &coords, &b.CreatedAt); err != nil {
 			return nil, err
 		}
 		b.Languages = unmarshalLanguages(langs)
+		b.Coordinates = platauth.UnmarshalCoordinates(coords)
 		out = append(out, &b)
 	}
 	return out, rows.Err()

@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -70,6 +71,14 @@ func createWorkflowProject(t *testing.T, srv *Server, wsID string, props map[str
 // addProjectMember adds a user as a project member with a given role and languages.
 func addProjectMember(t *testing.T, srv *Server, wsID, projectID, roleName string, languages []string) string {
 	t.Helper()
+	return addProjectMemberAt(t, srv, wsID, projectID, roleName, languages, nil)
+}
+
+// addProjectMemberAt is addProjectMember with a region: the member governs only
+// the part of the context space their coordinates name. A nil filter is the
+// whole space, which is what addProjectMember grants.
+func addProjectMemberAt(t *testing.T, srv *Server, wsID, projectID, roleName string, languages []string, coords platauth.CoordinateFilter) string {
+	t.Helper()
 	ctx := t.Context()
 
 	// Create user.
@@ -78,6 +87,9 @@ func addProjectMember(t *testing.T, srv *Server, wsID, projectID, roleName strin
 		langSuffix = languages[0]
 	}
 	userID := "user-" + roleName + "-" + langSuffix
+	if s := coords.String(); s != "" {
+		userID += "-" + strings.NewReplacer("=", "-", ",", "-").Replace(s)
+	}
 	user := &platauth.User{ID: userID, Email: userID + "@test.com", Name: roleName}
 	require.NoError(t, srv.AuthStore.CreateUser(ctx, user))
 	require.NoError(t, srv.AuthStore.AddMember(ctx, wsID, userID, platauth.RoleMember))
@@ -100,6 +112,7 @@ func addProjectMember(t *testing.T, srv *Server, wsID, projectID, roleName strin
 		RoleID:      roleID,
 		WorkspaceID: wsID,
 		Languages:   languages,
+		Coordinates: coords,
 	}
 	require.NoError(t, srv.AuthStore.AddProjectMember(ctx, pm))
 	return userID
@@ -450,7 +463,7 @@ func TestFindMembersForLocale(t *testing.T) {
 	require.NoError(t, err)
 
 	// Review mode: find reviewers for fr-FR.
-	result := srv.findMembersForLocale(ctx, members, "fr-FR", "review")
+	result := srv.findMembersForLocale(ctx, members, "fr-FR", "review", nil)
 	userIDs := extractUserIDs(result)
 	assert.Contains(t, userIDs, frReviewer)
 	assert.Contains(t, userIDs, allLangsReviewer)
@@ -458,14 +471,92 @@ func TestFindMembersForLocale(t *testing.T) {
 
 	// Translate mode: find translators for de-DE.
 	// de-DE translator + all-langs reviewer (reviewer role has PermTranslate too).
-	result = srv.findMembersForLocale(ctx, members, "de-DE", "translate")
+	result = srv.findMembersForLocale(ctx, members, "de-DE", "translate", nil)
 	assert.Len(t, result, 2)
 
 	// Review mode for ja-JP: only all-langs reviewer matches.
-	result = srv.findMembersForLocale(ctx, members, "ja-JP", "review")
+	result = srv.findMembersForLocale(ctx, members, "ja-JP", "review", nil)
 	userIDs = extractUserIDs(result)
 	assert.Contains(t, userIDs, allLangsReviewer)
 	assert.Len(t, result, 1)
+}
+
+func TestFindMembersForLocaleNarrowsByRegion(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+	ctx := t.Context()
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "true",
+	})
+
+	acme := addProjectMemberAt(t, srv, wsID, projID, "reviewer", []string{"fr-FR"},
+		platauth.CoordinateFilter{"brand": "acme"})
+	other := addProjectMemberAt(t, srv, wsID, projID, "reviewer", []string{"fr-FR"},
+		platauth.CoordinateFilter{"brand": "other"})
+	everywhere := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+
+	members, err := srv.AuthStore.ListProjectMembers(ctx, projID)
+	require.NoError(t, err)
+
+	t.Run("a push into one brand reaches that brand's people", func(t *testing.T) {
+		points := []map[string]string{{"brand": "acme", "channel": "support"}}
+		userIDs := extractUserIDs(srv.findMembersForLocale(ctx, members, "fr-FR", "review", points))
+		assert.Contains(t, userIDs, acme)
+		assert.Contains(t, userIDs, everywhere, "an unbounded member receives everything")
+		assert.NotContains(t, userIDs, other)
+	})
+
+	t.Run("a push touching both reaches both", func(t *testing.T) {
+		points := []map[string]string{{"brand": "acme"}, {"brand": "other"}}
+		userIDs := extractUserIDs(srv.findMembersForLocale(ctx, members, "fr-FR", "review", points))
+		assert.Contains(t, userIDs, acme)
+		assert.Contains(t, userIDs, other)
+		assert.Contains(t, userIDs, everywhere)
+	})
+
+	t.Run("silence about the region widens rather than narrows", func(t *testing.T) {
+		// A push whose collections did not resolve tells us nothing about where
+		// its content sits. Routing to nobody would lose the work silently.
+		userIDs := extractUserIDs(srv.findMembersForLocale(ctx, members, "fr-FR", "review", nil))
+		assert.Contains(t, userIDs, acme)
+		assert.Contains(t, userIDs, other)
+		assert.Contains(t, userIDs, everywhere)
+	})
+
+	t.Run("the default point is a real place", func(t *testing.T) {
+		// Content that declared no coordinates sits at the project's default
+		// point. A custodian of acme does not hold it; an unbounded member does.
+		points := []map[string]string{{}}
+		userIDs := extractUserIDs(srv.findMembersForLocale(ctx, members, "fr-FR", "review", points))
+		assert.Equal(t, []string{everywhere}, userIDs)
+	})
+}
+
+func TestFindMembersForLocaleKeepsCustodiansOffTheVolumeQueue(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+	ctx := t.Context()
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "true",
+	})
+
+	// project-admin carries manage_voice and manage_terms, so bounding it to a
+	// region makes this member a custodian of that region.
+	custodian := addProjectMemberAt(t, srv, wsID, projID, "project-admin", []string{"fr-FR"},
+		platauth.CoordinateFilter{"brand": "acme"})
+	// A reviewer bounded to the same region is a contributor with a narrow beat,
+	// and must keep receiving the work they are there to do.
+	reviewer := addProjectMemberAt(t, srv, wsID, projID, "reviewer", []string{"fr-FR"},
+		platauth.CoordinateFilter{"brand": "acme"})
+
+	members, err := srv.AuthStore.ListProjectMembers(ctx, projID)
+	require.NoError(t, err)
+
+	points := []map[string]string{{"brand": "acme"}}
+	userIDs := extractUserIDs(srv.findMembersForLocale(ctx, members, "fr-FR", "review", points))
+	assert.Contains(t, userIDs, reviewer)
+	assert.NotContains(t, userIDs, custodian,
+		"a custodian seat must never sit on a queue that grows with content pushed")
 }
 
 func filterTasksByLocale(tasks []bstore.Task, locale string) []bstore.Task {

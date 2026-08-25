@@ -46,7 +46,7 @@ func TestWrite_EnvelopeShape(t *testing.T) {
 	// The additive fields.
 	assert.Equal(t, "req-42", body["reference"])
 	msg, _ := body["message"].(string)
-	assert.Contains(t, msg, "1 project(s)")
+	assert.Contains(t, msg, "1 projects")
 	assert.Contains(t, msg, "already has 2")
 	assert.False(t, strings.Contains(msg, "!"), "messages are plain factual sentences")
 }
@@ -105,7 +105,7 @@ func TestMessageFor(t *testing.T) {
 		{
 			name: "project limit without details",
 			code: "project_limit_reached",
-			want: "This workspace has reached its plan's project limit.",
+			want: "A free workspace cannot hold more projects. Get in touch if you need more.",
 		},
 		{
 			name: "unknown code falls back to itself so message is always present",

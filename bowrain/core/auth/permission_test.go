@@ -62,7 +62,7 @@ func TestPermissionStrings(t *testing.T) {
 		{"two bits", PermViewContent | PermTranslate, []string{"view_content", "translate"}},
 		{"all", PermAll, []string{
 			"view_content", "edit_source", "translate", "review",
-			"manage_terms", "manage_tm", "run_flows", "manage_files",
+			"manage_terms", "manage_memory", "run_flows", "manage_files",
 			"manage_streams", "manage_connectors", "manage_automation",
 			"manage_members", "manage_project", "manage_voice", "manage_assets",
 			"audit_read", "rollback_changes",
@@ -113,9 +113,21 @@ func TestParsePermission(t *testing.T) {
 
 func TestParsePermissions(t *testing.T) {
 	t.Run("multiple names", func(t *testing.T) {
-		got := ParsePermissions([]string{"translate", "review", "manage_tm"})
+		got := ParsePermissions([]string{"translate", "review", "manage_memory"})
 		want := PermTranslate | PermReview | PermManageMemory
 		assert.Equal(t, want, got)
+	})
+
+	t.Run("retired spelling still parses", func(t *testing.T) {
+		// The bitmask is what role templates and deny rules persist, so the
+		// rename is free in the database and costly on the wire: a client or a
+		// stored request body naming manage_tm must resolve to the same bit.
+		assert.Equal(t, PermManageMemory, ParsePermission("manage_tm"))
+		assert.Equal(t, PermManageMemory, ParsePermissions([]string{"manage_tm"}))
+	})
+
+	t.Run("retired spelling is never emitted", func(t *testing.T) {
+		assert.Equal(t, []string{"manage_memory"}, PermManageMemory.Strings())
 	})
 
 	t.Run("unknown names ignored", func(t *testing.T) {

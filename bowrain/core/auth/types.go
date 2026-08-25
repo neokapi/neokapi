@@ -237,20 +237,40 @@ type RoleTemplate struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// ProjectMembership ties a user to a project with a role template and optional language scope.
+// ProjectMembership ties a user to a project with a role template, an optional
+// language scope, and an optional region of the project's context space.
 type ProjectMembership struct {
-	ProjectID   string    `json:"project_id"`
-	UserID      string    `json:"user_id"`
-	RoleID      string    `json:"role_id"`
-	WorkspaceID string    `json:"workspace_id"`
-	Languages   []string  `json:"languages"`
-	CreatedAt   time.Time `json:"created_at"`
+	ProjectID   string   `json:"project_id"`
+	UserID      string   `json:"user_id"`
+	RoleID      string   `json:"role_id"`
+	WorkspaceID string   `json:"workspace_id"`
+	Languages   []string `json:"languages"`
+	// Coordinates is the region this membership governs — a partial point, empty
+	// meaning the whole space. Combined with a coordinate-scoped permission it is
+	// what makes the holder a custodian of that region rather than of everything.
+	Coordinates CoordinateFilter `json:"coordinates,omitempty"`
+	// BilledToWorkspaceID names the workspace that pays for this membership when
+	// it is a custodian seat. It is always WorkspaceID today and is not exposed:
+	// a member governs content in the workspace they belong to, so the two cannot
+	// differ yet.
+	//
+	// It exists now because the case that separates them — an agency custodian
+	// governing a client's point, billed to the agency — is the one part of
+	// workspace-crossing custody that is expensive to retrofit, since it reaches
+	// the seat count every plan is priced on. Everything else about that case is
+	// deliberately undesigned.
+	BilledToWorkspaceID string    `json:"-"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // ResolvedPermission is the effective permissions for a user in a project context.
 type ResolvedPermission struct {
 	Permissions Permission `json:"permissions"`
 	Languages   []string   `json:"languages"` // empty = all languages
+	// Coordinates is the union of the regions the user's grants cover on this
+	// project — empty meaning the whole space. Two narrow memberships add up
+	// rather than cancelling out.
+	Coordinates CoordinateReach `json:"coordinates,omitempty"`
 }
 
 // Group is a named set of users within a workspace that can be bound to project
@@ -265,15 +285,20 @@ type Group struct {
 }
 
 // GroupRoleBinding binds a group to a role template on a project, optionally
-// scoped to specific languages.
+// scoped to specific languages and to a region of the context space.
 type GroupRoleBinding struct {
-	ID          string    `json:"id"`
-	GroupID     string    `json:"group_id"`
-	WorkspaceID string    `json:"workspace_id"`
-	ProjectID   string    `json:"project_id"`
-	RoleID      string    `json:"role_id"`
-	Languages   []string  `json:"languages"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string   `json:"id"`
+	GroupID     string   `json:"group_id"`
+	WorkspaceID string   `json:"workspace_id"`
+	ProjectID   string   `json:"project_id"`
+	RoleID      string   `json:"role_id"`
+	Languages   []string `json:"languages"`
+	// Coordinates scopes the binding the way ProjectMembership.Coordinates scopes
+	// a direct membership. It is carried here too because permission resolution
+	// unions both sources: without it, a group binding would hand out
+	// unconstrained custody through a door the direct grant had closed.
+	Coordinates CoordinateFilter `json:"coordinates,omitempty"`
+	CreatedAt   time.Time        `json:"created_at"`
 }
 
 // DenySubjectType identifies what a deny rule applies to.

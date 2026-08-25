@@ -59,7 +59,7 @@ describe("parseAppError(ApiError) — the central code → copy map", () => {
   it("project_limit_reached reads as actionable copy with the reference", () => {
     const parsed = parseAppError(apiErrorFromResponse(403, limitBody, null));
     expect(parsed.title).toBe("This workspace's plan allows 1 project and already has 1");
-    expect(parsed.hint).toBe("Create a new workspace, choose another, or upgrade the plan.");
+    expect(parsed.hint).toBe("Create a new workspace, choose another, or get in touch.");
     expect(parsed.reference).toBe("req-abc-123");
     expect(parsed.status).toBe(403);
   });
@@ -69,7 +69,7 @@ describe("parseAppError(ApiError) — the central code → copy map", () => {
       apiErrorFromResponse(403, '{"current":5,"error":"project_limit_reached","limit":3}'),
     );
     expect(parsed.title).toBe("This workspace's plan allows 3 projects and already has 5");
-    expect(parsed.hint).toBe("Create a new workspace, choose another, or upgrade the plan.");
+    expect(parsed.hint).toBe("Create a new workspace, choose another, or get in touch.");
     expect(parsed.reference).toBeUndefined();
   });
 

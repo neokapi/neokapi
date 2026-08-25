@@ -82,11 +82,14 @@ const CODE_PHRASES: Record<string, Phrase> = {
 const ENVELOPE_CODE_PHRASES: Record<string, (obj: Record<string, unknown>) => Phrase> = {
   project_limit_reached: (obj) => ({
     title: limitTitle("project", obj),
-    hint: "Create a new workspace, choose another, or upgrade the plan.",
+    // A free workspace's project ceiling guards against scripted signups
+    // rather than metering anything, so the hint does not sell an upgrade —
+    // no paid plan lists a project count.
+    hint: "Create a new workspace, choose another, or get in touch.",
   }),
-  seat_limit_reached: (obj) => ({
-    title: limitTitle("seat", obj),
-    hint: "Remove a member, or upgrade the plan for more seats.",
+  custodian_limit_reached: (obj) => ({
+    title: limitTitle("custodian", obj),
+    hint: "A custodian governs a brand, product or channel. Every other member is free — add them without a custodian's region, or upgrade for another custodian.",
   }),
   upgrade_required: (obj) => ({
     title: "This feature is not included in the workspace's current plan",

@@ -89,6 +89,18 @@ export const populatedProfiles: ContextProfilesResponse = {
         findings: 23,
         last_checked_at: "2026-06-13T09:12:00Z",
       },
+      custody: {
+        covered: true,
+        custodians: [
+          {
+            user_id: "u-mira",
+            name: "Mira Halvorsen",
+            scope: "channel=docs,product=bowrain",
+            project_id: "p-docs",
+          },
+        ],
+        fallback: [{ user_id: "u-owner", name: "Workspace owner", project_id: "p-docs" }],
+      },
     },
     {
       slug: "channel~app.product~bowrain",
@@ -110,6 +122,12 @@ export const populatedProfiles: ContextProfilesResponse = {
         },
       ],
       pending_changes: 0,
+      // A point nobody holds: reported, never blocked.
+      custody: {
+        covered: false,
+        custodians: [],
+        fallback: [{ user_id: "u-owner", name: "Workspace owner", project_id: "p-app" }],
+      },
     },
     {
       slug: "voice~v-support",

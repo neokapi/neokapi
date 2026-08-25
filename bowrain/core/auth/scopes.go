@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -27,17 +28,30 @@ const (
 // ResolvedScope is the result of parsing a single scope string.
 type ResolvedScope struct {
 	Action      ScopeAction
-	Permissions Permission // bitmask
-	Languages   []string   // empty = all
-	ProjectID   string     // empty = all projects
+	Permissions Permission       // bitmask
+	Languages   []string         // empty = all
+	ProjectID   string           // empty = all projects
+	Coordinates CoordinateFilter // empty = the whole context space
 }
 
 // ResolvedScopes is the combined result of parsing all scopes on a token.
 type ResolvedScopes struct {
-	Permissions  Permission // union of all scope permissions
-	Languages    []string   // intersection of language constraints (empty = all)
-	ProjectIDs   []string   // allowed projects (empty = all)
-	IsFullAccess bool       // true if "*" scope present
+	Permissions Permission // union of all scope permissions
+	// Languages is the union of the languages the token's scopes name, sorted.
+	// Empty means all, which happens only when no scope named one.
+	//
+	// It used to INTERSECT, which widened rather than narrowed: two disjoint
+	// scopes — "translate:fr" and "review:de" — intersected to the empty set,
+	// and empty means *all*, so a token granted two specific locales came out
+	// able to act in every one. Permissions and Coordinates both union; this now
+	// matches them.
+	Languages  []string
+	ProjectIDs []string // allowed projects (empty = all)
+	// Coordinates is the union of the regions the token's scopes name — a token
+	// holding two regions holds both. Empty means the whole space, which happens
+	// only when no scope named a region.
+	Coordinates  CoordinateReach
+	IsFullAccess bool // true if "*" scope present
 }
 
 // actionPermissions maps a ScopeAction to its Permission bitmask.
@@ -77,10 +91,43 @@ func actionPermissions(action ScopeAction) Permission {
 //	"admin"                            → all permissions
 //	"project:proj-123:translate"       → project-scoped
 //	"project:proj-123:translate:fr,de" → project-scoped + language constraint
+//
+// Any of these may carry a region of the context space after an "@":
+//
+//	"review:de@brand=acme"                          German, acme content only
+//	"project:p-7:manage@brand=acme,channel=support" one region, full powers in it
+//	"contribute@brand=acme"                         a machine that may only propose into acme
+//
+// The region goes behind an "@" rather than in a fifth colon-separated segment
+// because the grammar is positional: a fifth field would be unreadable at a
+// glance and ambiguous against the language list it follows.
+//
+// The last example is the point of carrying regions on tokens at all. A pipeline
+// that pushes one brand's content structurally cannot propose into another —
+// the same separation-of-duties argument ScopeContribute already makes about
+// approval, extended one axis.
 func ParseScope(s string) (ResolvedScope, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ResolvedScope{}, errors.New("empty scope string")
+	}
+
+	// Split the region off before anything positional is parsed, so an "@" can
+	// never be mistaken for part of a project ID or a language tag.
+	var coords CoordinateFilter
+	if base, region, found := strings.Cut(s, "@"); found {
+		parsed, err := ParseCoordinateFilter(region)
+		if err != nil {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: %w", s, err)
+		}
+		if parsed.Unconstrained() {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: empty coordinate filter after '@'", s)
+		}
+		coords = parsed
+		s = strings.TrimSpace(base)
+		if s == "" {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: coordinate filter without an action", s)
+		}
 	}
 
 	// Handle wildcard.
@@ -88,6 +135,7 @@ func ParseScope(s string) (ResolvedScope, error) {
 		return ResolvedScope{
 			Action:      ScopeAll,
 			Permissions: actionPermissions(ScopeAll),
+			Coordinates: coords,
 		}, nil
 	}
 
@@ -133,6 +181,7 @@ func ParseScope(s string) (ResolvedScope, error) {
 		Permissions: perms,
 		Languages:   languages,
 		ProjectID:   projectID,
+		Coordinates: coords,
 	}, nil
 }
 
@@ -184,10 +233,7 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 
 	result := &ResolvedScopes{}
 	projectSet := map[string]struct{}{}
-	allLanguages := true // track whether all scopes are unconstrained
-
-	// For language intersection: collect per-scope language sets.
-	var langSets []map[string]struct{}
+	langSet := map[string]struct{}{}
 
 	for _, s := range scopes {
 		resolved, err := ParseScope(s)
@@ -198,7 +244,11 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 		// Union permissions.
 		result.Permissions |= resolved.Permissions
 
-		if resolved.Action == ScopeAll {
+		// "*" is full access only when it is also unbounded in space. "*@brand=acme"
+		// grants every permission inside one region, and marking that full access
+		// would hand it the whole space: IsFullAccess makes ScopeRestrictionMiddleware
+		// skip narrowing altogether, so the region would be dropped rather than applied.
+		if resolved.Action == ScopeAll && resolved.Coordinates.Unconstrained() {
 			result.IsFullAccess = true
 		}
 
@@ -207,31 +257,37 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 			projectSet[resolved.ProjectID] = struct{}{}
 		}
 
-		// Track languages.
-		if len(resolved.Languages) > 0 {
-			allLanguages = false
-			set := make(map[string]struct{}, len(resolved.Languages))
-			for _, l := range resolved.Languages {
-				set[l] = struct{}{}
-			}
-			langSets = append(langSets, set)
+		// A constraint a scope names is added; a scope that names none adds
+		// nothing. See the note below on why silence does not widen.
+		for _, l := range resolved.Languages {
+			langSet[l] = struct{}{}
+		}
+		if !resolved.Coordinates.Unconstrained() {
+			result.Coordinates = result.Coordinates.Add(resolved.Coordinates)
 		}
 	}
 
-	// Compute language intersection. If any scope has no language constraint,
-	// then languages are unrestricted (empty = all).
-	if !allLanguages && len(langSets) > 0 {
-		intersection := langSets[0]
-		for _, set := range langSets[1:] {
-			for lang := range intersection {
-				if _, ok := set[lang]; !ok {
-					delete(intersection, lang)
-				}
-			}
-		}
-		for lang := range intersection {
-			result.Languages = append(result.Languages, lang)
-		}
+	// Constraints UNION across scopes, and a scope that names none contributes
+	// nothing rather than opening everything. The whole token is unconstrained
+	// only when no scope named a constraint at all.
+	//
+	// Union is what fixes the widening bug: languages used to INTERSECT, so
+	// "translate:fr" plus "review:de" intersected to the empty set — and empty
+	// means *all* — handing every language to a token granted two.
+	//
+	// Silence not widening is the other half, and it is the fail-closed choice.
+	// "translate:fr" plus "review" cannot be expressed exactly by one flattened
+	// language list, so one of the two acts is misrepresented either way. Taking
+	// ["fr"] under-grants review; taking "all" over-grants translate. On an
+	// authorization surface the first is the safe direction, and it is also what
+	// this returned before.
+	result.Languages = make([]string, 0, len(langSet))
+	for lang := range langSet {
+		result.Languages = append(result.Languages, lang)
+	}
+	sort.Strings(result.Languages) // stable for logs, audit lines and tests
+	if len(result.Languages) == 0 {
+		result.Languages = nil
 	}
 
 	// Collect project IDs.
@@ -244,6 +300,7 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 		result.Permissions = PermAll
 		result.Languages = nil
 		result.ProjectIDs = nil
+		result.Coordinates = nil
 	}
 
 	return result, nil

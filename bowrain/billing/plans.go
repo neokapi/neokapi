@@ -78,13 +78,72 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 	},
 }
 
-// PlanLimits defines numeric limits per plan.
-// A value of -1 means unlimited.
+// PlanLimits defines numeric limits per plan. A value of -1 means unlimited.
+//
+// What is metered, and what deliberately is not:
+//
+//   - **Custodians** are the paid role: someone who may author what governs
+//     content — voice, terms — over a bounded region. Free carries none, and the
+//     trial is how a workspace tries the role (SetupTrial puts a new workspace on
+//     Pro for DefaultTrialDays). The seat's comparison is payroll rather than a
+//     SaaS seat, because it stands in for a review function.
+//   - **Markets and brands** are the base: the scope of custody a workspace
+//     holds. Markets is the headline number, because that is what a buyer
+//     budgets by and expands into most often. Brands is the coarser boundary.
+//   - **Members are not metered at all.** Viewers, contributors and machine
+//     tokens are free and uncapped: the people most worth having in the system
+//     are the ones who notice what no rule caught, and a seat cap is a standing
+//     reason not to invite them. Metering headcount would also earn less exactly
+//     as the product works, since one custodian is meant to govern what several
+//     reviewers could not.
+//   - **Checks are never metered.** Billing verification per run makes customers
+//     verify less, and verification is the whole position. Unlimited on every
+//     plan, including Free.
+//   - **Coordinates are never metered.** A scan proposes axes and a person
+//     approves them; if accepting one cost money, approval would become a budget
+//     decision and true proposals would be rejected. A bill must not make a
+//     customer's model worse. Markets and brands are tier boundaries, not
+//     per-point charges.
+//
+// The numbers here are provisional — nothing in this category prices on custody,
+// so they are guesses until a few deals test them. Tune here, nowhere else; the
+// dollar prices live in Stripe (DECISIONS L4).
+// The limit names, so a typo is a compile error rather than a silent -1.
+const (
+	LimitMaxCustodians = "max-custodians"
+	LimitMaxMarkets    = "max-markets"
+	LimitMaxBrands     = "max-brands"
+)
+
+// FreeProjectAbuseCap bounds how many projects a free workspace may hold.
+//
+// This is an abuse guard, not a meter, and the difference is the reason it
+// lives here rather than in PlanLimits. A meter is something a customer buys
+// more of; nothing about a paid plan says "more projects", and no pricing
+// surface mentions a project count. What this stops is scripted workspace
+// creation burning storage behind an account with no payment instrument — which
+// is also why it applies only to Free. A card is its own abuse control.
+//
+// Keep it out of PlanLimits, PlanInfo and LandingPlan. The moment a project
+// count appears beside markets and brands, customers start contorting their
+// project structure to fit the bill, which is exactly what dropping the old
+// max-projects meter was for.
+const FreeProjectAbuseCap = 3
+
+// ProjectAbuseCap returns the project ceiling for a plan, or -1 for no ceiling.
+// Only Free is bounded; see FreeProjectAbuseCap for why.
+func ProjectAbuseCap(plan Plan) int {
+	if plan == PlanFree {
+		return FreeProjectAbuseCap
+	}
+	return -1
+}
+
 var PlanLimits = map[Plan]map[string]int{
-	PlanFree:       {"max-projects": 1, "max-seats": 1},
-	PlanPro:        {"max-projects": 10, "max-seats": 3},
-	PlanTeam:       {"max-projects": -1, "max-seats": -1},
-	PlanEnterprise: {"max-projects": -1, "max-seats": -1},
+	PlanFree:       {"max-custodians": 0, "max-markets": 2, "max-brands": 1},
+	PlanPro:        {"max-custodians": 1, "max-markets": 5, "max-brands": 1},
+	PlanTeam:       {"max-custodians": 5, "max-markets": 25, "max-brands": 3},
+	PlanEnterprise: {"max-custodians": -1, "max-markets": -1, "max-brands": -1},
 }
 
 // Credit allowance tuning knobs. These are the ONLY places the numbers live —
@@ -151,11 +210,17 @@ type PlanInfo struct {
 	ID             Plan   `json:"id"`
 	Name           string `json:"name"`
 	MonthlyCredits int64  `json:"monthly_credits"` // -1 = unlimited, 0 = no recurring allowance
-	MaxProjects    int    `json:"max_projects"`    // -1 = unlimited
-	MaxSeats       int    `json:"max_seats"`       // -1 = unlimited
-	PerSeat        bool   `json:"per_seat"`
-	Purchasable    bool   `json:"purchasable"`
-	Current        bool   `json:"current"`
+	// MaxMarkets is the headline number: how much of the world this plan's
+	// custody covers. -1 = unlimited.
+	MaxMarkets int `json:"max_markets"`
+	// MaxBrands is the coarser boundary. -1 = unlimited.
+	MaxBrands int `json:"max_brands"`
+	// MaxCustodians is how many people may author what governs content over a
+	// bounded region. 0 on Free; -1 = unlimited. Every other member is free.
+	MaxCustodians int  `json:"max_custodians"`
+	PerSeat       bool `json:"per_seat"` // the Stripe quantity is the custodian count
+	Purchasable   bool `json:"purchasable"`
+	Current       bool `json:"current"`
 }
 
 // DescribePlan builds the client-facing description of a plan. purchasable is
@@ -166,8 +231,9 @@ func DescribePlan(plan Plan, purchasable, current bool) PlanInfo {
 		ID:             plan,
 		Name:           PlanDisplayNames[plan],
 		MonthlyCredits: CreditsForPlan(plan),
-		MaxProjects:    GetLimit(plan, "max-projects"),
-		MaxSeats:       GetLimit(plan, "max-seats"),
+		MaxMarkets:     GetLimit(plan, LimitMaxMarkets),
+		MaxBrands:      GetLimit(plan, LimitMaxBrands),
+		MaxCustodians:  GetLimit(plan, LimitMaxCustodians),
 		PerSeat:        PerSeatPlans[plan],
 		Purchasable:    purchasable,
 		Current:        current,

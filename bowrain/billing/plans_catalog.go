@@ -14,8 +14,9 @@ type LandingPlan struct {
 	ID             Plan   `json:"id"`
 	Name           string `json:"name"`
 	MonthlyCredits int64  `json:"monthlyCredits"` // -1 = unlimited, 0 = no recurring allowance
-	MaxProjects    int    `json:"maxProjects"`    // -1 = unlimited
-	MaxSeats       int    `json:"maxSeats"`       // -1 = unlimited
+	MaxMarkets     int    `json:"maxMarkets"`     // -1 = unlimited
+	MaxBrands      int    `json:"maxBrands"`      // -1 = unlimited
+	MaxCustodians  int    `json:"maxCustodians"`  // 0 on Free, -1 = unlimited
 	PerSeat        bool   `json:"perSeat"`
 	SelfServe      bool   `json:"selfServe"`
 }
@@ -45,8 +46,9 @@ func BuildLandingPlanCatalog() LandingPlanCatalog {
 			ID:             p,
 			Name:           PlanDisplayNames[p],
 			MonthlyCredits: CreditsForPlan(p),
-			MaxProjects:    GetLimit(p, "max-projects"),
-			MaxSeats:       GetLimit(p, "max-seats"),
+			MaxMarkets:     GetLimit(p, LimitMaxMarkets),
+			MaxBrands:      GetLimit(p, LimitMaxBrands),
+			MaxCustodians:  GetLimit(p, LimitMaxCustodians),
 			PerSeat:        PerSeatPlans[p],
 			SelfServe:      selfServe[p],
 		})

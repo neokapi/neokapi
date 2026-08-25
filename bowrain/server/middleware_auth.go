@@ -539,8 +539,23 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				}
 			}
 
+			// 5. Custodial authority lapses when the workspace's plan carries no
+			// custodian seats — the state a lapsed trial leaves behind. Nothing
+			// is deleted: the voice, terms, rules and coordinates stay exactly as
+			// they are, and the authority returns the moment a plan does.
+			//
+			// Only BOUNDED custody lapses. Blanket authority — the workspace
+			// owner — is untouched, so an expired workspace can still approve its
+			// own work rather than being bricked by its billing state.
+			if plan, _ := c.Get("workspace_plan").(string); custodialAuthoritySuspended(plan) &&
+				platauth.IsCustodian(perms, resolved.Coordinates) {
+				perms &^= platauth.CustodialPermissions
+				s.recordCustodyLapse(c, resolved.Coordinates)
+			}
+
 			c.Set("project_permissions", perms)
 			c.Set("project_languages", resolved.Languages)
+			c.Set("project_coordinates", resolved.Coordinates)
 
 			// Enrich the change context with the actor's workspace role so
 			// block_history records who-with-what-role made each edit.
@@ -653,6 +668,11 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 	return deny(c, "no access to language: "+locale)
 }
 
+// unreachableAxis names a region no content can occupy. It is how an empty
+// intersection is carried: a reach narrowed to nothing must keep saying
+// "nowhere", where an empty CoordinateReach says "everywhere".
+const unreachableAxis = "\x00unreachable"
+
 // hasPermission is requirePermission as a predicate: it answers the same
 // question without writing a 403 or recording a denial.
 func hasPermission(c echo.Context, perm platauth.Permission) bool {
@@ -670,6 +690,13 @@ func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) boo
 	}
 	languages, _ := c.Get("project_languages").([]string)
 	return len(languages) == 0 || slices.Contains(languages, locale)
+}
+
+// callerReach is the caller's custody on this request, for the surfaces that
+// report custody rather than enforce it.
+func callerReach(c echo.Context) platauth.CoordinateReach {
+	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+	return reach
 }
 
 // ScopeRestrictionMiddleware narrows project_permissions based on API token scopes.
@@ -704,6 +731,20 @@ func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 				} else {
 					c.Set("project_languages", intersectStrings(existing, resolved.Languages))
 				}
+			}
+
+			// Narrow the region the same way. A token scoped to one brand cannot
+			// widen the membership it authenticates as, and where the two name
+			// disjoint regions the caller reaches nowhere — carried as a single
+			// impossible filter rather than as an empty reach, which everything
+			// downstream would read as "everywhere".
+			if !resolved.Coordinates.Unconstrained() {
+				existing, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+				narrowed, anywhere := existing.Intersect(resolved.Coordinates)
+				if !anywhere {
+					narrowed = platauth.CoordinateReach{platauth.CoordinateFilter{unreachableAxis: "1"}}
+				}
+				c.Set("project_coordinates", narrowed)
 			}
 
 			return next(c)
