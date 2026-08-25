@@ -1,11 +1,22 @@
 import { Badge, Card, cn } from "@neokapi/ui-primitives";
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
-import type { ContextProfile } from "../../types/context-profiles";
+import type { ContextProfile, ContextProfileCustodian } from "../../types/context-profiles";
 import { CoordinateReadout } from "./Coordinates";
-import { BookOpen, Folder, Palette, ShieldCheck } from "../../components/icons";
+import { BookOpen, Folder, Palette, ShieldCheck, Users } from "../../components/icons";
 
 /** How many collections a card names before it counts the rest. */
 const NAMED_COLLECTIONS = 3;
+
+/** How many custodians a card names before it counts the rest. */
+const NAMED_CUSTODIANS = 2;
+
+/** Names the first few custodians, falling back to the id when we hold no name. */
+function custodianNames(custodians: ContextProfileCustodian[]): string {
+  return custodians
+    .slice(0, NAMED_CUSTODIANS)
+    .map((c) => c.name || c.email || c.user_id)
+    .join(", ");
+}
 
 export interface ProfileCardProps {
   profile: ContextProfile;
@@ -126,6 +137,34 @@ export function ProfileCard({ profile, conceptCount, onSelect, className }: Prof
             <span className="text-muted-foreground">Not checked yet</span>
           )}
         </div>
+
+        {profile.custody && (
+          <div className="flex items-center gap-2">
+            <Users className="size-3.5 shrink-0 text-muted-foreground" />
+            {profile.custody.covered ? (
+              <span className="truncate text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {custodianNames(profile.custody.custodians)}
+                </span>
+                {profile.custody.custodians.length > NAMED_CUSTODIANS && (
+                  <span className="opacity-60">
+                    {` +${profile.custody.custodians.length - NAMED_CUSTODIANS}`}
+                  </span>
+                )}
+              </span>
+            ) : (
+              // Reported, never blocked: an ungoverned point is an org-chart gap
+              // rather than a content defect, so this reads as a fact about the
+              // workspace and not as a failure.
+              <span className="truncate text-muted-foreground">
+                Nobody holds this point
+                {(profile.custody.fallback?.length ?? 0) > 0 && (
+                  <span className="opacity-60"> · falls back to the workspace owner</span>
+                )}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <Folder className="size-3.5 shrink-0 text-muted-foreground" />

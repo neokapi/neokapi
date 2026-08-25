@@ -50,6 +50,35 @@ export interface ContextProfileChecks {
   last_checked_at?: string;
 }
 
+/** One person holding a point. */
+export interface ContextProfileCustodian {
+  user_id: string;
+  name?: string;
+  email?: string;
+  /** The region their membership names; empty when their authority is unbounded. */
+  scope?: string;
+  /** The membership granting the custody — a person can hold a point via several. */
+  project_id: string;
+}
+
+/**
+ * Who governs one point.
+ *
+ * `covered` asks whether anyone holds this point *specifically*. Blanket
+ * authority does not make a point covered: the question is which content has
+ * nobody who knows it, and an owner who can approve everything is the fallback
+ * rather than the answer.
+ *
+ * This reports and never blocks. An ungoverned point is an org-chart gap, not a
+ * content defect.
+ */
+export interface ContextProfileCustody {
+  covered: boolean;
+  custodians: ContextProfileCustodian[];
+  /** People who can act here only because their authority is unbounded. */
+  fallback?: ContextProfileCustodian[];
+}
+
 export interface ContextProfile {
   /** URL id: "default", `axis~value` pairs joined by ".", or `voice~<id>`. */
   slug: string;
@@ -73,6 +102,9 @@ export interface ContextProfile {
   /** The stored checks that resolved through this profile's voice. Absent when
    *  nothing here has been checked. */
   checks?: ContextProfileChecks;
+  /** Who governs this point. Absent for a voice bound to no point, which is not
+   *  a place and therefore cannot be uncovered. */
+  custody?: ContextProfileCustody;
 }
 
 /** The vocabulary every profile shares. */

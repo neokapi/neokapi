@@ -109,6 +109,9 @@ type ContextProfile struct {
 	// Checks is the standing of the stored voice checks that resolved through
 	// this profile's voice. Nil when nothing here has been checked.
 	Checks *ContextProfileChecks `json:"checks,omitempty"`
+	// Custody is who governs this point. Nil for a voice bound to no point,
+	// which is not a place and therefore cannot be uncovered.
+	Custody *ContextProfileCustody `json:"custody,omitempty"`
 
 	// voiceID is the bound profile id read off the collections, resolved into
 	// Voice before the response is written.
@@ -199,6 +202,7 @@ func (s *Server) HandleListContextProfiles(c echo.Context) error {
 	resp.Profiles = append(resp.Profiles, unboundVoiceProfiles(voices, points.boundVoiceIDs)...)
 	s.countPendingVoiceChanges(ctx, wsID, resp.Profiles)
 	s.attachCheckStanding(ctx, projects, wsID, resp.Profiles)
+	s.attachCustody(ctx, wsID, projects, resp.Profiles)
 	return c.JSON(http.StatusOK, resp)
 }
 
