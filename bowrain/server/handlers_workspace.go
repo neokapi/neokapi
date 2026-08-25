@@ -530,10 +530,33 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
-	// No project cap. A project is a container, not value: customers split and
-	// merge them for tooling reasons, so metering one only made them contort
-	// their structure to fit the bill. What a plan bounds is the scope of custody
-	// — markets and brands — and how many custodians hold it.
+	// A project is a container, not value: customers split and merge them for
+	// tooling reasons, so metering one only made them contort their structure to
+	// fit the bill. What a plan bounds is the scope of custody — markets and
+	// brands — and how many custodians hold it.
+	//
+	// What survives is an abuse guard on Free, which is a different argument: a
+	// workspace with no payment instrument can be created by script, and each one
+	// holds storage. It is deliberately not a plan limit and appears on no
+	// pricing surface. See billing.ProjectAbuseCap.
+	plan, _ := c.Get("workspace_plan").(string)
+	if cap := billing.ProjectAbuseCap(billing.Plan(plan)); cap > 0 {
+		allProjects, err := s.Services.Project.ListProjects(ctx)
+		if err == nil {
+			count := 0
+			for _, existing := range allProjects {
+				if existing.WorkspaceID == workspaceID && !existing.Archived {
+					count++
+				}
+			}
+			if count >= cap {
+				return apiErr(c, http.StatusForbidden, "project_limit_reached", map[string]any{
+					"current": count,
+					"limit":   cap,
+				})
+			}
+		}
+	}
 
 	p := &store.Project{
 		Name:                  req.Name,

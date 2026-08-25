@@ -264,23 +264,15 @@ func TestGrantCannotExceedTheGrantorsCustody(t *testing.T) {
 	})
 }
 
-func TestNoSeatOrProjectCap(t *testing.T) {
+func TestMembersAreNeverCapped(t *testing.T) {
 	srv, jwt, wsSlug, wsID, _ := newProjectMembersTestServer(t)
 	e := srv.GetEcho()
 	ctx := t.Context()
 
-	// Free used to allow one project and one seat. Neither is metered now.
+	// Free used to allow one seat. Members are free and uncapped on every plan
+	// now: the people worth having in the system are the ones who notice what no
+	// rule caught, and a seat cap is a standing reason not to invite them.
 	setPlan(t, srv, wsID, billing.PlanFree)
-
-	for i := range 3 {
-		body := `{"name":"Project ` + string(rune('A'+i)) + `","default_source_language":"en","target_languages":["fr"]}`
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/projects", strings.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+jwt)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusCreated, rec.Code, "project %d: %s", i, rec.Body.String())
-	}
 
 	for _, email := range []string{"m1@example.com", "m2@example.com", "m3@example.com"} {
 		u := &platauth.User{Email: email, Name: email}
@@ -295,4 +287,68 @@ func TestNoSeatOrProjectCap(t *testing.T) {
 		e.ServeHTTP(rec, req)
 		require.Less(t, rec.Code, http.StatusBadRequest, "member %s: %s", email, rec.Body.String())
 	}
+}
+
+func TestFreeProjectsAreGuardedNotMetered(t *testing.T) {
+	srv, jwt, wsSlug, wsID, _ := newProjectMembersTestServer(t)
+	e := srv.GetEcho()
+
+	create := func(name string) *httptest.ResponseRecorder {
+		body := `{"name":"` + name + `","default_source_language":"en","target_languages":["fr"]}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/projects", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+jwt)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec
+	}
+
+	t.Run("free stops at the abuse cap", func(t *testing.T) {
+		setPlan(t, srv, wsID, billing.PlanFree)
+		// The fixture already created one, so the cap is reached partway through.
+		created := 1
+		for i := range billing.FreeProjectAbuseCap + 1 {
+			rec := create("Free " + string(rune('A'+i)))
+			if created >= billing.FreeProjectAbuseCap {
+				require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+				assert.Contains(t, rec.Body.String(), "project_limit_reached")
+				return
+			}
+			require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+			created++
+		}
+		t.Fatalf("the abuse cap never engaged")
+	})
+
+	t.Run("a paid plan is not bounded", func(t *testing.T) {
+		// Projects are not a meter: no paid plan sells more of them, and a card
+		// is its own abuse control.
+		setPlan(t, srv, wsID, billing.PlanPro)
+		for i := range 4 {
+			rec := create("Pro " + string(rune('A'+i)))
+			require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestProjectCapIsNotAPlanFeature(t *testing.T) {
+	t.Parallel()
+
+	// The guard must never surface as a plan limit. The moment a project count
+	// appears beside markets and brands, customers contort their structure to
+	// fit the bill — the thing dropping the old meter was for.
+	for _, p := range []billing.Plan{billing.PlanFree, billing.PlanPro, billing.PlanTeam, billing.PlanEnterprise} {
+		assert.Equal(t, -1, billing.GetLimit(p, "max-projects"), "plan %s", p)
+		info := billing.DescribePlan(p, false, false)
+		assert.NotContains(t, planInfoJSON(t, info), "project")
+	}
+	assert.Equal(t, billing.FreeProjectAbuseCap, billing.ProjectAbuseCap(billing.PlanFree))
+	assert.Equal(t, -1, billing.ProjectAbuseCap(billing.PlanPro))
+}
+
+func planInfoJSON(t *testing.T, info billing.PlanInfo) string {
+	t.Helper()
+	b, err := json.Marshal(info)
+	require.NoError(t, err)
+	return string(b)
 }

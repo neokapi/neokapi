@@ -115,6 +115,30 @@ const (
 	LimitMaxBrands     = "max-brands"
 )
 
+// FreeProjectAbuseCap bounds how many projects a free workspace may hold.
+//
+// This is an abuse guard, not a meter, and the difference is the reason it
+// lives here rather than in PlanLimits. A meter is something a customer buys
+// more of; nothing about a paid plan says "more projects", and no pricing
+// surface mentions a project count. What this stops is scripted workspace
+// creation burning storage behind an account with no payment instrument — which
+// is also why it applies only to Free. A card is its own abuse control.
+//
+// Keep it out of PlanLimits, PlanInfo and LandingPlan. The moment a project
+// count appears beside markets and brands, customers start contorting their
+// project structure to fit the bill, which is exactly what dropping the old
+// max-projects meter was for.
+const FreeProjectAbuseCap = 3
+
+// ProjectAbuseCap returns the project ceiling for a plan, or -1 for no ceiling.
+// Only Free is bounded; see FreeProjectAbuseCap for why.
+func ProjectAbuseCap(plan Plan) int {
+	if plan == PlanFree {
+		return FreeProjectAbuseCap
+	}
+	return -1
+}
+
 var PlanLimits = map[Plan]map[string]int{
 	PlanFree:       {"max-custodians": 0, "max-markets": 2, "max-brands": 1},
 	PlanPro:        {"max-custodians": 1, "max-markets": 5, "max-brands": 1},
