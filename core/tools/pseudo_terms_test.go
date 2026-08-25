@@ -140,3 +140,29 @@ func TestNoTermRulesLeavesEverythingTranslatable(t *testing.T) {
 	require.Len(t, runs, 1)
 	assert.False(t, runs[0].Text.NoTranslate)
 }
+
+// A do-not-translate term is a string, and a string has no senses. "Okapi"
+// names the upstream Java framework here and also an animal, and the matcher
+// protects both — which is right for this project, where every occurrence is
+// the framework, and is the thing to weigh before declaring a term that is also
+// an ordinary word. The concept's definition is where the intended sense is
+// recorded.
+func TestProtectTermsCannotTellSensesApart(t *testing.T) {
+	terms := dntTerms(&PseudoConfig{TermRules: dntRules("Okapi", "okapi-bridge")})
+
+	// The framework, and the common noun beside it that should still translate.
+	runs := protectTerms("the Okapi Framework", terms)
+	got, rest := protectedText(runs)
+	assert.Equal(t, []string{"Okapi"}, got)
+	assert.Equal(t, []string{"the ", " Framework"}, rest)
+
+	// Longest first: the bridge keeps its second half.
+	runs = protectTerms("through okapi-bridge", terms)
+	got, _ = protectedText(runs)
+	assert.Equal(t, []string{"okapi-bridge"}, got)
+
+	// And the animal is protected too, for want of a way to tell.
+	runs = protectTerms("The okapi is a forest giraffe", terms)
+	got, _ = protectedText(runs)
+	assert.Equal(t, []string{"okapi"}, got)
+}
