@@ -7,12 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -79,6 +83,12 @@ type PseudoConfig struct {
 	Prefix           string         `json:"prefix,omitempty"           schema:"title=Prefix,description=Characters prepended before each translated block"`
 	Suffix           string         `json:"suffix,omitempty"           schema:"title=Suffix,description=Characters appended after each translated block"`
 	TargetLocale     model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
+	// TermRules is the project's terminology, the same key and shape every
+	// governed step takes. Only the do-not-translate rules are read here: a
+	// product name has to come through the probe intact, or every string that
+	// mentions one reads as a bug. A rule with a replacement is a translation
+	// decision and has nothing to say about a locale that is not a language.
+	TermRules []profile.TermRule `json:"term_rules,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -90,6 +100,7 @@ func (c *PseudoConfig) Reset() {
 	c.Prefix = "\u2592 "
 	c.Suffix = " \u2592"
 	c.TargetLocale = ""
+	c.TermRules = nil
 }
 
 // Validate checks configuration validity.
@@ -177,7 +188,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		if len(runs) == 0 {
 			return nil
 		}
-		if runsHaveInline(runs) {
+		if shouldWalkRuns(runs, cfg) {
 			targetRuns := pseudoTranslateRuns(runs, cfg)
 			v.SetTargetRuns(cfg.TargetLocale, targetRuns)
 		} else {
@@ -213,7 +224,7 @@ func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 	if len(runs) == 0 {
 		return part, nil
 	}
-	if runsHaveInline(runs) {
+	if shouldWalkRuns(runs, conf) {
 		// Pseudo-translate text runs in place, leaving paired
 		// codes and placeholders untouched (inline markup is
 		// protected).
@@ -427,6 +438,22 @@ func isImageMedia(m *model.Media) bool {
 // non-text run (placeholder, paired code, subblock reference, or
 // structured plural/select construct). Used by pseudo-translate to
 // pick between the text-only fast path and the Run-walker path.
+// shouldWalkRuns reports whether a block has to go through the run walk instead
+// of the shortcut that flattens it to one string.
+//
+// The walk is the capable route: it is the only one that can leave part of a
+// block alone. Flattening is an optimization for a block with nothing to
+// preserve, and a project that declares do-not-translate terms has something to
+// preserve in any sentence that might name one.
+//
+// It lives in one function because the decision is made in two places — the
+// tool's Produce and its streaming block handler — and they disagreed: a
+// heading naming the product came out mangled while the same name in a
+// paragraph beside a code span survived.
+func shouldWalkRuns(runs []model.Run, cfg *PseudoConfig) bool {
+	return runsHaveInline(runs) || len(dntTerms(cfg)) > 0
+}
+
 func runsHaveInline(runs []model.Run) bool {
 	for _, r := range runs {
 		if r.Text == nil {
@@ -474,9 +501,20 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 			// flag and all, so the writer puts back what it read.
 			out = append(out, model.Run{Text: &model.TextRun{Text: r.Text.Text, NoTranslate: true}})
 		case r.Text != nil:
-			accented := accentTransform(r.Text.Text)
-			totalTextRunes += len([]rune(accented))
-			out = append(out, model.TextR(accented))
+			// A do-not-translate term inside otherwise ordinary prose splits the
+			// run: the product name comes through as itself, the sentence
+			// around it is accented. Protected text is left out of the
+			// expansion count for the same reason the flagged runs above are —
+			// it is not going to grow in a real translation.
+			for _, piece := range protectTerms(r.Text.Text, dntTerms(cfg)) {
+				if piece.Text.NoTranslate {
+					out = append(out, piece)
+					continue
+				}
+				accented := accentTransform(piece.Text.Text)
+				totalTextRunes += len([]rune(accented))
+				out = append(out, model.TextR(accented))
+			}
 		case r.Plural != nil:
 			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
 			for k, v := range r.Plural.Forms {
@@ -596,4 +634,94 @@ func accentTransform(text string) string {
 // the caller asked for empty.
 func effectiveWrap(cfg *PseudoConfig) (string, string) {
 	return cfg.Prefix, cfg.Suffix
+}
+
+// dntTerms collects the do-not-translate strings from the project's term rules,
+// longest first so a term that contains another is matched whole: "neokapi"
+// before "kapi", or the probe would protect four letters of it and mangle the
+// rest.
+func dntTerms(cfg *PseudoConfig) []string {
+	if cfg == nil || len(cfg.TermRules) == 0 {
+		return nil
+	}
+	var out []string
+	for _, rule := range cfg.TermRules {
+		if rule.DoNotTranslate && rule.Term != "" {
+			out = append(out, rule.Term)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return len(out[i]) > len(out[j]) })
+	return out
+}
+
+// protectTerms splits text around every do-not-translate term it contains,
+// marking each match so the accent pass leaves it alone.
+//
+// Matching is case-insensitive and the source's own casing is kept. The docs
+// navbar writes "Kapi" and the prose writes "kapi"; both name the product, and
+// a probe that mangles one of them reports a bug that is not there. Whether the
+// capital is the right one is a vocabulary question, and term-check answers it.
+//
+// A match must be a whole word, so a longer word that merely starts with a
+// product name is still ordinary prose.
+func protectTerms(text string, terms []string) []model.Run {
+	if text == "" || len(terms) == 0 {
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
+	}
+	lower := strings.ToLower(text)
+
+	var runs []model.Run
+	add := func(s string, dnt bool) {
+		if s == "" {
+			return
+		}
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: s, NoTranslate: dnt}})
+	}
+
+	cursor := 0
+	for i := 0; i < len(text); {
+		matched := 0
+		for _, term := range terms {
+			if !strings.HasPrefix(lower[i:], strings.ToLower(term)) {
+				continue
+			}
+			if !boundedAt(text, i, len(term)) {
+				continue
+			}
+			matched = len(term)
+			break
+		}
+		if matched == 0 {
+			i++
+			continue
+		}
+		add(text[cursor:i], false)
+		add(text[i:i+matched], true)
+		i += matched
+		cursor = i
+	}
+	add(text[cursor:], false)
+
+	if len(runs) == 0 {
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
+	}
+	return runs
+}
+
+// boundedAt reports whether the slice of length n at i is a whole word: neither
+// neighbour may be a letter or a digit.
+func boundedAt(text string, i, n int) bool {
+	if i > 0 {
+		r, _ := utf8.DecodeLastRuneInString(text[:i])
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return false
+		}
+	}
+	if i+n < len(text) {
+		r, _ := utf8.DecodeRuneInString(text[i+n:])
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }

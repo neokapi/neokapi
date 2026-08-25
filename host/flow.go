@@ -1850,6 +1850,20 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 		if src == nil || src.Text == "" {
 			continue
 		}
+		// A do-not-translate concept is answered by the source term alone. It
+		// needs no entry for the target: the whole claim is that this string is
+		// the same in every locale, including ones the store has never been
+		// told about. Requiring a target term here is why the pseudo locale saw
+		// no rules at all — nothing in the store speaks qps — and rendered the
+		// product names like ordinary prose.
+		if concept.DoNotTranslate {
+			rules = append(rules, coreprofile.TermRule{
+				Term:           src.Text,
+				ConceptID:      concept.ID,
+				DoNotTranslate: true,
+			})
+			continue
+		}
 		tgt := concept.PreferredTerm(target)
 		if tgt == nil || tgt.Text == "" {
 			continue
@@ -2260,7 +2274,8 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// for itself (a prompt line, a check, a stamped fingerprint), so no tool has
 	// to guess what a caller meant by a bare map.
 	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
-		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
+		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
+		isPseudoTranslateTool(toolName, s)) {
 		if _, ok := config["term_rules"]; !ok {
 			clone()
 			config["term_rules"] = b.termRules
@@ -2296,6 +2311,19 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 // isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
 // which accepts the governing context via config["profile"] and config["term_rules"]
 // to stamp onto the targets it fills.
+// isPseudoTranslateTool reports whether a step is the pseudo-translate tool.
+//
+// It takes the rules for the do-not-translate ones alone: a product name has to
+// survive the probe, or the probe reports a bug in every string that mentions
+// one. Listed here rather than given schema.RequiresTerms, which would make a
+// terms store mandatory for a tool that runs offline with nothing bound.
+func isPseudoTranslateTool(toolName string, s *schema.ComponentSchema) bool {
+	if toolName == "pseudo-translate" {
+		return true
+	}
+	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "pseudo-translate"
+}
+
 func isMemoryRecycleTool(toolName string, s *schema.ComponentSchema) bool {
 	if toolName == "recycle" {
 		return true
