@@ -73,6 +73,17 @@ defaults:
   # compilation, the Docusaurus i18n trees, the demo sidecars), so a run that
   # left them in the store would hand the next stage the previous run's output.
   materialize: on-converge
+  # qps is a demo locale, not a translation: the mangled text IS the signal
+  # that a string went through the machinery, and the ▒ brackets around each
+  # block are scaffolding that reads as noise on a page someone is being shown.
+  # Scoped to qps, so nb and every other locale keep the markers that make a
+  # pseudo run legible in a diff.
+  locales:
+    qps:
+      tools:
+        pseudo-translate:
+          prefix: ""
+          suffix: ""
   # The loop this project runs locally. tm-recycle is exact-match content-memory
   # leverage and nothing else, so a checkout with no credentials converges from
   # the committed context alone and the pass is a deterministic function of

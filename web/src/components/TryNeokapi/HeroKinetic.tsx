@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Check } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
 import styles from "./HeroKinetic.module.css";
 
 // The landing centerpiece: a two-column "kinetic type + live asset" hero driven
@@ -72,18 +73,35 @@ const STRIP: Beat[] = [
 // The verb stack for each phase. `climax` marks the SHIP verb (the one that
 // resolves large + green). For phase 2 the SHIP verb renders as stacked language
 // forms instead of a single word.
-const CONTENT_VERBS = ["Shape", "Write", "Check", "Ship"];
-const MULTI_VERBS = ["Read", "Prep", "Recycle", "Translate", "Check", "Ship"];
+const CONTENT_VERBS = [
+  t("Shape", "content loop verb"),
+  t("Write", "content loop verb"),
+  t("Check", "content loop verb"),
+  t("Ship", "content loop verb"),
+];
+const MULTI_VERBS = [
+  t("Read", "multilingual loop verb"),
+  t("Prep", "multilingual loop verb"),
+  t("Recycle", "multilingual loop verb"),
+  t("Translate", "multilingual loop verb"),
+  t("Check", "multilingual loop verb"),
+  t("Ship", "multilingual loop verb"),
+];
 const SHIP_LANGS = ["出荷", "Versand", "Envío"];
 
 // The brand-guide asset's definition rows (Shape populates these).
 const GUIDE_ROWS = [
-  { k: "Voice", v: "confident, plain" },
-  { k: "Terms", v: "Acme (never ACME)" },
-  { k: "Tone", v: "concise" },
+  // The row KEYS name kapi's own concepts, so they carry the context a
+  // translator needs to keep the vocabulary the docs use.
+  { k: t("Voice", "the voice profile, a kapi concept"), v: t("confident, plain") },
+  { k: t("Terms", "the terms store, a kapi concept"), v: t("Acme (never ACME)") },
+  { k: t("Tone", "a brand-guide row label"), v: t("concise") },
 ];
 // The body content that writes in under Write.
-const BODY_LINES = ["Acme keeps promises simple.", "Say what it does, plainly."];
+const BODY_LINES = [
+  t("Acme keeps promises simple.", "sample brand-guide body"),
+  t("Say what it does, plainly.", "sample brand-guide body"),
+];
 // Cycled asset-type chip label — a subtle nod to breadth (brand guide · deck ·
 // docs) while the concrete example stays a brand guide.
 const ASSET_TYPES = ["brand guide", "deck", "docs"];
@@ -371,7 +389,7 @@ function StaticFrame(): React.ReactElement {
         <KineticStack
           verbs={CONTENT_VERBS}
           active={CONTENT_VERBS.length - 1}
-          climaxLabel="on brand"
+          climaxLabel={t("on brand", "the seal stamped when content passes")}
         />
       </div>
       <div className={styles.assetCol}>
@@ -532,7 +550,11 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <KineticStack verbs={CONTENT_VERBS} active={activeVerb} climaxLabel="on brand" />
+                  <KineticStack
+                    verbs={CONTENT_VERBS}
+                    active={activeVerb}
+                    climaxLabel={t("on brand", "the seal stamped when content passes")}
+                  />
                 </motion.div>
               ) : (
                 <motion.div
@@ -546,7 +568,7 @@ export default function HeroKinetic({ onOpen }: HeroKineticProps): React.ReactEl
                     verbs={MULTI_VERBS}
                     active={activeVerb}
                     climaxLangs={SHIP_LANGS}
-                    climaxLabel="every language"
+                    climaxLabel={t("every language", "the seal stamped when every locale passes")}
                   />
                 </motion.div>
               )}

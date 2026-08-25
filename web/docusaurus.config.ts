@@ -721,6 +721,12 @@ const config: Config = {
         ],
       },
     ],
+    // Automatic i18n for this site's own React components: every JSX text
+    // child becomes translatable with no wrapper to forget. Loaded by path
+    // because this config is evaluated by jiti, where the plugin's ESM dist
+    // cannot run — see the file for the detail.
+    "./plugins/neokapi-i18n.mjs",
+
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning
     // from our OWN code is never suppressed.

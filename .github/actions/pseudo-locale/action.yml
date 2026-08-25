@@ -3,6 +3,10 @@ description: >
   Build kapi and generate a Docusaurus site's qps (pseudo-locale) translations
   into i18n/qps/, immediately before the site build that consumes them.
 
+  Three tiers come out of this: the docs pages, the theme JSON
+  write-translations owns, and — for a site wired to the build-time transform —
+  the dictionary for its own React components.
+
   The output is NOT committed. It is a pure function of the docs plus the
   extractor, it changes with every docs edit, and it runs to thousands of files
   across the two sites — so committing it means either a large diff on every
@@ -40,7 +44,17 @@ runs:
 
     # --with-theme regenerates code.json and the theme JSON as well as the
     # pages, so the whole pseudo layer comes from this one step and nothing
-    # about it lives in git.
+    # about it lives in git. The React tier runs inside the same script for a
+    # site wired to the transform, and it needs the workspace installed: the
+    # extractor and the dictionary compiler are node CLIs.
+    # The React tier calls this package's CLI and, at build time, its webpack
+    # loader — both live in dist/. The site's own `prebuild` builds it, but that
+    # runs after this action, so build it here rather than depend on ordering
+    # somewhere else.
+    - name: Build the i18n-react package
+      shell: bash
+      run: pnpm --filter @neokapi/i18n-react run build
+
     - name: Generate ${{ inputs.site }} qps translations
       shell: bash
       run: ./scripts/pseudo-docs-i18n.sh "${{ inputs.site }}" --with-theme

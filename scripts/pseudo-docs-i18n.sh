@@ -79,6 +79,31 @@ while IFS= read -r f; do
 done < <(find docs -name "*.md" -o -name "*.mdx" | sort)
 echo "==> $site: $n pages pseudo-translated into $out"
 
+# ── react components ────────────────────────────────────────────────────────
+# Only for a site wired to the transform: it is named by a webpack loader in
+# the site's own plugin, and a site without that plugin would build a
+# dictionary nothing reads. bowrain/web/docs does not need one — its handful of
+# component strings already use <Translate>, so code.json covers them.
+if [ -f plugins/neokapi-i18n.mjs ]; then
+  echo "==> $site: extracting React components"
+  rm -rf i18n-kbf i18n-runtime
+  # --config carries the componentMap the loader also reads. They must agree:
+  # a component mapped on one side and not the other yields hashes the
+  # transform cannot look up, and every string falls back to source.
+  vpx neokapi-i18n extract --config i18n-react.config.json --out i18n-kbf 2>/dev/null | tail -1
+
+  # Each .kbf.json is content like any other, so the same tool that pseudos the
+  # docs pages pseudos these — markers and all coming from the recipe.
+  while IFS= read -r f; do
+    "$kapi" pseudo-translate "$f" --target-lang qps -p "$repo_root/kapi.yaml" \
+      -o "$f" -q >/dev/null
+  done < <(find i18n-kbf -name '*.kbf.json')
+
+  # Flatten to the dictionary the loader reads at build time.
+  vpx neokapi-i18n compile i18n-kbf --locale qps --out i18n-runtime 2>/dev/null | tail -1
+  echo "==> $site: React dictionary at i18n-runtime/qps.json"
+fi
+
 [ "$mode" = "--with-theme" ] || exit 0
 
 # ── theme ───────────────────────────────────────────────────────────────────
@@ -91,7 +116,11 @@ vpx docusaurus write-translations --locale qps >/dev/null
 # Only the files write-translations owns; the content tree above is not its.
 find i18n/qps -maxdepth 2 -name "*.json" | sort | while read -r f; do
   cp "$f" "$work/pre.json"
-  "$kapi" pseudo-translate "$f" --target-lang qps -f json -o "$work/post.json" -q
+  # -p for the recipe's qps tool config, same as the content tier: without it
+  # the theme JSON keeps the ▒ markers the recipe turns off, so a page shows
+  # bracketed chrome around unbracketed content.
+  $kapi pseudo-translate $f --target-lang qps -f json \
+    -p $repo_root/kapi.yaml -o $work/post.json -q
 
   python3 - "$work/pre.json" "$work/post.json" "$f" <<'PY'
 import json, sys
