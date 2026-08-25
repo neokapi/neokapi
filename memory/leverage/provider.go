@@ -58,7 +58,29 @@ func NewProvider(tm memory.ContentMemory) *Provider {
 var (
 	_ tools.MemoryProvider      = (*Provider)(nil)
 	_ tools.BlockMemoryProvider = (*Provider)(nil)
+	_ tools.ExactMemoryProvider = (*Provider)(nil)
 )
+
+// LookupExactAt returns a plain-text exact match approved nearest at.
+//
+// It is LookupExact with the point applied — the same MinScore of 1.0, so the
+// answer is the same content or nothing, but resolved against where the fill is
+// happening rather than against whichever exact the corpus returned first. The
+// block path has always been given the point; this is the plain-text path
+// catching up, and it matters for the same reason: an exact answer approved
+// somewhere else is still an answer from somewhere else.
+func (p *Provider) LookupExactAt(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, at string) (string, bool) {
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, memory.LookupOptions{
+		MinScore:   1.0,
+		MaxResults: 1,
+		MatchModes: []memory.MatchMode{memory.MatchModePlain},
+		Point:      at,
+	})
+	if err != nil || len(matches) == 0 {
+		return "", false
+	}
+	return matches[0].Entry.VariantText(targetLocale), true
+}
 
 // LookupExact returns a plain-text exact match's target text.
 func (p *Provider) LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {

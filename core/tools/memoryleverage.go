@@ -30,6 +30,33 @@ const (
 	PropMemoryAltKey = "alt-translation"
 )
 
+// ExactMemoryProvider is the lookup shape recycling keeps once fuzzy retires:
+// an answer is either for the same content, at a place entitled to give it, or
+// it is not offered at all.
+//
+// It exists because similarity was always a proxy. A fuzzy score answered "is
+// this the same thing, changed a bit?" by measuring characters, which is a
+// heuristic for a question the corpus can now answer outright — a block's own
+// prior answers are a version chain (memory.VersionReader), and continuity for
+// content that merely resembles other content comes from the terms and voice in
+// force rather than from a match. What is left for a lookup is the exact case,
+// which is a different job: not a discount on labour but a guarantee that one
+// string does not render two ways.
+//
+// Narrowing the shape is also what lets an implementation optimize. An exact
+// lookup is a keyed read; a fuzzy one is a scan over an index built for
+// similarity, and a provider asked only for the former can stop maintaining the
+// latter.
+//
+// It takes the point because an exact answer approved somewhere else is still
+// an answer from somewhere else. The block path has always been given the
+// point; the plain-text path never was, so this is where that closes.
+type ExactMemoryProvider interface {
+	// LookupExactAt returns the target for an exact source match approved
+	// nearest at, or false when the corpus holds none.
+	LookupExactAt(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, at string) (string, bool)
+}
+
 // MemoryProvider is the interface for content memory lookup.
 //
 // Every method takes the run's context. A lookup is I/O — a SQLite query, or a
@@ -43,6 +70,13 @@ type MemoryProvider interface {
 
 	// LookupFuzzy looks up a fuzzy match for the source text.
 	// Returns the translation, match score (0-100), and true if found above threshold.
+	//
+	// Retiring. FuzzyThreshold defaults to 100, so nothing below an exact match
+	// is asked for and this is not called on a default configuration; a recipe
+	// that lowers the threshold still reaches it. The method and its
+	// implementations stay until the version-reference path has been measured
+	// against them — see ExactMemoryProvider for why similarity stopped being
+	// the right question.
 	LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
 }
 
@@ -106,9 +140,9 @@ type MemoryLeverageConfig struct {
 	Provider     MemoryProvider `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match (100 = exact only; below 100 reaches the retiring fuzzy path),default=100,min=0,max=100"`
 	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
+	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=100,min=0,max=100"`
 	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
 	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
@@ -166,9 +200,9 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
 	c.Provider = nil
-	c.FuzzyThreshold = 70
+	c.FuzzyThreshold = 100
 	c.FillTarget = true
-	c.FillTargetThreshold = 95
+	c.FillTargetThreshold = 100
 	c.FillIfTargetIsEmpty = false
 	c.NoQueryThreshold = 101
 	c.MakeTMX = false
@@ -216,7 +250,7 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
 	if cfg.FuzzyThreshold == 0 {
-		cfg.FuzzyThreshold = 70
+		cfg.FuzzyThreshold = 100
 	}
 	cfg.Provider = NullMemoryProvider{}
 	return NewMemoryLeverageTool(cfg), nil
@@ -227,7 +261,7 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 // to fuzzy matching if a threshold is configured.
 func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 	if cfg.FuzzyThreshold == 0 {
-		cfg.FuzzyThreshold = 70
+		cfg.FuzzyThreshold = 100
 	}
 	// Default FillTarget to true if not explicitly configured (backward compat).
 	if !cfg.FillTarget && cfg.FillTargetThreshold == 0 {
@@ -297,7 +331,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		}
 
 		// Try exact match first.
-		if translation, found := conf.Provider.LookupExact(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale); found {
+		if translation, found := lookupExactAt(v.Context(), conf, sourceText); found {
 			score := 100
 			if conf.DowngradeIdenticalBestMatches {
 				score = 99
@@ -306,10 +340,14 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Try fuzzy match.
-		if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-			recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
-			return nil
+		// Below an exact match, only a recipe that lowered the threshold asks.
+		// The band between is not offered as a draft and is not sent to a model
+		// either, which is what made it bookkeeping rather than leverage.
+		if conf.FuzzyThreshold < 100 {
+			if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+				recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
+				return nil
+			}
 		}
 
 		return nil
@@ -565,6 +603,10 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			annotateSegmentMatch(v, conf, i, segRuns, tr, score, model.MatchExact)
 			continue
 		}
+		if conf.FuzzyThreshold >= 100 {
+			allExact = false
+			continue
+		}
 		if tr, score, found := conf.Provider.LookupFuzzy(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
 			translations[i] = tr
 			matched++
@@ -661,4 +703,15 @@ func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int)
 		}
 	}
 	return true
+}
+
+// lookupExactAt asks for an exact match at the run's point, preferring the
+// point-aware shape and falling back to the point-blind one for a provider that
+// predates it. A provider offering neither answers nothing, which is what
+// NullMemoryProvider is for.
+func lookupExactAt(ctx context.Context, conf *MemoryLeverageConfig, sourceText string) (string, bool) {
+	if p, ok := conf.Provider.(ExactMemoryProvider); ok {
+		return p.LookupExactAt(ctx, sourceText, conf.SourceLocale, conf.TargetLocale, conf.Point)
+	}
+	return conf.Provider.LookupExact(ctx, sourceText, conf.SourceLocale, conf.TargetLocale)
 }
