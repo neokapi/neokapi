@@ -170,6 +170,11 @@ type TermRule struct {
 	// concept-backed correction; it stays empty for standalone profiles (a
 	// shareable profile.yaml with no backing knowledge graph), which remain valid.
 	ConceptID string `json:"concept_id,omitempty" yaml:"concept_id,omitempty"`
+	// DoNotTranslate carries a concept's do-not-translate marking through to
+	// the tools. Such a rule names a term and no replacement, which the
+	// ordinary rules would skip — "say this instead" needs a this — so the flag
+	// is what gives a bare term meaning: leave it exactly as it is.
+	DoNotTranslate bool `json:"do_not_translate,omitempty" yaml:"do_not_translate,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for voice profile.

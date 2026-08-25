@@ -123,7 +123,8 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-06-11T06:47:18Z",
+      "do_not_translate": true
     },
     {
       "id": "term:18f1255e3f",
@@ -519,7 +520,8 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-06-11T06:47:18Z",
+      "do_not_translate": true
     },
     {
       "id": "term:599f770354",
@@ -717,7 +719,8 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-06-11T06:47:18Z",
+      "do_not_translate": true
     },
     {
       "id": "term:7fd690e20d",
@@ -756,7 +759,8 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-06-11T06:47:18Z",
+      "do_not_translate": true
     },
     {
       "id": "term:8cf3cf906c",
@@ -1031,7 +1035,8 @@
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-06-11T06:47:18Z"
+      "updated_at": "2026-06-11T06:47:18Z",
+      "do_not_translate": true
     },
     {
       "id": "term:ddc8d86be8",
@@ -1169,6 +1174,48 @@
       ],
       "created_at": "2026-06-11T06:47:18Z",
       "updated_at": "2026-06-11T06:47:18Z"
+    },
+    {
+      "id": "term:ec3472758f",
+      "domain": "product",
+      "definition": "The upstream Okapi Framework (Java), which neokapi reimagines and which okapi-bridge exposes. Never translate; capitalized product name. Not the animal of the same name.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "Okapi",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "Okapi",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-08-26T00:00:00Z",
+      "updated_at": "2026-08-26T00:00:00Z",
+      "do_not_translate": true
+    },
+    {
+      "id": "term:44794acaac",
+      "domain": "product",
+      "definition": "The Java bridge exposing Okapi Framework filters to neokapi over gRPC, and its repository. Never translate; always lowercase and hyphenated.",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "okapi-bridge",
+          "locale": "en",
+          "status": "preferred"
+        },
+        {
+          "text": "okapi-bridge",
+          "locale": "nb",
+          "status": "preferred"
+        }
+      ],
+      "created_at": "2026-08-26T00:00:00Z",
+      "updated_at": "2026-08-26T00:00:00Z",
+      "do_not_translate": true
     }
   ]
 }

@@ -61,15 +61,26 @@ type Term struct {
 // Concept is the central unit of a terms store — a language-neutral concept
 // with terms in multiple locales, organized following TBX principles.
 type Concept struct {
-	ID         string            `json:"id"`                   // unique concept identifier
-	ProjectID  string            `json:"project_id,omitempty"` // project scope (empty = workspace-scoped)
-	Domain     string            `json:"domain,omitempty"`     // subject field (software, medical, legal, etc.)
-	Definition string            `json:"definition,omitempty"` // language-neutral definition
-	Source     TermSource        `json:"source,omitempty"`     // "terminology" or "brand_vocabulary"
-	Terms      []Term            `json:"terms,omitempty"`      // terms across locales
-	Properties map[string]string `json:"properties,omitempty"` // extensible metadata
-	CreatedAt  time.Time         `json:"created_at"`
-	UpdatedAt  time.Time         `json:"updated_at"`
+	ID         string     `json:"id"`                   // unique concept identifier
+	ProjectID  string     `json:"project_id,omitempty"` // project scope (empty = workspace-scoped)
+	Domain     string     `json:"domain,omitempty"`     // subject field (software, medical, legal, etc.)
+	Definition string     `json:"definition,omitempty"` // language-neutral definition
+	Source     TermSource `json:"source,omitempty"`     // "terminology" or "brand_vocabulary"
+	Terms      []Term     `json:"terms,omitempty"`      // terms across locales
+	// DoNotTranslate marks a concept whose source term travels into every
+	// target unchanged: a product name, a trademark, a format acronym. These
+	// concepts have always said so in their definition prose ("Never translate;
+	// always lowercase"), which no tool could act on — a product name was
+	// checked by nothing and protected by nothing, and the pseudo locale
+	// rendered kapi as ķàþî on every page that named it.
+	//
+	// Deliberately independent of whether a target term exists. A translated
+	// term needs an entry per locale; an untranslated one is the same string
+	// everywhere, including locales the store has never heard of.
+	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
+	Properties     map[string]string `json:"properties,omitempty"` // extensible metadata
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 // SourceTerm returns the first term matching the given locale.
