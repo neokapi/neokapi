@@ -54,6 +54,13 @@ export type Run =
 /** A text chunk. Plain string, no markup. */
 export interface TextRun {
   text: string;
+  /**
+   * Marks text that reads as prose but is not: the contents of a code span, a
+   * <kbd>, a <samp>. Written only when set, so a run without it serializes as
+   * it always did. Anything that rebuilds a text run has to carry it across —
+   * dropping it turns a command into something a reader cannot type.
+   */
+  noTranslate?: boolean;
 }
 
 /**

@@ -164,7 +164,12 @@ function canonicalTargets(t: Block["targets"] | undefined): Record<string, unkno
 }
 
 function canonicalRun(r: Run): unknown {
-  if ("text" in r) return { text: r.text };
+  // `noTranslate` is a sibling of `text`, not a nested payload, so it has to be
+  // copied across explicitly — rebuilding the run as `{ text }` alone silently
+  // unprotects a code span, and the canonical form is what gets written back.
+  if ("text" in r) {
+    return r.noTranslate ? { text: r.text, noTranslate: true } : { text: r.text };
+  }
   if ("ph" in r) return { ph: omitUndefined({ ...r.ph }) };
   if ("pcOpen" in r) return { pcOpen: omitUndefined({ ...r.pcOpen }) };
   if ("pcClose" in r) return { pcClose: omitUndefined({ ...r.pcClose }) };

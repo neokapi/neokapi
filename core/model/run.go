@@ -356,6 +356,14 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 	if seen > 1 {
 		return fmt.Errorf("model: run has multiple discriminators (%d)", seen)
 	}
+	// Read after the loop, not inside it: `noTranslate` is a sibling of `text`
+	// rather than a discriminator, and map iteration gives no order, so the
+	// TextRun it belongs to may not exist yet while the loop is running.
+	if val, ok := raw["noTranslate"]; ok && r.Text != nil {
+		if err := json.Unmarshal(val, &r.Text.NoTranslate); err != nil {
+			return fmt.Errorf("model: decode text run noTranslate: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -378,6 +386,20 @@ func (r Run) MarshalJSON() ([]byte, error) {
 		// `{"text":"literal"}` — not as a nested object. Every
 		// other run kind nests its struct under its discriminator
 		// key; text is the exception the spec calls out explicitly.
+		//
+		// NoTranslate rides alongside `text` rather than nesting, so the flat
+		// shape holds. It is emitted only when set, which keeps every document
+		// without a protected run byte-identical to what earlier versions
+		// wrote. Omitting it entirely was how a code span lost its marking on
+		// any JSON hop — the parse cache and the block store both round-trip
+		// through here, so a project run handed the tools plain text and
+		// `kapi check --ship` reached the docs site as `ķàþî çĥéçķ --šĥîþ`.
+		if r.Text.NoTranslate {
+			return marshalRunNoEscapeHTML(struct {
+				Text        string `json:"text"`
+				NoTranslate bool   `json:"noTranslate"`
+			}{r.Text.Text, true})
+		}
 		return marshalRunNoEscapeHTML(struct {
 			Text string `json:"text"`
 		}{r.Text.Text})

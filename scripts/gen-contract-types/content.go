@@ -148,9 +148,16 @@ func emitModelRun() string {
  * Framework AD-002; every other kind nests its payload struct.
  * Mirrors model.Run.MarshalJSON. This is the run form used by ContentTree,
  * KBF, and flow traces; the wire form is the RunMessage union above.
+ *
+ * ` + "`noTranslate`" + ` rides beside ` + "`text`" + ` rather than nesting, so the flat shape
+ * holds. It marks a run whose text reads as prose but is not — the contents of
+ * a code span, a <kbd>, a <samp> — and is written only when set, so a document
+ * with no protected run serializes as it always did. A consumer that rebuilds
+ * runs must carry it: dropping it turns a command into something a reader
+ * cannot type.
  */
 export type Run =
-  | { text: string }
+  | { text: string; noTranslate?: boolean }
   | { ph: PlaceholderRun }
   | { pcOpen: PcOpenRun }
   | { pcClose: PcCloseRun }
