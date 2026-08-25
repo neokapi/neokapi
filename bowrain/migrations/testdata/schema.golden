@@ -469,6 +469,7 @@ forge_installations.updated_at text NOT NULL DEFAULT ''::text
 forge_installations.workspace_id text NOT NULL DEFAULT ''::text
 group_members.group_id text NOT NULL
 group_members.user_id text NOT NULL
+group_role_bindings.coordinates text NOT NULL DEFAULT '{}'::text
 group_role_bindings.created_at timestamp with time zone NOT NULL DEFAULT now()
 group_role_bindings.group_id text NOT NULL
 group_role_bindings.id text NOT NULL
@@ -689,6 +690,8 @@ platform_config_schema_migrations.version integer NOT NULL
 processed_stripe_events.event_id text NOT NULL
 processed_stripe_events.event_type text NOT NULL
 processed_stripe_events.processed_at timestamp with time zone NOT NULL DEFAULT now()
+project_members.billed_to_workspace_id text NOT NULL DEFAULT ''::text
+project_members.coordinates text NOT NULL DEFAULT '{}'::text
 project_members.created_at timestamp with time zone NOT NULL DEFAULT now()
 project_members.languages text NOT NULL DEFAULT '[]'::text
 project_members.project_id text NOT NULL
