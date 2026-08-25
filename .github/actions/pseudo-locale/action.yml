@@ -53,7 +53,8 @@ runs:
     # somewhere else.
     - name: Build the i18n-react package
       shell: bash
-      run: pnpm --filter @neokapi/i18n-react run build
+      working-directory: packages/i18n-react
+      run: vp run build
 
     - name: Generate ${{ inputs.site }} qps translations
       shell: bash
