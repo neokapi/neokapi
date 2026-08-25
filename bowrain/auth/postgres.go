@@ -788,26 +788,35 @@ func (s *PostgresAuthStore) AddProjectMember(ctx context.Context, pm *platauth.P
 	if len(pm.Languages) > 0 {
 		langs = marshalLanguages(pm.Languages)
 	}
+	// A membership is billed to the workspace whose content it governs unless the
+	// caller says otherwise, which nothing does yet — see
+	// ProjectMembership.BilledToWorkspaceID.
+	billedTo := pm.BilledToWorkspaceID
+	if billedTo == "" {
+		billedTo = pm.WorkspaceID
+	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO project_members (project_id, user_id, role_id, workspace_id, languages, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		pm.ProjectID, pm.UserID, pm.RoleID, pm.WorkspaceID, langs, pm.CreatedAt)
+		`INSERT INTO project_members (project_id, user_id, role_id, workspace_id, languages, coordinates, billed_to_workspace_id, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		pm.ProjectID, pm.UserID, pm.RoleID, pm.WorkspaceID, langs,
+		platauth.MarshalCoordinates(pm.Coordinates), billedTo, pm.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("add project member: %w", err)
 	}
+	pm.BilledToWorkspaceID = billedTo
 	return nil
 }
 
 func (s *PostgresAuthStore) GetProjectMembership(ctx context.Context, projectID, userID string) (*platauth.ProjectMembership, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		`SELECT project_id, user_id, role_id, workspace_id, languages, coordinates, billed_to_workspace_id, created_at
 		 FROM project_members WHERE project_id = $1 AND user_id = $2`, projectID, userID)
 	return scanProjectMemberPg(row)
 }
 
 func (s *PostgresAuthStore) ListProjectMembers(ctx context.Context, projectID string) ([]*platauth.ProjectMembership, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		`SELECT project_id, user_id, role_id, workspace_id, languages, coordinates, billed_to_workspace_id, created_at
 		 FROM project_members WHERE project_id = $1
 		 ORDER BY created_at`, projectID)
 	if err != nil {
@@ -832,8 +841,8 @@ func (s *PostgresAuthStore) UpdateProjectMember(ctx context.Context, pm *plataut
 		langs = marshalLanguages(pm.Languages)
 	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE project_members SET role_id=$1, languages=$2 WHERE project_id=$3 AND user_id=$4`,
-		pm.RoleID, langs, pm.ProjectID, pm.UserID)
+		`UPDATE project_members SET role_id=$1, languages=$2, coordinates=$3 WHERE project_id=$4 AND user_id=$5`,
+		pm.RoleID, langs, platauth.MarshalCoordinates(pm.Coordinates), pm.ProjectID, pm.UserID)
 	if err != nil {
 		return fmt.Errorf("update project member: %w", err)
 	}
@@ -862,12 +871,12 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 	// Union direct project membership with any group-role bindings the user has
 	// on this project. A user with only a group binding still resolves here.
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT rt.permissions, pm.languages
+		`SELECT rt.permissions, pm.languages, pm.coordinates
 		 FROM project_members pm
 		 JOIN role_templates rt ON rt.workspace_id = pm.workspace_id AND rt.id = pm.role_id
 		 WHERE pm.project_id = $1 AND pm.user_id = $2
 		 UNION ALL
-		 SELECT rt.permissions, grb.languages
+		 SELECT rt.permissions, grb.languages, grb.coordinates
 		 FROM group_role_bindings grb
 		 JOIN group_members gm ON gm.group_id = grb.group_id
 		 JOIN role_templates rt ON rt.workspace_id = grb.workspace_id AND rt.id = grb.role_id
@@ -879,17 +888,22 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 
 	var perms platauth.Permission
 	var languages []string
+	var reach platauth.CoordinateReach
 	seen := map[string]bool{}
 	allLanguages := false
 	any := false
 	for rows.Next() {
 		var p int64
-		var langsStr string
-		if err := rows.Scan(&p, &langsStr); err != nil {
+		var langsStr, coordsStr string
+		if err := rows.Scan(&p, &langsStr, &coordsStr); err != nil {
 			return nil, fmt.Errorf("scan project permissions: %w", err)
 		}
 		any = true
 		perms |= platauth.Permission(p)
+		// Regions union across sources, the same way languages do below: two
+		// narrow memberships add up rather than cancelling out, and a source
+		// naming no region opens the whole space.
+		reach = reach.Add(platauth.UnmarshalCoordinates(coordsStr))
 		langs := unmarshalLanguages(langsStr)
 		if len(langs) == 0 {
 			allLanguages = true // an unconstrained source grants all languages
@@ -911,7 +925,10 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 	if allLanguages {
 		languages = nil
 	}
-	return &platauth.ResolvedPermission{Permissions: perms, Languages: languages}, nil
+	if reach.Unconstrained() {
+		reach = nil
+	}
+	return &platauth.ResolvedPermission{Permissions: perms, Languages: languages, Coordinates: reach}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1020,11 +1037,13 @@ func scanRoleTemplatePg(row scanner) (*platauth.RoleTemplate, error) {
 
 func scanProjectMemberPg(row scanner) (*platauth.ProjectMembership, error) {
 	var pm platauth.ProjectMembership
-	var langsStr string
-	err := row.Scan(&pm.ProjectID, &pm.UserID, &pm.RoleID, &pm.WorkspaceID, &langsStr, &pm.CreatedAt)
+	var langsStr, coordsStr string
+	err := row.Scan(&pm.ProjectID, &pm.UserID, &pm.RoleID, &pm.WorkspaceID, &langsStr,
+		&coordsStr, &pm.BilledToWorkspaceID, &pm.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan project member: %w", err)
 	}
 	pm.Languages = unmarshalLanguages(langsStr)
+	pm.Coordinates = platauth.UnmarshalCoordinates(coordsStr)
 	return &pm, nil
 }

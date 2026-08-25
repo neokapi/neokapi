@@ -27,17 +27,24 @@ const (
 // ResolvedScope is the result of parsing a single scope string.
 type ResolvedScope struct {
 	Action      ScopeAction
-	Permissions Permission // bitmask
-	Languages   []string   // empty = all
-	ProjectID   string     // empty = all projects
+	Permissions Permission       // bitmask
+	Languages   []string         // empty = all
+	ProjectID   string           // empty = all projects
+	Coordinates CoordinateFilter // empty = the whole context space
 }
 
 // ResolvedScopes is the combined result of parsing all scopes on a token.
 type ResolvedScopes struct {
-	Permissions  Permission // union of all scope permissions
-	Languages    []string   // intersection of language constraints (empty = all)
-	ProjectIDs   []string   // allowed projects (empty = all)
-	IsFullAccess bool       // true if "*" scope present
+	Permissions Permission // union of all scope permissions
+	Languages   []string   // intersection of language constraints (empty = all)
+	ProjectIDs  []string   // allowed projects (empty = all)
+	// Coordinates is the union of the regions the token's scopes name — a token
+	// holding two regions holds both. This deliberately differs from Languages,
+	// which intersects: a reach is a set of places the holder may act, so
+	// intersecting two disjoint regions would leave a token that can act nowhere
+	// while plainly having been granted two places.
+	Coordinates  CoordinateReach
+	IsFullAccess bool // true if "*" scope present
 }
 
 // actionPermissions maps a ScopeAction to its Permission bitmask.
@@ -77,10 +84,43 @@ func actionPermissions(action ScopeAction) Permission {
 //	"admin"                            → all permissions
 //	"project:proj-123:translate"       → project-scoped
 //	"project:proj-123:translate:fr,de" → project-scoped + language constraint
+//
+// Any of these may carry a region of the context space after an "@":
+//
+//	"review:de@brand=acme"                          German, acme content only
+//	"project:p-7:manage@brand=acme,channel=support" one region, full powers in it
+//	"contribute@brand=acme"                         a machine that may only propose into acme
+//
+// The region goes behind an "@" rather than in a fifth colon-separated segment
+// because the grammar is positional: a fifth field would be unreadable at a
+// glance and ambiguous against the language list it follows.
+//
+// The last example is the point of carrying regions on tokens at all. A pipeline
+// that pushes one brand's content structurally cannot propose into another —
+// the same separation-of-duties argument ScopeContribute already makes about
+// approval, extended one axis.
 func ParseScope(s string) (ResolvedScope, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ResolvedScope{}, errors.New("empty scope string")
+	}
+
+	// Split the region off before anything positional is parsed, so an "@" can
+	// never be mistaken for part of a project ID or a language tag.
+	var coords CoordinateFilter
+	if base, region, found := strings.Cut(s, "@"); found {
+		parsed, err := ParseCoordinateFilter(region)
+		if err != nil {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: %w", s, err)
+		}
+		if parsed.Unconstrained() {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: empty coordinate filter after '@'", s)
+		}
+		coords = parsed
+		s = strings.TrimSpace(base)
+		if s == "" {
+			return ResolvedScope{}, fmt.Errorf("invalid scope %q: coordinate filter without an action", s)
+		}
 	}
 
 	// Handle wildcard.
@@ -88,6 +128,7 @@ func ParseScope(s string) (ResolvedScope, error) {
 		return ResolvedScope{
 			Action:      ScopeAll,
 			Permissions: actionPermissions(ScopeAll),
+			Coordinates: coords,
 		}, nil
 	}
 
@@ -133,6 +174,7 @@ func ParseScope(s string) (ResolvedScope, error) {
 		Permissions: perms,
 		Languages:   languages,
 		ProjectID:   projectID,
+		Coordinates: coords,
 	}, nil
 }
 
@@ -198,7 +240,11 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 		// Union permissions.
 		result.Permissions |= resolved.Permissions
 
-		if resolved.Action == ScopeAll {
+		// "*" is full access only when it is also unbounded in space. "*@brand=acme"
+		// grants every permission inside one region, and marking that full access
+		// would hand it the whole space: IsFullAccess makes ScopeRestrictionMiddleware
+		// skip narrowing altogether, so the region would be dropped rather than applied.
+		if resolved.Action == ScopeAll && resolved.Coordinates.Unconstrained() {
 			result.IsFullAccess = true
 		}
 
@@ -216,6 +262,11 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 			}
 			langSets = append(langSets, set)
 		}
+
+		// Union regions. Add collapses the reach to unconstrained as soon as one
+		// scope names no region, which is the correct reading: a token that may
+		// act anywhere is not narrowed by also being told it may act in acme.
+		result.Coordinates = result.Coordinates.Add(resolved.Coordinates)
 	}
 
 	// Compute language intersection. If any scope has no language constraint,
@@ -244,6 +295,7 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 		result.Permissions = PermAll
 		result.Languages = nil
 		result.ProjectIDs = nil
+		result.Coordinates = nil
 	}
 
 	return result, nil

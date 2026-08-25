@@ -16,6 +16,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	7  user locale preference (locale-aware transactional emails)
 //	8  auth baseline (folded 1-7)
 //	9  auth baseline (folds 1-8) + api token machine identity
+//	10 auth baseline (folds 1-9) + workspace voice profile column rename
 //
 // Versions 2, 4 and 6 were catch-ups: PR #428 had already added their columns
 // and tables to the v1 baseline, so they existed only to roll forward
@@ -28,23 +29,24 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // built from this baseline has no such tokens, and every token minted since
 // carries a family_id from the code.
 //
-// Baseline is version 10 — above every number issued, so an existing database
+// Baseline is version 11 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 11.
+// repaired. Retired numbers are never reused; the next migration is version 12.
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 10 renames workspaces.brand_voice_profile_id to
-// voice_profile_id, finishing a rename that reached the CREATE and stopped
-// there: the column moved for a database built after it and stayed put for
-// every database built before, while all seven workspace queries moved. Only
-// the version bump makes an existing database read this baseline again — the
-// rename shipped without one, and every workspace query in production failed
-// with `column w.voice_profile_id does not exist` until it landed.
+// bumping its version. Version 11 adds the coordinate columns that scope a
+// membership to a region of the context space, plus the workspace a custodian
+// seat is billed to. They reach an existing database through the ALTERs beside
+// each CREATE, and an existing database reads the baseline again only because
+// the version moved — which is the lesson version 10 paid for: its column
+// rename reached the CREATE and stopped there, so it moved for databases built
+// after it and stayed put for every database built before, and every workspace
+// query in production failed until the bump landed.
 var Migrations = []storage.Migration{
 	{
-		Version:     10,
-		Description: "auth baseline (folds 1-9) + workspace voice profile column rename",
+		Version:     11,
+		Description: "auth baseline (folds 1-10) + membership coordinates and custodian seat billing",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS users (
 				id            TEXT PRIMARY KEY,
@@ -196,9 +198,24 @@ var Migrations = []storage.Migration{
 				role_id      TEXT NOT NULL,
 				workspace_id TEXT NOT NULL,
 				languages    TEXT NOT NULL DEFAULT '[]',
+				-- The region of the project's context space this membership
+				-- governs, as a JSON object of axis → value. '{}' is the whole
+				-- space, which is what every membership written before regions
+				-- existed carries.
+				coordinates  TEXT NOT NULL DEFAULT '{}',
+				-- The workspace that pays for this membership when it is a
+				-- custodian seat. Always workspace_id today; it exists so the
+				-- seat count a plan is priced on does not have to be retrofitted
+				-- when an external custodian is billed to their own workspace.
+				billed_to_workspace_id TEXT NOT NULL DEFAULT '',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, user_id)
 			);
+			-- The CREATE above serves an empty database; these serve one that
+			-- already has project_members, where CREATE ... IF NOT EXISTS is a
+			-- no-op and would leave the new columns missing.
+			ALTER TABLE project_members ADD COLUMN IF NOT EXISTS coordinates TEXT NOT NULL DEFAULT '{}';
+			ALTER TABLE project_members ADD COLUMN IF NOT EXISTS billed_to_workspace_id TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id, workspace_id);
 			CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(workspace_id, role_id);
 
@@ -246,6 +263,10 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 
 			-- Group → project role bindings. Languages scope is JSON (empty = all).
+			-- Regions on group bindings, for the same reason as on
+			-- project_members: permission resolution unions both sources, so a
+			-- binding without one would hand out unconstrained custody through a
+			-- door the direct grant had closed.
 			CREATE TABLE IF NOT EXISTS group_role_bindings (
 				id           TEXT PRIMARY KEY,
 				group_id     TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -253,8 +274,10 @@ var Migrations = []storage.Migration{
 				project_id   TEXT NOT NULL,
 				role_id      TEXT NOT NULL,
 				languages    TEXT NOT NULL DEFAULT '[]',
+				coordinates  TEXT NOT NULL DEFAULT '{}',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			ALTER TABLE group_role_bindings ADD COLUMN IF NOT EXISTS coordinates TEXT NOT NULL DEFAULT '{}';
 			CREATE INDEX IF NOT EXISTS idx_group_bindings_project ON group_role_bindings(project_id);
 			CREATE INDEX IF NOT EXISTS idx_group_bindings_group ON group_role_bindings(group_id);
 

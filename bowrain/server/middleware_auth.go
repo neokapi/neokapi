@@ -541,6 +541,7 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 
 			c.Set("project_permissions", perms)
 			c.Set("project_languages", resolved.Languages)
+			c.Set("project_coordinates", resolved.Coordinates)
 
 			// Enrich the change context with the actor's workspace role so
 			// block_history records who-with-what-role made each edit.
@@ -653,6 +654,27 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 	return deny(c, "no access to language: "+locale)
 }
 
+// unreachableAxis names a region no content can occupy. It is how an empty
+// intersection is carried: a reach narrowed to nothing must keep saying
+// "nowhere", where an empty CoordinateReach says "everywhere".
+const unreachableAxis = "\x00unreachable"
+
+// requireCoordinatePermission verifies both the permission and that the caller's
+// custody reaches the point the content sits at. Use for the coordinate-scoped
+// powers — deciding a review, editing voice, editing terms — where the same act
+// is legitimate at one point and not at another.
+func (s *Server) requireCoordinatePermission(c echo.Context, perm platauth.Permission, point map[string]string) error {
+	if err := s.requirePermission(c, perm); err != nil {
+		return err
+	}
+	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+	if reach.Reaches(point) {
+		return nil
+	}
+	s.emitAuthzDenied(c, perm, "outside_custody")
+	return deny(c, "no custody at coordinates: "+platauth.CoordinateFilter(point).String())
+}
+
 // hasPermission is requirePermission as a predicate: it answers the same
 // question without writing a 403 or recording a denial.
 func hasPermission(c echo.Context, perm platauth.Permission) bool {
@@ -670,6 +692,25 @@ func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) boo
 	}
 	languages, _ := c.Get("project_languages").([]string)
 	return len(languages) == 0 || slices.Contains(languages, locale)
+}
+
+// reachesPoint is requireCoordinatePermission as a predicate: it answers the
+// same question without writing a 403 or recording a denial. A batch route uses
+// it where one item's refusal must be recorded against that item rather than
+// answering for the whole request.
+func reachesPoint(c echo.Context, perm platauth.Permission, point map[string]string) bool {
+	if !hasPermission(c, perm) {
+		return false
+	}
+	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+	return reach.Reaches(point)
+}
+
+// callerReach is the caller's custody on this request, for the surfaces that
+// report custody rather than enforce it.
+func callerReach(c echo.Context) platauth.CoordinateReach {
+	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+	return reach
 }
 
 // ScopeRestrictionMiddleware narrows project_permissions based on API token scopes.
@@ -704,6 +745,20 @@ func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 				} else {
 					c.Set("project_languages", intersectStrings(existing, resolved.Languages))
 				}
+			}
+
+			// Narrow the region the same way. A token scoped to one brand cannot
+			// widen the membership it authenticates as, and where the two name
+			// disjoint regions the caller reaches nowhere — carried as a single
+			// impossible filter rather than as an empty reach, which everything
+			// downstream would read as "everywhere".
+			if !resolved.Coordinates.Unconstrained() {
+				existing, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
+				narrowed, anywhere := existing.Intersect(resolved.Coordinates)
+				if !anywhere {
+					narrowed = platauth.CoordinateReach{platauth.CoordinateFilter{unreachableAxis: "1"}}
+				}
+				c.Set("project_coordinates", narrowed)
 			}
 
 			return next(c)
