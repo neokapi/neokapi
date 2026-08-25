@@ -26,6 +26,8 @@ const entryPoints = [
   "src/plugin/index.ts",
   "src/plugin/vite.ts",
   "src/plugin/webpack.ts",
+  // The plain-loader entry, for hosts that cannot load the unplugin adapter.
+  "src/plugin/loader.ts",
   "src/plugin/rollup.ts",
   "src/plugin/esbuild.ts",
   "src/plugin/transform.ts",

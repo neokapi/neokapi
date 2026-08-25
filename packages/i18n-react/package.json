@@ -43,6 +43,10 @@
       "types": "./dist/plugin/webpack.d.ts",
       "default": "./dist/plugin/webpack.js"
     },
+    "./loader": {
+      "types": "./dist/plugin/loader.d.ts",
+      "default": "./dist/plugin/loader.js"
+    },
     "./rollup": {
       "types": "./dist/plugin/rollup.d.ts",
       "default": "./dist/plugin/rollup.js"
