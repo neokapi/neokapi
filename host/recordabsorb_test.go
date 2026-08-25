@@ -926,3 +926,31 @@ func TestAbsorbCommittedRecord_ApprovalDoesNotSurviveAnEditToWhatItApproved(t *t
 	assert.Zero(t, res.Record.Learned)
 	assert.Empty(t, storeEntries(t, a, root))
 }
+
+// TestAbsorbCommittedRecord_CarriesTheBlockIdentity: an absorbed answer records
+// which block it was approved for, so it joins that block's version chain
+// rather than standing alone as a source string somebody once approved.
+//
+// Without this the field, the storage, the bundle and the query all exist and
+// every chain is empty — a feature that looks built and answers nothing.
+func TestAbsorbCommittedRecord_CarriesTheBlockIdentity(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world","farewell":"Goodbye"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden","farewell":"Ha det"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	require.Equal(t, 2, res.Record.Learned)
+
+	entries := storeEntries(t, a, root)
+	require.Len(t, entries, 2)
+	for src, e := range entries {
+		assert.NotEmpty(t, e.Unit,
+			"the answer for %q must name the block it was approved for", src)
+	}
+
+	// Two blocks, two identities: a chain keyed on a shared unit would braid
+	// unrelated answers together.
+	assert.NotEqual(t, entries["Hello world"].Unit, entries["Goodbye"].Unit,
+		"different blocks must not share a chain")
+}
