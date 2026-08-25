@@ -142,3 +142,47 @@ func TestMarshalShape(t *testing.T) {
 	assert.True(t, strings.HasSuffix(out, "}\n"), "trailing newline")
 	assert.Contains(t, out, `"kind": "kapi-memory"`)
 }
+
+// TestBundleCarriesPointUnitAndGovernance guards the round trip the version
+// chain rests on. The committed bundle is the truth and the store is its
+// projection, so anything the bundle drops is gone on the next fresh clone.
+//
+// Point did not survive before this: an entry exported and re-seeded came back
+// approved nowhere, which reads to the matcher as an ad-hoc addition and
+// quietly disables the disambiguation the point exists to provide. Unit and the
+// governing fingerprint would have been lost the same way — and a version whose
+// governance is unknown cannot be judged, only used.
+func TestBundleCarriesPointUnitAndGovernance(t *testing.T) {
+	t.Parallel()
+
+	at := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	in := memory.Entry{
+		ID:          "v1",
+		Point:       memory.NewPoint("acme", "support", "acme-help"),
+		Unit:        "u-1",
+		HintSrcLang: "en",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Get started"}}},
+			"nb": {{Text: &model.TextRun{Text: "Kom i gang"}}},
+		},
+		Origins: []memory.Origin{{
+			Source:             "tool",
+			AddedAt:            at,
+			ContextFingerprint: "fp-now",
+		}},
+		CreatedAt: at,
+		UpdatedAt: at,
+	}
+
+	data, err := Marshal(FromModel([]memory.Entry{in}, nil))
+	require.NoError(t, err)
+	file, err := Unmarshal(data)
+	require.NoError(t, err)
+	out := file.ModelEntries()
+	require.Len(t, out, 1)
+
+	assert.Equal(t, in.Point, out[0].Point, "the point an answer was approved at")
+	assert.Equal(t, in.Unit, out[0].Unit, "the block it was approved for")
+	require.Len(t, out[0].Origins, 1)
+	assert.Equal(t, "fp-now", out[0].Origins[0].ContextFingerprint, "what governed it")
+}

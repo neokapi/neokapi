@@ -136,6 +136,26 @@ var memoryMigrations = []storage.Migration{
 		Description: "the context point an entry's answer was approved at",
 		SQL:         schema.RenderMemorySQLiteV4(),
 	},
+	{
+		Version: 5,
+		// The corpus already held every version of a block's answer: a changed
+		// source writes a new entry beside the old rather than replacing it.
+		// What it could not do was say the two were the same block, because the
+		// only key was the text — and the text is the thing that moved.
+		//
+		// The unit is that link. It is resolved by reconciliation, so it
+		// survives an edit and a reorder, and it is the same identity a decision
+		// and a history entry are filed under.
+		//
+		// Additive, and deliberately not backfilled. An entry written before the
+		// column existed has no unit and never will: the corpus seeds from
+		// committed bundles rather than from live content, so nothing walks the
+		// repo re-reconciling old answers. Version lookups therefore begin from
+		// here rather than reaching backwards, which is the honest reading of an
+		// empty unit — not "no block", but "approved before the chain existed".
+		Description: "the durable block identity an entry's answer was approved for",
+		SQL:         schema.RenderMemorySQLiteV5(),
+	},
 }
 
 // DB returns the underlying database for direct access.
@@ -338,8 +358,8 @@ func prepareBulkStmts(ctx context.Context, tx *sql.Tx) (*bulkStmts, error) {
 
 	var err error
 	if s.upsertEntry, err = tx.PrepareContext(ctx, `INSERT INTO tm_entries
-		(id, project_id, stream, hint_src_lang, properties, note, has_codes, point, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, project_id, stream, hint_src_lang, properties, note, has_codes, point, unit, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id    = excluded.project_id,
 			stream        = excluded.stream,
@@ -348,6 +368,7 @@ func prepareBulkStmts(ctx context.Context, tx *sql.Tx) (*bulkStmts, error) {
 			note          = excluded.note,
 			has_codes     = excluded.has_codes,
 			point         = excluded.point,
+			unit          = excluded.unit,
 			updated_at    = excluded.updated_at`); err != nil {
 		return nil, fmt.Errorf("prepare upsert: %w", err)
 	}
@@ -379,8 +400,8 @@ func prepareBulkStmts(ctx context.Context, tx *sql.Tx) (*bulkStmts, error) {
 		return nil, err
 	}
 	if s.insOrigin, err = tx.PrepareContext(ctx, `INSERT INTO tm_entry_origins
-		(entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`); err != nil {
+		(entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -444,7 +465,7 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 
 	if _, err := s.upsertEntry.ExecContext(ctx,
 		entry.ID, entry.ProjectID, stream, string(entry.HintSrcLang),
-		propertiesJSON, entry.Note, hasCodes, entry.Point,
+		propertiesJSON, entry.Note, hasCodes, entry.Point, entry.Unit,
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339),
 	); err != nil {
 		return fmt.Errorf("upsert entry: %w", err)
@@ -523,7 +544,7 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 		}
 		if _, err := s.insOrigin.ExecContext(ctx,
 			entry.ID, i, o.Source, o.Key, o.Reference,
-			addedAt.Format(time.RFC3339), o.AddedBy, o.SessionID,
+			addedAt.Format(time.RFC3339), o.AddedBy, o.SessionID, o.ContextFingerprint,
 		); err != nil {
 			return fmt.Errorf("insert origin: %w", err)
 		}
@@ -587,8 +608,8 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO tm_entries (id, project_id, stream, hint_src_lang, properties, note, has_codes, point, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tm_entries (id, project_id, stream, hint_src_lang, properties, note, has_codes, point, unit, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id    = excluded.project_id,
 			stream        = excluded.stream,
@@ -597,9 +618,10 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 			note          = excluded.note,
 			has_codes     = excluded.has_codes,
 			point         = excluded.point,
+			unit          = excluded.unit,
 			updated_at    = excluded.updated_at
 	`, entry.ID, entry.ProjectID, stream, string(entry.HintSrcLang),
-		propertiesJSON, entry.Note, hasCodes, entry.Point,
+		propertiesJSON, entry.Note, hasCodes, entry.Point, entry.Unit,
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339)); err != nil {
 		return fmt.Errorf("upsert entry: %w", err)
 	}
@@ -680,10 +702,10 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 			addedAt = now
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_entry_origins
-			(entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			(entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			entry.ID, i, o.Source, o.Key, o.Reference,
-			addedAt.Format(time.RFC3339), o.AddedBy, o.SessionID); err != nil {
+			addedAt.Format(time.RFC3339), o.AddedBy, o.SessionID, o.ContextFingerprint); err != nil {
 			return fmt.Errorf("insert origin: %w", err)
 		}
 	}
@@ -1024,7 +1046,7 @@ func (tm *SQLiteStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]En
 	}
 
 	rows, err := tm.db.QueryContext(ctx, `
-		SELECT id, project_id, hint_src_lang, properties, note, point, created_at, updated_at
+		SELECT id, project_id, hint_src_lang, properties, note, point, unit, created_at, updated_at
 		FROM tm_entries WHERE id IN (`+placeholders+`)
 	`, args...)
 	if err != nil {
@@ -1036,7 +1058,7 @@ func (tm *SQLiteStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]En
 
 // scanEntriesWithChildren scans entry rows and then batch-loads variants,
 // entities, and origins for all of them, stitching children onto the entries.
-// Expected column order: id, project_id, hint_src_lang, properties, note, point, created_at, updated_at.
+// Expected column order: id, project_id, hint_src_lang, properties, note, point, unit, created_at, updated_at.
 func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interface {
 	Next() bool
 	Scan(...any) error
@@ -1046,7 +1068,7 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 	for rows.Next() {
 		var e Entry
 		var propsJSON, hint, note, createdStr, updatedStr string
-		if err := rows.Scan(&e.ID, &e.ProjectID, &hint, &propsJSON, &note, &e.Point, &createdStr, &updatedStr); err != nil {
+		if err := rows.Scan(&e.ID, &e.ProjectID, &hint, &propsJSON, &note, &e.Point, &e.Unit, &createdStr, &updatedStr); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		e.HintSrcLang = model.LocaleID(hint)
@@ -1176,7 +1198,7 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 	}
 
 	// Origins.
-	originRows, err := tm.db.QueryContext(ctx, `SELECT entry_id, source, key, reference, added_at, added_by, session_id
+	originRows, err := tm.db.QueryContext(ctx, `SELECT entry_id, source, key, reference, added_at, added_by, session_id, context_fp
 		FROM tm_entry_origins WHERE entry_id IN (`+placeholders+`)
 		ORDER BY entry_id, ordinal`, idArgs...)
 	if err != nil {
@@ -1187,7 +1209,7 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 			var eid string
 			var o Origin
 			var addedAtStr string
-			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAtStr, &o.AddedBy, &o.SessionID); err != nil {
+			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAtStr, &o.AddedBy, &o.SessionID, &o.ContextFingerprint); err != nil {
 				originRows.Close()
 				return nil, fmt.Errorf("scan origin: %w", err)
 			}

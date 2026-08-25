@@ -42,6 +42,17 @@ var (
 			// from a recipe, which is a project's own artifact, and the server
 			// scopes a decision by the item it belongs to instead.
 			{Name: "point", SQLite: "TEXT NOT NULL DEFAULT ''"},
+			// unit is added by a later migration (v5 SQLite): the durable block
+			// identity this answer was approved for (model.Block.Unit), and the
+			// only thing that links successive approvals of one block into a
+			// version chain. The corpus already holds every version — a changed
+			// source writes a new entry beside the old rather than replacing it
+			// — but keyed by text, nothing said the two were the same block.
+			//
+			// SQLite only, for the same reason as point: a unit is resolved by
+			// reconciliation over a project's own content, and the server scopes
+			// by the item a decision belongs to instead.
+			{Name: "unit", SQLite: "TEXT NOT NULL DEFAULT ''"},
 		},
 		PGPK: []string{"id"},
 		Indexes: []sq.Index{
@@ -152,6 +163,17 @@ var (
 			{Name: "added_at", SQLite: "TEXT NOT NULL", PG: "TIMESTAMPTZ NOT NULL DEFAULT NOW()"},
 			{Name: "added_by", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 			{Name: "session_id", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
+			// context_fp is added by a later migration (v5 SQLite): the
+			// governing context in force when this answer was produced, as
+			// model.Origin.ContextFingerprint records it on the target.
+			//
+			// The corpus needs it because an answer is only reusable under the
+			// rules it was approved under. Without it a prior version can be
+			// retrieved but not judged, and a caller offering one as reference
+			// would anchor on wording the rules in force may since have
+			// rejected. Per origin rather than per entry, so re-absorbing under
+			// moved governance appends rather than overwrites.
+			{Name: "context_fp", SQLite: "TEXT NOT NULL DEFAULT ''"},
 		},
 		PK:  []string{"entry_id", "ordinal"},
 		FKs: []sq.FK{{Cols: []string{"entry_id"}, RefTable: "tm_entries", RefCols: []string{"id"}, SQLiteInline: true}},
@@ -220,7 +242,7 @@ var pgFuzzyBaselineBlock = strings.NewReplacer(
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
 // IF NOT EXISTS, aligned index names, has_codes/concept_id excluded (added by
 // later migrations).
-var sqliteV1Opt = sq.Opt{IfNotExists: true, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point"}}
+var sqliteV1Opt = sq.Opt{IfNotExists: true, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point", "unit", "context_fp"}}
 
 // RenderMemorySQLiteV1 renders the v1 SQLite content memory migration body, byte-identical to
 // the historical hand-written migration.
@@ -261,12 +283,25 @@ func RenderMemorySQLiteV4() string {
 	return "\n" + memoryEntries.AddColumn(sq.SQLite, o, "point") + "\t\t"
 }
 
+// RenderMemorySQLiteV5 renders the v5 SQLite migration: the durable block
+// identity an answer was approved for, and the index the version lookup walks.
+//
+// The index is on (unit, point) in that order because the question is always
+// "this block, near here" — a unit alone is the whole chain across every point
+// it has ever sat at, which is never what a caller wants.
+func RenderMemorySQLiteV5() string {
+	o := sq.Opt{}
+	return "\n" + memoryEntries.AddColumn(sq.SQLite, o, "unit") +
+		"\t\tCREATE INDEX IF NOT EXISTS idx_tm_unit ON tm_entries(unit, point);\n" +
+		memoryEntryOrigins.AddColumn(sq.SQLite, o, "context_fp") + "\t\t"
+}
+
 // RenderMemoryPostgresCreate renders the fresh-install Postgres content memory schema (the body
 // of historical migration v4, without the leading DROP statements): all tables
 // partitioned by the given tenant column plus the pg_trgm/tsvector fuzzy
 // infrastructure.
 func RenderMemoryPostgresCreate(tenantColumn string) string {
-	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point"}}
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id", "point", "unit", "context_fp"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
@@ -308,7 +343,7 @@ func RenderMemoryPostgresCreate(tenantColumn string) string {
 // and a baseline is re-applied by design — carrying them would mean every
 // migrate pass silently destroyed the content memory it was meant to preserve.
 func RenderMemoryPostgresBaseline(tenantColumn string) string {
-	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes", "point"}}
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes", "point", "unit", "context_fp"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))

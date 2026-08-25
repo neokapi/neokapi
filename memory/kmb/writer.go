@@ -74,6 +74,8 @@ func entryFromModel(e *memory.Entry) Entry {
 		ID:          e.ID,
 		ProjectID:   e.ProjectID,
 		HintSrcLang: string(e.HintSrcLang),
+		Point:       e.Point,
+		Unit:        e.Unit,
 		Properties:  e.Properties,
 		Note:        e.Note,
 		Created:     formatTime(e.CreatedAt),
@@ -113,6 +115,7 @@ func originFromModel(o *memory.Origin) Origin {
 		AddedAt:   formatTime(o.AddedAt),
 		AddedBy:   o.AddedBy,
 		SessionID: o.SessionID,
+		ContextFP: o.ContextFingerprint,
 	}
 }
 

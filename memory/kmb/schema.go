@@ -43,8 +43,16 @@ type Entry struct {
 	Properties  map[string]string      `json:"properties,omitempty"`
 	Origins     []Origin               `json:"origins,omitempty"`
 	Note        string                 `json:"note,omitempty"`
-	Created     string                 `json:"created,omitempty"`
-	Updated     string                 `json:"updated,omitempty"`
+	// Point is where the answer was approved, and Unit is the block it was
+	// approved for. Both are what make the bundle the truth rather than an
+	// approximation of it: without them a wipe-and-reseed returns every entry
+	// as approved nowhere, for no block, which reads to the matcher as a corpus
+	// of ad-hoc additions and quietly disables the disambiguation both exist to
+	// provide.
+	Point   string `json:"point,omitempty"`
+	Unit    string `json:"unit,omitempty"`
+	Created string `json:"created,omitempty"`
+	Updated string `json:"updated,omitempty"`
 }
 
 // EntityMapping is the wire form of memory.EntityMapping: a named entity
@@ -72,6 +80,11 @@ type Origin struct {
 	AddedAt   string `json:"addedAt,omitempty"`
 	AddedBy   string `json:"addedBy,omitempty"`
 	SessionID string `json:"sessionId,omitempty"`
+	// ContextFP is the governing context this answer was produced under. It
+	// travels with the bundle because the bundle is the truth: an answer that
+	// arrives from a re-seed with no governance recorded cannot be judged, only
+	// used.
+	ContextFP string `json:"contextFp,omitempty"`
 }
 
 // ImportSession is the wire form of memory.ImportSession — per-file metadata

@@ -41,6 +41,16 @@ type Origin struct {
 	AddedAt   time.Time
 	AddedBy   string // user ID or tool name
 	SessionID string // FK to ImportSession.ID (empty for non-imported origins)
+	// ContextFingerprint is the governing context in force when this answer was
+	// produced — the same hash model.Origin.ContextFingerprint carries on a
+	// target, so an answer absorbed into the corpus keeps the statement about
+	// what governed it.
+	//
+	// It is what makes a prior answer judgeable rather than merely retrievable:
+	// reuse is only safe under the rules the answer was approved under, and
+	// nothing else here records them. Empty for an import, a seed, or a
+	// producer that ran ungoverned.
+	ContextFingerprint string
 }
 
 // EntityValue is a per-locale entity value with its position within the
@@ -128,7 +138,20 @@ type Entry struct {
 	// location — a seed, an import, an ad-hoc addition. It is what lets one
 	// source string carry a different approved answer per collection, and what
 	// a lookup measures nearness against.
-	Point     string
+	Point string
+	// Unit is the durable block identity this answer was approved for
+	// (model.Block.Unit) — matched by reconciliation rather than named, so it
+	// survives an edit that rewrites the source and a reorder that moves it.
+	//
+	// It is what turns the corpus into a version chain. Entries accumulate: a
+	// block whose source changes writes a new entry beside the old one, keyed
+	// by the new text, and before this there was nothing to say the two were
+	// successive answers for the same block rather than two unrelated strings.
+	//
+	// Empty for an entry bound to no block — a seed, an import, an ad-hoc
+	// addition — and for everything approved before the chain existed. Nothing
+	// backfills it; see the v5 migration.
+	Unit      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
