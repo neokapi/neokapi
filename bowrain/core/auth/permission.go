@@ -1,6 +1,9 @@
 package auth
 
-import "strings"
+import (
+	"maps"
+	"strings"
+)
 
 // Permission represents a single capability that can be granted via a role template.
 // Permissions are stored as a bitmask for O(1) checks and compact storage.
@@ -112,9 +115,7 @@ var permLookup = func() map[string]Permission {
 	for i := range permCount {
 		m[permNames[i]] = 1 << i
 	}
-	for alias, perm := range permAliases {
-		m[alias] = perm
-	}
+	maps.Copy(m, permAliases)
 	return m
 }()
 

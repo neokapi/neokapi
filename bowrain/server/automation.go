@@ -889,12 +889,7 @@ func reachesAnyPoint(reach platauth.CoordinateReach, points []map[string]string)
 	if len(points) == 0 || reach.Unconstrained() {
 		return true
 	}
-	for _, p := range points {
-		if reach.Reaches(p) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(points, reach.Reaches)
 }
 
 // pushPoints resolves the distinct points a push touched, by walking its items
@@ -905,7 +900,7 @@ func (s *Server) pushPoints(ctx context.Context, projectID, items string) []map[
 		return nil
 	}
 	wanted := map[string]bool{}
-	for _, name := range strings.Split(items, ",") {
+	for name := range strings.SplitSeq(items, ",") {
 		if name = strings.TrimSpace(name); name != "" {
 			wanted[name] = true
 		}

@@ -241,7 +241,7 @@ func TestCoordinateFilterStringIsStable(t *testing.T) {
 	// Sorted by axis, so audit lines and test expectations do not depend on map
 	// iteration order.
 	assert.Equal(t, "brand=acme,channel=support,product=docs", f.String())
-	assert.Equal(t, "", CoordinateFilter(nil).String())
+	assert.Empty(t, CoordinateFilter(nil).String())
 }
 
 func TestCoordinatesRoundTripThroughStorage(t *testing.T) {

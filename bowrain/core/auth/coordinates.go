@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 )
@@ -44,9 +45,7 @@ func (f CoordinateFilter) Clone() CoordinateFilter {
 		return nil
 	}
 	out := make(CoordinateFilter, len(f))
-	for axis, value := range f {
-		out[axis] = value
-	}
+	maps.Copy(out, f)
 	return out
 }
 
@@ -76,7 +75,7 @@ func ParseCoordinateFilter(s string) (CoordinateFilter, error) {
 		return nil, nil
 	}
 	out := CoordinateFilter{}
-	for _, pair := range strings.Split(s, ",") {
+	for pair := range strings.SplitSeq(s, ",") {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
 			continue
@@ -184,9 +183,7 @@ func (r CoordinateReach) Intersect(other CoordinateReach) (result CoordinateReac
 // shared axis and therefore describe disjoint regions.
 func mergeFilters(a, b CoordinateFilter) (CoordinateFilter, bool) {
 	out := make(CoordinateFilter, len(a)+len(b))
-	for axis, value := range a {
-		out[axis] = value
-	}
+	maps.Copy(out, a)
 	for axis, value := range b {
 		if prior, ok := out[axis]; ok && prior != value {
 			return nil, false

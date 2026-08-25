@@ -236,6 +236,34 @@ func TestCustodialAuthorityLapsesWithoutDeletingAnything(t *testing.T) {
 	})
 }
 
+func TestGrantCannotExceedTheGrantorsCustody(t *testing.T) {
+	t.Parallel()
+
+	// Delegation cannot exceed the grantor. Reaches() gives exactly subset
+	// semantics here: a filter is inside the caller's reach when every axis the
+	// caller names is satisfied by the grant.
+	acme := platauth.CoordinateReach{platauth.CoordinateFilter{"brand": "acme"}}
+
+	t.Run("a narrower grant inside the region is allowed", func(t *testing.T) {
+		assert.True(t, acme.Reaches(platauth.CoordinateFilter{"brand": "acme", "channel": "support"}))
+	})
+	t.Run("the same region is allowed", func(t *testing.T) {
+		assert.True(t, acme.Reaches(platauth.CoordinateFilter{"brand": "acme"}))
+	})
+	t.Run("a different region is refused", func(t *testing.T) {
+		assert.False(t, acme.Reaches(platauth.CoordinateFilter{"brand": "other"}))
+	})
+	t.Run("a broader grant is refused", func(t *testing.T) {
+		// Granting channel=support with no brand would let acme's custodian
+		// hand out support content across every brand.
+		assert.False(t, acme.Reaches(platauth.CoordinateFilter{"channel": "support"}))
+	})
+	t.Run("an unbounded caller grants anywhere", func(t *testing.T) {
+		var everywhere platauth.CoordinateReach
+		assert.True(t, everywhere.Reaches(platauth.CoordinateFilter{"brand": "other"}))
+	})
+}
+
 func TestNoSeatOrProjectCap(t *testing.T) {
 	srv, jwt, wsSlug, wsID, _ := newProjectMembersTestServer(t)
 	e := srv.GetEcho()

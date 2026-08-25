@@ -76,6 +76,28 @@ type ProjectMemberRequest struct {
 	Coordinates map[string]string `json:"coordinates,omitempty"`
 }
 
+// requireGrantWithinReach refuses a grant of custody the caller does not hold
+// themselves.
+//
+// Without it, the coordinate model would open an escalation it also created: a
+// custodian of one brand whose role carries manage_members holds that power
+// bounded to their brand, and could hand somebody else custody of a different
+// one. Delegation cannot exceed the grantor, so the region being granted must
+// lie inside the region the caller reaches. An unbounded caller — the workspace
+// owner — grants anywhere, as before.
+func (s *Server) requireGrantWithinReach(c echo.Context, coords platauth.CoordinateFilter) error {
+	if coords.Unconstrained() {
+		// Granting no region grants no custody, so there is nothing to exceed.
+		return nil
+	}
+	reach := callerReach(c)
+	if reach.Reaches(coords) {
+		return nil
+	}
+	s.emitAuthzDenied(c, platauth.PermManageMembers, "grant_outside_custody")
+	return deny(c, "cannot grant custody outside your own: "+coords.String())
+}
+
 // coordinatesFrom validates a request's region and returns it as a filter. Axis
 // names and values are required to be non-empty: a half-written axis would
 // silently widen custody, since an axis a filter does not name is an axis it
@@ -135,6 +157,9 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 	}
 	// Members are free and uncapped; custody is not. This is the only place a
 	// plan meters people.
+	if err := s.requireGrantWithinReach(c, coords); err != nil {
+		return err
+	}
 	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, req.UserID); err != nil {
 		return err
 	}
@@ -194,6 +219,9 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 	coords, err := coordinatesFrom(req.Coordinates)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireGrantWithinReach(c, coords); err != nil {
+		return err
 	}
 	if err := s.guardCustodianSeat(c, projectID, req.RoleID, coords, userID); err != nil {
 		return err

@@ -673,22 +673,6 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 // "nowhere", where an empty CoordinateReach says "everywhere".
 const unreachableAxis = "\x00unreachable"
 
-// requireCoordinatePermission verifies both the permission and that the caller's
-// custody reaches the point the content sits at. Use for the coordinate-scoped
-// powers — deciding a review, editing voice, editing terms — where the same act
-// is legitimate at one point and not at another.
-func (s *Server) requireCoordinatePermission(c echo.Context, perm platauth.Permission, point map[string]string) error {
-	if err := s.requirePermission(c, perm); err != nil {
-		return err
-	}
-	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
-	if reach.Reaches(point) {
-		return nil
-	}
-	s.emitAuthzDenied(c, perm, "outside_custody")
-	return deny(c, "no custody at coordinates: "+platauth.CoordinateFilter(point).String())
-}
-
 // hasPermission is requirePermission as a predicate: it answers the same
 // question without writing a 403 or recording a denial.
 func hasPermission(c echo.Context, perm platauth.Permission) bool {
@@ -706,18 +690,6 @@ func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) boo
 	}
 	languages, _ := c.Get("project_languages").([]string)
 	return len(languages) == 0 || slices.Contains(languages, locale)
-}
-
-// reachesPoint is requireCoordinatePermission as a predicate: it answers the
-// same question without writing a 403 or recording a denial. A batch route uses
-// it where one item's refusal must be recorded against that item rather than
-// answering for the whole request.
-func reachesPoint(c echo.Context, perm platauth.Permission, point map[string]string) bool {
-	if !hasPermission(c, perm) {
-		return false
-	}
-	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
-	return reach.Reaches(point)
 }
 
 // callerReach is the caller's custody on this request, for the surfaces that
