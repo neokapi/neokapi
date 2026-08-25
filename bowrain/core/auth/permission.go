@@ -53,10 +53,17 @@ func (p Permission) CoordinateScoped() bool {
 	return p == PermReview || p == PermManageVoice || p == PermManageTerms
 }
 
-// CustodialPermissions is the union of the coordinate-scoped powers. Holding any
-// of them over a bounded region is what makes someone a custodian of that
-// region — see IsCustodian.
-const CustodialPermissions = PermReview | PermManageVoice | PermManageTerms
+// CustodialPermissions are the powers that author what governs content, rather
+// than exercising it: voice and terms. Holding either over a bounded region is
+// what makes someone a custodian of that region — see IsCustodian.
+//
+// PermReview is coordinate-scoped but deliberately absent. Reviewing content is
+// volume work whose count grows with what was pushed; authoring a rule is not.
+// A reviewer bounded to one brand is a contributor with a narrow beat, and
+// folding them in here would both bill them as a custodian and — via
+// TaskType.IsVolume routing — stop sending them the very work they are there to
+// do.
+const CustodialPermissions = PermManageVoice | PermManageTerms
 
 // IsCustodian reports whether a grant is custody of a region rather than blanket
 // authority: at least one coordinate-scoped permission, held over something

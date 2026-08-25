@@ -272,10 +272,12 @@ func TestIsCustodian(t *testing.T) {
 		want  bool
 	}{
 		{
-			name:  "review over a region is custody",
+			// Reviewing is volume work; authoring a rule is not. A reviewer
+			// bounded to one brand is a contributor with a narrow beat.
+			name:  "review over a region is not custody",
 			perms: PermViewContent | PermReview,
 			reach: region,
-			want:  true,
+			want:  false,
 		},
 		{name: "voice over a region is custody", perms: PermManageVoice, reach: region, want: true},
 		{name: "terms over a region is custody", perms: PermManageTerms, reach: region, want: true},

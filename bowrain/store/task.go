@@ -26,6 +26,49 @@ const (
 	TaskCustom         TaskType = "custom"
 )
 
+// IsVolume reports whether this task type's count grows with the amount of
+// content pushed, rather than with the number of anomalies found.
+//
+// The distinction decides who may hold the task. Volume work is a contributor's
+// — free, uncapped, assigned by language. Everything else is an escalation: what
+// a check flagged and no rule resolves, or a proposal to change what governs
+// content. A custodian seat is priced against the review function it replaces,
+// so a custodian sitting on a volume queue is the failure that would invalidate
+// the price — see TaskClass and routeTaskClass.
+func (t TaskType) IsVolume() bool {
+	switch t {
+	case TaskTranslate, TaskReview, TaskSourceReview:
+		return true
+	default:
+		return false
+	}
+}
+
+// TaskClass names which of the two queues a task belongs to. It is written onto
+// every task Data map under TaskDataClass so the ratio between them is
+// queryable: the standing invariant is that tasks per custodian tracks anomaly
+// count, not content pushed, and an invariant nobody can measure is a wish.
+type TaskClass string
+
+const (
+	// TaskClassVolume grows with content. Contributors hold it.
+	TaskClassVolume TaskClass = "volume"
+	// TaskClassEscalation grows with anomalies and governance proposals.
+	// Custodians hold it.
+	TaskClassEscalation TaskClass = "escalation"
+)
+
+// TaskDataClass is the Data key carrying a task's TaskClass.
+const TaskDataClass = "class"
+
+// ClassOf returns the class a task type belongs to.
+func ClassOf(t TaskType) TaskClass {
+	if t.IsVolume() {
+		return TaskClassVolume
+	}
+	return TaskClassEscalation
+}
+
 // TaskStatus tracks task lifecycle.
 type TaskStatus string
 
@@ -117,6 +160,12 @@ func (s *TaskStore) Create(ctx context.Context, t *Task) error {
 	if t.Data == nil {
 		t.Data = map[string]string{}
 	}
+	// The class is stamped here rather than at each call site so no future task
+	// can be created without one. It is derived from the type, so a caller
+	// cannot disagree with it either: the ratio between the two queues is the
+	// standing invariant, and an invariant that depends on every caller
+	// remembering is not one.
+	t.Data[TaskDataClass] = string(ClassOf(t.Type))
 
 	dataJSON, _ := json.Marshal(t.Data)
 	var dueAt any

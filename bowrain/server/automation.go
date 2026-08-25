@@ -623,6 +623,12 @@ func (s *Server) createReviewTasksForLocales(ctx context.Context, proj *store.Pr
 	items := ev.Data["items"]
 	runID := ev.Data["run_id"] // set when a convergence run fans out review tasks
 
+	// The points this push touched, so the work reaches whoever holds them
+	// rather than everyone who happens to speak the language. Empty when the
+	// push named no items or none resolve to a collection, which routes exactly
+	// as it did before regions existed.
+	points := s.pushPoints(ctx, proj.ID, items)
+
 	// taskData builds the per-locale linkage carried on each task, preserving
 	// run_id when present so a convergence-run task points back at its run.
 	taskData := func(localeStr string) map[string]string {
@@ -646,7 +652,7 @@ func (s *Server) createReviewTasksForLocales(ctx context.Context, proj *store.Pr
 		}
 
 		var assigneeIDs []string
-		for _, m := range s.findMembersForLocale(ctx, members, localeStr, mode) {
+		for _, m := range s.findMembersForLocale(ctx, members, localeStr, mode, points) {
 			assigneeIDs = append(assigneeIDs, m.UserID)
 		}
 		// No project member covers this locale — the common case for a project
@@ -816,10 +822,27 @@ func (s *Server) fallbackReviewAssignees(ctx context.Context, proj *store.Projec
 
 // findMembersForLocale returns project members whose language scope includes the locale
 // and whose role has the required permission for the given mode.
-func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.ProjectMembership, locale, mode string) []*platauth.ProjectMembership {
+// It applies two rules beyond language and permission, both of them consequences
+// of what a membership now carries:
+//
+//   - A member bounded to a region only receives work for a push that touched
+//     that region. An unbounded member receives everything, as before.
+//   - A custodian is never the first choice for volume work. The seat is priced
+//     against the review function it replaces, so a custodian sitting on a queue
+//     that grows with content pushed is the failure that would invalidate the
+//     price. A reviewer bounded to one brand is not a custodian — see
+//     auth.CustodialPermissions.
+//
+// Neither rule can starve the queue: when nothing survives them the caller falls
+// back to the workspace owners, which is what keeps governed review visible.
+func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.ProjectMembership, locale, mode string, points []map[string]string) []*platauth.ProjectMembership {
 	requiredPerm := platauth.PermReview
 	if mode == "translate" {
 		requiredPerm = platauth.PermTranslate
+	}
+	taskType := bstore.TaskReview
+	if mode == "translate" {
+		taskType = bstore.TaskTranslate
 	}
 
 	var result []*platauth.ProjectMembership
@@ -844,9 +867,92 @@ func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.P
 			continue
 		}
 
+		reach := platauth.CoordinateReach{}.Add(m.Coordinates)
+		if !reachesAnyPoint(reach, points) {
+			continue
+		}
+		if taskType.IsVolume() && platauth.IsCustodian(rt.Permissions, reach) {
+			continue
+		}
+
 		result = append(result, m)
 	}
 	return result
+}
+
+// reachesAnyPoint reports whether a member's custody covers at least one of the
+// points a push touched. No points means the push told us nothing about where
+// its content sits, which routes to everyone as it did before regions existed —
+// silence about the region must widen the audience, never narrow it, or a push
+// that failed to resolve its collections would quietly reach nobody.
+func reachesAnyPoint(reach platauth.CoordinateReach, points []map[string]string) bool {
+	if len(points) == 0 || reach.Unconstrained() {
+		return true
+	}
+	for _, p := range points {
+		if reach.Reaches(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// pushPoints resolves the distinct points a push touched, by walking its items
+// to the collections that hold them and reading the coordinates each collection
+// recorded. Returns nil when nothing resolves, which routes as before.
+func (s *Server) pushPoints(ctx context.Context, projectID, items string) []map[string]string {
+	if s.ContentStore == nil || items == "" {
+		return nil
+	}
+	wanted := map[string]bool{}
+	for _, name := range strings.Split(items, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			wanted[name] = true
+		}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+
+	all, err := s.ContentStore.ListItems(ctx, projectID, "main")
+	if err != nil {
+		slog.InfoContext(ctx, "push points: cannot list items; routing to everyone",
+			"project", projectID, "error", err)
+		return nil
+	}
+	collectionIDs := map[string]bool{}
+	for _, it := range all {
+		if it != nil && wanted[it.Name] && it.CollectionID != "" {
+			collectionIDs[it.CollectionID] = true
+		}
+	}
+	if len(collectionIDs) == 0 {
+		return nil
+	}
+
+	collections, err := s.ContentStore.ListCollections(ctx, projectID, "main")
+	if err != nil {
+		slog.InfoContext(ctx, "push points: cannot list collections; routing to everyone",
+			"project", projectID, "error", err)
+		return nil
+	}
+	seen := map[string]bool{}
+	var points []map[string]string
+	for _, col := range collections {
+		if col == nil || !collectionIDs[col.ID] {
+			continue
+		}
+		// The default point — a collection that declared no coordinates — is a
+		// real place content sits, so it is carried as an empty point rather
+		// than skipped. Only a bounded custodian of some other region misses it.
+		key := platauth.CoordinateFilter(col.Context).String()
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		points = append(points, col.Context)
+	}
+	return points
 }
 
 // existingOpenTaskLocales returns a set of locales that already have open or in-progress tasks

@@ -45,6 +45,14 @@ func changeSetReviewPath(wsSlug, changesetID string) string {
 // Permissions resolve exactly as ProjectAccessMiddleware's workspace-role
 // fallback does — a per-workspace role override when one is set, the role
 // default otherwise — so the reach can never disagree with the gate.
+//
+// This is deliberately not narrowed by region, unlike the review queue. A
+// change-set governs the terms every project in the workspace resolves against,
+// so it sits at no point: there is nothing to narrow by, and inventing a point
+// for it would summon a subset of the people its merge actually affects. When a
+// change-set gains a declared region, this is where that narrowing belongs — the
+// coordinate-scoped reach is already resolved per member, so the change here is
+// a filter, not a mechanism.
 func (s *Server) changeSetReviewers(ctx context.Context, wsID, authorID string) []string {
 	if s.AuthStore == nil || wsID == "" {
 		return nil
