@@ -1025,11 +1025,17 @@ const config: Config = {
           label: "Reference",
           position: "left",
           items: [
-            // Reader-facing reference only. Project-status dashboards (parity,
-            // benchmarks, eval, test results) are telemetry, not a reader
-            // concept — they live in the "Project status" sidebar section, not
-            // this dropdown.
+            // Reader-facing reference only. The individual dashboards (parity,
+            // benchmarks, per-eval results) stay out of this dropdown: one of
+            // them is a slice of telemetry, not something a reader arrives
+            // looking for.
+            //
+            // /evals is the exception, and the reason is that it is not a
+            // dashboard. It is the cover page over all of them, and the only
+            // surface that can say what is NOT measured, which is the half a
+            // reader cannot reconstruct by browsing the others.
             { label: "Reference Overview", to: "/reference" },
+            { label: "Tests and Evals", to: "/evals" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
