@@ -36,8 +36,11 @@ import (
 // IR, used only within the xliff2 package to bridge the format's multi-segment
 // units to the Block's flat runs + segmentation overlay.
 type seg struct {
-	ID        string
-	Runs      []model.Run
+	ID   string
+	Runs []model.Run
+	// Marks are the annotation markers this segment carried, in run
+	// coordinates local to Runs.
+	Marks     []markSpan
 	Ignorable bool
 	Content   *Content // full inline IR for this segment's body
 }
@@ -114,6 +117,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 
 	block.Source = layOutSegments(srcSegs, ann.Source)
 	block.SetSegmentation(nil, buildSegmentSpans(srcSegs))
+	applyMarkOverlays(block, nil, srcSegs)
 
 	if len(tgtSegs) > 0 && !trgLang.IsEmpty() {
 		irByID := map[string]*Content{}
@@ -122,6 +126,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		block.SetTargetRuns(trgLang, runs)
 		key := model.Variant(trgLang)
 		block.SetSegmentation(&key, buildSegmentSpans(tgtSegs))
+		applyMarkOverlays(block, &key, tgtSegs)
 		// Map the XLIFF 2 segment state (captured as a block property by both
 		// reader paths) onto the target's lifecycle status, so coverage and ship
 		// gates see review progress that came in over the interchange. This is
@@ -137,6 +142,86 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 	if len(ann.Source) > 0 || len(ann.Target) > 0 {
 		block.SetAnno(unitSegmentsAnnotationKey, ann)
 	}
+}
+
+// OverlayMrk carries the annotation markers XLIFF 2 spells with a type this
+// framework has no overlay of its own for: a comment, a custom annotation from
+// whatever tool wrote the file. The marker's declared type rides in the span's
+// `type` prop.
+//
+// OverlayType is deliberately an open string for exactly this — "formats and
+// plugins may use any string for their own run-anchored state" — so a marker
+// nobody here understands is still carried rather than discarded.
+const OverlayMrk model.OverlayType = "xliff2:mrk"
+
+// applyMarkOverlays turns the annotation markers the segments carried into the
+// stand-off overlays the model records them as.
+//
+// A marker is not a run and never becomes one: constructs.yaml maps
+// `meta.terminology` to `overlay:term` and says so in as many words. An
+// <mrk type="term"> therefore arrives as a term overlay span, and every other
+// marker type as an OverlayMrk span keeping the type it declared. Dropping the
+// ones we do not recognize would silently discard a decision another tool
+// recorded in the file.
+//
+// Positions are rebased from segment-local runs onto the block's, the same
+// cursor walk buildSegmentSpans does over the same segments.
+func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg) {
+	var term, other []model.Span
+	cursor := 0
+	for _, sg := range segs {
+		for _, m := range sg.Marks {
+			if m.End < m.Start {
+				continue
+			}
+			span := markToSpan(m, cursor)
+			if m.Attrs.Type == "term" {
+				term = append(term, span)
+				continue
+			}
+			if span.Props == nil {
+				span.Props = map[string]string{}
+			}
+			span.Props["type"] = m.Attrs.Type
+			other = append(other, span)
+		}
+		cursor += len(sg.Runs)
+	}
+	if len(term) > 0 {
+		block.Overlays = append(block.Overlays,
+			model.Overlay{Type: model.OverlayTerm, Variant: variant, Spans: term})
+	}
+	if len(other) > 0 {
+		block.Overlays = append(block.Overlays,
+			model.Overlay{Type: OverlayMrk, Variant: variant, Spans: other})
+	}
+}
+
+// markToSpan positions one marker on the block's runs, carrying the marker
+// attributes that mean something to a consumer. `ref` is where a term mark
+// points back at the concept it denotes.
+func markToSpan(m markSpan, offset int) model.Span {
+	span := model.Span{
+		ID: m.Attrs.ID,
+		Range: model.SpanAnchor(
+			model.RunPos{Run: m.Start + offset},
+			model.RunPos{Run: m.End + offset},
+		),
+	}
+	props := map[string]string{}
+	if m.Attrs.Ref != "" {
+		props["ref"] = m.Attrs.Ref
+	}
+	if m.Attrs.Value != "" {
+		props["value"] = m.Attrs.Value
+	}
+	if m.Attrs.Translate != "" {
+		props["translate"] = m.Attrs.Translate
+	}
+	if len(props) > 0 {
+		span.Props = props
+	}
+	return span
 }
 
 // layOutSegments concatenates the runs of every seg into a single sequence,

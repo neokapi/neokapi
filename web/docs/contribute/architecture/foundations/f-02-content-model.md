@@ -411,6 +411,16 @@ sentence boundaries fall, which spans are terms or entities, what a check flagge
 how a source span aligns to a target span — is a stand-off overlay layered over
 the run sequence without rewriting it.
 
+The split is by **origin**. A run records what the source document
+structurally contained; an overlay records what something concluded about it.
+So a conclusion never becomes a run, however a format happens to spell it: an
+XLIFF `<mrk type="term">` arrives as a term overlay span rather than as a run
+kind, and a term this engine locates leaves as a `<mrk>` the writer draws around
+runs it does not alter. Marking is a projection at write time and a reading at
+parse time, which is why the same content round-trips through a format that
+carries marks and one that carries none. What a writer will draw is a declared
+capability ([E-02](../engine/e-02-format-system.md)).
+
 ```go
 type Span struct {
     ID    string            // overlay-local id (e.g. a segment id "s1")
