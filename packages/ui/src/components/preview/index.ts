@@ -63,7 +63,13 @@ export type {
   RenderSection,
   StructureRule,
 } from "./renderDoc";
-export { runsPlainText, rangeAnchorForChars, rangeAnchorForBytes, textForBytes } from "./anchor";
+export {
+  runsPlainText,
+  rangeAnchorForChars,
+  rangeAnchorForBytes,
+  runPosOf,
+  textForBytes,
+} from "./anchor";
 export { byteToCharOffset } from "../../lib/offsets";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";

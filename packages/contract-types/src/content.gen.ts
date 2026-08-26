@@ -467,8 +467,8 @@ export interface Anchor {
   kind: string;
   path?: RunPathStep[];
   runId?: string;
-  start: RunPos;
-  end: RunPos;
+  start?: RunPos;
+  end?: RunPos;
   key?: string;
 }
 

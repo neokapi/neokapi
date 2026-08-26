@@ -75,20 +75,23 @@ older state.
 | --- | --- | --- |
 | `type` | string | Record discriminator. |
 | `id` | string | Annotation identity. |
-| `anchor` | object | Where in the content this applies. See below. |
+| `block` | string | The block this annotation is about. |
+| `anchor` | object | Where inside that block it applies. See below. |
 | `data` | any | Producer-specific payload. **The framework imposes no schema here** — consumers that understand `annotationType` interpret it. |
 
 ### The anchoring model
 
-An anchor is a flattened shape whose `kind` field discriminates which of the
-other fields are meaningful:
+An anchor says where inside a block something is. It is the same shape the
+engine records every position with — overlay spans, check findings — so an
+annotation written here means what it means anywhere else. Its `kind` field
+discriminates which of the other fields are meaningful:
 
 | `kind` | Meaningful fields | Points at |
 | --- | --- | --- |
-| `block` | `block` | A whole block. |
-| `run` | `block`, `path`, `runId` | One run within a block. |
-| `range` | `block`, `path`, `offset`, `length` | A character span within a run sequence. |
-| `form` | `block`, `path`, `key` | One plural form or select case. |
+| `block` | — | A whole block. |
+| `run` | `path`, `runId` | One run, identified by path and matched against `runId`. |
+| `range` | `path`, `start`, `end` | A half-open span of the run sequence at `path`. |
+| `form` | `path`, `key` | One plural form or select case. |
 
 `path` is a **run path**: a sequence of steps through a block's nested run
 structure. An empty path refers to the block's top-level source runs. Each step
@@ -101,6 +104,16 @@ constructs:
 
 So `["1", {"plural": "other"}, 0]` reads as: run 1, its `other` form, the first
 run inside it.
+
+`start` and `end` are each a **run position** — `{"run": <index>, "offset":
+<runes>}` — where `offset` is a rune offset into that run's text. Both the
+position and its offset default to zero and are omitted when they are zero, so
+a range over the first run of a sequence carries no `start` at all.
+
+Bounding a range by two run positions rather than by an offset and a length
+into one run is what lets a span cross run boundaries, so a phrase running
+through a bold segment is one range rather than three, and lets a boundary sit
+either side of a placeholder, which carries no text of its own.
 
 ## Spec B: overlay set (`.overlays.json`)
 

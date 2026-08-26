@@ -167,7 +167,7 @@ describe("blockToContentNode — overlays", () => {
     expect(entities?.spans[0].id).toBe("entity:0");
     expect(entities?.spans[0].text).toBe("console");
     expect(entities?.spans[0].props).toEqual({ type: "entity:product", dnt: "true" });
-    expect(entities?.spans[0].range.start.run).toBe(4);
+    expect(entities?.spans[0].range.start?.run).toBe(4);
   });
 
   it("keeps a run-anchored finding's position and its category in span props", () => {

@@ -142,8 +142,9 @@ export interface RunAnchor {
 export interface RangeAnchor {
   kind: "range";
   path: RunPath;
-  start: RunPos;
-  end: RunPos;
+  /** Omitted when it is the zero position, which is what the wire form does. */
+  start?: RunPos;
+  end?: RunPos;
 }
 
 /**
@@ -301,6 +302,17 @@ function runTextLength(run: Run): number {
   return "text" in run ? Array.from(run.text).length : 0;
 }
 
+/**
+ * A boundary as the wire gives it. Go writes `start` and `end` with
+ * `omitzero`, so a range beginning at the first run carries no `start` key at
+ * all: an absent position is the zero position, not a malformed anchor. The
+ * resolver reads annotation files off disk, where no type is policing them, so
+ * it takes them as they come.
+ */
+function posOf(pos: RunPos | undefined): RunPos {
+  return pos ?? { run: 0 };
+}
+
 function offsetInBounds(runs: Run[], pos: RunPos): boolean {
   const offset = pos.offset ?? 0;
   if (offset < 0) return false;
@@ -311,9 +323,11 @@ function offsetInBounds(runs: Run[], pos: RunPos): boolean {
 }
 
 function rangeInBounds(runs: Run[], anchor: RangeAnchor): boolean {
-  if (anchor.start.run < 0 || anchor.end.run < anchor.start.run) return false;
-  if (anchor.end.run > runs.length) return false;
-  return offsetInBounds(runs, anchor.start) && offsetInBounds(runs, anchor.end);
+  const start = posOf(anchor.start);
+  const end = posOf(anchor.end);
+  if (start.run < 0 || end.run < start.run) return false;
+  if (end.run > runs.length) return false;
+  return offsetInBounds(runs, start) && offsetInBounds(runs, end);
 }
 
 /**
@@ -323,19 +337,21 @@ function rangeInBounds(runs: Run[], anchor: RangeAnchor): boolean {
  */
 function extractRuns(runs: Run[], anchor: RangeAnchor): Run[] {
   const out: Run[] = [];
-  const startOffset = anchor.start.offset ?? 0;
-  const endOffset = anchor.end.offset ?? 0;
+  const start = posOf(anchor.start);
+  const end = posOf(anchor.end);
+  const startOffset = start.offset ?? 0;
+  const endOffset = end.offset ?? 0;
 
-  for (let i = anchor.start.run; i <= anchor.end.run && i < runs.length; i++) {
+  for (let i = start.run; i <= end.run && i < runs.length; i++) {
     const run = runs[i];
     if ("text" in run) {
       const chars = Array.from(run.text);
-      const from = i === anchor.start.run ? Math.min(startOffset, chars.length) : 0;
-      const to = i === anchor.end.run ? Math.min(endOffset, chars.length) : chars.length;
+      const from = i === start.run ? Math.min(startOffset, chars.length) : 0;
+      const to = i === end.run ? Math.min(endOffset, chars.length) : chars.length;
       if (from < to) out.push({ text: chars.slice(from, to).join("") });
       continue;
     }
-    if (i === anchor.end.run && endOffset === 0) continue;
+    if (i === end.run && endOffset === 0) continue;
     out.push(run);
   }
   return out;

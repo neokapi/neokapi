@@ -422,7 +422,7 @@ type Span struct {
 
 `Anchor` is the one type that says where inside a block something is, and every
 producer records positions with it: overlays, check findings, and the stand-off
-annotations a [KBF](/docs/contribute/implementation/formats/kbf) archive carries.
+annotations an [overlay sidecar](/reference/serialization/overlays) carries.
 It addresses one of four things, discriminated by `Kind` — the whole block, one
 run by id, a half-open span of characters, or one branch of a plural or select
 run.

@@ -115,6 +115,15 @@ function runPos(run: number, offset: number): RunPos {
 }
 
 /**
+ * A boundary as the wire gives it. Go writes an anchor's `start` and `end`
+ * with `omitzero`, so a range beginning at the first run carries no `start`
+ * key at all: an absent position is the zero position.
+ */
+export function runPosOf(pos: RunPos | undefined): RunPos {
+  return pos ?? { run: 0 };
+}
+
+/**
  * The Anchor covering the half-open UTF-8 byte span [byteStart, byteEnd) of
  * the sequence's flat text. Mirrors model.RangeAnchorForBytes — the conversion a
  * consumer needs for any offset a Go producer reported (entity spans, term
@@ -127,7 +136,11 @@ export function rangeAnchorForBytes(
 ): Anchor {
   const seq = runs ?? [];
   const text = runsPlainText(seq);
-  return rangeAnchorForChars(seq, byteToCharOffset(text, byteStart), byteToCharOffset(text, byteEnd));
+  return rangeAnchorForChars(
+    seq,
+    byteToCharOffset(text, byteStart),
+    byteToCharOffset(text, byteEnd),
+  );
 }
 
 /**
