@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T06:00:29Z",
+  "generatedAt": "2026-08-26T21:14:33Z",
   "kind": "tool",
   "entries": [
     {
@@ -2007,6 +2007,9 @@
           "requires": [
             "target-language",
             "credentials"
+          ],
+          "accepts": [
+            "memory"
           ],
           "cardinality": "bilingual",
           "consumes": [
@@ -4145,6 +4148,9 @@
             "target-language",
             "credentials"
           ],
+          "accepts": [
+            "memory"
+          ],
           "cardinality": "bilingual",
           "produces": [
             {
@@ -4176,6 +4182,7 @@
             "label": "Prompt",
             "fields": [
               "instruction",
+              "reuse",
               "context",
               "contextWindow"
             ]
@@ -4352,6 +4359,22 @@
               }
             ],
             "ui:widget": "select"
+          },
+          "reuse": {
+            "type": "string",
+            "title": "Reuse Prior Translation",
+            "description": "Offer a block's previously approved translation to the model as reference",
+            "default": "prior",
+            "options": [
+              {
+                "value": "prior",
+                "label": "prior"
+              },
+              {
+                "value": "none",
+                "label": "none"
+              }
+            ]
           },
           "skipMatched": {
             "type": "boolean",

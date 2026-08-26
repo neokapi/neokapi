@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T06:00:29Z",
+  "generatedAt": "2026-08-26T21:14:33Z",
   "commands": [
     {
       "id": "add",
@@ -4071,6 +4071,12 @@
           "name": "provider",
           "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "reuse",
+          "usage": "Offer a block's previously approved translation to the model as reference (prior, none)",
+          "default": "prior",
           "type": "string"
         },
         {
