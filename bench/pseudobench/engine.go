@@ -256,7 +256,7 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 	if err != nil {
 		for i := range fileResults {
 			fileResults[i].Success = false
-			fileResults[i].Error = err.Error()
+			fileResults[i].Error = scrubPaths(err.Error())
 		}
 		return nil, fileResults, err
 	}
@@ -518,7 +518,7 @@ func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, 
 		if runErr != nil {
 			for _, it := range items {
 				fileResults[it.i].Success = false
-				fileResults[it.i].Error = runErr.Error()
+				fileResults[it.i].Error = scrubPaths(runErr.Error())
 			}
 			continue
 		}
@@ -682,3 +682,23 @@ func detectVersion(binPath string) string {
 
 	return filepath.Base(binPath)
 }
+
+// scrubPaths removes absolute paths from anything that reaches the committed
+// dataset.
+//
+// The results are checked in, and scripts/check-abs-paths.sh holds every
+// tracked file to zero of them: /Users/<name>/... resolves on exactly one
+// laptop. Error strings are the way they get in, because a failing engine
+// reports the binary and the fixture by full path, and a run where nothing
+// fails carries none — so the guard stays quiet until the first bad run and
+// then fails a build that looks unrelated.
+func scrubPaths(msg string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		msg = strings.ReplaceAll(msg, home, "~")
+	}
+	return absPathPattern.ReplaceAllString(msg, "<path>")
+}
+
+// absPathPattern matches the absolute paths that survive the home-directory
+// substitution: a temp dir, a system root, another checkout.
+var absPathPattern = regexp.MustCompile(`(?:/(?:Users|home|private|var|tmp|opt)/)[^\s"']*`)

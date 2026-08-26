@@ -414,7 +414,7 @@ func (r *Report) stamp(opts Options, claudeBin string) {
 		SkillModified: firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%ad", "--date=short", "--", "cli/skills/data/kapi")),
 		Host:          firstLine(run("uname", "-sm")),
 		Kapi:          strings.TrimPrefix(opts.KapiBin, opts.RepoRoot+"/"),
-		KapiVersion:   firstLine(run(opts.KapiBin, "version")),
+		KapiVersion:   scrubPaths(firstLine(run(opts.KapiBin, "version"))),
 		Settings:      settingsLine(opts),
 	}
 }

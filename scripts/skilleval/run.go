@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -297,7 +298,7 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 
 	dir, err := os.MkdirTemp("", "skilleval-"+sc.ID+"-")
 	if err != nil {
-		r.Err = err.Error()
+		r.Err = scrubPaths(err.Error())
 		return r
 	}
 	if opts.Keep {
@@ -307,12 +308,12 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 	}
 
 	if err := buildWorkspace(dir, sc, opts.RepoRoot, opts.KapiBin); err != nil {
-		r.Err = err.Error()
+		r.Err = scrubPaths(err.Error())
 		return r
 	}
 	before, err := snapshot(dir)
 	if err != nil {
-		r.Err = err.Error()
+		r.Err = scrubPaths(err.Error())
 		return r
 	}
 
@@ -364,12 +365,12 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		r.Err = err.Error()
+		r.Err = scrubPaths(err.Error())
 		return r
 	}
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {
-		r.Err = err.Error()
+		r.Err = scrubPaths(err.Error())
 		return r
 	}
 	parseStream(stdout, &r)
@@ -411,7 +412,7 @@ func runGate(ctx context.Context, dir, gate string, opts Options) *GateResult {
 	}
 	out, err := cmd.CombinedOutput()
 
-	res := &GateResult{Command: gate, Output: truncate(string(out), 4000)}
+	res := &GateResult{Command: gate, Output: scrubPaths(truncate(string(out), 4000))}
 	if err != nil {
 		res.ExitCode = 1
 		var ee *exec.ExitError
@@ -453,7 +454,7 @@ func parseStream(r io.Reader, out *Run) {
 			switch c.Type {
 			case "text":
 				if t := strings.TrimSpace(c.Text); t != "" {
-					out.FinalText = truncate(t, 2000)
+					out.FinalText = scrubPaths(truncate(t, 2000))
 				}
 			case "tool_use":
 				if !seenTool[c.Name] {
@@ -481,7 +482,7 @@ func parseStream(r io.Reader, out *Run) {
 					}
 					if json.Unmarshal(c.Input, &in) == nil && mentionsKapi(in.Command) {
 						out.Triggered = true
-						out.KapiCommands = append(out.KapiCommands, truncate(in.Command, 300))
+						out.KapiCommands = append(out.KapiCommands, scrubPaths(truncate(in.Command, 300)))
 					}
 				}
 			}
@@ -509,6 +510,27 @@ func mentionsKapi(cmd string) bool {
 	}
 	return false
 }
+
+// scrubPaths removes absolute paths from anything that reaches the committed
+// dataset.
+//
+// The dataset is checked in, and scripts/check-abs-paths.sh holds every tracked
+// file to zero of them: an absolute home path resolves on exactly one laptop.
+//
+// An agent's own commands are how they get in. It works in a throwaway
+// directory under os.TempDir() and reaches kapi by whatever path it found, so a
+// transcript can carry both the developer's home and a temp root that will not
+// exist tomorrow. Neither tells a reader anything the relative path does not.
+func scrubPaths(msg string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		msg = strings.ReplaceAll(msg, home, "~")
+	}
+	return absPathPattern.ReplaceAllString(msg, "<path>")
+}
+
+// absPathPattern matches the absolute paths that survive the home-directory
+// substitution: a scenario's temp workspace, a system root, another checkout.
+var absPathPattern = regexp.MustCompile(`/(?:Users|home|private|var|tmp|opt)/[^\s"']*`)
 
 func truncate(s string, n int) string {
 	if len(s) <= n {
