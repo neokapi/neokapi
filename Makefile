@@ -2116,6 +2116,34 @@ coordinate-report: ## Regenerate the /coordinate dashboard data (no model calls)
 eval-index: ## Rebuild the /evals cover-page data
 	$(GO) run ./scripts/evalindex
 
+# ── Agent-skill eval ─────────────────────────────────────────────────────────
+# Measures the shipped Agent Skill by driving a real agent through `claude -p`
+# in a throwaway workspace per scenario.
+#
+# NEVER runs in CI. It needs the claude CLI, local credentials and real money,
+# so the committed dataset is the only thing a build ever sees — which makes the
+# date on that dataset the real currency of the numbers, and the dashboard shows
+# its age for exactly that reason.
+#
+# Triggering is stochastic: a single pass tells you almost nothing, so the
+# default is three and a scenario that fires twice in three is reported as
+# `flaky` rather than rounded to a pass.
+SKILLEVAL_ARGS ?=
+skill-eval: ## Measure whether the Agent Skill fires on the right tasks (spends, local only)
+	$(GO) run ./scripts/skilleval -mode trigger $(SKILLEVAL_ARGS)
+
+# The expensive half: drives each positive to a green gate rather than stopping
+# at activation. Needs a built kapi, and takes far longer per scenario.
+skill-eval-completion: build ## Drive each positive scenario to a green gate (slow, spends, local only)
+	$(GO) run ./scripts/skilleval -mode completion -repeat 1 -concurrency 3 -timeout 90m $(SKILLEVAL_ARGS)
+
+# The other door. An MCP client holds kapi's nineteen tools in context already,
+# so it cannot fail to notice kapi; it fails by picking the wrong tool. Scored
+# on which tool the agent reached for, not on whether it reached kapi at all.
+# Needs a built kapi, because the agent is pointed at this checkout's binary.
+mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spends, local only)
+	$(GO) run ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be

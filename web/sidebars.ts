@@ -294,10 +294,10 @@ const sidebars: SidebarsConfig = {
     },
     {
       // Every measurement kapi publishes, entered through /evals. The cover
-      // page is first because the individual dashboards each answer a slice of
-      // one question and none of them can say what is NOT measured; the cover
-      // page carries the four unbuilt evals, which is the half a reader cannot
-      // reconstruct by browsing the others.
+      // page is first because each dashboard below shows one slice and none of
+      // them can say what is NOT measured; the cover page carries the unbuilt
+      // evals and the layers with nothing behind them, which is the half a
+      // reader cannot reconstruct by browsing the others.
       //
       // The registry behind it is scripts/evalindex, and its tests resolve
       // every command, page and dataset a card names.
@@ -314,6 +314,7 @@ const sidebars: SidebarsConfig = {
         { type: "link", label: "Batch eval", href: "/batch-eval" },
         { type: "link", label: "Engine benchmarks", href: "/pseudobench" },
         { type: "link", label: "ML benchmark", href: "/ml-benchmark" },
+        { type: "link", label: "Skill eval", href: "/skill-eval" },
       ],
     },
   ],
