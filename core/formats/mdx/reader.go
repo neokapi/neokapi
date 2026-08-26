@@ -361,38 +361,57 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	// Reconstruct the untranslated span from blocks + skeleton and compare
 	// to the source bytes. Only splice when byte-identical.
 	if ok, div := r.spanReconstructsExactly(span, entries, blocksByOrigID); !ok {
-		// Fall back to a single opaque region (verbatim skeleton + Data) so
-		// the byte-exact round-trip is preserved regardless of flag.
-		//
-		// Say so. The fallback costs this span every translatable block it
-		// had, and it is the right trade only while somebody can see it being
-		// made: a whole document can go opaque for one construct, and the
-		// symptom is a page that renders in the source language with no error
-		// anywhere. Recorded unconditionally rather than under ValidationMode,
-		// because the runs that most need to hear it are ordinary ones.
-		r.recordOpaqueFallback(span, div)
-		r.emitOpaque(ctx, ch, span, "markdown-opaque")
-		// When content surfacing is on, ALSO expose the prose the markdown
-		// sub-reader already parsed as non-translatable content (#928,
-		// visible to ingestion, skipped by MT). These blocks carry NO
-		// skeleton ref — the opaque region above owns the verbatim bytes —
-		// so they never affect the round-trip; with the flag off the part
-		// stream is unchanged (just the opaque Data above).
-		if r.cfg.ExtractNonTranslatableContent() {
+		// Before surrendering the span, try to isolate the blocks that actually
+		// diverged. One unsupported construct costing its own block is a very
+		// different thing from one costing a whole page, and until now it cost
+		// the page: a checklist at the bottom of a release note took every
+		// heading and paragraph above it out of the translation.
+		if rewritten, quarantined, salvaged := quarantineDivergentBlocks(
+			span, entries, blocksByOrigID,
+		); salvaged && len(quarantined) < len(blocks) {
+			r.recordBlockQuarantine(span, div, len(quarantined), len(blocks))
+			entries = rewritten
 			for _, block := range blocks {
-				r.blockCounter++
-				block.ID = fmt.Sprintf("tu%d", r.blockCounter)
-				block.Translatable = false
-				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-					return ctx.Err()
+				if quarantined[block.ID] {
+					block.Translatable = false
 				}
 			}
+		} else {
+
+			// Fall back to a single opaque region (verbatim skeleton + Data) so
+			// the byte-exact round-trip is preserved regardless of flag.
+			//
+			// Say so. The fallback costs this span every translatable block it
+			// had, and it is the right trade only while somebody can see it being
+			// made: a whole document can go opaque for one construct, and the
+			// symptom is a page that renders in the source language with no error
+			// anywhere. Recorded unconditionally rather than under ValidationMode,
+			// because the runs that most need to hear it are ordinary ones.
+			r.recordOpaqueFallback(span, div)
+			r.emitOpaque(ctx, ch, span, "markdown-opaque")
+			// When content surfacing is on, ALSO expose the prose the markdown
+			// sub-reader already parsed as non-translatable content (#928,
+			// visible to ingestion, skipped by MT). These blocks carry NO
+			// skeleton ref — the opaque region above owns the verbatim bytes —
+			// so they never affect the round-trip; with the flag off the part
+			// stream is unchanged (just the opaque Data above).
+			if r.cfg.ExtractNonTranslatableContent() {
+				for _, block := range blocks {
+					r.blockCounter++
+					block.ID = fmt.Sprintf("tu%d", r.blockCounter)
+					block.Translatable = false
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return ctx.Err()
+					}
+				}
+			}
+			return nil
 		}
-		return nil
 	}
 
 	// Faithful: emit blocks (re-ID'd) and splice the skeleton with refs
-	// remapped to the new IDs.
+	// remapped to the new IDs. A quarantined block arrives here too, carrying
+	// Translatable=false, and its ref is already a literal entry.
 	idMap := make(map[string]string, len(blocks))
 	for _, block := range blocks {
 		orig := block.ID
@@ -460,6 +479,106 @@ func (r *Reader) spanReconstructsExactly(span []byte, entries []spanSkelEntry, b
 		want:   excerptAt(span, off),
 		got:    excerptAt(rebuilt, off),
 	}
+}
+
+// quarantineDivergentBlocks salvages a span that did not reconstruct, by
+// isolating the blocks that failed instead of surrendering the whole span.
+//
+// It replays the skeleton against the source with a cursor. A literal entry has
+// to match at the cursor; a block's rendered source has to match at the cursor.
+// A block that does not is QUARANTINED: its ref becomes a literal entry holding
+// the source bytes it actually occupied, so those bytes still round-trip while
+// every other block in the span keeps its translatability.
+//
+// The result is byte-exact by construction — each emitted entry is either an
+// entry that matched the source at its position or a verbatim slice of it, and
+// the cursor walks the span exactly once. What can go wrong is attribution, not
+// output: if a landmark resynchronises early, a block may take a neighbour's
+// bytes with it and be reported as divergent when its neighbour was. That
+// yields more untranslatable content, never wrong content, and if the cursor
+// cannot be reconciled the caller falls back to the whole-span behaviour.
+func quarantineDivergentBlocks(
+	span []byte, entries []spanSkelEntry, blocks map[string]*model.Block,
+) ([]spanSkelEntry, map[string]bool, bool) {
+	out := make([]spanSkelEntry, 0, len(entries))
+	quarantined := make(map[string]bool)
+	cursor := 0
+
+	for i, entry := range entries {
+		if !entry.isRef {
+			// The skeleton's own literal text diverging means the reader built
+			// a skeleton that does not describe this source. Nothing to salvage
+			// block by block.
+			if !bytes.HasPrefix(span[cursor:], entry.text) {
+				return nil, nil, false
+			}
+			cursor += len(entry.text)
+			out = append(out, entry)
+			continue
+		}
+		block, ok := blocks[entry.refID]
+		if !ok {
+			return nil, nil, false
+		}
+		rendered := []byte(renderBlockSource(block))
+		if bytes.HasPrefix(span[cursor:], rendered) {
+			cursor += len(rendered)
+			out = append(out, entry)
+			continue
+		}
+		end, ok := resyncToLandmark(span, cursor, entries[i+1:])
+		if !ok {
+			return nil, nil, false
+		}
+		quarantined[entry.refID] = true
+		out = append(out, spanSkelEntry{text: append([]byte(nil), span[cursor:end]...)})
+		cursor = end
+	}
+
+	if cursor != len(span) || len(quarantined) == 0 {
+		return nil, nil, false
+	}
+	return out, quarantined, true
+}
+
+// resyncToLandmark returns where the next literal skeleton entry begins in span
+// at or after cursor — the boundary of the block being quarantined. With no
+// literal entry left, the block runs to the end of the span.
+func resyncToLandmark(span []byte, cursor int, rest []spanSkelEntry) (int, bool) {
+	for _, e := range rest {
+		if e.isRef || len(e.text) == 0 {
+			continue
+		}
+		idx := bytes.Index(span[cursor:], e.text)
+		if idx < 0 {
+			return 0, false
+		}
+		return cursor + idx, true
+	}
+	return len(span), true
+}
+
+// recordBlockQuarantine reports the salvaged case: some blocks lost their
+// translatability, the rest kept it. Distinct from the whole-span fallback
+// because the loss is bounded, and worth saying anyway — a block that stays in
+// the source language is invisible in the output.
+func (r *Reader) recordBlockQuarantine(span []byte, div spanDivergence, lost, total int) {
+	line, col := format.LineColumn(r.source, r.spanOffset(span)+div.offset)
+	detail := div.reason
+	if detail == "" {
+		detail = fmt.Sprintf("source has %q, rebuild has %q", div.want, div.got)
+	}
+	r.AddDiagnostic(format.Diagnostic{
+		Severity: format.SeverityMajor,
+		Category: "structure.markdown-block-opaque",
+		Message: fmt.Sprintf(
+			"%d of %d blocks in this span did not reconstruct byte-for-byte and "+
+				"will stay in the source language; the rest still translate: %s",
+			lost, total, detail),
+		Line:       line,
+		Column:     col,
+		ByteOffset: r.spanOffset(span) + div.offset,
+	})
 }
 
 // recordOpaqueFallback reports a span that lost every translatable block to the

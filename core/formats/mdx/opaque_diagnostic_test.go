@@ -18,12 +18,15 @@ import (
 // quiet one: a whole document can go opaque for one construct, and the only
 // symptom is a page still in its source language.
 //
-// The fixture is a GFM task list, whose checkbox the rebuild drops. It is the
-// last shape in this repo's own docs that still diverges, which makes it the
-// honest subject here: these tests assert the reporting, and they will start
-// failing the day someone fixes the checkbox, at which point the fixture
-// should become whatever still diverges.
-const divergingSrc = "- [ ] `config.go` with a trailing clause.\n"
+// The fixture is a hard line break. The task list that used to sit here
+// reconstructs now, and the note it carried holds for its replacement: these
+// tests assert the reporting, so the day hard breaks round-trip they will fail
+// and the fixture should become whatever still diverges.
+//
+// A single-block span is the deliberate choice. Quarantine salvages a span by
+// isolating the blocks that failed, so a fixture with neighbours exercises that
+// path instead — which is what TestQuarantineKeepsTheOtherBlocks is for.
+const divergingSrc = "One line  \nnext line.\n"
 
 func readAll(t *testing.T, src string) ([]*model.Block, []format.Diagnostic) {
 	t.Helper()
@@ -119,6 +122,12 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 		{name: "plain wrapped blockquote", src: "> A quoted line that wraps onto\n> a second line here.\n"},
 		{name: "plain wrapped list item", src: "- An item that wraps onto\n  a second line here.\n"},
 		{name: "entity outside a link", src: "Ship gates &amp; CI here.\n"},
+		// A GFM task list used to cost its whole file: the checkbox carries no
+		// segment of its own, so the rebuild dropped it, and eight of them took
+		// a 6.4KB release note out of the translation entirely.
+		{name: "task list", src: "- [ ] `config.go` with a trailing clause.\n"},
+		{name: "task list checked", src: "- [x] Tag is annotated.\n"},
+		{name: "task list upper case", src: "- [X] Capitalised marker.\n"},
 	}
 
 	for _, tc := range tests {
@@ -133,4 +142,32 @@ func TestKnownRoundTripDivergences(t *testing.T) {
 			assert.Empty(t, diags)
 		})
 	}
+}
+
+// A block that cannot be rebuilt costs itself, not the page. Before this, one
+// diverging paragraph took every heading and paragraph around it out of the
+// translation, and the only symptom was a page still in its source language.
+func TestQuarantineKeepsTheOtherBlocks(t *testing.T) {
+	src := "First paragraph here.\n\n" + divergingSrc + "\nThird paragraph here.\n"
+	blocks, diags := readAll(t, src)
+
+	var texts []string
+	for _, b := range blocks {
+		texts = append(texts, b.SourceText())
+	}
+	assert.Equal(t, []string{"First paragraph here.", "Third paragraph here."}, texts,
+		"the neighbours of a divergent block keep their translatability")
+
+	require.NotEmpty(t, diags, "a block staying in the source language is invisible; say it")
+	assert.Equal(t, "structure.markdown-block-opaque", diags[0].Category)
+	assert.Contains(t, diags[0].Message, "1 of 3 blocks",
+		"the message must say how much was lost, not merely that something was")
+	assert.Contains(t, diags[0].Message, "the rest still translate")
+}
+
+// Salvage is not a licence to rewrite bytes: whatever the reader decides about
+// translatability, an untranslated read->write stays byte-identical.
+func TestQuarantinedSpanStillRoundTrips(t *testing.T) {
+	src := "First paragraph here.\n\n" + divergingSrc + "\nThird paragraph here.\n"
+	assert.Equal(t, src, string(roundTrip(t, []byte(src))))
 }
