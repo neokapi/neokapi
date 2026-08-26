@@ -65,7 +65,7 @@ func TestXLIFF2_FileNotesRoundTrip(t *testing.T) {
 		Source: []model.Run{{Text: &model.TextRun{Text: "Hello, world."}}},
 	}
 	block.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
 
 	parts := make(chan *model.Part, 3)
@@ -164,7 +164,7 @@ func TestXLIFF2_FileNotes_ExplicitOverridesLayer(t *testing.T) {
 		Source: []model.Run{{Text: &model.TextRun{Text: "x"}}},
 	}
 	block.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
 
 	w := xliff2.NewWriter()

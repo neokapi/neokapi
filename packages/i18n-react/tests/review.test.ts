@@ -102,7 +102,8 @@ function seedKbfTree(dir: string): string {
       JSON.stringify({
         type: "annotation",
         id: "a1",
-        anchor: { kind: "block", block: hash },
+        block: hash,
+        anchor: { kind: "block" },
         data: { term: "Willkommen", note: "brand greeting" },
       }),
     ].join("\n"),

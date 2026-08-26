@@ -3,9 +3,10 @@ import {
   marshalFile,
   renderBlockHtml,
   resolveAnchor,
+  validateAnchor,
   validateTargetAgainstSource,
 } from "@neokapi/kapi-format";
-import type { AnnotationAnchor, Block, File, Run } from "@neokapi/kapi-format";
+import type { Annotation, AnnotationAnchor, Block, File, Run } from "@neokapi/kapi-format";
 import { useLabRuntime } from "./useLabRuntime";
 import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
@@ -27,6 +28,17 @@ export interface KbfConformanceProps {
 }
 
 type Category = "serialization" | "preview" | "anchor" | "target" | "structure";
+
+// A well-formed record about a block that is not the one it is validated
+// against — the mismatch anchor resolution alone cannot see, because the anchor
+// no longer carries a block id.
+const blockMismatchAnnotation: Annotation = {
+  type: "annotation",
+  id: "block-mismatch",
+  block: "nope",
+  anchor: { kind: "block" },
+  data: {},
+};
 
 interface ConfCase {
   id: string;
@@ -216,12 +228,23 @@ function goAnchor(rt: LabRuntime, block: Block, anchor: AnnotationAnchor): strin
     case "run":
       return `ok:run:${String(r.runId)}`;
     case "range":
-      return `ok:range:${String(r.rangeOffset)}+${String(r.rangeLength)}`;
+      return `ok:range:${String(r.rangeText)}`;
     case "form":
       return `ok:form:${String(r.formRunCount)}`;
     default:
       return "ok:block";
   }
+}
+
+function goValidateAnnotation(rt: LabRuntime, block: Block, annotation: Annotation): string {
+  const res = rt.kbf({ op: "validateAnnotation", block, annotation });
+  const v = (res.validation as Record<string, unknown>) ?? {};
+  return v.valid ? "valid" : `fail:${String(v.reason)}`;
+}
+
+function tsValidateAnnotation(block: Block, annotation: Annotation): string {
+  const err = validateAnchor(block, annotation);
+  return err === null ? "valid" : `fail:${err.reason}`;
 }
 
 function tsAnchor(block: Block, anchor: AnnotationAnchor): string {
@@ -235,7 +258,7 @@ function tsAnchor(block: Block, anchor: AnnotationAnchor): string {
       return `ok:run:${id}`;
     }
     case "range":
-      return `ok:range:${r.offset}+${r.length}`;
+      return `ok:range:${r.text}`;
     case "form":
       return `ok:form:${r.runs.length}`;
     default:
@@ -515,8 +538,8 @@ const CASES: ConfCase[] = [
     description: "A block-kind anchor resolves to the whole block.",
     category: "anchor",
     expected: "ok:block",
-    runGo: (rt) => goAnchor(rt, filesHeading, { kind: "block", block: "files-heading" }),
-    runTs: () => tsAnchor(filesHeading, { kind: "block", block: "files-heading" }),
+    runGo: (rt) => goAnchor(rt, filesHeading, { kind: "block" }),
+    runTs: () => tsAnchor(filesHeading, { kind: "block" }),
   },
   {
     id: "anc-run",
@@ -524,42 +547,28 @@ const CASES: ConfCase[] = [
     description: "A run anchor resolves to the run at the path with the matching id.",
     category: "anchor",
     expected: "ok:run:2",
-    runGo: (rt) =>
-      goAnchor(rt, tagChip, {
-        kind: "run",
-        block: "tag-chip",
-        path: [2],
-        runId: "2",
-      }),
-    runTs: () =>
-      tsAnchor(tagChip, {
-        kind: "run",
-        block: "tag-chip",
-        path: [2],
-        runId: "2",
-      }),
+    runGo: (rt) => goAnchor(rt, tagChip, { kind: "run", path: [2], runId: "2" }),
+    runTs: () => tsAnchor(tagChip, { kind: "run", path: [2], runId: "2" }),
   },
   {
     id: "anc-range",
     name: "Resolve a range anchor",
-    description: "A character range inside a text run resolves to the offset/length.",
+    description: "A span within one text run resolves to the characters it covers.",
     category: "anchor",
-    expected: "ok:range:1+7",
+    expected: "ok:range:matched",
     runGo: (rt) =>
       goAnchor(rt, filesHeading, {
         kind: "range",
-        block: "files-heading",
-        path: [4],
-        offset: 1,
-        length: 7,
+        path: [],
+        start: { run: 4, offset: 1 },
+        end: { run: 4, offset: 8 },
       }),
     runTs: () =>
       tsAnchor(filesHeading, {
         kind: "range",
-        block: "files-heading",
-        path: [4],
-        offset: 1,
-        length: 7,
+        path: [],
+        start: { run: 4, offset: 1 },
+        end: { run: 4, offset: 8 },
       }),
   },
   {
@@ -568,20 +577,8 @@ const CASES: ConfCase[] = [
     description: "A plural-form anchor resolves to the runs of that form.",
     category: "anchor",
     expected: "ok:form:1",
-    runGo: (rt) =>
-      goAnchor(rt, shoppingCart, {
-        kind: "form",
-        block: "shopping-cart-plural",
-        path: [0],
-        key: "one",
-      }),
-    runTs: () =>
-      tsAnchor(shoppingCart, {
-        kind: "form",
-        block: "shopping-cart-plural",
-        path: [0],
-        key: "one",
-      }),
+    runGo: (rt) => goAnchor(rt, shoppingCart, { kind: "form", path: [0], key: "one" }),
+    runTs: () => tsAnchor(shoppingCart, { kind: "form", path: [0], key: "one" }),
   },
   {
     id: "anc-runid",
@@ -589,20 +586,8 @@ const CASES: ConfCase[] = [
     description: "A run anchor whose recorded id no longer matches fails as run-id-mismatch.",
     category: "anchor",
     expected: "fail:run-id-mismatch",
-    runGo: (rt) =>
-      goAnchor(rt, tagChip, {
-        kind: "run",
-        block: "tag-chip",
-        path: [2],
-        runId: "99",
-      }),
-    runTs: () =>
-      tsAnchor(tagChip, {
-        kind: "run",
-        block: "tag-chip",
-        path: [2],
-        runId: "99",
-      }),
+    runGo: (rt) => goAnchor(rt, tagChip, { kind: "run", path: [2], runId: "99" }),
+    runTs: () => tsAnchor(tagChip, { kind: "run", path: [2], runId: "99" }),
   },
   {
     id: "anc-oob",
@@ -610,29 +595,17 @@ const CASES: ConfCase[] = [
     description: "A path step past the end of the runs fails as path-out-of-bounds.",
     category: "anchor",
     expected: "fail:path-out-of-bounds",
-    runGo: (rt) =>
-      goAnchor(rt, filesHeading, {
-        kind: "run",
-        block: "files-heading",
-        path: [99],
-        runId: "1",
-      }),
-    runTs: () =>
-      tsAnchor(filesHeading, {
-        kind: "run",
-        block: "files-heading",
-        path: [99],
-        runId: "1",
-      }),
+    runGo: (rt) => goAnchor(rt, filesHeading, { kind: "run", path: [99], runId: "1" }),
+    runTs: () => tsAnchor(filesHeading, { kind: "run", path: [99], runId: "1" }),
   },
   {
     id: "anc-block-nf",
     name: "Detect a block mismatch",
-    description: "An anchor for a different block id fails as block-not-found.",
+    description: "A record naming a different block fails as block-not-found.",
     category: "anchor",
     expected: "fail:block-not-found",
-    runGo: (rt) => goAnchor(rt, filesHeading, { kind: "block", block: "nope" }),
-    runTs: () => tsAnchor(filesHeading, { kind: "block", block: "nope" }),
+    runGo: (rt) => goValidateAnnotation(rt, filesHeading, blockMismatchAnnotation),
+    runTs: () => tsValidateAnnotation(filesHeading, blockMismatchAnnotation),
   },
   {
     id: "anc-form-nf",
@@ -640,20 +613,8 @@ const CASES: ConfCase[] = [
     description: "A form anchor for a non-existent form fails as form-not-found.",
     category: "anchor",
     expected: "fail:form-not-found",
-    runGo: (rt) =>
-      goAnchor(rt, shoppingCart, {
-        kind: "form",
-        block: "shopping-cart-plural",
-        path: [0],
-        key: "many",
-      }),
-    runTs: () =>
-      tsAnchor(shoppingCart, {
-        kind: "form",
-        block: "shopping-cart-plural",
-        path: [0],
-        key: "many",
-      }),
+    runGo: (rt) => goAnchor(rt, shoppingCart, { kind: "form", path: [0], key: "many" }),
+    runTs: () => tsAnchor(shoppingCart, { kind: "form", path: [0], key: "many" }),
   },
 
   // ── Target validation (required-placeholder preservation) ──

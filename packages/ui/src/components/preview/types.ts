@@ -131,6 +131,7 @@ export interface Particle {
 //     engine may omit it; existing consumers assume presence — unchanged).
 
 import type {
+  Anchor as GenAnchor,
   AnnotationView as GenAnnotationView,
   ContentNode as GenContentNode,
   ContentStats as GenContentStats,
@@ -144,7 +145,7 @@ import type {
   OverlayView as GenOverlayView,
   RelationView as GenRelationView,
   RenderNode as GenRenderNode,
-  RunRange as GenRunRange,
+  RunPos as GenRunPos,
   SegmentSpan as GenSegmentSpan,
   StructureView as GenStructureView,
   TargetMeta as GenTargetMeta,
@@ -156,7 +157,8 @@ export type ContentStats = GenContentStats;
 export type SegmentSpan = GenSegmentSpan;
 export type TargetMeta = GenTargetMeta;
 export type Origin = OriginView;
-export type RunRange = GenRunRange;
+export type Anchor = GenAnchor;
+export type RunPos = GenRunPos;
 export type OverlaySpan = OverlaySpanView;
 export type AnnotationView = GenAnnotationView;
 export type StructureView = GenStructureView;

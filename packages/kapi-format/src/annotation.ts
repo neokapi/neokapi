@@ -90,6 +90,8 @@ export interface Annotation {
   type: "annotation";
   /** Stable within the file. Not required to be globally unique. */
   id: string;
+  /** The block this annotation is about. */
+  block: string;
   anchor: AnnotationAnchor;
   /**
    * Producer-specific payload. The framework imposes no schema on
@@ -102,77 +104,77 @@ export interface Annotation {
 // ─── Anchor shapes ────────────────────────────────────────────────
 
 /**
- * Where an annotation is attached. Four shapes, discriminated by
+ * Where inside a block an annotation sits. Four shapes, discriminated by
  * `kind`.
+ *
+ * Positions are run-relative rather than offsets into flattened text, so a
+ * boundary stays where it was put when a neighbouring run is rewritten and can
+ * sit either side of a placeholder. They are pathed, so a position inside a
+ * plural form or select case is addressable rather than approximated.
  */
 export type AnnotationAnchor = BlockAnchor | RunAnchor | RangeAnchor | FormAnchor;
 
 /**
- * Attach to a whole block. Used for block-level metadata like
- * review status, MT confidence, or "this block contains PII".
+ * The whole block. Used for block-level metadata like review status, MT
+ * confidence, or "this block contains PII".
  */
 export interface BlockAnchor {
   kind: "block";
-  block: string;
 }
 
 /**
- * Attach to a specific `ph`, `pcOpen`, or `sub` run within a
- * block. Used for run-scoped metadata like "this placeholder is
- * a brand name" or "this inline link is a glossary match".
- *
- * `path` names the location of the run within the block's nested
- * runs structure. `runId` is the target run's `id` field, used by
- * validators to confirm the anchor still points at the run it
- * originally described.
+ * One `ph`, `pcOpen` or `sub` run. `path` names the run sequence and `runId`
+ * the run within it, which is what lets a validator confirm the anchor still
+ * points at the run it described.
  */
 export interface RunAnchor {
   kind: "run";
-  block: string;
   path: RunPath;
   runId: string;
 }
 
 /**
- * Attach to a character range inside a text run. Used when a
- * post-processor finds a substring (a protected term, a URL, a
- * named entity) that doesn't correspond to an existing typed run.
- *
- * Character offsets are UTF-16 code units into the target text
- * run's `text` field. Range anchors are fragile under re-extraction
- * because text content can change; validators re-resolve them
- * each time the block changes.
+ * A half-open span of the run sequence at `path`. Used when a producer finds a
+ * substring — a protected term, a URL, a named entity — that no typed run
+ * already covers. A span may cross run boundaries, so a phrase running through
+ * a bold segment is one range rather than three.
  */
 export interface RangeAnchor {
   kind: "range";
-  block: string;
   path: RunPath;
-  offset: number;
-  length: number;
+  /** Omitted when it is the zero position, which is what the wire form does. */
+  start?: RunPos;
+  end?: RunPos;
 }
 
 /**
- * Attach to a specific plural form or select case within a block.
- * Used when an annotation applies to one form of a group but not
- * others — "this 'few' form has been professionally reviewed",
- * "this 'female' case is flagged by QA".
+ * One plural form or select case — "this 'few' form has been professionally
+ * reviewed", "this 'female' case is flagged by QA".
  */
 export interface FormAnchor {
   kind: "form";
-  block: string;
   /** Path to the containing plural or select run. */
   path: RunPath;
   /**
-   * Which form (for plural runs) or case (for select runs). For
-   * plural, must be one of `PluralForm`. For select, any string
-   * matching a key in the select run's `cases`.
+   * Which form (for plural runs) or case (for select runs). For plural, must
+   * be one of `PluralForm`. For select, any key of the run's `cases`.
    */
   key: string;
 }
 
 /**
- * A path through a block's nested runs structure. Empty path
- * refers to `Block.source` itself.
+ * A character boundary in a run sequence: an index into the sequence and a
+ * rune offset into that run's text. A run carrying no text takes offset 0, and
+ * an index equal to the sequence length is the boundary past the last run.
+ */
+export interface RunPos {
+  run: number;
+  offset?: number;
+}
+
+/**
+ * A path through a block's nested runs structure. Empty path refers to
+ * `Block.source` itself.
  */
 export type RunPath = RunPathStep[];
 
@@ -187,14 +189,13 @@ export type RunPathStep = number | { plural: PluralForm } | { select: string };
 // ─── Anchor resolution ────────────────────────────────────────────
 
 /**
- * Result of resolving an annotation anchor against a block. On
- * success, `target` is the resolved entity; on failure, `reason`
- * is a machine-readable tag indicating why.
+ * Result of resolving an anchor against a block. On success the resolved
+ * entity; on failure a machine-readable reason.
  */
 export type AnchorResolution =
   | { ok: true; kind: "block"; block: Block }
   | { ok: true; kind: "run"; run: Run }
-  | { ok: true; kind: "range"; text: string; offset: number; length: number }
+  | { ok: true; kind: "range"; text: string; runs: Run[] }
   | { ok: true; kind: "form"; runs: Run[] }
   | {
       ok: false;
@@ -208,27 +209,21 @@ export type AnchorResolution =
     };
 
 /**
- * Resolve an annotation anchor against the target block. Returns
- * either the resolved entity or a machine-readable failure reason
- * suitable for orphan-detection validators.
+ * Resolve an anchor against the block it belongs to. Mirrors ResolveAnchor in
+ * core/kbf.
  */
 export function resolveAnchor(block: Block, anchor: AnnotationAnchor): AnchorResolution {
-  if (anchor.block !== block.id) {
-    return { ok: false, reason: "block-not-found" };
-  }
-
   if (anchor.kind === "block") {
     return { ok: true, kind: "block", block };
   }
 
-  // Walk the path except the last step, then handle the final
-  // step according to the anchor kind.
-  const runs = walkPath(block.source, anchor.path);
-  if (runs === null) return { ok: false, reason: "path-out-of-bounds" };
+  const walked = walkPath(block.source, anchor.path);
+  if (walked === null) return { ok: false, reason: "path-out-of-bounds" };
+  const { runs: seq, run: landed } = walked;
 
   if (anchor.kind === "run") {
-    const run = runs.run;
-    if (run === null) return { ok: false, reason: "path-out-of-bounds" };
+    const run = landed ?? seq.find((r) => runIdOf(r) === anchor.runId) ?? null;
+    if (run === null) return { ok: false, reason: "run-id-mismatch" };
     const id = runIdOf(run);
     if (id === null) return { ok: false, reason: "path-wrong-kind" };
     if (id !== anchor.runId) return { ok: false, reason: "run-id-mismatch" };
@@ -236,33 +231,23 @@ export function resolveAnchor(block: Block, anchor: AnnotationAnchor): AnchorRes
   }
 
   if (anchor.kind === "range") {
-    const run = runs.run;
-    if (run === null || !("text" in run)) {
-      return { ok: false, reason: "path-wrong-kind" };
-    }
-    if (anchor.offset < 0 || anchor.offset + anchor.length > run.text.length) {
+    if (!rangeInBounds(seq, anchor)) {
       return { ok: false, reason: "range-out-of-bounds" };
     }
-    return {
-      ok: true,
-      kind: "range",
-      text: run.text,
-      offset: anchor.offset,
-      length: anchor.length,
-    };
+    const runs = extractRuns(seq, anchor);
+    return { ok: true, kind: "range", text: runsText(runs), runs };
   }
 
-  // FormAnchor — the path points at a plural/select run; step into
-  // its matching form/case.
-  const run = runs.run;
-  if (run === null) return { ok: false, reason: "path-out-of-bounds" };
-  if ("plural" in run) {
-    const form = run.plural.forms[anchor.key as PluralForm];
+  // A form belongs to the run the path landed on: a plural run carries no id
+  // of its own, so it is addressed by position.
+  if (landed === null) return { ok: false, reason: "path-out-of-bounds" };
+  if ("plural" in landed) {
+    const form = landed.plural.forms[anchor.key as PluralForm];
     if (!form) return { ok: false, reason: "form-not-found" };
     return { ok: true, kind: "form", runs: form };
   }
-  if ("select" in run) {
-    const caseRuns = run.select.cases[anchor.key];
+  if ("select" in landed) {
+    const caseRuns = landed.select.cases[anchor.key];
     if (!caseRuns) return { ok: false, reason: "form-not-found" };
     return { ok: true, kind: "form", runs: caseRuns };
   }
@@ -270,32 +255,24 @@ export function resolveAnchor(block: Block, anchor: AnnotationAnchor): AnchorRes
 }
 
 interface WalkResult {
-  /** The run at the end of the path, or null if the path is empty. */
+  /** The sequence the path addresses — `topRuns` for an empty path. */
+  runs: Run[];
+  /** The run an index step last landed on, which a form anchor is about. */
   run: Run | null;
 }
 
 /**
- * Walk a path through a run tree. Returns the run the path lands
- * on, or null if any step is out of bounds / wrong kind.
+ * Walk a path through a run tree. Returns the sequence it addresses and the
+ * run it landed on, or null if any step is out of bounds or the wrong kind.
  */
 function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
-  if (path.length === 0) {
-    return { run: null };
-  }
-
   let currentRuns: Run[] = topRuns;
   let currentRun: Run | null = null;
 
-  for (let i = 0; i < path.length; i++) {
-    const step = path[i];
+  for (const step of path) {
     if (typeof step === "number") {
       if (step < 0 || step >= currentRuns.length) return null;
       currentRun = currentRuns[step];
-      // The next step, if any, will be stepping into the current
-      // run (a plural / select) or indexing into the current run's
-      // children, which only makes sense for plural/select runs.
-      // currentRuns is updated at the next iteration only if the
-      // next step is a plural / select descent.
     } else if ("plural" in step) {
       if (currentRun === null || !("plural" in currentRun)) return null;
       const form = currentRun.plural.forms[step.plural];
@@ -303,7 +280,6 @@ function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
       currentRuns = form;
       currentRun = null;
     } else {
-      // { select: string }
       if (currentRun === null || !("select" in currentRun)) return null;
       const caseRuns = currentRun.select.cases[step.select];
       if (!caseRuns) return null;
@@ -312,7 +288,77 @@ function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
     }
   }
 
-  return { run: currentRun };
+  return { runs: currentRuns, run: currentRun };
+}
+
+/**
+ * Rune length of a run's text, or 0 for a run that carries none.
+ *
+ * Code points, not UTF-16 units: an offset must count the same thing here as
+ * it does in the model, or the two sides disagree about where a position is
+ * the moment content leaves the Basic Multilingual Plane.
+ */
+function runTextLength(run: Run): number {
+  return "text" in run ? Array.from(run.text).length : 0;
+}
+
+/**
+ * A boundary as the wire gives it. Go writes `start` and `end` with
+ * `omitzero`, so a range beginning at the first run carries no `start` key at
+ * all: an absent position is the zero position, not a malformed anchor. The
+ * resolver reads annotation files off disk, where no type is policing them, so
+ * it takes them as they come.
+ */
+function posOf(pos: RunPos | undefined): RunPos {
+  return pos ?? { run: 0 };
+}
+
+function offsetInBounds(runs: Run[], pos: RunPos): boolean {
+  const offset = pos.offset ?? 0;
+  if (offset < 0) return false;
+  if (pos.run === runs.length) return offset === 0;
+  if (pos.run < 0 || pos.run > runs.length) return false;
+  const run = runs[pos.run];
+  return "text" in run ? offset <= runTextLength(run) : offset === 0;
+}
+
+function rangeInBounds(runs: Run[], anchor: RangeAnchor): boolean {
+  const start = posOf(anchor.start);
+  const end = posOf(anchor.end);
+  if (start.run < 0 || end.run < start.run) return false;
+  if (end.run > runs.length) return false;
+  return offsetInBounds(runs, start) && offsetInBounds(runs, end);
+}
+
+/**
+ * The sub-sequence a range covers. Boundary text runs are split at their
+ * offsets; a run carrying no text is atomic and comes through whole unless it
+ * sits on the exclusive end.
+ */
+function extractRuns(runs: Run[], anchor: RangeAnchor): Run[] {
+  const out: Run[] = [];
+  const start = posOf(anchor.start);
+  const end = posOf(anchor.end);
+  const startOffset = start.offset ?? 0;
+  const endOffset = end.offset ?? 0;
+
+  for (let i = start.run; i <= end.run && i < runs.length; i++) {
+    const run = runs[i];
+    if ("text" in run) {
+      const chars = Array.from(run.text);
+      const from = i === start.run ? Math.min(startOffset, chars.length) : 0;
+      const to = i === end.run ? Math.min(endOffset, chars.length) : chars.length;
+      if (from < to) out.push({ text: chars.slice(from, to).join("") });
+      continue;
+    }
+    if (i === end.run && endOffset === 0) continue;
+    out.push(run);
+  }
+  return out;
+}
+
+function runsText(runs: Run[]): string {
+  return runs.map((r) => ("text" in r ? r.text : "")).join("");
 }
 
 function runIdOf(run: Run): string | null {
@@ -334,6 +380,16 @@ export function validateAnchor(
   block: Block,
   annotation: Annotation,
 ): AnnotationValidationError | null {
+  // The record names the block it is about, so validating it against one that
+  // is not that block is a mismatch rather than a resolution failure.
+  if (annotation.block !== block.id) {
+    return {
+      annotationId: annotation.id,
+      blockId: annotation.block,
+      reason: "block-not-found",
+      message: messageFor("block-not-found", annotation),
+    };
+  }
   const result = resolveAnchor(block, annotation.anchor);
   if (result.ok) return null;
   return {
@@ -350,15 +406,15 @@ function messageFor(
 ): string {
   switch (reason) {
     case "block-not-found":
-      return `annotation "${annotation.id}" targets block "${annotation.anchor.block}" which does not match`;
+      return `annotation "${annotation.id}" targets block "${annotation.block}" which does not match`;
     case "path-out-of-bounds":
-      return `annotation "${annotation.id}" path is out of bounds in block "${annotation.anchor.block}"`;
+      return `annotation "${annotation.id}" path is out of bounds in block "${annotation.block}"`;
     case "path-wrong-kind":
       return `annotation "${annotation.id}" path lands on a run of the wrong kind for its anchor`;
     case "run-id-mismatch":
       return `annotation "${annotation.id}" resolves to a run whose id does not match the recorded id (possible orphan)`;
     case "range-out-of-bounds":
-      return `annotation "${annotation.id}" character range exceeds the target text run`;
+      return `annotation "${annotation.id}" range is out of bounds in the run sequence it addresses`;
     case "form-not-found":
       return `annotation "${annotation.id}" targets a plural form or select case that does not exist on the block`;
   }

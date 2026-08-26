@@ -12,7 +12,9 @@ import (
 // Content-model message aliases (canonical definitions in contentv1).
 type (
 	AnnotationEntry       = contentv1.AnnotationEntry
-	RunRangeMessage       = contentv1.RunRangeMessage
+	AnchorMessage         = contentv1.AnchorMessage
+	RunPosMessage         = contentv1.RunPosMessage
+	RunPathStepMessage    = contentv1.RunPathStepMessage
 	VariantMessage        = contentv1.VariantMessage
 	SpanMessage           = contentv1.SpanMessage
 	OverlayMessage        = contentv1.OverlayMessage

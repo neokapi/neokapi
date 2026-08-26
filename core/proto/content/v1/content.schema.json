@@ -1,5 +1,31 @@
 {
   "$defs": {
+    "AnchorMessage": {
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/RunPosMessage"
+        },
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/RunPathStepMessage"
+          },
+          "type": "array"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/RunPosMessage"
+        }
+      },
+      "type": "object"
+    },
     "AnnotationEntry": {
       "properties": {
         "data": {
@@ -530,18 +556,43 @@
       },
       "type": "object"
     },
-    "RunRangeMessage": {
+    "RunPathStepMessage": {
+      "oneOf": [
+        {
+          "required": [
+            "index"
+          ]
+        },
+        {
+          "required": [
+            "pluralForm"
+          ]
+        },
+        {
+          "required": [
+            "selectValue"
+          ]
+        }
+      ],
       "properties": {
-        "endOffset": {
+        "index": {
           "type": "integer"
         },
-        "endRun": {
+        "pluralForm": {
+          "type": "string"
+        },
+        "selectValue": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "RunPosMessage": {
+      "properties": {
+        "offset": {
           "type": "integer"
         },
-        "startOffset": {
-          "type": "integer"
-        },
-        "startRun": {
+        "run": {
           "type": "integer"
         }
       },
@@ -627,7 +678,7 @@
           "type": "object"
         },
         "range": {
-          "$ref": "#/$defs/RunRangeMessage"
+          "$ref": "#/$defs/AnchorMessage"
         },
         "value": {
           "$ref": "#/$defs/AnnotationEntry"

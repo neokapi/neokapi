@@ -48,12 +48,12 @@ export const richBlock: ContentNode = {
       spans: [
         {
           id: "s1",
-          range: { startRun: 0, startOffset: 0, endRun: 3, endOffset: 0 },
+          range: { kind: "range", start: { run: 0 }, end: { run: 3 } },
           text: "Hello, {name}! ",
         },
         {
           id: "s2",
-          range: { startRun: 3, startOffset: 0, endRun: 7, endOffset: 0 },
+          range: { kind: "range", start: { run: 3 }, end: { run: 7 } },
           text: "Read the docs.",
         },
       ],
@@ -64,7 +64,7 @@ export const richBlock: ContentNode = {
       spans: [
         {
           id: "t1",
-          range: { startRun: 4, startOffset: 0, endRun: 5, endOffset: 0 },
+          range: { kind: "range", start: { run: 4 }, end: { run: 5 } },
           text: "docs",
           props: { terms: "glossary", match: "exact" },
         },
@@ -76,7 +76,7 @@ export const richBlock: ContentNode = {
       spans: [
         {
           id: "q1",
-          range: { startRun: 2, startOffset: 0, endRun: 3, endOffset: 0 },
+          range: { kind: "range", start: { run: 2 }, end: { run: 3 } },
           text: " ! ",
           props: { rule: "spacing", severity: "info" },
         },

@@ -92,9 +92,9 @@ func TestVoiceVocabCheckForbiddenTerms(t *testing.T) {
 	assert.Equal(t, coreprofile.SeverityMajor, findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "cheap")
 	assert.Contains(t, findings[0].Suggestion, "affordable")
-	assert.Equal(t, 0, findings[0].Position.StartRun)
-	assert.Equal(t, 10, findings[0].Position.StartOffset)
-	assert.Equal(t, 15, findings[0].Position.EndOffset)
+	assert.Equal(t, 0, findings[0].Position.Start.Run)
+	assert.Equal(t, 10, findings[0].Position.Start.Offset)
+	assert.Equal(t, 15, findings[0].Position.End.Offset)
 }
 
 func TestVoiceVocabCheckCompetitorTerms(t *testing.T) {

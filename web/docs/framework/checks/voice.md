@@ -249,7 +249,7 @@ type VoiceAnnotation struct {
     ProfileID string              `json:"profile_id"`
     Score     int                 `json:"score"` // 0-100 overall
     Findings  []VoiceFinding `json:"findings"`
-    Position  model.RunRange      `json:"position"`
+    Position  model.Anchor        `json:"position"`
 }
 
 func (a *VoiceAnnotation) AnnotationType() string { return "voice" }

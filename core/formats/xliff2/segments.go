@@ -167,7 +167,7 @@ func buildSegmentSpans(segs []seg) []model.Span {
 		cursor = end
 		sp := model.Span{
 			ID:    s.ID,
-			Range: model.RunRange{StartRun: start, EndRun: end},
+			Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: end}),
 		}
 		if s.Ignorable {
 			sp.Props = map[string]string{model.SpanPropIgnorable: "true"}

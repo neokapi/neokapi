@@ -22,7 +22,8 @@ import (
 // payload (no filesystem), so the call returns its result synchronously as a
 // JSON string the page JSON.parses. The argument is a JSON request string:
 //
-//	{ "op": "roundtrip"|"validateBlock"|"validateTarget"|"resolveAnchor"|"renderHtml", ... }
+//	{ "op": "roundtrip"|"validateBlock"|"validateTarget"|"resolveAnchor"
+//	      |"validateAnnotation"|"renderHtml", ... }
 //
 // Every response carries {"ok": bool}; on a usage/decode failure it also
 // carries {"error": "..."}. Validation responses set ok:true and report the
@@ -50,6 +51,8 @@ func doKBF(reqJSON string) (out string) {
 		Source json.RawMessage `json:"source"`
 		Target json.RawMessage `json:"target"`
 		Anchor json.RawMessage `json:"anchor"`
+		// validateAnnotation
+		Annotation json.RawMessage `json:"annotation"`
 	}
 	if err := json.Unmarshal([]byte(reqJSON), &req); err != nil {
 		return kbfError("invalid request JSON: " + err.Error())
@@ -64,6 +67,8 @@ func doKBF(reqJSON string) (out string) {
 		return kbfValidateTarget(req.Source, req.Target)
 	case "resolveAnchor":
 		return kbfResolveAnchor(req.Block, req.Anchor)
+	case "validateAnnotation":
+		return kbfValidateAnnotation(req.Block, req.Annotation)
 	case "renderHtml":
 		return kbfRenderHTML(req.Block)
 	default:
@@ -123,7 +128,7 @@ func kbfResolveAnchor(blockRaw, anchorRaw json.RawMessage) string {
 	if err := json.Unmarshal(blockRaw, &b); err != nil {
 		return kbfError("decode block: " + err.Error())
 	}
-	var anchor kbf.AnnotationAnchor
+	var anchor kbf.Anchor
 	if err := json.Unmarshal(anchorRaw, &anchor); err != nil {
 		return kbfError("decode anchor: " + err.Error())
 	}
@@ -142,12 +147,32 @@ func kbfResolveAnchor(blockRaw, anchorRaw json.RawMessage) string {
 		}
 	case kbf.AnchorRange:
 		resolution["rangeText"] = res.RangeText
-		resolution["rangeOffset"] = res.RangeOffset
-		resolution["rangeLength"] = res.RangeLength
+		resolution["rangeRunCount"] = len(res.RangeRuns)
 	case kbf.AnchorForm:
 		resolution["formRunCount"] = len(res.FormRuns)
 	}
 	return kbfResult(map[string]any{"ok": true, "resolution": resolution})
+}
+
+// kbfValidateAnnotation checks a whole annotation record against a block: the
+// block it names, then where inside it the anchor points. A record naming
+// another block is the case anchor resolution alone cannot see.
+func kbfValidateAnnotation(blockRaw, annRaw json.RawMessage) string {
+	var b kbf.Block
+	if err := json.Unmarshal(blockRaw, &b); err != nil {
+		return kbfError("decode block: " + err.Error())
+	}
+	var ann kbf.Annotation
+	if err := json.Unmarshal(annRaw, &ann); err != nil {
+		return kbfError("decode annotation: " + err.Error())
+	}
+	result := map[string]any{"valid": true}
+	if verr := kbf.ValidateAnchor(&b, ann); verr != nil {
+		result["valid"] = false
+		result["reason"] = string(verr.Reason)
+		result["message"] = verr.Message
+	}
+	return kbfResult(map[string]any{"ok": true, "validation": result})
 }
 
 func kbfRenderHTML(raw json.RawMessage) string {

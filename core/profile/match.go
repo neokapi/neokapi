@@ -87,7 +87,7 @@ func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
 // message, the structured replacement and concept_id metadata, the offending
 // snippet, and the run-anchored position. text is the searched string the hits
 // index into (hit.Start/hit.End are byte offsets into it); runs are the source
-// runs those offsets are anchored to, used to compute each finding's RunRange —
+// runs those offsets are anchored to, used to compute each finding's Anchor —
 // pass nil when matching against plain, run-less text (the position is then left
 // zero). It is the single hit→finding mapping shared by the streaming pipeline
 // tool, the /check endpoint, and the check_vocabulary MCP tool, so none of them
@@ -104,7 +104,7 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 			OriginalText: text[hit.Start:hit.End],
 		}
 		if len(runs) > 0 {
-			f.Position = model.RunRangeForBytes(runs, hit.Start, hit.End)
+			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}
 		switch hit.Kind {
 		case VocabCompetitor:

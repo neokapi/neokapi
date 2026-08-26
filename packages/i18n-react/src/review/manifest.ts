@@ -118,9 +118,8 @@ function indexAnnotations(path: string, manifest: ReviewManifest): void {
       continue;
     }
     if (rec.type !== "annotation") continue;
-    const anchor = rec.anchor as { block?: string } | undefined;
-    if (!anchor?.block) continue;
-    const e = manifest[anchor.block];
+    if (typeof rec.block !== "string" || rec.block === "") continue;
+    const e = manifest[rec.block];
     if (!e) continue; // annotation for a block not in the source tree
     e.annotations.push({
       type: shortType(annotationType),

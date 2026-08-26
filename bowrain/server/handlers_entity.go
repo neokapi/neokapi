@@ -64,7 +64,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	key := fmt.Sprintf("entity:%d", idx)
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    key,
-		Range: model.RunRangeForBytes(block.Source, req.Start, req.End),
+		Range: model.RangeAnchorForBytes(block.Source, req.Start, req.End),
 		Value: &model.EntityAnnotation{
 			Text:   req.Text,
 			Type:   model.EntityType(req.Type),

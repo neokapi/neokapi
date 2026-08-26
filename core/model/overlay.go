@@ -1,7 +1,5 @@
 package model
 
-import "unicode/utf8"
-
 // This file defines the stand-off overlay model (AD-002). A Block's content
 // is a flat []Run per locale; every interpretation *of* that content —
 // sentence segmentation, terminology, entities, QA findings, source↔target
@@ -32,21 +30,6 @@ const (
 	OverlayTermCandidate OverlayType = "term-candidate"
 )
 
-// RunRange anchors a span on a []Run sequence: a start and end run position
-// plus an intra-text-run character offset, so boundaries stay stable across
-// inline-code runs and survive run-preserving edits. Offsets count runes into
-// the TextRun at StartRun / EndRun; a range that begins or ends on an
-// inline-code run uses offset 0. The range is half-open: [start, end).
-type RunRange struct {
-	StartRun    int `json:"startRun"`
-	StartOffset int `json:"startOffset"`
-	EndRun      int `json:"endRun"`
-	EndOffset   int `json:"endOffset"`
-}
-
-// IsZero reports whether the range is the zero value.
-func (r RunRange) IsZero() bool { return r == RunRange{} }
-
 // SpanPropIgnorable, when set to "true" on a segmentation span's Props, marks
 // that span as non-content structural material — an okapi "ignorable"
 // TextPart, e.g. an xliff2 <ignorable>, inter-segment whitespace, or an ICU
@@ -62,7 +45,7 @@ const SpanPropIgnorable = "ignorable"
 // metadata is not a span — it rides on Block.Annotations (see annotation.go).
 type Span struct {
 	ID    string            `json:"id,omitempty"`
-	Range RunRange          `json:"range"`
+	Range Anchor            `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
 	Value Payload           `json:"value,omitempty"` // typed payload (payload registry)
 }
@@ -103,55 +86,6 @@ func (o *Overlay) OnSource() bool { return o == nil || o.Variant == nil }
 
 func clampInt(v, lo, hi int) int {
 	return min(max(v, lo), hi)
-}
-
-// ExtractRuns returns the sub-sequence of runs covered by this half-open
-// range [start, end). A position is (run index, rune offset into that run's
-// text); inline-code runs are atomic and included whole unless they fall on
-// the exclusive end boundary. Boundary text runs are split at their offsets.
-func (r RunRange) ExtractRuns(runs []Run) []Run {
-	n := len(runs)
-	if r.StartRun < 0 || r.StartRun > n || r.EndRun < r.StartRun {
-		return nil
-	}
-	out := make([]Run, 0, r.EndRun-r.StartRun+1)
-	for i := r.StartRun; i <= r.EndRun && i < n; i++ {
-		run := runs[i]
-		if run.Text != nil {
-			rs := []rune(run.Text.Text)
-			s, e := 0, len(rs)
-			if i == r.StartRun {
-				s = clampInt(r.StartOffset, 0, len(rs))
-			}
-			if i == r.EndRun {
-				e = clampInt(r.EndOffset, 0, len(rs))
-			}
-			if s < e {
-				out = append(out, Run{Text: &TextRun{Text: string(rs[s:e])}})
-			}
-			continue
-		}
-		// Inline-code run: include whole unless it is the exclusive end.
-		if i == r.EndRun && r.EndOffset == 0 {
-			continue
-		}
-		out = append(out, run)
-	}
-	return out
-}
-
-// InBounds reports whether the range anchors to valid positions within runs:
-// run indices lie within [0, len(runs)] (an index equal to len(runs) is the
-// half-open end boundary), start does not run past end, and each offset lies
-// within its text run's rune length — offset 0 on an inline-code/non-text run or
-// at the end boundary. It is the post-rewrite backstop check (a remapped or
-// surviving overlay must still anchor cleanly).
-func (r RunRange) InBounds(runs []Run) bool {
-	if r.StartRun < 0 || r.EndRun < r.StartRun || r.EndRun > len(runs) {
-		return false
-	}
-	return offsetInBounds(runs, r.StartRun, r.StartOffset) &&
-		offsetInBounds(runs, r.EndRun, r.EndOffset)
 }
 
 func offsetInBounds(runs []Run, idx, off int) bool {
@@ -233,21 +167,6 @@ func runPosition(runs []Run, runeOffset int) (int, int) {
 	return len(runs), 0
 }
 
-// RunRangeFor builds a RunRange covering the half-open rune span
-// [startRune, endRune) of a run sequence's flattened text.
-func RunRangeFor(runs []Run, startRune, endRune int) RunRange {
-	sr, so := runPosition(runs, startRune)
-	er, eo := runPosition(runs, endRune)
-	return RunRange{StartRun: sr, StartOffset: so, EndRun: er, EndOffset: eo}
-}
-
-// TextSpan projects a RunRange back to character offsets [start, end) in the
-// text-only flattening of runs (RunsText) — the inverse of RunRangeFor.
-// Useful for UI / wire consumers that highlight over the flattened source text.
-func (r RunRange) TextSpan(runs []Run) (start, end int) {
-	return runTextOffset(runs, r.StartRun, r.StartOffset), runTextOffset(runs, r.EndRun, r.EndOffset)
-}
-
 func runTextOffset(runs []Run, runIdx, off int) int {
 	pos := 0
 	for i := 0; i < runIdx && i < len(runs); i++ {
@@ -257,14 +176,6 @@ func runTextOffset(runs []Run, runIdx, off int) int {
 		pos += off
 	}
 	return pos
-}
-
-// ByteSpan projects a RunRange to byte offsets [start, end) in the text-only
-// flattening of runs (RunsText), for consumers that byte-index the source text.
-func (r RunRange) ByteSpan(runs []Run) (start, end int) {
-	text := RunsText(runs)
-	rs, re := r.TextSpan(runs)
-	return runeToByteOffset(text, rs), runeToByteOffset(text, re)
 }
 
 func runeToByteOffset(s string, runeOff int) int {
@@ -279,24 +190,6 @@ func runeToByteOffset(s string, runeOff int) int {
 		n++
 	}
 	return len(s)
-}
-
-// RunRangeForBytes builds a RunRange for a byte-offset span [byteStart, byteEnd)
-// into the runs' text-only flattening (RunsText). Convenience for entity/term
-// detectors that report byte offsets into the source text; it converts to rune
-// offsets so the resulting range is correct for non-ASCII content too.
-func RunRangeForBytes(runs []Run, byteStart, byteEnd int) RunRange {
-	text := RunsText(runs)
-	toRune := func(b int) int {
-		if b <= 0 {
-			return 0
-		}
-		if b > len(text) {
-			b = len(text)
-		}
-		return utf8.RuneCountInString(text[:b])
-	}
-	return RunRangeFor(runs, toRune(byteStart), toRune(byteEnd))
 }
 
 // SegmentationFor returns the primary (layer "") segmentation overlay for the

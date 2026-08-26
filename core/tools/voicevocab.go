@@ -203,7 +203,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					Category:     string(coreprofile.DimensionVocabulary),
 					Severity:     coreprofile.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in terms", m.Term.Text),
-					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
+					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
 			case m.Term.Status == model.TermForbidden:
@@ -211,7 +211,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					Category:     string(coreprofile.DimensionVocabulary),
 					Severity:     coreprofile.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in terms", m.Term.Text),
-					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
+					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
 			case m.Term.Status == model.TermDeprecated:
@@ -224,7 +224,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					Category:     string(coreprofile.DimensionVocabulary),
 					Severity:     coreprofile.SeverityMinor,
 					Message:      fmt.Sprintf("Retired term %q found in terms", m.Term.Text),
-					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
+					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
 			default:

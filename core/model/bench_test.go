@@ -81,8 +81,8 @@ func BenchmarkBlock_Clone(b *testing.B) {
 	block.Source = append(block.Source,
 		model.Run{Text: &model.TextRun{Text: "A second segment with more content for realism."}})
 	block.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 
 	b.ReportAllocs()

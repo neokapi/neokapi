@@ -39,7 +39,7 @@ func handBuiltStream() []*model.Part {
 			},
 			Overlays: []model.Overlay{
 				{Type: model.OverlaySegmentation, Spans: []model.Span{
-					{ID: "s1", Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 5}},
+					{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5})},
 				}},
 			},
 		}},
@@ -49,7 +49,7 @@ func handBuiltStream() []*model.Part {
 
 // TestDumpBlockEvents_Shape asserts the documented §4.1 event shape on a
 // hand-built stream: one event per part, the §4.1 keys, typed-code runs with
-// `semantic`, VariantKey-keyed targets, RunRange-anchored overlays, and no
+// `semantic`, VariantKey-keyed targets, Anchor-anchored overlays, and no
 // HTML escaping of run data.
 func TestDumpBlockEvents_Shape(t *testing.T) {
 	got, err := DumpBlockEvents(handBuiltStream())

@@ -47,7 +47,7 @@ const evidence: BlockEvidence = {
       message: 'Forbidden term "Utilize" found',
       suggestion: 'Use "Use" instead',
       original_text: "Utilize",
-      position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+      position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 7 } },
       metadata: { replacement: "Use" },
     },
   ],

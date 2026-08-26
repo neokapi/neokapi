@@ -389,7 +389,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 		have[firstID] = true
 		tgtSpans = append(tgtSpans, model.Span{
 			ID:    firstID,
-			Range: model.RunRange{StartRun: 0, EndRun: len(target.Runs)},
+			Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: len(target.Runs)}),
 		})
 	}
 
@@ -417,7 +417,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 		start := len(tgtRuns)
 		tgtRuns = append(tgtRuns, segRuns...)
 		end := len(tgtRuns)
-		sp := model.Span{ID: id, Range: model.RunRange{StartRun: start, EndRun: end}}
+		sp := model.Span{ID: id, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: end})}
 		if len(props) > 0 {
 			clonedProps := make(map[string]string, len(props))
 			maps.Copy(clonedProps, props)

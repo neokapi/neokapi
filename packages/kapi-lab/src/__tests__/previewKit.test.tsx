@@ -50,7 +50,7 @@ const termOverlay: OverlayView = {
   spans: [
     {
       id: "t1",
-      range: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 },
+      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
       text: "Acme",
       props: { term: "Acme", target: "Acme", domain: "brand" },
     },
@@ -63,7 +63,7 @@ const voiceOverlay: OverlayView = {
   spans: [
     {
       id: "b1",
-      range: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 },
+      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
       text: "Acme",
       props: {
         category: "voice-vocabulary",
@@ -80,7 +80,7 @@ const qaOverlay: OverlayView = {
   spans: [
     {
       id: "q1",
-      range: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 },
+      range: { kind: "range", start: { run: 0 }, end: { run: 0 } },
       text: "Acme",
       props: { category: "doubled-word", message: 'Doubled word: "Acme"' },
     },

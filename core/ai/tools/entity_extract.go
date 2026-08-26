@@ -576,7 +576,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			}
 			v.AddOverlaySpan(model.OverlayEntity, model.Span{
 				ID:    fmt.Sprintf("entity:%d", entityIdx),
-				Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+				Range: model.RangeAnchorForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 				Value: ann,
 			})
 			entityIdx++
@@ -598,7 +598,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 		}
 		v.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", entityIdx),
-			Range: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
+			Range: model.RangeAnchorForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 			Value: ann,
 		})
 		entityIdx++
@@ -623,7 +623,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner
 			}
 			v.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
 				ID:    fmt.Sprintf("term-candidate:%d", termIdx),
-				Range: model.RunRangeForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
+				Range: model.RangeAnchorForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
 				Value: ann,
 			})
 			termIdx++

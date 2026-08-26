@@ -5,7 +5,7 @@ import { directionAttrs } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
-import { runsPlainText } from "./runRange";
+import { runPosOf, runsPlainText } from "./anchor";
 import RunSequence from "./RunSequence";
 import type { AnnotationView, ContentNode, OverlayView, Run, TargetMeta } from "./types";
 
@@ -256,28 +256,32 @@ function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {
       </div>
       {overlay.spans.length > 0 && (
         <ul className="mt-1 flex flex-col gap-0.5 font-mono text-xs">
-          {overlay.spans.map((s, i) => (
-            <li key={i} className="flex flex-wrap items-baseline gap-x-2">
-              {s.id && <span className="text-muted-foreground">{s.id}</span>}
-              <span className="text-muted-foreground/70">
-                [{s.range.startRun}:{s.range.endRun}]
-              </span>
-              {s.text && <span className="text-foreground/90">“{s.text}”</span>}
-              {s.ignorable && (
-                <Badge variant="ghost" className="text-muted-foreground">
-                  ignorable
-                </Badge>
-              )}
-              {s.props &&
-                Object.entries(s.props)
-                  .filter(([k]) => k !== "ignorable")
-                  .map(([k, v]) => (
-                    <span key={k} className="text-muted-foreground">
-                      {k}={v}
-                    </span>
-                  ))}
-            </li>
-          ))}
+          {overlay.spans.map((s, i) => {
+            const start = runPosOf(s.range.start);
+            const end = runPosOf(s.range.end);
+            return (
+              <li key={i} className="flex flex-wrap items-baseline gap-x-2">
+                {s.id && <span className="text-muted-foreground">{s.id}</span>}
+                <span className="text-muted-foreground/70">
+                  [{start.run}:{end.run}]
+                </span>
+                {s.text && <span className="text-foreground/90">“{s.text}”</span>}
+                {s.ignorable && (
+                  <Badge variant="ghost" className="text-muted-foreground">
+                    ignorable
+                  </Badge>
+                )}
+                {s.props &&
+                  Object.entries(s.props)
+                    .filter(([k]) => k !== "ignorable")
+                    .map(([k, v]) => (
+                      <span key={k} className="text-muted-foreground">
+                        {k}={v}
+                      </span>
+                    ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

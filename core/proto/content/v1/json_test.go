@@ -117,20 +117,20 @@ func blockFixture(t *testing.T) *contentv1.BlockMessage {
 	})
 	frKey := model.Variant(model.LocaleID("fr-FR"))
 	b.SetSegmentation(&frKey, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	b.SetTargetText(model.LocaleID("de-DE"), "Hallo. Willkommen.")
 
 	b.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 3}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
 	})
 
 	b.Overlays = append(b.Overlays, model.Overlay{
 		Type: model.OverlayTerm,
 		Spans: []model.Span{{
 			ID:    "t1",
-			Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 1, EndOffset: 5},
+			Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1, Offset: 5}),
 			Props: map[string]string{"concept": "c-42"},
 			Value: &model.TermAnnotation{SourceTerm: "Hello", ConceptID: "c-42", Score: 1.0},
 		}},

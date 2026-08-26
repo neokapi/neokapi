@@ -159,7 +159,7 @@ func TestHitsToFindings(t *testing.T) {
 	if f.Metadata["concept_id"] != "c-use" {
 		t.Errorf("concept_id metadata = %q, want %q", f.Metadata["concept_id"], "c-use")
 	}
-	if f.Position.StartRun != 0 || f.Position.StartOffset != 7 || f.Position.EndOffset != 14 {
+	if f.Position.Start.Run != 0 || f.Position.Start.Offset != 7 || f.Position.End.Offset != 14 {
 		t.Errorf("position = %+v, want run 0 [7,14)", f.Position)
 	}
 
@@ -184,7 +184,7 @@ func TestHitsToFindings(t *testing.T) {
 	if len(noRuns) != 2 {
 		t.Fatalf("got %d findings without runs, want 2", len(noRuns))
 	}
-	if noRuns[0].Position != (model.RunRange{}) {
+	if !noRuns[0].Position.IsEmpty() {
 		t.Errorf("nil runs should yield a zero position, got %+v", noRuns[0].Position)
 	}
 	if noRuns[0].Metadata["concept_id"] != "c-use" {

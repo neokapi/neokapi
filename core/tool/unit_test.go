@@ -19,8 +19,8 @@ func twoSegBlock(s1, s2 string) *model.Block {
 		{Text: &model.TextRun{Text: s2}},
 	})
 	b.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	return b
 }
@@ -75,8 +75,8 @@ func TestSourceUnitsSegmented(t *testing.T) {
 	assert.Equal(t, 0, units[0].Index())
 	assert.Equal(t, 1, units[1].Index())
 	require.NotNil(t, units[0].Range())
-	assert.Equal(t, 0, units[0].Range().StartRun)
-	assert.Equal(t, 1, units[1].Range().StartRun)
+	assert.Equal(t, 0, units[0].Range().Start.Run)
+	assert.Equal(t, 1, units[1].Range().Start.Run)
 }
 
 func TestSourceUnitsRangeCopyIsIsolated(t *testing.T) {
@@ -90,10 +90,10 @@ func TestSourceUnitsRangeCopyIsIsolated(t *testing.T) {
 		break
 	}
 	require.NotNil(t, first.Range())
-	first.Range().StartRun = 99 // mutate the returned copy
+	first.Range().Start.Run = 99 // mutate the returned copy
 
 	// The block's overlay span is untouched.
-	assert.Equal(t, 0, b.SourceSegmentation().Spans[0].Range.StartRun)
+	assert.Equal(t, 0, b.SourceSegmentation().Spans[0].Range.Start.Run)
 }
 
 func TestSourceUnitsEarlyStop(t *testing.T) {
@@ -116,8 +116,8 @@ func TestSourceUnitsIgnorable(t *testing.T) {
 		{Text: &model.TextRun{Text: " "}},
 	})
 	b.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "ws", Range: model.RunRange{StartRun: 1, EndRun: 2}, Props: map[string]string{model.SpanPropIgnorable: "true"}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "ws", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}), Props: map[string]string{model.SpanPropIgnorable: "true"}},
 	})
 	v := tool.NewBlockView(b)
 
@@ -187,8 +187,8 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 		{Text: &model.TextRun{Text: " "}},
 	})
 	b.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "ws", Range: model.RunRange{StartRun: 1, EndRun: 2}, Props: map[string]string{model.SpanPropIgnorable: "true"}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "ws", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}), Props: map[string]string{model.SpanPropIgnorable: "true"}},
 	})
 	v := tool.NewVariantView(b)
 
@@ -223,8 +223,8 @@ func TestTargetUnitsReadsTargetSegment(t *testing.T) {
 	// Mirror the source segmentation onto the target side.
 	key := model.Variant(frFR)
 	b.SetSegmentation(&key, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	v := tool.NewBlockView(b)
 

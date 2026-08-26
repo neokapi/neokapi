@@ -324,8 +324,9 @@ typed annotations, riding the same carrier as the analytic results above.
 **Anchor.** A Block's position in its source is a coordinate, and the coordinate
 system follows the medium:
 
-- **Text** anchors by **run range** — the `RunRange` every overlay already uses.
-  Run anchoring is the text facet of one general idea, not a separate concept.
+- **Text** anchors by **run position** — the `Anchor` every overlay, finding
+  and stand-off annotation already uses. Run anchoring is the text facet of
+  one general idea rather than a separate concept.
 - **Rendered media** (an image, a page) anchors **spatially**: a `geometry`
   annotation holding a page and a bounding box.
 - **Timed media** (audio, video) anchors **temporally**: a `timing` annotation
@@ -413,19 +414,40 @@ the run sequence without rewriting it.
 ```go
 type Span struct {
     ID    string            // overlay-local id (e.g. a segment id "s1")
-    Range RunRange          // run-anchored, never a flattened-string offset
+    Range Anchor            // run-anchored, never a flattened-string offset
     Props map[string]string // type-specific, e.g. the "ignorable" marker
     Value Payload           // typed payload from the payload registry
 }
-
-// RunRange anchors a span on the run sequence — start and end run positions plus
-// an intra-text-run rune offset — so boundaries stay stable across inline codes
-// and survive run-preserving edits. The range is half-open: [start, end).
-type RunRange struct {
-    StartRun, StartOffset int
-    EndRun,   EndOffset   int
-}
 ```
+
+`Anchor` is the one type that says where inside a block something is, and every
+producer records positions with it: overlays, check findings, and the stand-off
+annotations an [overlay sidecar](/reference/serialization/overlays) carries.
+It addresses one of four things, discriminated by `Kind` — the whole block, one
+run by id, a half-open span of characters, or one branch of a plural or select
+run.
+
+```go
+type Anchor struct {
+    Kind  AnchorKind // block | run | range | form
+    Path  RunPath    // the run sequence addressed; empty is the block's own runs
+    RunID string     // for kind run
+    Start RunPos     // for kind range, half-open [Start, End)
+    End   RunPos
+    Key   string     // for kind form: a plural form or a select case
+}
+
+// RunPos is a character boundary: an index into a run sequence and a rune
+// offset into that run's text.
+type RunPos struct{ Run, Offset int }
+```
+
+Two properties make it hold up. Positions are **run-relative**, so a boundary
+stays where it was put when a neighbouring run is rewritten and can sit either
+side of a placeholder, which a flat character offset can do neither of. And they
+are **pathed**: a block's content is a tree, so `Path` walks to the sequence
+being addressed and a term inside the `other` form of a plural is addressable
+rather than approximated by a position in the flattening.
 
 Four properties follow from anchoring interpretations to runs rather than baking
 them into structure:

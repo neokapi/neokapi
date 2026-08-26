@@ -309,7 +309,7 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 			props["domain"] = domain
 		}
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, m.Position.Start, m.Position.End),
+			Range: model.RangeAnchorForBytes(runs, m.Position.Start, m.Position.End),
 			Props: props,
 		})
 	}
@@ -349,13 +349,13 @@ func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source st
 			props["replacement"] = h.Replacement
 		}
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, h.Start, h.End),
+			Range: model.RangeAnchorForBytes(runs, h.Start, h.End),
 			Props: props,
 		})
 	}
 	for _, p := range patterns {
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, p.Start, p.End),
+			Range: model.RangeAnchorForBytes(runs, p.Start, p.End),
 			Props: patternSpanProps(p),
 		})
 	}

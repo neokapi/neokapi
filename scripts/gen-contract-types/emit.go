@@ -164,7 +164,11 @@ func renderInterface(e emitType) (string, error) {
 		if name == "" {
 			name = f.Name
 		}
-		optional := f.Type.Kind() == reflect.Ptr || hasOption(opts, "omitempty")
+		// Both tags mean the key can be absent from the JSON, so both make the
+		// field optional here. A struct field takes omitzero rather than
+		// omitempty, which never elides a struct.
+		optional := f.Type.Kind() == reflect.Ptr ||
+			hasOption(opts, "omitempty") || hasOption(opts, "omitzero")
 		ts, err := tsType(f.Type)
 		if err != nil {
 			return "", fmt.Errorf("field %s: %w", f.Name, err)

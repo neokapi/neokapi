@@ -1,14 +1,14 @@
-// runRange — anchor a flat text offset onto a run sequence.
+// anchor — put a flat text offset onto a run sequence.
 //
-// Overlays in the content model are run-anchored: an OverlaySpanView carries a
-// RunRange of [startRun,startOffset) … [endRun,endOffset). Detectors and REST
-// payloads that report positions over the block's flattened plain text instead
-// need the inverse, and so does any host projecting flat annotations into a
-// ContentTree the preview kit can render.
+// Overlays in the content model are run-anchored: an OverlaySpanView carries an
+// Anchor whose half-open span runs from one RunPos to another. Detectors and
+// REST payloads that report positions over the block's flattened plain text
+// instead need the inverse, and so does any host projecting flat annotations
+// into a ContentTree the preview kit can render.
 //
-// The arithmetic mirrors core/model/overlay.go (`runPosition`, `RunRangeFor`,
-// `RunRangeForBytes`) and core/model/run.go (`RunsText`) exactly, so a range
-// computed here means the same thing as one computed by the engine:
+// The arithmetic mirrors core/model/anchor.go (`runPosition`, `RangeAnchor`,
+// `RangeAnchorForBytes`) and core/model/run.go (`RunsText`) exactly, so an
+// anchor computed here means the same thing as one computed by the engine:
 //   - a text run contributes its code points;
 //   - an inline-code run (ph / pcOpen / pcClose / sub) has zero text width;
 //   - a plural / select run contributes its "other" branch, falling back to the
@@ -17,12 +17,12 @@
 //     start of the following run, so a leading code attaches to the next span.
 //
 // Go counts runes and indexes bytes; JavaScript indexes UTF-16 code units. Every
-// offset here is a CODE POINT offset (Go's rune), and `runRangeForBytes` takes
+// offset here is a CODE POINT offset (Go's rune), and `rangeAnchorForBytes` takes
 // the UTF-8 byte offsets a Go producer reports.
 
 import { otherBranch, projectRuns, projectRunsText, type RunSpec } from "@neokapi/kapi-format";
 import { byteToCharOffset } from "../../lib/offsets";
-import type { Run, RunRange } from "./types";
+import type { Run, Anchor, RunPos } from "./types";
 
 /** Code-point length of a string (Go's utf8.RuneCountInString). */
 function codePointLength(s: string): number {
@@ -95,35 +95,57 @@ function runPosition(runs: Run[], offset: number): [number, number] {
 }
 
 /**
- * The RunRange covering the half-open code-point span [start, end) of the
- * sequence's flat text. Mirrors model.RunRangeFor.
+ * The Anchor covering the half-open code-point span [start, end) of the
+ * sequence's flat text. Mirrors model.RangeAnchor.
  */
-export function runRangeForChars(runs: Run[] | undefined, start: number, end: number): RunRange {
+export function rangeAnchorForChars(runs: Run[] | undefined, start: number, end: number): Anchor {
   const seq = runs ?? [];
   const [startRun, startOffset] = runPosition(seq, start);
   const [endRun, endOffset] = runPosition(seq, end);
-  return { startRun, startOffset, endRun, endOffset };
+  return { kind: "range", start: runPos(startRun, startOffset), end: runPos(endRun, endOffset) };
 }
 
 /**
- * The RunRange covering the half-open UTF-8 byte span [byteStart, byteEnd) of
- * the sequence's flat text. Mirrors model.RunRangeForBytes — the conversion a
+ * A boundary in its canonical form. A zero offset is left off, matching the
+ * JSON a Go producer writes, so an anchor computed here deep-equals the same
+ * anchor arriving over the wire.
+ */
+function runPos(run: number, offset: number): RunPos {
+  return offset === 0 ? { run } : { run, offset };
+}
+
+/**
+ * A boundary as the wire gives it. Go writes an anchor's `start` and `end`
+ * with `omitzero`, so a range beginning at the first run carries no `start`
+ * key at all: an absent position is the zero position.
+ */
+export function runPosOf(pos: RunPos | undefined): RunPos {
+  return pos ?? { run: 0 };
+}
+
+/**
+ * The Anchor covering the half-open UTF-8 byte span [byteStart, byteEnd) of
+ * the sequence's flat text. Mirrors model.RangeAnchorForBytes — the conversion a
  * consumer needs for any offset a Go producer reported (entity spans, term
  * matches), which are byte offsets into the block's plain source text.
  */
-export function runRangeForBytes(
+export function rangeAnchorForBytes(
   runs: Run[] | undefined,
   byteStart: number,
   byteEnd: number,
-): RunRange {
+): Anchor {
   const seq = runs ?? [];
   const text = runsPlainText(seq);
-  return runRangeForChars(seq, byteToCharOffset(text, byteStart), byteToCharOffset(text, byteEnd));
+  return rangeAnchorForChars(
+    seq,
+    byteToCharOffset(text, byteStart),
+    byteToCharOffset(text, byteEnd),
+  );
 }
 
 /**
  * The surface text a UTF-8 byte span covers in the sequence's flat text — the
- * companion of `runRangeForBytes` for a consumer that also wants to show what
+ * companion of `rangeAnchorForBytes` for a consumer that also wants to show what
  * the span matched, without handling offset conventions itself.
  */
 export function textForBytes(runs: Run[] | undefined, byteStart: number, byteEnd: number): string {

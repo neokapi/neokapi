@@ -163,17 +163,23 @@ for (const b of [filesHeading, shoppingCart]) {
 
 // ── 3. Anchor resolution parity ────────────────────────────────────────────
 const anchors = [
-  { kind: "run", block: "files-heading", path: [3], runId: "2" },
-  { kind: "range", block: "files-heading", path: [4], offset: 1, length: 7 },
-  { kind: "form", block: "shopping-cart-plural", path: [0], key: "one" },
-  { kind: "run", block: "files-heading", path: [3], runId: "99" },
+  { block: "files-heading", kind: "run", path: [3], runId: "2" },
+  {
+    block: "files-heading",
+    kind: "range",
+    path: [],
+    start: { run: 4, offset: 1 },
+    end: { run: 4, offset: 8 },
+  },
+  { block: "shopping-cart-plural", kind: "form", path: [0], key: "one" },
+  { block: "files-heading", kind: "run", path: [3], runId: "99" },
 ] as const;
 const normTs = (r: any): string =>
-  !r.ok ? `fail:${r.reason}` : r.kind === "run" ? `ok:run:${r.run.ph?.id ?? r.run.pcOpen?.id ?? r.run.sub?.id}` : r.kind === "range" ? `ok:range:${r.offset}+${r.length}` : r.kind === "form" ? `ok:form:${r.runs.length}` : "ok:block";
+  !r.ok ? `fail:${r.reason}` : r.kind === "run" ? `ok:run:${r.run.ph?.id ?? r.run.pcOpen?.id ?? r.run.sub?.id}` : r.kind === "range" ? `ok:range:${r.text}` : r.kind === "form" ? `ok:form:${r.runs.length}` : "ok:block";
 const normGo = (r: any): string =>
-  !r.ok ? `fail:${r.reason}` : r.kind === "run" ? `ok:run:${r.runId}` : r.kind === "range" ? `ok:range:${r.rangeOffset}+${r.rangeLength}` : r.kind === "form" ? `ok:form:${r.formRunCount}` : "ok:block";
-for (const a of anchors) {
-  const b = a.block === "files-heading" ? filesHeading : shoppingCart;
+  !r.ok ? `fail:${r.reason}` : r.kind === "run" ? `ok:run:${r.runId}` : r.kind === "range" ? `ok:range:${r.rangeText}` : r.kind === "form" ? `ok:form:${r.formRunCount}` : "ok:block";
+for (const { block, ...a } of anchors) {
+  const b = block === "files-heading" ? filesHeading : shoppingCart;
   const goRes = normGo(kbf({ op: "resolveAnchor", block: b, anchor: a }).resolution);
   const tsRes = normTs(resolveAnchor(b, a as any));
   ok(`anchor parity: ${a.kind} ${JSON.stringify(a.path)} runId=${(a as any).runId ?? "-"}`, goRes === tsRes, `go=${goRes} ts=${tsRes}`);

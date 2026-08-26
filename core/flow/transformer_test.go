@@ -40,7 +40,7 @@ func termTagTool(id string, from, to int) *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName: "tag",
 		Annotate: func(v tool.BlockView) error {
-			v.AddOverlaySpan(model.OverlayTerm, model.Span{ID: id, Range: model.RunRangeFor(v.SourceRuns(), from, to)})
+			v.AddOverlaySpan(model.OverlayTerm, model.Span{ID: id, Range: model.RangeAnchor(v.SourceRuns(), from, to)})
 			return nil
 		},
 	}

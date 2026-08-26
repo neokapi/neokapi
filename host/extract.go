@@ -645,7 +645,7 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 		}
 		// Span covers this segment's (0 or 1) target runs, preserving id and
 		// index alignment with the source span even when unmatched (empty).
-		targetSpans = append(targetSpans, model.Span{ID: spanID, Range: model.RunRange{StartRun: start, EndRun: len(targetRuns)}})
+		targetSpans = append(targetSpans, model.Span{ID: spanID, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: len(targetRuns)})})
 	}
 	if matched == 0 {
 		return prefillNone

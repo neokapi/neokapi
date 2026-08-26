@@ -8,7 +8,7 @@ import type { EntityInfo } from "../../types/api";
  * the reviewer.
  *
  * Positions arrive as UTF-8 *byte* offsets — the server reports them from
- * `model.RunRange.ByteSpan` over the block's plain source — so they are resolved
+ * `model.Anchor.ByteSpan` over the block's plain source — so they are resolved
  * to code-point offsets before anything is sliced. Treating them as string
  * indices underlines the wrong words as soon as a source carries one non-ASCII
  * character ahead of the entity.

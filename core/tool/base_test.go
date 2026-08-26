@@ -199,7 +199,7 @@ func TestImmutabilityGuard(t *testing.T) {
 		close(in)
 		return bt.Process(context.Background(), in, out)
 	}
-	oneSpanOverlay := []model.Span{{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}}}
+	oneSpanOverlay := []model.Span{{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})}}
 
 	t.Run("annotate handler mutating source via aliased slice is rejected", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "bad-src"}
@@ -319,7 +319,7 @@ func TestImmutabilityGuard(t *testing.T) {
 		// A term span over the trailing "ld" (runes 9..11): outside the claimed
 		// edit, but its shifted range (7..9) cannot fit "hi" — the remap drops it
 		// rather than mis-anchor it, and the bounds invariant holds.
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 9, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 9, 11)})
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "hi", b.SourceText())
 		assert.Nil(t, b.OverlayOf(model.OverlayTerm), "the unmappable span (and its emptied overlay) is dropped")
@@ -335,7 +335,7 @@ func TestImmutabilityGuard(t *testing.T) {
 			}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 6, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 6, 11)})
 		require.NoError(t, run(bt, b))
 		// The span was rebased onto the new runs and now covers "world" (0..5).
 		sp := b.OverlaySpan(model.OverlayTerm, "t1")
@@ -351,7 +351,7 @@ func TestImmutabilityGuard(t *testing.T) {
 			return tool.EditPlan{ReplaceAll: &rewritten}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 0, 5)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 0, 5)})
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "a fully rewritten sentence", b.SourceText())
 		assert.Nil(t, b.OverlayOf(model.OverlayTerm))
@@ -367,7 +367,7 @@ func TestImmutabilityGuard(t *testing.T) {
 			}}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RunRangeFor(b.Source, 6, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 6, 11)})
 		require.NoError(t, run(bt, b))
 		sp := b.OverlaySpan(model.OverlayTerm, "t1")
 		require.NotNil(t, sp)

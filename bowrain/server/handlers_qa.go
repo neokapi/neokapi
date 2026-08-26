@@ -24,7 +24,7 @@ import (
 // ride along.
 //
 // Position is a pointer with omitempty rather than a value, because
-// model.RunRange's zero value is a legitimate reading — "the checker located
+// model.Anchor's zero value is a legitimate reading — "the checker located
 // nothing" — and a zero range serialized as {0,0,0,0} is indistinguishable
 // from a real span at the start of the first run.
 type QAIssueResponse struct {
@@ -33,9 +33,9 @@ type QAIssueResponse struct {
 	Message  string `json:"message"`
 	// Position anchors the finding to the checked runs; absent when the checker
 	// judged the whole block.
-	Position     *model.RunRange `json:"position,omitempty"`
-	Suggestion   string          `json:"suggestion,omitempty"`
-	OriginalText string          `json:"original_text,omitempty"`
+	Position     *model.Anchor `json:"position,omitempty"`
+	Suggestion   string        `json:"suggestion,omitempty"`
+	OriginalText string        `json:"original_text,omitempty"`
 }
 
 // FileQAResultResponse holds QA results for a single block.

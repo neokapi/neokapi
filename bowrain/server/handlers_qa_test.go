@@ -63,7 +63,7 @@ func TestRunQAOnBlock_MapsFindingsToWireShape(t *testing.T) {
 // record it as a block annotation and nothing more. Position, suggestion and
 // the offending snippet now ride along.
 //
-// A position that was never reported is ABSENT, not a zero range: model.RunRange
+// A position that was never reported is ABSENT, not a zero range: model.Anchor
 // zero is a legitimate reading ("the checker located nothing"), and serialized
 // as {0,0,0,0} it is indistinguishable from a real span at the start of the
 // first run.
@@ -74,7 +74,7 @@ func TestQAIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 		Message:      `Target contains doubled word: "le"`,
 		Suggestion:   "Remove the repetition",
 		OriginalText: "le le",
-		Position:     model.RunRange{StartRun: 0, StartOffset: 8, EndRun: 0, EndOffset: 13},
+		Position:     model.SpanAnchor(model.RunPos{Run: 0, Offset: 8}, model.RunPos{Run: 0, Offset: 13}),
 	}
 	unlocated := check.Finding{
 		Category: "empty-target",

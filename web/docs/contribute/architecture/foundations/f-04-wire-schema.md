@@ -35,7 +35,7 @@ appears.
 for the model: `PartMessage`, `BlockMessage`, the `RunMessage` discriminated union
 (`TextRunMessage`, `PlaceholderRunMessage`, `PcOpenRunMessage`,
 `PcCloseRunMessage`, `SubRunMessage`, `PluralRunMessage`, `SelectRunMessage`),
-`OverlayMessage` with `SpanMessage` / `RunRangeMessage` / `VariantMessage`,
+`OverlayMessage` with `SpanMessage` / `AnchorMessage` / `VariantMessage`,
 `SegmentMessage` and `TargetEntry`, `SkeletonMessage` and `SkeletonPartMessage`,
 `DisplayHintMessage`, `LayerMessage`, `DataMessage`, `GroupStartMessage` and
 `GroupEndMessage`, `MediaMessage`, `AnnotationEntry`, the lightweight

@@ -136,7 +136,7 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 
 		v.AddOverlaySpan(model.OverlayTerm, model.Span{
 			ID:    fmt.Sprintf("term:%d", i),
-			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+			Range: model.RangeAnchorForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Value: annotation,
 		})
 	}
@@ -319,7 +319,7 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 			// Annotate the block with the violation.
 			v.AddOverlaySpan(model.OverlayTerm, model.Span{
 				ID:    fmt.Sprintf("term-violation:%d", violationCount),
-				Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+				Range: model.RangeAnchorForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 				Value: &model.TermAnnotation{
 					SourceTerm:  match.Term.Text,
 					ConceptID:   match.Concept.ID,
@@ -335,7 +335,7 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 		// Also add discovery annotations.
 		v.AddOverlaySpan(model.OverlayTerm, model.Span{
 			ID:    fmt.Sprintf("term:%d", i),
-			Range: model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+			Range: model.RangeAnchorForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Value: &model.TermAnnotation{
 				SourceTerm:  match.Term.Text,
 				ConceptID:   match.Concept.ID,

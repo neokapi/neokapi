@@ -34,9 +34,9 @@ export const exampleAnnotations: AnnotationFile = {
     {
       type: "annotation",
       id: "review-1",
+      block: "files-heading",
       anchor: {
         kind: "block",
-        block: "files-heading",
       },
       data: {
         kind: "review",
@@ -61,9 +61,9 @@ export const exampleAnnotations: AnnotationFile = {
     {
       type: "annotation",
       id: "term-1",
+      block: "tag-chip",
       anchor: {
         kind: "run",
-        block: "tag-chip",
         path: [2],
         runId: "2",
       },
@@ -83,9 +83,9 @@ export const exampleAnnotations: AnnotationFile = {
     {
       type: "annotation",
       id: "mt-1",
+      block: "shopping-cart-plural",
       anchor: {
         kind: "form",
-        block: "shopping-cart-plural",
         path: [0],
         key: "other",
       },
@@ -98,18 +98,17 @@ export const exampleAnnotations: AnnotationFile = {
       },
     },
 
-    // Range-level: characters 6-12 of the first text run of the
-    // FilesHeading block ("Files ") — 5 characters is "Files".
-    // In practice this would flag a glossary match on "Files".
+    // Range-level: the first five characters of the FilesHeading block's
+    // opening text run — "Files". In practice this would flag a glossary match.
     {
       type: "annotation",
       id: "term-2",
+      block: "files-heading",
       anchor: {
         kind: "range",
-        block: "files-heading",
-        path: [0],
-        offset: 0,
-        length: 5,
+        path: [],
+        start: { run: 0 },
+        end: { run: 0, offset: 5 },
       },
       data: {
         kind: "glossary-match",

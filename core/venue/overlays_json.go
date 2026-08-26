@@ -47,7 +47,7 @@ type overlayWire struct {
 // the polymorphic model.Payload interface can be reconstructed on decode.
 type spanWire struct {
 	ID    string            `json:"id,omitempty"`
-	Range model.RunRange    `json:"range"`
+	Range model.Anchor      `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
 	Value *payloadEnvelope  `json:"value,omitempty"`
 }

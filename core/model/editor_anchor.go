@@ -62,7 +62,7 @@ const (
 type EditorAnchor struct {
 	System EditorAnchorSystem `json:"system"`
 	Ref    string             `json:"ref"`
-	Range  *RunRange          `json:"range,omitempty"`
+	Range  *Anchor            `json:"range,omitempty"`
 	Extra  map[string]string  `json:"extra,omitempty"`
 }
 
@@ -76,7 +76,7 @@ func (*EditorAnchor) TypeName() string { return string(OverlayEditorAnchor) }
 // It is a thin wrapper over [Block.AddOverlaySpan] so editor anchors share the
 // positional-overlay machinery (lookup, remap, wire/store round-trip) with the
 // other overlays.
-func (b *Block) AddEditorAnchor(id string, r RunRange, a *EditorAnchor) {
+func (b *Block) AddEditorAnchor(id string, r Anchor, a *EditorAnchor) {
 	b.AddOverlaySpan(OverlayEditorAnchor, Span{ID: id, Range: r, Value: a})
 }
 

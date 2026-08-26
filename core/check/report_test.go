@@ -14,7 +14,7 @@ func TestDiagnosticFrom_RuleAndLocation(t *testing.T) {
 		Severity:     SeverityMajor,
 		Message:      "too long",
 		Suggestion:   "shorten it",
-		Position:     model.RunRange{StartRun: 1, EndRun: 2},
+		Position:     model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}),
 		OriginalText: "the offending text",
 		Metadata:     map[string]string{"limit": "60"},
 	}
@@ -24,14 +24,14 @@ func TestDiagnosticFrom_RuleAndLocation(t *testing.T) {
 	assert.Equal(t, "length", d.Check)
 	assert.Equal(t, SeverityMajor, d.Severity)
 	assert.Equal(t, "greeting", d.Location.Block)
-	require.NotNil(t, d.Location.RunRange, "a non-zero position must carry a run_range")
+	require.NotNil(t, d.Location.Anchor, "a non-zero position must carry an anchor")
 	assert.Equal(t, "the offending text", d.Location.Snippet)
 	assert.Equal(t, "60", d.Metadata["limit"])
 }
 
-func TestDiagnosticFrom_ZeroPositionNoRunRange(t *testing.T) {
+func TestDiagnosticFrom_ZeroPositionNoAnchor(t *testing.T) {
 	d := DiagnosticFrom(Finding{Category: "x", Severity: SeverityMinor}, "hygiene", Location{Block: "b1"})
-	assert.Nil(t, d.Location.RunRange, "a zero position must not synthesize a run_range")
+	assert.Nil(t, d.Location.Anchor, "a zero position must not synthesize an anchor")
 }
 
 func TestGate_Evaluate(t *testing.T) {

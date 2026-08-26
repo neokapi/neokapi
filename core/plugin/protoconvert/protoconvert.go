@@ -162,7 +162,7 @@ func protoToVariant(msg *pb.VariantMessage) *model.VariantKey {
 func spanToProto(s model.Span) *pb.SpanMessage {
 	msg := &pb.SpanMessage{
 		Id:    s.ID,
-		Range: runRangeToProto(s.Range),
+		Range: anchorToProto(s.Range),
 		Props: s.Props,
 	}
 	if s.Value != nil {
@@ -174,7 +174,7 @@ func spanToProto(s model.Span) *pb.SpanMessage {
 func protoToSpan(msg *pb.SpanMessage) model.Span {
 	s := model.Span{
 		ID:    msg.Id,
-		Range: protoToRunRange(msg.Range),
+		Range: protoToAnchor(msg.Range),
 		Props: msg.Props,
 	}
 	if msg.Value != nil {
@@ -183,20 +183,84 @@ func protoToSpan(msg *pb.SpanMessage) model.Span {
 	return s
 }
 
-func runRangeToProto(r model.RunRange) *pb.RunRangeMessage {
-	return &pb.RunRangeMessage{
-		StartRun: int32(r.StartRun), StartOffset: int32(r.StartOffset),
-		EndRun: int32(r.EndRun), EndOffset: int32(r.EndOffset),
+func runPosToProto(p model.RunPos) *pb.RunPosMessage {
+	return &pb.RunPosMessage{Run: int32(p.Run), Offset: int32(p.Offset)}
+}
+
+func protoToRunPos(msg *pb.RunPosMessage) model.RunPos {
+	if msg == nil {
+		return model.RunPos{}
+	}
+	return model.RunPos{Run: int(msg.Run), Offset: int(msg.Offset)}
+}
+
+func runPathToProto(path model.RunPath) []*pb.RunPathStepMessage {
+	if len(path) == 0 {
+		return nil
+	}
+	out := make([]*pb.RunPathStepMessage, 0, len(path))
+	for _, step := range path {
+		msg := &pb.RunPathStepMessage{}
+		switch step.Kind {
+		case model.StepPlural:
+			msg.Step = &pb.RunPathStepMessage_PluralForm{PluralForm: string(step.PluralForm)}
+		case model.StepSelect:
+			msg.Step = &pb.RunPathStepMessage_SelectValue{SelectValue: step.SelectValue}
+		default:
+			msg.Step = &pb.RunPathStepMessage_Index{Index: int32(step.Index)}
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func protoToRunPath(msgs []*pb.RunPathStepMessage) model.RunPath {
+	if len(msgs) == 0 {
+		return nil
+	}
+	out := make(model.RunPath, 0, len(msgs))
+	for _, msg := range msgs {
+		if msg == nil {
+			continue
+		}
+		switch step := msg.Step.(type) {
+		case *pb.RunPathStepMessage_PluralForm:
+			out = append(out, model.RunPathStep{
+				Kind: model.StepPlural, PluralForm: model.PluralForm(step.PluralForm),
+			})
+		case *pb.RunPathStepMessage_SelectValue:
+			out = append(out, model.RunPathStep{
+				Kind: model.StepSelect, SelectValue: step.SelectValue,
+			})
+		case *pb.RunPathStepMessage_Index:
+			out = append(out, model.RunPathStep{Kind: model.StepIndex, Index: int(step.Index)})
+		}
+	}
+	return out
+}
+
+func anchorToProto(a model.Anchor) *pb.AnchorMessage {
+	return &pb.AnchorMessage{
+		Kind:  string(a.Kind),
+		Path:  runPathToProto(a.Path),
+		RunId: a.RunID,
+		Start: runPosToProto(a.Start),
+		End:   runPosToProto(a.End),
+		Key:   a.Key,
 	}
 }
 
-func protoToRunRange(msg *pb.RunRangeMessage) model.RunRange {
+func protoToAnchor(msg *pb.AnchorMessage) model.Anchor {
 	if msg == nil {
-		return model.RunRange{}
+		return model.Anchor{}
 	}
-	return model.RunRange{
-		StartRun: int(msg.StartRun), StartOffset: int(msg.StartOffset),
-		EndRun: int(msg.EndRun), EndOffset: int(msg.EndOffset),
+	return model.Anchor{
+		Kind:  model.AnchorKind(msg.Kind),
+		Path:  protoToRunPath(msg.Path),
+		RunID: msg.RunId,
+		Start: protoToRunPos(msg.Start),
+		End:   protoToRunPos(msg.End),
+		Key:   msg.Key,
 	}
 }
 
@@ -601,7 +665,7 @@ func segProtosToRunsAndSpans(msgs []*pb.SegmentMessage) ([]model.Run, []model.Sp
 	for _, m := range msgs {
 		start := len(runs)
 		runs = append(runs, ProtoToRuns(m.Runs)...)
-		spans = append(spans, model.Span{ID: m.Id, Range: model.RunRange{StartRun: start, EndRun: len(runs)}})
+		spans = append(spans, model.Span{ID: m.Id, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: len(runs)})})
 	}
 	if len(msgs) <= 1 {
 		return runs, nil

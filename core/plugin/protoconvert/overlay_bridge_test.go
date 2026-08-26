@@ -24,12 +24,12 @@ func buildOverlayBlock() *model.Block {
 	// Positional, built-in overlays with typed values.
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:0",
-		Range: model.RunRangeForBytes(b.Source, 0, 10),
+		Range: model.RangeAnchorForBytes(b.Source, 0, 10),
 		Value: &model.EntityAnnotation{Text: "John Smith", Type: model.EntityPerson, DNT: true},
 	})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{
 		ID:    "term:0",
-		Range: model.RunRangeForBytes(b.Source, 19, 24),
+		Range: model.RangeAnchorForBytes(b.Source, 19, 24),
 		Props: map[string]string{"strength": "preferred"},
 		Value: &model.TermAnnotation{SourceTerm: "Paris", ConceptID: "c-1"},
 	})
@@ -38,7 +38,7 @@ func buildOverlayBlock() *model.Block {
 	// payload — it must still survive by type name + JSON.
 	b.AddOverlaySpan(pluginOverlay, model.Span{
 		ID:    "m0",
-		Range: model.RunRangeForBytes(b.Source, 0, 4),
+		Range: model.RangeAnchorForBytes(b.Source, 0, 4),
 		Value: &model.GenericAnnotation{Kind: "x-mark", Fields: map[string]any{"weight": "high"}},
 	})
 
@@ -49,7 +49,7 @@ func buildOverlayBlock() *model.Block {
 	// reconstructed from the segment boundaries).
 	b.Overlays = append(b.Overlays, model.Overlay{
 		Type:  model.OverlaySegmentation,
-		Spans: []model.Span{{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}}},
+		Spans: []model.Span{{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})}},
 	})
 	return b
 }

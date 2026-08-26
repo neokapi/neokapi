@@ -111,7 +111,7 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 			OriginalText: text[hit.Start:hit.End],
 		}
 		if len(runs) > 0 {
-			f.Position = model.RunRangeForBytes(runs, hit.Start, hit.End)
+			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}
 		if desc := strings.TrimSpace(hit.Description); desc != "" {
 			f.Message = "Prohibited pattern: " + desc

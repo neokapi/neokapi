@@ -71,10 +71,16 @@ export interface TraceRunResult {
  * A KBF spec operation routed to the canonical Go engine (core/kbf) via the
  * `kbf` wasm endpoint. The shape is op-specific; see the KBF docs Lab/Tests
  * pages for the per-op payloads (roundtrip, validateBlock, validateTarget,
- * resolveAnchor, renderHtml).
+ * resolveAnchor, validateAnnotation, renderHtml).
  */
 export interface KbfRequest {
-  op: "roundtrip" | "validateBlock" | "validateTarget" | "resolveAnchor" | "renderHtml";
+  op:
+    | "roundtrip"
+    | "validateBlock"
+    | "validateTarget"
+    | "resolveAnchor"
+    | "validateAnnotation"
+    | "renderHtml";
   [key: string]: unknown;
 }
 
