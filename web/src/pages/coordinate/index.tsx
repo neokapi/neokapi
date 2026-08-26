@@ -156,6 +156,23 @@ interface AbCase {
   keptWith: number;
   keptWithout: number;
 }
+interface AbArm {
+  name: string;
+  calls: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  kept: number;
+  drifted: number;
+  translations: Record<string, string>;
+}
+interface AbBatched {
+  blocks: number;
+  scored: number;
+  termRulesAtCoordinate: number;
+  termRulesSentBatched: number;
+  arms: AbArm[];
+}
 interface AbReport {
   ranAt: string;
   model: string;
@@ -171,6 +188,7 @@ interface AbReport {
   judgeTie: number;
   judgeValidated: boolean;
   cases: AbCase[];
+  batched?: AbBatched;
 }
 
 const data = report as Report;
@@ -1130,6 +1148,77 @@ export default function Coordinate(): ReactElement {
               </span>
             </div>
           </div>
+          {ab.batched && (
+            <div style={{ marginTop: "1.4rem" }}>
+              <h3 style={{ marginTop: 0 }}>The path production runs</h3>
+              <p style={styles.prose}>
+                Everything above translates one sentence per call. Production batches, and the two
+                build materially different prompts: a batch sends a JSON payload of many segments
+                and a schema-constrained reply. So the same question is asked again over a document
+                of {ab.batched.blocks} blocks, {ab.batched.scored} of which carry a wording under
+                test, in three arms.
+              </p>
+              <div style={styles.scroll}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <Th label="Arm" width="20rem" />
+                      <Th label="Kept" sub="approved wording" />
+                      <Th label="Calls" />
+                      <Th label="Input" sub="tokens" />
+                      <Th label="Output" sub="tokens" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ab.batched.arms.map((a) => {
+                      const total = a.kept + a.drifted;
+                      return (
+                        <tr key={a.name}>
+                          <td>{a.name}</td>
+                          <td>
+                            {a.kept === total
+                              ? pill(`${a.kept}/${total}`, "ok")
+                              : pill(`${a.kept}/${total}`, "no")}
+                          </td>
+                          <td style={styles.val}>{a.calls}</td>
+                          <td style={styles.val}>{a.inputTokens.toLocaleString()}</td>
+                          <td style={styles.val}>{a.outputTokens.toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ ...styles.slug, marginTop: ".6rem" }}>
+                Input counts include the part a provider served from its prompt cache: cheaper per
+                token, still prompt the model reads.
+              </p>
+              <p style={{ ...styles.prose, marginTop: "1rem" }}>
+                Two things follow. Batching does not cost the effect &mdash; the batched arm with
+                references matches the one-call-per-block ceiling exactly, so the worry that a model
+                juggling many references would apply each less reliably did not materialise here.
+                And the references are nearly free:{" "}
+                {(ab.batched.arms[1].inputTokens - ab.batched.arms[0].inputTokens).toLocaleString()}{" "}
+                more input tokens across the document, for {ab.batched.arms[0].kept} of{" "}
+                {ab.batched.arms[0].kept + ab.batched.arms[0].drifted} becoming{" "}
+                {ab.batched.arms[1].kept} of {ab.batched.arms[1].kept + ab.batched.arms[1].drifted}.
+              </p>
+              <p style={styles.prose}>
+                The third arm is what the old rule would have cost. A block with history used to be
+                translated alone, because the batch payload had nowhere to put a per-segment
+                reference &mdash; {ab.batched.arms[2].calls} calls and{" "}
+                {ab.batched.arms[2].inputTokens.toLocaleString()} input tokens to reach the same
+                answer the batched arm reached in {ab.batched.arms[1].calls}.
+              </p>
+              <p style={styles.prose}>
+                Terminology is scoped to each call the same way: this collection is governed by{" "}
+                {ab.batched.termRulesAtCoordinate} term rules and a call carries the{" "}
+                {ab.batched.termRulesSentBatched} its own text could use. Tokens are the smaller
+                saving; the larger is that the rules which do bite are not buried among the ones
+                that cannot.
+              </p>
+            </div>
+          )}
           {ab.cases.map((c) => (
             <AbCaseView key={c.name} c={c} />
           ))}

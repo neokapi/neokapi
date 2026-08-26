@@ -109,6 +109,32 @@ var abVoice = &coreprofile.VoiceProfile{
 	},
 }
 
+// A terms store of the size a real collection has. Most of these have nothing
+// to do with the document under test, which is the point: they are what a
+// coordinate accumulates, and what every prompt used to carry.
+//
+// None of them names a word the A/B turns on. A rule pinning "cart" would make
+// the reference redundant and the eval circular — the model would be told the
+// answer the prior version exists to supply.
 var abTermRules = []coreprofile.TermRule{
 	{Term: "log-in", Replacement: "sign in"},
+	{Term: "e-mail", Replacement: "email"},
+	{Term: "web site", Replacement: "website"},
+	{Term: "user name", Replacement: "username"},
+	{Term: "back-up", Replacement: "backup"},
+	{Term: "click here", Replacement: "select"},
+	{Term: "utilise", Replacement: "use"},
+	{Term: "commence", Replacement: "start"},
+	{Term: "terminate", Replacement: "end"},
+	{Term: "endeavour", Replacement: "try"},
+	{Term: "purchase", Replacement: "buy"},
+	{Term: "obtain", Replacement: "get"},
+	{Term: "require", Replacement: "need"},
+	{Term: "sufficient", Replacement: "enough"},
+	{Term: "additional", Replacement: "more"},
+	{Term: "prior to", Replacement: "before"},
+	{Term: "in order to", Replacement: "to"},
+	{Term: "at this time", Replacement: "now"},
+	{Term: "please note", Replacement: "note"},
+	{Term: "kindly", Replacement: "please"},
 }
