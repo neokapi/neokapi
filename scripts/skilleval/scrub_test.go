@@ -15,14 +15,18 @@ import (
 // a throwaway directory: it reaches kapi by whatever path it found and prints
 // the temp root in its own commands.
 //
-// The repo has been here before — a Go subtest named after an absolute fixture
+// The repo has been here before: a Go subtest named after an absolute fixture
 // path once put 358 home paths into a committed dataset. The guard catches it,
 // but three steps from anything that looks like this file, on a build that
 // otherwise had nothing to do with paths.
+//
+// The fixtures below use "me", which is one of the placeholder names the guard
+// itself allows for unit-test tables where a plausible absolute path is the
+// point. A test for a path scrubber has to contain paths.
 
 func TestScrubPathsRemovesWhatTheGuardLooksFor(t *testing.T) {
 	cases := []struct{ name, in string }{
-		{"the developer's checkout", "grep -rn version <(/Users/someone/src/neokapi/bin/kapi help recipe 2>&1)"},
+		{"the developer's checkout", "grep -rn version <(/Users/me/src/neokapi/bin/kapi help recipe 2>&1)"},
 		{"a scenario's temp workspace", "cd /private/var/folders/vp/xxx/T/skilleval-p04-1955381723 && kgrep -i sales docs/"},
 		{"a linux home", "/home/runner/work/neokapi/bin/kapi check --ship"},
 		{"a homebrew prefix", "/opt/homebrew/bin/kgrep -r utilize docs/"},
@@ -58,13 +62,13 @@ func TestNoAbsolutePathReachesTheReport(t *testing.T) {
 	r := &Report{
 		Mode:    modeTrigger,
 		Surface: surfaceSkill,
-		Runner:  Runner{Kapi: "bin/kapi", KapiVersion: scrubPaths("kapi v1 (/Users/someone/src/kapi)")},
+		Runner:  Runner{Kapi: "bin/kapi", KapiVersion: scrubPaths("kapi v1 (/Users/me/src/kapi)")},
 		Results: []Result{{
 			Scenario: scenarios[0],
 			Runs: []Run{{
 				Triggered:    true,
 				KapiCommands: []string{scrubPaths("cd /private/var/folders/x/T/w && kapi version")},
-				FinalText:    scrubPaths("I read /Users/someone/src/neokapi/SKILL.md first."),
+				FinalText:    scrubPaths("I read /Users/me/src/neokapi/SKILL.md first."),
 				Gate:         &GateResult{Command: "test -f out.json", Output: scrubPaths("/tmp/w/out.json missing")},
 			}},
 		}},
