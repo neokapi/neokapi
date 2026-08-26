@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
+	"github.com/neokapi/neokapi/core/edit"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 )
@@ -185,7 +185,7 @@ func buildChainsAndPrompts(ctx context.Context) ([]Chain, []PromptPair, error) {
 			InForce:     shortFP(inForceFP),
 			CurrentText: tc.currentSource,
 			Versions:    []Version{version},
-			Diff:        tools.DiffEdit(tc.priorSource, tc.currentSource),
+			Diff:        edit.Compare(tc.priorSource, tc.currentSource),
 		}
 		if offered {
 			chain.Offered = &version

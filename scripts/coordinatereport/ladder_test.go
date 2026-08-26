@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/edit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +19,7 @@ import (
 // what it measures.
 func TestTheLadderLabelsAgreeWithTheClassifier(t *testing.T) {
 	for _, e := range ladderEdits {
-		assert.Equal(t, e.kind, string(tools.ClassifyEdit(ladderOriginal, e.text)),
+		assert.Equal(t, e.kind, string(edit.Classify(ladderOriginal, e.text)),
 			"%q is labelled %s", e.label, e.kind)
 	}
 }

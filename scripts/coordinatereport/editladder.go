@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/edit"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
@@ -82,7 +84,7 @@ type LadderRung struct {
 	Text string `json:"text"`
 	// Diff is the classifier's own view of this edit, so the highlighting a
 	// reader sees is the comparison the verdict was reached on.
-	Diff tools.Diff `json:"diff"`
+	Diff edit.Diff `json:"diff"`
 	// Score and Match are what the matcher says, which is what the old policy
 	// read and nothing now reads.
 	Score int    `json:"score"`
@@ -150,12 +152,12 @@ func buildEditLadder(ctx context.Context) (*EditLadder, error) {
 			return nil, fmt.Errorf("score %q: %w", e.label, err)
 		}
 
-		kind := tools.ClassifyEdit(ladderOriginal, e.text)
+		kind := edit.Classify(ladderOriginal, e.text)
 		rung := LadderRung{
 			Edit:       e.label,
 			Kind:       e.kind,
 			Text:       e.text,
-			Diff:       tools.DiffEdit(ladderOriginal, e.text),
+			Diff:       edit.Compare(ladderOriginal, e.text),
 			Classified: string(kind),
 			SafeToFill: kind.SafeToFill(),
 		}
@@ -215,9 +217,9 @@ func fillUnder(ctx context.Context, tm memory.ContentMemory, source string, poli
 	cfg.SourceLocale = "en"
 	cfg.TargetLocale = "nb"
 	cfg.FillTargetThreshold = ladderFillFloor
-	cfg.Provider = leverage.NewProvider(tm)
+	cfg.Memory = leverage.NewProvider(tm)
 	if policy == scoreOnly {
-		cfg.Provider = unclassified{leverage.NewProvider(tm)}
+		cfg.Memory = unclassified{leverage.NewProvider(tm)}
 	}
 
 	tl := tools.NewMemoryLeverageTool(cfg) //nolint:contextcheck // ctx is passed to Process below and travels inside the VariantView from there
@@ -244,8 +246,8 @@ func fillUnder(ctx context.Context, tm memory.ContentMemory, source string, poli
 // rather than a description of it.
 type unclassified struct{ *leverage.Provider }
 
-func (u unclassified) LookupBlock(ctx context.Context, block *model.Block, source, target model.LocaleID, threshold int, at string) (tools.MemoryBlockMatch, bool) {
-	m, ok := u.Provider.LookupBlock(ctx, block, source, target, threshold, at)
+func (u unclassified) Lookup(ctx context.Context, req corememory.Request) (corememory.Match, bool) {
+	m, ok := u.Provider.Lookup(ctx, req)
 	m.Edit = ""
 	return m, ok
 }

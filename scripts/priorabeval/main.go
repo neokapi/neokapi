@@ -37,8 +37,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
+	"github.com/neokapi/neokapi/core/edit"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -316,10 +316,10 @@ func ask(ctx context.Context, llm aiprovider.LLMProvider, msgs []aiprovider.Mess
 // The word boundary is the whole point, and the first version of this function
 // did not have it: strings.Contains says "handlekurven" contains "kurven", so
 // every drift in the corpus scored as the approved wording surviving, and the
-// eval reported that the reference changed nothing. See tools.ContainsWords.
+// eval reported that the reference changed nothing. See edit.ContainsWords.
 func containsAny(haystack string, needles []string) bool {
 	for _, n := range needles {
-		if tools.ContainsWords(haystack, n) {
+		if edit.ContainsWords(haystack, n) {
 			return true
 		}
 	}

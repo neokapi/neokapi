@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
@@ -88,7 +89,7 @@ func TestProducersSkipHeldSource(t *testing.T) {
 	newRecycle := func() tool.Tool {
 		return NewMemoryLeverageTool(&MemoryLeverageConfig{
 			SourceLocale: "en", TargetLocale: fr,
-			FuzzyThreshold: 70, Provider: staticMemoryProvider{"Hello": "Bonjour"},
+			FuzzyThreshold: 70, Memory: staticMemoryProvider{"Hello": "Bonjour"},
 		})
 	}
 
@@ -115,14 +116,28 @@ func applyProduce(t *testing.T, tl tool.Tool, b *model.Block) error {
 	return tl.Process(context.Background(), in, out)
 }
 
-// staticMemoryProvider is a minimal exact-match content memory for the producer-skip test.
+// staticMemoryProvider is a minimal exact-match content memory for the
+// producer-skip test. It answers a block request and a text request the same
+// way, by flattening, and has no version chain — which is a real answer rather
+// than a missing method.
 type staticMemoryProvider map[string]string
 
-func (m staticMemoryProvider) LookupExact(_ context.Context, src string, _, _ model.LocaleID) (string, bool) {
-	v, ok := m[src]
-	return v, ok
+func (m staticMemoryProvider) Lookup(_ context.Context, req corememory.Request) (corememory.Match, bool) {
+	key := req.Text
+	if req.Block != nil {
+		key = model.FlattenRuns(req.Block.Source)
+	}
+	t, ok := m[key]
+	if !ok {
+		return corememory.Match{}, false
+	}
+	return corememory.Match{
+		TargetRuns: []model.Run{{Text: &model.TextRun{Text: t}}},
+		Score:      100,
+		Exact:      true,
+	}, true
 }
 
-func (m staticMemoryProvider) LookupFuzzy(_ context.Context, _ string, _, _ model.LocaleID, _ int) (string, int, bool) {
-	return "", 0, false
+func (m staticMemoryProvider) PriorVersion(context.Context, corememory.VersionRequest) (corememory.Version, bool) {
+	return corememory.Version{}, false
 }

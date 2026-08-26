@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/edit"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/segment"
 	_ "github.com/neokapi/neokapi/core/segment/uax29" // the baseline sentence engine
-	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -45,12 +45,12 @@ const segmentTarget = "Abonnementet fornyes den første i hver måned. " +
 
 // SegmentRow is one sentence, judged on its own.
 type SegmentRow struct {
-	Index      int        `json:"index"`
-	Prior      string     `json:"prior"`
-	Current    string     `json:"current"`
-	Diff       tools.Diff `json:"diff"`
-	Score      int        `json:"score"`
-	Classified string     `json:"classified"`
+	Index      int       `json:"index"`
+	Prior      string    `json:"prior"`
+	Current    string    `json:"current"`
+	Diff       edit.Diff `json:"diff"`
+	Score      int       `json:"score"`
+	Classified string    `json:"classified"`
 	// Filled is the target the real tool wrote for this sentence on its own.
 	Filled string `json:"filled"`
 }
@@ -64,10 +64,10 @@ type SegmentSplit struct {
 	Approved string `json:"approved"`
 	// The block-level answer: one score, one verdict, one outcome for
 	// everything in it.
-	BlockDiff       tools.Diff `json:"blockDiff"`
-	BlockScore      int        `json:"blockScore"`
-	BlockClassified string     `json:"blockClassified"`
-	BlockFilled     string     `json:"blockFilled"`
+	BlockDiff       edit.Diff `json:"blockDiff"`
+	BlockScore      int       `json:"blockScore"`
+	BlockClassified string    `json:"blockClassified"`
+	BlockFilled     string    `json:"blockFilled"`
 	// BlockFilledByScore is what a percentage does with the same paragraph. One
 	// sentence of three moved, so the block still scores in the nineties, and a
 	// fill floor writes the old billing terms back out.
@@ -129,8 +129,8 @@ func buildSegmentSplit(ctx context.Context) (*SegmentSplit, error) {
 		Prior:           segmentOriginal,
 		Current:         segmentEdited,
 		Approved:        segmentTarget,
-		BlockDiff:       tools.DiffEdit(segmentOriginal, segmentEdited),
-		BlockClassified: string(tools.ClassifyEdit(segmentOriginal, segmentEdited)),
+		BlockDiff:       edit.Compare(segmentOriginal, segmentEdited),
+		BlockClassified: string(edit.Classify(segmentOriginal, segmentEdited)),
 	}
 	out.BlockScore, err = scoreOf(ctx, blockCorpus, segmentEdited)
 	if err != nil {
@@ -146,12 +146,12 @@ func buildSegmentSplit(ctx context.Context) (*SegmentSplit, error) {
 	}
 
 	for i, cur := range currentSentences {
-		kind := tools.ClassifyEdit(priorSentences[i], cur)
+		kind := edit.Classify(priorSentences[i], cur)
 		row := SegmentRow{
 			Index:      i + 1,
 			Prior:      priorSentences[i],
 			Current:    cur,
-			Diff:       tools.DiffEdit(priorSentences[i], cur),
+			Diff:       edit.Compare(priorSentences[i], cur),
 			Classified: string(kind),
 		}
 		row.Score, err = scoreOf(ctx, sentenceCorpus, cur)

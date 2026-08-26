@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
@@ -61,9 +62,9 @@ type AITranslateTool struct {
 	onProgress  func(aiprovider.ProgressEvent)
 	blockIndex  atomic.Int32
 	totalBlocks int
-	// priorVersions answers what a block said before, gated on governance. nil
-	// when the run has no content memory, which is every ad-hoc translate.
-	priorVersions PriorVersionProvider
+	// corpus answers what a block said before, gated on governance. Nil when the
+	// run has no content memory, which is every ad-hoc translate.
+	corpus corememory.Provider
 	// point is where this run's content sits, so a block's history is read from
 	// the place it belongs to rather than from wherever the corpus answers first.
 	point string
@@ -139,7 +140,7 @@ type AITranslateConfig struct {
 	//
 	// Not serializable: it is a live handle on the content memory, supplied the
 	// way Profile is. A run without one translates exactly as it did before.
-	PriorVersions PriorVersionProvider `json:"-" schema:"-"`
+	Memory corememory.Provider `json:"-" schema:"-"`
 
 	// Point is where this run's content sits (product, channel, collection). A
 	// block's history is read from its own point, so wording approved for one
@@ -252,10 +253,10 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		profile = pf
 		delete(config, "profile")
 	}
-	var priorVersions PriorVersionProvider
-	if pv, ok := config[ConfigPriorVersions].(PriorVersionProvider); ok {
-		priorVersions = pv
-		delete(config, ConfigPriorVersions)
+	var corpus corememory.Provider
+	if c, ok := config[corememory.ConfigKey].(corememory.Provider); ok {
+		corpus = c
+		delete(config, corememory.ConfigKey)
 	}
 
 	var cfg AITranslateConfig
@@ -264,7 +265,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 	}
 	cfg.OnProgress = onProgress
 	cfg.Profile = profile
-	cfg.PriorVersions = priorVersions
+	cfg.Memory = corpus
 
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -293,8 +294,8 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
 
-		priorVersions: cfg.PriorVersions,
-		point:         cfg.Point,
+		corpus: cfg.Memory,
+		point:  cfg.Point,
 	}
 	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
@@ -1083,25 +1084,6 @@ func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) 
 	return t.configFP
 }
 
-// ConfigPriorVersions is the config-map key a host passes a PriorVersionProvider
-// under, the way it passes "profile". Both are live handles rather than data, so
-// neither survives the JSON round-trip the rest of the config takes.
-const ConfigPriorVersions = "prior_versions"
-
-// PriorVersionProvider answers what a block said before, at a point, under the
-// governance in force.
-//
-// The gate lives behind this call rather than in front of it: a caller that has
-// to remember to check a fingerprint is a caller that will eventually forget,
-// and the failure is silent — a translation steered by wording approved under
-// rules that have since changed. See memory/leverage.PriorVersionFor.
-type PriorVersionProvider interface {
-	// PriorVersion returns the source and target of the newest approved answer
-	// for unit at point, or ok=false when there is none or when the one there
-	// was approved under governance that has since moved.
-	PriorVersion(ctx context.Context, unit, point string, source, target model.LocaleID, fingerprint string) (priorSource, priorTarget string, ok bool)
-}
-
 // attachPrior adds the block's previous approved translation to the prompt
 // context, when there is one and it still stands.
 //
@@ -1127,7 +1109,7 @@ func (t *AITranslateTool) attachPrior(ctx context.Context, unit string, pc *prom
 // key. A nil entry means asked and answered nothing, which is why presence in
 // the map is the test rather than a nil check.
 func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.PriorVersion {
-	if t.priorVersions == nil || unit == "" {
+	if t.corpus == nil || unit == "" {
 		return nil
 	}
 
@@ -1138,9 +1120,14 @@ func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.Pri
 	}
 
 	var pv *prompt.PriorVersion
-	if src, tgt, ok := t.priorVersions.PriorVersion(
-		ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP); ok && tgt != "" {
-		pv = &prompt.PriorVersion{Source: src, Target: tgt}
+	if v, ok := t.corpus.PriorVersion(ctx, corememory.VersionRequest{
+		Unit:       unit,
+		Point:      t.point,
+		Source:     t.sourceLocale,
+		Target:     t.targetLocale,
+		GovernedBy: t.contextFP,
+	}); ok && v.Target != "" {
+		pv = &prompt.PriorVersion{Source: v.Source, Target: v.Target}
 	}
 	if t.priorCache == nil {
 		t.priorCache = make(map[string]*prompt.PriorVersion)
@@ -1244,7 +1231,7 @@ func (t *AITranslateTool) packBatches(ctx context.Context, entries []blockEntry)
 // from the rest. With no provider configured every block is packable, which is
 // the behaviour every run had before this existed.
 func (t *AITranslateTool) splitBlocksWithHistory(ctx context.Context, entries []blockEntry) (alone, packable []blockEntry) {
-	if t.priorVersions == nil {
+	if t.corpus == nil {
 		return nil, entries
 	}
 	for _, e := range entries {

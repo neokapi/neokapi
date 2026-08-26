@@ -1,12 +1,13 @@
 package tools
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/edit"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
@@ -30,124 +31,11 @@ const (
 	PropMemoryAltKey = "alt-translation"
 )
 
-// ExactMemoryProvider is the lookup shape recycling keeps once fuzzy retires:
-// an answer is either for the same content, at a place entitled to give it, or
-// it is not offered at all.
-//
-// It exists because similarity was always a proxy. A fuzzy score answered "is
-// this the same thing, changed a bit?" by measuring characters, which is a
-// heuristic for a question the corpus can now answer outright — a block's own
-// prior answers are a version chain (memory.VersionReader), and continuity for
-// content that merely resembles other content comes from the terms and voice in
-// force rather than from a match. What is left for a lookup is the exact case,
-// which is a different job: not a discount on labour but a guarantee that one
-// string does not render two ways.
-//
-// Narrowing the shape is also what lets an implementation optimize. An exact
-// lookup is a keyed read; a fuzzy one is a scan over an index built for
-// similarity, and a provider asked only for the former can stop maintaining the
-// latter.
-//
-// It takes the point because an exact answer approved somewhere else is still
-// an answer from somewhere else. The block path has always been given the
-// point; the plain-text path never was, so this is where that closes.
-type ExactMemoryProvider interface {
-	// LookupExactAt returns the target for an exact source match approved
-	// nearest at, or false when the corpus holds none.
-	LookupExactAt(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, at string) (string, bool)
-}
-
-// MemoryProvider is the interface for content memory lookup.
-//
-// Every method takes the run's context. A lookup is I/O — a SQLite query, or a
-// network round-trip for a provider that is not local — so cancelling a run has
-// to reach it. The context comes from the tool.VariantView being processed, so
-// it is the caller's real one rather than a placeholder.
-type MemoryProvider interface {
-	// LookupExact looks up an exact match for the source text.
-	// Returns the translation and true if found.
-	LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool)
-
-	// LookupFuzzy looks up a fuzzy match for the source text.
-	// Returns the translation, match score (0-100), and true if found above threshold.
-	//
-	// Retiring. FuzzyThreshold defaults to 100, so nothing below an exact match
-	// is asked for and this is not called on a default configuration; a recipe
-	// that lowers the threshold still reaches it. The method and its
-	// implementations stay until the version-reference path has been measured
-	// against them — see ExactMemoryProvider for why similarity stopped being
-	// the right question.
-	LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
-}
-
-// MemoryBlockMatch is the result of a structure-aware (block-level) content-memory lookup.
-// Unlike the text-based MemoryProvider results, the translation is carried as
-// the matched entry's target Run sequence, so inline codes (icons, paired
-// markup) survive the fill instead of being flattened into — and leaking
-// as — literal token text.
-type MemoryBlockMatch struct {
-	// TargetRuns is the matched entry's target-variant runs.
-	TargetRuns []model.Run
-	// Score is the match score (0-100). 100 means a structurally exact
-	// match (same inline-code structure); a plain-text exact whose code
-	// structure differs from the block's is capped below 100 by the content memory.
-	Score int
-	// Exact reports whether the match came from an exact tier (any of
-	// generalized / structural / plain), as opposed to fuzzy.
-	Exact bool
-	// Ambiguous marks an exact match that the content memory could not disambiguate:
-	// several entries matched at full score with differing targets. An
-	// ambiguous match must never be filled unattended — it is recorded as
-	// an alt-translation candidate only.
-	Ambiguous bool
-	// Edit is how this block's source differs from the source the matched
-	// answer was approved for. It is what Score was always standing in for, and
-	// it is the field the fill decision reads: an approved translation stands
-	// while the words have not moved, and a percentage cannot say that because
-	// it softens with length.
-	//
-	// Empty when the provider does not classify — an older implementation, or a
-	// path with no prior source in hand — and the fill then falls back to the
-	// score alone, which is the behaviour that existed before.
-	Edit EditKind
-}
-
-// BlockMemoryProvider is an optional MemoryProvider capability for structure-aware
-// lookup. When the configured Provider implements it, the recycle tool
-// queries the content memory with the block's full source Run sequence (inline codes
-// included) instead of its flattened text, and fills the target with the
-// matched entry's runs. Providers backed by memory implement this via
-// ContentMemory.Lookup; the plain-text MemoryProvider methods remain the
-// fallback path.
-type BlockMemoryProvider interface {
-	// LookupBlock looks up the best match for the block's source content.
-	// threshold is the minimum acceptable score (0-100) for fuzzy matches.
-	// at names the context point the fill is happening at, so a source the
-	// corpus answers more than one way resolves to the approval nearest the
-	// content being written; empty when the caller has no location in hand.
-	// Returns false when no match at or above threshold exists.
-	LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int, at string) (MemoryBlockMatch, bool)
-}
-
-// NullMemoryProvider is a MemoryProvider that returns no matches.
-// Useful for testing and as a default when no content memory is available.
-type NullMemoryProvider struct{}
-
-// LookupExact always returns no match.
-func (NullMemoryProvider) LookupExact(context.Context, string, model.LocaleID, model.LocaleID) (string, bool) {
-	return "", false
-}
-
-// LookupFuzzy always returns no match.
-func (NullMemoryProvider) LookupFuzzy(context.Context, string, model.LocaleID, model.LocaleID, int) (string, int, bool) {
-	return "", 0, false
-}
-
 // MemoryLeverageConfig holds configuration for the content-memory leverage tool.
 type MemoryLeverageConfig struct {
-	TargetLocale model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
-	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
-	Provider     MemoryProvider `json:"-"                        schema:"-"`
+	TargetLocale model.LocaleID      `json:"targetLocale,omitempty"   schema:"-"`
+	SourceLocale model.LocaleID      `json:"sourceLocale,omitempty"   schema:"-"`
+	Memory       corememory.Provider `json:"-"                   schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
 	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
@@ -209,7 +97,7 @@ func (c *MemoryLeverageConfig) ToolName() string { return "recycle" }
 func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
-	c.Provider = nil
+	c.Memory = nil
 	// 70/95, not 100/100 — for now.
 	//
 	// Fuzzy fill is retiring and its replacement is better, but the replacement
@@ -249,8 +137,8 @@ func (c *MemoryLeverageConfig) Validate() error {
 	if c.FuzzyThreshold < 0 || c.FuzzyThreshold > 100 {
 		return errors.New("recycle: FuzzyThreshold must be between 0 and 100")
 	}
-	if c.Provider == nil {
-		return errors.New("recycle: Provider is required")
+	if c.Memory == nil {
+		return errors.New("recycle: Memory is required")
 	}
 	return nil
 }
@@ -262,6 +150,20 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 	// The voice profile is injected by the flow bindings as a live pointer, not a
 	// serializable value, so it is lifted out before ApplyConfig's JSON round-trip.
 	// The term rules bind directly.
+	// Lifted before ApplyConfig's JSON round trip, like the voice profile below:
+	// both are live values rather than data, so neither survives it.
+	if m, ok := config[corememory.ConfigKey].(corememory.Provider); ok {
+		cfg.Memory = m
+		delete(config, corememory.ConfigKey)
+	}
+	// SourceLocale is schema:"-" so ApplyConfig will not populate it, and a
+	// lookup with an empty source locale matches nothing (WHERE locale = ?).
+	// The host knows it; this is where it arrives.
+	if src, ok := config[corememory.SourceLocaleKey].(string); ok && src != "" {
+		cfg.SourceLocale = model.LocaleID(src)
+		delete(config, corememory.SourceLocaleKey)
+	}
+
 	var profile *coreprofile.VoiceProfile
 	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
 		profile = pf
@@ -277,7 +179,11 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 	if cfg.FuzzyThreshold == 0 {
 		cfg.FuzzyThreshold = 70
 	}
-	cfg.Provider = NullMemoryProvider{}
+	if cfg.Memory == nil {
+		// A run with no content memory. The null provider answers every
+		// question with "no", so the tool needs no special case for it.
+		cfg.Memory = corememory.NullProvider{}
+	}
 	return NewMemoryLeverageTool(cfg), nil
 }
 
@@ -315,7 +221,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*MemoryLeverageConfig)
-		if conf.Provider == nil {
+		if conf.Memory == nil {
 			return nil
 		}
 
@@ -344,37 +250,19 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Structure-aware path: when the provider can match on the block's
-		// full Run sequence (inline codes included), prefer it — a block
-		// whose source carries icon/markup runs only scores 100 against an
-		// entry with the same code structure, and the fill preserves the
-		// entry's runs (tokens stay model objects, never literal text).
-		if bp, ok := conf.Provider.(BlockMemoryProvider); ok {
-			if leverageBlockRuns(conf, v, bp) {
-				return nil
-			}
-		}
-
-		// Try exact match first.
-		if translation, found := lookupExactAt(v.Context(), conf, sourceText); found {
-			score := 100
-			if conf.DowngradeIdenticalBestMatches {
-				score = 99
-			}
-			recordWholeBlockMatch(v, conf, translation, score, model.MatchExact, "exact")
+		// Structure-aware path first: a block form carries the source's inline
+		// codes, so a block whose source has icon or markup runs only scores
+		// 100 against an entry with the same code structure, the fill preserves
+		// the entry's runs (tokens stay model objects, never literal text), and
+		// the answer can be classified against the source it was approved for.
+		if leverageBlock(conf, v) {
 			return nil
 		}
 
-		// Below an exact match, only a recipe that lowered the threshold asks.
-		// The band between is not offered as a draft and is not sent to a model
-		// either, which is what made it bookkeeping rather than leverage.
-		if conf.FuzzyThreshold < 100 {
-			if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-				recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
-				return nil
-			}
-		}
-
+		// Flattened fallback, for entries stored without inline codes. It keys
+		// differently, so it can reach what the block form cannot — and it
+		// cannot classify, so it fills on the score alone.
+		leverageText(conf, v, sourceText)
 		return nil
 	}
 	return t
@@ -455,7 +343,7 @@ func fillWouldDropCodes(v tool.VariantView, candidate []model.Run) bool {
 //
 // Every candidate is recorded as an alt-translation before the fill decision,
 // so a rejected match is visible to a reviewer instead of vanishing.
-func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockMemoryProvider) bool {
+func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	block := &model.Block{
 		ID:           v.ID(),
 		Translatable: true,
@@ -466,7 +354,13 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		block.SetAnno(key, payload)
 	}
 
-	m, found := bp.LookupBlock(v.Context(), block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold, conf.Point)
+	m, found := conf.Memory.Lookup(v.Context(), corememory.Request{
+		Block:    block,
+		Source:   conf.SourceLocale,
+		Target:   conf.TargetLocale,
+		Point:    conf.Point,
+		MinScore: conf.FuzzyThreshold,
+	})
 	if !found || len(m.TargetRuns) == 0 {
 		return false
 	}
@@ -518,7 +412,7 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		// Nothing better is lost: a block path that returned a substantive
 		// match returned the corpus's BEST match, so there is no exact for the
 		// text path to find.
-		return m.Edit == EditSubstantive
+		return m.Edit == edit.Substantive
 	}
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
@@ -629,7 +523,15 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			matched++
 			continue
 		}
-		if tr, found := conf.Provider.LookupExact(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale); found {
+		if m, found := conf.Memory.Lookup(v.Context(), corememory.Request{
+			Text:     segTexts[i],
+			Source:   conf.SourceLocale,
+			Target:   conf.TargetLocale,
+			Point:    conf.Point,
+			MinScore: 100,
+			Verbatim: true,
+		}); found {
+			tr := model.RunsText(m.TargetRuns)
 			translations[i] = tr
 			matched++
 			score := 100
@@ -647,7 +549,14 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			allExact = false
 			continue
 		}
-		if tr, score, found := conf.Provider.LookupFuzzy(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+		if m, found := conf.Memory.Lookup(v.Context(), corememory.Request{
+			Text:     segTexts[i],
+			Source:   conf.SourceLocale,
+			Target:   conf.TargetLocale,
+			Point:    conf.Point,
+			MinScore: conf.FuzzyThreshold,
+		}); found {
+			tr, score := model.RunsText(m.TargetRuns), m.Score
 			translations[i] = tr
 			matched++
 			allExact = false
@@ -739,14 +648,14 @@ func annotateSegmentMatch(v tool.VariantView, conf *MemoryLeverageConfig, idx in
 //
 // The score still governs when the provider classified nothing, which is the
 // behaviour that existed before and the one an older provider still gets.
-func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int, edit EditKind) bool {
+func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int, kind edit.Kind) bool {
 	if !conf.FillTarget {
 		return false
 	}
-	switch edit {
-	case EditNone, EditCosmetic:
+	switch kind {
+	case edit.None, edit.Cosmetic:
 		// The words stand. Length decided nothing here, which is the point.
-	case EditSubstantive:
+	case edit.Substantive:
 		return false
 	default:
 		if score < conf.FillTargetThreshold {
@@ -762,13 +671,52 @@ func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int,
 	return true
 }
 
-// lookupExactAt asks for an exact match at the run's point, preferring the
-// point-aware shape and falling back to the point-blind one for a provider that
-// predates it. A provider offering neither answers nothing, which is what
-// NullMemoryProvider is for.
-func lookupExactAt(ctx context.Context, conf *MemoryLeverageConfig, sourceText string) (string, bool) {
-	if p, ok := conf.Provider.(ExactMemoryProvider); ok {
-		return p.LookupExactAt(ctx, sourceText, conf.SourceLocale, conf.TargetLocale, conf.Point)
+// leverageText is the flattened fallback: the corpus asked by text rather than
+// by block.
+//
+// It exists for entries stored without inline codes, which a block form cannot
+// reach because it matches over runs. It is the weaker path by construction —
+// asked by text, the corpus answers with a target and no source, so nothing can
+// classify the edit and the fill falls back to the score alone.
+//
+// It now asks at the run's point, which it did not before. An answer approved
+// somewhere else is still an answer from somewhere else, and this path was the
+// last one that could not say where it was.
+func leverageText(conf *MemoryLeverageConfig, v tool.VariantView, sourceText string) bool {
+	// Verbatim first: the same text, matched plainly. This is not a discount on
+	// labour but a guarantee that one string does not render two ways.
+	if m, found := conf.Memory.Lookup(v.Context(), corememory.Request{
+		Text:     sourceText,
+		Source:   conf.SourceLocale,
+		Target:   conf.TargetLocale,
+		Point:    conf.Point,
+		MinScore: 100,
+		Verbatim: true,
+	}); found {
+		score := 100
+		if conf.DowngradeIdenticalBestMatches {
+			score = 99
+		}
+		recordWholeBlockMatch(v, conf, model.RunsText(m.TargetRuns), score, model.MatchExact, "exact")
+		return true
 	}
-	return conf.Provider.LookupExact(ctx, sourceText, conf.SourceLocale, conf.TargetLocale)
+
+	// Below an exact match, only a recipe that lowered the threshold asks. The
+	// band between is not offered as a draft and is not sent to a model either,
+	// which is what made it bookkeeping rather than leverage.
+	if conf.FuzzyThreshold >= 100 {
+		return false
+	}
+	m, found := conf.Memory.Lookup(v.Context(), corememory.Request{
+		Text:     sourceText,
+		Source:   conf.SourceLocale,
+		Target:   conf.TargetLocale,
+		Point:    conf.Point,
+		MinScore: conf.FuzzyThreshold,
+	})
+	if !found {
+		return false
+	}
+	recordWholeBlockMatch(v, conf, model.RunsText(m.TargetRuns), m.Score, model.MatchFuzzy, "fuzzy")
+	return true
 }

@@ -99,7 +99,7 @@ func TestTMLeverageToolPlaceholderIntegrity(t *testing.T) {
 			tl := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
 				SourceLocale:        "en",
 				TargetLocale:        "nb",
-				Provider:            leverage.NewProvider(tm),
+				Memory:              leverage.NewProvider(tm),
 				FuzzyThreshold:      70,
 				FillTarget:          true,
 				FillTargetThreshold: 0,

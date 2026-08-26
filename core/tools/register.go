@@ -1,6 +1,7 @@
 package tools
 
 import (
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
@@ -204,7 +205,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// "recycle" is the canonical id for content-memory leverage (pre-fill from translation
 	// memory).
 	reg.RegisterWithSchema("recycle", func() tool.Tool {
-		return NewMemoryLeverageTool(&MemoryLeverageConfig{FuzzyThreshold: 70, Provider: NullMemoryProvider{}})
+		return NewMemoryLeverageTool(&MemoryLeverageConfig{FuzzyThreshold: 70, Memory: corememory.NullProvider{}})
 	}, toolSchema(&MemoryLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
 		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", schema.RequiresMemory), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
 

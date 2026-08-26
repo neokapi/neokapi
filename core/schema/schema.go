@@ -79,8 +79,18 @@ type ToolMeta struct {
 	// Tags are freeform classification labels for UI filtering and grouping.
 	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
 
-	// Requires declares external resources this tool needs at runtime.
+	// Requires declares external resources this tool needs at runtime. A tool
+	// that declares one and does not get it cannot do its job.
 	Requires []string `json:"requires,omitempty"` // "target-language","source-language","memory","terms","credentials"
+
+	// Accepts declares optional resources this tool uses when the run has them.
+	// A tool that declares one and does not get it still runs, and produces what
+	// it would have produced without it.
+	//
+	// Separate from Requires because a host must be able to tell "grant this if
+	// you have it" from "this tool is meaningless without it". Collapsing them
+	// makes a corpus mandatory for anything that merely benefits from one.
+	Accepts []string `json:"accepts,omitempty"` // "memory"
 
 	// Cardinality declares how many locales the tool operates on per execution.
 	Cardinality LocaleCardinality `json:"cardinality,omitempty"`
@@ -209,6 +219,19 @@ func NormalizeCategory(c string) string {
 }
 
 // Standard requirement names for the Requires field.
+//
+// RequiresMemory means the tool cannot do its job without a content memory:
+// recycle exists to fill from one, and with none it is a no-op. It does NOT
+// mean "this tool reads a content memory" — a tool the corpus merely improves
+// says so in Accepts instead, and a run without one still builds it.
+//
+// That distinction used to be missing, and its absence was load-bearing in a
+// bad way. Every injection site narrowed the built tool to recycle's concrete
+// config, so the flag could only ever serve one tool, and translate reached its
+// corpus through a config-map side channel to avoid being routed into an
+// assertion it would fail. host/upplan.go also reads RequiresMemory on a
+// target-producing step as "this step recycles", which is true only while the
+// flag means purpose rather than use.
 const (
 	RequiresTargetLanguage = "target-language"
 	RequiresSourceLanguage = "source-language"
@@ -216,6 +239,14 @@ const (
 	RequiresTerms          = "terms"
 	RequiresCredentials    = "credentials"
 	RequiresRetryable      = "retryable"
+)
+
+// Standard capability names for the Accepts field.
+const (
+	// AcceptsMemory: the tool uses a content memory when the run has one and
+	// works without it. Translate reads a block's previously approved answer as
+	// prompt reference; with no corpus it translates exactly as it would have.
+	AcceptsMemory = "memory"
 )
 
 // ParameterGroup defines a UI grouping of parameters.

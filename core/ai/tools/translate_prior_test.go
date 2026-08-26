@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -61,14 +62,22 @@ type stubPriors struct {
 	calls           int
 }
 
-func (s *stubPriors) PriorVersion(_ context.Context, unit, point string, _, _ model.LocaleID, fingerprint string) (string, string, bool) {
+func (s *stubPriors) PriorVersion(_ context.Context, req corememory.VersionRequest) (corememory.Version, bool) {
 	s.calls++
-	s.unitSeen, s.pointSeen, s.fingerprintSeen = unit, point, fingerprint
-	if unit != s.unit || point != s.point {
-		return "", "", false
+	s.unitSeen, s.pointSeen, s.fingerprintSeen = req.Unit, req.Point, req.GovernedBy
+	if req.Unit != s.unit || req.Point != s.point {
+		return corememory.Version{}, false
 	}
-	return s.source, s.target, true
+	return corememory.Version{Source: s.source, Target: s.target}, true
 }
+
+// Lookup answers nothing: this stub exists to be asked about history, and a
+// provider that cannot answer a question says so rather than omitting it.
+func (s *stubPriors) Lookup(context.Context, corememory.Request) (corememory.Match, bool) {
+	return corememory.Match{}, false
+}
+
+var _ corememory.Provider = (*stubPriors)(nil)
 
 func blockNamed(name, source string) *model.Block {
 	b := model.NewBlock(name, source)
@@ -114,7 +123,7 @@ func TestTheApprovedTranslationReachesThePrompt(t *testing.T) {
 		source: "Get started", target: "Kom i gang",
 	}
 	cfg := baseConfig()
-	cfg.PriorVersions = priors
+	cfg.Memory = priors
 	cfg.Point = priors.point
 
 	p := &recordingProvider{}
@@ -133,7 +142,7 @@ func TestThePriorIsAskedForAtThisBlockAndThisPoint(t *testing.T) {
 
 	priors := &stubPriors{unit: "cta.start", point: "acme\x1fweb\x1fsite", source: "Get started", target: "Kom i gang"}
 	cfg := baseConfig()
-	cfg.PriorVersions = priors
+	cfg.Memory = priors
 	cfg.Point = priors.point
 
 	runTranslate(t, cfg, &recordingProvider{}, blockNamed("cta.start", "Get started today"))
@@ -168,7 +177,7 @@ func TestThePriorMovesTheCacheKey(t *testing.T) {
 	bare := aitools.NewAITranslateTool(&recordingProvider{}, baseConfig())
 
 	withPrior := baseConfig()
-	withPrior.PriorVersions = &stubPriors{
+	withPrior.Memory = &stubPriors{
 		unit: "cta.start", point: "acme\x1fweb\x1fsite",
 		source: "Get started", target: "Kom i gang",
 	}
@@ -193,7 +202,7 @@ func TestABlockWithHistoryIsTranslatedAlone(t *testing.T) {
 		source: "Get started", target: "Kom i gang",
 	}
 	cfg := baseConfig()
-	cfg.PriorVersions = priors
+	cfg.Memory = priors
 	cfg.Point = priors.point
 
 	p := &recordingProvider{}
@@ -243,7 +252,7 @@ func TestTheCorpusIsAskedOncePerBlock(t *testing.T) {
 		source: "Get started", target: "Kom i gang",
 	}
 	cfg := baseConfig()
-	cfg.PriorVersions = priors
+	cfg.Memory = priors
 	cfg.Point = priors.point
 
 	block := blockNamed("cta.start", "Get started today")
@@ -267,7 +276,7 @@ func TestABlockWithNoHistoryIsAlsoAskedOnce(t *testing.T) {
 
 	priors := &stubPriors{unit: "somewhere.else", point: "acme\x1fweb\x1fsite"}
 	cfg := baseConfig()
-	cfg.PriorVersions = priors
+	cfg.Memory = priors
 	cfg.Point = priors.point
 
 	block := blockNamed("cta.start", "Get started today")

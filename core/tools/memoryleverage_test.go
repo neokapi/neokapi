@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
@@ -12,7 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockMemoryProvider implements MemoryProvider for testing.
+// mockMemoryProvider implements corememory.Provider for testing.
+//
+// It answers a block request and a text request alike, by flattening the block,
+// because the real provider does: one interface, and "cannot answer" is a
+// return value rather than a missing method.
 type mockMemoryProvider struct {
 	exact map[string]string     // source -> translation
 	fuzzy map[string]fuzzyMatch // source -> {translation, score}
@@ -23,24 +28,41 @@ type fuzzyMatch struct {
 	score       int
 }
 
-func (m *mockMemoryProvider) LookupExact(_ context.Context, source string, _, _ model.LocaleID) (string, bool) {
-	if m.exact == nil {
-		return "", false
+func (m *mockMemoryProvider) Lookup(_ context.Context, req corememory.Request) (corememory.Match, bool) {
+	key := req.Text
+	if req.Block != nil {
+		key = model.FlattenRuns(req.Block.Source)
 	}
-	trans, ok := m.exact[source]
-	return trans, ok
+	if key == "" {
+		return corememory.Match{}, false
+	}
+	if translation, ok := m.exact[key]; ok {
+		return corememory.Match{
+			TargetRuns: []model.Run{{Text: &model.TextRun{Text: translation}}},
+			Score:      100,
+			Exact:      true,
+		}, true
+	}
+	// A verbatim request wants the same content or nothing; the fuzzy table is
+	// not an answer to it.
+	if req.Verbatim || req.MinScore >= 100 {
+		return corememory.Match{}, false
+	}
+	match, ok := m.fuzzy[key]
+	if !ok || match.score < req.MinScore {
+		return corememory.Match{}, false
+	}
+	return corememory.Match{
+		TargetRuns: []model.Run{{Text: &model.TextRun{Text: match.translation}}},
+		Score:      match.score,
+	}, true
 }
 
-func (m *mockMemoryProvider) LookupFuzzy(_ context.Context, source string, _, _ model.LocaleID, threshold int) (string, int, bool) {
-	if m.fuzzy == nil {
-		return "", 0, false
-	}
-	match, ok := m.fuzzy[source]
-	if !ok || match.score < threshold {
-		return "", 0, false
-	}
-	return match.translation, match.score, true
+func (m *mockMemoryProvider) PriorVersion(context.Context, corememory.VersionRequest) (corememory.Version, bool) {
+	return corememory.Version{}, false
 }
+
+var _ corememory.Provider = (*mockMemoryProvider)(nil)
 
 func TestMemoryLeverageTool(t *testing.T) {
 	t.Parallel()
@@ -48,7 +70,7 @@ func TestMemoryLeverageTool(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       &tools.NullMemoryProvider{},
+		Memory:         corememory.NullProvider{},
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -67,7 +89,7 @@ func TestMemoryLeverageToolExactMatch(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -111,7 +133,7 @@ func TestMemoryLeverageToolStampsGovernance(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 		Profile:        &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
 		TermRules:      []profile.TermRule{{Term: "cart", Replacement: "panier"}},
 	}
@@ -140,7 +162,7 @@ func TestMemoryLeverageToolFuzzyMatch(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -163,7 +185,7 @@ func TestMemoryLeverageToolNoMatch(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -191,7 +213,7 @@ func TestMemoryLeverageToolExactOverFuzzy(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -214,7 +236,7 @@ func TestMemoryLeverageToolNullProvider(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       &tools.NullMemoryProvider{},
+		Memory:         corememory.NullProvider{},
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -237,7 +259,7 @@ func TestMemoryLeverageToolSkipsNonTranslatable(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -261,7 +283,7 @@ func TestMemoryLeverageToolEmptySource(t *testing.T) {
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
 		FuzzyThreshold: 70,
-		Provider:       provider,
+		Memory:         provider,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -283,19 +305,19 @@ func TestMemoryLeverageConfigValidation(t *testing.T) {
 	}{
 		{
 			name:    "missing target locale",
-			cfg:     tools.MemoryLeverageConfig{Provider: &tools.NullMemoryProvider{}},
+			cfg:     tools.MemoryLeverageConfig{Memory: corememory.NullProvider{}},
 			wantErr: true,
 			errMsg:  "TargetLocale",
 		},
 		{
-			name:    "missing provider",
+			name:    "missing memory",
 			cfg:     tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench},
 			wantErr: true,
-			errMsg:  "Provider",
+			errMsg:  "Memory",
 		},
 		{
 			name:    "threshold out of range",
-			cfg:     tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, Provider: &tools.NullMemoryProvider{}, FuzzyThreshold: 101},
+			cfg:     tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, Memory: corememory.NullProvider{}, FuzzyThreshold: 101},
 			wantErr: true,
 			errMsg:  "FuzzyThreshold",
 		},
@@ -303,7 +325,7 @@ func TestMemoryLeverageConfigValidation(t *testing.T) {
 			name: "valid config",
 			cfg: tools.MemoryLeverageConfig{
 				TargetLocale:   model.LocaleFrench,
-				Provider:       &tools.NullMemoryProvider{},
+				Memory:         corememory.NullProvider{},
 				FuzzyThreshold: 80,
 			},
 		},
@@ -351,7 +373,7 @@ func TestMemoryLeverageSegmentedAllExact(t *testing.T) {
 		seg1Src:    "Bonjour le monde. ",
 		"Goodbye.": "Au revoir.",
 	}}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	block := segBlock("tu1", "Hello world. ", "Goodbye.")
@@ -417,7 +439,7 @@ func TestMemoryLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 		exact: map[string]string{seg1Src: "Bonjour le monde. "},
 		fuzzy: map[string]fuzzyMatch{"Goodbye.": {translation: "Au revoir.", score: 80}},
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	block := segBlock("tu1", "Hello world. ", "Goodbye.")
@@ -443,7 +465,7 @@ func TestMemoryLeverageSegmentedPartialNoFill(t *testing.T) {
 	t.Parallel()
 	// Only the first sentence is in the content memory; the second misses entirely.
 	provider := &mockMemoryProvider{exact: map[string]string{seg1Src: "Bonjour le monde. "}}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	block := segBlock("tu1", "Hello world. ", "Goodbye.")
@@ -466,12 +488,17 @@ func TestMemoryLeverageSegmentedPartialNoFill(t *testing.T) {
 
 // --- structure-aware (BlockMemoryProvider) leverage ---
 
-// mockBlockMemoryProvider implements both MemoryProvider and BlockMemoryProvider: the
-// text maps drive the fallback path, the block match drives the
-// structure-aware path.
+// mockBlockMemoryProvider answers a block request with a canned match and
+// delegates a text request to the embedded text mock.
+//
+// It has to say which explicitly, and that is the point. Under the old split it
+// implemented two interfaces and was two different providers depending on which
+// method the caller happened to reach — so a mock could answer a block one way
+// and, if the caller took the other door, answer nothing at all without
+// anything saying so.
 type mockBlockMemoryProvider struct {
 	mockMemoryProvider
-	match tools.MemoryBlockMatch
+	match corememory.Match
 	found bool
 	calls int
 	// at records the context point the tool asked from, so a test can assert
@@ -479,9 +506,13 @@ type mockBlockMemoryProvider struct {
 	at string
 }
 
-func (m *mockBlockMemoryProvider) LookupBlock(_ context.Context, _ *model.Block, _, _ model.LocaleID, _ int, at string) (tools.MemoryBlockMatch, bool) {
+func (m *mockBlockMemoryProvider) Lookup(ctx context.Context, req corememory.Request) (corememory.Match, bool) {
+	if req.Block == nil {
+		m.at = req.Point
+		return m.mockMemoryProvider.Lookup(ctx, req)
+	}
 	m.calls++
-	m.at = at
+	m.at = req.Point
 	return m.match, m.found
 }
 
@@ -517,10 +548,10 @@ func iconTargetRuns() []model.Run {
 func TestMemoryLeverageBlockAwareRunsFill(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
-		match: tools.MemoryBlockMatch{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
+		match: corememory.Match{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
 		found: true,
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
@@ -549,13 +580,13 @@ func TestMemoryLeverageBlockAwareRunsFill(t *testing.T) {
 func TestMemoryLeverageAsksFromWhereItIs(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
-		match: tools.MemoryBlockMatch{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
+		match: corememory.Match{TargetRuns: iconTargetRuns(), Score: 100, Exact: true},
 		found: true,
 	}
 	at := memory.NewPoint("neokapi", "cli", "neokapi-cli")
 	cfg := &tools.MemoryLeverageConfig{
 		TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish,
-		FuzzyThreshold: 70, Provider: provider, Point: at,
+		FuzzyThreshold: 70, Memory: provider, Point: at,
 	}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -570,10 +601,10 @@ func TestMemoryLeverageBlockAwareAmbiguousSkips(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
 		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installation"}},
-		match:              tools.MemoryBlockMatch{TargetRuns: iconTargetRuns(), Score: 99, Exact: true, Ambiguous: true},
+		match:              corememory.Match{TargetRuns: iconTargetRuns(), Score: 99, Exact: true, Ambiguous: true},
 		found:              true,
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
@@ -596,10 +627,10 @@ func TestTMLeverageBlockAwareSubThresholdFallsThrough(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
 		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installer"}},
-		match:              tools.MemoryBlockMatch{TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Installation"}}}, Score: 80, Exact: false},
+		match:              corememory.Match{TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Installation"}}}, Score: 80, Exact: false},
 		found:              true,
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, FillTarget: true, FillTargetThreshold: 95, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, FillTarget: true, FillTargetThreshold: 95, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: plainBlock("tu1", "Install")})
@@ -627,10 +658,10 @@ func TestMemoryLeverageBlockAwareIncompatibleCodes(t *testing.T) {
 	}
 	provider := &mockBlockMemoryProvider{
 		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installer"}},
-		match:              tools.MemoryBlockMatch{TargetRuns: foreign, Score: 100, Exact: true},
+		match:              corememory.Match{TargetRuns: foreign, Score: 100, Exact: true},
 		found:              true,
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: plainBlock("tu1", "Install")})
@@ -712,7 +743,7 @@ func TestTMLeverageNeverFillsLossyMatch(t *testing.T) {
 				provider.mockMemoryProvider = mockMemoryProvider{exact: map[string]string{" documented formats": tc.exactText}}
 			}
 			if tc.blockMatch != nil {
-				provider.match = tools.MemoryBlockMatch{TargetRuns: tc.blockMatch, Score: 99, Exact: true}
+				provider.match = corememory.Match{TargetRuns: tc.blockMatch, Score: 99, Exact: true}
 				provider.found = true
 			}
 			cfg := &tools.MemoryLeverageConfig{
@@ -721,7 +752,7 @@ func TestTMLeverageNeverFillsLossyMatch(t *testing.T) {
 				FuzzyThreshold:      70,
 				FillTarget:          true,
 				FillTargetThreshold: 95,
-				Provider:            provider,
+				Memory:              provider,
 			}
 			tl := tools.NewMemoryLeverageTool(cfg)
 
@@ -757,7 +788,7 @@ func TestTMLeverageSegmentedFillRejectsCodeLoss(t *testing.T) {
 		seg1Src:    "Hei verden. ",
 		"Goodbye.": "Farvel.",
 	}}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleID("nb"), SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleID("nb"), SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	block := segBlock("tu1", seg1Src, "Goodbye.")
@@ -779,10 +810,10 @@ func TestMemoryLeverageBlockAwareCloneIsolation(t *testing.T) {
 	t.Parallel()
 	stored := iconTargetRuns()
 	provider := &mockBlockMemoryProvider{
-		match: tools.MemoryBlockMatch{TargetRuns: stored, Score: 100, Exact: true},
+		match: corememory.Match{TargetRuns: stored, Score: 100, Exact: true},
 		found: true,
 	}
-	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
@@ -799,29 +830,31 @@ type ctxCapturingProvider struct {
 	got   []context.Context
 }
 
-func (p *ctxCapturingProvider) LookupExact(ctx context.Context, _ string, _, _ model.LocaleID) (string, bool) {
+func (p *ctxCapturingProvider) Lookup(ctx context.Context, req corememory.Request) (corememory.Match, bool) {
 	p.got = append(p.got, ctx)
-	if p.exact != "" {
-		return p.exact, true
-	}
-	return "", false
-}
-
-func (p *ctxCapturingProvider) LookupFuzzy(ctx context.Context, _ string, _, _ model.LocaleID, _ int) (string, int, bool) {
-	p.got = append(p.got, ctx)
-	return "", 0, false
-}
-
-func (p *ctxCapturingProvider) LookupBlock(ctx context.Context, _ *model.Block, _, _ model.LocaleID, _ int, _ string) (tools.MemoryBlockMatch, bool) {
-	p.got = append(p.got, ctx)
-	if p.block {
-		return tools.MemoryBlockMatch{
+	if req.Block != nil {
+		if !p.block {
+			return corememory.Match{}, false
+		}
+		return corememory.Match{
 			TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
 			Score:      100,
 			Exact:      true,
 		}, true
 	}
-	return tools.MemoryBlockMatch{}, false
+	if p.exact == "" || !req.Verbatim {
+		return corememory.Match{}, false
+	}
+	return corememory.Match{
+		TargetRuns: []model.Run{{Text: &model.TextRun{Text: p.exact}}},
+		Score:      100,
+		Exact:      true,
+	}, true
+}
+
+func (p *ctxCapturingProvider) PriorVersion(ctx context.Context, _ corememory.VersionRequest) (corememory.Version, bool) {
+	p.got = append(p.got, ctx)
+	return corememory.Version{}, false
 }
 
 // TestMemoryLeverageLookupsReceiveTheRunContext: a content-memory lookup is
@@ -851,7 +884,7 @@ func TestMemoryLeverageLookupsReceiveTheRunContext(t *testing.T) {
 				TargetLocale:   model.LocaleFrench,
 				SourceLocale:   model.LocaleEnglish,
 				FuzzyThreshold: 70,
-				Provider:       tc.provider,
+				Memory:         tc.provider,
 			})
 
 			ctx, cancel := context.WithCancel(context.Background())

@@ -25,8 +25,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/edit"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/tools"
 	"gopkg.in/yaml.v3"
 )
 
@@ -140,7 +140,7 @@ type Chain struct {
 	// Diff is how the source moved since the prior answer was approved. The
 	// gate does not read it — governance decides this, not wording — but a
 	// reader cannot judge a verdict without seeing what it was passed.
-	Diff tools.Diff `json:"diff"`
+	Diff edit.Diff `json:"diff"`
 	// Offered is the reference the prompt would carry, or nil when the gate
 	// withheld it. Withheld says why, in the terms a reader needs.
 	Offered  *Version `json:"offered,omitempty"`
