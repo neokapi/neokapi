@@ -64,13 +64,16 @@ type Context struct {
 }
 
 // PriorVersion is one block's previous source and the target approved for it.
+// The JSON tags are load-bearing rather than decorative: a prior version rides
+// inside the batch payload, so these field names are text a model reads. Lower
+// case because everything else in that payload is.
 type PriorVersion struct {
 	// Source is what the block said when Target was approved. Without it the
 	// target is an anchor with no explanation; with it the pair is a diff the
 	// model can reason about.
-	Source string
+	Source string `json:"was"`
 	// Target is the answer approved for that source.
-	Target string
+	Target string `json:"approved"`
 }
 
 // empty reports whether a prior version says nothing useful. Either half alone

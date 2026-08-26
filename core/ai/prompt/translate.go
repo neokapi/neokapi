@@ -227,18 +227,22 @@ func (t Translate) SingleWithContext(source string, preserveTags bool, blockCtx 
 type BatchSegment struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
-	// Key is where this text lives in the document (`app.settings.title`). Sent
-	// per segment because it differs per segment, unlike the voice guidance and
-	// terminology that hoist into a shared preamble.
-	//
-	// It is the only per-segment context this struct carries, and that is now a
-	// limit rather than a description. A block's previously approved translation
-	// is also per-segment and has nowhere to go here, so a block that has one is
-	// packed alone (see AITranslateTool.packBatches). Widening this to a
-	// per-segment context would remove that restriction and let a batch carry
-	// references for every block in it; the payload shape and the response
-	// schema both move when it does.
+	// Key is where this text lives in the document (`app.settings.title`).
 	Key string `json:"key,omitempty"`
+
+	// Prior is what this segment said last time and what was approved for it
+	// then — reference, never an answer.
+	//
+	// Per-segment, like the key, and for the same reason: it differs per
+	// segment, so it cannot hoist into the shared preamble the way voice
+	// guidance and terminology do.
+	//
+	// This field is why a batch can carry references at all. Before it, the only
+	// per-segment context was the key, so a block with history had to be
+	// translated alone — which meant the feature un-batched exactly the blocks
+	// it applied to, and on a model migration (where every approved block has a
+	// governed prior) that was every block in the corpus.
+	Prior *PriorVersion `json:"prior,omitempty"`
 }
 
 // BatchSegments labels texts for a batched call, in order.
@@ -301,11 +305,19 @@ func (t Translate) Batch(segments []BatchSegment) []Turn {
 // Per-segment keys ride inside the payload (they differ per segment); the
 // neighbourhood is one shared section (it does not).
 func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) []Turn {
-	var keyRule string
+	var keyRule, priorRule string
 	for _, seg := range segments {
-		if strings.TrimSpace(seg.Key) != "" {
+		if keyRule == "" && strings.TrimSpace(seg.Key) != "" {
 			keyRule = " Each segment carries the key it appears under in the document; use it to disambiguate, and never translate or return it."
-			break
+		}
+		if priorRule == "" && !seg.Prior.empty() {
+			// Stated once for the batch though it applies per segment: a rule
+			// repeated per segment is payload paid for on every one of them,
+			// and it says the same thing each time.
+			priorRule = " A segment may carry `prior`: what that segment said before, and the translation approved for it then. " +
+				"Where the source is unchanged, keep that wording; where it moved, translate the current text and change only " +
+				"what the edit requires. It is reference for its own segment alone — never carry it across to another segment, " +
+				"and never return it as a translation."
 		}
 	}
 
@@ -317,7 +329,7 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 				"rendering each as a specialist writing natively in that domain and language would. "+
 				"Return one translation per segment, echoing each segment's id exactly. "+
 				"Return every id you were given, and no others.%s",
-			t.SourceLocale, t.TargetLocale, keyRule,
+			t.SourceLocale, t.TargetLocale, keyRule+priorRule,
 		),
 	}}
 	system = append(system, t.constraints(true)...)

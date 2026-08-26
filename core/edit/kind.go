@@ -1,6 +1,7 @@
 package edit
 
 import (
+	"iter"
 	"strings"
 	"unicode"
 
@@ -81,6 +82,23 @@ func wordsEqual(a, b string) bool {
 		}
 	}
 	return true
+}
+
+// Words yields the comparable words of a text: NFC-normalised, case-folded,
+// with intra-word hyphens and apostrophes removed.
+//
+// Exported so a caller deciding whether a rule applies to a text uses the same
+// notion of "word" the classifier does. A second tokenizer would eventually
+// disagree with this one, and the disagreement would be a term rule silently
+// dropped from a prompt.
+func Words(s string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for _, t := range tokenize(s) {
+			if t.word && !yield(t.key) {
+				return
+			}
+		}
+	}
 }
 
 // words splits text into comparable words: NFC-normalised, case-folded, with

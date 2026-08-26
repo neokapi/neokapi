@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -37,8 +38,35 @@ func (p *recordingProvider) Chat(_ context.Context, msgs []aiprovider.Message) (
 	return &aiprovider.ChatResponse{Content: "oversatt"}, nil
 }
 
+// ChatStructured answers a batch the way the batch path expects: one
+// translation per segment id it was actually sent. Echoing the ids back is what
+// makes a dropped segment detectable, so a stub that ignored them would pass
+// tests the real path would fail.
 func (p *recordingProvider) ChatStructured(ctx context.Context, msgs []aiprovider.Message, _ aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
-	return p.Chat(ctx, msgs)
+	p.prompts = append(p.prompts, msgs)
+
+	var payload struct {
+		Segments []struct {
+			ID string `json:"id"`
+		} `json:"segments"`
+	}
+	for _, m := range msgs {
+		if json.Unmarshal([]byte(m.Text()), &payload) == nil && len(payload.Segments) > 0 {
+			break
+		}
+	}
+
+	var reply struct {
+		Translations []map[string]string `json:"translations"`
+	}
+	for _, seg := range payload.Segments {
+		reply.Translations = append(reply.Translations, map[string]string{"id": seg.ID, "text": "oversatt"})
+	}
+	out, err := json.Marshal(reply)
+	if err != nil {
+		return nil, err
+	}
+	return &aiprovider.ChatResponse{Content: string(out)}, nil
 }
 
 func (p *recordingProvider) Translate(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
@@ -190,11 +218,18 @@ func TestThePriorMovesTheCacheKey(t *testing.T) {
 		"a prompt carrying a prior version must not share a cache entry with one that does not")
 }
 
-// TestABlockWithHistoryIsTranslatedAlone: the batch prompt carries one shared
-// context and a key per segment, with no per-segment slot for a block's own
-// history. A prior version can only travel on the single-block path, so a block
-// that has one is packed alone — the rule DNT already follows.
-func TestABlockWithHistoryIsTranslatedAlone(t *testing.T) {
+// TestABatchCarriesAReferencePerSegment.
+//
+// A prior version is per-block, so it rides in the batch payload beside each
+// segment's key rather than in the shared preamble — which would offer one
+// block's history to every other block in the call.
+//
+// This replaces a test that asserted the opposite. A block with history used to
+// be packed alone, because the payload had nowhere to put a per-segment
+// reference. That un-batched exactly the blocks the feature applied to, and on
+// a model migration (where every approved block has a governed prior) it
+// un-batched the entire corpus.
+func TestABatchCarriesAReferencePerSegment(t *testing.T) {
 	t.Parallel()
 
 	priors := &stubPriors{
@@ -204,6 +239,9 @@ func TestABlockWithHistoryIsTranslatedAlone(t *testing.T) {
 	cfg := baseConfig()
 	cfg.Memory = priors
 	cfg.Point = priors.point
+	// Force the batch path: several blocks, one call.
+	cfg.BatchSize = 3
+	cfg.BatchConcurrency = 1
 
 	p := &recordingProvider{}
 	runTranslate(t, cfg, p,
@@ -212,19 +250,40 @@ func TestABlockWithHistoryIsTranslatedAlone(t *testing.T) {
 		blockNamed("cta.third", "A third string"),
 	)
 
-	// The block with history got its own call carrying the reference; had it
-	// been packed with the others, the reference would have had nowhere to go.
-	var carried int
-	for _, msgs := range p.prompts {
-		seen := flatten(msgs)
-		if strings.Contains(seen, "Kom i gang") {
-			carried++
-			assert.Contains(t, seen, "Get started today",
-				"the reference must travel with the block it belongs to, alone")
-			assert.NotContains(t, seen, "Something else")
-		}
+	require.Len(t, p.prompts, 1, "three blocks, one call — the reference did not cost the batch")
+	sent := flatten(p.prompts[0])
+
+	assert.Contains(t, sent, "Kom i gang", "the reference reached the model")
+	assert.Contains(t, sent, "Get started today", "beside the block it belongs to")
+	assert.Contains(t, sent, "Something else", "in the same call as the blocks with no history")
+	assert.Contains(t, sent, "prior", "carried in the payload, not the preamble")
+}
+
+// TestOnlyTheSegmentWithHistoryCarriesOne: a reference is scoped to its own
+// segment. A payload attaching one block's history to another would steer an
+// unrelated translation, and the model has no way to know it should not.
+func TestOnlyTheSegmentWithHistoryCarriesOne(t *testing.T) {
+	t.Parallel()
+
+	priors := &stubPriors{
+		unit: "cta.start", point: "acme\x1fweb\x1fsite",
+		source: "Get started", target: "Kom i gang",
 	}
-	assert.Equal(t, 1, carried, "exactly one call carries the reference")
+	cfg := baseConfig()
+	cfg.Memory = priors
+	cfg.Point = priors.point
+	cfg.BatchSize = 2
+	cfg.BatchConcurrency = 1
+
+	p := &recordingProvider{}
+	runTranslate(t, cfg, p,
+		blockNamed("cta.start", "Get started today"),
+		blockNamed("cta.other", "Something else"),
+	)
+
+	require.Len(t, p.prompts, 1)
+	assert.Equal(t, 1, strings.Count(flatten(p.prompts[0]), "Kom i gang"),
+		"exactly one segment carries the reference")
 }
 
 // flatten renders a prompt to one searchable string.
@@ -285,4 +344,85 @@ func TestABlockWithNoHistoryIsAlsoAskedOnce(t *testing.T) {
 	aitools.ExportCacheFingerprint(tl, t.Context(), block)
 
 	assert.Equal(t, 1, priors.calls, "a miss is memoized like a hit")
+}
+
+// TestACallSendsOnlyTheTermsItsTextCanUse.
+//
+// Every prompt used to carry every term rule at the coordinate. Tokens are the
+// smaller cost; the larger is attention — a model handed four hundred rules
+// attends less to the three that bite the sentence in front of it.
+func TestACallSendsOnlyTheTermsItsTextCanUse(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseConfig()
+	cfg.TermRules = []coreprofile.TermRule{
+		{Term: "cart", Replacement: "kurv"},
+		{Term: "workspace", Replacement: "arbeidsomrade"},
+		{Term: "invoice", Replacement: "faktura"},
+	}
+
+	p := &recordingProvider{}
+	runTranslate(t, cfg, p, blockNamed("cta.cart", "Add this to your cart"))
+
+	require.NotEmpty(t, p.prompts)
+	sent := flatten(p.prompts[0])
+	assert.Contains(t, sent, "kurv", "the rule the text can use")
+	assert.NotContains(t, sent, "arbeidsomrade", "and not the ones it cannot")
+	assert.NotContains(t, sent, "faktura")
+}
+
+// TestABatchSendsTheUnionItsSegmentsCanUse: the projection is per call, which is
+// the grain that matters — twenty segments carry what those twenty need.
+func TestABatchSendsTheUnionItsSegmentsCanUse(t *testing.T) {
+	t.Parallel()
+
+	cfg := baseConfig()
+	cfg.BatchSize = 2
+	cfg.BatchConcurrency = 1
+	cfg.TermRules = []coreprofile.TermRule{
+		{Term: "cart", Replacement: "kurv"},
+		{Term: "workspace", Replacement: "arbeidsomrade"},
+		{Term: "invoice", Replacement: "faktura"},
+	}
+
+	p := &recordingProvider{}
+	runTranslate(t, cfg, p,
+		blockNamed("a", "Add this to your cart"),
+		blockNamed("b", "Open your workspace settings"),
+	)
+
+	require.Len(t, p.prompts, 1)
+	sent := flatten(p.prompts[0])
+	assert.Contains(t, sent, "kurv")
+	assert.Contains(t, sent, "arbeidsomrade")
+	assert.NotContains(t, sent, "faktura", "no segment in this call can use it")
+}
+
+// TestScopingTermsDoesNotMoveTheContextFingerprint.
+//
+// The fingerprint is computed over every rule at the coordinate and must stay
+// that way: it is a staleness detector, and a rule added about words a block
+// does not contain should still re-check that block, because the block's wording
+// may have been chosen under the old set.
+func TestScopingTermsDoesNotMoveTheContextFingerprint(t *testing.T) {
+	t.Parallel()
+
+	rules := []coreprofile.TermRule{
+		{Term: "cart", Replacement: "kurv"},
+		{Term: "workspace", Replacement: "arbeidsomrade"},
+	}
+
+	cfg := baseConfig()
+	cfg.TermRules = rules
+	withAll := aitools.NewAITranslateTool(&recordingProvider{}, cfg)
+
+	cfg2 := baseConfig()
+	cfg2.TermRules = rules[:1]
+	withOne := aitools.NewAITranslateTool(&recordingProvider{}, cfg2)
+
+	block := blockNamed("cta.cart", "Add this to your cart")
+	assert.NotEqual(t,
+		aitools.ExportCacheFingerprint(withAll, t.Context(), block),
+		aitools.ExportCacheFingerprint(withOne, t.Context(), block),
+		"a rule the text cannot use is still governance, and removing it is still a change")
 }

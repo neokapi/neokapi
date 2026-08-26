@@ -30,10 +30,13 @@ type AITranslateTool struct {
 	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
-	// termMap is the configured term rules projected to term→replacement, the
-	// shape the prompt's terminology section renders. The projection happens once
-	// here rather than per prompt, because the same map feeds the context
-	// fingerprint and the two must not diverge.
+	// termRules is the terminology governing this run, kept whole so each call
+	// can send the rules its own text could use. See termsFor.
+	termRules []coreprofile.TermRule
+	// termMap is every rule projected to term→replacement. It is what the
+	// context fingerprint is computed over — deliberately the whole set, since
+	// the fingerprint is a staleness detector and a rule added about words a
+	// block does not contain should still re-check that block.
 	termMap     map[string]string
 	dnt         []string // do-not-translate terms; masked before the model, restored after
 	voiceGuide  string   // compact voice profile guidance injected into every prompt
@@ -285,6 +288,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
+		termRules:    cfg.TermRules,
 		termMap:      coreprofile.TermRuleMap(cfg.TermRules),
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
@@ -703,7 +707,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainUnit()),
@@ -794,7 +798,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
@@ -958,7 +962,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	// 3. Group into batches the model can actually answer, and translate them
 	// with bounded concurrency. Packing is by output-token budget, not a fixed
 	// count — see pack.go.
-	batches := t.packBatches(ctx, entries)
+	batches := t.packBatches(entries)
 	if err := goBatches(batches, t.concurrency, func(_ int, batch []blockEntry) error {
 		return t.translateBatch(ctx, batch)
 	}); err != nil {
@@ -1136,6 +1140,24 @@ func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.Pri
 	return pv
 }
 
+// termsFor is the terminology one call sends: the rules whose term could appear
+// in the text it carries.
+//
+// Scoped per call rather than per run because that is the grain at which it
+// matters — a batch of twenty segments sends the union of what those twenty can
+// use, not the four hundred rules the collection is governed by.
+//
+// The fingerprint is NOT scoped, and the asymmetry is the point: what reaches
+// the model is what the model needs, and what detects staleness is everything
+// that governs the content. Narrowing the fingerprint here would make a
+// governance change invisible to exactly the blocks it was meant to reach.
+func (t *AITranslateTool) termsFor(texts ...string) map[string]string {
+	if len(t.termRules) == 0 {
+		return nil
+	}
+	return coreprofile.ScopedTermRuleMap(t.termRules, texts...)
+}
+
 // contextFor is the reference material for one block: its key always, and its
 // neighbours when the tool holds the document in order.
 func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unit string) prompt.Context {
@@ -1204,48 +1226,17 @@ func blockKey(b *model.Block) string {
 // recipe pin, or the eval harness sweeping N) is honoured verbatim; otherwise
 // kapi sizes the batch from what the model can emit.
 //
-// A block that has a previously approved translation is packed alone. The batch
-// prompt carries one shared context and a key per segment, with no per-segment
-// slot for a block's own history, so a prior version can only travel on the
-// single-block path. This is the rule DNT already follows for the same reason:
-// the correctness of the few outweighs the batch win over the many, and the
-// alternative is a feature that silently applies to whichever blocks happened to
-// be packed alone.
-func (t *AITranslateTool) packBatches(ctx context.Context, entries []blockEntry) [][]blockEntry {
-	alone, packable := t.splitBlocksWithHistory(ctx, entries)
-
-	var batches [][]blockEntry
-	for _, e := range alone {
-		batches = append(batches, []blockEntry{e})
-	}
-	if len(packable) == 0 {
-		return batches
-	}
+// A block with a previously approved answer used to be packed alone, because
+// the batch payload had one shared context and a key per segment with nowhere
+// to put a per-block reference. That un-batched exactly the blocks the feature
+// applied to — and on a model migration, where every approved block has a
+// governed prior, that was every block in the corpus. BatchSegment.Prior
+// removed the restriction; this is what it bought.
+func (t *AITranslateTool) packBatches(entries []blockEntry) [][]blockEntry {
 	if t.batchSize > 0 {
-		return append(batches, chunkBlocks(packable, t.batchSize)...)
+		return chunkBlocks(entries, t.batchSize)
 	}
-	return append(batches, packBlocks(packable, outputBudget(t.provider), MaxBlocksPerCall)...)
-}
-
-// splitBlocksWithHistory separates the blocks that carry a usable prior version
-// from the rest. With no provider configured every block is packable, which is
-// the behaviour every run had before this existed.
-func (t *AITranslateTool) splitBlocksWithHistory(ctx context.Context, entries []blockEntry) (alone, packable []blockEntry) {
-	if t.corpus == nil {
-		return nil, entries
-	}
-	for _, e := range entries {
-		if e.block == nil {
-			packable = append(packable, e)
-			continue
-		}
-		if t.priorFor(ctx, e.block.ChainUnit()) != nil {
-			alone = append(alone, e)
-			continue
-		}
-		packable = append(packable, e)
-	}
-	return alone, packable
+	return packBlocks(entries, outputBudget(t.provider), MaxBlocksPerCall)
 }
 
 // translateBatch translates a batch of blocks in a single LLM call using
@@ -1269,11 +1260,20 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			segments[i].Key = blockKey(entry.block)
 		}
 	}
+	// Each segment carries its own previously approved answer. Per-segment
+	// because it is per-block: hoisting it into the shared preamble would offer
+	// one block's history to every other block in the call.
+	for i, entry := range entries {
+		if entry.block == nil {
+			continue
+		}
+		segments[i].Prior = t.priorFor(ctx, entry.block.ChainUnit())
+	}
 	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{
 		SourceLocale:   t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(texts...),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 	}
