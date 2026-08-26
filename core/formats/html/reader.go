@@ -105,6 +105,20 @@ var blockTypeMap = map[string]string{
 	"blockquote": "quote", "address": "address",
 }
 
+// metaKey names a META tag for the translatability lookup below.
+//
+// Open Graph is RDFa and spells it `property="og:title"`, not `name=`. A lookup
+// that read only `name` could never match the og: entries in the table below,
+// so five of them sat there meaning nothing while a landing page's social card
+// went out untranslated in every locale. Twitter cards do use `name=`, and some
+// pages spell og: that way too, so both attributes resolve to the same key.
+func metaKey(name, property string) string {
+	if name != "" {
+		return strings.ToLower(name)
+	}
+	return strings.ToLower(property)
+}
+
 // translatableMetaNames are META name values whose content is translatable.
 var translatableMetaNames = map[string]bool{
 	"keywords": true, "description": true,

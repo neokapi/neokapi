@@ -265,7 +265,7 @@ func (w *domWalker) walkElement(n *html.Node, translateNo bool) {
 
 func (w *domWalker) handleMetaTag(n *html.Node) {
 	httpEquiv := strings.ToLower(getAttr(n, "http-equiv"))
-	metaName := strings.ToLower(getAttr(n, "name"))
+	metaName := metaKey(getAttr(n, "name"), getAttr(n, "property"))
 	content := getAttr(n, "content")
 	charset := getAttr(n, "charset")
 

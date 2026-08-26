@@ -1626,6 +1626,7 @@ L10N_DERIVED := \
 	bowrain/apps/ctrl/public/translations/qps.json \
 	bowrain/apps/pulse/public/translations/qps.json \
 	$(LANDING_DIR)/translations/qps.json \
+	$(LANDING_DIR)/head/qps.json \
 	bowrain/mailer/templates/qps
 
 # One locale's committed loop output. The Go catalog directories contribute
@@ -1746,6 +1747,14 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 	@# KAPI_NO_PROJECT in $(KAPI_ISO_ENV), so config, plugins and caches stay
 	@# isolated while the recipe still supplies the tool settings.
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n --target-lang qps -p $(CURDIR)/kapi.yaml -o $(LANDING_DIR)/i18n-qps -q
+	@# The shell's <head> is prose too: the browser tab and the social card.
+	@# It stayed English in every locale because locale-meta.json only carried
+	@# head strings if a person typed them, and typing a translation by hand is
+	@# what this loop exists to avoid. kapi reads index.html like any other
+	@# content, so the head comes from the same pass as the body.
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/index.html --target-lang qps -p $(CURDIR)/kapi.yaml -o $(LANDING_DIR)/.head-qps.html -q
+	@node scripts/landing-head.mjs $(LANDING_DIR)/.head-qps.html $(LANDING_DIR)/head/qps.json
+	@rm -f $(LANDING_DIR)/.head-qps.html
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.json -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
 	@# The Docusaurus sites, for a LOCAL preview only. Their qps trees are
