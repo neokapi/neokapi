@@ -140,6 +140,14 @@ func (p *Provider) LookupBlock(ctx context.Context, block *model.Block, sourceLo
 		Score:      int(math.Round(m.Score * 100)),
 		Exact:      m.MatchType.IsExact(),
 		Ambiguous:  m.Ambiguous,
+		// The classification belongs here because this is the only place both
+		// sources are in hand: the block being translated, and the source the
+		// matched answer was approved for. The tool sees a score and a target
+		// and could never work it out.
+		Edit: tools.ClassifyEdit(
+			m.Entry.VariantText(sourceLocale),
+			model.FlattenRuns(block.Source),
+		),
 	}, true
 }
 

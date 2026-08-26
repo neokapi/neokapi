@@ -76,6 +76,45 @@
           "governed": true
         }
       ],
+      "diff": {
+        "kind": "substantive",
+        "prior": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          }
+        ],
+        "current": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "today",
+            "op": "added"
+          }
+        ]
+      },
       "offered": {
         "source": "Get started",
         "target": "Kom i gang",
@@ -99,6 +138,77 @@
           "governed": false
         }
       ],
+      "diff": {
+        "kind": "substantive",
+        "prior": [
+          {
+            "text": "Add",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "to",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "your",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "cart",
+            "op": "same"
+          }
+        ],
+        "current": [
+          {
+            "text": "Add",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "this",
+            "op": "added"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "to",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "your",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "cart",
+            "op": "same"
+          }
+        ]
+      },
       "withheld": "approved under governance that has since moved"
     },
     {
@@ -116,6 +226,53 @@
           "governed": false
         }
       ],
+      "diff": {
+        "kind": "substantive",
+        "prior": [
+          {
+            "text": "Commence",
+            "op": "removed"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "your",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "onboarding",
+            "op": "same"
+          }
+        ],
+        "current": [
+          {
+            "text": "Start",
+            "op": "added"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "your",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "onboarding",
+            "op": "same"
+          }
+        ]
+      },
       "withheld": "approved under governance that has since moved"
     },
     {
@@ -133,6 +290,45 @@
           "governed": true
         }
       ],
+      "diff": {
+        "kind": "substantive",
+        "prior": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          }
+        ],
+        "current": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "today",
+            "op": "added"
+          }
+        ]
+      },
       "offered": {
         "source": "Get started",
         "target": "Kom i gang",
@@ -156,6 +352,45 @@
           "governed": false
         }
       ],
+      "diff": {
+        "kind": "substantive",
+        "prior": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          }
+        ],
+        "current": [
+          {
+            "text": "Get",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "started",
+            "op": "same"
+          },
+          {
+            "text": " ",
+            "op": "same"
+          },
+          {
+            "text": "today",
+            "op": "added"
+          }
+        ]
+      },
       "withheld": "approved at another point, so it is not this block's history here"
     }
   ],
@@ -567,101 +802,3341 @@
     }
   ],
   "ladder": {
-    "original": "Click the button below to continue with your account setup",
-    "target": "Klikk på knappen nedenfor for å fortsette med kontooppsettet",
+    "original": "Click the button below when you're ready to continue with your account setup",
+    "target": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
     "rungs": [
       {
         "edit": "unchanged",
         "kind": "none",
-        "text": "Click the button below to continue with your account setup",
+        "text": "Click the button below when you're ready to continue with your account setup",
+        "diff": {
+          "kind": "none",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
         "score": 100,
         "match": "generalized-exact",
-        "filledAt95": true,
-        "filledAt100": true,
-        "lookedUpAt70": true
+        "classified": "none",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
       },
       {
         "edit": "a trailing period",
         "kind": "cosmetic",
-        "text": "Click the button below to continue with your account setup.",
+        "text": "Click the button below when you're ready to continue with your account setup.",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "cosmetic"
+            }
+          ]
+        },
         "score": 98,
         "match": "generalized-fuzzy",
-        "filledAt95": true,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "cosmetic",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
       },
       {
         "edit": "a comma added",
         "kind": "cosmetic",
-        "text": "Click the button below, to continue with your account setup",
+        "text": "Click the button below, when you're ready to continue with your account setup",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "cosmetic"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": ", ",
+              "op": "cosmetic"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
         "score": 98,
         "match": "generalized-fuzzy",
-        "filledAt95": true,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "cosmetic",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
       },
       {
         "edit": "a word capitalised",
         "kind": "cosmetic",
-        "text": "Click the Button below to continue with your account setup",
+        "text": "Click the Button below when you're ready to continue with your account setup",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "Button",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
         "score": 98,
         "match": "generalized-fuzzy",
-        "filledAt95": true,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "cosmetic",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
       },
       {
         "edit": "a hyphen added",
         "kind": "cosmetic",
-        "text": "Click the button below to continue with your account set-up",
+        "text": "Click the button below when you're ready to continue with your account set-up",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "cosmetic"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "set-up",
+              "op": "cosmetic"
+            }
+          ]
+        },
         "score": 98,
         "match": "generalized-fuzzy",
-        "filledAt95": true,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "cosmetic",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
       },
       {
         "edit": "a curly apostrophe",
         "kind": "cosmetic",
-        "text": "Click the button below to continue with your account setup’s",
-        "score": 96,
+        "text": "Click the button below when you’re ready to continue with your account setup",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you’re",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 98,
         "match": "generalized-fuzzy",
-        "filledAt95": true,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "cosmetic",
+        "safeToFill": true,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
+      },
+      {
+        "edit": "a possessive added",
+        "kind": "substantive",
+        "text": "Click the button below when you're ready to continue with your account's setup",
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account's",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 97,
+        "match": "generalized-fuzzy",
+        "classified": "substantive",
+        "safeToFill": false,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "",
+        "harm": "the setup belongs to the account now, and the Norwegian compound says it does not",
+        "diverges": true
+      },
+      {
+        "edit": "a negation added",
+        "kind": "substantive",
+        "text": "Click the button below when you're not ready to continue with your account setup",
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "not",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 95,
+        "match": "generalized-fuzzy",
+        "classified": "substantive",
+        "safeToFill": false,
+        "byScore": "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet",
+        "byKind": "",
+        "harm": "the Norwegian tells a reader to click when they ARE ready, which is the opposite instruction",
+        "diverges": true
       },
       {
         "edit": "one word swapped",
-        "kind": "wording",
-        "text": "Click the link below to continue with your account setup",
-        "score": 89,
+        "kind": "substantive",
+        "text": "Click the link below when you're ready to continue with your account setup",
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Click",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "link",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 92,
         "match": "generalized-fuzzy",
-        "filledAt95": false,
-        "filledAt100": false,
-        "lookedUpAt70": true
+        "classified": "substantive",
+        "safeToFill": false,
+        "byScore": "",
+        "byKind": ""
       },
       {
         "edit": "the clause reordered",
-        "kind": "wording",
-        "text": "To continue with your account setup, click the button below",
-        "score": 22,
+        "kind": "substantive",
+        "text": "When you're ready to continue with your account setup, click the button below",
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "When",
+              "op": "cosmetic"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "same"
+            },
+            {
+              "text": ", ",
+              "op": "cosmetic"
+            },
+            {
+              "text": "click",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "added"
+            }
+          ]
+        },
+        "score": 37,
         "match": "generalized-fuzzy",
-        "filledAt95": false,
-        "filledAt100": false,
-        "lookedUpAt70": false
+        "classified": "substantive",
+        "safeToFill": false,
+        "byScore": "",
+        "byKind": ""
       },
       {
         "edit": "rewritten",
-        "kind": "wording",
+        "kind": "substantive",
         "text": "Finish signing up by choosing a plan",
-        "score": 22,
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "Click",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "button",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "below",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "when",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "you're",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "ready",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "to",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "continue",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "with",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "your",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "account",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "setup",
+              "op": "removed"
+            }
+          ],
+          "current": [
+            {
+              "text": "Finish",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "signing",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "up",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "by",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "choosing",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "a",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "plan",
+              "op": "added"
+            }
+          ]
+        },
+        "score": 21,
         "match": "generalized-fuzzy",
-        "filledAt95": false,
-        "filledAt100": false,
-        "lookedUpAt70": false
+        "classified": "substantive",
+        "safeToFill": false,
+        "byScore": "",
+        "byKind": ""
       }
     ],
-    "lostByRetiring": 5,
-    "inertBand": 1
+    "fillFloor": 95,
+    "wrongFills": 2,
+    "missedFills": 0,
+    "agreements": 9
+  },
+  "segments": {
+    "engine": "uax29",
+    "prior": "Your plan renews on the first of each month. We charge the card on file the day before. You can cancel at any time from the billing page.",
+    "current": "Your plan renews on the first of each month. We charge the card on file three days before. You can cancel at any time, from the billing page.",
+    "approved": "Abonnementet fornyes den første i hver måned. Vi belaster kortet vi har lagret dagen før. Du kan si opp når som helst fra fakturasiden.",
+    "blockDiff": {
+      "kind": "substantive",
+      "prior": [
+        {
+          "text": "Your",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "plan",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "renews",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "on",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "first",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "of",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "each",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "month",
+          "op": "same"
+        },
+        {
+          "text": ". ",
+          "op": "same"
+        },
+        {
+          "text": "We",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "charge",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "card",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "on",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "file",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "removed"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "day",
+          "op": "removed"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "before",
+          "op": "same"
+        },
+        {
+          "text": ". ",
+          "op": "same"
+        },
+        {
+          "text": "You",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "can",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "cancel",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "at",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "any",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "time",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "cosmetic"
+        },
+        {
+          "text": "from",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "billing",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "page",
+          "op": "same"
+        },
+        {
+          "text": ".",
+          "op": "same"
+        }
+      ],
+      "current": [
+        {
+          "text": "Your",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "plan",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "renews",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "on",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "first",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "of",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "each",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "month",
+          "op": "same"
+        },
+        {
+          "text": ". ",
+          "op": "same"
+        },
+        {
+          "text": "We",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "charge",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "card",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "on",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "file",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "three",
+          "op": "added"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "days",
+          "op": "added"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "before",
+          "op": "same"
+        },
+        {
+          "text": ". ",
+          "op": "same"
+        },
+        {
+          "text": "You",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "can",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "cancel",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "at",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "any",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "time",
+          "op": "same"
+        },
+        {
+          "text": ", ",
+          "op": "cosmetic"
+        },
+        {
+          "text": "from",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "the",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "billing",
+          "op": "same"
+        },
+        {
+          "text": " ",
+          "op": "same"
+        },
+        {
+          "text": "page",
+          "op": "same"
+        },
+        {
+          "text": ".",
+          "op": "same"
+        }
+      ]
+    },
+    "blockScore": 97,
+    "blockClassified": "substantive",
+    "blockFilled": "",
+    "blockFilledByScore": "Abonnementet fornyes den første i hver måned. Vi belaster kortet vi har lagret dagen før. Du kan si opp når som helst fra fakturasiden.",
+    "segments": [
+      {
+        "index": 1,
+        "prior": "Your plan renews on the first of each month.",
+        "current": "Your plan renews on the first of each month.",
+        "diff": {
+          "kind": "none",
+          "prior": [
+            {
+              "text": "Your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "plan",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "renews",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "on",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "first",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "of",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "each",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "month",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "Your",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "plan",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "renews",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "on",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "first",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "of",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "each",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "month",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 100,
+        "classified": "none",
+        "filled": "Abonnementet fornyes den første i hver måned."
+      },
+      {
+        "index": 2,
+        "prior": "We charge the card on file the day before.",
+        "current": "We charge the card on file three days before.",
+        "diff": {
+          "kind": "substantive",
+          "prior": [
+            {
+              "text": "We",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "charge",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "card",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "on",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "file",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "day",
+              "op": "removed"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "before",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "We",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "charge",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "card",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "on",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "file",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "three",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "days",
+              "op": "added"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "before",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 93,
+        "classified": "substantive",
+        "filled": ""
+      },
+      {
+        "index": 3,
+        "prior": "You can cancel at any time from the billing page.",
+        "current": "You can cancel at any time, from the billing page.",
+        "diff": {
+          "kind": "cosmetic",
+          "prior": [
+            {
+              "text": "You",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "can",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "cancel",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "at",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "any",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "time",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "cosmetic"
+            },
+            {
+              "text": "from",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "billing",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "page",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ],
+          "current": [
+            {
+              "text": "You",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "can",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "cancel",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "at",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "any",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "time",
+              "op": "same"
+            },
+            {
+              "text": ", ",
+              "op": "cosmetic"
+            },
+            {
+              "text": "from",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "the",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "billing",
+              "op": "same"
+            },
+            {
+              "text": " ",
+              "op": "same"
+            },
+            {
+              "text": "page",
+              "op": "same"
+            },
+            {
+              "text": ".",
+              "op": "same"
+            }
+          ]
+        },
+        "score": 98,
+        "classified": "cosmetic",
+        "filled": "Du kan si opp når som helst fra fakturasiden."
+      }
+    ],
+    "reusable": 2,
+    "moved": 1
   }
 }

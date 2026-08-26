@@ -100,6 +100,16 @@ type MemoryBlockMatch struct {
 	// ambiguous match must never be filled unattended — it is recorded as
 	// an alt-translation candidate only.
 	Ambiguous bool
+	// Edit is how this block's source differs from the source the matched
+	// answer was approved for. It is what Score was always standing in for, and
+	// it is the field the fill decision reads: an approved translation stands
+	// while the words have not moved, and a percentage cannot say that because
+	// it softens with length.
+	//
+	// Empty when the provider does not classify — an older implementation, or a
+	// path with no prior source in hand — and the fill then falls back to the
+	// score alone, which is the behaviour that existed before.
+	Edit EditKind
 }
 
 // BlockMemoryProvider is an optional MemoryProvider capability for structure-aware
@@ -393,7 +403,12 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 		MatchType: mt,
 		ToolID:    "recycle",
 	})
-	if shouldFillTarget(conf, v, score) && !fillWouldDropCodes(v, targetRuns) {
+	// The plain-text path has no matched source in hand — LookupExact and
+	// LookupFuzzy return a translation and nothing to compare against — so it
+	// cannot classify and falls back to the score. It is the legacy path for
+	// entries stored without inline codes; the structure-aware path above is
+	// the one that classifies.
+	if shouldFillTarget(conf, v, score, "") && !fillWouldDropCodes(v, targetRuns) {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
@@ -488,12 +503,22 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return true
 	}
-	if !shouldFillTarget(conf, v, m.Score) {
+	if !shouldFillTarget(conf, v, m.Score, m.Edit) {
 		// Below the fill policy: keep the candidate recorded, but let the
 		// text path try its differently-keyed lookup (it may overwrite the
 		// tm-match annotation with a better match).
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
-		return false
+		// A substantive edit is a refusal, and a refusal is final. The text
+		// path asks the same corpus, keyed differently, and gets back a
+		// translation with no source to compare against — so it fills on the
+		// score alone, which is the number that just said yes to a meaning
+		// inversion. Returning false here would refuse at the front door and
+		// let the same answer in through the back one, at the same score.
+		//
+		// Nothing better is lost: a block path that returned a substantive
+		// match returned the corpus's BEST match, so there is no exact for the
+		// text path to find.
+		return m.Edit == EditSubstantive
 	}
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
@@ -670,7 +695,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	// assembled target is plain text: it cannot carry any inline code the
 	// source has. Filling it would drop them (see fillWouldDropCodes); the
 	// segment matches stay recorded as alt-translations either way.
-	if shouldFillTarget(conf, v, minScore) && !fillWouldDropCodes(v, assembled) {
+	if shouldFillTarget(conf, v, minScore, "") && !fillWouldDropCodes(v, assembled) {
 		// Commit a real Target carrying provenance and score, not an opaque
 		// string: a content memory pre-fill is a reviewable draft assembled from segment
 		// matches, so a reviewer/tool can see it came from content memory and at what score.
@@ -703,13 +728,30 @@ func annotateSegmentMatch(v tool.VariantView, conf *MemoryLeverageConfig, idx in
 	})
 }
 
-// shouldFillTarget decides whether to copy the translation into the target based on config.
-func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int) bool {
+// shouldFillTarget decides whether to copy the translation into the target.
+//
+// The edit kind is the gate that matters, and it OVERRIDES the score in both
+// directions. A substantive change is refused however high it scores — a
+// negation on a long sentence scores 95, and filling it writes the translation
+// of the opposite meaning under a badge that stops anyone looking. A cosmetic
+// change is accepted however low it scores — a full stop on a button label
+// scores 91, and the words have not moved.
+//
+// The score still governs when the provider classified nothing, which is the
+// behaviour that existed before and the one an older provider still gets.
+func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int, edit EditKind) bool {
 	if !conf.FillTarget {
 		return false
 	}
-	if score < conf.FillTargetThreshold {
+	switch edit {
+	case EditNone, EditCosmetic:
+		// The words stand. Length decided nothing here, which is the point.
+	case EditSubstantive:
 		return false
+	default:
+		if score < conf.FillTargetThreshold {
+			return false
+		}
 	}
 	if conf.FillIfTargetIsEmpty {
 		// Only fill if target is empty.
