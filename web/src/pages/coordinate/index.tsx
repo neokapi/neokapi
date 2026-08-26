@@ -58,12 +58,30 @@ interface PromptPair {
   digests: { without: string; with: string };
   withheld?: string;
 }
+interface LadderRung {
+  edit: string;
+  kind: string;
+  text: string;
+  score: number;
+  match?: string;
+  filledAt95: boolean;
+  filledAt100: boolean;
+  lookedUpAt70: boolean;
+}
+interface EditLadder {
+  original: string;
+  target: string;
+  rungs: LadderRung[];
+  lostByRetiring: number;
+  inertBand: number;
+}
 interface Report {
   _note: string;
   recipe: string;
   points: Point[];
   chains: Chain[];
   prompts: PromptPair[];
+  ladder: EditLadder;
 }
 
 const data = report as Report;
@@ -294,6 +312,49 @@ export default function Coordinate(): ReactElement {
               </div>
             );
           })}
+        </section>
+
+        <section style={styles.section}>
+          <h2>What an author&rsquo;s edit actually scores</h2>
+          <p style={{ maxWidth: "62ch" }}>
+            Fuzzy matching is a pricing-era mechanism and most of it should go. But
+            &ldquo;fuzzy&rdquo; covers two bands doing different jobs, and only one is dead weight.
+            These are real scores from the real matcher, against a sentence rather than a two-word
+            button &mdash; length is the point, since a period is 8% of &ldquo;Get started&rdquo;
+            and under 2% of a sentence.
+          </p>
+          <p style={styles.slug}>original: &ldquo;{data.ladder.original}&rdquo;</p>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th>Edit</th>
+                <th>Score</th>
+                <th>Fills at 95</th>
+                <th>Fills at 100</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.ladder.rungs.map((r) => (
+                <tr key={r.edit}>
+                  <td>
+                    {r.edit}
+                    <div style={styles.slug}>{r.kind}</div>
+                  </td>
+                  <td style={styles.val}>{r.score}</td>
+                  <td>{r.filledAt95 ? pill("fills", "ok") : pill("no", "flat")}</td>
+                  <td>{r.filledAt100 ? pill("fills", "ok") : pill("no", "flat")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ marginTop: "1rem", maxWidth: "62ch" }}>
+            {data.ladder.lostByRetiring} cosmetic edits fill today and would not at 100.{" "}
+            {data.ladder.inertBand} sit in the band that is looked up, recorded, and read by
+            nothing. The fill floor is load-bearing; the lookup floor is not. That is why the
+            thresholds have not moved yet: they flip in the change that puts a prior version in the
+            prompt, where the model gets the diff and produces the punctuation itself rather than
+            leaving a draft for someone to fix.
+          </p>
         </section>
 
         <section style={styles.section}>

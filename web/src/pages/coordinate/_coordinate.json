@@ -565,5 +565,103 @@
       },
       "withheld": "approved at another point, so it is not this block's history here"
     }
-  ]
+  ],
+  "ladder": {
+    "original": "Click the button below to continue with your account setup",
+    "target": "Klikk på knappen nedenfor for å fortsette med kontooppsettet",
+    "rungs": [
+      {
+        "edit": "unchanged",
+        "kind": "none",
+        "text": "Click the button below to continue with your account setup",
+        "score": 100,
+        "match": "generalized-exact",
+        "filledAt95": true,
+        "filledAt100": true,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "a trailing period",
+        "kind": "cosmetic",
+        "text": "Click the button below to continue with your account setup.",
+        "score": 98,
+        "match": "generalized-fuzzy",
+        "filledAt95": true,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "a comma added",
+        "kind": "cosmetic",
+        "text": "Click the button below, to continue with your account setup",
+        "score": 98,
+        "match": "generalized-fuzzy",
+        "filledAt95": true,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "a word capitalised",
+        "kind": "cosmetic",
+        "text": "Click the Button below to continue with your account setup",
+        "score": 98,
+        "match": "generalized-fuzzy",
+        "filledAt95": true,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "a hyphen added",
+        "kind": "cosmetic",
+        "text": "Click the button below to continue with your account set-up",
+        "score": 98,
+        "match": "generalized-fuzzy",
+        "filledAt95": true,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "a curly apostrophe",
+        "kind": "cosmetic",
+        "text": "Click the button below to continue with your account setup’s",
+        "score": 96,
+        "match": "generalized-fuzzy",
+        "filledAt95": true,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "one word swapped",
+        "kind": "wording",
+        "text": "Click the link below to continue with your account setup",
+        "score": 89,
+        "match": "generalized-fuzzy",
+        "filledAt95": false,
+        "filledAt100": false,
+        "lookedUpAt70": true
+      },
+      {
+        "edit": "the clause reordered",
+        "kind": "wording",
+        "text": "To continue with your account setup, click the button below",
+        "score": 22,
+        "match": "generalized-fuzzy",
+        "filledAt95": false,
+        "filledAt100": false,
+        "lookedUpAt70": false
+      },
+      {
+        "edit": "rewritten",
+        "kind": "wording",
+        "text": "Finish signing up by choosing a plan",
+        "score": 22,
+        "match": "generalized-fuzzy",
+        "filledAt95": false,
+        "filledAt100": false,
+        "lookedUpAt70": false
+      }
+    ],
+    "lostByRetiring": 5,
+    "inertBand": 1
+  }
 }

@@ -140,9 +140,9 @@ type MemoryLeverageConfig struct {
 	Provider     MemoryProvider `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match (100 = exact only; below 100 reaches the retiring fuzzy path),default=100,min=0,max=100"`
+	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
 	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=100,min=0,max=100"`
+	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
 	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
 	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
@@ -200,9 +200,24 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
 	c.Provider = nil
-	c.FuzzyThreshold = 100
+	// 70/95, not 100/100 — for now.
+	//
+	// Fuzzy fill is retiring and its replacement is better, but the replacement
+	// is not connected yet: nothing fills prompt.Context.Prior in a live run,
+	// because the translate tool has no point plumbed through its flow
+	// bindings. Flipping these first would drop a real behaviour for nothing.
+	//
+	// Measured rather than assumed. At realistic sentence length the cosmetic
+	// edits an author actually makes — a trailing period, an added comma, a
+	// capitalised word, a hyphen becoming a dash — score 96.7 to 98.3, inside
+	// the band 95 catches and 100 does not. The 70-94 band below is the inert
+	// one: recorded as candidates and read by nothing. The edit ladder in
+	// scripts/coordinatereport measures this on every run.
+	//
+	// Flip both to 100 in the change that wires the reference, not before.
+	c.FuzzyThreshold = 70
 	c.FillTarget = true
-	c.FillTargetThreshold = 100
+	c.FillTargetThreshold = 95
 	c.FillIfTargetIsEmpty = false
 	c.NoQueryThreshold = 101
 	c.MakeTMX = false
@@ -250,7 +265,7 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
 	if cfg.FuzzyThreshold == 0 {
-		cfg.FuzzyThreshold = 100
+		cfg.FuzzyThreshold = 70
 	}
 	cfg.Provider = NullMemoryProvider{}
 	return NewMemoryLeverageTool(cfg), nil
@@ -261,7 +276,7 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 // to fuzzy matching if a threshold is configured.
 func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 	if cfg.FuzzyThreshold == 0 {
-		cfg.FuzzyThreshold = 100
+		cfg.FuzzyThreshold = 70
 	}
 	// Default FillTarget to true if not explicitly configured (backward compat).
 	if !cfg.FillTarget && cfg.FillTargetThreshold == 0 {

@@ -10,16 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMemoryLeverageDefaultsToExactOnly: on a default configuration a sub-exact
-// match is neither filled nor recorded.
+// TestMemoryLeverageDefaultsHoldUntilTheReplacementLands: the thresholds are
+// still 70/95, and that is deliberate.
 //
-// This is the retirement. Fuzzy fill was a pricing mechanism — the bands set a
-// discount because a translator edited rather than wrote — and with generation
-// cheap it inverts: a near-match makes a person diff the source against a
-// stored target to find what moved, which is harder work than reading a clean
-// draft. The band beneath the fill floor was never sent to a model either, so
-// it was bookkeeping rather than leverage.
-func TestMemoryLeverageDefaultsToExactOnly(t *testing.T) {
+// Fuzzy fill is retiring, but the two floors do different jobs and the
+// measurement says so. The fill floor at 95 governs the band where an author's
+// cosmetic edits land — a trailing period on a real sentence scores 98, not 78
+// — and dropping it before a prior version reaches the prompt would replace a
+// working behaviour with nothing. The fuzzy floor at 70 governs the band that
+// is recorded and read by nothing.
+//
+// scripts/coordinatereport's edit ladder measures both on every run, so the
+// flip is evidence rather than a judgement call. See
+// TestMemoryLeverageExactOnlyWhenAsked for the retired behaviour, already
+// reachable.
+func TestMemoryLeverageDefaultsHoldUntilTheReplacementLands(t *testing.T) {
 	t.Parallel()
 	provider := &mockMemoryProvider{
 		fuzzy: map[string]fuzzyMatch{
@@ -32,18 +37,48 @@ func TestMemoryLeverageDefaultsToExactOnly(t *testing.T) {
 	cfg.SourceLocale = model.LocaleEnglish
 	cfg.Provider = provider
 
-	assert.Equal(t, 100, cfg.FuzzyThreshold, "nothing below an exact match is asked for")
-	assert.Equal(t, 100, cfg.FillTargetThreshold, "only an exact match fills")
+	assert.Equal(t, 70, cfg.FuzzyThreshold, "the inert band is still looked up, for now")
+	assert.Equal(t, 95, cfg.FillTargetThreshold, "and cosmetic edits still fill")
+
+	tl := tools.NewMemoryLeverageTool(cfg)
+	block := model.NewBlock("tu1", "Hello world")
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	// 85 is below the fill floor but above the lookup floor: recorded, not
+	// filled. That is the band the retirement is actually about.
+	out := result.Resource.(*model.Block)
+	assert.Empty(t, out.TargetText(model.LocaleFrench), "85 is below the fill floor")
+	tm, recorded := model.AnnoAs[*tools.MemoryMatchAnnotation](out, string(model.AnnoMemoryMatch))
+	require.True(t, recorded)
+	assert.Equal(t, 85, tm.Score)
+}
+
+// TestMemoryLeverageExactOnlyWhenAsked: setting both floors to 100 reaches the
+// retired behaviour today, so the cutover is a config change rather than a code
+// change when the replacement is wired.
+func TestMemoryLeverageExactOnlyWhenAsked(t *testing.T) {
+	t.Parallel()
+	provider := &mockMemoryProvider{
+		fuzzy: map[string]fuzzyMatch{
+			"Hello world": {translation: "Bonjour monde", score: 98},
+		},
+	}
+	cfg := &tools.MemoryLeverageConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = model.LocaleFrench
+	cfg.SourceLocale = model.LocaleEnglish
+	cfg.Provider = provider
+	cfg.FuzzyThreshold = 100
+	cfg.FillTargetThreshold = 100
 
 	tl := tools.NewMemoryLeverageTool(cfg)
 	block := model.NewBlock("tu1", "Hello world")
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
 	out := result.Resource.(*model.Block)
-	assert.Empty(t, out.TargetText(model.LocaleFrench), "an 85% match is not a draft")
+	assert.Empty(t, out.TargetText(model.LocaleFrench))
 	_, recorded := model.AnnoAs[*tools.MemoryMatchAnnotation](out, string(model.AnnoMemoryMatch))
-	assert.False(t, recorded,
-		"and it is not recorded as a candidate either — that band was read by nothing")
+	assert.False(t, recorded, "at 100 nothing below an exact match is asked for at all")
 }
 
 // TestMemoryLeverageFuzzyStillReachableWhenAsked: a recipe that lowers the
@@ -62,7 +97,6 @@ func TestMemoryLeverageFuzzyStillReachableWhenAsked(t *testing.T) {
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.SourceLocale = model.LocaleEnglish
 	cfg.Provider = provider
-	cfg.FuzzyThreshold = 70
 	cfg.FillTargetThreshold = 80
 
 	tl := tools.NewMemoryLeverageTool(cfg)
