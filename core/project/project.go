@@ -196,6 +196,11 @@ type Defaults struct {
 	// applied on extract (AD-017).
 	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitzero"`
 
+	// Annotations governs which of a block's stand-off annotations a writer
+	// draws into the document as inline marks. Zero leaves each format's own
+	// declaration standing.
+	Annotations AnnotationDefaults `yaml:"annotations,omitempty" json:"annotations,omitzero"`
+
 	// Redaction governs replacing sensitive content with protected
 	// placeholders before processing and restoring it afterwards. nil means
 	// no redaction.
@@ -421,6 +426,48 @@ func (d Defaults) validateMaterialize() error {
 // DefaultFuzzyThreshold is the content memory fuzzy-match cutoff (percent) applied when
 // the recipe does not specify one (AD-017).
 const DefaultFuzzyThreshold = 75
+
+// AnnotationDefaults narrows which annotation types a writer draws into the
+// document as inline marks: a located term as an XLIFF <mrk>, as an HTML
+// <span>.
+//
+// A format declares the ceiling. Its writer names the types it knows how to
+// draw (format.InlineAnnotationWriter, recorded on
+// registry.FormatInfo.InlineAnnotations), and a recipe can only narrow that
+// set. Two things follow, both wanted: a format that gains the capability
+// starts projecting without anyone editing a recipe, and a project that wants
+// a clean export with no marks in it can still say so.
+type AnnotationDefaults struct {
+	// Write names the annotation types to draw, out of what the format
+	// declares it can carry. Empty means the declaration stands: every type
+	// the writer can draw, it draws.
+	//
+	// Naming a type the format cannot carry asks for nothing rather than
+	// failing. The recipe is one document describing many formats, and a
+	// project that wants terms marked wherever they can be should not have to
+	// enumerate which of its outputs happen to support it.
+	Write []string `yaml:"write,omitempty" json:"write,omitempty"`
+}
+
+// EffectiveInlineAnnotations is the annotation types a writer draws for this
+// project: what the format declared it can carry, narrowed by what the recipe
+// asked for, in the format's declared order.
+func (a AnnotationDefaults) EffectiveInlineAnnotations(declared []string) []string {
+	if len(a.Write) == 0 || len(declared) == 0 {
+		return declared
+	}
+	want := make(map[string]bool, len(a.Write))
+	for _, t := range a.Write {
+		want[t] = true
+	}
+	out := make([]string, 0, len(declared))
+	for _, t := range declared {
+		if want[t] {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // MergeDefaults governs kapi merge behavior (AD-017).
 type MergeDefaults struct {

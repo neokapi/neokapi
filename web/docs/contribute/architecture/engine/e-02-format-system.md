@@ -304,6 +304,45 @@ authoritative source **without loading any plugin**. Neither is derived from
 `SkeletonStoreConsumer` (nearly every writer consumes a skeleton if offered, so
 that bit does not distinguish a target) nor probed empirically.
 
+### Marks a writer can draw
+
+A block's runs carry what the source document structurally contained. What a
+governance pass concluded about that content rides stand-off on a
+`model.Anchor`: a located term, a voice finding, a style violation
+([F-02](../foundations/f-02-content-model.md)). Some formats have somewhere to
+put such a conclusion, and most do not: XLIFF has `<mrk>`, HTML has `<span>`,
+plain text has nothing at all.
+
+So drawing them is a **declared writer capability**, the fourth of the kind
+`Generative` and `Interchange` already are. `InlineAnnotationWriter` names the
+annotation types the writer knows how to draw, and the registry records them on
+`FormatInfo.InlineAnnotations`, probed once from the built-in writer at
+registration and for plugin formats taken from the cached manifest, so `kapi
+formats` and the writer selection read one authoritative source without loading
+any plugin. A writer that implements nothing carries no marks.
+
+The declaration is a **ceiling**, and `defaults.annotations.write` in the recipe
+narrows it:
+
+```yaml
+defaults:
+  annotations:
+    write: [term]      # voice findings stay stand-off
+```
+
+Narrowing only, never widening, and two things follow from that direction. A
+format that gains the capability starts projecting without anyone editing a
+recipe, which is what keeps the recipe from being a list a project has to
+maintain against the format catalog. And naming a type a format cannot carry
+asks for nothing rather than failing, because one recipe describes many outputs
+and a project that wants terms marked wherever they can be should not have to
+enumerate which of its formats happen to support it.
+
+The default is that a document leaves as a document. An annotation travels
+beside the content in an [overlay
+sidecar](/reference/serialization/overlays) unless a writer both can draw it and
+was not told otherwise.
+
 **Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
 stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's
 skeleton emission to a writer **only when they are the same format** — so the

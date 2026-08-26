@@ -62,9 +62,17 @@ type FormatInfo struct {
 	// so an edit changes only the edited text and everything else is reproduced
 	// byte-for-byte. Probed once from the built-in writer's SkeletonStoreConsumer
 	// capability at registration (declarative, like Generative/Interchange).
-	RoundTrip bool   `json:"round_trip,omitempty"`
-	Source    string `json:"source"`   // SourceBuiltIn or plugin name
-	Priority  int    `json:"priority"` // higher = preferred when multiple formats match
+	RoundTrip bool `json:"round_trip,omitempty"`
+	// InlineAnnotations names the annotation types this writer draws into the
+	// document as inline marks (a term as an XLIFF <mrk>, an HTML <span>).
+	// Empty means the format carries none and every annotation stays stand-off.
+	// Declarative, like Generative: probed once from the writer's
+	// InlineAnnotationWriter capability at registration for built-ins, and from
+	// the cached manifest for plugin formats. It is the ceiling a recipe
+	// narrows, never the floor it raises.
+	InlineAnnotations []string `json:"inline_annotations,omitempty"`
+	Source            string   `json:"source"`   // SourceBuiltIn or plugin name
+	Priority          int      `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // computeEditable derives the Editable flag from the format's capabilities: a
@@ -206,6 +214,11 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 		// makes editing binary formats (DOCX/PPTX/…) safe.
 		if _, ok := w.(format.SkeletonStoreConsumer); ok {
 			info.RoundTrip = true
+		}
+		// What the writer can draw inline. A format that declares nothing keeps
+		// its annotations stand-off.
+		if aw, ok := w.(format.InlineAnnotationWriter); ok {
+			info.InlineAnnotations = aw.InlineAnnotations()
 		}
 	}
 }
