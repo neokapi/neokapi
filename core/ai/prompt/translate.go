@@ -228,8 +228,16 @@ type BatchSegment struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
 	// Key is where this text lives in the document (`app.settings.title`). Sent
-	// per segment because it differs per segment — it is the one piece of context
-	// that cannot be hoisted into a shared preamble.
+	// per segment because it differs per segment, unlike the voice guidance and
+	// terminology that hoist into a shared preamble.
+	//
+	// It is the only per-segment context this struct carries, and that is now a
+	// limit rather than a description. A block's previously approved translation
+	// is also per-segment and has nowhere to go here, so a block that has one is
+	// packed alone (see AITranslateTool.packBatches). Widening this to a
+	// per-segment context would remove that restriction and let a batch carry
+	// references for every block in it; the payload shape and the response
+	// schema both move when it does.
 	Key string `json:"key,omitempty"`
 }
 

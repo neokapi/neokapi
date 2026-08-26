@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
@@ -66,6 +67,10 @@ type AITranslateTool struct {
 	// point is where this run's content sits, so a block's history is read from
 	// the place it belongs to rather than from wherever the corpus answers first.
 	point string
+	// priorCache memoizes priorVersions by chain unit. See priorFor: one block
+	// asks five times in a run, and every asker must get the same answer.
+	priorMu    sync.Mutex
+	priorCache map[string]*prompt.PriorVersion
 	// configFP fingerprints the output-affecting config (provider, model, locales,
 	// term rules, voice profile). The session overlay cache stores it so a re-run with
 	// a changed model/prompt/voice re-translates instead of serving the stale
@@ -1063,13 +1068,13 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 // The block's *key* is deliberately not in here. A key travels with its block,
 // so a cache already keyed by the block accounts for it; folding it in would
 // churn the cache for no gain.
+// It asks the context for its digest unconditionally rather than gating on which
+// context sources are configured. Context.Digest already returns "" when nothing
+// beyond the key is present, so the gate bought nothing but a place for the next
+// context source to be forgotten — which is exactly how the prior version was
+// nearly shipped outside the cache key.
 func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) string {
 	if b == nil {
-		return t.configFP
-	}
-	if t.contextPolicy != ContextNeighbours && t.priorVersions == nil {
-		// Nothing beyond the block itself varies, so the config alone is the
-		// whole story and the digest would cost a lookup per block for nothing.
 		return t.configFP
 	}
 	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainUnit()).Digest(); d != "" {
@@ -1104,15 +1109,44 @@ type PriorVersionProvider interface {
 // reach the model — so the comparison is between what governed the old answer
 // and what governs this one, rather than against anything a caller supplied.
 func (t *AITranslateTool) attachPrior(ctx context.Context, unit string, pc *prompt.Context) {
+	if pv := t.priorFor(ctx, unit); pv != nil {
+		pc.Prior = pv
+	}
+}
+
+// priorFor is the memoized corpus read.
+//
+// One block asks for its prior version five times in a run: the packer asks to
+// decide whether to batch it, cacheFingerprint asks three times (the skip check,
+// the hit comparison and the write-back), and the translation itself asks once.
+// They must all get the same answer — a fingerprint computed from a different
+// answer than the prompt carried is a cache key that describes nothing — and
+// paying for five reads to guarantee that would be the wrong way round.
+//
+// A run has one point and one governing fingerprint, so the unit is the whole
+// key. A nil entry means asked and answered nothing, which is why presence in
+// the map is the test rather than a nil check.
+func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.PriorVersion {
 	if t.priorVersions == nil || unit == "" {
-		return
+		return nil
 	}
-	src, tgt, ok := t.priorVersions.PriorVersion(
-		ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP)
-	if !ok || tgt == "" {
-		return
+
+	t.priorMu.Lock()
+	defer t.priorMu.Unlock()
+	if pv, asked := t.priorCache[unit]; asked {
+		return pv
 	}
-	pc.Prior = &prompt.PriorVersion{Source: src, Target: tgt}
+
+	var pv *prompt.PriorVersion
+	if src, tgt, ok := t.priorVersions.PriorVersion(
+		ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP); ok && tgt != "" {
+		pv = &prompt.PriorVersion{Source: src, Target: tgt}
+	}
+	if t.priorCache == nil {
+		t.priorCache = make(map[string]*prompt.PriorVersion)
+	}
+	t.priorCache[unit] = pv
+	return pv
 }
 
 // contextFor is the reference material for one block: its key always, and its
@@ -1218,13 +1252,7 @@ func (t *AITranslateTool) splitBlocksWithHistory(ctx context.Context, entries []
 			packable = append(packable, e)
 			continue
 		}
-		unit := e.block.ChainUnit()
-		if unit == "" {
-			packable = append(packable, e)
-			continue
-		}
-		if _, tgt, ok := t.priorVersions.PriorVersion(
-			ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP); ok && tgt != "" {
+		if t.priorFor(ctx, e.block.ChainUnit()) != nil {
 			alone = append(alone, e)
 			continue
 		}

@@ -226,3 +226,54 @@ func flatten(msgs []aiprovider.Message) string {
 	}
 	return sb.String()
 }
+
+// TestTheCorpusIsAskedOncePerBlock.
+//
+// One block asks for its prior version from five places in a run: the packer
+// deciding whether to batch it, cacheFingerprint three times (the skip check,
+// the hit comparison, the write-back), and the translation itself. Reading the
+// corpus five times to answer one question is the obvious cost; the subtler one
+// is that five reads can disagree, and a cache fingerprint computed from a
+// different answer than the prompt carried is a key that describes nothing.
+func TestTheCorpusIsAskedOncePerBlock(t *testing.T) {
+	t.Parallel()
+
+	priors := &stubPriors{
+		unit: "cta.start", point: "acme\x1fweb\x1fsite",
+		source: "Get started", target: "Kom i gang",
+	}
+	cfg := baseConfig()
+	cfg.PriorVersions = priors
+	cfg.Point = priors.point
+
+	block := blockNamed("cta.start", "Get started today")
+	tl := aitools.NewAITranslateTool(&recordingProvider{}, cfg)
+
+	// The three cacheFingerprint calls one block makes on the session path,
+	// plus the translation's own. Without the memo this is four reads of the
+	// same row for one answer.
+	first := aitools.ExportCacheFingerprint(tl, t.Context(), block)
+	assert.Equal(t, first, aitools.ExportCacheFingerprint(tl, t.Context(), block))
+	assert.Equal(t, first, aitools.ExportCacheFingerprint(tl, t.Context(), block))
+
+	assert.Equal(t, 1, priors.calls, "the corpus answers once and every asker gets that answer")
+}
+
+// TestABlockWithNoHistoryIsAlsoAskedOnce: the memo has to remember an absent
+// answer too, or a corpus with no chain pays the full five reads per block to
+// be told nothing five times.
+func TestABlockWithNoHistoryIsAlsoAskedOnce(t *testing.T) {
+	t.Parallel()
+
+	priors := &stubPriors{unit: "somewhere.else", point: "acme\x1fweb\x1fsite"}
+	cfg := baseConfig()
+	cfg.PriorVersions = priors
+	cfg.Point = priors.point
+
+	block := blockNamed("cta.start", "Get started today")
+	tl := aitools.NewAITranslateTool(&recordingProvider{}, cfg)
+	aitools.ExportCacheFingerprint(tl, t.Context(), block)
+	aitools.ExportCacheFingerprint(tl, t.Context(), block)
+
+	assert.Equal(t, 1, priors.calls, "a miss is memoized like a hit")
+}
