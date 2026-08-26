@@ -201,6 +201,38 @@ Distinct from lookup, `Search` powers the terms browser in the CLI and the
 desktop app. It uses a full-text tokenizer with relevance ranking rather than
 unranked substring queries.
 
+### Locating declared terms: one pass, two sources
+
+A term is declared in two places. A voice profile lists the words a brand
+forbids and a competitor's names it must not print, and a tool's `term_rules:`
+lists the wording a piece of content is held to; the terms store holds the
+concepts the project has decided, which is where `kapi apply` writes. Both are
+the same kind of statement about the same words, so a gate that asks them
+separately is two gates that can disagree about whether a word is in use.
+
+`terms/locate` asks once. `Find` takes the rules the caller holds and the bound
+store, matches the rules through `profile.MatchTermRules` and the store through
+`LookupAll`, and returns **occurrences**: the matched surface text, the
+declaration that governs it, the concept it denotes, and a `model.Anchor`
+positioning it in the block's runs. Store matches are deduped across the
+candidate languages, because a term recorded in both `en-GB` and `en` is one
+decision about one word.
+
+The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
+term rule *sets*, each carrying the kind of violation a hit is and the severity
+a rule that names none of its own takes. A voice profile contributes two sets
+(forbidden terms at major, a competitor's at critical) through
+`VocabularyRuleSets`; a tool contributes its own. That is what lets one match
+run cover every source a caller holds, and what keeps a rule-carrying tool from
+being a second-class citizen of the vocabulary gate.
+
+What a consumer does with an occurrence is its own business. The voice
+vocabulary gate raises a finding, presenting it through `HitsToFindings`, the
+mapping the `/check` endpoint, the `check_vocabulary` MCP tool and the desktop
+panel share. It names the terms store when the store is what declared the term,
+because "forbidden by the profile" and "forbidden in terms" send a writer
+to different places to argue with the decision. Locating is the part they share.
+
 ### Annotations
 
 Three annotation types implement the annotation interface with run-anchored

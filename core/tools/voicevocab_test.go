@@ -624,3 +624,59 @@ func (r *recordingTerminology) LookupAll(_ context.Context, _ string, opts terms
 	r.asked = append(r.asked, opts.SourceLocale)
 	return nil, nil
 }
+
+// TestVoiceVocabCheckNamesWhereTheDecisionLives pins both phrasings. A rule the
+// profile declared and a concept the terms store declared read differently on
+// purpose: they send a writer to different places to argue with the decision.
+// The two are produced by one mapping, and a wording change on either side that
+// silently adopts the other's is the drift this asserts against.
+func TestVoiceVocabCheckNamesWhereTheDecisionLives(t *testing.T) {
+	t.Parallel()
+
+	messageFor := func(t *testing.T, tool *tools.VoiceVocabCheckTool, text string) string {
+		t.Helper()
+		in := make(chan *model.Part, 1)
+		out := make(chan *model.Part, 1)
+		in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", text)}
+		close(in)
+		require.NoError(t, tool.Process(t.Context(), in, out))
+		ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation]((<-out).Resource.(*model.Block), "voice")
+		require.True(t, ok)
+		require.Len(t, ann.Findings, 1)
+		return ann.Findings[0].Message
+	}
+
+	t.Run("a profile rule reads as the profile's", func(t *testing.T) {
+		t.Parallel()
+		p := &coreprofile.VoiceProfile{
+			ID: "p1",
+			Vocabulary: coreprofile.VocabularyRules{
+				ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}},
+			},
+		}
+		assert.Equal(t, `Forbidden term "cheap" found`,
+			messageFor(t, tools.NewVoiceVocabCheckTool(p, nil), "This is a cheap product"))
+	})
+
+	t.Run("a terms store concept names the store", func(t *testing.T) {
+		t.Parallel()
+		tb := &fakeTerminology{matches: []terms.TermMatch{{
+			Concept:  terms.Concept{ID: "c1", Source: terms.TermSourceBrandVocabulary},
+			Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
+			Position: model.TextRange{Start: 10, End: 15},
+		}}}
+		assert.Equal(t, `Forbidden term "cheap" found in terms`,
+			messageFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product"))
+	})
+
+	t.Run("a retired term reads as the softer complaint", func(t *testing.T) {
+		t.Parallel()
+		tb := &fakeTerminology{matches: []terms.TermMatch{{
+			Concept:  terms.Concept{ID: "c2", Source: terms.TermSourceBrandVocabulary},
+			Term:     terms.Term{Text: "cheap", Status: model.TermDeprecated},
+			Position: model.TextRange{Start: 10, End: 15},
+		}}}
+		assert.Equal(t, `Retired term "cheap" found in terms`,
+			messageFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product"))
+	})
+}
