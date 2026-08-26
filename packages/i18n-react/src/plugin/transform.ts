@@ -25,6 +25,7 @@ import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "../extract/jsx-path.ts";
 import { buildRuns, type Occurrence } from "../extract/runs.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "../extract/translatable.ts";
 import { collectTIdentifiers, walkTCalls } from "../extract/messages.ts";
+import { parseSyntaxFor } from "../parse-syntax.ts";
 import { resolveLibraryComponentMap } from "./manifests.ts";
 import {
   createWarningCollector,
@@ -226,12 +227,16 @@ export function transform(
 
   let ast: Module;
   try {
-    ast = parseSync(code, {
-      syntax: filename.endsWith(".tsx") ? "typescript" : "ecmascript",
-      tsx: true,
-      jsx: true,
-    });
-  } catch {
+    ast = parseSync(code, parseSyntaxFor(filename));
+  } catch (err) {
+    // A file that cannot be parsed is not a file with nothing to translate.
+    // Returning null in silence is how the labels reached the dictionary and
+    // then rendered in English anyway: extraction read the file, the transform
+    // could not, and nothing said so.
+    console.warn(
+      `[neokapi] ${filename}: could not be parsed, so its strings were left ` +
+        `untranslated: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+    );
     return null;
   }
 
