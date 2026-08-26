@@ -452,23 +452,31 @@ line is an annotation record (`"type": "annotation"`).
 The header carries `annotationType`, `annotationVersion`, a `producer` (`id` +
 `version`), a `created` timestamp, and `targetArchive` — the archive state the
 annotations were produced against. Each annotation record carries a `type`, an
-`id`, an `anchor`, and a producer-specific `data` payload (the framework imposes
-no schema on `data`).
+`id`, the `block` it is about, an `anchor` saying where inside that block, and a
+producer-specific `data` payload (the framework imposes no schema on `data`).
 
-An **anchor** binds an annotation to a location in a block. Its `kind`
-discriminates four shapes:
+An **anchor** is the same `Anchor` the engine uses everywhere else it records a
+position, so a term match written here means what it means in an overlay or a
+check finding. Its `kind` discriminates four shapes:
 
-| Anchor kind | Meaningful fields                   | Targets                                                             |
-| ----------- | ----------------------------------- | ------------------------------------------------------------------- |
-| `block`     | `block`                             | Block-level metadata.                                               |
-| `run`       | `block`, `path`, `runId`            | A specific run, identified by path and matched against `runId`.     |
-| `range`     | `block`, `path`, `offset`, `length` | A character range inside a text run (offsets in UTF-16 code units). |
-| `form`      | `block`, `path`, `key`              | A specific plural form or select case, selected by `key`.           |
+| Anchor kind | Meaningful fields      | Targets                                                         |
+| ----------- | ---------------------- | --------------------------------------------------------------- |
+| `block`     | —                      | Block-level metadata.                                           |
+| `run`       | `path`, `runId`        | A specific run, identified by path and matched against `runId`. |
+| `range`     | `path`, `start`, `end` | A half-open span of the run sequence at `path`.                 |
+| `form`      | `path`, `key`          | A specific plural form or select case, selected by `key`.       |
 
 The `path` is a list of steps into a block's nested run structure: a bare number
 indexes into a `Run[]`, an object `{"plural": "<form>"}` descends into a plural
 form, and `{"select": "<value>"}` descends into a select case. An empty path
 refers to the block's top-level source runs.
+
+`start` and `end` are each a **run position**: `{"run": <index>, "offset":
+<runes>}`, where `offset` is a rune offset into that run's text and defaults to
+0. Bounding a range by run positions rather than by a flat character offset is
+what lets a span cross run boundaries — a phrase running through a bold segment
+is one range rather than three — and lets a boundary sit either side of a
+placeholder, which carries no text of its own.
 
 Resolving an anchor against a block either succeeds or returns one of six
 machine-readable failure reasons:
@@ -479,14 +487,14 @@ machine-readable failure reasons:
 | `path-out-of-bounds`  | A path step indexes past the end of a run sequence.                        |
 | `path-wrong-kind`     | The path lands on a run of the wrong kind for the anchor.                  |
 | `run-id-mismatch`     | The resolved run's id differs from the recorded `runId` (a likely orphan). |
-| `range-out-of-bounds` | The character range exceeds the target text run.                           |
+| `range-out-of-bounds` | The range addresses positions outside the run sequence it names.           |
 | `form-not-found`      | The anchored plural form or select case does not exist on the block.       |
 
 An example header and run-level annotation record:
 
 ```json
 {"type":"header","annotationType":"@neokapi/example","annotationVersion":"1.0.0","producer":{"id":"@neokapi/kapi-format-examples","version":"0.0.1"},"created":"2026-04-15T12:00:00Z","targetArchive":"sha256:deadbeef"}
-{"type":"annotation","id":"term-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label","action":"preserve-placeholder","confidence":1.0}}
+{"type":"annotation","id":"term-1","block":"tag-chip","anchor":{"kind":"run","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label","action":"preserve-placeholder","confidence":1.0}}
 ```
 
 The [KBF anatomy page](/kbf-lab) lets you edit a `.overlays.jsonl` overlay and watch each
@@ -770,11 +778,11 @@ run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to th
 
 ```jsonl
 {"type":"header","annotationType":"@neokapi/example","annotationVersion":"1.0.0","producer":{"id":"@neokapi/kapi-format-examples","version":"0.0.1"},"created":"2026-04-15T12:00:00Z","targetArchive":"sha256:deadbeef"}
-{"type":"annotation","id":"review-1","anchor":{"kind":"block","block":"files-heading"},"data":{"kind":"review-status","status":"approved"}}
-{"type":"annotation","id":"term-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label"}}
-{"type":"annotation","id":"entity-1","anchor":{"kind":"range","block":"files-heading","path":[4],"offset":1,"length":7},"data":{"kind":"named-entity","entity":"matched"}}
-{"type":"annotation","id":"qa-1","anchor":{"kind":"form","block":"shopping-cart-plural","path":[0],"key":"one"},"data":{"kind":"qa","note":"singular form reviewed"}}
-{"type":"annotation","id":"orphan-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"99"},"data":{"kind":"protected-term","term":"label"}}
+{"type":"annotation","id":"review-1","block":"files-heading","anchor":{"kind":"block"},"data":{"kind":"review-status","status":"approved"}}
+{"type":"annotation","id":"term-1","block":"tag-chip","anchor":{"kind":"run","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label"}}
+{"type":"annotation","id":"entity-1","block":"files-heading","anchor":{"kind":"range","path":[],"start":{"run":4,"offset":1},"end":{"run":4,"offset":8}},"data":{"kind":"named-entity","entity":"matched"}}
+{"type":"annotation","id":"qa-1","block":"shopping-cart-plural","anchor":{"kind":"form","path":[0],"key":"one"},"data":{"kind":"qa","note":"singular form reviewed"}}
+{"type":"annotation","id":"orphan-1","block":"tag-chip","anchor":{"kind":"run","path":[2],"runId":"99"},"data":{"kind":"protected-term","term":"label"}}
 ```
 
 ### Try it live

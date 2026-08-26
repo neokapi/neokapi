@@ -42,7 +42,7 @@ func sampleAnnotations() *kbf.AnnotationFile {
 		},
 		Annotations: []kbf.Annotation{{
 			Type: "annotation", ID: "a1",
-			Anchor: kbf.AnnotationAnchor{Kind: kbf.AnchorBlock, Block: "b1"},
+			Block: "b1", Anchor: kbf.Anchor{Kind: kbf.AnchorBlock},
 		}},
 	}
 }

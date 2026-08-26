@@ -64,7 +64,7 @@ function brand(text: string, side = "source"): OverlayView {
   };
 }
 function zero() {
-  return { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 };
+  return { kind: "range", start: { run: 0 }, end: { run: 0 } };
 }
 
 // ── PPTX deck ────────────────────────────────────────────────────────────────

@@ -333,7 +333,7 @@ func dumpOverlays(overlays []model.Overlay) []overlayDump {
 		for _, s := range o.Spans {
 			od.Spans = append(od.Spans, spanDump{
 				ID:    s.ID,
-				Range: [4]int{s.Range.StartRun, s.Range.StartOffset, s.Range.EndRun, s.Range.EndOffset},
+				Range: [4]int{s.Range.Start.Run, s.Range.Start.Offset, s.Range.End.Run, s.Range.End.Offset},
 				Props: nonEmptyStrMap(s.Props),
 			})
 		}

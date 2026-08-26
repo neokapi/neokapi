@@ -115,8 +115,12 @@
         {
           "id": "t1",
           "range": {
-            "endRun": 1,
-            "endOffset": 5
+            "kind": "range",
+            "start": {},
+            "end": {
+              "run": 1,
+              "offset": 5
+            }
           },
           "props": {
             "concept": "c-42"

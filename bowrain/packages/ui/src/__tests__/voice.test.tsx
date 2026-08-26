@@ -61,7 +61,7 @@ function makeFinding(overrides: Partial<VoiceFinding> = {}): VoiceFinding {
     category: "tone",
     severity: "minor",
     message: "Tone is too formal for the target audience",
-    position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 10 },
+    position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 10 } },
     ...overrides,
   };
 }

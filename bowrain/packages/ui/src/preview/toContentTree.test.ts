@@ -54,7 +54,7 @@ const voiceFinding: BlockFinding = {
   message: 'Forbidden term "Utilize" found',
   suggestion: 'Use "Use" instead',
   original_text: "Utilize",
-  position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+  position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 7 } },
   metadata: { replacement: "Use", concept_id: "c-42" },
 };
 
@@ -147,10 +147,9 @@ describe("blockToContentNode — overlays", () => {
     // attaches to the following run — the link's pcOpen (1) and pcClose (3).
     // That is the engine's convention: a leading code belongs to its span.
     expect(term?.spans[0].range).toEqual({
-      startRun: 1,
-      startOffset: 0,
-      endRun: 3,
-      endOffset: 0,
+      kind: "range",
+      start: { run: 1 },
+      end: { run: 3 },
     });
     expect(term?.spans[0].text).toBe("Acme");
     expect(term?.spans[0].props).toEqual({
@@ -168,7 +167,7 @@ describe("blockToContentNode — overlays", () => {
     expect(entities?.spans[0].id).toBe("entity:0");
     expect(entities?.spans[0].text).toBe("console");
     expect(entities?.spans[0].props).toEqual({ type: "entity:product", dnt: "true" });
-    expect(entities?.spans[0].range.startRun).toBe(4);
+    expect(entities?.spans[0].range.start.run).toBe(4);
   });
 
   it("keeps a run-anchored finding's position and its category in span props", () => {
@@ -176,10 +175,9 @@ describe("blockToContentNode — overlays", () => {
     const qa = node.overlays?.find((o) => o.type === "qa");
     expect(qa?.side).toBe("source");
     expect(qa?.spans[0].range).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 0,
-      endOffset: 7,
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 0, offset: 7 },
     });
     expect(qa?.spans[0].props).toMatchObject({
       category: "voice-vocabulary",
@@ -211,10 +209,9 @@ describe("blockToContentNode — overlays", () => {
     });
     const qa = node.overlays?.find((o) => o.type === "qa");
     expect(qa?.spans[0].range).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 0,
-      endOffset: 0,
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 0 },
     });
   });
 
@@ -243,10 +240,9 @@ describe("blockToContentNode — overlays", () => {
       { evidence: { terms: [{ ...termMatch, start: 15, end: 19 }] } },
     );
     expect(node.overlays?.[0].spans[0].range).toEqual({
-      startRun: 0,
-      startOffset: 13,
-      endRun: 1,
-      endOffset: 0,
+      kind: "range",
+      start: { run: 0, offset: 13 },
+      end: { run: 1 },
     });
     expect(node.overlays?.[0].spans[0].text).toBe("Acme");
   });
@@ -289,7 +285,7 @@ describe("blockToContentNode — annotations", () => {
         type: "placeholder",
         severity: "error",
         message: "Missing {count}",
-        position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+        position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 7 } },
         original_text: "Utilize",
         suggestion: "Add {count}",
       },
@@ -302,10 +298,9 @@ describe("blockToContentNode — annotations", () => {
     expect(qa[0].side).toBe("fr-FR");
     expect(qa[0].spans).toHaveLength(1);
     expect(qa[0].spans[0].range).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 0,
-      endOffset: 7,
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 0, offset: 7 },
     });
     expect(qa[0].spans[0].props).toEqual({
       category: "placeholder",
@@ -328,7 +323,7 @@ describe("blockToContentNode — annotations", () => {
             type: "placeholder",
             severity: "error",
             message: "Missing {count}",
-            position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+            position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 7 } },
           },
         ],
         issueLocale: "fr-FR",

@@ -46,7 +46,7 @@ const (
 )
 
 // Segmenter computes segmentation spans over a run sequence in a given locale.
-// The returned spans are run-anchored (see [model.RunRange]) and never mutate
+// The returned spans are run-anchored (see [model.Anchor]) and never mutate
 // the runs — segmentation is a stand-off overlay. Spans must be ordered by
 // position and non-overlapping; runs that no span covers are implicit
 // inter-segment material ("ignorables").

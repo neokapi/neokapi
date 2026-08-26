@@ -922,11 +922,8 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 							targetRuns = append(targetRuns, runs...)
 							endRun := len(targetRuns)
 							spans[i] = model.Span{
-								ID: fmt.Sprintf("n%d", i),
-								Range: model.RunRange{
-									StartRun: startRun,
-									EndRun:   endRun,
-								},
+								ID:    fmt.Sprintf("n%d", i),
+								Range: model.SpanAnchor(model.RunPos{Run: startRun}, model.RunPos{Run: endRun}),
 								Props: map[string]string{"numerus-form": strconv.Itoa(i)},
 							}
 						}

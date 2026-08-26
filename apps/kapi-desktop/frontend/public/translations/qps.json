@@ -1140,7 +1140,7 @@
   "6OqHtzIwEWD": "▒ ṽîà {meta.origin.kind} {value} {value_2} ▒",
   "g34YLVqCM0d": "▒ ļàýéŕ:{overlay.layer} ▒",
   "MdslszuX71": "▒ {overlay.spans.length} šþàñ{value} ▒",
-  "g95AvEqnxq5": "▒ {=m0} {=m1} [{s.range.startRun}:{s.range.endRun}] {/=m1} {=m4} {=m5} {=m6} ▒",
+  "7gcw4XXbJfz": "▒ {=m0} {=m1} [{s.range.start.run}:{s.range.end.run}] {/=m1} {=m4} {=m5} {=m6} ▒",
   "fNxBIidxgp4": "▒ “{s.text}” ▒",
   "jGQDQgIHQ2l": "▒ îĝñöŕàƃļé ▒",
   "co3VwQ66R2x": "▒ {k}={v} ▒",

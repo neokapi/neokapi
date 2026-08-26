@@ -159,7 +159,7 @@ function checkAnnotation(
   // in the fixture set and no override is provided, we pass one
   // arbitrary block in so that the resolver returns block-not-found
   // (simulating "the block was deleted by a re-extraction").
-  const block = blockOverride ?? blockById[annotation.anchor.block] ?? filesHeading;
+  const block = blockOverride ?? blockById[annotation.block] ?? filesHeading;
   const err = validateAnchor(block, annotation);
   const ok = err === null;
   const pass = ok === expectOk;
@@ -183,7 +183,8 @@ for (const annotation of exampleAnnotations.annotations) {
 const orphanMissingBlock: Annotation = {
   type: "annotation",
   id: "orphan-missing-block",
-  anchor: { kind: "block", block: "does-not-exist" },
+  block: "does-not-exist",
+  anchor: { kind: "block" },
   data: {},
 };
 checkAnnotation("orphan-missing-block", orphanMissingBlock, false);
@@ -191,9 +192,9 @@ checkAnnotation("orphan-missing-block", orphanMissingBlock, false);
 const orphanBadRunId: Annotation = {
   type: "annotation",
   id: "orphan-run-id-mismatch",
+  block: "tag-chip",
   anchor: {
     kind: "run",
-    block: "tag-chip",
     path: [2],
     runId: "99", // actual run id at path [2] is "2"
   },
@@ -204,9 +205,9 @@ checkAnnotation("orphan-run-id-mismatch", orphanBadRunId, false);
 const orphanMissingForm: Annotation = {
   type: "annotation",
   id: "orphan-missing-form",
+  block: "shopping-cart-plural",
   anchor: {
     kind: "form",
-    block: "shopping-cart-plural",
     path: [0],
     key: "few", // the shopping-cart plural has zero/one/other, no 'few'
   },
@@ -217,12 +218,12 @@ checkAnnotation("orphan-missing-form", orphanMissingForm, false);
 const orphanBadRange: Annotation = {
   type: "annotation",
   id: "orphan-range-out-of-bounds",
+  block: "files-heading",
   anchor: {
     kind: "range",
-    block: "files-heading",
-    path: [0],
-    offset: 0,
-    length: 9999, // way past the end of "Files "
+    path: [],
+    start: { run: 0 },
+    end: { run: 9999 }, // way past the end of the sequence
   },
   data: {},
 };

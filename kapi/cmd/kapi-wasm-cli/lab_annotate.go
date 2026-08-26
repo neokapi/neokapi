@@ -239,7 +239,7 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 			props["domain"] = m.Concept.Domain
 		}
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, m.Position.Start, m.Position.End),
+			Range: model.RangeAnchorForBytes(runs, m.Position.Start, m.Position.End),
 			Props: props,
 		})
 	}
@@ -279,7 +279,7 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 			props["replacement"] = h.Replacement
 		}
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, h.Start, h.End),
+			Range: model.RangeAnchorForBytes(runs, h.Start, h.End),
 			Props: props,
 		})
 	}
@@ -289,7 +289,7 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 			message = fmt.Sprintf("Prohibited pattern %q matched", p.Regex)
 		}
 		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, p.Start, p.End),
+			Range: model.RangeAnchorForBytes(runs, p.Start, p.End),
 			Props: map[string]string{
 				"category": "voice-pattern",
 				"severity": string(p.Severity),

@@ -25,7 +25,7 @@ type Finding struct {
     Severity     Severity          // neutral | minor | major | critical
     Message      string
     Suggestion   string            // optional remediation hint
-    Position     model.RunRange    // run-anchored span in the source
+    Position     model.Anchor      // run-anchored span in the source
     OriginalText string
     Metadata     map[string]string // checker-specific detail (model, confidence, rule id)
 }

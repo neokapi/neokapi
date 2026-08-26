@@ -112,7 +112,7 @@ func TestRunPositionPluralSelect(t *testing.T) {
 	}
 }
 
-func TestRunRangeForAndTextSpanRoundTrip(t *testing.T) {
+func TestRangeAnchorAndTextSpanRoundTrip(t *testing.T) {
 	runs := []Run{tx("Hello "), ph("1"), tx("world")} // "Hello world"
 	cases := []struct {
 		name             string
@@ -127,7 +127,7 @@ func TestRunRangeForAndTextSpanRoundTrip(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rr := RunRangeFor(runs, tc.start, tc.end)
+			rr := RangeAnchor(runs, tc.start, tc.end)
 			s, e := rr.TextSpan(runs)
 			assert.Equal(t, tc.wantStart, s, "TextSpan start")
 			assert.Equal(t, tc.wantE, e, "TextSpan end")
@@ -138,7 +138,7 @@ func TestRunRangeForAndTextSpanRoundTrip(t *testing.T) {
 func TestTextSpanWithPluralSelect(t *testing.T) {
 	runs := []Run{tx("Sees "), plural(tx("cats")), tx(" now")} // "Sees cats now"
 	// Range covering "cats now": from the plural run start to end.
-	rr := RunRangeFor(runs, 5, 13)
+	rr := RangeAnchor(runs, 5, 13)
 	s, e := rr.TextSpan(runs)
 	assert.Equal(t, 5, s)
 	assert.Equal(t, 13, e)
@@ -155,7 +155,7 @@ func TestByteSpanMultibyte(t *testing.T) {
 	require.Equal(t, "héllo wörld", text)
 
 	// Rune span [6,11) = "wörld"; bytes: "héllo " = 7 bytes (h é(2) l l o space).
-	rr := RunRangeFor(runs, 6, 11)
+	rr := RangeAnchor(runs, 6, 11)
 	bs, be := rr.ByteSpan(runs)
 	assert.Equal(t, 7, bs)
 	assert.Equal(t, len(text), be) // 13 bytes total ("wörld" trailing)
@@ -180,28 +180,28 @@ func TestRuneToByteOffset(t *testing.T) {
 	}
 }
 
-func TestRunRangeForBytes(t *testing.T) {
+func TestRangeAnchorForBytes(t *testing.T) {
 	runs := []Run{tx("héllo wörld")}
 	text := RunsText(runs)
 
 	// Byte span for "wörld" starts at byte 7.
-	rr := RunRangeForBytes(runs, 7, len(text))
+	rr := RangeAnchorForBytes(runs, 7, len(text))
 	got := rr.ExtractRuns(runs)
 	require.Len(t, got, 1)
 	require.NotNil(t, got[0].Text)
 	assert.Equal(t, "wörld", got[0].Text.Text)
 
 	// Out-of-range bytes clamp.
-	rr2 := RunRangeForBytes(runs, -5, 9999)
+	rr2 := RangeAnchorForBytes(runs, -5, 9999)
 	s, e := rr2.TextSpan(runs)
 	assert.Equal(t, 0, s)
 	assert.Equal(t, len([]rune(text)), e)
 }
 
-// TestRunRangeForBytesPluralRegression is the direct #15 reproduction: a byte
+// TestRangeAnchorForBytesPluralRegression is the direct #15 reproduction: a byte
 // span reported against RunsText over a plural-bearing block must yield a
 // non-degenerate range that ExtractRuns can resolve to real content.
-func TestRunRangeForBytesPluralRegression(t *testing.T) {
+func TestRangeAnchorForBytesPluralRegression(t *testing.T) {
 	// "You have " + plural(other="3 messages") => RunsText "You have 3 messages"
 	runs := []Run{tx("You have "), plural(tx("3 messages"))}
 	text := RunsText(runs)
@@ -210,7 +210,7 @@ func TestRunRangeForBytesPluralRegression(t *testing.T) {
 	// A detector reports the byte span of "messages" inside RunsText.
 	start := indexOf(text, "messages")
 	require.GreaterOrEqual(t, start, 0)
-	rr := RunRangeForBytes(runs, start, start+len("messages"))
+	rr := RangeAnchorForBytes(runs, start, start+len("messages"))
 
 	// Before the fix this produced a degenerate empty range / "".
 	assert.False(t, rr.IsZero(), "range must not be degenerate")
@@ -225,32 +225,32 @@ func TestExtractRuns(t *testing.T) {
 	runs := []Run{tx("Hello "), ph("1"), tx("world")}
 	cases := []struct {
 		name  string
-		rr    RunRange
+		rr    Anchor
 		wantT []string // expected text-run contents (nil entries ignored)
 	}{
 		{
 			name:  "full range keeps code",
-			rr:    RunRange{StartRun: 0, StartOffset: 0, EndRun: 3, EndOffset: 0},
+			rr:    SpanAnchor(RunPos{Run: 0}, RunPos{Run: 3}),
 			wantT: []string{"Hello ", "world"},
 		},
 		{
 			name:  "split first run",
-			rr:    RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 5},
+			rr:    SpanAnchor(RunPos{Run: 0}, RunPos{Run: 0, Offset: 5}),
 			wantT: []string{"Hello"},
 		},
 		{
 			name:  "second word only",
-			rr:    RunRange{StartRun: 2, StartOffset: 0, EndRun: 2, EndOffset: 5},
+			rr:    SpanAnchor(RunPos{Run: 2}, RunPos{Run: 2, Offset: 5}),
 			wantT: []string{"world"},
 		},
 		{
 			name:  "code excluded at exclusive end",
-			rr:    RunRange{StartRun: 0, StartOffset: 0, EndRun: 1, EndOffset: 0},
+			rr:    SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1}),
 			wantT: []string{"Hello "},
 		},
 		{
 			name:  "invalid range returns nil",
-			rr:    RunRange{StartRun: 5, StartOffset: 0, EndRun: 2, EndOffset: 0},
+			rr:    SpanAnchor(RunPos{Run: 5}, RunPos{Run: 2}),
 			wantT: nil,
 		},
 	}
@@ -271,7 +271,7 @@ func TestExtractRuns(t *testing.T) {
 func TestExtractRunsPluralAtomic(t *testing.T) {
 	runs := []Run{tx("a "), plural(tx("b")), tx(" c")}
 	// Range from the plural to end: plural included whole.
-	rr := RunRange{StartRun: 1, StartOffset: 0, EndRun: 3, EndOffset: 0}
+	rr := SpanAnchor(RunPos{Run: 1}, RunPos{Run: 3})
 	got := rr.ExtractRuns(runs)
 	require.Len(t, got, 2)
 	assert.NotNil(t, got[0].Plural)
@@ -279,9 +279,19 @@ func TestExtractRunsPluralAtomic(t *testing.T) {
 	assert.Equal(t, " c", got[1].Text.Text)
 }
 
-func TestRunRangeIsZero(t *testing.T) {
-	assert.True(t, RunRange{}.IsZero())
-	assert.False(t, RunRange{EndRun: 1}.IsZero())
+func TestAnchorZeroAndEmptyAreDifferent(t *testing.T) {
+	// No position was recorded at all.
+	assert.True(t, Anchor{}.IsZero())
+	assert.True(t, Anchor{}.IsEmpty())
+
+	// A position was recorded and covers nothing.
+	empty := SpanAnchor(RunPos{Run: 0}, RunPos{Run: 0})
+	assert.False(t, empty.IsZero(), "a computed range is not the absence of one")
+	assert.True(t, empty.IsEmpty())
+
+	covering := SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})
+	assert.False(t, covering.IsZero())
+	assert.False(t, covering.IsEmpty())
 }
 
 func TestSegmentationOverlays(t *testing.T) {
@@ -294,8 +304,8 @@ func TestSegmentationOverlays(t *testing.T) {
 	assert.Equal(t, 1, b.SourceSegmentCount())
 
 	spans := []Span{
-		{ID: "s1", Range: RunRange{StartRun: 0, StartOffset: 0, EndRun: 1, EndOffset: 0}},
-		{ID: "s2", Range: RunRange{StartRun: 1, StartOffset: 0, EndRun: 2, EndOffset: 0}},
+		{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})},
+		{ID: "s2", Range: SpanAnchor(RunPos{Run: 1}, RunPos{Run: 2})},
 	}
 	b.SetSegmentation(nil, spans)
 
@@ -356,7 +366,7 @@ func TestOverlayOnSource(t *testing.T) {
 func TestSameVariantViaSegmentation(t *testing.T) {
 	vk := VariantKey{}
 	b := &Block{Source: []Run{tx("x")}}
-	b.SetSegmentation(&vk, []Span{{Range: RunRange{EndRun: 1}}})
+	b.SetSegmentation(&vk, []Span{{Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
 
 	// Target-side segmentation must not be returned for the source side.
 	assert.Nil(t, b.SegmentationFor(nil))

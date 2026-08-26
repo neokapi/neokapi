@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Run } from "./types";
-import { runRangeForBytes, runRangeForChars, runsPlainText, textForBytes } from "./runRange";
+import { rangeAnchorForBytes, rangeAnchorForChars, runsPlainText, textForBytes } from "./anchor";
 
 // The fixtures mirror what a reader emits: text runs interleaved with inline
 // codes, and a plural wrapper whose "other" branch carries the flat text.
@@ -58,15 +58,14 @@ describe("runsPlainText", () => {
   });
 });
 
-describe("runRangeForChars", () => {
+describe("rangeAnchorForChars", () => {
   it("anchors a span inside a single text run", () => {
     // "Acme" is chars 11..15 — the end lands on the run boundary, so it reads
     // as the start of the (nonexistent) run 1, the engine's convention.
-    expect(runRangeForChars(simple, 11, 15)).toEqual({
-      startRun: 0,
-      startOffset: 11,
-      endRun: 1,
-      endOffset: 0,
+    expect(rangeAnchorForChars(simple, 11, 15)).toEqual({
+      kind: "range",
+      start: { run: 0, offset: 11 },
+      end: { run: 1 },
     });
   });
 
@@ -74,102 +73,92 @@ describe("runRangeForChars", () => {
     // "Hello , welcome to Acme." — "Acme" is chars 19..23. Both boundaries end
     // a text run, so they attach to the following code runs (3 = pcOpen,
     // 5 = pcClose) — a leading code belongs to the span it opens.
-    expect(runRangeForChars(withCodes, 19, 23)).toEqual({
-      startRun: 3,
-      startOffset: 0,
-      endRun: 5,
-      endOffset: 0,
+    expect(rangeAnchorForChars(withCodes, 19, 23)).toEqual({
+      kind: "range",
+      start: { run: 3 },
+      end: { run: 5 },
     });
   });
 
   it("spans across runs when the text crosses a code", () => {
     // "welcome to Acme" starts mid-run-2 and ends on the run-4 boundary.
-    expect(runRangeForChars(withCodes, 8, 23)).toEqual({
-      startRun: 2,
-      startOffset: 2,
-      endRun: 5,
-      endOffset: 0,
+    expect(rangeAnchorForChars(withCodes, 8, 23)).toEqual({
+      kind: "range",
+      start: { run: 2, offset: 2 },
+      end: { run: 5 },
     });
   });
 
   it("attributes a boundary at a run's end to the next run", () => {
     // Char 6 ends run 0 ("Hello ") exactly.
-    expect(runRangeForChars(withCodes, 0, 6)).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 1,
-      endOffset: 0,
+    expect(rangeAnchorForChars(withCodes, 0, 6)).toEqual({
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 1 },
     });
   });
 
   it("counts a plural run as the width of its other branch", () => {
     // "You have N messages!" — "messages" is chars 11..19, inside the plural.
-    expect(runRangeForChars(withPlural, 11, 19)).toEqual({
-      startRun: 1,
-      startOffset: 2,
-      endRun: 2,
-      endOffset: 0,
+    expect(rangeAnchorForChars(withPlural, 11, 19)).toEqual({
+      kind: "range",
+      start: { run: 1, offset: 2 },
+      end: { run: 2 },
     });
   });
 
   it("clamps a negative start and an overrunning end", () => {
-    expect(runRangeForChars(simple, -5, 999)).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 1,
-      endOffset: 0,
+    expect(rangeAnchorForChars(simple, -5, 999)).toEqual({
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 1 },
     });
   });
 
   it("returns a zero range for an empty sequence", () => {
-    expect(runRangeForChars([], 0, 4)).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 0,
-      endOffset: 0,
+    expect(rangeAnchorForChars([], 0, 4)).toEqual({
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 0 },
     });
-    expect(runRangeForChars(undefined, 2, 4)).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 0,
-      endOffset: 0,
+    expect(rangeAnchorForChars(undefined, 2, 4)).toEqual({
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 0 },
     });
   });
 });
 
-describe("runRangeForBytes", () => {
+describe("rangeAnchorForBytes", () => {
   it("matches the char range for ASCII text", () => {
-    expect(runRangeForBytes(simple, 11, 15)).toEqual(runRangeForChars(simple, 11, 15));
+    expect(rangeAnchorForBytes(simple, 11, 15)).toEqual(rangeAnchorForChars(simple, 11, 15));
   });
 
   it("converts multi-byte UTF-8 offsets to code points", () => {
     // "Æblegrød" — "grød" is bytes 5..11 (Æ is 2 bytes, ø is 2), chars 4..8.
     const runs: Run[] = [{ text: "Æblegrød" }];
-    expect(runRangeForBytes(runs, 5, 11)).toEqual({
-      startRun: 0,
-      startOffset: 4,
-      endRun: 1,
-      endOffset: 0,
+    expect(rangeAnchorForBytes(runs, 5, 11)).toEqual({
+      kind: "range",
+      start: { run: 0, offset: 4 },
+      end: { run: 1 },
     });
   });
 
   it("handles astral code points as single positions", () => {
     // "a😀b" — the emoji is 4 UTF-8 bytes and one code point.
     const runs: Run[] = [{ text: "a😀b" }];
-    expect(runRangeForBytes(runs, 1, 5)).toEqual({
-      startRun: 0,
-      startOffset: 1,
-      endRun: 0,
-      endOffset: 2,
+    expect(rangeAnchorForBytes(runs, 1, 5)).toEqual({
+      kind: "range",
+      start: { run: 0, offset: 1 },
+      end: { run: 0, offset: 2 },
     });
   });
 
   it("clamps a byte offset past the end of the text", () => {
-    expect(runRangeForBytes(simple, 0, 9999)).toEqual({
-      startRun: 0,
-      startOffset: 0,
-      endRun: 1,
-      endOffset: 0,
+    expect(rangeAnchorForBytes(simple, 0, 9999)).toEqual({
+      kind: "range",
+      start: { run: 0 },
+      end: { run: 1 },
     });
   });
 });

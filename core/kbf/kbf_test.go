@@ -188,25 +188,20 @@ func TestValidateTargetAgainstSource_OptionalDrops(t *testing.T) {
 
 func TestResolveAnchor_Block(t *testing.T) {
 	b := filesHeading()
-	res := ResolveAnchor(b, AnnotationAnchor{Kind: AnchorBlock, Block: "files-heading"})
+	res := ResolveAnchor(b, BlockAnchor())
 	require.True(t, res.OK)
 	assert.Equal(t, b, res.BlockTarget)
 }
 
 func TestResolveAnchor_BlockNotFound(t *testing.T) {
-	b := filesHeading()
-	res := ResolveAnchor(b, AnnotationAnchor{Kind: AnchorBlock, Block: "other"})
+	res := ResolveAnchor(nil, BlockAnchor())
 	require.False(t, res.OK)
 	assert.Equal(t, ReasonBlockNotFound, res.Err)
 }
 
 func TestResolveAnchor_Run(t *testing.T) {
 	b := tagChip()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind: AnchorRun, Block: "tag-chip",
-		Path:  RunPath{{Kind: StepIndex, Index: 2}},
-		RunID: "2",
-	})
+	res := ResolveAnchor(b, RunAnchor(nil, "2"))
 	require.True(t, res.OK)
 	require.NotNil(t, res.RunTarget)
 	require.NotNil(t, res.RunTarget.Ph)
@@ -215,71 +210,56 @@ func TestResolveAnchor_Run(t *testing.T) {
 
 func TestResolveAnchor_RunIDMismatch(t *testing.T) {
 	b := tagChip()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind: AnchorRun, Block: "tag-chip",
-		Path:  RunPath{{Kind: StepIndex, Index: 2}},
-		RunID: "mismatched",
-	})
+	res := ResolveAnchor(b, RunAnchor(nil, "mismatched"))
 	require.False(t, res.OK)
 	assert.Equal(t, ReasonRunIDMismatch, res.Err)
 }
 
 func TestResolveAnchor_PathOutOfBounds(t *testing.T) {
 	b := filesHeading()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind: AnchorRun, Block: "files-heading",
-		Path:  RunPath{{Kind: StepIndex, Index: 99}},
-		RunID: "1",
-	})
+	res := ResolveAnchor(b, RunAnchor(RunPath{{Kind: StepIndex, Index: 99}}, "1"))
 	require.False(t, res.OK)
 	assert.Equal(t, ReasonPathOutOfBounds, res.Err)
 }
 
-func TestResolveAnchor_PathWrongKind(t *testing.T) {
-	b := filesHeading()
-	// Index 0 is a text run; run anchor should fail.
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind: AnchorRun, Block: "files-heading",
-		Path:  RunPath{{Kind: StepIndex, Index: 0}},
-		RunID: "x",
-	})
-	require.False(t, res.OK)
-	assert.Equal(t, ReasonPathWrongKind, res.Err)
-}
-
 func TestResolveAnchor_RangeOK(t *testing.T) {
 	b := filesHeading()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind:   AnchorRange,
-		Block:  "files-heading",
-		Path:   RunPath{{Kind: StepIndex, Index: 0}},
-		Offset: 0,
-		Length: 5,
-	})
+	res := ResolveAnchor(b, RangeAnchor(b.Source, 0, 5))
 	require.True(t, res.OK)
-	assert.Equal(t, "Files ", res.RangeText)
+	assert.Equal(t, "Files", res.RangeText)
+}
+
+// A range is a span of the sequence, so it may cross a run boundary — the case
+// a position confined to one run cannot describe. Runs 0..2 here take the text
+// either side of a paired code, and the code comes through whole.
+func TestResolveAnchor_RangeCrossesRuns(t *testing.T) {
+	b := filesHeading()
+	res := ResolveAnchor(b, SpanAnchor(RunPos{Run: 0}, RunPos{Run: 2, Offset: 1}))
+	require.True(t, res.OK)
+	assert.Equal(t, "Files (", res.RangeText)
+
+	var sawPairedCode bool
+	for _, r := range res.RangeRuns {
+		if r.PcOpen != nil {
+			sawPairedCode = true
+		}
+	}
+	assert.True(t, sawPairedCode, "the span covers the paired code between the two text runs")
 }
 
 func TestResolveAnchor_RangeOutOfBounds(t *testing.T) {
 	b := filesHeading()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind:   AnchorRange,
-		Block:  "files-heading",
-		Path:   RunPath{{Kind: StepIndex, Index: 0}},
-		Offset: 0,
-		Length: 999,
-	})
+	res := ResolveAnchor(b, SpanAnchor(RunPos{Run: 0}, RunPos{Run: 99}))
 	require.False(t, res.OK)
 	assert.Equal(t, ReasonRangeOutOfBounds, res.Err)
 }
 
 func TestResolveAnchor_FormOK(t *testing.T) {
 	b := shoppingCart()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind:  AnchorForm,
-		Block: "shopping-cart-plural",
-		Path:  RunPath{{Kind: StepIndex, Index: 0}},
-		Key:   "other",
+	res := ResolveAnchor(b, Anchor{
+		Kind: AnchorForm,
+		Path: RunPath{{Kind: StepIndex, Index: 0}},
+		Key:  "other",
 	})
 	require.True(t, res.OK)
 	require.Len(t, res.FormRuns, 2)
@@ -287,11 +267,10 @@ func TestResolveAnchor_FormOK(t *testing.T) {
 
 func TestResolveAnchor_FormNotFound(t *testing.T) {
 	b := shoppingCart()
-	res := ResolveAnchor(b, AnnotationAnchor{
-		Kind:  AnchorForm,
-		Block: "shopping-cart-plural",
-		Path:  RunPath{{Kind: StepIndex, Index: 0}},
-		Key:   "does-not-exist",
+	res := ResolveAnchor(b, Anchor{
+		Kind: AnchorForm,
+		Path: RunPath{{Kind: StepIndex, Index: 0}},
+		Key:  "does-not-exist",
 	})
 	require.False(t, res.OK)
 	assert.Equal(t, ReasonFormNotFound, res.Err)
@@ -300,14 +279,14 @@ func TestResolveAnchor_FormNotFound(t *testing.T) {
 func TestValidateAnchor_SuccessReturnsNil(t *testing.T) {
 	b := filesHeading()
 	ann := Annotation{Type: "annotation", ID: "a",
-		Anchor: AnnotationAnchor{Kind: AnchorBlock, Block: "files-heading"}}
+		Block: "files-heading", Anchor: Anchor{Kind: AnchorBlock}}
 	assert.Nil(t, ValidateAnchor(b, ann))
 }
 
 func TestValidateAnchor_FailureReturnsError(t *testing.T) {
 	b := filesHeading()
 	ann := Annotation{Type: "annotation", ID: "a",
-		Anchor: AnnotationAnchor{Kind: AnchorBlock, Block: "nonexistent"}}
+		Block: "nonexistent", Anchor: Anchor{Kind: AnchorBlock}}
 	err := ValidateAnchor(b, ann)
 	require.NotNil(t, err)
 	assert.Equal(t, ReasonBlockNotFound, err.Reason)
@@ -338,8 +317,8 @@ func TestAnnotationFileResolvesAgainstFixtures(t *testing.T) {
 	}
 	file := exampleAnnotationFile()
 	for _, ann := range file.Annotations {
-		b, ok := blocks[ann.Anchor.Block]
-		require.Truef(t, ok, "annotation %q refers to unknown block %q", ann.ID, ann.Anchor.Block)
+		b, ok := blocks[ann.Block]
+		require.Truef(t, ok, "annotation %q refers to unknown block %q", ann.ID, ann.Block)
 		res := ResolveAnchor(b, ann.Anchor)
 		require.Truef(t, res.OK, "annotation %q failed to resolve: %s", ann.ID, res.Err)
 	}
@@ -350,7 +329,7 @@ func TestAnnotationFileOrphanDetection(t *testing.T) {
 	// must surface via ValidateAnchor.
 	b := filesHeading()
 	orphan := Annotation{Type: "annotation", ID: "orphan",
-		Anchor: AnnotationAnchor{Kind: AnchorBlock, Block: "gone"}}
+		Block: "gone", Anchor: Anchor{Kind: AnchorBlock}}
 	err := ValidateAnchor(b, orphan)
 	require.NotNil(t, err)
 	assert.Equal(t, ReasonBlockNotFound, err.Reason)
@@ -468,13 +447,14 @@ func exampleAnnotationFile() *AnnotationFile {
 		Annotations: []Annotation{
 			{
 				Type: "annotation", ID: "review-1",
-				Anchor: AnnotationAnchor{Kind: AnchorBlock, Block: "files-heading"},
-				Data:   []byte(`{"kind":"review","locale":"de","status":"approved"}`),
+				Block: "files-heading", Anchor: Anchor{Kind: AnchorBlock},
+				Data: []byte(`{"kind":"review","locale":"de","status":"approved"}`),
 			},
 			{
 				Type: "annotation", ID: "term-1",
-				Anchor: AnnotationAnchor{
-					Kind: AnchorRun, Block: "tag-chip",
+				Block: "tag-chip",
+				Anchor: Anchor{
+					Kind:  AnchorRun,
 					Path:  RunPath{{Kind: StepIndex, Index: 2}},
 					RunID: "2",
 				},
@@ -482,8 +462,9 @@ func exampleAnnotationFile() *AnnotationFile {
 			},
 			{
 				Type: "annotation", ID: "mt-1",
-				Anchor: AnnotationAnchor{
-					Kind: AnchorForm, Block: "shopping-cart-plural",
+				Block: "shopping-cart-plural",
+				Anchor: Anchor{
+					Kind: AnchorForm,
 					Path: RunPath{{Kind: StepIndex, Index: 0}},
 					Key:  "other",
 				},
@@ -491,13 +472,11 @@ func exampleAnnotationFile() *AnnotationFile {
 			},
 			{
 				Type: "annotation", ID: "term-2",
-				Anchor: AnnotationAnchor{
-					Kind: AnchorRange, Block: "files-heading",
-					Path:   RunPath{{Kind: StepIndex, Index: 0}},
-					Offset: 0,
-					Length: 5,
-				},
-				Data: []byte(`{"kind":"term-match","term":"Files"}`),
+				Block: "files-heading",
+				// A range spans the sequence, so it is bounded by two run
+				// positions rather than by an offset into one run.
+				Anchor: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 0, Offset: 5}),
+				Data:   []byte(`{"kind":"term-match","term":"Files"}`),
 			},
 		},
 	}

@@ -144,7 +144,7 @@ func NewDNTCheckTool(cfg *DNTCheckConfig) *tool.BaseTool {
 				Severity:     check.SeverityCritical,
 				Message:      fmt.Sprintf("Do-not-translate term %q is missing from the %s target — it appears to have been translated or altered", term, conf.TargetLocale),
 				Suggestion:   fmt.Sprintf("Keep %q verbatim in the target", term),
-				Position:     model.RunRangeForBytes(sourceRuns, hits[0][0], hits[0][1]),
+				Position:     model.RangeAnchorForBytes(sourceRuns, hits[0][0], hits[0][1]),
 				OriginalText: source[hits[0][0]:hits[0][1]],
 				// Record the verbatim term so a host can show what must be
 				// preserved. We deliberately do NOT set Metadata["replacement"]:

@@ -150,7 +150,7 @@ type OriginView struct {
 // OverlaySpanView is one run-anchored span of an overlay with its extracted text.
 type OverlaySpanView struct {
 	ID        string            `json:"id,omitempty"`
-	Range     model.RunRange    `json:"range"`
+	Range     model.Anchor      `json:"range"`
 	Props     map[string]string `json:"props,omitempty"`
 	Text      string            `json:"text,omitempty"`
 	Ignorable bool              `json:"ignorable,omitempty"`
@@ -584,7 +584,7 @@ func segmentSpans(b *model.Block) []SegmentSpan {
 	}
 	spans := make([]SegmentSpan, 0, len(seg.Spans))
 	for _, s := range seg.Spans {
-		spans = append(spans, SegmentSpan{ID: s.ID, Start: s.Range.StartRun, End: s.Range.EndRun})
+		spans = append(spans, SegmentSpan{ID: s.ID, Start: s.Range.Start.Run, End: s.Range.End.Run})
 	}
 	return spans
 }

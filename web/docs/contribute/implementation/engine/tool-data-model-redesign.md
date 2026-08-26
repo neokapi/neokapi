@@ -195,7 +195,7 @@ type VariantView interface {
 }
 ```
 
-Reads reuse `RunRange.ExtractRuns` (`core/model/overlay.go`); writes use an
+Reads reuse `Anchor.ExtractRuns` (`core/model/anchor.go`); writes use an
 inverse splice that respects half-open ranges and `Span.Ignorable()`. The
 iterator is the single place the "segmented or not" branch lives — every
 per-segment tool (`recycle` segment keys, per-segment MT, segment-level QA)

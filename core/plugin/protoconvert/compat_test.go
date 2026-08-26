@@ -145,15 +145,15 @@ func TestCompatBlockCorpus(t *testing.T) {
 	})
 	frKey := model.Variant(model.LocaleID("fr-FR"))
 	b.SetSegmentation(&frKey, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
-		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	b.SetTargetText(model.LocaleID("de-DE"), "Hallo Welt")
 
 	// Source segmentation (reconstructed from segment boundaries on the wire).
 	b.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 3}},
-		{ID: "s2", Range: model.RunRange{StartRun: 3, EndRun: len(b.Source)}},
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.Source)})},
 	})
 
 	// Stand-off overlays: source-side term overlay with props + typed payload,
@@ -162,7 +162,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 		Type: model.OverlayType("term"),
 		Spans: []model.Span{{
 			ID:    "t1",
-			Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 1, EndOffset: 5},
+			Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1, Offset: 5}),
 			Props: map[string]string{"concept": "c-42", "status": "approved"},
 			Value: &model.TermAnnotation{SourceTerm: "plain", ConceptID: "c-42", Score: 1.0},
 		}},
@@ -174,7 +174,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 		Layer:   "review",
 		Spans: []model.Span{{
 			ID:    "q1",
-			Range: model.RunRange{StartRun: 0, EndRun: 1},
+			Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),
 			Props: map[string]string{"severity": "minor"},
 		}},
 	})

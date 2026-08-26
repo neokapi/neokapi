@@ -6,6 +6,29 @@ import "github.com/neokapi/neokapi/core/model"
 // Consumers MUST reject unknown major versions and SHOULD accept
 // unknown minor versions of their major (forward-compat contract in
 // RFC 0001 §Versioning).
+// Anchor constructors, re-exported with the vocabulary above.
+var (
+	BlockAnchor         = model.BlockAnchor
+	RunAnchor           = model.RunAnchor
+	FormAnchor          = model.FormAnchor
+	SpanAnchor          = model.SpanAnchor
+	RangeAnchor         = model.RangeAnchor
+	RangeAnchorForBytes = model.RangeAnchorForBytes
+)
+
+// The anchor vocabulary, so a KBF caller names kinds and path steps without
+// reaching past the format package for them.
+const (
+	AnchorBlock = model.AnchorBlock
+	AnchorRun   = model.AnchorRun
+	AnchorRange = model.AnchorRange
+	AnchorForm  = model.AnchorForm
+
+	StepIndex  = model.StepIndex
+	StepPlural = model.StepPlural
+	StepSelect = model.StepSelect
+)
+
 const SchemaVersion = "1.0"
 
 // Kind is the magic string on the root of a .kbf.json document.
@@ -18,6 +41,12 @@ const Kind = "kapi-bundle"
 
 type (
 	PluralForm      = model.PluralForm
+	Anchor          = model.Anchor
+	AnchorKind      = model.AnchorKind
+	RunPos          = model.RunPos
+	RunPath         = model.RunPath
+	RunPathStep     = model.RunPathStep
+	RunPathStepKind = model.RunPathStepKind
 	PlaceholderKind = model.PlaceholderKind
 	LocaleID        = string
 	RunConstraints  = model.RunConstraints

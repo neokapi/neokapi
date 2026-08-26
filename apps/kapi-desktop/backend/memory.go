@@ -742,7 +742,7 @@ func (a *App) LookupMemory(handle string, req LookupMemoryRequest) []MemoryMatch
 	for i, ea := range req.Entities {
 		block.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", i),
-			Range: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
+			Range: model.RangeAnchorForBytes(block.Source, ea.Start, ea.End),
 			Value: &model.EntityAnnotation{
 				Text:   ea.Text,
 				Type:   model.EntityType(ea.Type),

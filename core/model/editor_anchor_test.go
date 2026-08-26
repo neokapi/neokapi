@@ -16,7 +16,7 @@ func editorAnchorCases() []struct {
 	name   string
 	anchor *model.EditorAnchor
 } {
-	figmaSub := &model.RunRange{StartRun: 0, StartOffset: 2, EndRun: 1, EndOffset: 0}
+	figmaSub := &model.Anchor{Kind: model.AnchorRange, Start: model.RunPos{Run: 0, Offset: 2}, End: model.RunPos{Run: 1}}
 	return []struct {
 		name   string
 		anchor *model.EditorAnchor
@@ -133,9 +133,9 @@ func TestEditorAnchor_BlockAccessors(t *testing.T) {
 	assert.Empty(t, b.EditorAnchors())
 	assert.Nil(t, b.EditorAnchorByID("a1"))
 
-	b.AddEditorAnchor("a1", model.RunRange{StartRun: 0, EndRun: 2},
+	b.AddEditorAnchor("a1", model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2}),
 		&model.EditorAnchor{System: model.EditorSystemWord, Ref: "cc-tag-1"})
-	b.AddEditorAnchor("a2", model.RunRange{StartRun: 1, EndRun: 2},
+	b.AddEditorAnchor("a2", model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}),
 		&model.EditorAnchor{System: model.EditorSystemFigma, Ref: "1:23"})
 
 	o := b.OverlayOf(model.OverlayEditorAnchor)
@@ -163,8 +163,8 @@ func TestEditorAnchor_BlockAccessors(t *testing.T) {
 func TestEditorAnchor_SurvivesBlockCopy(t *testing.T) {
 	t.Parallel()
 	src := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Title"}}})
-	subRange := &model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 5}
-	src.AddEditorAnchor("a1", model.RunRange{StartRun: 0, EndRun: 1},
+	subRange := &model.Anchor{Kind: model.AnchorRange, Start: model.RunPos{Run: 0}, End: model.RunPos{Run: 0, Offset: 5}}
+	src.AddEditorAnchor("a1", model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),
 		&model.EditorAnchor{
 			System: model.EditorSystemGDocs,
 			Ref:    "kix.namedrange.7",
@@ -206,7 +206,7 @@ type overlayJSONEnv struct {
 
 type spanJSONEnv struct {
 	ID    string          `json:"id"`
-	Range model.RunRange  `json:"range"`
+	Range model.Anchor    `json:"range"`
 	Type  string          `json:"valueType,omitempty"`
 	Value json.RawMessage `json:"value,omitempty"`
 }
@@ -274,7 +274,7 @@ func TestEditorAnchor_SurvivesInOutOperation(t *testing.T) {
 				{Text: &model.TextRun{Text: "Read, change, "}},
 				{Text: &model.TextRun{Text: "and ship content."}},
 			})
-			spanRange := model.RunRange{StartRun: 0, EndRun: 2}
+			spanRange := model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2})
 			b.AddEditorAnchor("a1", spanRange, tc.anchor)
 
 			// read → write → read.

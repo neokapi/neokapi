@@ -164,7 +164,7 @@ export const sampleFindings: VoiceFinding[] = [
     severity: "major",
     message: "Forbidden term 'simple' detected.",
     suggestion: "Replace with 'minimal' or 'straightforward'.",
-    position: { startRun: 0, startOffset: 12, endRun: 0, endOffset: 18 },
+    position: { kind: "range", start: { run: 0, offset: 12 }, end: { run: 0, offset: 18 } },
     original_text: "simple",
   },
   {
@@ -172,7 +172,7 @@ export const sampleFindings: VoiceFinding[] = [
     severity: "minor",
     message: "Sentence uses passive voice.",
     suggestion: "Rewrite in active voice: 'The API returns...'",
-    position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 45 },
+    position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 45 } },
     original_text: "The data is returned by the API.",
   },
   {
@@ -180,21 +180,21 @@ export const sampleFindings: VoiceFinding[] = [
     severity: "critical",
     message: "Contraction detected in formal profile.",
     suggestion: 'Replace "don\'t" with "do not".',
-    position: { startRun: 0, startOffset: 22, endRun: 0, endOffset: 27 },
+    position: { kind: "range", start: { run: 0, offset: 22 }, end: { run: 0, offset: 27 } },
     original_text: "don't",
   },
   {
     category: "clarity",
     severity: "minor",
     message: "Sentence exceeds recommended length (42 words).",
-    position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 280 },
+    position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 280 } },
   },
   {
     category: "compliance",
     severity: "major",
     message: "Competitor name mentioned directly.",
     suggestion: "Use a generic reference instead.",
-    position: { startRun: 0, startOffset: 55, endRun: 0, endOffset: 63 },
+    position: { kind: "range", start: { run: 0, offset: 55 }, end: { run: 0, offset: 63 } },
     original_text: "Acme API",
   },
 ];

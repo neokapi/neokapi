@@ -78,7 +78,8 @@ describe("buildReviewManifest", () => {
       JSON.stringify({
         type: "annotation",
         id: "t1",
-        anchor: { kind: "block", block: "h-welcome" },
+        block: "h-welcome",
+        anchor: { kind: "block" },
         data: { term: "Welcome", message: "keep on brand" },
       }) +
       "\n";

@@ -152,7 +152,11 @@ describe("FormatPreview — inline codes", () => {
               spans: [
                 {
                   id: "t1",
-                  range: { startRun: 0, startOffset: 13, endRun: 2, endOffset: 6 },
+                  range: {
+                    kind: "range",
+                    start: { run: 0, offset: 13 },
+                    end: { run: 2, offset: 6 },
+                  },
                   text: "reset on . Upgrade",
                 },
               ],

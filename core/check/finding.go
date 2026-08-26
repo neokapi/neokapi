@@ -77,7 +77,7 @@ type Finding struct {
 	// Suggestion is an optional remediation hint (e.g. the preferred term).
 	Suggestion string `json:"suggestion,omitempty"`
 	// Position is the run-range the finding applies to, anchored to source runs.
-	Position model.RunRange `json:"position"`
+	Position model.Anchor `json:"position"`
 	// OriginalText is the offending snippet, when available.
 	OriginalText string `json:"original_text,omitempty"`
 	// Check names the checker that produced this finding, stamped by Annotate.

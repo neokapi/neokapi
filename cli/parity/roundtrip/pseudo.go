@@ -212,7 +212,7 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 			cursor = end
 			sp := model.Span{
 				ID:    s.id,
-				Range: model.RunRange{StartRun: start, EndRun: end},
+				Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: end}),
 			}
 			if len(s.props) > 0 {
 				props := make(map[string]string, len(s.props))

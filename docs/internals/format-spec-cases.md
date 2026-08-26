@@ -181,7 +181,7 @@ Field contracts, grounded in `core/model`:
   the executable contract rather than prose in the html spec.
 - **overlays** — `{type, layer?, variant?, spans: [{id?, range:
   [startRun, startOffset, endRun, endOffset], props?}]}` per `model.Overlay`
-  / `model.Span` / `model.RunRange` (half-open, rune offsets). Present when
+  / `model.Span` / `model.Anchor` (half-open, rune offsets). Present when
   the case's operation produces them (`segment`, `anchor`); absent
   otherwise.
 - **`data` / `media`** — `id`, optional `name`, `properties`.

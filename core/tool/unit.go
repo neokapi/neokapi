@@ -22,7 +22,7 @@ type Unit interface {
 
 	// Range is the source run range the unit covers, or nil for the whole-block
 	// unit. The returned pointer is a copy; mutating it does not affect the block.
-	Range() *model.RunRange
+	Range() *model.Anchor
 
 	// Ignorable reports whether the unit is a non-translatable structural span
 	// (a segmentation span marked model.SpanPropIgnorable). Always false for the
@@ -56,7 +56,7 @@ type WritableUnit interface {
 type unit struct {
 	b         *model.Block
 	idx       int
-	rng       *model.RunRange // nil = whole block
+	rng       *model.Anchor // nil = whole block
 	layer     string
 	src       []model.Run
 	ignorable bool
@@ -69,7 +69,7 @@ type unit struct {
 
 func (u *unit) Index() int { return u.idx }
 
-func (u *unit) Range() *model.RunRange {
+func (u *unit) Range() *model.Anchor {
 	if u.rng == nil {
 		return nil
 	}

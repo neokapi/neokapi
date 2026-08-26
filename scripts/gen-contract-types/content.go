@@ -56,8 +56,10 @@ var projectionTypes = []emitType{
 		"A structured plural construct, keyed by ICU plural form.\nMirrors model.PluralRun."},
 	{"SelectRun", reflect.TypeFor[model.SelectRun](),
 		"A structured select construct, keyed by arbitrary case values.\nMirrors model.SelectRun."},
-	{"RunRange", reflect.TypeFor[model.RunRange](),
-		"A run-anchored span: [startRun,endRun) run indexes with rune offsets.\nMirrors model.RunRange."},
+	{"RunPos", reflect.TypeFor[model.RunPos](),
+		"A character boundary in a run sequence: an index into the sequence and a\nrune offset into that run's text. Mirrors model.RunPos."},
+	{"Anchor", reflect.TypeFor[model.Anchor](),
+		"Where inside a block something is: the whole block, one run, a span of\ncharacters, or a branch of a structured run. Positions are run-relative so\nthey survive edits to neighbouring runs, and pathed so a position inside a\nplural form or select case is addressable.\nMirrors model.Anchor."},
 	{"ContentTree", reflect.TypeFor[editor.ContentTree](),
 		"The hierarchical anatomy view of a document's Part stream — a labeled\nPROJECTION of the content model (AD-034), not a wire contract. Its run\npayloads use the model's canonical Run JSON (the `Run` union here).\nMirrors core/editor.ContentTree."},
 	{"ContentNode", reflect.TypeFor[editor.ContentNode](),
@@ -125,6 +127,7 @@ func emitContent() (string, error) {
 
 	b.WriteString("\n// ── Projection shapes (model.Run JSON + core/editor ContentTree) ────────────\n")
 	b.WriteString(emitModelRun())
+	b.WriteString(emitRunPathStep())
 	for _, e := range projectionTypes {
 		iface, err := renderInterface(e)
 		if err != nil {
@@ -134,6 +137,22 @@ func emitContent() (string, error) {
 		b.WriteString(iface)
 	}
 	return b.String(), nil
+}
+
+// emitRunPathStep hand-emits the model.RunPathStep union. Reflection sees a
+// struct with a discriminator field; the JSON is one of three shapes, because a
+// path reads as the walk it describes rather than as a record of tagged unions.
+func emitRunPathStep() string {
+	return `
+/**
+ * One step of a RunPath. Discriminated by shape:
+ * - ` + "`number`" + ` — index into a Run[] sequence.
+ * - ` + "`{ plural: PluralForm }`" + ` — step into a plural run's form.
+ * - ` + "`{ select: string }`" + ` — step into a select run's case.
+ * Mirrors model.RunPathStep.
+ */
+export type RunPathStep = number | { plural: string } | { select: string };
+`
 }
 
 // emitModelRun hand-emits the model.Run discriminated union. Reflection cannot

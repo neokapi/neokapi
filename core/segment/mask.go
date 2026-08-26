@@ -74,7 +74,7 @@ func (fl *Flattened) Runes() []rune { return fl.runes }
 func (fl *Flattened) Len() int { return len(fl.runes) }
 
 // realOffset converts a rune offset into the masked text to the equivalent
-// offset into the TextRun-only flattening that model.RunRangeFor expects.
+// offset into the TextRun-only flattening that model.RangeAnchor expects.
 func (fl *Flattened) realOffset(maskOff int) int {
 	if maskOff > len(fl.runes) {
 		maskOff = len(fl.runes)
@@ -121,7 +121,7 @@ func (fl *Flattened) Spans(breaks []int) []model.Span {
 		}
 		spans = append(spans, model.Span{
 			ID:    fmt.Sprintf("s%d", len(spans)+1),
-			Range: model.RunRangeFor(fl.runs, rs, re),
+			Range: model.RangeAnchor(fl.runs, rs, re),
 		})
 	}
 	return spans

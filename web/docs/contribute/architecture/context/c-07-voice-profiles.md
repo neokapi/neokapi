@@ -75,7 +75,7 @@ framework's content-verification core (`core/check`). It carries a free-form
 `Category` — a voice finding sets it to one of the fixed dimensions (tone, style,
 vocabulary, clarity, brand compliance) — a severity, a human message, an optional
 suggestion, the original text, optional metadata, and a **`Position
-model.RunRange`**, so a finding is anchored to the runs it concerns, the same
+model.Anchor`**, so a finding is anchored to the runs it concerns, the same
 run-range model overlays and redaction use
 ([F-02](../foundations/f-02-content-model.md)).
 

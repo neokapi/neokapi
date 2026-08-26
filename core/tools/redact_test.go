@@ -121,7 +121,7 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 	block.SourceLocale = "en"
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:0",
-		Range: model.RunRangeForBytes(block.Source, 0, 5),
+		Range: model.RangeAnchorForBytes(block.Source, 0, 5),
 		Value: &model.EntityAnnotation{
 			Text: "Alice",
 			Type: model.EntityPerson,
@@ -129,7 +129,7 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 	})
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:1",
-		Range: model.RunRangeForBytes(block.Source, 10, 13),
+		Range: model.RangeAnchorForBytes(block.Source, 10, 13),
 		Value: &model.EntityAnnotation{
 			Text: "Bob",
 			Type: model.EntityPerson,
@@ -161,7 +161,7 @@ func TestRedactTool_PreservesUpstreamTermOverlay(t *testing.T) {
 	start := strings.Index(beanSentence, "England")
 	block.AddOverlaySpan(model.OverlayTerm, model.Span{
 		ID:    "term:england",
-		Range: model.RunRangeForBytes(block.Source, start, start+len("England")),
+		Range: model.RangeAnchorForBytes(block.Source, start, start+len("England")),
 	})
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
@@ -193,12 +193,12 @@ func TestRedactTool_EntityTypesEnablesEntities(t *testing.T) {
 	block := model.NewBlock("b1", "Bob shipped on 2024-01-02")
 	block.SourceLocale = "en"
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
-		ID: "e0", Range: model.RunRangeForBytes(block.Source, 0, 3),
+		ID: "e0", Range: model.RangeAnchorForBytes(block.Source, 0, 3),
 		Value: &model.EntityAnnotation{Text: "Bob", Type: model.EntityPerson},
 	})
 	dateStart := strings.Index(block.SourceText(), "2024-01-02")
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
-		ID: "e1", Range: model.RunRangeForBytes(block.Source, dateStart, dateStart+len("2024-01-02")),
+		ID: "e1", Range: model.RangeAnchorForBytes(block.Source, dateStart, dateStart+len("2024-01-02")),
 		Value: &model.EntityAnnotation{Text: "2024-01-02", Type: model.EntityDate},
 	})
 

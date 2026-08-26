@@ -1,8 +1,8 @@
 /** Voice types matching Go core/profile package */
 
-import type { RunRange } from "@neokapi/contract-types";
+import type { Anchor } from "@neokapi/contract-types";
 
-export type { RunRange };
+export type { Anchor };
 
 export interface ToneProfile {
   personality: string[];
@@ -136,7 +136,7 @@ export type VoiceSeverity = "neutral" | "minor" | "major" | "critical";
  * read `finding.dimension` and rendered an empty chip for every server-sourced
  * finding, and `ContextScanLiveTester` carried a normaliser to paper over it on
  * the one path it knew about. And `position` is a run-anchored
- * {@link RunRange}, not `{start, end}` character offsets — a consumer that
+ * {@link Anchor}, not `{start, end}` character offsets — a consumer that
  * believed the declaration would have indexed into the wrong thing.
  *
  * `position` is optional because a finding need not locate anything: a checker
@@ -153,7 +153,7 @@ export interface VoiceFinding {
   message: string;
   suggestion?: string;
   /** Run-anchored span over the checked runs. */
-  position?: RunRange;
+  position?: Anchor;
   original_text?: string;
   /**
    * The checker that produced this finding, stamped when it was recorded.

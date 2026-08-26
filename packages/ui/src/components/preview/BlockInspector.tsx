@@ -5,7 +5,7 @@ import { directionAttrs } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
-import { runsPlainText } from "./runRange";
+import { runsPlainText } from "./anchor";
 import RunSequence from "./RunSequence";
 import type { AnnotationView, ContentNode, OverlayView, Run, TargetMeta } from "./types";
 
@@ -260,7 +260,7 @@ function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {
             <li key={i} className="flex flex-wrap items-baseline gap-x-2">
               {s.id && <span className="text-muted-foreground">{s.id}</span>}
               <span className="text-muted-foreground/70">
-                [{s.range.startRun}:{s.range.endRun}]
+                [{s.range.start.run}:{s.range.end.run}]
               </span>
               {s.text && <span className="text-foreground/90">“{s.text}”</span>}
               {s.ignorable && (

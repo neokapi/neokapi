@@ -33,7 +33,7 @@ A block's content is a flat `[]Run` per locale
 ([F-02](../foundations/f-02-content-model.md)). Every interpretation *of* that
 content is a typed overlay layered over the runs. Segmentation is one such
 overlay: an ordered, non-overlapping list of spans, each anchored by a
-`RunRange` — a start and end run position plus a rune offset into the text run
+`Anchor` — a start and end run position, each a rune offset into the text run
 at each end, half-open.
 
 <StreamDiagram

@@ -159,7 +159,7 @@ func (b *Block) SourceSegmentation() *Overlay { /* finds Overlay{Type: "segmenta
 func (b *Block) SourceSegmentCount() int { /* span count from SourceSegmentation */ }
 
 // SourceSegmentRuns returns the run slice for the i-th source segment span.
-func (b *Block) SourceSegmentRuns(i int) []Run { /* sub-slice from RunRange */ }
+func (b *Block) SourceSegmentRuns(i int) []Run { /* sub-slice from the span's Anchor */ }
 
 // SetSegmentation replaces the segmentation overlay for the given variant
 // (nil = source side). Segmentation is stored as a stand-off Overlay —
@@ -192,18 +192,32 @@ type Overlay struct {
     Spans   []Span
 }
 
-// Span is one entry in an Overlay: a run-anchored range with an optional id
-// and type-specific props. RunRange is half-open [start, end) over the run
-// slice, with intra-text-run rune offsets so boundaries survive inline-code
-// insertions and edits.
+// Span is one entry in an Overlay: a run-anchored range with an optional id and
+// type-specific props.
 type Span struct {
     ID    string
-    Range RunRange
+    Range Anchor
     Props map[string]string
 }
 
-type RunRange struct {
-    StartRun, StartOffset, EndRun, EndOffset int
+// Anchor says where inside a block something is, and every producer records
+// positions with it: overlays, check findings, stand-off annotations. Kind
+// picks what it addresses; Path walks into nested runs (a plural form, a
+// select case) and is empty for the block's own sequence.
+type Anchor struct {
+    Kind  AnchorKind // block | run | range | form
+    Path  RunPath
+    RunID string     // kind run
+    Start RunPos     // kind range, half-open [Start, End)
+    End   RunPos
+    Key   string     // kind form: a plural form or a select case
+}
+
+// RunPos is a character boundary: an index into a run sequence and a rune
+// offset into that run's text, so a boundary survives inline codes and edits
+// to neighbouring runs.
+type RunPos struct {
+    Run, Offset int
 }
 ```
 

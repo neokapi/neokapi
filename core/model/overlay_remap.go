@@ -74,7 +74,7 @@ func RemapOverlays(b *Block, oldRuns []Run, edits []RunEdit) int {
 // or entirely after its end — both endpoints carry the same delta.
 //
 // A shifted span that does not fit the new flattening is dropped rather than
-// clamped: the edits then do not describe the rewrite (RunRangeFor would
+// clamped: the edits then do not describe the rewrite (RangeAnchor would
 // silently mis-anchor the span at the end), and a missing span is honest while
 // a misplaced one is corrupt.
 func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
@@ -92,7 +92,7 @@ func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
 		return Span{}, false // the edits do not describe the rewrite
 	}
 	ns := s
-	ns.Range = RunRangeFor(newRuns, start+delta, end+delta)
+	ns.Range = RangeAnchor(newRuns, start+delta, end+delta)
 	return ns, true
 }
 

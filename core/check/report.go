@@ -71,20 +71,20 @@ type Diagnostic struct {
 	Message string `json:"message"`
 	// Suggestion is an optional remediation hint.
 	Suggestion string `json:"suggestion,omitempty"`
-	// Location anchors the finding to a block (and run-range/snippet when known).
+	// Location anchors the finding to a block (and anchor/snippet when known).
 	Location Location `json:"location"`
 	// Metadata carries checker-specific detail (limit, count, matched rule id).
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // Location anchors a Diagnostic. Block is the primary handle an AI uses to find
-// the content to revise; run_range/snippet refine it when the checker populated
+// the content to revise; anchor/snippet refine it when the checker populated
 // a position.
 type Location struct {
-	File     string          `json:"file,omitempty"`
-	Block    string          `json:"block,omitempty"`
-	RunRange *model.RunRange `json:"run_range,omitempty"`
-	Snippet  string          `json:"snippet,omitempty"`
+	File    string        `json:"file,omitempty"`
+	Block   string        `json:"block,omitempty"`
+	Anchor  *model.Anchor `json:"anchor,omitempty"`
+	Snippet string        `json:"snippet,omitempty"`
 }
 
 // RuleID builds the stable "<check>.<category>" rule id.
@@ -115,7 +115,7 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 	}
 	if !f.Position.IsZero() {
 		rr := f.Position
-		d.Location.RunRange = &rr
+		d.Location.Anchor = &rr
 	}
 	if f.OriginalText != "" && d.Location.Snippet == "" {
 		d.Location.Snippet = f.OriginalText

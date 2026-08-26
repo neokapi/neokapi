@@ -1499,7 +1499,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           category: "vocabulary",
           severity: r.severity ?? "major",
           message: `Uses the term "${r.term}"`,
-          position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: r.term.length },
+          position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: r.term.length } },
           original_text: r.term,
         }));
       return { score: { overall: findings.length > 0 ? 62 : 96 }, findings };

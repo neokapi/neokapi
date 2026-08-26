@@ -35,7 +35,10 @@ interface BlockLocation {
 interface AnnotationRecord {
   id: string;
   annotationType: string;
-  anchor: { kind: string; block: string } & Record<string, unknown>;
+  /** The block the annotation is about. */
+  block: string;
+  /** Where inside that block — the model's Anchor, kind and all. */
+  anchor: { kind: string } & Record<string, unknown>;
   data: unknown;
 }
 
@@ -136,15 +139,16 @@ export class ReviewStore {
         }
         if (rec.type !== "annotation") continue;
         const anchor = rec.anchor as AnnotationRecord["anchor"] | undefined;
-        if (!anchor?.block) continue;
-        const list = this.annotations.get(anchor.block) ?? [];
+        if (!anchor || typeof rec.block !== "string" || rec.block === "") continue;
+        const list = this.annotations.get(rec.block) ?? [];
         list.push({
           id: typeof rec.id === "string" ? rec.id : "",
           annotationType,
+          block: rec.block,
           anchor,
           data: rec.data,
         });
-        this.annotations.set(anchor.block, list);
+        this.annotations.set(rec.block, list);
       }
     } catch {
       // Malformed annotation file — annotations are derivable; skip.

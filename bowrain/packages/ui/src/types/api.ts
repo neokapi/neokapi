@@ -1,5 +1,5 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
-import type { IOPort, Run, RunRange } from "@neokapi/contract-types";
+import type { IOPort, Run, Anchor } from "@neokapi/contract-types";
 import type { VoiceFinding, VoiceProfile } from "../voice/types";
 export type { IOPort };
 
@@ -1256,7 +1256,7 @@ export interface QAIssue {
   type: string;
   severity: "error" | "warning";
   message: string;
-  position?: RunRange;
+  position?: Anchor;
   suggestion?: string;
   original_text?: string;
 }

@@ -517,11 +517,11 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 	block := model.NewBlock("b1", "Alice met Bob in Paris")
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "e1",
-		Range: model.RunRangeFor(block.Source, 0, 5),
+		Range: model.RangeAnchor(block.Source, 0, 5),
 		Value: &model.EntityAnnotation{Text: "Alice", Type: model.EntityType("entity:person")},
 	})
 	block.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RunRangeFor(block.Source, 0, 22)},
+		{ID: "s1", Range: model.RangeAnchor(block.Source, 0, 22)},
 	})
 	block.AddNote(&model.NoteAnnotation{Text: "reviewed"})
 

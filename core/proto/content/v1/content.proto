@@ -40,13 +40,34 @@ message AnnotationEntry {
   bytes data = 2;     // JSON-encoded type-specific payload
 }
 
-// RunRangeMessage is a run-anchored byte/run span (the position of a
-// overlay span).
-message RunRangeMessage {
-  int32 start_run = 1;
-  int32 start_offset = 2;
-  int32 end_run = 3;
-  int32 end_offset = 4;
+// RunPosMessage is a character boundary in a run sequence: an index into the
+// sequence and a rune offset into that run's text.
+message RunPosMessage {
+  int32 run = 1;
+  int32 offset = 2;
+}
+
+// RunPathStepMessage is one hop into a block's nested run structure: an index
+// into a sequence, a plural form, or a select case.
+message RunPathStepMessage {
+  oneof step {
+    int32 index = 1;
+    string plural_form = 2;
+    string select_value = 3;
+  }
+}
+
+// AnchorMessage says where inside a block something is. Positions are
+// run-relative so they survive edits to neighbouring runs, and pathed so a
+// position inside a plural form or select case is addressable rather than
+// approximated by an offset into the flattening.
+message AnchorMessage {
+  string kind = 1;                       // block | run | range | form
+  repeated RunPathStepMessage path = 2;  // empty = the block's own runs
+  string run_id = 3;                     // kind = run
+  RunPosMessage start = 4;               // kind = range
+  RunPosMessage end = 5;                 // kind = range
+  string key = 6;                        // kind = form
 }
 
 // VariantMessage identifies a target variant (locale + optional tone/channel).
@@ -63,7 +84,7 @@ message VariantMessage {
 // like block-scoped annotations).
 message SpanMessage {
   string id = 1;
-  RunRangeMessage range = 2;
+  AnchorMessage range = 2;
   map<string, string> props = 3;
   AnnotationEntry value = 4;
 }

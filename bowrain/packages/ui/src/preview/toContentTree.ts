@@ -6,7 +6,7 @@
 // `overlays`. Bowrain's REST surfaces carry the same content plus a flat
 // evidence layer alongside it — term matches and entities positioned by byte
 // offset into the block's plain source text, voice/QA findings already anchored
-// to a RunRange, and check results with no position at all. This module is the
+// to a Anchor, and check results with no position at all. This module is the
 // one place those are reconciled, so a rendering surface consumes a ContentTree
 // and never re-derives positions itself.
 //
@@ -29,10 +29,10 @@ import type {
   ContentTree,
   OverlaySpan,
   OverlayView,
-  RunRange,
+  Anchor,
   TargetMeta,
 } from "@neokapi/ui-primitives/preview";
-import { runRangeForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
+import { rangeAnchorForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
 import type { VoiceFinding } from "../voice/types";
 import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
@@ -145,7 +145,7 @@ function overlay(type: OverlayView["type"], side: string, spans: OverlaySpan[]):
 function termSpans(runs: Run[], matches: BlockTermMatch[]): OverlaySpan[] {
   return matches.map((match, i) => ({
     id: `term:${i}`,
-    range: runRangeForBytes(runs, match.start, match.end),
+    range: rangeAnchorForBytes(runs, match.start, match.end),
     text: textForBytes(runs, match.start, match.end) || match.source_term,
     props: props({
       term: match.source_term,
@@ -159,7 +159,7 @@ function termSpans(runs: Run[], matches: BlockTermMatch[]): OverlaySpan[] {
 function entitySpans(runs: Run[], entities: EntityInfo[]): OverlaySpan[] {
   return entities.map((entity, i) => ({
     id: entity.key || `entity:${i}`,
-    range: runRangeForBytes(runs, entity.start, entity.end),
+    range: rangeAnchorForBytes(runs, entity.start, entity.end),
     text: textForBytes(runs, entity.start, entity.end) || entity.text,
     props: props({
       type: entity.type,
@@ -169,7 +169,7 @@ function entitySpans(runs: Run[], entities: EntityInfo[]): OverlaySpan[] {
   }));
 }
 
-const ZERO_RANGE: RunRange = { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 };
+const ZERO_RANGE: Anchor = { kind: "range", start: { run: 0 }, end: { run: 0 } };
 
 function findingSpan(finding: BlockFinding, index: number): OverlaySpan {
   return {

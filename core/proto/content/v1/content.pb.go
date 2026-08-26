@@ -98,32 +98,30 @@ func (x *AnnotationEntry) GetData() []byte {
 	return nil
 }
 
-// RunRangeMessage is a run-anchored byte/run span (the position of a
-// overlay span).
-type RunRangeMessage struct {
+// RunPosMessage is a character boundary in a run sequence: an index into the
+// sequence and a rune offset into that run's text.
+type RunPosMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StartRun      int32                  `protobuf:"varint,1,opt,name=start_run,json=startRun,proto3" json:"start_run,omitempty"`
-	StartOffset   int32                  `protobuf:"varint,2,opt,name=start_offset,json=startOffset,proto3" json:"start_offset,omitempty"`
-	EndRun        int32                  `protobuf:"varint,3,opt,name=end_run,json=endRun,proto3" json:"end_run,omitempty"`
-	EndOffset     int32                  `protobuf:"varint,4,opt,name=end_offset,json=endOffset,proto3" json:"end_offset,omitempty"`
+	Run           int32                  `protobuf:"varint,1,opt,name=run,proto3" json:"run,omitempty"`
+	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RunRangeMessage) Reset() {
-	*x = RunRangeMessage{}
+func (x *RunPosMessage) Reset() {
+	*x = RunPosMessage{}
 	mi := &file_core_proto_content_v1_content_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RunRangeMessage) String() string {
+func (x *RunPosMessage) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RunRangeMessage) ProtoMessage() {}
+func (*RunPosMessage) ProtoMessage() {}
 
-func (x *RunRangeMessage) ProtoReflect() protoreflect.Message {
+func (x *RunPosMessage) ProtoReflect() protoreflect.Message {
 	mi := &file_core_proto_content_v1_content_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -135,37 +133,211 @@ func (x *RunRangeMessage) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RunRangeMessage.ProtoReflect.Descriptor instead.
-func (*RunRangeMessage) Descriptor() ([]byte, []int) {
+// Deprecated: Use RunPosMessage.ProtoReflect.Descriptor instead.
+func (*RunPosMessage) Descriptor() ([]byte, []int) {
 	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RunRangeMessage) GetStartRun() int32 {
+func (x *RunPosMessage) GetRun() int32 {
 	if x != nil {
-		return x.StartRun
+		return x.Run
 	}
 	return 0
 }
 
-func (x *RunRangeMessage) GetStartOffset() int32 {
+func (x *RunPosMessage) GetOffset() int32 {
 	if x != nil {
-		return x.StartOffset
+		return x.Offset
 	}
 	return 0
 }
 
-func (x *RunRangeMessage) GetEndRun() int32 {
+// RunPathStepMessage is one hop into a block's nested run structure: an index
+// into a sequence, a plural form, or a select case.
+type RunPathStepMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Step:
+	//
+	//	*RunPathStepMessage_Index
+	//	*RunPathStepMessage_PluralForm
+	//	*RunPathStepMessage_SelectValue
+	Step          isRunPathStepMessage_Step `protobuf_oneof:"step"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunPathStepMessage) Reset() {
+	*x = RunPathStepMessage{}
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunPathStepMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunPathStepMessage) ProtoMessage() {}
+
+func (x *RunPathStepMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[2]
 	if x != nil {
-		return x.EndRun
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunPathStepMessage.ProtoReflect.Descriptor instead.
+func (*RunPathStepMessage) Descriptor() ([]byte, []int) {
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RunPathStepMessage) GetStep() isRunPathStepMessage_Step {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+func (x *RunPathStepMessage) GetIndex() int32 {
+	if x != nil {
+		if x, ok := x.Step.(*RunPathStepMessage_Index); ok {
+			return x.Index
+		}
 	}
 	return 0
 }
 
-func (x *RunRangeMessage) GetEndOffset() int32 {
+func (x *RunPathStepMessage) GetPluralForm() string {
 	if x != nil {
-		return x.EndOffset
+		if x, ok := x.Step.(*RunPathStepMessage_PluralForm); ok {
+			return x.PluralForm
+		}
 	}
-	return 0
+	return ""
+}
+
+func (x *RunPathStepMessage) GetSelectValue() string {
+	if x != nil {
+		if x, ok := x.Step.(*RunPathStepMessage_SelectValue); ok {
+			return x.SelectValue
+		}
+	}
+	return ""
+}
+
+type isRunPathStepMessage_Step interface {
+	isRunPathStepMessage_Step()
+}
+
+type RunPathStepMessage_Index struct {
+	Index int32 `protobuf:"varint,1,opt,name=index,proto3,oneof"`
+}
+
+type RunPathStepMessage_PluralForm struct {
+	PluralForm string `protobuf:"bytes,2,opt,name=plural_form,json=pluralForm,proto3,oneof"`
+}
+
+type RunPathStepMessage_SelectValue struct {
+	SelectValue string `protobuf:"bytes,3,opt,name=select_value,json=selectValue,proto3,oneof"`
+}
+
+func (*RunPathStepMessage_Index) isRunPathStepMessage_Step() {}
+
+func (*RunPathStepMessage_PluralForm) isRunPathStepMessage_Step() {}
+
+func (*RunPathStepMessage_SelectValue) isRunPathStepMessage_Step() {}
+
+// AnchorMessage says where inside a block something is. Positions are
+// run-relative so they survive edits to neighbouring runs, and pathed so a
+// position inside a plural form or select case is addressable rather than
+// approximated by an offset into the flattening.
+type AnchorMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`                // block | run | range | form
+	Path          []*RunPathStepMessage  `protobuf:"bytes,2,rep,name=path,proto3" json:"path,omitempty"`                // empty = the block's own runs
+	RunId         string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"` // kind = run
+	Start         *RunPosMessage         `protobuf:"bytes,4,opt,name=start,proto3" json:"start,omitempty"`              // kind = range
+	End           *RunPosMessage         `protobuf:"bytes,5,opt,name=end,proto3" json:"end,omitempty"`                  // kind = range
+	Key           string                 `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`                  // kind = form
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnchorMessage) Reset() {
+	*x = AnchorMessage{}
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnchorMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnchorMessage) ProtoMessage() {}
+
+func (x *AnchorMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnchorMessage.ProtoReflect.Descriptor instead.
+func (*AnchorMessage) Descriptor() ([]byte, []int) {
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AnchorMessage) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AnchorMessage) GetPath() []*RunPathStepMessage {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
+func (x *AnchorMessage) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AnchorMessage) GetStart() *RunPosMessage {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *AnchorMessage) GetEnd() *RunPosMessage {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *AnchorMessage) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
 }
 
 // VariantMessage identifies a target variant (locale + optional tone/channel).
@@ -181,7 +353,7 @@ type VariantMessage struct {
 
 func (x *VariantMessage) Reset() {
 	*x = VariantMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[2]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -193,7 +365,7 @@ func (x *VariantMessage) String() string {
 func (*VariantMessage) ProtoMessage() {}
 
 func (x *VariantMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[2]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -206,7 +378,7 @@ func (x *VariantMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VariantMessage.ProtoReflect.Descriptor instead.
 func (*VariantMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{2}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *VariantMessage) GetLocale() string {
@@ -237,7 +409,7 @@ func (x *VariantMessage) GetChannel() string {
 type SpanMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Range         *RunRangeMessage       `protobuf:"bytes,2,opt,name=range,proto3" json:"range,omitempty"`
+	Range         *AnchorMessage         `protobuf:"bytes,2,opt,name=range,proto3" json:"range,omitempty"`
 	Props         map[string]string      `protobuf:"bytes,3,rep,name=props,proto3" json:"props,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Value         *AnnotationEntry       `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -246,7 +418,7 @@ type SpanMessage struct {
 
 func (x *SpanMessage) Reset() {
 	*x = SpanMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[3]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +430,7 @@ func (x *SpanMessage) String() string {
 func (*SpanMessage) ProtoMessage() {}
 
 func (x *SpanMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[3]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,7 +443,7 @@ func (x *SpanMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpanMessage.ProtoReflect.Descriptor instead.
 func (*SpanMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{3}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SpanMessage) GetId() string {
@@ -281,7 +453,7 @@ func (x *SpanMessage) GetId() string {
 	return ""
 }
 
-func (x *SpanMessage) GetRange() *RunRangeMessage {
+func (x *SpanMessage) GetRange() *AnchorMessage {
 	if x != nil {
 		return x.Range
 	}
@@ -320,7 +492,7 @@ type OverlayMessage struct {
 
 func (x *OverlayMessage) Reset() {
 	*x = OverlayMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[4]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +504,7 @@ func (x *OverlayMessage) String() string {
 func (*OverlayMessage) ProtoMessage() {}
 
 func (x *OverlayMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[4]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +517,7 @@ func (x *OverlayMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayMessage.ProtoReflect.Descriptor instead.
 func (*OverlayMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{4}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OverlayMessage) GetType() string {
@@ -389,7 +561,7 @@ type RunConstraints struct {
 
 func (x *RunConstraints) Reset() {
 	*x = RunConstraints{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[5]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +573,7 @@ func (x *RunConstraints) String() string {
 func (*RunConstraints) ProtoMessage() {}
 
 func (x *RunConstraints) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[5]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +586,7 @@ func (x *RunConstraints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunConstraints.ProtoReflect.Descriptor instead.
 func (*RunConstraints) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{5}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RunConstraints) GetDeletable() bool {
@@ -452,7 +624,7 @@ type TextRunMessage struct {
 
 func (x *TextRunMessage) Reset() {
 	*x = TextRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[6]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -464,7 +636,7 @@ func (x *TextRunMessage) String() string {
 func (*TextRunMessage) ProtoMessage() {}
 
 func (x *TextRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[6]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -477,7 +649,7 @@ func (x *TextRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextRunMessage.ProtoReflect.Descriptor instead.
 func (*TextRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{6}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TextRunMessage) GetText() string {
@@ -515,7 +687,7 @@ type PlaceholderRunMessage struct {
 
 func (x *PlaceholderRunMessage) Reset() {
 	*x = PlaceholderRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[7]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +699,7 @@ func (x *PlaceholderRunMessage) String() string {
 func (*PlaceholderRunMessage) ProtoMessage() {}
 
 func (x *PlaceholderRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[7]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +712,7 @@ func (x *PlaceholderRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceholderRunMessage.ProtoReflect.Descriptor instead.
 func (*PlaceholderRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{7}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PlaceholderRunMessage) GetId() string {
@@ -619,7 +791,7 @@ type PcOpenRunMessage struct {
 
 func (x *PcOpenRunMessage) Reset() {
 	*x = PcOpenRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[8]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -631,7 +803,7 @@ func (x *PcOpenRunMessage) String() string {
 func (*PcOpenRunMessage) ProtoMessage() {}
 
 func (x *PcOpenRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[8]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +816,7 @@ func (x *PcOpenRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PcOpenRunMessage.ProtoReflect.Descriptor instead.
 func (*PcOpenRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{8}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PcOpenRunMessage) GetId() string {
@@ -718,7 +890,7 @@ type PcCloseRunMessage struct {
 
 func (x *PcCloseRunMessage) Reset() {
 	*x = PcCloseRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[9]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -730,7 +902,7 @@ func (x *PcCloseRunMessage) String() string {
 func (*PcCloseRunMessage) ProtoMessage() {}
 
 func (x *PcCloseRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[9]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -743,7 +915,7 @@ func (x *PcCloseRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PcCloseRunMessage.ProtoReflect.Descriptor instead.
 func (*PcCloseRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{9}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PcCloseRunMessage) GetId() string {
@@ -793,7 +965,7 @@ type SubRunMessage struct {
 
 func (x *SubRunMessage) Reset() {
 	*x = SubRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[10]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -805,7 +977,7 @@ func (x *SubRunMessage) String() string {
 func (*SubRunMessage) ProtoMessage() {}
 
 func (x *SubRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[10]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -818,7 +990,7 @@ func (x *SubRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubRunMessage.ProtoReflect.Descriptor instead.
 func (*SubRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{10}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SubRunMessage) GetId() string {
@@ -854,7 +1026,7 @@ type PluralRunMessage struct {
 
 func (x *PluralRunMessage) Reset() {
 	*x = PluralRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[11]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +1038,7 @@ func (x *PluralRunMessage) String() string {
 func (*PluralRunMessage) ProtoMessage() {}
 
 func (x *PluralRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[11]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +1051,7 @@ func (x *PluralRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PluralRunMessage.ProtoReflect.Descriptor instead.
 func (*PluralRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{11}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PluralRunMessage) GetPivot() string {
@@ -908,7 +1080,7 @@ type SelectRunMessage struct {
 
 func (x *SelectRunMessage) Reset() {
 	*x = SelectRunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[12]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -920,7 +1092,7 @@ func (x *SelectRunMessage) String() string {
 func (*SelectRunMessage) ProtoMessage() {}
 
 func (x *SelectRunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[12]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -933,7 +1105,7 @@ func (x *SelectRunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectRunMessage.ProtoReflect.Descriptor instead.
 func (*SelectRunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{12}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SelectRunMessage) GetPivot() string {
@@ -962,7 +1134,7 @@ type RunList struct {
 
 func (x *RunList) Reset() {
 	*x = RunList{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[13]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -974,7 +1146,7 @@ func (x *RunList) String() string {
 func (*RunList) ProtoMessage() {}
 
 func (x *RunList) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[13]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -987,7 +1159,7 @@ func (x *RunList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunList.ProtoReflect.Descriptor instead.
 func (*RunList) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{13}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RunList) GetRuns() []*RunMessage {
@@ -1017,7 +1189,7 @@ type RunMessage struct {
 
 func (x *RunMessage) Reset() {
 	*x = RunMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[14]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +1201,7 @@ func (x *RunMessage) String() string {
 func (*RunMessage) ProtoMessage() {}
 
 func (x *RunMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[14]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +1214,7 @@ func (x *RunMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunMessage.ProtoReflect.Descriptor instead.
 func (*RunMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{14}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RunMessage) GetKind() isRunMessage_Kind {
@@ -1173,7 +1345,7 @@ type SegmentMessage struct {
 
 func (x *SegmentMessage) Reset() {
 	*x = SegmentMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[15]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1185,7 +1357,7 @@ func (x *SegmentMessage) String() string {
 func (*SegmentMessage) ProtoMessage() {}
 
 func (x *SegmentMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[15]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1198,7 +1370,7 @@ func (x *SegmentMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SegmentMessage.ProtoReflect.Descriptor instead.
 func (*SegmentMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{15}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SegmentMessage) GetId() string {
@@ -1233,7 +1405,7 @@ type TargetEntry struct {
 
 func (x *TargetEntry) Reset() {
 	*x = TargetEntry{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[16]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1417,7 @@ func (x *TargetEntry) String() string {
 func (*TargetEntry) ProtoMessage() {}
 
 func (x *TargetEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[16]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1430,7 @@ func (x *TargetEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TargetEntry.ProtoReflect.Descriptor instead.
 func (*TargetEntry) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{16}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TargetEntry) GetLocale() string {
@@ -1306,7 +1478,7 @@ type ContentBlock struct {
 
 func (x *ContentBlock) Reset() {
 	*x = ContentBlock{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[17]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1490,7 @@ func (x *ContentBlock) String() string {
 func (*ContentBlock) ProtoMessage() {}
 
 func (x *ContentBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[17]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1503,7 @@ func (x *ContentBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentBlock.ProtoReflect.Descriptor instead.
 func (*ContentBlock) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{17}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ContentBlock) GetId() string {
@@ -1430,7 +1602,7 @@ type SkeletonMessage struct {
 
 func (x *SkeletonMessage) Reset() {
 	*x = SkeletonMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[18]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1442,7 +1614,7 @@ func (x *SkeletonMessage) String() string {
 func (*SkeletonMessage) ProtoMessage() {}
 
 func (x *SkeletonMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[18]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1455,7 +1627,7 @@ func (x *SkeletonMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkeletonMessage.ProtoReflect.Descriptor instead.
 func (*SkeletonMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{18}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SkeletonMessage) GetStrategy() int32 {
@@ -1492,7 +1664,7 @@ type SkeletonPartMessage struct {
 
 func (x *SkeletonPartMessage) Reset() {
 	*x = SkeletonPartMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[19]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1504,7 +1676,7 @@ func (x *SkeletonPartMessage) String() string {
 func (*SkeletonPartMessage) ProtoMessage() {}
 
 func (x *SkeletonPartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[19]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1517,7 +1689,7 @@ func (x *SkeletonPartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkeletonPartMessage.ProtoReflect.Descriptor instead.
 func (*SkeletonPartMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{19}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SkeletonPartMessage) GetText() string {
@@ -1561,7 +1733,7 @@ type DisplayHintMessage struct {
 
 func (x *DisplayHintMessage) Reset() {
 	*x = DisplayHintMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[20]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1573,7 +1745,7 @@ func (x *DisplayHintMessage) String() string {
 func (*DisplayHintMessage) ProtoMessage() {}
 
 func (x *DisplayHintMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[20]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1586,7 +1758,7 @@ func (x *DisplayHintMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DisplayHintMessage.ProtoReflect.Descriptor instead.
 func (*DisplayHintMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{20}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DisplayHintMessage) GetMaxLength() int32 {
@@ -1642,7 +1814,7 @@ type BlockMessage struct {
 
 func (x *BlockMessage) Reset() {
 	*x = BlockMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[21]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1654,7 +1826,7 @@ func (x *BlockMessage) String() string {
 func (*BlockMessage) ProtoMessage() {}
 
 func (x *BlockMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[21]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1667,7 +1839,7 @@ func (x *BlockMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockMessage.ProtoReflect.Descriptor instead.
 func (*BlockMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{21}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BlockMessage) GetId() string {
@@ -1788,7 +1960,7 @@ type LayerMessage struct {
 
 func (x *LayerMessage) Reset() {
 	*x = LayerMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[22]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1800,7 +1972,7 @@ func (x *LayerMessage) String() string {
 func (*LayerMessage) ProtoMessage() {}
 
 func (x *LayerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[22]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1813,7 +1985,7 @@ func (x *LayerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LayerMessage.ProtoReflect.Descriptor instead.
 func (*LayerMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{22}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *LayerMessage) GetId() string {
@@ -1907,7 +2079,7 @@ type DataMessage struct {
 
 func (x *DataMessage) Reset() {
 	*x = DataMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[23]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1919,7 +2091,7 @@ func (x *DataMessage) String() string {
 func (*DataMessage) ProtoMessage() {}
 
 func (x *DataMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[23]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1932,7 +2104,7 @@ func (x *DataMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataMessage.ProtoReflect.Descriptor instead.
 func (*DataMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{23}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DataMessage) GetId() string {
@@ -1983,7 +2155,7 @@ type GroupStartMessage struct {
 
 func (x *GroupStartMessage) Reset() {
 	*x = GroupStartMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[24]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1995,7 +2167,7 @@ func (x *GroupStartMessage) String() string {
 func (*GroupStartMessage) ProtoMessage() {}
 
 func (x *GroupStartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[24]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2008,7 +2180,7 @@ func (x *GroupStartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupStartMessage.ProtoReflect.Descriptor instead.
 func (*GroupStartMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{24}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GroupStartMessage) GetId() string {
@@ -2049,7 +2221,7 @@ type GroupEndMessage struct {
 
 func (x *GroupEndMessage) Reset() {
 	*x = GroupEndMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[25]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2061,7 +2233,7 @@ func (x *GroupEndMessage) String() string {
 func (*GroupEndMessage) ProtoMessage() {}
 
 func (x *GroupEndMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[25]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2074,7 +2246,7 @@ func (x *GroupEndMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupEndMessage.ProtoReflect.Descriptor instead.
 func (*GroupEndMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{25}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GroupEndMessage) GetId() string {
@@ -2099,7 +2271,7 @@ type MediaMessage struct {
 
 func (x *MediaMessage) Reset() {
 	*x = MediaMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[26]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2111,7 +2283,7 @@ func (x *MediaMessage) String() string {
 func (*MediaMessage) ProtoMessage() {}
 
 func (x *MediaMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[26]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2124,7 +2296,7 @@ func (x *MediaMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MediaMessage.ProtoReflect.Descriptor instead.
 func (*MediaMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{26}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *MediaMessage) GetId() string {
@@ -2186,7 +2358,7 @@ type PartMessage struct {
 
 func (x *PartMessage) Reset() {
 	*x = PartMessage{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[27]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2198,7 +2370,7 @@ func (x *PartMessage) String() string {
 func (*PartMessage) ProtoMessage() {}
 
 func (x *PartMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[27]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2211,7 +2383,7 @@ func (x *PartMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PartMessage.ProtoReflect.Descriptor instead.
 func (*PartMessage) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{27}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PartMessage) GetPartType() int32 {
@@ -2278,7 +2450,7 @@ type ContentRef struct {
 
 func (x *ContentRef) Reset() {
 	*x = ContentRef{}
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[28]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2290,7 +2462,7 @@ func (x *ContentRef) String() string {
 func (*ContentRef) ProtoMessage() {}
 
 func (x *ContentRef) ProtoReflect() protoreflect.Message {
-	mi := &file_core_proto_content_v1_content_proto_msgTypes[28]
+	mi := &file_core_proto_content_v1_content_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2303,7 +2475,7 @@ func (x *ContentRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentRef.ProtoReflect.Descriptor instead.
 func (*ContentRef) Descriptor() ([]byte, []int) {
-	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{28}
+	return file_core_proto_content_v1_content_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ContentRef) GetLocation() isContentRef_Location {
@@ -2369,20 +2541,30 @@ const file_core_proto_content_v1_content_proto_rawDesc = "" +
 	"#core/proto/content/v1/content.proto\x12\x12neokapi.content.v1\"9\n" +
 	"\x0fAnnotationEntry\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"\x89\x01\n" +
-	"\x0fRunRangeMessage\x12\x1b\n" +
-	"\tstart_run\x18\x01 \x01(\x05R\bstartRun\x12!\n" +
-	"\fstart_offset\x18\x02 \x01(\x05R\vstartOffset\x12\x17\n" +
-	"\aend_run\x18\x03 \x01(\x05R\x06endRun\x12\x1d\n" +
-	"\n" +
-	"end_offset\x18\x04 \x01(\x05R\tendOffset\"V\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"9\n" +
+	"\rRunPosMessage\x12\x10\n" +
+	"\x03run\x18\x01 \x01(\x05R\x03run\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\"|\n" +
+	"\x12RunPathStepMessage\x12\x16\n" +
+	"\x05index\x18\x01 \x01(\x05H\x00R\x05index\x12!\n" +
+	"\vplural_form\x18\x02 \x01(\tH\x00R\n" +
+	"pluralForm\x12#\n" +
+	"\fselect_value\x18\x03 \x01(\tH\x00R\vselectValueB\x06\n" +
+	"\x04step\"\xf6\x01\n" +
+	"\rAnchorMessage\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12:\n" +
+	"\x04path\x18\x02 \x03(\v2&.neokapi.content.v1.RunPathStepMessageR\x04path\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x127\n" +
+	"\x05start\x18\x04 \x01(\v2!.neokapi.content.v1.RunPosMessageR\x05start\x123\n" +
+	"\x03end\x18\x05 \x01(\v2!.neokapi.content.v1.RunPosMessageR\x03end\x12\x10\n" +
+	"\x03key\x18\x06 \x01(\tR\x03key\"V\n" +
 	"\x0eVariantMessage\x12\x16\n" +
 	"\x06locale\x18\x01 \x01(\tR\x06locale\x12\x12\n" +
 	"\x04tone\x18\x02 \x01(\tR\x04tone\x12\x18\n" +
-	"\achannel\x18\x03 \x01(\tR\achannel\"\x8f\x02\n" +
+	"\achannel\x18\x03 \x01(\tR\achannel\"\x8d\x02\n" +
 	"\vSpanMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
-	"\x05range\x18\x02 \x01(\v2#.neokapi.content.v1.RunRangeMessageR\x05range\x12@\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x127\n" +
+	"\x05range\x18\x02 \x01(\v2!.neokapi.content.v1.AnchorMessageR\x05range\x12@\n" +
 	"\x05props\x18\x03 \x03(\v2*.neokapi.content.v1.SpanMessage.PropsEntryR\x05props\x129\n" +
 	"\x05value\x18\x04 \x01(\v2#.neokapi.content.v1.AnnotationEntryR\x05value\x1a8\n" +
 	"\n" +
@@ -2624,109 +2806,114 @@ func file_core_proto_content_v1_content_proto_rawDescGZIP() []byte {
 	return file_core_proto_content_v1_content_proto_rawDescData
 }
 
-var file_core_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_core_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_core_proto_content_v1_content_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),       // 0: neokapi.content.v1.AnnotationEntry
-	(*RunRangeMessage)(nil),       // 1: neokapi.content.v1.RunRangeMessage
-	(*VariantMessage)(nil),        // 2: neokapi.content.v1.VariantMessage
-	(*SpanMessage)(nil),           // 3: neokapi.content.v1.SpanMessage
-	(*OverlayMessage)(nil),        // 4: neokapi.content.v1.OverlayMessage
-	(*RunConstraints)(nil),        // 5: neokapi.content.v1.RunConstraints
-	(*TextRunMessage)(nil),        // 6: neokapi.content.v1.TextRunMessage
-	(*PlaceholderRunMessage)(nil), // 7: neokapi.content.v1.PlaceholderRunMessage
-	(*PcOpenRunMessage)(nil),      // 8: neokapi.content.v1.PcOpenRunMessage
-	(*PcCloseRunMessage)(nil),     // 9: neokapi.content.v1.PcCloseRunMessage
-	(*SubRunMessage)(nil),         // 10: neokapi.content.v1.SubRunMessage
-	(*PluralRunMessage)(nil),      // 11: neokapi.content.v1.PluralRunMessage
-	(*SelectRunMessage)(nil),      // 12: neokapi.content.v1.SelectRunMessage
-	(*RunList)(nil),               // 13: neokapi.content.v1.RunList
-	(*RunMessage)(nil),            // 14: neokapi.content.v1.RunMessage
-	(*SegmentMessage)(nil),        // 15: neokapi.content.v1.SegmentMessage
-	(*TargetEntry)(nil),           // 16: neokapi.content.v1.TargetEntry
-	(*ContentBlock)(nil),          // 17: neokapi.content.v1.ContentBlock
-	(*SkeletonMessage)(nil),       // 18: neokapi.content.v1.SkeletonMessage
-	(*SkeletonPartMessage)(nil),   // 19: neokapi.content.v1.SkeletonPartMessage
-	(*DisplayHintMessage)(nil),    // 20: neokapi.content.v1.DisplayHintMessage
-	(*BlockMessage)(nil),          // 21: neokapi.content.v1.BlockMessage
-	(*LayerMessage)(nil),          // 22: neokapi.content.v1.LayerMessage
-	(*DataMessage)(nil),           // 23: neokapi.content.v1.DataMessage
-	(*GroupStartMessage)(nil),     // 24: neokapi.content.v1.GroupStartMessage
-	(*GroupEndMessage)(nil),       // 25: neokapi.content.v1.GroupEndMessage
-	(*MediaMessage)(nil),          // 26: neokapi.content.v1.MediaMessage
-	(*PartMessage)(nil),           // 27: neokapi.content.v1.PartMessage
-	(*ContentRef)(nil),            // 28: neokapi.content.v1.ContentRef
-	nil,                           // 29: neokapi.content.v1.SpanMessage.PropsEntry
-	nil,                           // 30: neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
-	nil,                           // 31: neokapi.content.v1.PcOpenRunMessage.AttrsEntry
-	nil,                           // 32: neokapi.content.v1.PluralRunMessage.FormsEntry
-	nil,                           // 33: neokapi.content.v1.SelectRunMessage.CasesEntry
-	nil,                           // 34: neokapi.content.v1.SegmentMessage.PropertiesEntry
-	nil,                           // 35: neokapi.content.v1.ContentBlock.PropertiesEntry
-	nil,                           // 36: neokapi.content.v1.ContentBlock.AnnotationsEntry
-	nil,                           // 37: neokapi.content.v1.BlockMessage.PropertiesEntry
-	nil,                           // 38: neokapi.content.v1.BlockMessage.AnnotationsEntry
-	nil,                           // 39: neokapi.content.v1.LayerMessage.PropertiesEntry
-	nil,                           // 40: neokapi.content.v1.DataMessage.PropertiesEntry
-	nil,                           // 41: neokapi.content.v1.GroupStartMessage.PropertiesEntry
-	nil,                           // 42: neokapi.content.v1.MediaMessage.PropertiesEntry
+	(*RunPosMessage)(nil),         // 1: neokapi.content.v1.RunPosMessage
+	(*RunPathStepMessage)(nil),    // 2: neokapi.content.v1.RunPathStepMessage
+	(*AnchorMessage)(nil),         // 3: neokapi.content.v1.AnchorMessage
+	(*VariantMessage)(nil),        // 4: neokapi.content.v1.VariantMessage
+	(*SpanMessage)(nil),           // 5: neokapi.content.v1.SpanMessage
+	(*OverlayMessage)(nil),        // 6: neokapi.content.v1.OverlayMessage
+	(*RunConstraints)(nil),        // 7: neokapi.content.v1.RunConstraints
+	(*TextRunMessage)(nil),        // 8: neokapi.content.v1.TextRunMessage
+	(*PlaceholderRunMessage)(nil), // 9: neokapi.content.v1.PlaceholderRunMessage
+	(*PcOpenRunMessage)(nil),      // 10: neokapi.content.v1.PcOpenRunMessage
+	(*PcCloseRunMessage)(nil),     // 11: neokapi.content.v1.PcCloseRunMessage
+	(*SubRunMessage)(nil),         // 12: neokapi.content.v1.SubRunMessage
+	(*PluralRunMessage)(nil),      // 13: neokapi.content.v1.PluralRunMessage
+	(*SelectRunMessage)(nil),      // 14: neokapi.content.v1.SelectRunMessage
+	(*RunList)(nil),               // 15: neokapi.content.v1.RunList
+	(*RunMessage)(nil),            // 16: neokapi.content.v1.RunMessage
+	(*SegmentMessage)(nil),        // 17: neokapi.content.v1.SegmentMessage
+	(*TargetEntry)(nil),           // 18: neokapi.content.v1.TargetEntry
+	(*ContentBlock)(nil),          // 19: neokapi.content.v1.ContentBlock
+	(*SkeletonMessage)(nil),       // 20: neokapi.content.v1.SkeletonMessage
+	(*SkeletonPartMessage)(nil),   // 21: neokapi.content.v1.SkeletonPartMessage
+	(*DisplayHintMessage)(nil),    // 22: neokapi.content.v1.DisplayHintMessage
+	(*BlockMessage)(nil),          // 23: neokapi.content.v1.BlockMessage
+	(*LayerMessage)(nil),          // 24: neokapi.content.v1.LayerMessage
+	(*DataMessage)(nil),           // 25: neokapi.content.v1.DataMessage
+	(*GroupStartMessage)(nil),     // 26: neokapi.content.v1.GroupStartMessage
+	(*GroupEndMessage)(nil),       // 27: neokapi.content.v1.GroupEndMessage
+	(*MediaMessage)(nil),          // 28: neokapi.content.v1.MediaMessage
+	(*PartMessage)(nil),           // 29: neokapi.content.v1.PartMessage
+	(*ContentRef)(nil),            // 30: neokapi.content.v1.ContentRef
+	nil,                           // 31: neokapi.content.v1.SpanMessage.PropsEntry
+	nil,                           // 32: neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
+	nil,                           // 33: neokapi.content.v1.PcOpenRunMessage.AttrsEntry
+	nil,                           // 34: neokapi.content.v1.PluralRunMessage.FormsEntry
+	nil,                           // 35: neokapi.content.v1.SelectRunMessage.CasesEntry
+	nil,                           // 36: neokapi.content.v1.SegmentMessage.PropertiesEntry
+	nil,                           // 37: neokapi.content.v1.ContentBlock.PropertiesEntry
+	nil,                           // 38: neokapi.content.v1.ContentBlock.AnnotationsEntry
+	nil,                           // 39: neokapi.content.v1.BlockMessage.PropertiesEntry
+	nil,                           // 40: neokapi.content.v1.BlockMessage.AnnotationsEntry
+	nil,                           // 41: neokapi.content.v1.LayerMessage.PropertiesEntry
+	nil,                           // 42: neokapi.content.v1.DataMessage.PropertiesEntry
+	nil,                           // 43: neokapi.content.v1.GroupStartMessage.PropertiesEntry
+	nil,                           // 44: neokapi.content.v1.MediaMessage.PropertiesEntry
 }
 var file_core_proto_content_v1_content_proto_depIdxs = []int32{
-	1,  // 0: neokapi.content.v1.SpanMessage.range:type_name -> neokapi.content.v1.RunRangeMessage
-	29, // 1: neokapi.content.v1.SpanMessage.props:type_name -> neokapi.content.v1.SpanMessage.PropsEntry
-	0,  // 2: neokapi.content.v1.SpanMessage.value:type_name -> neokapi.content.v1.AnnotationEntry
-	2,  // 3: neokapi.content.v1.OverlayMessage.variant:type_name -> neokapi.content.v1.VariantMessage
-	3,  // 4: neokapi.content.v1.OverlayMessage.spans:type_name -> neokapi.content.v1.SpanMessage
-	5,  // 5: neokapi.content.v1.PlaceholderRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
-	30, // 6: neokapi.content.v1.PlaceholderRunMessage.attrs:type_name -> neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
-	5,  // 7: neokapi.content.v1.PcOpenRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
-	31, // 8: neokapi.content.v1.PcOpenRunMessage.attrs:type_name -> neokapi.content.v1.PcOpenRunMessage.AttrsEntry
-	32, // 9: neokapi.content.v1.PluralRunMessage.forms:type_name -> neokapi.content.v1.PluralRunMessage.FormsEntry
-	33, // 10: neokapi.content.v1.SelectRunMessage.cases:type_name -> neokapi.content.v1.SelectRunMessage.CasesEntry
-	14, // 11: neokapi.content.v1.RunList.runs:type_name -> neokapi.content.v1.RunMessage
-	6,  // 12: neokapi.content.v1.RunMessage.text:type_name -> neokapi.content.v1.TextRunMessage
-	7,  // 13: neokapi.content.v1.RunMessage.ph:type_name -> neokapi.content.v1.PlaceholderRunMessage
-	8,  // 14: neokapi.content.v1.RunMessage.pc_open:type_name -> neokapi.content.v1.PcOpenRunMessage
-	9,  // 15: neokapi.content.v1.RunMessage.pc_close:type_name -> neokapi.content.v1.PcCloseRunMessage
-	10, // 16: neokapi.content.v1.RunMessage.sub:type_name -> neokapi.content.v1.SubRunMessage
-	11, // 17: neokapi.content.v1.RunMessage.plural:type_name -> neokapi.content.v1.PluralRunMessage
-	12, // 18: neokapi.content.v1.RunMessage.select:type_name -> neokapi.content.v1.SelectRunMessage
-	14, // 19: neokapi.content.v1.SegmentMessage.runs:type_name -> neokapi.content.v1.RunMessage
-	34, // 20: neokapi.content.v1.SegmentMessage.properties:type_name -> neokapi.content.v1.SegmentMessage.PropertiesEntry
-	15, // 21: neokapi.content.v1.TargetEntry.segments:type_name -> neokapi.content.v1.SegmentMessage
-	15, // 22: neokapi.content.v1.ContentBlock.source:type_name -> neokapi.content.v1.SegmentMessage
-	16, // 23: neokapi.content.v1.ContentBlock.targets:type_name -> neokapi.content.v1.TargetEntry
-	35, // 24: neokapi.content.v1.ContentBlock.properties:type_name -> neokapi.content.v1.ContentBlock.PropertiesEntry
-	36, // 25: neokapi.content.v1.ContentBlock.annotations:type_name -> neokapi.content.v1.ContentBlock.AnnotationsEntry
-	20, // 26: neokapi.content.v1.ContentBlock.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
-	4,  // 27: neokapi.content.v1.ContentBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	19, // 28: neokapi.content.v1.SkeletonMessage.parts:type_name -> neokapi.content.v1.SkeletonPartMessage
-	15, // 29: neokapi.content.v1.BlockMessage.source:type_name -> neokapi.content.v1.SegmentMessage
-	16, // 30: neokapi.content.v1.BlockMessage.targets:type_name -> neokapi.content.v1.TargetEntry
-	37, // 31: neokapi.content.v1.BlockMessage.properties:type_name -> neokapi.content.v1.BlockMessage.PropertiesEntry
-	38, // 32: neokapi.content.v1.BlockMessage.annotations:type_name -> neokapi.content.v1.BlockMessage.AnnotationsEntry
-	20, // 33: neokapi.content.v1.BlockMessage.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
-	18, // 34: neokapi.content.v1.BlockMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
-	4,  // 35: neokapi.content.v1.BlockMessage.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	39, // 36: neokapi.content.v1.LayerMessage.properties:type_name -> neokapi.content.v1.LayerMessage.PropertiesEntry
-	40, // 37: neokapi.content.v1.DataMessage.properties:type_name -> neokapi.content.v1.DataMessage.PropertiesEntry
-	18, // 38: neokapi.content.v1.DataMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
-	41, // 39: neokapi.content.v1.GroupStartMessage.properties:type_name -> neokapi.content.v1.GroupStartMessage.PropertiesEntry
-	42, // 40: neokapi.content.v1.MediaMessage.properties:type_name -> neokapi.content.v1.MediaMessage.PropertiesEntry
-	21, // 41: neokapi.content.v1.PartMessage.block:type_name -> neokapi.content.v1.BlockMessage
-	22, // 42: neokapi.content.v1.PartMessage.layer:type_name -> neokapi.content.v1.LayerMessage
-	23, // 43: neokapi.content.v1.PartMessage.data:type_name -> neokapi.content.v1.DataMessage
-	24, // 44: neokapi.content.v1.PartMessage.group_start:type_name -> neokapi.content.v1.GroupStartMessage
-	25, // 45: neokapi.content.v1.PartMessage.group_end:type_name -> neokapi.content.v1.GroupEndMessage
-	26, // 46: neokapi.content.v1.PartMessage.media:type_name -> neokapi.content.v1.MediaMessage
-	13, // 47: neokapi.content.v1.PluralRunMessage.FormsEntry.value:type_name -> neokapi.content.v1.RunList
-	13, // 48: neokapi.content.v1.SelectRunMessage.CasesEntry.value:type_name -> neokapi.content.v1.RunList
-	0,  // 49: neokapi.content.v1.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
-	0,  // 50: neokapi.content.v1.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
-	51, // [51:51] is the sub-list for method output_type
-	51, // [51:51] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	2,  // 0: neokapi.content.v1.AnchorMessage.path:type_name -> neokapi.content.v1.RunPathStepMessage
+	1,  // 1: neokapi.content.v1.AnchorMessage.start:type_name -> neokapi.content.v1.RunPosMessage
+	1,  // 2: neokapi.content.v1.AnchorMessage.end:type_name -> neokapi.content.v1.RunPosMessage
+	3,  // 3: neokapi.content.v1.SpanMessage.range:type_name -> neokapi.content.v1.AnchorMessage
+	31, // 4: neokapi.content.v1.SpanMessage.props:type_name -> neokapi.content.v1.SpanMessage.PropsEntry
+	0,  // 5: neokapi.content.v1.SpanMessage.value:type_name -> neokapi.content.v1.AnnotationEntry
+	4,  // 6: neokapi.content.v1.OverlayMessage.variant:type_name -> neokapi.content.v1.VariantMessage
+	5,  // 7: neokapi.content.v1.OverlayMessage.spans:type_name -> neokapi.content.v1.SpanMessage
+	7,  // 8: neokapi.content.v1.PlaceholderRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
+	32, // 9: neokapi.content.v1.PlaceholderRunMessage.attrs:type_name -> neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
+	7,  // 10: neokapi.content.v1.PcOpenRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
+	33, // 11: neokapi.content.v1.PcOpenRunMessage.attrs:type_name -> neokapi.content.v1.PcOpenRunMessage.AttrsEntry
+	34, // 12: neokapi.content.v1.PluralRunMessage.forms:type_name -> neokapi.content.v1.PluralRunMessage.FormsEntry
+	35, // 13: neokapi.content.v1.SelectRunMessage.cases:type_name -> neokapi.content.v1.SelectRunMessage.CasesEntry
+	16, // 14: neokapi.content.v1.RunList.runs:type_name -> neokapi.content.v1.RunMessage
+	8,  // 15: neokapi.content.v1.RunMessage.text:type_name -> neokapi.content.v1.TextRunMessage
+	9,  // 16: neokapi.content.v1.RunMessage.ph:type_name -> neokapi.content.v1.PlaceholderRunMessage
+	10, // 17: neokapi.content.v1.RunMessage.pc_open:type_name -> neokapi.content.v1.PcOpenRunMessage
+	11, // 18: neokapi.content.v1.RunMessage.pc_close:type_name -> neokapi.content.v1.PcCloseRunMessage
+	12, // 19: neokapi.content.v1.RunMessage.sub:type_name -> neokapi.content.v1.SubRunMessage
+	13, // 20: neokapi.content.v1.RunMessage.plural:type_name -> neokapi.content.v1.PluralRunMessage
+	14, // 21: neokapi.content.v1.RunMessage.select:type_name -> neokapi.content.v1.SelectRunMessage
+	16, // 22: neokapi.content.v1.SegmentMessage.runs:type_name -> neokapi.content.v1.RunMessage
+	36, // 23: neokapi.content.v1.SegmentMessage.properties:type_name -> neokapi.content.v1.SegmentMessage.PropertiesEntry
+	17, // 24: neokapi.content.v1.TargetEntry.segments:type_name -> neokapi.content.v1.SegmentMessage
+	17, // 25: neokapi.content.v1.ContentBlock.source:type_name -> neokapi.content.v1.SegmentMessage
+	18, // 26: neokapi.content.v1.ContentBlock.targets:type_name -> neokapi.content.v1.TargetEntry
+	37, // 27: neokapi.content.v1.ContentBlock.properties:type_name -> neokapi.content.v1.ContentBlock.PropertiesEntry
+	38, // 28: neokapi.content.v1.ContentBlock.annotations:type_name -> neokapi.content.v1.ContentBlock.AnnotationsEntry
+	22, // 29: neokapi.content.v1.ContentBlock.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
+	6,  // 30: neokapi.content.v1.ContentBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	21, // 31: neokapi.content.v1.SkeletonMessage.parts:type_name -> neokapi.content.v1.SkeletonPartMessage
+	17, // 32: neokapi.content.v1.BlockMessage.source:type_name -> neokapi.content.v1.SegmentMessage
+	18, // 33: neokapi.content.v1.BlockMessage.targets:type_name -> neokapi.content.v1.TargetEntry
+	39, // 34: neokapi.content.v1.BlockMessage.properties:type_name -> neokapi.content.v1.BlockMessage.PropertiesEntry
+	40, // 35: neokapi.content.v1.BlockMessage.annotations:type_name -> neokapi.content.v1.BlockMessage.AnnotationsEntry
+	22, // 36: neokapi.content.v1.BlockMessage.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
+	20, // 37: neokapi.content.v1.BlockMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
+	6,  // 38: neokapi.content.v1.BlockMessage.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	41, // 39: neokapi.content.v1.LayerMessage.properties:type_name -> neokapi.content.v1.LayerMessage.PropertiesEntry
+	42, // 40: neokapi.content.v1.DataMessage.properties:type_name -> neokapi.content.v1.DataMessage.PropertiesEntry
+	20, // 41: neokapi.content.v1.DataMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
+	43, // 42: neokapi.content.v1.GroupStartMessage.properties:type_name -> neokapi.content.v1.GroupStartMessage.PropertiesEntry
+	44, // 43: neokapi.content.v1.MediaMessage.properties:type_name -> neokapi.content.v1.MediaMessage.PropertiesEntry
+	23, // 44: neokapi.content.v1.PartMessage.block:type_name -> neokapi.content.v1.BlockMessage
+	24, // 45: neokapi.content.v1.PartMessage.layer:type_name -> neokapi.content.v1.LayerMessage
+	25, // 46: neokapi.content.v1.PartMessage.data:type_name -> neokapi.content.v1.DataMessage
+	26, // 47: neokapi.content.v1.PartMessage.group_start:type_name -> neokapi.content.v1.GroupStartMessage
+	27, // 48: neokapi.content.v1.PartMessage.group_end:type_name -> neokapi.content.v1.GroupEndMessage
+	28, // 49: neokapi.content.v1.PartMessage.media:type_name -> neokapi.content.v1.MediaMessage
+	15, // 50: neokapi.content.v1.PluralRunMessage.FormsEntry.value:type_name -> neokapi.content.v1.RunList
+	15, // 51: neokapi.content.v1.SelectRunMessage.CasesEntry.value:type_name -> neokapi.content.v1.RunList
+	0,  // 52: neokapi.content.v1.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
+	0,  // 53: neokapi.content.v1.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
+	54, // [54:54] is the sub-list for method output_type
+	54, // [54:54] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_core_proto_content_v1_content_proto_init() }
@@ -2734,7 +2921,12 @@ func file_core_proto_content_v1_content_proto_init() {
 	if File_core_proto_content_v1_content_proto != nil {
 		return
 	}
-	file_core_proto_content_v1_content_proto_msgTypes[14].OneofWrappers = []any{
+	file_core_proto_content_v1_content_proto_msgTypes[2].OneofWrappers = []any{
+		(*RunPathStepMessage_Index)(nil),
+		(*RunPathStepMessage_PluralForm)(nil),
+		(*RunPathStepMessage_SelectValue)(nil),
+	}
+	file_core_proto_content_v1_content_proto_msgTypes[16].OneofWrappers = []any{
 		(*RunMessage_Text)(nil),
 		(*RunMessage_Ph)(nil),
 		(*RunMessage_PcOpen)(nil),
@@ -2743,7 +2935,7 @@ func file_core_proto_content_v1_content_proto_init() {
 		(*RunMessage_Plural)(nil),
 		(*RunMessage_Select)(nil),
 	}
-	file_core_proto_content_v1_content_proto_msgTypes[28].OneofWrappers = []any{
+	file_core_proto_content_v1_content_proto_msgTypes[30].OneofWrappers = []any{
 		(*ContentRef_Inline)(nil),
 		(*ContentRef_Path)(nil),
 		(*ContentRef_Uri)(nil),
@@ -2754,7 +2946,7 @@ func file_core_proto_content_v1_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_proto_content_v1_content_proto_rawDesc), len(file_core_proto_content_v1_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

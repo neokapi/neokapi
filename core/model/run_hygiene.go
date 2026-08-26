@@ -220,6 +220,6 @@ func (v *HygieneView) RealOffset(off int) int {
 
 // Range maps a half-open byte span of [HygieneView.Text] to the run-anchored
 // range covering it, so a shape rule can report where it fired.
-func (v *HygieneView) Range(start, end int) RunRange {
-	return RunRangeForBytes(v.runs, v.RealOffset(start), v.RealOffset(end))
+func (v *HygieneView) Range(start, end int) Anchor {
+	return RangeAnchorForBytes(v.runs, v.RealOffset(start), v.RealOffset(end))
 }

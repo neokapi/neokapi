@@ -1415,7 +1415,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			runs := nativeToRuns(nc)
 			start := len(srcRuns)
 			srcRuns = append(srcRuns, runs...)
-			spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(srcRuns)}}
+			spans[i] = model.Span{ID: seg.mid, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: len(srcRuns)})}
 			block.SetAnno(segNativeKey(seg.mid), &SegmentNativeAnnotation{Content: nc})
 		}
 		block.Source = srcRuns
@@ -1483,7 +1483,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 				runs := nativeToRuns(nc)
 				start := len(tgtRuns)
 				tgtRuns = append(tgtRuns, runs...)
-				spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(tgtRuns)}}
+				spans[i] = model.Span{ID: seg.mid, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: len(tgtRuns)})}
 				block.SetAnno(targetSegNativeKey(effectiveTargetLang, seg.mid), &SegmentNativeAnnotation{Content: nc})
 			}
 			block.SetTargetRuns(effectiveTargetLang, tgtRuns)

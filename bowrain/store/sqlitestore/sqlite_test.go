@@ -207,10 +207,10 @@ func overlaysFixture() []model.Overlay {
 			Type:  model.OverlaySegmentation,
 			Layer: model.LayerPrimary,
 			Spans: []model.Span{
-				{ID: "s1", Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4}},
+				{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 4})},
 				{
 					ID:    "s2",
-					Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+					Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 5}, model.RunPos{Run: 0, Offset: 11}),
 					Props: map[string]string{model.SpanPropIgnorable: "true"},
 				},
 			},
@@ -219,7 +219,7 @@ func overlaysFixture() []model.Overlay {
 			Type: model.OverlayEntity,
 			Spans: []model.Span{{
 				ID:    "entity:0",
-				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4},
+				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 4}),
 				Value: &model.EntityAnnotation{Text: "Acme", Type: model.EntityOrganization, Locale: model.LocaleEnglish, DNT: true, Source: "ner"},
 			}},
 		},
@@ -227,7 +227,7 @@ func overlaysFixture() []model.Overlay {
 			Type: model.OverlayTerm,
 			Spans: []model.Span{{
 				ID:    "term:0",
-				Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+				Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 5}, model.RunPos{Run: 0, Offset: 11}),
 				Value: &model.TermAnnotation{SourceTerm: "widget", ConceptID: "c-42", Status: model.TermPreferred, Score: 1, MatchType: model.MatchStrategyExact, TargetTerms: []model.TermRef{{Text: "gadget", Locale: model.LocaleFrench, Status: model.TermPreferred}}},
 			}},
 		},
@@ -235,7 +235,7 @@ func overlaysFixture() []model.Overlay {
 			Type: model.OverlayTermCandidate,
 			Spans: []model.Span{{
 				ID:    "term-candidate:0",
-				Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+				Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 5}, model.RunPos{Run: 0, Offset: 11}),
 				Value: &model.TermCandidateAnnotation{Text: "widget", Locale: model.LocaleEnglish},
 			}},
 		},
@@ -243,7 +243,7 @@ func overlaysFixture() []model.Overlay {
 			Type: model.OverlayQA,
 			Spans: []model.Span{{
 				ID:    "qa:0",
-				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 11},
+				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 11}),
 				Props: map[string]string{"rule": "length", "severity": "warn"},
 			}},
 		},
@@ -252,7 +252,7 @@ func overlaysFixture() []model.Overlay {
 			Variant: &frVariant,
 			Spans: []model.Span{{
 				ID:    "a0",
-				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4},
+				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 4}),
 				Props: map[string]string{"target": "0:0-0:6"},
 			}},
 		},

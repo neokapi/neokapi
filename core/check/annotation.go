@@ -14,7 +14,7 @@ type FindingsAnnotation struct {
 	// Findings are the substantive output.
 	Findings []Finding `json:"findings"`
 	// Position is the block-level run-range the findings cover.
-	Position model.RunRange `json:"position"`
+	Position model.Anchor `json:"position"`
 }
 
 // AnnotationType implements any.

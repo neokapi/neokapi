@@ -32,18 +32,24 @@ interface BlockAnalysis {
 
 interface ParsedAnnotation {
   id: string;
+  block: string;
   anchor: AnyAnchor;
   resolution: { ok: boolean; kind?: string; reason?: string; detail?: string };
 }
 
 interface AnyAnchor {
   kind: "block" | "run" | "range" | "form";
-  block: string;
   path?: Array<number | Record<string, string>>;
   runId?: string;
-  offset?: number;
-  length?: number;
+  start?: RunPos;
+  end?: RunPos;
   key?: string;
+}
+
+/** A character boundary: a run index and a code-point offset into its text. */
+interface RunPos {
+  run: number;
+  offset?: number;
 }
 
 // KbfExplorer is the KBF Lab: edit a `.kbf.json` document and watch the canonical Go
@@ -129,17 +135,18 @@ export default function KbfExplorer({
     for (const line of kbflValue.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      let rec: { type?: string; id?: string; anchor?: AnyAnchor };
+      let rec: { type?: string; id?: string; block?: string; anchor?: AnyAnchor };
       try {
         rec = JSON.parse(trimmed);
       } catch {
         continue;
       }
-      if (rec.type !== "annotation" || !rec.anchor) continue;
-      const block = byId.get(rec.anchor.block);
+      if (rec.type !== "annotation" || !rec.anchor || !rec.block) continue;
+      const block = byId.get(rec.block);
       if (!block) {
         out.push({
           id: rec.id ?? "?",
+          block: rec.block,
           anchor: rec.anchor,
           resolution: { ok: false, reason: "block-not-found" },
         });
@@ -153,6 +160,7 @@ export default function KbfExplorer({
       const r = (res.resolution as Record<string, unknown>) ?? {};
       out.push({
         id: rec.id ?? "?",
+        block: rec.block,
         anchor: rec.anchor,
         resolution: {
           ok: Boolean(r.ok),
@@ -217,7 +225,7 @@ export default function KbfExplorer({
               key={b.id}
               block={b}
               analysis={analysis[b.id]}
-              highlight={selected && selected.anchor.block === b.id ? selected.anchor : null}
+              highlight={selected && selected.block === b.id ? selected.anchor : null}
             />
           ))}
         </div>
@@ -391,33 +399,62 @@ function RunsStrip({
   runs: Run[];
   highlight: AnyAnchor | null;
 }): React.ReactElement {
-  // Only single-step numeric paths drive highlighting (sufficient for the
-  // fixtures); the resolution text always shows the full result regardless.
+  // A run or form anchor highlights the run its path lands on; only
+  // single-step numeric paths drive that (sufficient for the fixtures). A range
+  // anchor paths to a *sequence* and spans runs within it, so it highlights
+  // every run it covers. The resolution text shows the full result regardless.
   const hiIndex =
     highlight &&
     highlight.kind !== "block" &&
+    highlight.kind !== "range" &&
     Array.isArray(highlight.path) &&
     typeof highlight.path[0] === "number"
       ? (highlight.path[0] as number)
       : null;
+  const span =
+    highlight?.kind === "range" &&
+    (highlight.path?.length ?? 0) === 0 &&
+    highlight.start &&
+    highlight.end
+      ? { start: highlight.start, end: highlight.end }
+      : null;
   return (
     <div className={styles.runs}>
-      {runs.map((r, i) => (
-        <RunChip
-          key={i}
-          run={r}
-          index={i}
-          highlighted={hiIndex === i}
-          range={
-            hiIndex === i && highlight?.kind === "range"
-              ? { offset: highlight.offset ?? 0, length: highlight.length ?? 0 }
-              : null
-          }
-          form={hiIndex === i && highlight?.kind === "form" ? (highlight.key ?? null) : null}
-        />
-      ))}
+      {runs.map((r, i) => {
+        const covered = span ? rangeWindow(span, i, r) : null;
+        return (
+          <RunChip
+            key={i}
+            run={r}
+            index={i}
+            highlighted={hiIndex === i || covered !== null}
+            range={covered}
+            form={hiIndex === i && highlight?.kind === "form" ? (highlight.key ?? null) : null}
+          />
+        );
+      })}
     </div>
   );
+}
+
+/**
+ * The part of one run a range covers, or null when the span passes it by. A
+ * text run is windowed at its boundary offsets; a run carrying no text is
+ * atomic and comes through whole unless it sits on the exclusive end. Mirrors
+ * Anchor.ExtractRuns in core/model.
+ */
+function rangeWindow(
+  span: { start: RunPos; end: RunPos },
+  index: number,
+  run: Run,
+): { offset: number; length: number } | null {
+  if (index < span.start.run || index > span.end.run) return null;
+  const endsHere = index === span.end.run && (span.end.offset ?? 0) === 0;
+  if (!("text" in run)) return endsHere ? null : { offset: 0, length: 0 };
+  const chars = Array.from(run.text).length;
+  const from = index === span.start.run ? Math.min(span.start.offset ?? 0, chars) : 0;
+  const to = index === span.end.run ? Math.min(span.end.offset ?? 0, chars) : chars;
+  return from < to ? { offset: from, length: to - from } : null;
 }
 
 function RunChip({
@@ -552,7 +589,7 @@ function describeResolution(r: Record<string, unknown>): string {
     case "run":
       return `run id ${String(r.runId)}`;
     case "range":
-      return `“${String(r.rangeText).slice(r.rangeOffset as number, (r.rangeOffset as number) + (r.rangeLength as number))}” at offset ${String(r.rangeOffset)}`;
+      return `“${String(r.rangeText)}” across ${String(r.rangeRunCount)} run(s)`;
     case "form":
       return `${String(r.formRunCount)} run(s) in the selected form`;
     default:
@@ -565,23 +602,27 @@ function anchorSummary(a: AnyAnchor): string {
     ? `[${a.path.map((p) => (typeof p === "number" ? p : JSON.stringify(p))).join(", ")}]`
     : "";
   switch (a.kind) {
-    case "block":
-      return a.block;
     case "run":
-      return `${a.block} ${path} runId=${a.runId}`;
+      return `${path} runId=${a.runId}`;
     case "range":
-      return `${a.block} ${path} ${a.offset}+${a.length}`;
+      return `${path} ${posSummary(a.start)}→${posSummary(a.end)}`;
     case "form":
-      return `${a.block} ${path} key=${a.key}`;
+      return `${path} key=${a.key}`;
     default:
-      return a.block;
+      return "whole block";
   }
 }
 
+function posSummary(p: RunPos | undefined): string {
+  return p ? `${p.run}:${p.offset ?? 0}` : "?";
+}
+
 function markRange(text: string, range: { offset: number; length: number }): React.ReactNode {
-  const before = text.slice(0, range.offset);
-  const mid = text.slice(range.offset, range.offset + range.length);
-  const after = text.slice(range.offset + range.length);
+  // The offsets count code points, the unit a RunPos offset is given in.
+  const chars = Array.from(text);
+  const before = chars.slice(0, range.offset).join("");
+  const mid = chars.slice(range.offset, range.offset + range.length).join("");
+  const after = chars.slice(range.offset + range.length).join("");
   return (
     <>
       {JSON.stringify(before).slice(1, -1)}

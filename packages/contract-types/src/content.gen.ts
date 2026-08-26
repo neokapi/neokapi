@@ -24,13 +24,32 @@ export interface AnnotationEntry {
 }
 
 /**
- * `neokapi.content.v1.RunRangeMessage` in its canonical protojson form.
+ * `neokapi.content.v1.RunPosMessage` in its canonical protojson form.
  */
-export interface RunRangeMessage {
-  startRun?: number;
-  startOffset?: number;
-  endRun?: number;
-  endOffset?: number;
+export interface RunPosMessage {
+  run?: number;
+  offset?: number;
+}
+
+/**
+ * `neokapi.content.v1.RunPathStepMessage` in its canonical protojson form.
+ * Exactly one discriminator key is present per value.
+ */
+export type RunPathStepMessage =
+  | { index: number }
+  | { pluralForm: string }
+  | { selectValue: string };
+
+/**
+ * `neokapi.content.v1.AnchorMessage` in its canonical protojson form.
+ */
+export interface AnchorMessage {
+  kind?: string;
+  path?: RunPathStepMessage[];
+  runId?: string;
+  start?: RunPosMessage;
+  end?: RunPosMessage;
+  key?: string;
 }
 
 /**
@@ -47,7 +66,7 @@ export interface VariantMessage {
  */
 export interface SpanMessage {
   id?: string;
-  range?: RunRangeMessage;
+  range?: AnchorMessage;
   props?: Record<string, string>;
   value?: AnnotationEntry;
 }
@@ -352,6 +371,15 @@ export type Run =
   | { select: SelectRun };
 
 /**
+ * One step of a RunPath. Discriminated by shape:
+ * - `number` — index into a Run[] sequence.
+ * - `{ plural: PluralForm }` — step into a plural run's form.
+ * - `{ select: string }` — step into a select run's case.
+ * Mirrors model.RunPathStep.
+ */
+export type RunPathStep = number | { plural: string } | { select: string };
+
+/**
  * A self-closing placeholder run (variable, JSX expression, <br/>, icon…).
  * Mirrors model.PlaceholderRun.
  */
@@ -420,14 +448,28 @@ export interface SelectRun {
 }
 
 /**
- * A run-anchored span: [startRun,endRun) run indexes with rune offsets.
- * Mirrors model.RunRange.
+ * A character boundary in a run sequence: an index into the sequence and a
+ * rune offset into that run's text. Mirrors model.RunPos.
  */
-export interface RunRange {
-  startRun: number;
-  startOffset: number;
-  endRun: number;
-  endOffset: number;
+export interface RunPos {
+  run: number;
+  offset?: number;
+}
+
+/**
+ * Where inside a block something is: the whole block, one run, a span of
+ * characters, or a branch of a structured run. Positions are run-relative so
+ * they survive edits to neighbouring runs, and pathed so a position inside a
+ * plural form or select case is addressable.
+ * Mirrors model.Anchor.
+ */
+export interface Anchor {
+  kind: string;
+  path?: RunPathStep[];
+  runId?: string;
+  start: RunPos;
+  end: RunPos;
+  key?: string;
 }
 
 /**
@@ -545,7 +587,7 @@ export interface OverlayView {
  */
 export interface OverlaySpanView {
   id?: string;
-  range: RunRange;
+  range: Anchor;
   props?: Record<string, string>;
   text?: string;
   ignorable?: boolean;

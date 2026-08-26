@@ -109,7 +109,7 @@ func TestUnknownOverlayKindDegradesGracefully(t *testing.T) {
 	b := model.NewBlock("b1", "John visited Paris")
 	b.AddOverlaySpan(model.OverlayType("x-plugin-marks"), model.Span{
 		ID:    "m0",
-		Range: model.RunRange{StartRun: 0, EndRun: 1},
+		Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),
 		Value: &model.GenericAnnotation{Kind: "vendor:thing", Fields: map[string]any{"weight": "high"}},
 	})
 
@@ -119,7 +119,7 @@ func TestUnknownOverlayKindDegradesGracefully(t *testing.T) {
 	o := got.OverlayOf(model.OverlayType("x-plugin-marks"))
 	require.NotNil(t, o, "plugin-defined overlay must survive")
 	require.Len(t, o.Spans, 1)
-	require.Equal(t, model.RunRange{StartRun: 0, EndRun: 1}, o.Spans[0].Range, "span anchor survives")
+	require.Equal(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}), o.Spans[0].Range, "span anchor survives")
 	ga, ok := o.Spans[0].Value.(*model.GenericAnnotation)
 	require.True(t, ok, "unregistered payload round-trips as GenericAnnotation, not dropped")
 	assert.Equal(t, "vendor:thing", ga.Kind, "type name preserved")

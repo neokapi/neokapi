@@ -149,7 +149,7 @@ func TestPatternHitsToFindings_AnchorsToRuns(t *testing.T) {
 
 	findings := PatternHitsToFindings(MatchPatterns(p, text), text, runs)
 	require.Len(t, findings, 1)
-	assert.Equal(t, 1, findings[0].Position.StartRun, "the match starts in the second run")
+	assert.Equal(t, 1, findings[0].Position.Start.Run, "the match starts in the second run")
 }
 
 // The severity ladder must read forwards: a pattern the pack marks critical
