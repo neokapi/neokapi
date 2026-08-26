@@ -1,7 +1,7 @@
 name: Generate the qps pseudo-locale
 description: >
-  Build kapi and generate a Docusaurus site's qps (pseudo-locale) translations
-  into i18n/qps/, immediately before the site build that consumes them.
+  Generate a Docusaurus site's qps (pseudo-locale) translations into i18n/qps/
+  with a released kapi, immediately before the site build that consumes them.
 
   Three tiers come out of this: the docs pages, the theme JSON
   write-translations owns, and — for a site wired to the build-time transform —
@@ -18,29 +18,33 @@ inputs:
   site:
     description: Docusaurus site directory, relative to the repo root.
     required: true
-  go-version:
-    description: Go version used to build kapi.
+  kapi-version:
+    description: >
+      Released kapi that generates the locale. Pinned rather than resolved,
+      because `latest` takes stable tags only and this line is a prerelease.
     required: false
-    default: "1.26.0"
+    default: "1.2.0-rc28"
 
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@v7
+    # Installed, not built. dogfood-sync.yml already puts it plainly: this
+    # "installs the released CLI ... the same path a customer takes. Neither is
+    # built from this checkout, so the run tests the product rather than the
+    # working tree."
+    #
+    # It also settles what should redeploy the docs. Built from source, the
+    # generated locale depended on the whole Go module graph, so no honest list
+    # of trigger paths existed — a fix in core/tools would merge and the site
+    # would go on serving the old output with nothing to show for it. Pinned,
+    # the locale is a function of the docs, the recipe, the terms and a version,
+    # and the version is a line in this file that someone edits on purpose.
+    #
+    # No Go toolchain and no ICU: nothing here compiles any more.
+    - name: Install kapi
+      uses: neokapi/setup-kapi@v1
       with:
-        go-version: ${{ inputs.go-version }}
-        cache: true
-
-    # kapi links SQLite with FTS5 and ICU, so the build needs the toolchain
-    # even though the pseudo pass itself touches neither.
-    - name: Install ICU toolchain
-      uses: ./.github/actions/apt-install
-      with:
-        packages: libicu-dev pkg-config
-
-    - name: Build kapi
-      shell: bash
-      run: make build
+        version: ${{ inputs.kapi-version }}
 
     # --with-theme regenerates code.json and the theme JSON as well as the
     # pages, so the whole pseudo layer comes from this one step and nothing
