@@ -16,6 +16,7 @@ import (
 	"math"
 	"strings"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
@@ -56,10 +57,29 @@ func NewProvider(tm memory.ContentMemory) *Provider {
 }
 
 var (
-	_ tools.MemoryProvider      = (*Provider)(nil)
-	_ tools.BlockMemoryProvider = (*Provider)(nil)
-	_ tools.ExactMemoryProvider = (*Provider)(nil)
+	_ tools.MemoryProvider         = (*Provider)(nil)
+	_ tools.BlockMemoryProvider    = (*Provider)(nil)
+	_ tools.ExactMemoryProvider    = (*Provider)(nil)
+	_ aitools.PriorVersionProvider = (*Provider)(nil)
 )
+
+// PriorVersion answers what a block said before, for the translate tool.
+//
+// It is the same adapter role the rest of this type plays for recycle: the
+// framework declares the interface, this package supplies the content memory
+// behind it. The gate lives inside PriorVersionFor, so a caller cannot obtain
+// an ungoverned answer by forgetting to check one.
+//
+// A store that cannot answer version queries returns nothing rather than
+// erroring: an in-memory corpus seeded for one run has no chain, which is a
+// true statement about the answer and not a failure.
+func (p *Provider) PriorVersion(ctx context.Context, unit, point string, source, target model.LocaleID, fingerprint string) (priorSource, priorTarget string, ok bool) {
+	vr, isVersioned := p.tm.(memory.VersionReader)
+	if !isVersioned {
+		return "", "", false
+	}
+	return PriorVersionFor(ctx, vr, unit, point, source, target, fingerprint)
+}
 
 // LookupExactAt returns a plain-text exact match approved nearest at.
 //

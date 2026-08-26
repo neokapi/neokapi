@@ -17,6 +17,7 @@ import (
 	"io"
 
 	"github.com/mattn/go-isatty"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -1485,12 +1486,67 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 		}
 	}
 
+	// Translate reads a block's previously approved translation as reference,
+	// which needs a live handle on the content memory. It travels in the config
+	// map the way the voice profile does, since neither survives the JSON
+	// round-trip the rest of the config takes.
+	//
+	// Translate deliberately does not declare RequiresMemory. A content memory
+	// is optional here in a way it is not for recycle, and declaring it would
+	// make a project without one fail to build a translate step. With no memory
+	// the tool translates exactly as it did before.
+	var priorCleanup func()
+	if isTranslateTool(toolName, nil) {
+		pv, cl, err := a.OpenPriorVersions(cmd...)
+		if err != nil {
+			return nil, nil, err
+		}
+		if pv != nil {
+			next := make(map[string]any, len(config)+1)
+			maps.Copy(next, config)
+			next[aitools.ConfigPriorVersions] = pv
+			config = next
+			priorCleanup = cl
+		}
+	}
+
 	// Default: create from registry.
 	t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 	if err != nil {
+		if priorCleanup != nil {
+			priorCleanup()
+		}
 		return nil, nil, err
 	}
-	return []tool.Tool{t}, nil, nil
+	return []tool.Tool{t}, priorCleanup, nil
+}
+
+// OpenPriorVersions opens the content memory as a source of prior versions for
+// the translate tool, or returns nil when the run has none.
+//
+// It reuses OpenToolMemory rather than opening a second handle: the answer must
+// come from the same corpus recycle fills from, and two independently opened
+// stores would eventually disagree about which one a run means.
+func (a *App) OpenPriorVersions(cmd ...Command) (aitools.PriorVersionProvider, func(), error) {
+	noop := func() {}
+	if len(cmd) == 0 || cmd[0] == nil {
+		return nil, noop, nil
+	}
+	provider, cleanup, err := a.OpenToolMemory(cmd[0])
+	if err != nil {
+		return nil, noop, err
+	}
+	pv, ok := provider.(aitools.PriorVersionProvider)
+	if !ok {
+		if cleanup != nil {
+			cleanup()
+		}
+		return nil, noop, nil
+	}
+	if cleanup == nil {
+		cleanup = noop
+	}
+	return pv, cleanup, nil
 }
 
 // resolveParallelBlocks returns the parallel block concurrency to use.
@@ -2247,12 +2303,17 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		}
 	}
 
-	// Context point → recycle. A fill asks the content memory from where it is,
-	// so a source string the record answers more than one way is answered by the
-	// approval nearest this point rather than by whichever wording the corpus
-	// happens to repeat most. Translate takes no point: it produces a new
-	// translation rather than choosing between approved ones.
-	if b.point != "" && isMemoryRecycleTool(toolName, s) {
+	// Context point → recycle and translate. A fill asks the content memory from
+	// where it is, so a source string the record answers more than one way is
+	// answered by the approval nearest this point rather than by whichever
+	// wording the corpus happens to repeat most.
+	//
+	// Translate needs it for a different reason: it reads the block's own
+	// history. It used to take no point, on the reasoning that it produces a new
+	// translation rather than choosing between approved ones. That is true of
+	// the output and beside the point once the previous version became
+	// reference — a wording approved for one surface must not steer another.
+	if b.point != "" && (isMemoryRecycleTool(toolName, s) || isTranslateTool(toolName, s)) {
 		if _, ok := config["point"]; !ok {
 			clone()
 			config["point"] = b.point

@@ -1205,18 +1205,19 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 // silently. For a version chain an unstable key is worse than no key: empty
 // says "this block has no history", which is merely unhelpful, while a wrong
 // key says "this block said that before", which is false.
-func recordChainUnit(b *model.Block) string {
-	if b == nil {
-		return ""
-	}
-	if b.Unit != "" {
-		return b.Unit
-	}
-	if addr := b.StructuralAddress(); addr != "" {
-		return addr
-	}
-	return b.Name
-}
+
+// recordChainUnit is model.Block.ChainUnit, kept as a named call site because
+// the reasoning about WHY a chain is keyed this way belongs beside the write
+// path that stamps it.
+//
+// Unit, then structural address, then name. It deliberately stops there rather
+// than falling through to the block's ID, as convergence.BlockKey does. An id
+// is assigned per read, so keying a chain on one would braid unrelated answers
+// together and fragment a real chain, both silently. For a version chain an
+// unstable key is worse than no key: empty says "this block has no history",
+// which is merely unhelpful, while a wrong key says "this block said that
+// before", which is false.
+func recordChainUnit(b *model.Block) string { return b.ChainUnit() }
 
 // targetContextFingerprint reads the governing context a block's committed
 // target was produced under. Empty when the block carries no target for the

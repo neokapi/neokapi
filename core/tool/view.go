@@ -55,6 +55,13 @@ type BlockReader interface {
 	Translatable() bool
 	SourceLocale() model.LocaleID
 	Identity() *model.BlockIdentity
+	// ChainUnit is the block's durable identity across edits: what links its
+	// successive approved translations into one chain. See model.Block.ChainUnit.
+	//
+	// A tool that needs to ask what this block said before needs this and not
+	// the ID, which is assigned per read. Exposed here rather than by handing
+	// out the block, so a view stays a view.
+	ChainUnit() string
 	PreserveWhitespace() bool
 
 	// Source (read-only).
@@ -226,6 +233,7 @@ func (v *blockView) MimeType() string               { return v.b.MimeType }
 func (v *blockView) Translatable() bool             { return v.b.Translatable }
 func (v *blockView) SourceLocale() model.LocaleID   { return v.b.SourceLocale }
 func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
+func (v *blockView) ChainUnit() string              { return v.b.ChainUnit() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
 func (v *blockView) SourceRuns() []model.Run             { return v.b.Source }

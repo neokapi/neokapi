@@ -357,14 +357,18 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 		"an explicit per-call profile outranks the recipe's collection-tier binding")
 }
 
-// TestResolveProjectBindings_CarriesThePointToRecycle: a fill has to know where
-// it is happening. The record can hold two reviewed answers for one source —
-// one approved in each collection that carries the string — and the corpus can
-// only prefer the local one if the caller says which one it is. The point comes
-// from the same resolution the voice does, and reaches recycle and nothing else:
-// translate produces a new translation rather than choosing between approved
-// ones.
-func TestResolveProjectBindings_CarriesThePointToRecycle(t *testing.T) {
+// TestResolveProjectBindings_CarriesThePointToTheProducers: a fill has to know
+// where it is happening. The record can hold two reviewed answers for one
+// source, one approved in each collection that carries the string, and the
+// corpus can only prefer the local one if the caller says which one it is. The
+// point comes from the same resolution the voice does.
+//
+// It reaches translate as well as recycle, which it did not always. The old
+// reasoning was that translate produces a new translation rather than choosing
+// between approved ones. That is true of the output and beside the point once a
+// block's own previous version became reference material: wording approved for
+// one surface must not steer another.
+func TestResolveProjectBindings_CarriesThePointToTheProducers(t *testing.T) {
 	recipe, _ := governedProject(t, "platform/docs")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
@@ -382,7 +386,8 @@ func TestResolveProjectBindings_CarriesThePointToRecycle(t *testing.T) {
 	assert.Equal(t, want, recycled["point"], "recycle asks the corpus from where it is")
 
 	translated := a.applyBindings(b, "translate", nil, map[string]any{})
-	assert.NotContains(t, translated, "point", "translate chooses between no approvals")
+	assert.Equal(t, want, translated["point"],
+		"translate reads this block's history, and only from where the block sits")
 }
 
 // TestRecipeGovernanceEntersTheChain is the unification: the profile a

@@ -15,7 +15,7 @@ func TestContextDefaultsToKey(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic"})
 	assert.Equal(t, ContextKey, tool.contextPolicy)
 
-	got := tool.contextFor("tu1", "app.settings.save")
+	got := tool.contextFor(t.Context(), "tu1", "app.settings.save", "")
 	assert.Equal(t, "app.settings.save", got.Key)
 	assert.Empty(t, got.Before, "neighbours are opt-in: they cost tokens and widen the cache key")
 	assert.Empty(t, got.After)
@@ -24,7 +24,7 @@ func TestContextDefaultsToKey(t *testing.T) {
 func TestContextNoneSendsNothing(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic", Context: ContextNone})
 
-	assert.True(t, tool.contextFor("tu1", "app.settings.save").Empty(),
+	assert.True(t, tool.contextFor(t.Context(), "tu1", "app.settings.save", "").Empty(),
 		"context: none must send nothing about the block but the block")
 }
 
@@ -45,7 +45,7 @@ func TestNeighboursComeFromDocumentOrder(t *testing.T) {
 		tool.docEntries[i] = blockEntry{index: i, block: b, sourceText: txt}
 	}
 
-	got := tool.contextFor("tu3", "key.Save") // the middle block
+	got := tool.contextFor(t.Context(), "tu3", "key.Save", "") // the middle block
 	assert.Equal(t, "key.Save", got.Key)
 	assert.Equal(t, []string{"Unsaved changes", "Discard"}, got.Before)
 	assert.Equal(t, []string{"Cancel", "Settings"}, got.After)
@@ -80,14 +80,14 @@ func TestCacheFingerprintMovesWithTheNeighbourhood(t *testing.T) {
 	// Neighbours on: a changed neighbour must invalidate the cached translation.
 	a, b := newTool(ContextNeighbours), newTool(ContextNeighbours)
 	assert.NotEqual(t,
-		a.cacheFingerprint(docWith(a, "Unsaved changes")),
-		b.cacheFingerprint(docWith(b, "Delete everything?")),
+		a.cacheFingerprint(t.Context(), docWith(a, "Unsaved changes")),
+		b.cacheFingerprint(t.Context(), docWith(b, "Delete everything?")),
 		"a block whose neighbours changed must re-translate, not serve a stale target")
 
 	// Key-only: the key travels with the block, so a block-keyed cache already
 	// accounts for it. Folding it in would churn the cache for nothing.
 	c := newTool(ContextKey)
-	assert.Equal(t, c.configFP, c.cacheFingerprint(docWith(c, "Unsaved changes")),
+	assert.Equal(t, c.configFP, c.cacheFingerprint(t.Context(), docWith(c, "Unsaved changes")),
 		"key context must not widen the cache key")
 }
 
