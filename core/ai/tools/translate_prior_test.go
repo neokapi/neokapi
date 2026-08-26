@@ -426,3 +426,67 @@ func TestScopingTermsDoesNotMoveTheContextFingerprint(t *testing.T) {
 		aitools.ExportCacheFingerprint(withOne, t.Context(), block),
 		"a rule the text cannot use is still governance, and removing it is still a change")
 }
+
+// TestReuseNoneDeclinesTheReference.
+//
+// Its own setting rather than a value of `context:`, because the two govern
+// different things. Context is the material AROUND a block — free, from the
+// document in hand, cannot fail. A prior version is the block's OWN history: a
+// corpus read, gated on governance, available on paths where neighbours are
+// not. Someone setting `context: none` to make a run cheap should not have to
+// discover that it still reads the corpus.
+func TestReuseNoneDeclinesTheReference(t *testing.T) {
+	t.Parallel()
+
+	priors := &stubPriors{
+		unit: "cta.start", point: "acme\x1fweb\x1fsite",
+		source: "Get started", target: "Kom i gang",
+	}
+	cfg := baseConfig()
+	cfg.Memory = priors
+	cfg.Point = priors.point
+	cfg.Reuse = aitools.ReuseNone
+
+	p := &recordingProvider{}
+	runTranslate(t, cfg, p, blockNamed("cta.start", "Get started today"))
+
+	require.NotEmpty(t, p.prompts)
+	assert.NotContains(t, flatten(p.prompts[0]), "Kom i gang", "the reference was declined")
+	assert.Zero(t, priors.calls, "and not paid for: declining means never asking")
+}
+
+// TestReuseDefaultsToOffering: the empty value is the useful one, so a recipe
+// that says nothing gets the behaviour the measurement supports.
+func TestReuseDefaultsToOffering(t *testing.T) {
+	t.Parallel()
+
+	priors := &stubPriors{
+		unit: "cta.start", point: "acme\x1fweb\x1fsite",
+		source: "Get started", target: "Kom i gang",
+	}
+	cfg := baseConfig()
+	cfg.Memory = priors
+	cfg.Point = priors.point
+
+	p := &recordingProvider{}
+	runTranslate(t, cfg, p, blockNamed("cta.start", "Get started today"))
+
+	require.NotEmpty(t, p.prompts)
+	assert.Contains(t, flatten(p.prompts[0]), "Kom i gang")
+}
+
+// TestReuseMovesTheConfigFingerprint: the setting changes every prompt that had
+// a reference to carry, so a target cached under one setting must not be served
+// under the other.
+func TestReuseMovesTheConfigFingerprint(t *testing.T) {
+	t.Parallel()
+
+	on := baseConfig()
+	off := baseConfig()
+	off.Reuse = aitools.ReuseNone
+
+	block := blockNamed("cta.start", "Get started today")
+	assert.NotEqual(t,
+		aitools.ExportCacheFingerprint(aitools.NewAITranslateTool(&recordingProvider{}, on), t.Context(), block),
+		aitools.ExportCacheFingerprint(aitools.NewAITranslateTool(&recordingProvider{}, off), t.Context(), block))
+}

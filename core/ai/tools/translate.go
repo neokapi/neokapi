@@ -105,6 +105,16 @@ const (
 
 	// DefaultContextWindow is how many blocks either side ContextNeighbours sends.
 	DefaultContextWindow = 2
+
+	// ReusePrior offers a block its own previously approved translation as
+	// reference, when the corpus holds one and the rules it was approved under
+	// still hold. The default.
+	ReusePrior = "prior"
+	// ReuseNone sends no reference. The block is translated as if it had no
+	// history, which is what a run wants when it is re-translating deliberately
+	// — a voice change the old wording should not anchor — or when it does not
+	// want to pay for the lookup.
+	ReuseNone = "none"
 )
 
 // AITranslateConfig holds configuration for the AI translate tool.
@@ -149,6 +159,19 @@ type AITranslateConfig struct {
 	// block's history is read from its own point, so wording approved for one
 	// surface does not steer another. Supplied by the project bindings.
 	Point string `json:"point,omitempty" schema:"-"`
+
+	// Reuse selects whether a block's previously approved translation is offered
+	// to the model as reference.
+	//
+	// Its own setting rather than a value of Context, because the two govern
+	// different things and `context:` already promises something else. Context
+	// is about the material AROUND a block — its key, its neighbours — which is
+	// free, comes from the document in hand, and cannot fail. A prior version is
+	// the block's OWN history: it costs a corpus read, it is gated on
+	// governance, and it is available on paths where neighbours are not. A user
+	// setting `context: none` to make a run cheap should not have to discover
+	// that it still reads the corpus.
+	Reuse string `json:"reuse,omitempty" schema:"title=Reuse Prior Translation,description=Offer a block's previously approved translation to the model as reference,enum=prior|none,default=prior,group=prompt"`
 
 	// DNT are do-not-translate terms (product names, trademarks, code
 	// identifiers) that must survive VERBATIM into the target — the enforced
@@ -313,6 +336,12 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	if t.contextWindow < 1 {
 		t.contextWindow = DefaultContextWindow
 	}
+	if cfg.Reuse == ReuseNone {
+		// Dropped here rather than checked at each call site: a reference that
+		// is never fetched cannot be sent, cannot enter a cache key, and cannot
+		// cost a corpus read. One place to turn it off is one place to be wrong.
+		t.corpus = nil
+	}
 
 	// Batching intent → packing behaviour. batchSize 0 means "let the packer
 	// decide"; an explicit BatchSize pin overrides both.
@@ -389,12 +418,21 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 	if contextPolicy == "" {
 		contextPolicy = ContextKey
 	}
+	// The reuse setting changes every prompt that had a reference to carry, so a
+	// target cached under one setting must not be served under the other. The
+	// per-block reference itself is accounted for by the block's context digest;
+	// this is the switch, which is run-wide.
+	reuse := cfg.Reuse
+	if reuse == "" {
+		reuse = ReusePrior
+	}
 	return tool.OverlayConfigFingerprint(
 		"ai",
 		cfg.Provider,
 		cfg.Model,
 		p.Fingerprint(),
 		contextPolicy,
+		reuse,
 	)
 }
 
