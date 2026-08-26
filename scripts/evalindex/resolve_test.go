@@ -155,3 +155,28 @@ func TestAnUnpublishedEvalSaysSo(t *testing.T) {
 		})
 	}
 }
+
+// TestASpendingEvalDeclaresItsSettings.
+//
+// A command reproduces a deterministic eval. It does not reproduce a sampled
+// one: the same prompt at temperature 1.0 returns a different answer every
+// time, and a card offering only the command implies a repeatability it does
+// not have.
+//
+// The assertion is that the field is filled, not that the settings are good.
+// Every spending eval here currently answers "not recorded", which is true and
+// is the point. providers/ai carries a Config.Temperature that Anthropic,
+// OpenAI, Azure and Gemini never put on the wire, so there is nothing to record
+// until that is fixed. An unfilled field would hide that; a filled one that
+// says so puts it on the page.
+func TestASpendingEvalDeclaresItsSettings(t *testing.T) {
+	for _, e := range evals {
+		if !e.Spends || e.Status == StatusAbsent {
+			continue
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			assert.NotEmpty(t, e.Settings,
+				"this eval samples from a model, so the command alone does not reproduce its numbers")
+		})
+	}
+}

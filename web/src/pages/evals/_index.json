@@ -126,6 +126,7 @@
       "covers": "Whether showing the model a block's previously approved translation keeps the approved wording, and what it costs in calls and tokens.",
       "misses": "One model, one language pair, one direction. The judged half has no measured agreement with a person; only the deterministic consistency half should be relied on.",
       "reproduce": "make prior-ab-eval",
+      "settings": "Not recorded, and not pinned. Anthropic's default sampling applies, so a re-run samples afresh.",
       "data": "web/src/pages/coordinate/_abeval.json",
       "page": "/coordinate"
     },
@@ -139,6 +140,7 @@
       "covers": "Whether a model given voice guidance and terminology produces output that needs less correction than one that is not.",
       "misses": "Judge-to-human agreement is gated at 30 labelled items; the literature puts the useful floor at 100 to 200, and no sweep has cleared even the lower bar.",
       "reproduce": "make context-eval",
+      "settings": "Not recorded, and not pinned. Each swept model runs at its own API default.",
       "data": "web/src/pages/context-eval/_contexteval.json",
       "page": "/context-eval"
     },
@@ -211,6 +213,7 @@
       "covers": "Throughput and structural integrity as blocks per call rises, priced per model.",
       "misses": "Concurrency is recorded because throughput depends on it, so two models swept at different concurrencies cannot be raced on speed.",
       "reproduce": "make batch-eval",
+      "settings": "Not recorded, and not pinned. Concurrency is recorded; the sampling settings are not.",
       "data": "web/src/pages/batch-eval/_batcheval.json",
       "page": "/batch-eval"
     },

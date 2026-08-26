@@ -98,6 +98,18 @@ type Eval struct {
 	// the thing that produced it.
 	Reproduce string `json:"reproduce"`
 
+	// Settings is what a model call was made with: temperature, max tokens,
+	// seed. Required of any eval that spends, because a command alone does not
+	// reproduce a number that was sampled.
+	//
+	// "not recorded" is a valid answer and is currently the true one for every
+	// eval here. providers/ai carries a Config.Temperature that Ollama honours,
+	// Bedrock honours unless it is zero, and Anthropic, OpenAI, Azure and Gemini
+	// drop on the floor, so a cloud eval runs at whatever the API defaults to
+	// and no harness writes down what that was. The field exists to make the
+	// omission visible rather than to let it stay implied.
+	Settings string `json:"settings,omitempty"`
+
 	// Data is the committed result this eval publishes, relative to the repo
 	// root. Empty for an absent eval. The test asserts a non-empty path exists.
 	Data string `json:"data,omitempty"`

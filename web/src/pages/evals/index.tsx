@@ -37,6 +37,7 @@ interface Eval {
   data?: string;
   page?: string;
   validation?: string;
+  settings?: string;
 }
 interface Coverage {
   measured: number;
@@ -205,6 +206,14 @@ function EvalCard({ e }: { e: Eval }): ReactElement {
         )}
         <span style={styles.key}>Corpus</span>
         <span>{e.corpus}</span>
+        {e.settings && (
+          <>
+            <span style={styles.key}>Settings</span>
+            <span style={e.settings.startsWith("Not recorded") ? styles.misses : undefined}>
+              {e.settings}
+            </span>
+          </>
+        )}
         {e.validation && (
           <>
             <span style={styles.key}>Validation</span>
@@ -274,6 +283,12 @@ export default function Evals(): ReactElement {
           courtesy: across more than 50,000 published evaluation records surveyed in 2026, 96.5%
           were missing at least one field needed to re-run them. A number nobody can reproduce is an
           assertion with a table around it.
+        </p>
+        <p style={styles.prose}>
+          By that standard three cards here fall short today, and their <strong>Settings</strong>{" "}
+          row says so. Every eval that calls a hosted model runs at whatever sampling the API
+          defaults to, and no harness writes the value down, so re-running one of those commands
+          gives you the method rather than the number.
         </p>
 
         <h2 style={{ marginTop: "2.5rem" }}>What the statuses mean</h2>
