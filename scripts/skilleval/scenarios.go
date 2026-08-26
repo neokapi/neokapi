@@ -138,6 +138,16 @@ dashboard,tableau de bord,Übersicht,
 sign in,se connecter,anmelden,
 `
 
+// A profile is usable when kapi can parse it and score against it. Which file
+// the agent chose is its business, so the gate tries each candidate rather than
+// pinning a name.
+const gateUsableVoiceProfile = `for f in *.yaml *.yml; do [ -e "$f" ] || continue; ` +
+	`kapi voice check --profile-file "$f" --input-text probe --json >/dev/null 2>&1 && exit 0; done; exit 1`
+
+// A project exists when the recipe is there AND kapi can read it. The first
+// half alone passes on a file the agent hand-wrote and kapi rejects.
+const gateReadableProject = `test -f kapi.yaml && kapi status -p . >/dev/null 2>&1`
+
 var scenarios = []Scenario{
 	// ---- Positive: must trigger ---------------------------------------------
 	{
@@ -208,7 +218,8 @@ var scenarios = []Scenario{
 		Fixture: []FixtureFile{
 			{As: "index.html", From: fxLanding, Note: "the corpus the profile is inferred from"},
 		},
-		Turns: 10,
+		Turns:          10,
+		CompletionGate: gateUsableVoiceProfile,
 	},
 	{
 		ID:     "p06-translate-docx",
@@ -268,7 +279,8 @@ var scenarios = []Scenario{
 			{As: "README.md", Body: "# Northwind\n\nA workspace for teams.\n"},
 			{As: "src/locales/en.json", From: fxLocales, Note: "gives kapi init something to find"},
 		},
-		Turns: 12,
+		Turns:          12,
+		CompletionGate: gateReadableProject,
 	},
 	{
 		ID:     "p11-kapi-loop",
@@ -281,7 +293,8 @@ var scenarios = []Scenario{
 			{As: "kapi.yaml", Body: "version: \"1\"\nname: northwind\ndefaults:\n  source: en\n  targets: [nb]\ncollections:\n  - name: app\n    include: [\"src/locales/en.json\"]\n    format: json\n"},
 			{As: "src/locales/en.json", From: fxLocales, Note: "the source catalog the loop converges"},
 		},
-		Turns: 14,
+		Turns:          14,
+		CompletionGate: gateReadableProject,
 	},
 	{
 		ID:     "p12-i18n-advice",
@@ -349,7 +362,8 @@ var scenarios = []Scenario{
 			{As: "marketing/launch.docx", From: fxDocx, Note: "material for the profile to be inferred from"},
 			{As: "marketing/tone.md", Body: "We use plain words. We avoid marketing superlatives. We address the reader as you.\n"},
 		},
-		Turns: 14,
+		Turns:          14,
+		CompletionGate: gateUsableVoiceProfile,
 	},
 	{
 		ID:     "p17-refresh",
@@ -366,7 +380,8 @@ var scenarios = []Scenario{
 			{As: "support/faq.md", Body: "# Tideguard support\n\nTideguard is the new name for Tidewatch.\n",
 				Note: "the undeclared surface, using the new name — the drift to be found"},
 		},
-		Turns: 14,
+		Turns:          14,
+		CompletionGate: gateUsableVoiceProfile,
 	},
 
 	// ---- Negative: must NOT trigger -----------------------------------------
