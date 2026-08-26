@@ -385,9 +385,11 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 			continue // spec violation but tolerate
 		}
 		srcInlines := parseInlines(srcEl)
+		srcRuns, srcMarks := inlinesToRunsWithMarks(srcInlines)
 		srcSeg := seg{
 			ID:      segID,
-			Runs:    inlinesToRuns(srcInlines),
+			Runs:    srcRuns,
+			Marks:   srcMarks,
 			Content: &Content{Inlines: srcInlines},
 		}
 		// Preserve <ignorable> vs <segment> distinction for downstream
@@ -402,9 +404,11 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 		if tgtEl := child.SelectElement("target"); tgtEl != nil {
 			tgtInlines := parseInlines(tgtEl)
 			if hasNonEmptyInline(tgtInlines) {
+				tgtRuns, tgtMarks := inlinesToRunsWithMarks(tgtInlines)
 				tgtSegs = append(tgtSegs, seg{
 					ID:      segID,
-					Runs:    inlinesToRuns(tgtInlines),
+					Runs:    tgtRuns,
+					Marks:   tgtMarks,
 					Content: &Content{Inlines: tgtInlines},
 					// Mirror the source <ignorable> marker onto the
 					// target seg so the target segmentation overlay
@@ -534,14 +538,40 @@ func parseMrkAttrs(el *etree.Element) MrkAttrs {
 	}
 }
 
-// inlinesToRuns downconverts the xliff2 Inline IR to the framework's
-// generic model.Run sequence. Lossy by design — Run is a simpler
-// abstraction; the lossless path is the SourceBodyAnnotation /
-// TargetBodyAnnotation IR. Downstream tools that need full attribute
-// fidelity reach for the annotation; tools that only care about text
-// and placeholder equivs use Runs.
-func inlinesToRuns(inls []Inline) []model.Run {
+// markSpan is one annotation marker located in RUN coordinates: the half-open
+// span [Start, End) of the run sequence its content occupies.
+//
+// The marker itself contributes no run — an <mrk> wraps content rather than
+// being content, which is why the model carries it stand-off rather than as a
+// run kind (see constructs.yaml meta.terminology, "not a run type"). Recording
+// where it sat is the only way its metadata survives the downconversion.
+type markSpan struct {
+	Attrs MrkAttrs
+	Start int
+	End   int
+}
+
+// inlinesToRunsWithMarks downconverts the xliff2 Inline IR to the framework's
+// generic model.Run sequence, and reports where each annotation marker sat in
+// run coordinates local to this inline sequence.
+//
+// The run downconversion is lossy by design — Run is a simpler abstraction, and
+// the lossless path is the SegmentInlineAnnotation IR. Markers are the part
+// that must not be lost anyway: they carry a decision about specific characters
+// (this is a term, this must not be translated), and the model has somewhere to
+// put such a decision. So they come back as positions rather than as runs.
+//
+// Markers come in two shapes and both are collected. An <mrk> wraps its content
+// as children, so its span is where its children landed. An <sm>/<em> pair is
+// two siblings marking a span that need not nest cleanly — XLIFF 2 has them
+// precisely because a span can cross a <pc> boundary — so they are paired by
+// the em's startRef. An <sm> whose <em> never arrives marks nothing and is
+// dropped: an unterminated span has no end to anchor.
+func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 	var out []model.Run
+	var marks []markSpan
+	// Open <sm> markers by id, so an <em> can close the one it references.
+	open := map[string]markSpan{}
 	for _, in := range inls {
 		switch {
 		case in.Text != nil:
@@ -562,7 +592,9 @@ func inlinesToRuns(inls []Inline) []model.Run {
 				Equiv:   in.Pc.EquivStart,
 				Disp:    in.Pc.DispStart,
 			}})
-			out = append(out, inlinesToRuns(in.Pc.Children)...)
+			nested, nestedMarks := inlinesToRunsWithMarks(in.Pc.Children)
+			marks = append(marks, shiftMarks(nestedMarks, len(out))...)
+			out = append(out, nested...)
 			out = append(out, model.Run{PcClose: &model.PcCloseRun{
 				ID:    in.Pc.ID,
 				Type:  in.Pc.Type,
@@ -585,12 +617,37 @@ func inlinesToRuns(inls []Inline) []model.Run {
 				Disp:    in.Ec.Disp,
 			}})
 		case in.Mrk != nil:
-			// Annotation markers don't have a direct Run analogue; we
-			// fold their text content through.
-			out = append(out, inlinesToRuns(in.Mrk.Children)...)
-		case in.Sm != nil, in.Em != nil:
-			// No Run for span markers — they're metadata.
+			// A marker has no Run analogue: it wraps content rather than being
+			// content. Its children fold through, and where they landed is
+			// recorded so the metadata survives as a stand-off span.
+			start := len(out)
+			nested, nestedMarks := inlinesToRunsWithMarks(in.Mrk.Children)
+			marks = append(marks, shiftMarks(nestedMarks, start)...)
+			out = append(out, nested...)
+			marks = append(marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: start, End: len(out)})
+		case in.Sm != nil:
+			open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: len(out)}
+		case in.Em != nil:
+			if m, ok := open[in.Em.StartRef]; ok {
+				m.End = len(out)
+				marks = append(marks, m)
+				delete(open, in.Em.StartRef)
+			}
 		}
+	}
+	return out, marks
+}
+
+// shiftMarks rebases marks found in a nested sequence onto the enclosing one.
+func shiftMarks(marks []markSpan, by int) []markSpan {
+	if by == 0 || len(marks) == 0 {
+		return marks
+	}
+	out := make([]markSpan, len(marks))
+	for i, m := range marks {
+		m.Start += by
+		m.End += by
+		out[i] = m
 	}
 	return out
 }
