@@ -23,6 +23,9 @@ const entryPoints = [
   "src/extract/head.ts",
   "src/extract/warnings.ts",
   "src/types.ts",
+  // The one answer to "how is this file parsed", shared by the extractor and
+  // the transform so the two halves cannot disagree about what TypeScript is.
+  "src/parse-syntax.ts",
   "src/plugin/index.ts",
   "src/plugin/vite.ts",
   "src/plugin/webpack.ts",
