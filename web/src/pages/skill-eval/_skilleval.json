@@ -1,6 +1,6 @@
 {
   "mcp:trigger": {
-    "generated": "2026-08-26T23:26:08Z",
+    "generated": "2026-08-26T23:55:58Z",
     "mode": "trigger",
     "surface": "mcp",
     "repeat": 3,
@@ -22,7 +22,7 @@
       "positives": 7,
       "negatives": 1,
       "falseTriggers": 0,
-      "wrongToolPicks": 3
+      "wrongToolPicks": 2
     },
     "results": [
       {
@@ -59,9 +59,9 @@
             "mcpTools": [
               "voice_check"
             ],
-            "finalText": "**Score: 90 / 100**\n\nTwo vocabulary findings, both `major` severity, cost 10 points:\n\n| Dimension | Score | Issues |\n|---|---|---|\n| tone | 100 | — |\n| style | 100 | — |\n| **vocabulary** | **90** | 2 |\n| clarity | 100 | — |\n| compliance | 100 | — |\n\n- `cutting-edge` — forbidden term (offset 28)\n- `utilize` — forbidden term (offset 66); the profile prefers `use`\n\nWorth noting: the checker is deterministic vocabulary matching only, so the other dimensions scoring 100 doesn't mean they were deeply assessed. The sentence is also third-person (\"Northwind is a platform that lets teams…\") while the profile asks for second-person POV and addressing the reader as \"you\" — that wasn't flagged.",
+            "finalText": "**Score: 90/100**\n\nTwo vocabulary findings, both `major` forbidden terms:\n\n| Term | Position | Fix |\n|---|---|---|\n| `cutting-edge` | offset 28–40 | drop it (no marketing superlatives) |\n| `utilize` | offset 66–73 | `use` |\n\nDimension breakdown: tone 100, style 100, **vocabulary 90** (2 issues, −10), clarity 100, compliance 100.",
             "messages": 8,
-            "durationMs": 17778
+            "durationMs": 16985
           },
           {
             "triggered": true,
@@ -73,9 +73,9 @@
             "mcpTools": [
               "voice_check"
             ],
-            "finalText": "**Score: 90/100**\n\nTwo major findings, both vocabulary violations:\n\n| Term | Severity | Rule |\n|---|---|---|\n| `cutting-edge` | major | Forbidden — marketing superlative |\n| `utilize` | major | Forbidden — prefer \"use\" |\n\nDimension breakdown: tone 100, style 100, **vocabulary 90**, clarity 100, compliance 100.\n\nThe vocabulary dimension took a 10-point penalty; everything else passed clean. Both flagged terms are in the single body sentence — swapping `utilize` → `use` and dropping `cutting-edge` would bring it to 100. Say the word and I'll make the edit.",
+            "finalText": "**Score: 90/100**\n\nTwo findings, both vocabulary, both `major` severity — the only dimension that lost points (vocabulary: 90; tone, style, clarity, and compliance all 100):\n\n- **\"cutting-edge\"** (offset 28) — forbidden term\n- **\"utilize\"** (offset 66) — forbidden term; profile prefers **\"use\"**\n\nFixing both would take it to 100. A compliant version: *\"Northwind is a platform that lets teams use their content across every channel.\"*",
             "messages": 7,
-            "durationMs": 15537
+            "durationMs": 15114
           },
           {
             "triggered": true,
@@ -87,9 +87,9 @@
             "mcpTools": [
               "voice_check"
             ],
-            "finalText": "**Score: 90/100**\n\nTwo vocabulary findings, both major:\n\n| Term | Issue |\n|---|---|\n| `cutting-edge` | Forbidden marketing superlative |\n| `utilize` | Forbidden; profile prefers `use` |\n\nDimension breakdown: vocabulary 90 (2 issues, −10 penalty); tone, style, clarity, and compliance all 100.",
-            "messages": 7,
-            "durationMs": 16179
+            "finalText": "**Score: 90 / 100**\n\nTwo `major` vocabulary violations, both forbidden terms:\n\n| Term | Severity | Location |\n|---|---|---|\n| `cutting-edge` | major | offset 28–40 |\n| `utilize` | major | offset 66–73 |\n\nDimension breakdown: vocabulary 90 (−10 penalty, 2 issues); tone, style, clarity, and compliance all 100.\n\nThe fix is straightforward — swap `utilize` for the profile's preferred `use`, and drop `cutting-edge` (a marketing superlative the guidelines rule out). Want me to apply it?",
+            "messages": 8,
+            "durationMs": 15920
           }
         ],
         "fired": 3,
@@ -123,23 +123,23 @@
             "tools": [
               "Bash",
               "ToolSearch",
-              "mcp__kapi__voice_check",
-              "mcp__kapi__voice_rewrite"
+              "mcp__kapi__voice_rewrite",
+              "mcp__kapi__voice_check"
             ],
             "mcpTools": [
-              "voice_check",
-              "voice_rewrite"
+              "voice_rewrite",
+              "voice_check"
             ],
-            "finalText": "README.md now scores 100/100 against `voice.yaml` (no findings on any dimension).\n\n```\n# Northwind\n\nNorthwind is a workspace. Use it for your work.\n```\n\nWhat changed and why:\n- **\"Leverage\" → \"Use\"** — forbidden term (major); `use` is the profile's preferred term.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative the guidelines rule out.\n- **\"our\" → \"Northwind\" / \"your\"** — the profile sets second-person POV and says to address the reader as *you*.\n- **Split into two short sentences** — matches `sentence_length: short`, both active voice, plain and neutral.\n\nOne note: the original sentence carried no actual product claim beyond \"workspace,\" so the rewrite stays deliberately thin. If you want the README to say what Northwind actually does, tell me the capability and I'll expand it in-voice.",
+            "finalText": "README.md now scores 100 against the Northwind profile (was 90, with two major vocabulary findings).\n\n```markdown\n# Northwind\n\nUse your Northwind workspace.\n```\n\nWhat changed and why:\n- **\"Leverage\" → \"Use\"** — forbidden term (major); `use` is the profile's preferred term.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative the tone guidelines rule out.\n- **\"our\" → \"your\"** — the profile sets second-person POV and says to address the reader as you.\n\nOne note: the original line carried no actual information about what Northwind does, so the rewrite is equally thin — I kept it faithful rather than inventing product claims. If you tell me what the workspace is for, I can expand it into a real intro that still passes the profile.",
             "messages": 13,
-            "durationMs": 36862,
+            "durationMs": 33858,
             "changed": [
               {
                 "path": "README.md",
                 "kind": "edited",
                 "before": "# Northwind\n\nLeverage our cutting-edge workspace.\n",
-                "after": "# Northwind\n\nNorthwind is a workspace. Use it for your work.\n",
-                "bytesAfter": 61
+                "after": "# Northwind\n\nUse your Northwind workspace.\n",
+                "bytesAfter": 43
               }
             ]
           },
@@ -155,16 +155,16 @@
               "voice_check",
               "voice_rewrite"
             ],
-            "finalText": "README.md now reads:\n\n```markdown\n# Northwind\n\nUse your workspace.\n```\n\nWhat changed and why:\n\n- **\"Leverage\" → \"Use\"** — `leverage` is a forbidden term (major); `use` is the profile's preferred replacement.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative, which the tone guidelines rule out.\n- **\"our\" → \"your\"** — the profile sets `person_pov: second` and says to address the reader as you.\n\nVerification: `voice_check` scored the original 90/100 with two major vocabulary findings; the rewrite scores 100/100 with no findings across all five dimensions.\n\nOne note: `voice_rewrite` returned the input unchanged — the deterministic substitution path has no mapping for `leverage` or `cutting-edge` in this profile, despite `use` being listed as preferred over both. That may be worth a look if you expect that tool to handle these automatically.",
+            "finalText": "`README.md` now scores 100 against `voice.yaml` (was 90, with two major vocabulary findings).\n\n```\n# Northwind\n\nUse your Northwind workspace.\n```\n\nWhat changed and why:\n- **\"Leverage\" → \"Use\"** — forbidden term (major); `use` is the profile's preferred replacement.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative the guidelines rule out.\n- **\"our\" → \"your\"** — the profile calls for second person, addressing the reader.\n\nOne note: the original sentence carried no actual information about what the workspace does, so the rewrite is equally thin — I didn't invent capabilities to fill it out. If you want a real README opener, tell me what Northwind actually does and I'll write it in this voice.",
             "messages": 13,
-            "durationMs": 33809,
+            "durationMs": 35863,
             "changed": [
               {
                 "path": "README.md",
                 "kind": "edited",
                 "before": "# Northwind\n\nLeverage our cutting-edge workspace.\n",
-                "after": "# Northwind\n\nUse your workspace.\n",
-                "bytesAfter": 33
+                "after": "# Northwind\n\nUse your Northwind workspace.\n",
+                "bytesAfter": 43
               }
             ]
           },
@@ -180,16 +180,16 @@
               "voice_rewrite",
               "voice_check"
             ],
-            "finalText": "`README.md` now reads:\n\n```markdown\n# Northwind\n\nUse our workspace.\n```\n\nWhat changed and why:\n- **\"Leverage\" → \"Use\"** — `leverage` is a forbidden term (major); `use` is the profile's preferred replacement.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative the tone guidelines rule out.\n- Kept it short, active, and in the imperative (second person), per the style settings.\n\nVerification: `voice_check` scored the original **90/100** with two major vocabulary findings; the rewrite scores **100/100** with no findings across all five dimensions.\n\nOne note: `voice_rewrite` returned the text unchanged. It only does deterministic term substitution, and this profile lists `leverage`/`cutting-edge` as forbidden without machine-readable replacements, so the rewrite is mine, not the tool's. The result is also terse — the source sentence carried no real information beyond the marketing language, so there was nothing factual to preserve. If you want the README to actually describe what Northwind does, tell me what it does and I'll expand it in this voice.",
+            "finalText": "README.md is rewritten and verified at **100/100** against `voice.yaml` (kapi `voice_check`, all five dimensions clean).\n\n```diff\n-Leverage our cutting-edge workspace.\n+Use the Northwind workspace.\n```\n\nWhat changed and why:\n- `leverage` → `use` — forbidden term (major); `use` is the profile's preferred term.\n- `cutting-edge` — forbidden term (major), dropped as a marketing superlative.\n- `our` → `the Northwind` — the profile sets second-person POV, so the text shouldn't speak from the company's side.\n\nOne note: the original sentence carried no real information beyond the product name, so the compliant version is correspondingly thin. If you want the README to actually say what Northwind does, tell me the product's function and I'll expand it in-voice.",
             "messages": 14,
-            "durationMs": 43153,
+            "durationMs": 33304,
             "changed": [
               {
                 "path": "README.md",
                 "kind": "edited",
                 "before": "# Northwind\n\nLeverage our cutting-edge workspace.\n",
-                "after": "# Northwind\n\nUse our workspace.\n",
-                "bytesAfter": 32
+                "after": "# Northwind\n\nUse the Northwind workspace.\n",
+                "bytesAfter": 42
               }
             ]
           }
@@ -231,9 +231,9 @@
             "mcpTools": [
               "check_file"
             ],
-            "finalText": "`app.json` is clean — no problems found.\n\nI ran the kapi content checkset over the file (and re-ran it with `validate: report` to include structure/encoding checks):\n\n- **Result:** pass, score 100/100\n- **Blocks checked:** 3 (`cart.items`, `cart.checkout`, `welcome`)\n- **Findings:** 0 critical, 0 major, 0 minor\n\nThe three UI strings pass text hygiene, and the JSON structure and encoding validate cleanly. The `{count}` placeholder in `cart.items` is intact.\n\nOne thing worth noting, since the checkset can't know it without being told: if \"Acme Cloud\" is a brand name that must survive translation verbatim, pass it as a do-not-translate term when you check translated targets — `dnt: [\"Acme Cloud\"]` along with `target` and `target_lang`. I can also add length limits (`max_chars`) if these strings have UI width constraints, or check against a voice profile if you have one.",
-            "messages": 10,
-            "durationMs": 23286
+            "finalText": "`app.json` passes clean — no problems found.\n\n**`kapi check_file` result:** pass, score 100/100, 3 content blocks checked, 0 findings (critical/major/minor all zero). Re-ran with `validate: report` to fold in structure/encoding checks — still clean.\n\nThe three strings checked:\n- `cart.items` — \"You have {count} items in your Acme Cloud cart\"\n- `cart.checkout` — \"Checkout\"\n- `welcome` — \"Welcome to Acme Cloud\"\n\nOne thing the default checkset can't judge on its own: `cart.items` has a hardcoded plural (\"items\" always), so it reads wrong at `{count} = 1`. That's a localization-correctness issue rather than a content-hygiene one — worth an ICU plural form if this file feeds a translation pipeline. If you want, I can re-run with `dnt: [\"Acme Cloud\"]` and a voice profile to also enforce brand-term preservation and tone.",
+            "messages": 9,
+            "durationMs": 24404
           },
           {
             "triggered": true,
@@ -245,23 +245,23 @@
             "mcpTools": [
               "check_file"
             ],
-            "finalText": "Ran the content checkset over the file (3 translatable blocks):\n\n**Result: pass — score 100/100, zero findings** (0 critical / 0 major / 0 minor). No text-hygiene, encoding, or structure problems.\n\nOne thing the automated checkset doesn't cover that's worth a look:\n\n- `cart.items` — `\"You have {count} items in your Acme Cloud cart\"` hardcodes the plural form, so `count=1` renders \"You have 1 items\". If your i18n framework supports plural categories (ICU MessageFormat, `Intl.PluralRules`), this string should be a plural set rather than one flat message. It also matters downstream: many target languages need more plural forms than English's two.\n- `\"Acme Cloud\"` appears in two of the three strings. If it's meant to stay verbatim in translations, pass it as a do-not-translate term on future checks so the bilingual pass enforces it.\n\nWant me to re-run with `dnt: [\"Acme Cloud\"]` against a translated target, or convert `cart.items` to a plural form?",
+            "finalText": "`kapi check_file` passes clean — 3 blocks, score 100/100, zero findings at any severity (structure/encoding validation included).\n\n```json\n{\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",\n  \"cart.checkout\": \"Checkout\",\n  \"welcome\": \"Welcome to Acme Cloud\"\n}\n```\n\nOne thing the checkset doesn't cover but worth flagging: `cart.items` hardcodes the plural \"items\" alongside `{count}`, so it reads wrong at `count == 1` (\"You have 1 items…\") and won't work for locales with more than two plural forms. If your framework supports plural categories (ICU MessageFormat, i18next `_one`/`_other`), that string should be pluralized rather than a single form.",
+            "messages": 9,
+            "durationMs": 21529
+          },
+          {
+            "triggered": true,
+            "tools": [
+              "Bash",
+              "ToolSearch",
+              "mcp__kapi__check_file"
+            ],
+            "mcpTools": [
+              "check_file"
+            ],
+            "finalText": "Ran the content checkset over `app.json` (3 translatable blocks): **clean — 0 findings, score 100/100, structure/encoding valid.**\n\n```\ncritical 0 · major 0 · minor 0 · neutral 0\n```\n\nOne thing the checkset doesn't flag but is worth a look: `cart.items` — `\"You have {count} items in your Acme Cloud cart\"` has no plural form, so it renders \"You have 1 items\" at count 1. If the framework supports ICU plurals, that string should be `{count, plural, one {# item} other {# items}}`.",
             "messages": 8,
-            "durationMs": 26396
-          },
-          {
-            "triggered": true,
-            "tools": [
-              "Bash",
-              "ToolSearch",
-              "mcp__kapi__check_file"
-            ],
-            "mcpTools": [
-              "check_file"
-            ],
-            "finalText": "Ran the kapi content checkset against the file (with structure/encoding validation on).\n\n**Result: pass — 3 blocks checked, score 100/100, 0 findings** (0 critical, 0 major, 0 minor). JSON structure and encoding validate cleanly.\n\nOne thing the checkset doesn't cover that's worth flagging:\n\n`app.json:2` — `\"cart.items\": \"You have {count} items in your Acme Cloud cart\"` has no plural handling, so it renders \"You have 1 items in your Acme Cloud cart\". If your i18n runtime supports it (ICU MessageFormat, i18next, etc.), this should be a plural form rather than a flat string:\n\n```json\n\"cart.items\": \"You have {count, plural, one {# item} other {# items}} in your Acme Cloud cart\"\n```\n\nAlso worth deciding before translation starts: whether \"Acme Cloud\" should be registered as a do-not-translate term so it survives verbatim into target locales. I can re-run the check with `dnt` set once you have a translated file to compare against.",
-            "messages": 10,
-            "durationMs": 26169
+            "durationMs": 23131
           }
         ],
         "fired": 3,
@@ -299,23 +299,9 @@
               "detect_format",
               "extract_content"
             ],
-            "finalText": "I'll look at the file first.",
-            "messages": 12,
-            "durationMs": 23520
-          },
-          {
-            "triggered": true,
-            "tools": [
-              "Bash",
-              "ToolSearch",
-              "mcp__kapi__detect_format"
-            ],
-            "mcpTools": [
-              "detect_format"
-            ],
-            "finalText": "The detection failed on the extension, but the content is clearly JSON. Let me verify kapi handles it under a `.json` name.",
+            "finalText": "**Format: JSON** — a flat key/value string table (the shape used for UI localization resources).\n\n```json\n{\n  \"greeting\": \"Sign in to your workspace\",\n  \"cta\": \"Get started\"\n}\n```\n\n**Can kapi read it? Yes — but only if you tell it the format.**\n\n- `detect_format` **fails**: it dispatches purely on file extension, and `.dat` isn't registered — `unable to detect format: no format found for extension \".dat\"`.\n- Passing `format: \"json\"` explicitly works. Extraction returned 2 translatable blocks, 7 words:\n\n| id | source text | words |\n|----|-------------|-------|\n| `tu1` | Sign in to your workspace | 5 |\n| `tu2` | Get started | 2 |\n\nOnly the values were extracted; the keys were correctly treated as structural, not translatable.\n\nSo for any kapi operation on this file (`extract_content`, `translate`, `check_file`, etc.), pass `format: \"json\"`. Alternatively, renaming it to `mystery.json` would let detection succeed on its own.",
             "messages": 11,
-            "durationMs": 21952
+            "durationMs": 19060
           },
           {
             "triggered": true,
@@ -329,9 +315,25 @@
               "detect_format",
               "extract_content"
             ],
-            "finalText": "`extract_content` has a `format` override — let me confirm the detector is purely extension-based and that the override works.",
-            "messages": 16,
-            "durationMs": 22097
+            "finalText": "I'll look at the file first.",
+            "messages": 11,
+            "durationMs": 20968
+          },
+          {
+            "triggered": true,
+            "tools": [
+              "Bash",
+              "ToolSearch",
+              "mcp__kapi__detect_format",
+              "mcp__kapi__extract_content"
+            ],
+            "mcpTools": [
+              "detect_format",
+              "extract_content"
+            ],
+            "finalText": "I'll check the file and then ask kapi about it.",
+            "messages": 13,
+            "durationMs": 28352
           }
         ],
         "fired": 3,
@@ -370,9 +372,9 @@
             "mcpTools": [
               "extract_content"
             ],
-            "finalText": "Here's the text from `proposal.docx` (11 blocks, 62 words):\n\n---\n\n**Partnership Proposal**\n\n*Prepared for:* Meridian Retail Group\n\n*Prepared by:* the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nNote on formatting: the extractor marks inline formatting runs with `\u003cx id=\"c1\"/\u003e…\u003cx id=\"/c2\"/\u003e` placeholders — those wrap \"Prepared for:\", \"Prepared by:\", and \"SalesPilot\" in the intro line (bold/emphasis in the original). I've rendered them as emphasis above rather than showing the raw tags. If you want to edit any of this and write it back to the .docx, the placeholders need to be preserved verbatim in the edited text — let me know and I'll handle that round-trip.",
+            "finalText": "Here's the readable text from `proposal.docx` — 11 blocks, 62 words:\n\n---\n\n**Partnership Proposal**\n\n**Prepared for:** Meridian Retail Group\n\n**Prepared by:** the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nTwo notes on the extraction:\n\n- The `\u003cx id=\"c1\"/\u003e…\u003cx id=\"/c2\"/\u003e` pairs in the raw output are inline formatting codes (the bold runs on \"Prepared for:\", \"Prepared by:\", and \"SalesPilot\"). I've rendered them as bold above rather than leaving the placeholders in.\n- Block structure (headings vs. list items) is inferred from the text; the extractor returns a flat block list with ids `tu1`–`tu11`. If you want to edit anything and write it back into the .docx, those ids and content hashes are what you'd reference.",
             "messages": 8,
-            "durationMs": 18758
+            "durationMs": 17516
           },
           {
             "triggered": true,
@@ -384,9 +386,9 @@
             "mcpTools": [
               "extract_content"
             ],
-            "finalText": "Here's the text from `proposal.docx` (11 blocks, 62 words). I've stripped the inline formatting placeholders (`\u003cx id=\"c1\"/\u003e` … marks a bold/styled run):\n\n---\n\n**Partnership Proposal**\n\nPrepared for: Meridian Retail Group\nPrepared by: the SalesPilot team\n\nThank you for the opportunity to introduce SalesPilot to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nA note on what you're seeing: this came out as translatable content blocks (`tu1`–`tu11`), each with a stable id and content hash. That means the extraction is round-trippable — if you want to change any of this wording, edit the block text (keeping the `\u003cx .../\u003e` placeholders in place) and it can be written back into the .docx with formatting preserved. Just say which blocks and what you want them to say.",
-            "messages": 6,
-            "durationMs": 16744
+            "finalText": "Here's the readable text from `proposal.docx` — 11 blocks, 62 words, with inline formatting codes stripped out:\n\n---\n\n**Partnership Proposal**\n\nPrepared for: Meridian Retail Group\n\nPrepared by: the SalesPilot team\n\nThank you for the opportunity to introduce SalesPilot to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nA couple of notes on the extraction:\n\n- The original has inline formatting runs that I removed for readability. In blocks `tu2`, `tu3`, and `tu4` they wrap \"Prepared for:\", \"Prepared by:\", and the word \"SalesPilot\" respectively — most likely bold.\n- Each block carries a stable id (`tu1`–`tu11`) and a content hash. If you want to edit any of this and write it back into the .docx, the ids are the handles for that — tell me which blocks and what to change.",
+            "messages": 8,
+            "durationMs": 18191
           },
           {
             "triggered": true,
@@ -398,9 +400,9 @@
             "mcpTools": [
               "extract_content"
             ],
-            "finalText": "Here's the text from `proposal.docx` — 11 blocks, 62 words:\n\n\u003e **Partnership Proposal**\n\u003e\n\u003e **Prepared for:** Meridian Retail Group\n\u003e **Prepared by:** the SalesPilot team\n\u003e\n\u003e Thank you for the opportunity to introduce **SalesPilot** to your team.\n\u003e\n\u003e **What SalesPilot delivers**\n\u003e - A single pipeline view across every region.\n\u003e - Automated follow-ups that keep deals moving.\n\u003e - Forecasts your leadership can rely on.\n\u003e\n\u003e **Next steps**\n\u003e We will provision your SalesPilot workspace within two business days.\n\u003e\n\u003e Warm regards, the SalesPilot team.\n\nA note on what I stripped: the extractor returns inline formatting as `\u003cx id=\"c1\"/\u003e…\u003cx id=\"/c2\"/\u003e` placeholders — those wrap the bold runs on \"Prepared for:\", \"Prepared by:\", and \"SalesPilot\" in the intro line. I rendered them as bold above for readability. If you plan to edit the text and write it back into the file, work from the raw block text with the placeholders intact rather than this cleaned version, since dropping them loses the formatting.",
-            "messages": 6,
-            "durationMs": 17530
+            "finalText": "Here's the readable text from `proposal.docx` — 11 blocks, 62 words:\n\n---\n\n**Partnership Proposal**\n\n**Prepared for:** Meridian Retail Group\n**Prepared by:** the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nTwo notes on the extraction:\n\n- The `\u003cx id=\"c1\"/\u003e … \u003cx id=\"/c2\"/\u003e` pairs in the raw output are inline formatting placeholders (the bold runs on \"Prepared for:\", \"Prepared by:\", and \"SalesPilot\"). I've rendered them as bold above and stripped the markers.\n- The three \"delivers\" items are separate blocks (`tu6`–`tu8`); I've shown them as a list, though the extraction doesn't itself tell us whether they're true list paragraphs or just consecutive lines.\n\nIf you want to edit any of this and write it back to the .docx, the block IDs above are the handles — say the word and I'll run it back through `apply_edits`.",
+            "messages": 8,
+            "durationMs": 19301
           }
         ],
         "fired": 3,
@@ -440,9 +442,9 @@
             "mcpTools": [
               "stats"
             ],
-            "finalText": "Tiny — this project has one locale file with **14 words** of translatable content.\n\n**`src/locales/en.json`** (the only file matched by the `app` collection in `kapi.yaml`):\n\n| Metric | Count |\n|---|---|\n| Translatable blocks | 5 |\n| Non-translatable blocks | 0 |\n| Segments | 5 |\n| Words | 14 |\n| Characters (with spaces) | 83 |\n| Characters (no spaces) | 74 |\n| Unique characters | 27 |\n\nAll 5 blocks are translatable — nothing is excluded. The strings are `greeting`, `intro`, `save`, `cancel`, and `settings`, with the `intro` sentence accounting for most of the word count.\n\nWith `en` → `nb` as the only target pair configured, that's 14 source words of total translation volume — a single short pass.",
+            "finalText": "Very little — this is a tiny project with a single locale file.\n\n**`src/locales/en.json`** (the only collection, `app`, source `en` → target `nb`):\n\n| Metric | Count |\n|---|---|\n| Translatable blocks | 5 |\n| Non-translatable blocks | 0 |\n| Segments | 5 |\n| Words | 14 |\n| Characters (with spaces) | 83 |\n| Characters (no spaces) | 74 |\n| Unique characters | 27 |\n\nAll 5 blocks are translatable — nothing is excluded. The content is five UI strings: `greeting`, `intro`, `save`, `cancel`, `settings`. At 14 words, translating into `nb` is a single trivial pass.",
             "messages": 8,
-            "durationMs": 19453
+            "durationMs": 19434
           },
           {
             "triggered": true,
@@ -454,23 +456,23 @@
             "mcpTools": [
               "stats"
             ],
-            "finalText": "Very little — this is a tiny project with a single source file.\n\n**`src/locales/en.json`** (the only file in the `app` collection, per `kapi.yaml`):\n\n| Metric | Count |\n|---|---|\n| Translatable blocks | 5 |\n| Non-translatable blocks | 0 |\n| Segments | 5 |\n| Words | 14 |\n| Characters (with spaces) | 83 |\n| Characters (no spaces) | 74 |\n| Unique characters | 27 |\n\nAll 5 blocks are translatable — nothing is excluded. The strings are `greeting`, `intro`, `save`, `cancel`, `settings`.\n\nThe project targets `nb` (Norwegian Bokmål) from `en`, so that's 14 words of translation work for one locale.",
+            "finalText": "The project (`northwind`) has one collection, `app`, covering `src/locales/en.json`. Running kapi stats on it:\n\n| Metric | Value |\n|---|---|\n| Blocks | 5 (all 5 translatable, 0 non-translatable) |\n| Segments | 5 |\n| Words | 14 |\n| Characters | 83 (74 excluding spaces) |\n| Unique characters | 27 |\n\nSo it's a very small project — 5 translatable strings totaling 14 words. Source locale is `en`, with `nb` as the only target, so a full translation pass is 14 words of work.",
+            "messages": 8,
+            "durationMs": 15694
+          },
+          {
+            "triggered": true,
+            "tools": [
+              "Bash",
+              "ToolSearch",
+              "mcp__kapi__stats"
+            ],
+            "mcpTools": [
+              "stats"
+            ],
+            "finalText": "Very little — this is a small project with a single source file.\n\n**`src/locales/en.json`** (the only collection, `app`):\n\n| Metric | Count |\n|---|---|\n| Translatable blocks | 5 (of 5 total — nothing non-translatable) |\n| Segments | 5 |\n| Words | 14 |\n| Characters | 83 (74 without spaces) |\n| Unique characters | 27 |\n\nThe strings are `greeting`, `intro`, `save`, `cancel`, and `settings`. Source language is `en`, with `nb` (Norwegian Bokmål) as the only configured target — so a full pass is 14 words into one locale.",
             "messages": 9,
-            "durationMs": 17543
-          },
-          {
-            "triggered": true,
-            "tools": [
-              "Bash",
-              "ToolSearch",
-              "mcp__kapi__stats"
-            ],
-            "mcpTools": [
-              "stats"
-            ],
-            "finalText": "The project is tiny — a single source file with **5 translatable strings / 14 words**.\n\n**`src/locales/en.json`** (the only collection, `app`, defined in `kapi.yaml`):\n\n| Metric | Count |\n|---|---|\n| Blocks | 5 (all translatable, 0 non-translatable) |\n| Segments | 5 |\n| Words | 14 |\n| Characters | 83 (74 excluding spaces) |\n| Unique characters | 27 |\n\nThe strings are UI labels: `greeting`, `intro`, `save`, `cancel`, `settings`. Configured source is `en`, target is `nb` (Norwegian Bokmål), so a full translation pass is ~14 words into one locale — a few seconds of work.",
-            "messages": 8,
-            "durationMs": 16305
+            "durationMs": 17509
           }
         ],
         "fired": 3,
@@ -510,24 +512,23 @@
             "mcpTools": [
               "up_plan"
             ],
-            "finalText": "The recipe here is actually invalid, so let me confirm the failure and then see what it *would* plan on a throwaway copy (nothing in your directory gets touched).",
-            "messages": 15,
-            "durationMs": 42613
+            "finalText": "I'll load the kapi tool schemas and look at what's here.",
+            "messages": 14,
+            "durationMs": 39297
           },
           {
             "triggered": true,
             "tools": [
               "ToolSearch",
               "Bash",
-              "mcp__kapi__up_plan",
-              "mcp__kapi__stats"
+              "mcp__kapi__up_plan"
             ],
             "mcpTools": [
-              "up_plan",
-              "stats"
+              "up_plan"
             ],
+            "finalText": "Found the blocker. Let me confirm what would happen after that one-line fix, using a throwaway copy so nothing here is touched.",
             "messages": 16,
-            "durationMs": 32935
+            "durationMs": 36464
           },
           {
             "triggered": true,
@@ -537,22 +538,18 @@
               "mcp__kapi__up_plan"
             ],
             "kapiCommands": [
-              "cat .mcp.json; echo \"=== update-channel ===\"; cat kapi-config/update-channel 2\u003e/dev/null; echo; echo \"=== kapi cli? ===\"; which kapi || echo \"not on PATH\"",
-              "grep -rn 'version' \u003c(/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi help recipe 2\u003e\u00261) | head -30"
+              "K=~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\n\"$K\" --help 2\u003e\u00261 | head -60"
             ],
             "mcpTools": [
               "up_plan"
             ],
-            "finalText": "The MCP server's working directory isn't this folder, so I'll point it at the recipe explicitly.",
-            "messages": 15,
-            "durationMs": 27836
+            "finalText": "The recipe is rejected before any work starts. Let me confirm what the plan *would* be, using a throwaway copy outside your project (nothing here is touched).",
+            "messages": 16,
+            "durationMs": 40090
           }
         ],
         "fired": 3,
         "foundTool": 3,
-        "wrongTool": [
-          "stats"
-        ],
         "verdict": "pass"
       },
       {
@@ -577,9 +574,9 @@
             "tools": [
               "Bash"
             ],
-            "finalText": "Done — `sum.go`:\n\n```go\nfunc Sum(xs []int) int {\n\ttotal := 0\n\tfor _, v := range xs {\n\t\ttotal += v\n\t}\n\treturn total\n}\n```\n\nAll three occurrences renamed (`xs` left untouched), and `gofmt -l` reports no formatting issues.",
+            "finalText": "Done. `sum.go` now uses `total` throughout:\n\n```go\nfunc Sum(xs []int) int {\n\ttotal := 0\n\tfor _, v := range xs {\n\t\ttotal += v\n\t}\n\treturn total\n}\n```\n\n`gofmt -l` and `go vet` both reported no issues.",
             "messages": 8,
-            "durationMs": 18414,
+            "durationMs": 18662,
             "changed": [
               {
                 "path": "sum.go",
@@ -595,9 +592,9 @@
             "tools": [
               "Bash"
             ],
-            "finalText": "Renamed all three occurrences of `x` to `total` in `sum.go:4,6,8`. The parameter `xs` was left untouched.",
-            "messages": 4,
-            "durationMs": 12772,
+            "finalText": "Renamed in `sum.go:4,6,8` — the parameter `xs` was left untouched. `go vet` couldn't run (no module in this directory), but the change is a straightforward local-variable rename.",
+            "messages": 8,
+            "durationMs": 19713,
             "changed": [
               {
                 "path": "sum.go",
@@ -613,9 +610,9 @@
             "tools": [
               "Bash"
             ],
-            "finalText": "Done. All three occurrences of `x` in `Sum` are now `total` (`sum.go:4`, `:6`, `:8`); the `xs` parameter is untouched. `gofmt -l` reports no formatting issues. `go vet` couldn't run — there's no `go.mod` in this directory — but the file compiles as valid Go source.",
-            "messages": 8,
-            "durationMs": 14542,
+            "finalText": "Renamed all three occurrences of `x` to `total` in `sum.go:4`, `sum.go:6`, and `sum.go:8`. The `xs` parameter was left untouched.",
+            "messages": 9,
+            "durationMs": 13895,
             "changed": [
               {
                 "path": "sum.go",
