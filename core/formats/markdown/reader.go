@@ -2554,10 +2554,56 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 			}
 		case *ast.AutoLink:
 			buf.Write(n.URL(source))
+		case *east.TaskCheckBox:
+			buf.WriteString(taskCheckBoxRaw(n, source))
 		default:
 			r.collectInlineText(buf, child, source)
 		}
 	}
+}
+
+// taskCheckBoxRaw returns a task-list checkbox exactly as the source spells it.
+//
+// east.TaskCheckBox carries only IsChecked and no segment, so rendering from
+// the bool would normalize `[X]` to `[x]` and lose the span's byte-exactness —
+// which costs the whole file its translation, the very failure this fixes. The
+// bytes are read instead from between the parent block's first line and the
+// text that follows: goldmark starts that line at the checkbox, having already
+// consumed the list marker.
+func taskCheckBoxRaw(n *east.TaskCheckBox, source []byte) string {
+	rendered := "[ ] "
+	if n.IsChecked {
+		rendered = "[x] "
+	}
+	parent := n.Parent()
+	if parent == nil || parent.Lines().Len() == 0 {
+		return rendered
+	}
+	start := parent.Lines().At(0).Start
+	next, ok := n.NextSibling().(*ast.Text)
+	if !ok || next.Segment.Start <= start || next.Segment.Start > len(source) {
+		return rendered
+	}
+	raw := string(source[start:next.Segment.Start])
+	if !isTaskCheckBoxSpelling(raw) {
+		return rendered
+	}
+	return raw
+}
+
+// isTaskCheckBoxSpelling reports whether raw is a checkbox and its trailing
+// space, and nothing else — the guard that keeps a surprising parse from
+// splicing arbitrary source into a block.
+func isTaskCheckBoxSpelling(raw string) bool {
+	if len(raw) < 3 || raw[0] != '[' || raw[2] != ']' {
+		return false
+	}
+	switch raw[1] {
+	case ' ', 'x', 'X':
+	default:
+		return false
+	}
+	return strings.TrimLeft(raw[3:], " \t") == ""
 }
 
 func (r *Reader) extractListItemText(item *ast.ListItem, source []byte) string {
@@ -2708,6 +2754,13 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 
 		case *ast.CodeSpan:
 			r.buildCodeSpanRuns(b, n, source, idCounter)
+
+		case *east.TaskCheckBox:
+			// `- [ ] item`. The checkbox is list structure, not prose, so it is
+			// kept verbatim and marked do-not-translate. Dropped instead, the
+			// span stops rebuilding byte-for-byte and the whole file falls back
+			// to source — eight of these cost a 6.4KB page its translation.
+			b.AddDNTText(taskCheckBoxRaw(n, source))
 
 		case *ast.Link:
 			r.buildLinkRuns(b, n, source, idCounter)
