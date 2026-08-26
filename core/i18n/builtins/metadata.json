@@ -563,7 +563,7 @@
         },
         "fuzzyThreshold": {
           "title": "Fuzzy Match Threshold",
-          "description": "Minimum score for a match (100 = exact only; below 100 reaches the retiring fuzzy path)"
+          "description": "Minimum score for a match; the fuzzy path below 100 is retiring"
         },
         "makeTmx": {
           "title": "Generate TMX Document",
