@@ -165,3 +165,37 @@ func TestDiffAgreesWithTheVerdict(t *testing.T) {
 			"a word marked as moved is exactly what makes an edit substantive: %q → %q", p[0], p[1])
 	}
 }
+
+// TestContainsWords is the check a consistency measurement depends on, and the
+// reason it cannot be strings.Contains.
+func TestContainsWords(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		haystack, needle string
+		want             bool
+	}{
+		// The case that produced this function: the approved Norwegian for a
+		// shopping basket is kurven, the word a model reaches for instead is
+		// handlekurven, and strings.Contains says the drift is a match.
+		{"the drift is not the word", "Legg dette i handlekurven", "kurven", false},
+		{"the word is the word", "Legg denne i kurven", "kurven", true},
+		{"inflected into the sentence", "Åpne innstillingene for arbeidsområdet", "arbeidsområdet", true},
+
+		{"multi-word, contiguous", "Du kan si opp abonnementet", "si opp", true},
+		{"multi-word, not contiguous", "Du kan si det opp", "si opp", false},
+
+		{"case folds", "Logg inn for å fortsette", "logg inn", true},
+		{"punctuation between is a separator", "Logg inn, for å fortsette", "logg inn", true},
+
+		{"empty needle matches nothing", "anything at all", "", false},
+		{"absent", "Velg en plan", "abonnement", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tools.ContainsWords(tt.haystack, tt.needle))
+		})
+	}
+}

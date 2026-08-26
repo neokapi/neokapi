@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import Layout from "@theme/Layout";
 import report from "./_coordinate.json";
+import abReport from "./_abeval.json";
 
 // The /coordinate report: what kapi reuses from a content memory when a source
 // changes, and what it refuses to reuse.
@@ -127,7 +128,53 @@ interface Report {
   segments: SegmentSplit;
 }
 
+interface AbVerdict {
+  winner: "with" | "without" | "tie";
+  reason?: string;
+  shownFirst: string;
+}
+interface AbSample {
+  without: string;
+  with: string;
+  keptWithout: boolean;
+  keptWith: boolean;
+  driftedWithout: boolean;
+  driftedWith: boolean;
+  judge?: AbVerdict;
+}
+interface AbCase {
+  name: string;
+  priorSource: string;
+  source: string;
+  priorTarget: string;
+  keep: string[];
+  drift: string[];
+  why: string;
+  withheld?: boolean;
+  promptDiffers: boolean;
+  samples: AbSample[];
+  keptWith: number;
+  keptWithout: number;
+}
+interface AbReport {
+  ranAt: string;
+  model: string;
+  judge: string;
+  modelFamily: string;
+  judgeFamily: string;
+  repeat: number;
+  samples: number;
+  keptWith: number;
+  keptWithout: number;
+  judgeWith: number;
+  judgeWithout: number;
+  judgeTie: number;
+  judgeValidated: boolean;
+  cases: AbCase[];
+}
+
 const data = report as Report;
+const ab = abReport as AbReport;
 
 const mono = "var(--ifm-font-family-monospace)";
 
@@ -153,6 +200,14 @@ const styles: Record<string, CSSProperties> = {
     letterSpacing: ".1em",
     textTransform: "uppercase",
     color: "var(--ifm-color-emphasis-600)",
+  },
+  evalBadge: {
+    marginLeft: ".7rem",
+    padding: ".05rem .4rem",
+    borderRadius: 4,
+    background: "var(--ifm-color-warning-contrast-background)",
+    color: "var(--ifm-color-warning-darker)",
+    letterSpacing: ".05em",
   },
   evalTitle: { margin: ".2rem 0 .1rem", fontSize: "1.45rem" },
   evalQuestion: {
@@ -245,6 +300,18 @@ const styles: Record<string, CSSProperties> = {
   diffText: { fontSize: ".92rem", lineHeight: 1.6 },
   outcome: { fontSize: ".85rem", lineHeight: 1.45 },
   nothing: { color: "var(--ifm-color-emphasis-600)", fontStyle: "italic" },
+  kept: {
+    background: "var(--ifm-color-success-contrast-background)",
+    color: "var(--ifm-color-success-contrast-foreground)",
+    borderRadius: 3,
+    padding: "0 .2rem",
+  },
+  drifted: {
+    background: "var(--ifm-color-danger-contrast-background)",
+    color: "var(--ifm-color-danger-contrast-foreground)",
+    borderRadius: 3,
+    padding: "0 .2rem",
+  },
   legend: {
     display: "flex",
     flexWrap: "wrap",
@@ -407,6 +474,8 @@ function Th({ label, sub, width }: { label: string; sub?: string; width?: string
   );
 }
 
+const evalCount = 5;
+
 /** One eval, boxed and numbered so it has a visible start and end. */
 function Eval({
   n,
@@ -414,16 +483,21 @@ function Eval({
   question,
   children,
   result,
+  badge,
 }: {
   n: number;
   title: string;
   question: string;
   children: ReactNode;
   result: ReactNode;
+  badge?: string;
 }): ReactElement {
   return (
     <section style={styles.eval}>
-      <div style={styles.evalNumber}>Eval {n} of 4</div>
+      <div style={styles.evalNumber}>
+        Eval {n} of {evalCount}
+        {badge && <span style={styles.evalBadge}>{badge}</span>}
+      </div>
       <h2 style={styles.evalTitle}>{title}</h2>
       <p style={styles.evalQuestion}>{question}</p>
       {children}
@@ -432,6 +506,78 @@ function Eval({
         {result}
       </div>
     </section>
+  );
+}
+
+/**
+ * One A/B case: the wording under test, then every sample's two translations
+ * side by side. The Norwegian is the evidence, so it is shown in full rather
+ * than summarised into a rate.
+ */
+function AbCaseView({ c }: { c: AbCase }): ReactElement {
+  const n = c.samples.length;
+  return (
+    <div style={{ ...styles.pane, marginTop: "1.2rem" }}>
+      <div
+        style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}
+      >
+        <strong>{c.name}</strong>
+        <span>
+          {c.withheld
+            ? pill("control: no reference given", "flat")
+            : pill(`kept ${c.keptWith}/${n} with, ${c.keptWithout}/${n} without`, "ok")}
+        </span>
+      </div>
+      <p style={{ ...styles.slug, margin: ".4rem 0 .8rem" }}>{c.why}</p>
+      <div style={{ ...styles.factRowFirst, padding: 0, marginBottom: ".3rem" }}>
+        <span style={styles.factKey}>English now</span>
+        <span>{c.source}</span>
+      </div>
+      <div style={{ ...styles.factRowFirst, padding: 0, marginBottom: ".8rem" }}>
+        <span style={styles.factKey}>Approved before</span>
+        <span>
+          {c.priorTarget}{" "}
+          <span style={styles.slug}>
+            (for &ldquo;{c.priorSource}&rdquo;
+            {c.withheld && ", withheld from the model in this case"})
+          </span>
+        </span>
+      </div>
+      <div style={styles.scroll}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <Th label="#" />
+              <Th label="Without the reference" width="18rem" />
+              <Th label="With the reference" width="18rem" />
+            </tr>
+          </thead>
+          <tbody>
+            {c.samples.map((s, i) => (
+              <tr key={i}>
+                <td style={styles.val}>{i + 1}</td>
+                <td>
+                  <span style={s.keptWithout ? styles.kept : styles.drifted}>{s.without}</span>
+                </td>
+                <td>
+                  <span style={s.keptWith ? styles.kept : styles.drifted}>{s.with}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ ...styles.legend, marginBottom: 0 }}>
+        <span>
+          <span style={styles.kept}>green</span> keeps the approved wording (
+          {c.keep.slice(0, 2).join(", ")})
+        </span>
+        <span>
+          <span style={styles.drifted}>red</span> uses another word (
+          {c.drift.slice(0, 2).join(", ")})
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -574,23 +720,30 @@ export default function Coordinate(): ReactElement {
           <div style={styles.factRowFirst}>
             <span style={styles.factKey}>AI models used</span>
             <span>
-              None. Every figure comes from running kapi&rsquo;s own resolver, matcher, segmenter,
-              recycle tool and prompt builder, so the results are exact rather than sampled.
+              Evals 1 to 4 use none. Every figure in them comes from running kapi&rsquo;s own
+              resolver, matcher, segmenter, recycle tool and prompt builder, so the results are
+              exact rather than sampled. Eval 5 calls <code>{ab.model}</code> and is the only one
+              that does; its data is committed rather than regenerated, so the rest of the page
+              stays deterministic.
             </span>
           </div>
           <div style={styles.factRow}>
             <span style={styles.factKey}>Pass bar</span>
             <span>
-              Tests in <code>scripts/coordinatereport</code> fail the build if the data here stops
-              matching the code, if the two reuse rules stop disagreeing, or if a case is added
-              whose hand-written label disagrees with kapi&rsquo;s own verdict.
+              Tests in <code>scripts/coordinatereport</code> fail the build if the data in evals 1
+              to 4 stops matching the code, if the two reuse rules stop disagreeing, or if a case is
+              added whose hand-written label disagrees with kapi&rsquo;s own verdict. Eval 5 has no
+              build gate: it samples a model, so a threshold on it would fail the build on a bad
+              day. Its consistency half is a deterministic string check and its judged half is
+              reported as unvalidated.
             </span>
           </div>
           <div style={styles.factRow}>
             <span style={styles.factKey}>Not measured here</span>
             <span>
-              Whether an AI model translates better when it is given the previous version. That
-              needs model calls and a quality bar, and is not built yet.
+              Whether the judge in eval 5 agrees with a person. Until that agreement is measured on
+              labelled examples, the judged win-loss numbers are reported and not relied on. The
+              consistency numbers beside them need no such caveat.
             </span>
           </div>
         </div>
@@ -910,6 +1063,76 @@ export default function Coordinate(): ReactElement {
               </div>
             );
           })}
+        </Eval>
+
+        <Eval
+          n={5}
+          title="Does the old translation change what the model writes"
+          question="Everything above is deterministic. This one calls a model. Each edited sentence is translated twice, once with the previously approved translation in the prompt and once without, and the outputs are compared."
+          badge="spends model calls"
+          result={
+            <>
+              <p style={styles.prose}>
+                The approved wording survived {ab.keptWith} of {ab.samples} times with the reference
+                and {ab.keptWithout} of {ab.samples} without it. The effect is concentrated: in
+                three cases the model picks the house wording either way, and in two it never does
+                without being shown it. Those two go from 0 of 3 to 3 of 3.
+              </p>
+              <p style={styles.prose}>
+                The control is what makes that readable. It is the same sentence as the first case,
+                run with the reference withheld, and it produces the drifted wording in both arms,
+                every time. So the difference above comes from the reference and not from the case.
+              </p>
+              <p style={styles.prose}>
+                The blind judge said {ab.judgeWith} for the reference arm, {ab.judgeWithout} against
+                and {ab.judgeTie} ties, which is not evidence of anything yet: agreement with a
+                human has not been measured, and the judge is a small local model. It is also asked
+                the wrong question for this purpose. It sees the English and the two candidates, not
+                the approved wording, so on the subscription case it preferred <em>plan</em> over{" "}
+                <em>abonnement</em> — a defensible translation of the English and the wrong word for
+                this product. Consistency is not visible to a judge that does not know what was
+                agreed, which is why the measurement above it is a string check rather than an
+                opinion.
+              </p>
+            </>
+          }
+        >
+          <div style={styles.facts}>
+            <div style={styles.factRowFirst}>
+              <span style={styles.factKey}>Model under test</span>
+              <span>
+                <code>{ab.model}</code> ({ab.modelFamily}), {ab.repeat} samples per case per arm
+              </span>
+            </div>
+            <div style={styles.factRow}>
+              <span style={styles.factKey}>Judge</span>
+              <span>
+                <code>{ab.judge}</code> ({ab.judgeFamily}). Refused at startup if it shares a family
+                with the model under test, because a model grading its own family prefers itself
+                measurably. Blind: it never sees which candidate had the reference, nor the
+                reference, and the display order alternates.
+              </span>
+            </div>
+            <div style={styles.factRow}>
+              <span style={styles.factKey}>Consistency check</span>
+              <span>
+                A whole-word search for the approved wording and for the word a model reaches for
+                instead. Deterministic, so this half cannot be wrong about itself. It matches whole
+                words rather than substrings, because Norwegian <em>handlekurven</em> contains{" "}
+                <em>kurven</em>, and the first version of this check scored every drift as a match.
+              </span>
+            </div>
+            <div style={styles.factRow}>
+              <span style={styles.factKey}>Run</span>
+              <span>
+                {ab.ranAt}. Committed rather than regenerated per build, so the rest of this page
+                stays deterministic.
+              </span>
+            </div>
+          </div>
+          {ab.cases.map((c) => (
+            <AbCaseView key={c.name} c={c} />
+          ))}
         </Eval>
 
         <h2 style={{ marginTop: "3.5rem" }}>Which rules apply where</h2>

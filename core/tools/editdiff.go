@@ -1,6 +1,9 @@
 package tools
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // The classifier's own view of an edit, rendered so it can be read.
 //
@@ -98,6 +101,30 @@ func spansFor(side, other []token, match map[int]int, unmatched SpanOp) []Span {
 		}
 	}
 	return out
+}
+
+// ContainsWords reports whether needle appears in haystack as whole words.
+//
+// It is Contains with the word boundary the rest of this file is built on, and
+// it exists because the substring version is wrong in the way that matters: the
+// Norwegian for a shopping basket is "kurven", the word a model reaches for
+// instead is "handlekurven", and one contains the other. A consistency check
+// written with strings.Contains reports the drift as a match and passes.
+//
+// Comparison is the classifier's: case-folded, NFC, intra-word hyphens and
+// apostrophes ignored. A multi-word needle must appear as a contiguous run.
+func ContainsWords(haystack, needle string) bool {
+	want := words(needle)
+	if len(want) == 0 {
+		return false
+	}
+	have := words(haystack)
+	for i := 0; i+len(want) <= len(have); i++ {
+		if slices.Equal(have[i:i+len(want)], want) {
+			return true
+		}
+	}
+	return false
 }
 
 // lcsPairs returns index pairs of a longest common subsequence, comparing
