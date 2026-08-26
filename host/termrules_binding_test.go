@@ -49,6 +49,27 @@ func TestTermRulesReachEveryGovernedTool(t *testing.T) {
 				return c.TermRules, err
 			},
 		},
+		{
+			// The probe reads the do-not-translate rules so a product name
+			// comes through it intact.
+			tool: "pseudo-translate",
+			rules: func(cfg map[string]any) ([]coreprofile.TermRule, error) {
+				var c coretools.PseudoConfig
+				err := schema.ApplyConfig(cfg, &c)
+				return c.TermRules, err
+			},
+		},
+		{
+			// The term list IS this check's behaviour, and it was arriving
+			// empty: the recipe names none, so it passed everything while the
+			// store had said "never translate" all along.
+			tool: "dnt-check",
+			rules: func(cfg map[string]any) ([]coreprofile.TermRule, error) {
+				var c coretools.DNTCheckConfig
+				err := schema.ApplyConfig(cfg, &c)
+				return c.TermRules, err
+			},
+		},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {
 			s := &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{ID: tc.tool}}
@@ -65,4 +86,16 @@ func TestTermRulesReachEveryGovernedTool(t *testing.T) {
 				"%s decoded no rules from a config the binder filled — the key drifted on one side", tc.tool)
 		})
 	}
+}
+
+// The other half of the same contract: terminology is not handed to steps that
+// have nothing to do with it, so the key means something where it appears.
+func TestTermRulesSkipUngovernedTools(t *testing.T) {
+	t.Parallel()
+
+	b := &ProjectBindings{termRules: []coreprofile.TermRule{{Term: "Save", Replacement: "Enregistrer"}}}
+	s := &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{ID: "placeholder-check"}}
+
+	config := (&App{}).applyBindings(b, "placeholder-check", s, map[string]any{})
+	assert.NotContains(t, config, "term_rules")
 }
