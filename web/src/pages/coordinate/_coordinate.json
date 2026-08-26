@@ -60,6 +60,27 @@
       "default": true
     }
   ],
+  "axes": {
+    "products": [
+      "acme",
+      "other"
+    ],
+    "channels": [
+      "email",
+      "support",
+      "web"
+    ],
+    "channelsByProduct": {
+      "acme": [
+        "support",
+        "web"
+      ],
+      "other": [
+        "email",
+        "web"
+      ]
+    }
+  },
   "chains": [
     {
       "case": "the rules have not moved",
