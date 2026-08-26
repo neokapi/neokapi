@@ -59,6 +59,7 @@ export interface ToolMeta {
   description?: string;
   tags?: string[];
   requires?: string[];
+  accepts?: string[];
   cardinality?: string;
   defaultLocale?: string;
   consumes?: IOPort[];
