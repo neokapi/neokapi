@@ -50,7 +50,11 @@ export default function neokapiI18nPlugin(context) {
         module: {
           rules: [
             {
-              test: /\.[jt]sx$/,
+              // .ts as well as .tsx: a user-visible string does not stop
+              // being one for sitting in a table of labels rather than in
+              // markup. Nothing is swept in by the extension alone — a file
+              // with no JSX and no t() yields nothing to translate.
+              test: /\.[jt]sx?$/,
               // This site's own components only. Docusaurus's theme and every
               // dependency keep their own i18n.
               include: [path.resolve(context.siteDir, "src")],

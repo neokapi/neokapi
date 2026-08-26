@@ -798,13 +798,29 @@ function findBaseOffset(module: Module): number {
 }
 
 function tryParse(code: string, filename: string): Module | null {
+  // TypeScript is decided by the extension, and .ts is TypeScript too. Reading
+  // only .tsx as typescript meant every .ts file was parsed as plain
+  // ECMAScript, so its first type annotation threw and the file was dropped —
+  // a table of UI labels in a .ts module could carry as many t() calls as it
+  // liked and none of them were ever extracted.
+  //
+  // tsx follows the extension rather than being always-on: in a .ts file
+  // `<Foo>x` is a type assertion, and parsing it as JSX changes its meaning.
+  const isTS = /\.[cm]?tsx?$/.test(filename);
+  const isJSX = /x$/.test(filename);
   try {
     return parseSync(code, {
-      syntax: filename.endsWith(".tsx") ? "typescript" : "ecmascript",
-      tsx: true,
-      jsx: true,
+      syntax: isTS ? "typescript" : "ecmascript",
+      tsx: isTS && isJSX,
+      jsx: !isTS && isJSX,
     });
-  } catch {
+  } catch (err) {
+    // A file that cannot be parsed is not a file with nothing to say, and
+    // reporting it as one is how a whole module goes missing in silence.
+    console.warn(
+      `[neokapi] ${filename}: could not be parsed, so nothing in it was ` +
+        `extracted: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+    );
     return null;
   }
 }

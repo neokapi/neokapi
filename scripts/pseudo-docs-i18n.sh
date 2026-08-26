@@ -90,7 +90,8 @@ if [ -f plugins/neokapi-i18n.mjs ]; then
   # --config carries the componentMap the loader also reads. They must agree:
   # a component mapped on one side and not the other yields hashes the
   # transform cannot look up, and every string falls back to source.
-  vpx neokapi-i18n extract --config i18n-react.config.json --out i18n-kbf 2>/dev/null | tail -1
+  vpx neokapi-i18n extract --config i18n-react.config.json \
+    --src "src/**/*.{tsx,jsx,ts}" --out i18n-kbf 2>/dev/null | tail -1
 
   # Each .kbf.json is content like any other, so the same tool that pseudos the
   # docs pages pseudos these — markers and all coming from the recipe.
