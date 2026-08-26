@@ -374,6 +374,9 @@ func (b *Block) StructuralAddress() string {
 // it and the read path looks it up. Two implementations that agree today would
 // stop agreeing eventually, and the symptom would be a lookup that quietly
 // finds nothing.
+//
+// One of four block identities, which disagree on purpose. See
+// identity_ladders.go for which question each answers.
 func (b *Block) ChainUnit() string {
 	if b == nil {
 		return ""

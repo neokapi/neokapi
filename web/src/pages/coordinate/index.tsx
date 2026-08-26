@@ -156,6 +156,10 @@ interface AbCase {
   keptWith: number;
   keptWithout: number;
 }
+interface AbSentTurn {
+  role: string;
+  text: string;
+}
 interface AbArm {
   name: string;
   calls: number;
@@ -165,6 +169,7 @@ interface AbArm {
   kept: number;
   drifted: number;
   translations: Record<string, string>;
+  sent?: AbSentTurn[];
 }
 interface AbBatched {
   blocks: number;
@@ -314,6 +319,19 @@ const styles: Record<string, CSSProperties> = {
     fontSize: ".76rem",
     color: "var(--ifm-color-emphasis-700)",
     marginTop: ".15rem",
+  },
+  sentBody: {
+    fontSize: ".72rem",
+    lineHeight: 1.5,
+    maxHeight: "22rem",
+    overflow: "auto",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    background: "var(--ifm-background-color)",
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    borderLeftWidth: 1,
+    borderRadius: 4,
+    padding: ".7rem .85rem",
   },
   diffText: { fontSize: ".92rem", lineHeight: 1.6 },
   outcome: { fontSize: ".85rem", lineHeight: 1.45 },
@@ -596,6 +614,27 @@ function AbCaseView({ c }: { c: AbCase }): ReactElement {
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * One arm's prompt, exactly as the model received it.
+ *
+ * Captured during the run rather than re-rendered here: a page that renders its
+ * own idea of the prompt is the failure this whole report exists to avoid.
+ */
+function SentPrompt({ turns }: { turns: AbSentTurn[] }): ReactElement {
+  return (
+    <>
+      {turns.map((turn, i) => (
+        <div key={i} style={{ marginBottom: ".8rem" }}>
+          <div style={styles.paneHead}>{turn.role}</div>
+          <pre style={{ ...styles.sentBody, margin: 0 }}>
+            <code>{turn.text}</code>
+          </pre>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -1193,6 +1232,28 @@ export default function Coordinate(): ReactElement {
                 Input counts include the part a provider served from its prompt cache: cheaper per
                 token, still prompt the model reads.
               </p>
+              <h3>What each call actually sent</h3>
+              <p style={styles.prose}>
+                The first call of each arm, captured as it went to the model. The difference is one{" "}
+                <code>prior</code> object per segment that has history: what that segment said
+                before, and the translation approved for it then. Everything else is identical,
+                including the terminology &mdash; {ab.batched.termRulesSentBatched} rules of the{" "}
+                {ab.batched.termRulesAtCoordinate} governing this collection, because those are the
+                ones this text could use.
+              </p>
+              <div style={styles.sideBySide}>
+                {ab.batched.arms
+                  .filter((a) => a.sent)
+                  .map((a) => (
+                    <div key={a.name} style={styles.pane}>
+                      <div style={{ ...styles.paneHead, marginBottom: ".8rem" }}>
+                        {a.name} &middot; {a.kept}/{a.kept + a.drifted} kept
+                      </div>
+                      <SentPrompt turns={a.sent ?? []} />
+                    </div>
+                  ))}
+              </div>
+
               <p style={{ ...styles.prose, marginTop: "1rem" }}>
                 Two things follow. Batching does not cost the effect &mdash; the batched arm with
                 references matches the one-call-per-block ceiling exactly, so the worry that a model
@@ -1209,6 +1270,12 @@ export default function Coordinate(): ReactElement {
                 reference &mdash; {ab.batched.arms[2].calls} calls and{" "}
                 {ab.batched.arms[2].inputTokens.toLocaleString()} input tokens to reach the same
                 answer the batched arm reached in {ab.batched.arms[1].calls}.
+              </p>
+              <p style={styles.prose}>
+                One caveat on the first row: the arm with no references is the one that varies
+                between runs, scoring 2 of 5 and 3 of 5 on two runs of this document. The arm with
+                references scored 5 of 5 both times. That is the shape you would expect if the
+                reference is doing the work — but it is two runs, not a distribution.
               </p>
               <p style={styles.prose}>
                 Terminology is scoped to each call the same way: this collection is governed by{" "}

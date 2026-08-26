@@ -69,6 +69,20 @@ type ArmResult struct {
 	// Translations is every block's output, keyed by block id, so a reader can
 	// inspect rather than trust the counts.
 	Translations map[string]string `json:"translations"`
+	// Sent is the first call's prompt, exactly as it went to the model.
+	//
+	// Captured during the run rather than re-rendered afterwards. The prompt is
+	// deterministic given the document, so a re-render would say the same thing
+	// — but only while nothing drifts between the two, and a report rendering
+	// its own idea of the prompt is precisely the failure this eval exists to
+	// avoid everywhere else.
+	Sent []SentTurn `json:"sent,omitempty"`
+}
+
+// SentTurn is one turn of a prompt as the model received it.
+type SentTurn struct {
+	Role string `json:"role"`
+	Text string `json:"text"`
 }
 
 // BatchedReport is the whole three-arm measurement.
@@ -217,6 +231,12 @@ func runArm(ctx context.Context, llm aiprovider.LLMProvider, doc []docBlock, nam
 			PreferredTerms: coreprofile.ScopedTermRuleMap(abTermRules, texts...),
 		}
 		msgs := aiprovider.MessagesFromTurns(p.Batch(segments))
+
+		if res.Sent == nil {
+			for _, m := range msgs {
+				res.Sent = append(res.Sent, SentTurn{Role: m.Role, Text: m.Text()})
+			}
+		}
 
 		resp, err := llm.ChatStructured(ctx, msgs, batchSchema())
 		if err != nil {
