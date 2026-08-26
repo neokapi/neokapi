@@ -2275,7 +2275,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// to guess what a caller meant by a bare map.
 	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
 		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
-		isPseudoTranslateTool(toolName, s)) {
+		isPseudoTranslateTool(toolName, s) || isDNTCheckTool(toolName, s)) {
 		if _, ok := config["term_rules"]; !ok {
 			clone()
 			config["term_rules"] = b.termRules
@@ -2311,6 +2311,19 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 // isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
 // which accepts the governing context via config["profile"] and config["term_rules"]
 // to stamp onto the targets it fills.
+// isDNTCheckTool reports whether a step is the do-not-translate check.
+//
+// It is listed here rather than given schema.RequiresTerms because the check is
+// valid with no store bound — the recipe may name its terms directly. What it
+// must not be is a check with nothing to check: with an empty list it passes
+// everything, which is the reassurance a guardrail should never give.
+func isDNTCheckTool(toolName string, s *schema.ComponentSchema) bool {
+	if toolName == "dnt-check" {
+		return true
+	}
+	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "dnt-check"
+}
+
 // isPseudoTranslateTool reports whether a step is the pseudo-translate tool.
 //
 // It takes the rules for the do-not-translate ones alone: a product name has to

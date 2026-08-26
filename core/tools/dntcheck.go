@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -25,6 +26,36 @@ type DNTCheckConfig struct {
 	// CaseInsensitive accepts a case-folded match in the target. Off by default:
 	// do-not-translate is usually case-sensitive ("iPhone", not "Iphone").
 	CaseInsensitive bool `json:"caseInsensitive,omitempty" schema:"title=Case-insensitive preservation,description=Accept a case-folded match in the target instead of requiring exact case"`
+	// TermRules is the project's terminology, the same key and shape every
+	// governed step takes. Its do-not-translate rules join Terms above, which
+	// is what the comment on that field has always promised: a store that
+	// already says "never translate" about a product name should not need the
+	// claim repeated in the recipe before anything enforces it.
+	TermRules []profile.TermRule `json:"term_rules,omitempty" schema:"-"`
+}
+
+// EffectiveTerms is every string this check must see survive: the recipe's
+// explicit list plus the concepts the terms store marks do-not-translate.
+// Declared in both places, a term is checked once.
+func (c *DNTCheckConfig) EffectiveTerms() []string {
+	seen := make(map[string]bool, len(c.Terms)+len(c.TermRules))
+	out := make([]string, 0, len(c.Terms)+len(c.TermRules))
+	add := func(term string) {
+		if term == "" || seen[term] {
+			return
+		}
+		seen[term] = true
+		out = append(out, term)
+	}
+	for _, term := range c.Terms {
+		add(term)
+	}
+	for _, rule := range c.TermRules {
+		if rule.DoNotTranslate {
+			add(rule.Term)
+		}
+	}
+	return out
 }
 
 // ToolName returns the tool name this config applies to.
@@ -34,6 +65,7 @@ func (c *DNTCheckConfig) ToolName() string { return "dnt-check" }
 func (c *DNTCheckConfig) Reset() {
 	c.TargetLocale = ""
 	c.Terms = nil
+	c.TermRules = nil
 	c.CaseInsensitive = false
 }
 
@@ -91,7 +123,7 @@ func NewDNTCheckTool(cfg *DNTCheckConfig) *tool.BaseTool {
 		sourceRuns := v.SourceRuns()
 
 		var findings []check.Finding
-		for _, term := range conf.Terms {
+		for _, term := range conf.EffectiveTerms() {
 			term = strings.TrimSpace(term)
 			if term == "" {
 				continue
