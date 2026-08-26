@@ -9,6 +9,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/locate"
 )
 
 // VoiceVocabConfig holds configuration for the voice vocabulary check tool.
@@ -83,64 +84,6 @@ func (t *VoiceVocabCheckTool) resolveOnce(ctx context.Context) {
 	}
 }
 
-// vocabularyLookupLocales is the set of locales a source text's vocabulary is
-// looked up in: the text's own locale and, when that names a region, the bare
-// language beneath it.
-//
-// A terms lookup matches the locale exactly, so a project writing en-GB against
-// a vocabulary recorded as `en` would be held to nothing at all — a gate that
-// reports PASS because it asked the wrong question. An empty locale yields no
-// candidate: there is no language to look terms up in, and the empty string is a
-// locale like any other in the store.
-func vocabularyLookupLocales(loc model.LocaleID) []model.LocaleID {
-	if loc == "" {
-		return nil
-	}
-	out := []model.LocaleID{loc}
-	if i := strings.IndexAny(string(loc), "-_"); i > 0 {
-		out = append(out, loc[:i])
-	}
-	return out
-}
-
-// preferredTerm answers "what should this say instead" for a matched term: the
-// preferred term its concept carries in the same language, or the replacement
-// the term's own note names when the concept carries no preferred sibling.
-//
-// The match is consulted first and the store second, because a lookup can return
-// either shape: the in-memory store hands back the whole concept, while the
-// SQLite one selects a row per term and fills in a concept STUB carrying the id
-// and definition but none of its other terms. Reading only the match therefore
-// left every finding from a real project without the alternative — the one part
-// of a vocabulary finding that says what to do.
-//
-// The note is the last resort rather than the first, because a concept that
-// carries both words is the better record and the one `kapi apply` now writes.
-// It still has to be read: a term decided before that, or imported from a
-// vocabulary that files each word separately, has the replacement in the note
-// and nowhere else, and a finding that names no alternative is the beat of the
-// correction loop that lands without its fix.
-func (t *VoiceVocabCheckTool) preferredTerm(ctx context.Context, m terms.TermMatch, loc model.LocaleID) (string, error) {
-	if pref := m.Concept.PreferredTerm(loc); pref != nil && pref.Text != "" {
-		return pref.Text, nil
-	}
-	if m.Concept.ID == "" || len(m.Concept.Terms) > 0 {
-		// Nothing to look up, or the concept was whole and named none.
-		return terms.ReplacementFromNote(m.Term.Note), nil
-	}
-	full, found, err := t.terminology.GetConcept(ctx, m.Concept.ID)
-	if err != nil {
-		return "", fmt.Errorf("read concept %s: %w", m.Concept.ID, err)
-	}
-	if !found {
-		return terms.ReplacementFromNote(m.Term.Note), nil
-	}
-	if pref := full.PreferredTerm(loc); pref != nil && pref.Text != "" {
-		return pref.Text, nil
-	}
-	return terms.ReplacementFromNote(m.Term.Note), nil
-}
-
 func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	t.resolveOnce(v.Context())
 
@@ -151,110 +94,30 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	sourceRuns := v.SourceRuns()
 
-	// The profile's whole deterministic gate (coreprofile.Findings): forbidden and
-	// competitor terms, matched whole-word and Unicode-aware (check.FindTerm) so
-	// "use" never matches inside "user", plus the prohibited style patterns
-	// matched as authored. The same entry point backs the /check endpoint, the
-	// check_vocabulary MCP tool and the desktop inspector, so none of these paths
-	// enforces half a coreprofile.
-	findings := coreprofile.Findings(t.profile, sourceText, sourceRuns)
+	// The profile's prohibited style patterns, which are the profile's own and
+	// nothing else declares.
+	findings := coreprofile.PatternHitsToFindings(
+		coreprofile.MatchPatterns(t.profile, sourceText), sourceText, sourceRuns)
 
-	// The bound terms store, when there is one: the vocabulary the project
-	// DECIDED, enforced alongside the profile's own lists.
-	//
-	// Every source is consulted, not just the voice vocabulary. A term decision
-	// lands in the terminology source (`kapi apply` writes concepts there), so a
-	// voice-vocabulary-only filter enforced a source nothing writes to and
-	// ignored the one everything writes to — retrieval reported a word as retired
-	// while every gate passed it.
-	if t.terminology != nil {
-		lookupIn := v.SourceLocale()
-		if lookupIn == "" {
-			lookupIn = t.sourceLocale
-		}
-		var matches []terms.TermMatch
-		// Deduped across the candidate languages: a term recorded in both en-GB
-		// and en is one decision about one word, and two findings for it would
-		// penalize the block's score twice.
-		type hit struct {
-			text string
-			pos  int
-		}
-		seen := map[hit]bool{}
-		for _, loc := range vocabularyLookupLocales(lookupIn) {
-			found, err := t.terminology.LookupAll(v.Context(), sourceText, terms.LookupOptions{SourceLocale: loc})
-			if err != nil {
-				return err
-			}
-			for _, m := range found {
-				key := hit{text: strings.ToLower(m.Term.Text), pos: m.Position.Start}
-				if seen[key] {
-					continue
-				}
-				seen[key] = true
-				matches = append(matches, m)
-			}
-		}
-		for _, m := range matches {
-			var f coreprofile.VoiceFinding
-			switch {
-			case m.Term.CompetitorTerm:
-				f = coreprofile.VoiceFinding{
-					Category:     string(coreprofile.DimensionVocabulary),
-					Severity:     coreprofile.SeverityCritical,
-					Message:      fmt.Sprintf("Competitor term %q found in terms", m.Term.Text),
-					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
-					OriginalText: m.Term.Text,
-				}
-			case m.Term.Status == model.TermForbidden:
-				f = coreprofile.VoiceFinding{
-					Category:     string(coreprofile.DimensionVocabulary),
-					Severity:     coreprofile.SeverityMajor,
-					Message:      fmt.Sprintf("Forbidden term %q found in terms", m.Term.Text),
-					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
-					OriginalText: m.Term.Text,
-				}
-			case m.Term.Status == model.TermDeprecated:
-				// Retired, not banned: the word was the project's own until a
-				// decision replaced it, so it reads as the softer finding the
-				// retrieval surface already reports it as ("discouraged — say X").
-				// Minor keeps `--strict` from turning every legacy spelling in a
-				// corpus into a build failure the day a term is retired.
-				f = coreprofile.VoiceFinding{
-					Category:     string(coreprofile.DimensionVocabulary),
-					Severity:     coreprofile.SeverityMinor,
-					Message:      fmt.Sprintf("Retired term %q found in terms", m.Term.Text),
-					Position:     model.RangeAnchorForBytes(sourceRuns, m.Position.Start, m.Position.End),
-					OriginalText: m.Term.Text,
-				}
-			default:
-				continue
-			}
-			// What to say instead: the concept's preferred term in the same
-			// language, surfaced as the structured replacement — symmetric with
-			// the profile path, which carries the rule's replacement.
-			pref, perr := t.preferredTerm(v.Context(), m, lookupIn)
-			if perr != nil {
-				return perr
-			}
-			if pref != "" {
-				f.Suggestion = fmt.Sprintf("Use %q instead", pref)
-				if f.Metadata == nil {
-					f.Metadata = make(map[string]string)
-				}
-				f.Metadata["replacement"] = pref
-			}
-			// Link the finding to its knowledge-graph concept, mirroring the profile
-			// path so a terms store-sourced hit pivots to the concept story too.
-			if m.Concept.ID != "" {
-				if f.Metadata == nil {
-					f.Metadata = make(map[string]string)
-				}
-				f.Metadata["concept_id"] = m.Concept.ID
-			}
-			findings = append(findings, f)
-		}
+	// Every declared term, from the profile's vocabulary and from the bound
+	// terms store, located in one pass. Both are the same kind of statement
+	// about the same words, and a gate that asked them separately would be two
+	// gates that can disagree.
+	lookupIn := v.SourceLocale()
+	if lookupIn == "" {
+		lookupIn = t.sourceLocale
 	}
+	occurrences, err := locate.Find(v.Context(), locate.Request{
+		Text:     sourceText,
+		Runs:     sourceRuns,
+		RuleSets: coreprofile.VocabularyRuleSets(t.profile),
+		Store:    t.terminology,
+		Locale:   lookupIn,
+	})
+	if err != nil {
+		return err
+	}
+	findings = append(findings, findingsFor(occurrences, sourceText, sourceRuns)...)
 
 	if len(findings) > 0 {
 		// Add the voice annotation (which carries the findings + score).
@@ -271,4 +134,45 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	return nil
+}
+
+// findingsFor presents located occurrences as voice findings.
+//
+// The mapping is profile.HitsToFindings, the one every vocabulary surface
+// shares — the /check endpoint, the check_vocabulary MCP tool, the desktop
+// panel — so the streaming tool cannot drift from them on message wording,
+// suggestion phrasing or concept propagation.
+//
+// On top of it, an occurrence the terms store declared says so. The two
+// phrasings are deliberate: "forbidden by the profile" and "forbidden in terms"
+// send a writer to different places to argue with the decision, and a single
+// wording would hide which one is holding them.
+func findingsFor(occurrences []locate.Occurrence, text string, runs []model.Run) []coreprofile.VoiceFinding {
+	if len(occurrences) == 0 {
+		return nil
+	}
+	hits := make([]coreprofile.VocabHit, 0, len(occurrences))
+	for _, occ := range occurrences {
+		hits = append(hits, occ.Hit())
+	}
+	findings := coreprofile.HitsToFindings(hits, text, runs)
+	for i, occ := range occurrences {
+		if occ.Source == locate.SourceStore {
+			findings[i].Message = storeMessage(occ)
+		}
+	}
+	return findings
+}
+
+// storeMessage names the terms store as where the decision lives. A retired
+// term reads as the softer complaint it is: the word was the project's own
+// until a decision replaced it.
+func storeMessage(occ locate.Occurrence) string {
+	switch {
+	case occ.Kind == coreprofile.VocabCompetitor:
+		return fmt.Sprintf("Competitor term %q found in terms", occ.Term)
+	case occ.Status == model.TermDeprecated:
+		return fmt.Sprintf("Retired term %q found in terms", occ.Term)
+	}
+	return fmt.Sprintf("Forbidden term %q found in terms", occ.Term)
 }
