@@ -140,6 +140,11 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
+	// The exec commands have carried this pair since they gained a file list;
+	// the flow commands take a file list too and had neither, so there was no
+	// way to ask a flow run to be strict about a format it could not read.
+	cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with a warning)")
+	cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
 }
 
 // explainBindings resolves and prints the source → sink bindings for a flow run
@@ -617,6 +622,10 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 		lane     int
 	}
 	var traceInfos []*fileTraceInfo
+	// Files passed over rather than processed. Reported once after the run: a
+	// silent skip is how a batch comes to look complete while a format nobody
+	// registered went by untouched.
+	var skipped []string
 
 	if tracePath != "" {
 		batchStart = time.Now()
@@ -693,6 +702,12 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 				lanes <- lane
 			}
 
+			if errors.Is(err, errSkippedFile) {
+				mu.Lock()
+				skipped = append(skipped, inputPath)
+				mu.Unlock()
+				return nil
+			}
 			if err != nil {
 				return fmt.Errorf("%s: %w", inputPath, err)
 			}
@@ -754,10 +769,53 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			return err
 		}
 	}
+	if len(skipped) > 0 {
+		warnf(nil, "Warning: skipped %d file(s) with no registered format: %s\n",
+			len(skipped), strings.Join(shortList(skipped, 3), ", "))
+	}
 	// A truncated progress feed is reported after the result, so the deliverable
 	// still lands and the consumer still learns its feed was incomplete.
 	return progressReport()
 }
+
+// failOnUnknown reads the strictness flag, under either of its two spellings.
+// An absent flag means the default, which is to skip.
+func failOnUnknown(cmd Command) bool {
+	if v, err := cmd.Flags().GetBool("fail-on-unknown"); err == nil && v {
+		return true
+	}
+	v, err := cmd.Flags().GetBool("strict")
+	return err == nil && v
+}
+
+// wrapSkip marks a file as passed over, naming it and why. Both halves matter:
+// the batch runner matches the sentinel with errors.Is, and a warning that says
+// only "skipped 1 file" leaves a reader unable to tell an unreadable format
+// from a file that was never there.
+func wrapSkip(path string, cause error) error {
+	return fmt.Errorf("%w: %s: %w", errSkippedFile, path, cause)
+}
+
+// shortList keeps a warning readable when a batch skips many files.
+func shortList(xs []string, n int) []string {
+	if len(xs) <= n {
+		return xs
+	}
+	return append(append([]string{}, xs[:n]...), fmt.Sprintf("and %d more", len(xs)-n))
+}
+
+// errSkippedFile reports that a file was passed over rather than processed, and
+// that passing it over was the requested behaviour.
+//
+// It exists because --fail-on-unknown was honoured on one code path and ignored
+// on the other. The flag documents itself as "exit with error if any file
+// cannot be processed (default: skip with warning)", and host/toolrun.go does
+// exactly that; this path hard-errored regardless. The batch runner is an
+// errgroup, so one unreadable file cancelled every sibling: a directory holding
+// a single .h file among 843 readable ones produced no output at all and one
+// error message. The engine benchmark ran into it and went three months without
+// a refresh.
+var errSkippedFile = errors.New("skipped")
 
 // processFlowFile performs the full read → process → write cycle for a single file.
 // Safe for concurrent use — each call uses its own reader, writer, and tool instances.
@@ -788,6 +846,9 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 			// (e.g. .xliff 1.x vs 2.x) by the file head, not extension alone.
 			detected, err := a.FormatReg.Detect(inputPath, registry.DetectOptions{})
 			if err != nil {
+				if !failOnUnknown(cmd) {
+					return "", nil, wrapSkip(inputPath, err)
+				}
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}
 			fmtName = string(detected)

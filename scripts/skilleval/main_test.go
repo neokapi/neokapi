@@ -66,7 +66,7 @@ func TestAPromptNamesItsFiles(t *testing.T) {
 					placed[dir+"/"] = true
 				}
 			}
-			for _, tok := range strings.Fields(sc.Prompt) {
+			for tok := range strings.FieldsSeq(sc.Prompt) {
 				tok = strings.Trim(tok, ".,?!'\"")
 				if !looksLikePath(tok) {
 					continue

@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -339,7 +341,7 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 
 	args := []string{
 		"-p", sc.Prompt,
-		"--max-turns", fmt.Sprint(turns),
+		"--max-turns", strconv.Itoa(turns),
 		"--permission-mode", "bypassPermissions",
 		"--output-format", "stream-json",
 		"--verbose",
@@ -413,7 +415,7 @@ func runGate(ctx context.Context, dir, gate string, opts Options) *GateResult {
 	if err != nil {
 		res.ExitCode = 1
 		var ee *exec.ExitError
-		if errorsAs(err, &ee) {
+		if errors.As(err, &ee) {
 			res.ExitCode = ee.ExitCode()
 		}
 	}
@@ -495,7 +497,7 @@ func parseStream(r io.Reader, out *Run) {
 // and scoring only the Skill tool would miss an agent that read SKILL.md once
 // and then worked from it.
 func mentionsKapi(cmd string) bool {
-	for _, tok := range strings.Fields(cmd) {
+	for tok := range strings.FieldsSeq(cmd) {
 		tok = strings.TrimPrefix(tok, "./")
 		if i := strings.LastIndex(tok, "/"); i >= 0 {
 			tok = tok[i+1:]
@@ -513,14 +515,4 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "\n…truncated…"
-}
-
-// errorsAs is errors.As, kept local so the import list stays short in a file
-// that is otherwise about process handling.
-func errorsAs(err error, target **exec.ExitError) bool {
-	if ee, ok := err.(*exec.ExitError); ok {
-		*target = ee
-		return true
-	}
-	return false
 }

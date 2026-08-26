@@ -249,7 +249,7 @@ func Build(ctx context.Context) (*Report, error) {
 	return &Report{
 		Note:      reportNote,
 		Generated: time.Now().UTC().Format(time.RFC3339),
-		Commit:    headCommit(),
+		Commit:    headCommit(ctx),
 		Recipe:    reportRecipe,
 		Points:    points,
 		Axes:      buildAxes(&p),
@@ -363,8 +363,10 @@ func buildAxes(p *project.KapiProject) Axes {
 
 // headCommit ties a dataset back to the code that produced it, so a reader can
 // tell whether the numbers describe the checkout in front of them.
-func headCommit() string {
-	out, err := exec.Command("git", "rev-parse", "--short", "HEAD").Output()
+func headCommit(ctx context.Context) string {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD").Output()
 	if err != nil {
 		return ""
 	}

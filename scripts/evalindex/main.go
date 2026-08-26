@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // DefaultOut is the committed data the cover page reads.
@@ -230,7 +232,9 @@ func Marshal(i *Index) ([]byte, error) {
 // checkoutRoot locates the checkout so datasets can be read by their
 // repo-relative paths from wherever the generator was invoked.
 func checkoutRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return "", fmt.Errorf("locating the repo root: %w", err)
 	}

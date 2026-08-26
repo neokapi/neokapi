@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -104,17 +105,14 @@ func main() {
 	report := execute(ctx, set, opts)
 	report.stamp(opts, claudeBin)
 
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		fail(err.Error())
-	}
-	data = append(data, '\n')
-
 	target := *out
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(root, target)
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		fail(err.Error())
+	}
+	if err := checkDownstreamClean(report); err != nil {
 		fail(err.Error())
 	}
 	if err := merge(target, report); err != nil {
@@ -168,7 +166,7 @@ func execute(ctx context.Context, set []Scenario, opts Options) *Report {
 
 			sc := set[i]
 			res := Result{Scenario: sc}
-			for pass := 0; pass < opts.Repeat; pass++ {
+			for range opts.Repeat {
 				if ctx.Err() != nil {
 					break
 				}
@@ -462,7 +460,7 @@ func merge(target string, fresh *Report) error {
 func repoRoot() (string, error) {
 	out := strings.TrimSpace(run("git", "rev-parse", "--show-toplevel"))
 	if out == "" {
-		return "", fmt.Errorf("not in a git checkout")
+		return "", errors.New("not in a git checkout")
 	}
 	return out, nil
 }
@@ -480,8 +478,13 @@ func findKapi(root string) string {
 	return ""
 }
 
+// run captures a short command's stdout, or "" if it fails. Used only for the
+// provenance strings on a report — a version, a commit — so a failure means the
+// field is blank rather than that the run is in trouble.
 func run(name string, args ...string) string {
-	out, err := exec.Command(name, args...).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).Output()
 	if err != nil {
 		return ""
 	}
@@ -489,11 +492,8 @@ func run(name string, args ...string) string {
 }
 
 func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
-	}
-	return s
+	first, _, _ := strings.Cut(strings.TrimSpace(s), "\n")
+	return first
 }
 
 func fail(msg string) {
@@ -511,4 +511,47 @@ func settingsLine(opts Options) string {
 	return fmt.Sprintf("claude -p, bypassPermissions, %d repeat(s), trigger cap %d turns "+
 		"(MCP scenarios use their own, since picking a tool can take a step or two). "+
 		"Sampling follows the CLI's defaults and is not pinned.", opts.Repeat, opts.TriggerTurnCap)
+}
+
+// downstreamName is the platform this framework must not mention in its own
+// docs. See scripts/check-docs-bowrain-clean.sh for the contract.
+const downstreamName = "bowrain"
+
+// checkDownstreamClean refuses to publish a dataset that would fail the
+// docs guard.
+//
+// The dataset lands in web/src, which the neokapi docs site serves and which is
+// held to zero mentions of the downstream platform. Scenario text is under this
+// file's control and a companion test keeps it clean, but a TRANSCRIPT is not:
+// the shipped skill's own description names the platform, so an agent can
+// repeat it in a closing message on any scenario at all. That is how this
+// landed a red build once already.
+//
+// Failing here, naming the scenario, is the useful behaviour. Editing the
+// transcript would be the alternative, and quietly rewriting recorded evidence
+// to get past a lint is not something an evidence page should do.
+func checkDownstreamClean(r *Report) error {
+	body, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(strings.ToLower(string(body)), downstreamName) {
+		return nil
+	}
+
+	var offenders []string
+	for _, res := range r.Results {
+		one, err := json.Marshal(res)
+		if err != nil {
+			continue
+		}
+		if strings.Contains(strings.ToLower(string(one)), downstreamName) {
+			offenders = append(offenders, res.Scenario.ID)
+		}
+	}
+	return fmt.Errorf(
+		"this run mentions %q and the dataset is published into the docs site, which must not: %s.\n"+
+			"Reword the scenario so the agent is not led there, or drop it from the set published here.\n"+
+			"See scripts/check-docs-bowrain-clean.sh",
+		downstreamName, strings.Join(offenders, ", "))
 }

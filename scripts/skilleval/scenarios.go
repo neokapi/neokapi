@@ -93,7 +93,7 @@ const (
 	fxXlsx     = "harness/demos/09-toolbox-find-replace/fixtures/pricing.xlsx"
 	fxPptx     = "apps/kapi-desktop/backend/sample/kapimart/marketing/en/onboarding-deck.pptx"
 	fxLanding  = "harness/demos/01-localize-landing-page/fixtures/index.html"
-	fxLocales  = "harness/demos/bowrain-cli-getting-started/fixtures/src/locales/en.json"
+	fxLocales  = "harness/demos/kapi-bilingual-workflow/fixtures/src/locales/en/messages.json"
 	fxReactApp = "harness/demos/04-i18n-react-catalogs/fixtures/src/App.jsx"
 	fxNextPage = "harness/demos/02-nextjs-zero-to-i18n/fixtures/src/app/page.tsx"
 	fxNextPkg  = "harness/demos/02-nextjs-zero-to-i18n/fixtures/package.json"
@@ -340,10 +340,10 @@ var scenarios = []Scenario{
 	{
 		ID:     "p16-onboard",
 		Kind:   positive,
-		Prompt: "Set up our brand from this repo and connect the project to Bowrain.",
+		Prompt: "Set up our content context from this repo: the voice we write in and the terms we use.",
 		Path:   "context discovery (onboard)",
-		Why: "The first visit. Its local leg completes with no server: the context files exist and a voice check passes. " +
-			"The push leg needs a sandboxed server, so the scenario stops at the hand-off.",
+		Why: "The first visit, with nothing in place. Completing means the context files exist and a voice check " +
+			"passes over a sample of the repo's own material, rather than a profile being invented from nothing.",
 		Fixture: []FixtureFile{
 			{As: "README.md", Body: "# Northwind\n\nNorthwind gives teams one workspace for their content.\nWe write plainly and we do not shout.\n"},
 			{As: "marketing/launch.docx", From: fxDocx, Note: "material for the profile to be inferred from"},

@@ -17,6 +17,7 @@ import json
 import platform
 import statistics
 import time
+from datetime import datetime, timezone
 
 import numpy as np
 import onnxruntime as ort
@@ -213,6 +214,9 @@ def main() -> None:
 
     report = {
         "generated_note": "Run scripts/ml-benchmark.py to regenerate.",
+        # Without a date this dataset cannot say how old it is, and a stale one
+        # reads exactly like a fresh one. /evals takes the age from here.
+        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "platform": f"{platform.system()} {platform.machine()}",
         "python": platform.python_version(),
         "onnxruntime": ort.__version__,
