@@ -650,3 +650,22 @@ type GenerativeWriter interface {
 type InterchangeWriter interface {
 	IsInterchange() bool
 }
+
+// InlineAnnotationWriter is implemented by writers that can project a block's
+// stand-off annotations into the document as inline marks: a located term as an
+// XLIFF <mrk>, as an HTML <span>. It names the annotation types the writer
+// knows how to draw, which the registry records on
+// FormatInfo.InlineAnnotations.
+//
+// The capability is what a format can carry, not what it will. A recipe narrows
+// the set under `defaults.annotations.write` and never widens it, so a format
+// that gains the capability starts projecting without a recipe edit, and a
+// project that wants a clean export can still ask for one.
+//
+// A writer that implements nothing here carries no marks, and the block's
+// annotations stay stand-off. That is the default, and it is the right one:
+// content leaves as content, and a governance layer travels beside it rather
+// than inside it unless someone asked for the marks.
+type InlineAnnotationWriter interface {
+	InlineAnnotations() []string
+}

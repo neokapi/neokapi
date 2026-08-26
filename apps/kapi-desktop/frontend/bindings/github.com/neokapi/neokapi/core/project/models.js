@@ -17,6 +17,58 @@ import * as gate$0 from "../gate/models.js";
 import * as model$0 from "../model/models.js";
 
 /**
+ * AnnotationDefaults narrows which annotation types a writer draws into the
+ * document as inline marks: a located term as an XLIFF <mrk>, as an HTML
+ * <span>.
+ * 
+ * A format declares the ceiling. Its writer names the types it knows how to
+ * draw (format.InlineAnnotationWriter, recorded on
+ * registry.FormatInfo.InlineAnnotations), and a recipe can only narrow that
+ * set. Two things follow, both wanted: a format that gains the capability
+ * starts projecting without anyone editing a recipe, and a project that wants
+ * a clean export with no marks in it can still say so.
+ */
+export class AnnotationDefaults {
+    /**
+     * Creates a new AnnotationDefaults instance.
+     * @param {Partial<AnnotationDefaults>} [$$source = {}] - The source object to create the AnnotationDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Write names the annotation types to draw, out of what the format
+             * declares it can carry. Empty means the declaration stands: every type
+             * the writer can draw, it draws.
+             * 
+             * Naming a type the format cannot carry asks for nothing rather than
+             * failing. The recipe is one document describing many formats, and a
+             * project that wants terms marked wherever they can be should not have to
+             * enumerate which of its outputs happen to support it.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["write"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnnotationDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AnnotationDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("write" in $$parsedSource) {
+            $$parsedSource["write"] = $$createField0_0($$parsedSource["write"]);
+        }
+        return new AnnotationDefaults(/** @type {Partial<AnnotationDefaults>} */($$parsedSource));
+    }
+}
+
+/**
  * Channel is one surface a product ships on. The short form is the slug
  * itself; the long form adds the concept that names it:
  * 
@@ -203,10 +255,10 @@ export class Collection {
      * @returns {Collection}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType2;
-        const $$createField6_0 = $$createType3;
-        const $$createField9_0 = $$createType5;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType3;
+        const $$createField6_0 = $$createType4;
+        const $$createField9_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -307,9 +359,9 @@ export class ContentItem {
      * @returns {ContentItem}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType5;
-        const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType7;
+        const $$createField1_0 = $$createType6;
+        const $$createField5_0 = $$createType1;
+        const $$createField7_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -482,6 +534,16 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Annotations governs which of a block's stand-off annotations a writer
+             * draws into the document as inline marks. Zero leaves each format's own
+             * declaration standing.
+             * @member
+             * @type {AnnotationDefaults | undefined}
+             */
+            this["annotations"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redaction governs replacing sensitive content with protected
              * placeholders before processing and restoring it afterwards. nil means
              * no redaction.
@@ -587,17 +649,18 @@ export class Defaults {
      * @returns {Defaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
-        const $$createField10_0 = $$createType9;
-        const $$createField11_0 = $$createType10;
+        const $$createField1_0 = $$createType1;
+        const $$createField10_0 = $$createType10;
+        const $$createField11_0 = $$createType0;
         const $$createField12_0 = $$createType11;
         const $$createField13_0 = $$createType12;
         const $$createField14_0 = $$createType13;
-        const $$createField15_0 = $$createType7;
-        const $$createField16_0 = $$createType15;
-        const $$createField17_0 = $$createType3;
-        const $$createField20_0 = $$createType17;
-        const $$createField21_0 = $$createType19;
+        const $$createField15_0 = $$createType14;
+        const $$createField16_0 = $$createType8;
+        const $$createField17_0 = $$createType16;
+        const $$createField18_0 = $$createType4;
+        const $$createField21_0 = $$createType18;
+        const $$createField22_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -617,20 +680,23 @@ export class Defaults {
         if ("segmentation" in $$parsedSource) {
             $$parsedSource["segmentation"] = $$createField14_0($$parsedSource["segmentation"]);
         }
+        if ("annotations" in $$parsedSource) {
+            $$parsedSource["annotations"] = $$createField15_0($$parsedSource["annotations"]);
+        }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField15_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField16_0($$parsedSource["redaction"]);
         }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField16_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField17_0($$parsedSource["voice"]);
         }
         if ("coordinates" in $$parsedSource) {
-            $$parsedSource["coordinates"] = $$createField17_0($$parsedSource["coordinates"]);
+            $$parsedSource["coordinates"] = $$createField18_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -737,7 +803,7 @@ export class FormatDefaults {
      * @returns {FormatDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType16;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
@@ -795,7 +861,7 @@ export class FormatSpec {
      * @returns {FormatSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType16;
+        const $$createField2_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
@@ -841,7 +907,7 @@ export class GateRef {
      * @returns {GateRef}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType20;
+        const $$createField1_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Inline" in $$parsedSource) {
             $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
@@ -1017,18 +1083,18 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType23;
-        const $$createField3_0 = $$createType24;
-        const $$createField4_0 = $$createType26;
-        const $$createField6_0 = $$createType29;
-        const $$createField7_0 = $$createType31;
-        const $$createField8_0 = $$createType20;
-        const $$createField9_0 = $$createType33;
-        const $$createField10_0 = $$createType34;
-        const $$createField11_0 = $$createType20;
-        const $$createField12_0 = $$createType33;
-        const $$createField13_0 = $$createType20;
-        const $$createField14_0 = $$createType35;
+        const $$createField2_0 = $$createType24;
+        const $$createField3_0 = $$createType25;
+        const $$createField4_0 = $$createType27;
+        const $$createField6_0 = $$createType30;
+        const $$createField7_0 = $$createType32;
+        const $$createField8_0 = $$createType21;
+        const $$createField9_0 = $$createType34;
+        const $$createField10_0 = $$createType35;
+        const $$createField11_0 = $$createType21;
+        const $$createField12_0 = $$createType34;
+        const $$createField13_0 = $$createType21;
+        const $$createField14_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -1099,7 +1165,7 @@ export class LocaleDefaults {
      * @returns {LocaleDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType17;
+        const $$createField0_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -1316,7 +1382,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType37;
+        const $$createField1_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1413,8 +1479,8 @@ export class Profile {
      * @returns {Profile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType39;
-        const $$createField1_0 = $$createType15;
+        const $$createField0_0 = $$createType40;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
             $$parsedSource["channels"] = $$createField0_0($$parsedSource["channels"]);
@@ -1481,7 +1547,7 @@ export class RedactionSpec {
      * @returns {RedactionSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detectors" in $$parsedSource) {
             $$parsedSource["detectors"] = $$createField2_0($$parsedSource["detectors"]);
@@ -1574,8 +1640,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType41;
-        const $$createField1_0 = $$createType42;
+        const $$createField0_0 = $$createType42;
+        const $$createField1_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -1646,55 +1712,56 @@ export class VoiceBinding {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = ContentItem.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = FormatSpec.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = RedactionSpec.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = FormatDefaults.createFrom;
-const $$createType9 = $Create.Map($Create.Any, $$createType8);
-const $$createType10 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = ContentItem.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = FormatSpec.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = RedactionSpec.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = FormatDefaults.createFrom;
+const $$createType10 = $Create.Map($Create.Any, $$createType9);
 const $$createType11 = MergeDefaults.createFrom;
 const $$createType12 = MemoryDefaults.createFrom;
 const $$createType13 = SegmentationDefaults.createFrom;
-const $$createType14 = VoiceBinding.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $Create.Map($Create.Any, $Create.Any);
-const $$createType17 = $Create.Map($Create.Any, $$createType16);
-const $$createType18 = LocaleDefaults.createFrom;
-const $$createType19 = $Create.Map($Create.Any, $$createType18);
-var $$createType20 = /** @type {(...args: any[]) => any} */(function $$initCreateType20(...args) {
-    if ($$createType20 === $$initCreateType20) {
-        $$createType20 = $$createType21;
+const $$createType14 = AnnotationDefaults.createFrom;
+const $$createType15 = VoiceBinding.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = $Create.Map($Create.Any, $$createType17);
+const $$createType19 = LocaleDefaults.createFrom;
+const $$createType20 = $Create.Map($Create.Any, $$createType19);
+var $$createType21 = /** @type {(...args: any[]) => any} */(function $$initCreateType21(...args) {
+    if ($$createType21 === $$initCreateType21) {
+        $$createType21 = $$createType22;
     }
-    return $$createType20(...args);
+    return $$createType21(...args);
 });
-const $$createType21 = $Create.Map($Create.Any, $Create.Any);
-const $$createType22 = PluginSpec.createFrom;
-const $$createType23 = $Create.Map($Create.Any, $$createType22);
-const $$createType24 = Defaults.createFrom;
-const $$createType25 = Collection.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = flow$0.StepsSpec.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = $Create.Map($Create.Any, $$createType28);
-const $$createType30 = Profile.createFrom;
-const $$createType31 = $Create.Map($Create.Any, $$createType30);
-const $$createType32 = ShipGateRule.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $Create.Map($Create.Any, $$createType20);
-var $$createType35 = /** @type {(...args: any[]) => any} */(function $$initCreateType35(...args) {
-    if ($$createType35 === $$initCreateType35) {
-        $$createType35 = $$createType3;
+const $$createType22 = $Create.Map($Create.Any, $Create.Any);
+const $$createType23 = PluginSpec.createFrom;
+const $$createType24 = $Create.Map($Create.Any, $$createType23);
+const $$createType25 = Defaults.createFrom;
+const $$createType26 = Collection.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = flow$0.StepsSpec.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $Create.Map($Create.Any, $$createType29);
+const $$createType31 = Profile.createFrom;
+const $$createType32 = $Create.Map($Create.Any, $$createType31);
+const $$createType33 = ShipGateRule.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = $Create.Map($Create.Any, $$createType21);
+var $$createType36 = /** @type {(...args: any[]) => any} */(function $$initCreateType36(...args) {
+    if ($$createType36 === $$initCreateType36) {
+        $$createType36 = $$createType4;
     }
-    return $$createType35(...args);
+    return $$createType36(...args);
 });
-const $$createType36 = PluginIssue.createFrom;
-const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = Channel.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = gate$0.Selector.createFrom;
-const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = GateRef.createFrom;
+const $$createType37 = PluginIssue.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = Channel.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = gate$0.Selector.createFrom;
+const $$createType42 = $Create.Nullable($$createType41);
+const $$createType43 = GateRef.createFrom;
