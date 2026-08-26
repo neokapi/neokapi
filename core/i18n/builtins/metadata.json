@@ -559,11 +559,11 @@
         },
         "fillTargetThreshold": {
           "title": "Fill Target Threshold",
-          "description": "Minimum match score required to fill the target"
+          "description": "Minimum match score required to fill the target (100 = exact only)"
         },
         "fuzzyThreshold": {
           "title": "Fuzzy Match Threshold",
-          "description": "Minimum score for fuzzy matches (0-100)"
+          "description": "Minimum score for a match; the fuzzy path below 100 is retiring"
         },
         "makeTmx": {
           "title": "Generate TMX Document",

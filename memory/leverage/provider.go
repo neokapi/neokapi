@@ -16,6 +16,7 @@ import (
 	"math"
 	"strings"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
@@ -56,9 +57,50 @@ func NewProvider(tm memory.ContentMemory) *Provider {
 }
 
 var (
-	_ tools.MemoryProvider      = (*Provider)(nil)
-	_ tools.BlockMemoryProvider = (*Provider)(nil)
+	_ tools.MemoryProvider         = (*Provider)(nil)
+	_ tools.BlockMemoryProvider    = (*Provider)(nil)
+	_ tools.ExactMemoryProvider    = (*Provider)(nil)
+	_ aitools.PriorVersionProvider = (*Provider)(nil)
 )
+
+// PriorVersion answers what a block said before, for the translate tool.
+//
+// It is the same adapter role the rest of this type plays for recycle: the
+// framework declares the interface, this package supplies the content memory
+// behind it. The gate lives inside PriorVersionFor, so a caller cannot obtain
+// an ungoverned answer by forgetting to check one.
+//
+// A store that cannot answer version queries returns nothing rather than
+// erroring: an in-memory corpus seeded for one run has no chain, which is a
+// true statement about the answer and not a failure.
+func (p *Provider) PriorVersion(ctx context.Context, unit, point string, source, target model.LocaleID, fingerprint string) (priorSource, priorTarget string, ok bool) {
+	vr, isVersioned := p.tm.(memory.VersionReader)
+	if !isVersioned {
+		return "", "", false
+	}
+	return PriorVersionFor(ctx, vr, unit, point, source, target, fingerprint)
+}
+
+// LookupExactAt returns a plain-text exact match approved nearest at.
+//
+// It is LookupExact with the point applied — the same MinScore of 1.0, so the
+// answer is the same content or nothing, but resolved against where the fill is
+// happening rather than against whichever exact the corpus returned first. The
+// block path has always been given the point; this is the plain-text path
+// catching up, and it matters for the same reason: an exact answer approved
+// somewhere else is still an answer from somewhere else.
+func (p *Provider) LookupExactAt(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, at string) (string, bool) {
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, memory.LookupOptions{
+		MinScore:   1.0,
+		MaxResults: 1,
+		MatchModes: []memory.MatchMode{memory.MatchModePlain},
+		Point:      at,
+	})
+	if err != nil || len(matches) == 0 {
+		return "", false
+	}
+	return matches[0].Entry.VariantText(targetLocale), true
+}
 
 // LookupExact returns a plain-text exact match's target text.
 func (p *Provider) LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
@@ -118,6 +160,14 @@ func (p *Provider) LookupBlock(ctx context.Context, block *model.Block, sourceLo
 		Score:      int(math.Round(m.Score * 100)),
 		Exact:      m.MatchType.IsExact(),
 		Ambiguous:  m.Ambiguous,
+		// The classification belongs here because this is the only place both
+		// sources are in hand: the block being translated, and the source the
+		// matched answer was approved for. The tool sees a score and a target
+		// and could never work it out.
+		Edit: tools.ClassifyEdit(
+			m.Entry.VariantText(sourceLocale),
+			model.FlattenRuns(block.Source),
+		),
 	}, true
 }
 

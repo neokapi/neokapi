@@ -137,6 +137,12 @@ type recordPair struct {
 	order      int
 	locale     model.LocaleID
 	sourceRuns []model.Run
+	// unit is the block this pairing was read off, so the entry it writes joins
+	// that block's version chain rather than standing alone as a source string
+	// somebody once approved. Empty when the format resolved no durable
+	// identity, which is a true statement about the answer: nothing links it to
+	// what came before.
+	unit string
 	// answers is keyed by (point, target text): one point can answer a source
 	// twice — two keys of one catalog holding the same English and different
 	// Norwegian — and two points can give the same answer.
@@ -409,12 +415,19 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 					order:      order,
 					locale:     u.locale,
 					sourceRuns: srcRuns,
+					unit:       recordChainUnit(b),
 					answers:    map[string]*recordAnswer{},
 					origin: memory.Origin{
 						Source:    recordOriginSource,
 						Key:       u.targetRel,
 						Reference: u.sourceRel,
 						AddedBy:   "kapi-up",
+						// What governed the target when it was produced, lifted
+						// off the target's own stamp. It travels with the answer
+						// because reuse is only safe under the rules the answer
+						// was approved under, and this is the only place that
+						// statement exists to be copied from.
+						ContextFingerprint: targetContextFingerprint(b, u.locale),
 					},
 				}
 				pairs[key] = p
@@ -598,6 +611,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 				HintSrcLang: sourceLocale,
 				Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
 				Origins:     []memory.Origin{origin},
+				Unit:        p.unit,
 				CreatedAt:   now,
 				UpdatedAt:   now,
 			})
@@ -648,6 +662,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 				Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
 				Origins:     []memory.Origin{origin},
 				Point:       point,
+				Unit:        p.unit,
 				CreatedAt:   now,
 				UpdatedAt:   now,
 			})
@@ -1172,4 +1187,49 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 		return err
 	}
 	return nil
+}
+
+// recordChainUnit is the identity a block's version chain is keyed on: the
+// answer to "is the thing I am looking at now the same thing I approved before".
+//
+// Three candidates, most durable first. A resolved Unit is matched rather than
+// named, so it survives a sibling being deleted. A structural address is
+// translation-invariant, which a structural NAME is not — a name carries its
+// ancestors' words, so the same paragraph is named differently in each
+// document's own language. A name is the right key for a format that has one
+// naturally: a key path or a catalog id is already invariant.
+//
+// It deliberately stops there rather than falling through to the block's ID, as
+// convergence.BlockKey does. An id is assigned per read, so keying a chain on
+// one would braid unrelated answers together and fragment a real chain, both
+// silently. For a version chain an unstable key is worse than no key: empty
+// says "this block has no history", which is merely unhelpful, while a wrong
+// key says "this block said that before", which is false.
+
+// recordChainUnit is model.Block.ChainUnit, kept as a named call site because
+// the reasoning about WHY a chain is keyed this way belongs beside the write
+// path that stamps it.
+//
+// Unit, then structural address, then name. It deliberately stops there rather
+// than falling through to the block's ID, as convergence.BlockKey does. An id
+// is assigned per read, so keying a chain on one would braid unrelated answers
+// together and fragment a real chain, both silently. For a version chain an
+// unstable key is worse than no key: empty says "this block has no history",
+// which is merely unhelpful, while a wrong key says "this block said that
+// before", which is false.
+func recordChainUnit(b *model.Block) string { return b.ChainUnit() }
+
+// targetContextFingerprint reads the governing context a block's committed
+// target was produced under. Empty when the block carries no target for the
+// locale, or when its producer ran ungoverned — both true statements about the
+// answer rather than a missing value to paper over.
+func targetContextFingerprint(b *model.Block, locale model.LocaleID) string {
+	if b == nil {
+		return ""
+	}
+	t := b.Target(locale)
+	if t == nil {
+		return ""
+	}
+	return t.Origin.ContextFingerprint
 }

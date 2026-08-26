@@ -42,11 +42,48 @@ type Context struct {
 	// under a neighbourhood that no longer exists.
 	Before []string
 	After  []string
+
+	// Prior is what this same block said last time, and what was approved for
+	// it then. It is reference, never an answer: the model reads it, does not
+	// echo it, and is free to depart from it where the source has moved.
+	//
+	// It replaces what a fuzzy match was reaching for. A similarity score
+	// answered "is this the same thing, changed a bit?" by measuring
+	// characters; a version chain answers it outright, and can hand over all
+	// three terms — what the source said, what was approved for it, what the
+	// source says now — so the model can do the delta reasoning post-editing
+	// used to force onto a person.
+	//
+	// A caller must fill this only when the governing context has not moved
+	// since that answer was approved. A prior target is the most anchoring
+	// thing that can go in a prompt, and one approved under superseded rules
+	// pulls the model back toward wording those rules now reject — while the
+	// result is stamped with today's fingerprint and looks fresh.
+	// memory.Version.GovernedBy is the gate.
+	Prior *PriorVersion
+}
+
+// PriorVersion is one block's previous source and the target approved for it.
+type PriorVersion struct {
+	// Source is what the block said when Target was approved. Without it the
+	// target is an anchor with no explanation; with it the pair is a diff the
+	// model can reason about.
+	Source string
+	// Target is the answer approved for that source.
+	Target string
+}
+
+// empty reports whether a prior version says nothing useful. Either half alone
+// is nothing: a source with no target teaches the model wording it must not
+// reuse, and a target with no source is the anchor without the explanation.
+func (p *PriorVersion) empty() bool {
+	return p == nil || strings.TrimSpace(p.Source) == "" || strings.TrimSpace(p.Target) == ""
 }
 
 // Empty reports whether there is nothing to say about this block.
 func (c Context) Empty() bool {
-	return strings.TrimSpace(c.Key) == "" && len(c.Before) == 0 && len(c.After) == 0
+	return strings.TrimSpace(c.Key) == "" && len(c.Before) == 0 && len(c.After) == 0 &&
+		c.Prior.empty()
 }
 
 // Digest fingerprints the *neighbourhood* — the part of the context that is not a
@@ -56,10 +93,20 @@ func (c Context) Empty() bool {
 // the block already accounts for it. The neighbours do not, and a block whose
 // neighbours changed must be re-translated even though its own text did not.
 func (c Context) Digest() string {
-	if len(c.Before) == 0 && len(c.After) == 0 {
+	if len(c.Before) == 0 && len(c.After) == 0 && c.Prior.empty() {
 		return ""
 	}
 	var b strings.Builder
+	// The prior version belongs in the digest for the same reason the
+	// neighbours do: it is not a function of the block's own text, so a
+	// translation cached with one prior version must not be served after the
+	// chain has moved. Unlike a location, it changes what the model saw.
+	if !c.Prior.empty() {
+		b.WriteString(c.Prior.Source)
+		b.WriteByte('\x00')
+		b.WriteString(c.Prior.Target)
+		b.WriteByte('\x00')
+	}
 	for _, s := range c.Before {
 		b.WriteString(s)
 		b.WriteByte('\x00')
@@ -102,6 +149,18 @@ func (c Context) sections() []Section {
 			Heading: "Nearby text, for context only — do not translate it and do not " +
 				"return it:",
 			Text: strings.TrimRight(b.String(), "\n"),
+		})
+	}
+
+	if !c.Prior.empty() {
+		out = append(out, Section{
+			Kind:   KindContext,
+			Origin: "content memory (this block's previous approved answer)",
+			Heading: "This block has been translated before. Keep the wording where the source " +
+				"still says the same thing, and depart from it where the source has changed. " +
+				"Do not return this:",
+			Text: fmt.Sprintf("previous source: %s\nprevious translation: %s",
+				collapse(c.Prior.Source), collapse(c.Prior.Target)),
 		})
 	}
 

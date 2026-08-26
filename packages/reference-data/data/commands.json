@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-22T11:42:19Z",
+  "generatedAt": "2026-08-26T06:00:29Z",
   "commands": [
     {
       "id": "add",
@@ -2590,7 +2590,7 @@
         },
         {
           "name": "fill-target-threshold",
-          "usage": "Minimum match score required to fill the target",
+          "usage": "Minimum match score required to fill the target (100 = exact only)",
           "default": "95",
           "type": "int"
         },
@@ -2602,7 +2602,7 @@
         },
         {
           "name": "fuzzy-threshold",
-          "usage": "Minimum score for fuzzy matches (0-100)",
+          "usage": "Minimum score for a match; the fuzzy path below 100 is retiring",
           "default": "70",
           "type": "int"
         },

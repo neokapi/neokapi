@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-22T11:42:19Z",
+  "generatedAt": "2026-08-26T06:00:29Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -968,13 +968,13 @@
           "name": "fillTargetThreshold",
           "type": "integer",
           "required": false,
-          "description": "Minimum match score required to fill the target"
+          "description": "Minimum match score required to fill the target (100 = exact only)"
         },
         {
           "name": "fuzzyThreshold",
           "type": "integer",
           "required": false,
-          "description": "Minimum score for fuzzy matches (0-100)"
+          "description": "Minimum score for a match; the fuzzy path below 100 is retiring"
         },
         {
           "name": "makeTmx",

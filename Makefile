@@ -2095,6 +2095,17 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 # NOTHING about batching, and says so. A real curve costs real calls:
 #
 #   make batch-eval BATCHEVAL_ARGS="-provider anthropic -repeat 3"
+# The /coordinate dashboard: what governs each point, which prior answers the
+# gate offers, and the prompt each produces — side by side.
+#
+# Unlike its eval siblings this costs nothing and measures nothing stochastic.
+# Resolution, the version chain and the governance gate are deterministic, so
+# the page states facts rather than samples, and the companion test fails when
+# the committed data stops matching the code.
+coordinate-report: ## Regenerate the /coordinate dashboard data (no model calls)
+	$(GO) run $(GOTAGS) ./scripts/coordinatereport
+	@echo "Published coordinate report → web/src/pages/coordinate/_coordinate.json"
+
 BATCHEVAL_ARGS ?=
 batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -models given)
 	$(GO) run ./scripts/batcheval $(BATCHEVAL_ARGS)

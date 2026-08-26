@@ -90,6 +90,8 @@ func entryToModel(e *Entry) memory.Entry {
 		ID:          e.ID,
 		ProjectID:   e.ProjectID,
 		HintSrcLang: model.LocaleID(e.HintSrcLang),
+		Point:       e.Point,
+		Unit:        e.Unit,
 		Properties:  e.Properties,
 		Note:        e.Note,
 		CreatedAt:   parseTime(e.Created),
@@ -127,12 +129,13 @@ func entityToModel(em *EntityMapping) memory.EntityMapping {
 
 func originToModel(o *Origin) memory.Origin {
 	return memory.Origin{
-		Source:    o.Source,
-		Key:       o.Key,
-		Reference: o.Reference,
-		AddedAt:   parseTime(o.AddedAt),
-		AddedBy:   o.AddedBy,
-		SessionID: o.SessionID,
+		Source:             o.Source,
+		Key:                o.Key,
+		Reference:          o.Reference,
+		AddedAt:            parseTime(o.AddedAt),
+		AddedBy:            o.AddedBy,
+		SessionID:          o.SessionID,
+		ContextFingerprint: o.ContextFP,
 	}
 }
 

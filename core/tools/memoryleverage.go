@@ -30,6 +30,33 @@ const (
 	PropMemoryAltKey = "alt-translation"
 )
 
+// ExactMemoryProvider is the lookup shape recycling keeps once fuzzy retires:
+// an answer is either for the same content, at a place entitled to give it, or
+// it is not offered at all.
+//
+// It exists because similarity was always a proxy. A fuzzy score answered "is
+// this the same thing, changed a bit?" by measuring characters, which is a
+// heuristic for a question the corpus can now answer outright — a block's own
+// prior answers are a version chain (memory.VersionReader), and continuity for
+// content that merely resembles other content comes from the terms and voice in
+// force rather than from a match. What is left for a lookup is the exact case,
+// which is a different job: not a discount on labour but a guarantee that one
+// string does not render two ways.
+//
+// Narrowing the shape is also what lets an implementation optimize. An exact
+// lookup is a keyed read; a fuzzy one is a scan over an index built for
+// similarity, and a provider asked only for the former can stop maintaining the
+// latter.
+//
+// It takes the point because an exact answer approved somewhere else is still
+// an answer from somewhere else. The block path has always been given the
+// point; the plain-text path never was, so this is where that closes.
+type ExactMemoryProvider interface {
+	// LookupExactAt returns the target for an exact source match approved
+	// nearest at, or false when the corpus holds none.
+	LookupExactAt(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, at string) (string, bool)
+}
+
 // MemoryProvider is the interface for content memory lookup.
 //
 // Every method takes the run's context. A lookup is I/O — a SQLite query, or a
@@ -43,6 +70,13 @@ type MemoryProvider interface {
 
 	// LookupFuzzy looks up a fuzzy match for the source text.
 	// Returns the translation, match score (0-100), and true if found above threshold.
+	//
+	// Retiring. FuzzyThreshold defaults to 100, so nothing below an exact match
+	// is asked for and this is not called on a default configuration; a recipe
+	// that lowers the threshold still reaches it. The method and its
+	// implementations stay until the version-reference path has been measured
+	// against them — see ExactMemoryProvider for why similarity stopped being
+	// the right question.
 	LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
 }
 
@@ -66,6 +100,16 @@ type MemoryBlockMatch struct {
 	// ambiguous match must never be filled unattended — it is recorded as
 	// an alt-translation candidate only.
 	Ambiguous bool
+	// Edit is how this block's source differs from the source the matched
+	// answer was approved for. It is what Score was always standing in for, and
+	// it is the field the fill decision reads: an approved translation stands
+	// while the words have not moved, and a percentage cannot say that because
+	// it softens with length.
+	//
+	// Empty when the provider does not classify — an older implementation, or a
+	// path with no prior source in hand — and the fill then falls back to the
+	// score alone, which is the behaviour that existed before.
+	Edit EditKind
 }
 
 // BlockMemoryProvider is an optional MemoryProvider capability for structure-aware
@@ -106,9 +150,9 @@ type MemoryLeverageConfig struct {
 	Provider     MemoryProvider `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
 	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
+	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
 	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
 	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
@@ -166,6 +210,21 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
 	c.Provider = nil
+	// 70/95, not 100/100 — for now.
+	//
+	// Fuzzy fill is retiring and its replacement is better, but the replacement
+	// is not connected yet: nothing fills prompt.Context.Prior in a live run,
+	// because the translate tool has no point plumbed through its flow
+	// bindings. Flipping these first would drop a real behaviour for nothing.
+	//
+	// Measured rather than assumed. At realistic sentence length the cosmetic
+	// edits an author actually makes — a trailing period, an added comma, a
+	// capitalised word, a hyphen becoming a dash — score 96.7 to 98.3, inside
+	// the band 95 catches and 100 does not. The 70-94 band below is the inert
+	// one: recorded as candidates and read by nothing. The edit ladder in
+	// scripts/coordinatereport measures this on every run.
+	//
+	// Flip both to 100 in the change that wires the reference, not before.
 	c.FuzzyThreshold = 70
 	c.FillTarget = true
 	c.FillTargetThreshold = 95
@@ -297,7 +356,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		}
 
 		// Try exact match first.
-		if translation, found := conf.Provider.LookupExact(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale); found {
+		if translation, found := lookupExactAt(v.Context(), conf, sourceText); found {
 			score := 100
 			if conf.DowngradeIdenticalBestMatches {
 				score = 99
@@ -306,10 +365,14 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Try fuzzy match.
-		if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-			recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
-			return nil
+		// Below an exact match, only a recipe that lowered the threshold asks.
+		// The band between is not offered as a draft and is not sent to a model
+		// either, which is what made it bookkeeping rather than leverage.
+		if conf.FuzzyThreshold < 100 {
+			if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+				recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
+				return nil
+			}
 		}
 
 		return nil
@@ -340,7 +403,12 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 		MatchType: mt,
 		ToolID:    "recycle",
 	})
-	if shouldFillTarget(conf, v, score) && !fillWouldDropCodes(v, targetRuns) {
+	// The plain-text path has no matched source in hand — LookupExact and
+	// LookupFuzzy return a translation and nothing to compare against — so it
+	// cannot classify and falls back to the score. It is the legacy path for
+	// entries stored without inline codes; the structure-aware path above is
+	// the one that classifies.
+	if shouldFillTarget(conf, v, score, "") && !fillWouldDropCodes(v, targetRuns) {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
@@ -435,12 +503,22 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return true
 	}
-	if !shouldFillTarget(conf, v, m.Score) {
+	if !shouldFillTarget(conf, v, m.Score, m.Edit) {
 		// Below the fill policy: keep the candidate recorded, but let the
 		// text path try its differently-keyed lookup (it may overwrite the
 		// tm-match annotation with a better match).
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
-		return false
+		// A substantive edit is a refusal, and a refusal is final. The text
+		// path asks the same corpus, keyed differently, and gets back a
+		// translation with no source to compare against — so it fills on the
+		// score alone, which is the number that just said yes to a meaning
+		// inversion. Returning false here would refuse at the front door and
+		// let the same answer in through the back one, at the same score.
+		//
+		// Nothing better is lost: a block path that returned a substantive
+		// match returned the corpus's BEST match, so there is no exact for the
+		// text path to find.
+		return m.Edit == EditSubstantive
 	}
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
@@ -565,6 +643,10 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			annotateSegmentMatch(v, conf, i, segRuns, tr, score, model.MatchExact)
 			continue
 		}
+		if conf.FuzzyThreshold >= 100 {
+			allExact = false
+			continue
+		}
 		if tr, score, found := conf.Provider.LookupFuzzy(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
 			translations[i] = tr
 			matched++
@@ -613,7 +695,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	// assembled target is plain text: it cannot carry any inline code the
 	// source has. Filling it would drop them (see fillWouldDropCodes); the
 	// segment matches stay recorded as alt-translations either way.
-	if shouldFillTarget(conf, v, minScore) && !fillWouldDropCodes(v, assembled) {
+	if shouldFillTarget(conf, v, minScore, "") && !fillWouldDropCodes(v, assembled) {
 		// Commit a real Target carrying provenance and score, not an opaque
 		// string: a content memory pre-fill is a reviewable draft assembled from segment
 		// matches, so a reviewer/tool can see it came from content memory and at what score.
@@ -646,13 +728,30 @@ func annotateSegmentMatch(v tool.VariantView, conf *MemoryLeverageConfig, idx in
 	})
 }
 
-// shouldFillTarget decides whether to copy the translation into the target based on config.
-func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int) bool {
+// shouldFillTarget decides whether to copy the translation into the target.
+//
+// The edit kind is the gate that matters, and it OVERRIDES the score in both
+// directions. A substantive change is refused however high it scores — a
+// negation on a long sentence scores 95, and filling it writes the translation
+// of the opposite meaning under a badge that stops anyone looking. A cosmetic
+// change is accepted however low it scores — a full stop on a button label
+// scores 91, and the words have not moved.
+//
+// The score still governs when the provider classified nothing, which is the
+// behaviour that existed before and the one an older provider still gets.
+func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int, edit EditKind) bool {
 	if !conf.FillTarget {
 		return false
 	}
-	if score < conf.FillTargetThreshold {
+	switch edit {
+	case EditNone, EditCosmetic:
+		// The words stand. Length decided nothing here, which is the point.
+	case EditSubstantive:
 		return false
+	default:
+		if score < conf.FillTargetThreshold {
+			return false
+		}
 	}
 	if conf.FillIfTargetIsEmpty {
 		// Only fill if target is empty.
@@ -661,4 +760,15 @@ func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int)
 		}
 	}
 	return true
+}
+
+// lookupExactAt asks for an exact match at the run's point, preferring the
+// point-aware shape and falling back to the point-blind one for a provider that
+// predates it. A provider offering neither answers nothing, which is what
+// NullMemoryProvider is for.
+func lookupExactAt(ctx context.Context, conf *MemoryLeverageConfig, sourceText string) (string, bool) {
+	if p, ok := conf.Provider.(ExactMemoryProvider); ok {
+		return p.LookupExactAt(ctx, sourceText, conf.SourceLocale, conf.TargetLocale, conf.Point)
+	}
+	return conf.Provider.LookupExact(ctx, sourceText, conf.SourceLocale, conf.TargetLocale)
 }

@@ -361,6 +361,32 @@ func (b *Block) StructuralAddress() string {
 	return ""
 }
 
+// ChainUnit is the identity that links a block's successive approved
+// translations into one chain, so a source that was rewritten can still find
+// what it said before.
+//
+// Unit first, since reconciliation resolves it and it survives edits and
+// reorders. Then the structural address, which is translation-invariant. Then
+// the name. Never the ID: an ID is assigned per read and would make every run
+// look like a new block, which is the failure this ladder exists to avoid.
+//
+// It lives here rather than beside either caller because the write path stamps
+// it and the read path looks it up. Two implementations that agree today would
+// stop agreeing eventually, and the symptom would be a lookup that quietly
+// finds nothing.
+func (b *Block) ChainUnit() string {
+	if b == nil {
+		return ""
+	}
+	if b.Unit != "" {
+		return b.Unit
+	}
+	if addr := b.StructuralAddress(); addr != "" {
+		return addr
+	}
+	return b.Name
+}
+
 // SetStructuralAddress records the block's translation-invariant structural
 // address (upserting the structure annotation).
 func (b *Block) SetStructuralAddress(address string) {

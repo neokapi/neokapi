@@ -272,6 +272,7 @@ platform/docker/traefik/certs
 /scripts/checkeval/checkeval
 /scripts/contexteval/contexteval
 /scripts/contention-harness/contention-harness
+/scripts/coordinatereport/coordinatereport
 # Stray build outputs (use `make` targets, which place binaries under bin/ or
 # the wasm demo dir — these default `go build` outputs must never be committed).
 # `go build ./scripts/<tool>` from the REPO ROOT writes ./<tool>, not
@@ -280,6 +281,7 @@ platform/docker/traefik/certs
 /bowrain/bowrain
 /checkeval
 /contexteval
+/coordinatereport
 /gen-refs
 /kapi-wasm
 /kapi/kapi-wasm-cli

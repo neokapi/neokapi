@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-22T11:42:19Z",
+  "generatedAt": "2026-08-26T06:00:29Z",
   "kind": "tool",
   "entries": [
     {
@@ -2761,7 +2761,7 @@
           "fillTargetThreshold": {
             "type": "integer",
             "title": "Fill Target Threshold",
-            "description": "Minimum match score required to fill the target",
+            "description": "Minimum match score required to fill the target (100 = exact only)",
             "default": 95,
             "minimum": 0,
             "maximum": 100
@@ -2769,7 +2769,7 @@
           "fuzzyThreshold": {
             "type": "integer",
             "title": "Fuzzy Match Threshold",
-            "description": "Minimum score for fuzzy matches (0-100)",
+            "description": "Minimum score for a match; the fuzzy path below 100 is retiring",
             "default": 70,
             "minimum": 0,
             "maximum": 100
