@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestMemoryLeverageDefaultsHoldUntilTheReplacementLands(t *testing.T) {
 	cfg.Reset()
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.SourceLocale = model.LocaleEnglish
-	cfg.Provider = provider
+	cfg.Memory = provider
 
 	assert.Equal(t, 70, cfg.FuzzyThreshold, "the inert band is still looked up, for now")
 	assert.Equal(t, 95, cfg.FillTargetThreshold, "and cosmetic edits still fill")
@@ -67,7 +68,7 @@ func TestMemoryLeverageExactOnlyWhenAsked(t *testing.T) {
 	cfg.Reset()
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.SourceLocale = model.LocaleEnglish
-	cfg.Provider = provider
+	cfg.Memory = provider
 	cfg.FuzzyThreshold = 100
 	cfg.FillTargetThreshold = 100
 
@@ -96,7 +97,7 @@ func TestMemoryLeverageFuzzyStillReachableWhenAsked(t *testing.T) {
 	cfg.Reset()
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.SourceLocale = model.LocaleEnglish
-	cfg.Provider = provider
+	cfg.Memory = provider
 	cfg.FillTargetThreshold = 80
 
 	tl := tools.NewMemoryLeverageTool(cfg)
@@ -117,10 +118,26 @@ type exactAtProvider struct {
 	askedAt string
 }
 
-func (p *exactAtProvider) LookupExactAt(_ context.Context, source string, _, _ model.LocaleID, at string) (string, bool) {
-	p.askedAt = at
-	trans, ok := p.exact[source]
-	return trans, ok
+func (p *exactAtProvider) Lookup(ctx context.Context, req corememory.Request) (corememory.Match, bool) {
+	if req.Block != nil {
+		// Block requests are not what this provider is for; the test asks about
+		// the flattened path, which the tool reaches after this returns nothing.
+		return corememory.Match{}, false
+	}
+	p.askedAt = req.Point
+	trans, ok := p.exact[req.Text]
+	if !ok {
+		return corememory.Match{}, false
+	}
+	return corememory.Match{
+		TargetRuns: []model.Run{{Text: &model.TextRun{Text: trans}}},
+		Score:      100,
+		Exact:      true,
+	}, true
+}
+
+func (p *exactAtProvider) PriorVersion(context.Context, corememory.VersionRequest) (corememory.Version, bool) {
+	return corememory.Version{}, false
 }
 
 // TestMemoryLeverageExactCarriesThePoint: the plain-text exact lookup is given
@@ -138,7 +155,7 @@ func TestMemoryLeverageExactCarriesThePoint(t *testing.T) {
 	cfg.Reset()
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.SourceLocale = model.LocaleEnglish
-	cfg.Provider = provider
+	cfg.Memory = provider
 	cfg.Point = "acme\x1fsupport\x1facme-help"
 
 	tl := tools.NewMemoryLeverageTool(cfg)

@@ -13,12 +13,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -509,33 +506,6 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 		}
 	}
 
-	// Tools that require a content memory (e.g. recycle) need the project's content-memory provider
-	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
-	// from the step config, so it would default to a no-match NullMemoryProvider.
-	injectMemory := func(step flow.FlowStep, t tool.Tool) error {
-		if !ToolRequires(a.ToolReg.Schema(registry.ToolID(step.Tool)), schema.RequiresMemory) {
-			return nil
-		}
-		cfg, ok := t.Config().(*coretools.MemoryLeverageConfig)
-		if !ok {
-			return nil
-		}
-		provider, memoryCleanup, err := a.OpenToolMemory(cmd)
-		if err != nil {
-			return err
-		}
-		if memoryCleanup != nil {
-			cleanups = append(cleanups, memoryCleanup)
-		}
-		if provider != nil {
-			cfg.Provider = provider
-		}
-		if cfg.SourceLocale.IsEmpty() {
-			cfg.SourceLocale = model.LocaleID(a.SourceLocale())
-		}
-		return nil
-	}
-
 	var tools []tool.Tool
 	for _, step := range spec.Steps {
 		if onProgress != nil {
@@ -544,12 +514,11 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 			// ignore it (the desktop runner's historical injection).
 			step.Config = mergeFlowNodeConfig(step.Config, map[string]any{"onProgress": onProgress})
 		}
-		t, err := a.toolFromStep(step, cmd, rCtx)
-		if err != nil {
-			cleanup()
-			return nil, nil, fmt.Errorf("flow %q: %w", flowName, &FlowToolBuildError{Tool: step.Tool, Locale: a.TargetLang, Err: err})
+		t, stepCleanup, err := a.toolFromStep(step, cmd, rCtx)
+		if stepCleanup != nil {
+			cleanups = append(cleanups, stepCleanup)
 		}
-		if err := injectMemory(step, t); err != nil {
+		if err != nil {
 			cleanup()
 			return nil, nil, fmt.Errorf("flow %q: %w", flowName, &FlowToolBuildError{Tool: step.Tool, Locale: a.TargetLang, Err: err})
 		}

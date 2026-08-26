@@ -3,8 +3,9 @@ package leverage_test
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/edit"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	"github.com/stretchr/testify/assert"
@@ -56,9 +57,9 @@ func TestLookupBlockClassifiesTheEdit(t *testing.T) {
 		name    string
 		source  string
 		current string
-		want    tools.EditKind
+		want    edit.Kind
 	}{
-		{"unchanged", longSource, longSource, tools.EditNone},
+		{"unchanged", longSource, longSource, edit.None},
 		{
 			// Scores 94, and the same edit on the /coordinate ladder's
 			// sentence scores 95. Ranked by percentage these are the best
@@ -66,27 +67,27 @@ func TestLookupBlockClassifiesTheEdit(t *testing.T) {
 			name:    "a negation added",
 			source:  longSource,
 			current: "You must not accept the terms before we can activate your account",
-			want:    tools.EditSubstantive,
+			want:    edit.Substantive,
 		},
 		{
 			// Scores 91 — lower than the negation, and completely harmless.
 			name:    "a full stop on a short label",
 			source:  "Get started",
 			current: "Get started.",
-			want:    tools.EditCosmetic,
+			want:    edit.Cosmetic,
 		},
 		{
 			name:    "a number changed",
 			source:  "Cancel within 30 days",
 			current: "Cancel within 3 days",
-			want:    tools.EditSubstantive,
+			want:    edit.Substantive,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := providerWith(t, tt.source, longTarget)
-			m, ok := p.LookupBlock(t.Context(), blockOf(tt.current), "en", "nb", 1, "")
+			m, ok := p.Lookup(t.Context(), corememory.Request{Block: blockOf(tt.current), Source: "en", Target: "nb", MinScore: 1})
 			require.True(t, ok, "the corpus holds a match to classify")
 			assert.Equal(t, tt.want, m.Edit)
 			assert.Equal(t, tt.want.SafeToFill(), m.Edit.SafeToFill())
@@ -101,12 +102,11 @@ func TestTheDangerousMatchOutscoresTheHarmlessOne(t *testing.T) {
 	t.Parallel()
 
 	negation := providerWith(t, longSource, longTarget)
-	nm, ok := negation.LookupBlock(t.Context(),
-		blockOf("You must not accept the terms before we can activate your account"), "en", "nb", 1, "")
+	nm, ok := negation.Lookup(t.Context(), corememory.Request{Block: blockOf("You must not accept the terms before we can activate your account"), Source: "en", Target: "nb", MinScore: 1})
 	require.True(t, ok)
 
 	fullStop := providerWith(t, "Get started", "Kom i gang")
-	fm, ok := fullStop.LookupBlock(t.Context(), blockOf("Get started."), "en", "nb", 1, "")
+	fm, ok := fullStop.Lookup(t.Context(), corememory.Request{Block: blockOf("Get started."), Source: "en", Target: "nb", MinScore: 1})
 	require.True(t, ok)
 
 	assert.Greater(t, nm.Score, fm.Score,

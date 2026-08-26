@@ -139,6 +139,10 @@ type Unit struct {
 // BlockKey is a block's stable unit identity: its Name when set, else its ID. It
 // is the key the document cache, the overlays, and the state store all address a
 // unit by.
+//
+// Not the same ladder as model.Block.ChainUnit, which prefers the structural
+// address over the name and refuses to fall through to the ID. Both are right
+// for their own question; see core/model/identity_ladders.go.
 func BlockKey(b *model.Block) string {
 	// A resolved unit wins, because it is the one of the three that is matched
 	// rather than named — it survives a sibling being deleted, which is the

@@ -33,7 +33,7 @@ func runRecycle(t *testing.T, tm memory.ContentMemory, source string, fillFloor 
 	cfg.SourceLocale = "en"
 	cfg.TargetLocale = "nb"
 	cfg.FillTargetThreshold = fillFloor
-	cfg.Provider = leverage.NewProvider(tm)
+	cfg.Memory = leverage.NewProvider(tm)
 
 	tl := tools.NewMemoryLeverageTool(cfg)
 	in := make(chan *model.Part, 1)
@@ -104,7 +104,7 @@ func TestTheRecycleToolRecordsWhatItRefusesToFill(t *testing.T) {
 	cfg.Reset()
 	cfg.SourceLocale = "en"
 	cfg.TargetLocale = "nb"
-	cfg.Provider = leverage.NewProvider(tm)
+	cfg.Memory = leverage.NewProvider(tm)
 
 	tl := tools.NewMemoryLeverageTool(cfg)
 	in := make(chan *model.Part, 1)

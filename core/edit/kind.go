@@ -1,13 +1,14 @@
-package tools
+package edit
 
 import (
+	"iter"
 	"strings"
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
 )
 
-// EditKind says how a source has changed against the source an answer was
+// Kind says how a source has changed against the source an answer was
 // approved for. It is what a match score was always a proxy for, and a bad one.
 //
 // A percentage measures how many characters moved. What decides whether an
@@ -26,19 +27,19 @@ import (
 //
 // A kind does not have that problem. Adding "not" is substantive in a two-word
 // string and in a paragraph; a full stop is cosmetic in both.
-type EditKind string
+type Kind string
 
 const (
-	// EditNone: the sources are identical.
-	EditNone EditKind = "none"
-	// EditCosmetic: the same words in the same order, differing only in
+	// None: the sources are identical.
+	None Kind = "none"
+	// Cosmetic: the same words in the same order, differing only in
 	// punctuation, case, spacing or the shape of a quote or dash. An approved
 	// translation still stands; at most it needs the same cosmetic touch.
-	EditCosmetic EditKind = "cosmetic"
-	// EditSubstantive: a word was added, removed, or changed. An approved
+	Cosmetic Kind = "cosmetic"
+	// Substantive: a word was added, removed, or changed. An approved
 	// translation may no longer be a translation of this, and nothing about the
 	// size of the change makes that safer.
-	EditSubstantive EditKind = "substantive"
+	Substantive Kind = "substantive"
 )
 
 // SafeToFill reports whether an answer approved for the prior source can be
@@ -46,18 +47,18 @@ const (
 //
 // Only when the words have not moved. This is the whole point of classifying
 // rather than scoring: it does not soften with length.
-func (k EditKind) SafeToFill() bool { return k == EditNone || k == EditCosmetic }
+func (k Kind) SafeToFill() bool { return k == None || k == Cosmetic }
 
-// ClassifyEdit compares the source an answer was approved for against the
+// Classify compares the source an answer was approved for against the
 // source in hand.
-func ClassifyEdit(prior, current string) EditKind {
+func Classify(prior, current string) Kind {
 	if prior == current {
-		return EditNone
+		return None
 	}
 	if wordsEqual(prior, current) {
-		return EditCosmetic
+		return Cosmetic
 	}
-	return EditSubstantive
+	return Substantive
 }
 
 // wordsEqual reports whether two texts carry the same words in the same order.
@@ -81,6 +82,23 @@ func wordsEqual(a, b string) bool {
 		}
 	}
 	return true
+}
+
+// Words yields the comparable words of a text: NFC-normalised, case-folded,
+// with intra-word hyphens and apostrophes removed.
+//
+// Exported so a caller deciding whether a rule applies to a text uses the same
+// notion of "word" the classifier does. A second tokenizer would eventually
+// disagree with this one, and the disagreement would be a term rule silently
+// dropped from a prompt.
+func Words(s string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for _, t := range tokenize(s) {
+			if t.word && !yield(t.key) {
+				return
+			}
+		}
+	}
 }
 
 // words splits text into comparable words: NFC-normalised, case-folded, with

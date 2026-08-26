@@ -17,10 +17,10 @@ import (
 	"io"
 
 	"github.com/mattn/go-isatty"
-	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -28,7 +28,6 @@ import (
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
 	sqlmemory "github.com/neokapi/neokapi/memory"
@@ -1442,111 +1441,129 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				}
 				return qaTools, cleanup, nil
 
-			case schema.RequiresMemory:
-				// Tools requiring a content memory get a real SQLite provider injected from
-				// the --memory flag or, with no flag, the project's own store.
-				memoryConfig := map[string]any{
-					"source_locale":   a.SourceLocale(),
-					"target_locale":   a.TargetLang,
-					"fuzzy_threshold": 70,
-				}
-				var cleanup func()
-				var provider coretools.MemoryProvider
-				if len(cmd) > 0 && cmd[0] != nil {
-					p, cl, err := a.OpenToolMemory(cmd[0])
-					if err != nil {
-						return nil, nil, err
-					}
-					cleanup = cl
-					provider = p
-				}
-				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), memoryConfig, a.TargetLang)
-				if err != nil {
-					if cleanup != nil {
-						cleanup()
-					}
-					return nil, nil, err
-				}
-				// The recycle config factory cannot read a non-JSON provider
-				// or the schema-hidden SourceLocale from the config map (both are
-				// schema:"-"), so it defaults to NullMemoryProvider with an empty
-				// source locale — which makes the SQLite lookup (WHERE locale = ?)
-				// match nothing. Set both on the created tool so the flow step
-				// actually leverages.
-				if provider != nil {
-					if cfg, ok := t.Config().(*coretools.MemoryLeverageConfig); ok {
-						cfg.Provider = provider
-						if cfg.SourceLocale.IsEmpty() {
-							cfg.SourceLocale = model.LocaleID(a.SourceLocale())
-						}
-					}
-				}
-				return []tool.Tool{t}, cleanup, nil
 			}
 		}
 	}
 
-	// Translate reads a block's previously approved translation as reference,
-	// which needs a live handle on the content memory. It travels in the config
-	// map the way the voice profile does, since neither survives the JSON
-	// round-trip the rest of the config takes.
+	// A content memory reaches a tool as a live handle in the config map, the
+	// way a voice profile does: neither survives the JSON round trip the rest of
+	// the config takes.
 	//
-	// Translate deliberately does not declare RequiresMemory. A content memory
-	// is optional here in a way it is not for recycle, and declaring it would
-	// make a project without one fail to build a translate step. With no memory
-	// the tool translates exactly as it did before.
-	var priorCleanup func()
-	if isTranslateTool(toolName, nil) {
-		pv, cl, err := a.OpenPriorVersions(cmd...)
-		if err != nil {
-			return nil, nil, err
-		}
-		if pv != nil {
-			next := make(map[string]any, len(config)+1)
-			maps.Copy(next, config)
-			next[aitools.ConfigPriorVersions] = pv
-			config = next
-			priorCleanup = cl
-		}
+	// One route for every tool that wants one, whether it REQUIRES a corpus
+	// (recycle, which is a no-op without one) or merely ACCEPTS one (translate,
+	// which reads a block's previously approved answer as prompt reference and
+	// translates fine without it). Before this there were three, each narrowing
+	// the built tool to recycle's concrete config — so the capability could only
+	// ever serve one tool, and translate reached its corpus through a side
+	// channel to avoid being routed into an assertion it would fail.
+	config, corpusCleanup, err := a.grantMemory(toolName, config, cmd...)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Default: create from registry.
 	t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 	if err != nil {
-		if priorCleanup != nil {
-			priorCleanup()
-		}
+		corpusCleanup()
 		return nil, nil, err
 	}
-	return []tool.Tool{t}, priorCleanup, nil
+	return []tool.Tool{t}, corpusCleanup, nil
 }
 
-// OpenPriorVersions opens the content memory as a source of prior versions for
-// the translate tool, or returns nil when the run has none.
+// MemoryGrantFor opens a content memory once and returns a function that grants
+// it to each of a tool's config maps.
 //
-// It reuses OpenToolMemory rather than opening a second handle: the answer must
-// come from the same corpus recycle fills from, and two independently opened
-// stores would eventually disagree about which one a run means.
-func (a *App) OpenPriorVersions(cmd ...Command) (aitools.PriorVersionProvider, func(), error) {
+// It exists for the CLI, which builds one tool per input file and must not open
+// a store per file. The grant itself is grantMemory, so a corpus reaches a tool
+// the same way whether it came from a flow step, a direct build, or a command
+// run over twenty files. The returned cleanup is always safe to call.
+func (a *App) MemoryGrantFor(toolName string, cmd Command) (func(map[string]any) map[string]any, func()) {
 	noop := func() {}
-	if len(cmd) == 0 || cmd[0] == nil {
-		return nil, noop, nil
-	}
-	provider, cleanup, err := a.OpenToolMemory(cmd[0])
-	if err != nil {
-		return nil, noop, err
-	}
-	pv, ok := provider.(aitools.PriorVersionProvider)
-	if !ok {
+	identity := func(c map[string]any) map[string]any { return c }
+
+	// Asked once, with an empty config, purely to resolve the store. A failure
+	// here is not fatal: a tool that merely accepts a corpus should still run,
+	// and one that requires it is a no-op rather than an error without it.
+	probe, cleanup, err := a.grantMemory(toolName, map[string]any{}, cmd)
+	if err != nil || probe == nil {
 		if cleanup != nil {
 			cleanup()
 		}
-		return nil, noop, nil
+		return identity, noop
 	}
 	if cleanup == nil {
 		cleanup = noop
 	}
-	return pv, cleanup, nil
+
+	granted := make(map[string]any, len(probe))
+	maps.Copy(granted, probe)
+	return func(config map[string]any) map[string]any {
+		if len(granted) == 0 {
+			return config
+		}
+		next := make(map[string]any, len(config)+len(granted))
+		maps.Copy(next, config)
+		// The resolved values fill gaps; anything the caller set explicitly
+		// wins, which is the same precedence the flow path applies.
+		for k, v := range granted {
+			if _, ok := next[k]; !ok {
+				next[k] = v
+			}
+		}
+		return next
+	}, cleanup
+}
+
+// grantMemory puts a content memory in a tool's config when the tool asked for
+// one, and returns the config unchanged when it did not.
+//
+// Requires and Accepts are both honoured and mean different things. A tool that
+// REQUIRES a corpus cannot do its job without one; a tool that ACCEPTS one does
+// more with it. Neither is failed here for the absence of a store: a project
+// with no content memory should still build every step, and recycle with no
+// corpus is a no-op rather than an error. What would be wrong is silently
+// leaving the handle out of a tool that asked, which is what three separate
+// injection routes made easy.
+//
+// The returned cleanup is always safe to call.
+func (a *App) grantMemory(toolName string, config map[string]any, cmd ...Command) (map[string]any, func(), error) {
+	noop := func() {}
+	s := a.ToolReg.Schema(registry.ToolID(toolName))
+	if !ToolRequires(s, schema.RequiresMemory) && !ToolAccepts(s, schema.AcceptsMemory) {
+		return config, noop, nil
+	}
+	if len(cmd) == 0 || cmd[0] == nil {
+		return config, noop, nil
+	}
+
+	provider, cleanup, err := a.OpenToolMemory(cmd[0])
+	if err != nil {
+		return nil, noop, err
+	}
+	if provider == nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return config, noop, nil
+	}
+	if cleanup == nil {
+		cleanup = noop
+	}
+
+	// Cloned rather than mutated: the recipe's in-memory step config is shared,
+	// and a run must not leave a live store handle in it.
+	next := make(map[string]any, len(config)+3)
+	maps.Copy(next, config)
+	next[corememory.ConfigKey] = provider
+
+	// The source locale is schema-hidden, so a config factory cannot read it
+	// from the map — and without it a SQLite lookup (WHERE locale = ?) matches
+	// nothing. It was previously set on the built tool, which only worked for
+	// the one tool the injection knew about.
+	if _, ok := next[corememory.SourceLocaleKey]; !ok {
+		next[corememory.SourceLocaleKey] = a.SourceLocale()
+	}
+	return next, cleanup, nil
 }
 
 // resolveParallelBlocks returns the parallel block concurrency to use.
@@ -1638,7 +1655,7 @@ func (a *App) openTerms(cmd ...Command) (*sqlterms.SQLiteStore, func(), error) {
 // Returns (nil, noop, nil) when no content memory is in scope. This mirrors
 // openTerms and shares the project resolution with the `kapi memory`
 // subcommands (ResolveMemoryStore).
-func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), error) {
+func (a *App) OpenToolMemory(cmd Command) (corememory.Provider, func(), error) {
 	noop := func() {}
 	if cmd == nil {
 		return nil, noop, nil
@@ -1786,6 +1803,15 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 		return false
 	}
 	return slices.Contains(s.ToolMeta.Requires, req)
+}
+
+// ToolAccepts reports whether the tool schema declares the named optional
+// capability: something the tool uses when the run has it and runs without.
+func ToolAccepts(s *schema.ComponentSchema, cap string) bool {
+	if s == nil || s.ToolMeta == nil {
+		return false
+	}
+	return slices.Contains(s.ToolMeta.Accepts, cap)
 }
 
 // ResolveTermsStore returns the terms store a project-aware tool command should
@@ -2146,14 +2172,15 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 // toolFromStep creates a tool.Tool from a flow step definition.
 // Uses the tool registry as the single source of truth. If rCtx is non-nil,
 // resource references in the step config are resolved before applying.
-func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceContext) (tool.Tool, error) {
+func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceContext) (tool.Tool, func(), error) {
 	toolID := registry.ToolID(step.Tool)
 
 	// A step's argv comes from a file, which is not necessarily written by
 	// whoever is running kapi. Building an exec-class tool needs an
 	// established trust decision for the project (host/exectrust.go).
+	noop := func() {}
 	if err := a.checkExecToolAllowed(step.Tool); err != nil {
-		return nil, err
+		return nil, noop, err
 	}
 
 	// Try config factory first (schema-driven tools).
@@ -2164,28 +2191,38 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 			var err error
 			config, err = flow.ResolveToolConfig(config, ToolSchema, *rCtx)
 			if err != nil {
-				return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
+				return nil, noop, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
 			}
 		}
 		config = a.ApplyProjectBindings(step.Tool, ToolSchema, config)
+
+		// The same grant the direct path makes, at the one place a flow step
+		// becomes a tool. It used to be a separate pass over the BUILT tools in
+		// flowrun, which could only reach the one config type it knew to assert.
+		config, cleanup, err := a.grantMemory(step.Tool, config, cmd)
+		if err != nil {
+			return nil, noop, err
+		}
+
 		t, err := a.ToolReg.NewToolWithConfig(toolID, config, a.TargetLang)
 		if err != nil {
+			cleanup()
 			// Return the real failure (a credential-resolution or config
 			// error). NewToolWithConfig already falls back to the zero-arg
 			// factory for tools with no ConfigFactory, so retrying NewTool
 			// here could only mask the cause (or silently swap in a
 			// mock-provider default for AI tools).
-			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
+			return nil, noop, fmt.Errorf("tool %q: %w", step.Tool, err)
 		}
-		return t, nil
+		return t, cleanup, nil
 	}
 
 	// Unregistered name: fall back to the zero-arg factory for its error text.
 	t, err := a.ToolReg.NewTool(toolID)
 	if err != nil {
-		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
+		return nil, noop, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}
-	return t, nil
+	return t, noop, nil
 }
 
 // resolveRunBindings returns the standing context a flow run should carry.

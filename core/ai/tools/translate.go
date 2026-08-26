@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
@@ -28,10 +30,13 @@ type AITranslateTool struct {
 	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
-	// termMap is the configured term rules projected to term→replacement, the
-	// shape the prompt's terminology section renders. The projection happens once
-	// here rather than per prompt, because the same map feeds the context
-	// fingerprint and the two must not diverge.
+	// termRules is the terminology governing this run, kept whole so each call
+	// can send the rules its own text could use. See termsFor.
+	termRules []coreprofile.TermRule
+	// termMap is every rule projected to term→replacement. It is what the
+	// context fingerprint is computed over — deliberately the whole set, since
+	// the fingerprint is a staleness detector and a rule added about words a
+	// block does not contain should still re-check that block.
 	termMap     map[string]string
 	dnt         []string // do-not-translate terms; masked before the model, restored after
 	voiceGuide  string   // compact voice profile guidance injected into every prompt
@@ -60,12 +65,16 @@ type AITranslateTool struct {
 	onProgress  func(aiprovider.ProgressEvent)
 	blockIndex  atomic.Int32
 	totalBlocks int
-	// priorVersions answers what a block said before, gated on governance. nil
-	// when the run has no content memory, which is every ad-hoc translate.
-	priorVersions PriorVersionProvider
+	// corpus answers what a block said before, gated on governance. Nil when the
+	// run has no content memory, which is every ad-hoc translate.
+	corpus corememory.Provider
 	// point is where this run's content sits, so a block's history is read from
 	// the place it belongs to rather than from wherever the corpus answers first.
 	point string
+	// priorCache memoizes priorVersions by chain unit. See priorFor: one block
+	// asks five times in a run, and every asker must get the same answer.
+	priorMu    sync.Mutex
+	priorCache map[string]*prompt.PriorVersion
 	// configFP fingerprints the output-affecting config (provider, model, locales,
 	// term rules, voice profile). The session overlay cache stores it so a re-run with
 	// a changed model/prompt/voice re-translates instead of serving the stale
@@ -96,6 +105,16 @@ const (
 
 	// DefaultContextWindow is how many blocks either side ContextNeighbours sends.
 	DefaultContextWindow = 2
+
+	// ReusePrior offers a block its own previously approved translation as
+	// reference, when the corpus holds one and the rules it was approved under
+	// still hold. The default.
+	ReusePrior = "prior"
+	// ReuseNone sends no reference. The block is translated as if it had no
+	// history, which is what a run wants when it is re-translating deliberately
+	// — a voice change the old wording should not anchor — or when it does not
+	// want to pay for the lookup.
+	ReuseNone = "none"
 )
 
 // AITranslateConfig holds configuration for the AI translate tool.
@@ -134,12 +153,25 @@ type AITranslateConfig struct {
 	//
 	// Not serializable: it is a live handle on the content memory, supplied the
 	// way Profile is. A run without one translates exactly as it did before.
-	PriorVersions PriorVersionProvider `json:"-" schema:"-"`
+	Memory corememory.Provider `json:"-" schema:"-"`
 
 	// Point is where this run's content sits (product, channel, collection). A
 	// block's history is read from its own point, so wording approved for one
 	// surface does not steer another. Supplied by the project bindings.
 	Point string `json:"point,omitempty" schema:"-"`
+
+	// Reuse selects whether a block's previously approved translation is offered
+	// to the model as reference.
+	//
+	// Its own setting rather than a value of Context, because the two govern
+	// different things and `context:` already promises something else. Context
+	// is about the material AROUND a block — its key, its neighbours — which is
+	// free, comes from the document in hand, and cannot fail. A prior version is
+	// the block's OWN history: it costs a corpus read, it is gated on
+	// governance, and it is available on paths where neighbours are not. A user
+	// setting `context: none` to make a run cheap should not have to discover
+	// that it still reads the corpus.
+	Reuse string `json:"reuse,omitempty" schema:"title=Reuse Prior Translation,description=Offer a block's previously approved translation to the model as reference,enum=prior|none,default=prior,group=prompt"`
 
 	// DNT are do-not-translate terms (product names, trademarks, code
 	// identifiers) that must survive VERBATIM into the target — the enforced
@@ -247,10 +279,10 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		profile = pf
 		delete(config, "profile")
 	}
-	var priorVersions PriorVersionProvider
-	if pv, ok := config[ConfigPriorVersions].(PriorVersionProvider); ok {
-		priorVersions = pv
-		delete(config, ConfigPriorVersions)
+	var corpus corememory.Provider
+	if c, ok := config[corememory.ConfigKey].(corememory.Provider); ok {
+		corpus = c
+		delete(config, corememory.ConfigKey)
 	}
 
 	var cfg AITranslateConfig
@@ -259,7 +291,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 	}
 	cfg.OnProgress = onProgress
 	cfg.Profile = profile
-	cfg.PriorVersions = priorVersions
+	cfg.Memory = corpus
 
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -279,6 +311,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
+		termRules:    cfg.TermRules,
 		termMap:      coreprofile.TermRuleMap(cfg.TermRules),
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
@@ -288,8 +321,8 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
 
-		priorVersions: cfg.PriorVersions,
-		point:         cfg.Point,
+		corpus: cfg.Memory,
+		point:  cfg.Point,
 	}
 	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
@@ -302,6 +335,12 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	t.contextWindow = cfg.ContextWindow
 	if t.contextWindow < 1 {
 		t.contextWindow = DefaultContextWindow
+	}
+	if cfg.Reuse == ReuseNone {
+		// Dropped here rather than checked at each call site: a reference that
+		// is never fetched cannot be sent, cannot enter a cache key, and cannot
+		// cost a corpus read. One place to turn it off is one place to be wrong.
+		t.corpus = nil
 	}
 
 	// Batching intent → packing behaviour. batchSize 0 means "let the packer
@@ -379,12 +418,21 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 	if contextPolicy == "" {
 		contextPolicy = ContextKey
 	}
+	// The reuse setting changes every prompt that had a reference to carry, so a
+	// target cached under one setting must not be served under the other. The
+	// per-block reference itself is accounted for by the block's context digest;
+	// this is the switch, which is run-wide.
+	reuse := cfg.Reuse
+	if reuse == "" {
+		reuse = ReusePrior
+	}
 	return tool.OverlayConfigFingerprint(
 		"ai",
 		cfg.Provider,
 		cfg.Model,
 		p.Fingerprint(),
 		contextPolicy,
+		reuse,
 	)
 }
 
@@ -697,7 +745,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainUnit()),
@@ -788,7 +836,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
@@ -952,7 +1000,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	// 3. Group into batches the model can actually answer, and translate them
 	// with bounded concurrency. Packing is by output-token budget, not a fixed
 	// count — see pack.go.
-	batches := t.packBatches(ctx, entries)
+	batches := t.packBatches(entries)
 	if err := goBatches(batches, t.concurrency, func(_ int, batch []blockEntry) error {
 		return t.translateBatch(ctx, batch)
 	}); err != nil {
@@ -1063,38 +1111,19 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 // The block's *key* is deliberately not in here. A key travels with its block,
 // so a cache already keyed by the block accounts for it; folding it in would
 // churn the cache for no gain.
+// It asks the context for its digest unconditionally rather than gating on which
+// context sources are configured. Context.Digest already returns "" when nothing
+// beyond the key is present, so the gate bought nothing but a place for the next
+// context source to be forgotten — which is exactly how the prior version was
+// nearly shipped outside the cache key.
 func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) string {
 	if b == nil {
-		return t.configFP
-	}
-	if t.contextPolicy != ContextNeighbours && t.priorVersions == nil {
-		// Nothing beyond the block itself varies, so the config alone is the
-		// whole story and the digest would cost a lookup per block for nothing.
 		return t.configFP
 	}
 	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainUnit()).Digest(); d != "" {
 		return t.configFP + ":" + d
 	}
 	return t.configFP
-}
-
-// ConfigPriorVersions is the config-map key a host passes a PriorVersionProvider
-// under, the way it passes "profile". Both are live handles rather than data, so
-// neither survives the JSON round-trip the rest of the config takes.
-const ConfigPriorVersions = "prior_versions"
-
-// PriorVersionProvider answers what a block said before, at a point, under the
-// governance in force.
-//
-// The gate lives behind this call rather than in front of it: a caller that has
-// to remember to check a fingerprint is a caller that will eventually forget,
-// and the failure is silent — a translation steered by wording approved under
-// rules that have since changed. See memory/leverage.PriorVersionFor.
-type PriorVersionProvider interface {
-	// PriorVersion returns the source and target of the newest approved answer
-	// for unit at point, or ok=false when there is none or when the one there
-	// was approved under governance that has since moved.
-	PriorVersion(ctx context.Context, unit, point string, source, target model.LocaleID, fingerprint string) (priorSource, priorTarget string, ok bool)
 }
 
 // attachPrior adds the block's previous approved translation to the prompt
@@ -1104,15 +1133,67 @@ type PriorVersionProvider interface {
 // reach the model — so the comparison is between what governed the old answer
 // and what governs this one, rather than against anything a caller supplied.
 func (t *AITranslateTool) attachPrior(ctx context.Context, unit string, pc *prompt.Context) {
-	if t.priorVersions == nil || unit == "" {
-		return
+	if pv := t.priorFor(ctx, unit); pv != nil {
+		pc.Prior = pv
 	}
-	src, tgt, ok := t.priorVersions.PriorVersion(
-		ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP)
-	if !ok || tgt == "" {
-		return
+}
+
+// priorFor is the memoized corpus read.
+//
+// One block asks for its prior version five times in a run: the packer asks to
+// decide whether to batch it, cacheFingerprint asks three times (the skip check,
+// the hit comparison and the write-back), and the translation itself asks once.
+// They must all get the same answer — a fingerprint computed from a different
+// answer than the prompt carried is a cache key that describes nothing — and
+// paying for five reads to guarantee that would be the wrong way round.
+//
+// A run has one point and one governing fingerprint, so the unit is the whole
+// key. A nil entry means asked and answered nothing, which is why presence in
+// the map is the test rather than a nil check.
+func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.PriorVersion {
+	if t.corpus == nil || unit == "" {
+		return nil
 	}
-	pc.Prior = &prompt.PriorVersion{Source: src, Target: tgt}
+
+	t.priorMu.Lock()
+	defer t.priorMu.Unlock()
+	if pv, asked := t.priorCache[unit]; asked {
+		return pv
+	}
+
+	var pv *prompt.PriorVersion
+	if v, ok := t.corpus.PriorVersion(ctx, corememory.VersionRequest{
+		Unit:       unit,
+		Point:      t.point,
+		Source:     t.sourceLocale,
+		Target:     t.targetLocale,
+		GovernedBy: t.contextFP,
+	}); ok && v.Target != "" {
+		pv = &prompt.PriorVersion{Source: v.Source, Target: v.Target}
+	}
+	if t.priorCache == nil {
+		t.priorCache = make(map[string]*prompt.PriorVersion)
+	}
+	t.priorCache[unit] = pv
+	return pv
+}
+
+// termsFor is the terminology one call sends: the rules whose term could appear
+// in the text it carries.
+//
+// Scoped per call rather than per run because that is the grain at which it
+// matters — a batch of twenty segments sends the union of what those twenty can
+// use, not the four hundred rules the collection is governed by.
+//
+// The fingerprint is NOT scoped, and the asymmetry is the point: what reaches
+// the model is what the model needs, and what detects staleness is everything
+// that governs the content. Narrowing the fingerprint here would make a
+// governance change invisible to exactly the blocks it was meant to reach.
+func (t *AITranslateTool) termsFor(texts ...string) map[string]string {
+	if len(t.termRules) == 0 {
+		return nil
+	}
+	return coreprofile.ScopedTermRuleMap(t.termRules, texts...)
 }
 
 // contextFor is the reference material for one block: its key always, and its
@@ -1183,54 +1264,17 @@ func blockKey(b *model.Block) string {
 // recipe pin, or the eval harness sweeping N) is honoured verbatim; otherwise
 // kapi sizes the batch from what the model can emit.
 //
-// A block that has a previously approved translation is packed alone. The batch
-// prompt carries one shared context and a key per segment, with no per-segment
-// slot for a block's own history, so a prior version can only travel on the
-// single-block path. This is the rule DNT already follows for the same reason:
-// the correctness of the few outweighs the batch win over the many, and the
-// alternative is a feature that silently applies to whichever blocks happened to
-// be packed alone.
-func (t *AITranslateTool) packBatches(ctx context.Context, entries []blockEntry) [][]blockEntry {
-	alone, packable := t.splitBlocksWithHistory(ctx, entries)
-
-	var batches [][]blockEntry
-	for _, e := range alone {
-		batches = append(batches, []blockEntry{e})
-	}
-	if len(packable) == 0 {
-		return batches
-	}
+// A block with a previously approved answer used to be packed alone, because
+// the batch payload had one shared context and a key per segment with nowhere
+// to put a per-block reference. That un-batched exactly the blocks the feature
+// applied to — and on a model migration, where every approved block has a
+// governed prior, that was every block in the corpus. BatchSegment.Prior
+// removed the restriction; this is what it bought.
+func (t *AITranslateTool) packBatches(entries []blockEntry) [][]blockEntry {
 	if t.batchSize > 0 {
-		return append(batches, chunkBlocks(packable, t.batchSize)...)
+		return chunkBlocks(entries, t.batchSize)
 	}
-	return append(batches, packBlocks(packable, outputBudget(t.provider), MaxBlocksPerCall)...)
-}
-
-// splitBlocksWithHistory separates the blocks that carry a usable prior version
-// from the rest. With no provider configured every block is packable, which is
-// the behaviour every run had before this existed.
-func (t *AITranslateTool) splitBlocksWithHistory(ctx context.Context, entries []blockEntry) (alone, packable []blockEntry) {
-	if t.priorVersions == nil {
-		return nil, entries
-	}
-	for _, e := range entries {
-		if e.block == nil {
-			packable = append(packable, e)
-			continue
-		}
-		unit := e.block.ChainUnit()
-		if unit == "" {
-			packable = append(packable, e)
-			continue
-		}
-		if _, tgt, ok := t.priorVersions.PriorVersion(
-			ctx, unit, t.point, t.sourceLocale, t.targetLocale, t.contextFP); ok && tgt != "" {
-			alone = append(alone, e)
-			continue
-		}
-		packable = append(packable, e)
-	}
-	return alone, packable
+	return packBlocks(entries, outputBudget(t.provider), MaxBlocksPerCall)
 }
 
 // translateBatch translates a batch of blocks in a single LLM call using
@@ -1254,11 +1298,20 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			segments[i].Key = blockKey(entry.block)
 		}
 	}
+	// Each segment carries its own previously approved answer. Per-segment
+	// because it is per-block: hoisting it into the shared preamble would offer
+	// one block's history to every other block in the call.
+	for i, entry := range entries {
+		if entry.block == nil {
+			continue
+		}
+		segments[i].Prior = t.priorFor(ctx, entry.block.ChainUnit())
+	}
 	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{
 		SourceLocale:   t.sourceLocale,
 		TargetLocale:   t.targetLocale,
-		PreferredTerms: t.termMap,
+		PreferredTerms: t.termsFor(texts...),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 	}

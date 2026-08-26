@@ -2106,6 +2106,23 @@ coordinate-report: ## Regenerate the /coordinate dashboard data (no model calls)
 	$(GO) run $(GOTAGS) ./scripts/coordinatereport
 	@echo "Published coordinate report → web/src/pages/coordinate/_coordinate.json"
 
+# ── The /evals cover page ────────────────────────────────────────────────────
+# The registry of every eval and the question it answers, including the ones
+# nothing answers yet. A registry rather than a runner: each eval keeps its own
+# harness and its own cadence, and the cheap ones would run rarely (or the
+# expensive ones constantly) if they shared a command. The companion test fails
+# when the committed index stops matching the cards, and when a card names a
+# command, page or dataset that does not exist.
+eval-index: ## Rebuild the /evals cover-page data
+	$(GO) run ./scripts/evalindex
+
+PRIORAB_ARGS ?=
+# Costs model calls. Two halves: a deterministic consistency check (does the
+# approved wording survive) and a judged quality score. Only the first should be
+# read as evidence until the judge's agreement with a person is measured.
+prior-ab-eval: ## Measure whether a block's prior version changes what the model writes (spends)
+	$(GO) run $(GOTAGS) ./scripts/priorabeval $(PRIORAB_ARGS)
+
 BATCHEVAL_ARGS ?=
 batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -models given)
 	$(GO) run ./scripts/batcheval $(BATCHEVAL_ARGS)

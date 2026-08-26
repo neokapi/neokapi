@@ -1,27 +1,27 @@
-package tools_test
+package edit_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/edit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // render draws one side of a diff the way the dashboard does, so a failure
 // reads as the picture a reader would have seen rather than as a span list.
-func render(spans []tools.Span) string {
+func render(spans []edit.Span) string {
 	var b strings.Builder
 	for _, s := range spans {
 		switch s.Op {
-		case tools.SpanSame:
+		case edit.SpanSame:
 			b.WriteString(s.Text)
-		case tools.SpanCosmetic:
+		case edit.SpanCosmetic:
 			b.WriteString("~" + s.Text + "~")
-		case tools.SpanAdded:
+		case edit.SpanAdded:
 			b.WriteString("+" + s.Text + "+")
-		case tools.SpanRemoved:
+		case edit.SpanRemoved:
 			b.WriteString("-" + s.Text + "-")
 		}
 	}
@@ -97,7 +97,7 @@ func TestDiffEdit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := tools.DiffEdit(tt.prior, tt.current)
+			d := edit.Compare(tt.prior, tt.current)
 			assert.Equal(t, tt.wantPrior, render(d.Prior))
 			assert.Equal(t, tt.wantCurrent, render(d.Current))
 		})
@@ -120,7 +120,7 @@ func TestDiffEditReproducesBothSources(t *testing.T) {
 	}
 
 	for _, p := range pairs {
-		d := tools.DiffEdit(p[0], p[1])
+		d := edit.Compare(p[0], p[1])
 		var prior, current strings.Builder
 		for _, s := range d.Prior {
 			prior.WriteString(s.Text)
@@ -153,15 +153,15 @@ func TestDiffAgreesWithTheVerdict(t *testing.T) {
 	}
 
 	for _, p := range pairs {
-		d := tools.DiffEdit(p[0], p[1])
+		d := edit.Compare(p[0], p[1])
 		moved := false
-		for _, s := range append(append([]tools.Span{}, d.Prior...), d.Current...) {
-			if s.Op == tools.SpanAdded || s.Op == tools.SpanRemoved {
+		for _, s := range append(append([]edit.Span{}, d.Prior...), d.Current...) {
+			if s.Op == edit.SpanAdded || s.Op == edit.SpanRemoved {
 				moved = true
 			}
 		}
-		require.Equal(t, tools.ClassifyEdit(p[0], p[1]), d.Kind)
-		assert.Equal(t, d.Kind == tools.EditSubstantive, moved,
+		require.Equal(t, edit.Classify(p[0], p[1]), d.Kind)
+		assert.Equal(t, d.Kind == edit.Substantive, moved,
 			"a word marked as moved is exactly what makes an edit substantive: %q → %q", p[0], p[1])
 	}
 }
@@ -195,7 +195,7 @@ func TestContainsWords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tools.ContainsWords(tt.haystack, tt.needle))
+			assert.Equal(t, tt.want, edit.ContainsWords(tt.haystack, tt.needle))
 		})
 	}
 }

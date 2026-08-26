@@ -1012,6 +1012,18 @@
             }
           }
         },
+        "reuse": {
+          "title": "Reuse Prior Translation",
+          "description": "Offer a block's previously approved translation to the model as reference",
+          "options": {
+            "none": {
+              "label": "none"
+            },
+            "prior": {
+              "label": "prior"
+            }
+          }
+        },
         "skipMatched": {
           "title": "Skip Matched",
           "description": "Skip blocks that already have a target translation"

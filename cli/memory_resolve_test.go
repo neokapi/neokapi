@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -135,7 +136,7 @@ func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
 	require.NotNil(t, provider, "inside a project the provider must be the project content memory, not nil/Null")
 	defer cleanup()
 
-	got, found := provider.LookupExact(t.Context(), "Welcome back", "en", "fr")
+	got, found := lookupText(t.Context(), provider, "Welcome back", "en", "fr")
 	assert.True(t, found, "exact match must be found in the project content memory")
 	assert.Equal(t, "Bon retour", got)
 }
@@ -177,7 +178,23 @@ func TestOpenToolMemory_ExplicitFileFlag(t *testing.T) {
 	require.NotNil(t, provider)
 	defer cleanup()
 
-	got, found := provider.LookupExact(t.Context(), "Save", "en", "de")
+	got, found := lookupText(t.Context(), provider, "Save", "en", "de")
 	assert.True(t, found)
 	assert.Equal(t, "Speichern", got)
+}
+
+// lookupText is the flattened exact lookup these tests assert on, expressed
+// against the one provider interface.
+func lookupText(ctx context.Context, p corememory.Provider, text string, source, target model.LocaleID) (string, bool) {
+	m, ok := p.Lookup(ctx, corememory.Request{
+		Text:     text,
+		Source:   source,
+		Target:   target,
+		MinScore: 100,
+		Verbatim: true,
+	})
+	if !ok {
+		return "", false
+	}
+	return model.RunsText(m.TargetRuns), true
 }

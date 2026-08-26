@@ -780,6 +780,22 @@
           ],
           "ui:widget": "select"
         },
+        "reuse": {
+          "default": "prior",
+          "description": "Offer a block's previously approved translation to the model as reference",
+          "options": [
+            {
+              "label": "prior",
+              "value": "prior"
+            },
+            {
+              "label": "none",
+              "value": "none"
+            }
+          ],
+          "title": "Reuse Prior Translation",
+          "type": "string"
+        },
         "skipMatched": {
           "default": false,
           "description": "Skip blocks that already have a target translation",
@@ -800,6 +816,9 @@
       ],
       "title": "Translate",
       "toolMeta": {
+        "accepts": [
+          "memory"
+        ],
         "cardinality": "bilingual",
         "category": "translation",
         "defaultParallelBlocks": 5,
@@ -842,6 +861,7 @@
         {
           "fields": [
             "instruction",
+            "reuse",
             "context",
             "contextWindow"
           ],

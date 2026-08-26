@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T06:00:29Z",
+  "generatedAt": "2026-08-26T21:14:33Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1644,6 +1644,12 @@
           "type": "string",
           "required": false,
           "description": "AI provider"
+        },
+        {
+          "name": "reuse",
+          "type": "string",
+          "required": false,
+          "description": "Offer a block's previously approved translation to the model as reference"
         },
         {
           "name": "skipMatched",

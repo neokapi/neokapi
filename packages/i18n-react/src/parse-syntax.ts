@@ -23,7 +23,7 @@ export function parseSyntaxFor(filename: string): {
   const isTS = /\.[cm]?tsx?$/.test(filename);
   // JSX is the trailing x, and it matters beyond the parser: in a .ts file
   // `<Foo>x` is a type assertion, and parsing it as JSX changes its meaning.
-  const isJSX = /x$/.test(filename);
+  const isJSX = filename.endsWith("x");
   return {
     syntax: isTS ? "typescript" : "ecmascript",
     tsx: isTS && isJSX,

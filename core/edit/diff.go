@@ -1,4 +1,4 @@
-package tools
+package edit
 
 import (
 	"slices"
@@ -45,24 +45,24 @@ type Span struct {
 // cosmetic and added. Concatenating either side's Text reproduces that source
 // exactly, so a rendering cannot quietly drop content.
 type Diff struct {
-	Kind    EditKind `json:"kind"`
-	Prior   []Span   `json:"prior"`
-	Current []Span   `json:"current"`
+	Kind    Kind   `json:"kind"`
+	Prior   []Span `json:"prior"`
+	Current []Span `json:"current"`
 }
 
-// DiffEdit aligns two sources word by word and reports what changed.
+// Compare aligns two sources word by word and reports what changed.
 //
 // The alignment is a longest common subsequence over the comparable word forms,
 // with any separator matching any other, so punctuation that moved lines up
 // with the punctuation it replaced instead of showing as a word going missing.
 //
-// Kind agrees with ClassifyEdit by construction: an alignment leaves a word
+// Kind agrees with Classify by construction: an alignment leaves a word
 // unmatched exactly when the two word sequences differ.
-func DiffEdit(prior, current string) Diff {
+func Compare(prior, current string) Diff {
 	pt, ct := tokenize(prior), tokenize(current)
 	matched := lcsPairs(pt, ct)
 
-	d := Diff{Kind: ClassifyEdit(prior, current)}
+	d := Diff{Kind: Classify(prior, current)}
 	priorMatch := make(map[int]int, len(matched))
 	currentMatch := make(map[int]int, len(matched))
 	for _, m := range matched {

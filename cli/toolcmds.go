@@ -6,10 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	coretools "github.com/neokapi/neokapi/core/tools"
-
 	"github.com/mattn/go-isatty"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -160,21 +157,13 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			tracePath, _ := cmd.Flags().GetString("trace")
 			parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
-			// Tools that require a content memory (e.g. recycle) get a real SQLite
-			// content-memory provider resolved from --memory or the project store,
-			// opened once and shared across every input file. Without this
-			// the tool's config factory falls back to NullMemoryProvider and
-			// leverages nothing. Mirrors the term-rule injection
-			// below and reuses the flow path's content memory opening logic.
-			var memoryProvider coretools.MemoryProvider
-			if ToolRequires(ToolSchema, schema.RequiresMemory) {
-				p, cleanup, terr := a.OpenToolMemory(cmd)
-				if terr != nil {
-					return terr
-				}
-				defer cleanup()
-				memoryProvider = p
-			}
+			// A tool that requires or accepts a content memory gets one,
+			// resolved from --memory or the project store, opened once and
+			// shared across every input file. The grant is host.grantMemory, so
+			// the CLI, a flow step and a direct build all hand a corpus over the
+			// same way.
+			grantCorpus, corpusCleanup := a.MemoryGrantFor(toolName, cmd)
+			defer corpusCleanup()
 
 			// First-run onboarding: when this tool needs provider credentials
 			// and no AI provider is configured anywhere, walk through the
@@ -231,25 +220,10 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 					config["onProgress"] = AiProgressWriter(os.Stderr)
 				}
+				config = grantCorpus(config)
 				t, terr := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
 				if terr != nil {
 					return nil, terr
-				}
-				// The recycle config factory cannot read a non-JSON
-				// provider from the config map (Provider is json:"-"), so it
-				// defaults to NullMemoryProvider. Swap in the resolved SQLite content memory
-				// on the created tool's config so it actually leverages.
-				// SourceLocale is also schema-hidden and never populated from
-				// --source-lang by the factory, so the SQLite lookup would run
-				// with an empty source locale and match nothing — set it from
-				// the resolved source language so exact/fuzzy lookups hit.
-				if memoryProvider != nil {
-					if cfg, ok := t.Config().(*coretools.MemoryLeverageConfig); ok {
-						cfg.Provider = memoryProvider
-						if cfg.SourceLocale.IsEmpty() {
-							cfg.SourceLocale = model.LocaleID(a.SourceLocale())
-						}
-					}
 				}
 				return t, nil
 			}
