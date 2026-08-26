@@ -1578,7 +1578,7 @@ func (s *tokenReaderState) consumeRawUntilClose(tokenizer *html.Tokenizer, tag s
 // handleMetaToken handles META tags for encoding, language, and translatable content.
 func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
 	httpEquiv := strings.ToLower(getTokenAttr(attrs, "http-equiv"))
-	metaName := strings.ToLower(getTokenAttr(attrs, "name"))
+	metaName := metaKey(getTokenAttr(attrs, "name"), getTokenAttr(attrs, "property"))
 	content := getTokenAttr(attrs, "content")
 	charset := getTokenAttr(attrs, "charset")
 

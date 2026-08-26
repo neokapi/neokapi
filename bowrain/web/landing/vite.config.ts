@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";
 import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import localeMeta from "./locale-meta.json" with { type: "json" };
 
@@ -53,6 +54,23 @@ type LocaleMeta = Partial<{
   ogTitle: string;
   ogDescription: string;
 }>;
+
+// generatedHead reads the head strings the l10n loop wrote for a locale, or
+// nothing when it wrote none. Read at config time with fs rather than imported,
+// because a locale without one is the ordinary case and a missing import is a
+// build error rather than a fallback.
+function generatedHead(locale: string): LocaleMeta {
+  const file = fileURLToPath(new URL(`./head/${locale}.json`, import.meta.url));
+  if (!existsSync(file)) return {};
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as LocaleMeta;
+  } catch (err) {
+    // Falling back silently would put the source language on the page with no
+    // sign anything went wrong, which is the failure this file exists to fix.
+    console.warn(`[landing] ${file}: unreadable, head falls back to source: ${String(err)}`);
+    return {};
+  }
+}
 
 // The locale menu, built where the deploy shape is known. Each label is written
 // IN its own locale, the convention every language menu follows: a reader finds
@@ -117,7 +135,15 @@ function localeHtml(): PluginOption {
         );
       }
       if (locale && locale in localeMeta) {
-        const meta: LocaleMeta = localeMeta[locale as keyof typeof localeMeta];
+        // locale-meta.json declares which locales build and may carry head
+        // strings by hand; head/<locale>.json is what the loop wrote from the
+        // shell itself. The generated file wins, because it is the one that
+        // tracks the source — a hand-typed title outlives the sentence it was
+        // copied from.
+        const meta: LocaleMeta = {
+          ...localeMeta[locale as keyof typeof localeMeta],
+          ...generatedHead(locale),
+        };
         out = out.replace('<html lang="en">', `<html lang="${locale}">`);
         const swaps: Array<[string | undefined, RegExp, (v: string) => string]> = [
           [meta.title, /<title>[^<]*<\/title>/, (v) => `<title>${v}</title>`],
