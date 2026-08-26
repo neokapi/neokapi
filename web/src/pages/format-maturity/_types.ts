@@ -1,3 +1,5 @@
+import { t } from "@neokapi/i18n-react/runtime";
+
 // Shape of web/static/data/format-maturity.json, produced by the
 // format-triage workflow (.claude/workflows/format-triage.js) and seeded from
 // the format maturity gap analysis. See docs/internals/format-maturity.md,
@@ -137,11 +139,11 @@ export interface HistorySnapshot {
 export const LEVELS: Level[] = ["L0", "L1", "L2", "L3", "L4"];
 
 export const LEVEL_NAME: Record<Level, string> = {
-  L0: "Experimental",
-  L1: "Readable + writable",
-  L2: "Specified",
-  L3: "Parity-verified",
-  L4: "Rock-solid",
+  L0: t("Experimental", "format maturity level"),
+  L1: t("Readable + writable", "format maturity level"),
+  L2: t("Specified", "format maturity level"),
+  L3: t("Parity-verified", "format maturity level"),
+  L4: t("Rock-solid", "format maturity level"),
 };
 
 export const AXIS_IDS: AxisId[] = [
@@ -155,13 +157,13 @@ export const AXIS_IDS: AxisId[] = [
 ];
 
 export const AXIS_LABEL: Record<AxisId, string> = {
-  engine: "Engine",
-  vocabulary: "Vocabulary",
-  editor: "Editor",
-  knowledge: "Knowledge",
-  corpus: "Corpus",
-  security: "Security",
-  structure: "Structure & Geometry",
+  engine: t("Engine", "format maturity axis"),
+  vocabulary: t("Vocabulary", "format maturity axis"),
+  editor: t("Editor", "format maturity axis"),
+  knowledge: t("Knowledge", "format maturity axis"),
+  corpus: t("Corpus", "format maturity axis"),
+  security: t("Security", "format maturity axis"),
+  structure: t("Structure & Geometry", "format maturity axis"),
 };
 
 export const AXIS_GRADES: Record<AxisId, Grade[]> = {
@@ -210,16 +212,34 @@ export const AXIS_DIMS: Record<AxisId, string[]> = {
  * never drift. Surfaced as `title=` tooltips and in the visible axis key.
  */
 export const AXIS_DESC: Record<AxisId, string> = {
-  engine: "Parse/round-trip/parity fidelity and robustness",
-  vocabulary:
+  engine: t(
+    "Parse/round-trip/parity fidelity and robustness",
+    "what a format maturity axis measures",
+  ),
+  vocabulary: t(
     "How richly format semantics map into the canonical content-model vocabulary (and back)",
-  editor: "How close kapi gets to the format's native editing surface",
-  knowledge: "The spec/learning assets that let a person or model work on the format",
-  corpus: "Reference files that validate support, with provenance",
-  security:
+    "what a format maturity axis measures",
+  ),
+  editor: t(
+    "How close kapi gets to the format's native editing surface",
+    "what a format maturity axis measures",
+  ),
+  knowledge: t(
+    "The spec/learning assets that let a person or model work on the format",
+    "what a format maturity axis measures",
+  ),
+  corpus: t(
+    "Reference files that validate support, with provenance",
+    "what a format maturity axis measures",
+  ),
+  security: t(
     "Resource-boundedness, fuzzing, and hostile-corpus hardening of the parser (non-gating display axis)",
-  structure:
+    "what a format maturity axis measures",
+  ),
+  structure: t(
     "How much of the document's logical and spatial structure the reader recovers — roles, reading order, tables, relations, geometry (non-gating display axis)",
+    "what a format maturity axis measures",
+  ),
 };
 
 /** The two non-gating display axes (rubric §2): they score and rank work but
@@ -228,33 +248,33 @@ export const NON_GATING_AXES: AxisId[] = ["security", "structure"];
 
 export const GRADE_NAME: Record<Grade, string> = {
   ...LEVEL_NAME,
-  V0: "Opaque",
-  V1: "Typed reading",
-  V2: "Bidirectional",
-  V3: "Fidelity-proven",
-  E0: "None",
-  E1: "Faithful preview",
-  E2: "Round-trip workflow",
-  E3: "Embedded",
-  E4: "Continuous",
-  K0: "Undocumented",
-  K1: "Grounded",
-  K2: "Executable",
-  K3: "Living",
-  C0: "Unprovenanced",
-  C1: "Exemplars",
-  C2: "Manifested + fetched",
-  C3: "Broad",
-  S0: "Unbounded",
-  S1: "Bounded",
-  S2: "Fuzzed",
-  S3: "Hostile-hardened",
-  S4: "Continuously-assured",
-  G0: "Opaque",
-  G1: "Metadata",
-  G2: "Linear body text",
-  G3: "Logical structure",
-  G4: "Spatial geometry",
+  V0: t("Opaque", "format maturity grade"),
+  V1: t("Typed reading", "format maturity grade"),
+  V2: t("Bidirectional", "format maturity grade"),
+  V3: t("Fidelity-proven", "format maturity grade"),
+  E0: t("None", "format maturity grade"),
+  E1: t("Faithful preview", "format maturity grade"),
+  E2: t("Round-trip workflow", "format maturity grade"),
+  E3: t("Embedded", "format maturity grade"),
+  E4: t("Continuous", "format maturity grade"),
+  K0: t("Undocumented", "format maturity grade"),
+  K1: t("Grounded", "format maturity grade"),
+  K2: t("Executable", "format maturity grade"),
+  K3: t("Living", "format maturity grade"),
+  C0: t("Unprovenanced", "format maturity grade"),
+  C1: t("Exemplars", "format maturity grade"),
+  C2: t("Manifested + fetched", "format maturity grade"),
+  C3: t("Broad", "format maturity grade"),
+  S0: t("Unbounded", "format maturity grade"),
+  S1: t("Bounded", "format maturity grade"),
+  S2: t("Fuzzed", "format maturity grade"),
+  S3: t("Hostile-hardened", "format maturity grade"),
+  S4: t("Continuously-assured", "format maturity grade"),
+  G0: t("Opaque", "format maturity grade"),
+  G1: t("Metadata", "format maturity grade"),
+  G2: t("Linear body text", "format maturity grade"),
+  G3: t("Logical structure", "format maturity grade"),
+  G4: t("Spatial geometry", "format maturity grade"),
 };
 
 // ── Axis families (rubric §1 — a dashboard reading aid, NOT a gating unit) ──
@@ -268,16 +288,16 @@ export type FamilyId = "comprehension" | "assurance" | "enablement";
 export const FAMILY_ORDER: FamilyId[] = ["comprehension", "assurance", "enablement"];
 
 export const FAMILY_LABEL: Record<FamilyId, string> = {
-  comprehension: "Comprehension",
-  assurance: "Assurance",
-  enablement: "Enablement",
+  comprehension: t("Comprehension", "format maturity axis family"),
+  assurance: t("Assurance", "format maturity axis family"),
+  enablement: t("Enablement", "format maturity axis family"),
 };
 
 /** One-line mental model for each family (rubric §1), used as a tooltip. */
 export const FAMILY_TAGLINE: Record<FamilyId, string> = {
-  comprehension: "How deeply we read it",
-  assurance: "How we prove it",
-  enablement: "How we work with it",
+  comprehension: t("How deeply we read it", "what an axis family is for"),
+  assurance: t("How we prove it", "what an axis family is for"),
+  enablement: t("How we work with it", "what an axis family is for"),
 };
 
 /** Axes per family, in display order. Comprehension is the three fidelity
@@ -294,9 +314,9 @@ export const FAMILY_AXES: Record<FamilyId, AxisId[]> = {
 export const TIER_ORDER: SupportTier[] = ["supported", "maintained", "available"];
 
 export const TIER_LABEL: Record<SupportTier, string> = {
-  supported: "Supported",
-  maintained: "Maintained",
-  available: "Available",
+  supported: t("Supported", "format support tier"),
+  maintained: t("Maintained", "format support tier"),
+  available: t("Available", "format support tier"),
 };
 
 /** What each support tier promises (rubric §1 "Meaning" column) — the contract
