@@ -90,6 +90,26 @@ var harnessOwned = map[string]bool{
 	"xdg-cache":    true,
 }
 
+// uninteresting are directories an agent may create that say nothing about
+// what it did to the content.
+//
+// The i18n scenarios install dependencies, and node_modules alone contributed
+// 2015 of one scenario's 2037 recorded changes. The nine files that mattered
+// were buried and the dataset ran to 12MB. What a reader wants from that run
+// is the config the agent wrote and the catalogs it produced.
+var uninteresting = map[string]bool{
+	"node_modules": true,
+	".git":         true,
+	"dist":         true,
+	"build":        true,
+	".next":        true,
+	".cache":       true,
+	"vendor":       true,
+	"target":       true,
+	".venv":        true,
+	"__pycache__":  true,
+}
+
 // maxShownBytes caps what a change carries into the dataset. Past this a diff
 // stops being readable and the dataset stops being reviewable in a browser.
 const maxShownBytes = 24 * 1024
@@ -198,7 +218,9 @@ func snapshot(dir string) (map[string][]byte, error) {
 			return relErr
 		}
 		if info.IsDir() {
-			if harnessOwned[rel] {
+			// harnessOwned only at the top; uninteresting at any depth, since a
+			// nested project installs its own dependencies.
+			if harnessOwned[rel] || uninteresting[info.Name()] {
 				return filepath.SkipDir
 			}
 			return nil

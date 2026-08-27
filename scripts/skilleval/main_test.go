@@ -196,6 +196,25 @@ func TestMentionsKapi(t *testing.T) {
 	}
 }
 
+// TestDependencyTreesAreNotRecorded.
+//
+// The i18n scenarios install dependencies. node_modules alone contributed 2015
+// of one scenario's 2037 recorded changes, burying the nine files that said
+// what the agent actually did and taking the committed dataset to 12MB.
+func TestDependencyTreesAreNotRecorded(t *testing.T) {
+	for _, name := range []string{"node_modules", ".git", "dist", "build", ".next", "vendor"} {
+		assert.True(t, uninteresting[name], "%s carries no evidence about the content", name)
+	}
+	assert.False(t, uninteresting["src"], "the agent's own source edits are the point")
+	assert.False(t, uninteresting["locales"], "so are the catalogs it produced")
+
+	// harnessOwned is matched at the top level only; uninteresting has to match
+	// at any depth, because a nested project installs its own dependencies.
+	assert.True(t, harnessOwned[".claude"])
+	assert.False(t, harnessOwned["node_modules"],
+		"a dependency tree is the agent's doing, just not worth recording")
+}
+
 // TestDiffWorkspaceSeesEveryKindOfChange: the dashboard renders what this
 // returns, so a missed change is a diff a reader never sees.
 func TestDiffWorkspaceSeesEveryKindOfChange(t *testing.T) {
