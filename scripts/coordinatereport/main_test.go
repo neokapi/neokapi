@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,17 +17,71 @@ import (
 // the current code produces — otherwise the page keeps asserting a finding long
 // after the code stopped supporting it, which is the exact failure the
 // generated-not-typed discipline exists to prevent.
+//
+// The comparison takes the committed file's provenance rather than the fresh
+// run's. Generated and Commit record WHEN the data was last built, not WHAT it
+// says, and the report is deterministic — so comparing them asserts only that
+// the file was regenerated at the commit under test, which no commit but the
+// one that last touched it can satisfy. A gate that fails on every merge
+// regardless of drift reports nothing about drift, and teaches its readers to
+// regenerate on reflex instead of asking what changed.
+//
+// Everything else is compared byte for byte, formatting included, so a hand
+// edit to the file is still caught.
 func TestCommittedReportIsCurrent(t *testing.T) {
-	report, err := Build(t.Context())
-	require.NoError(t, err)
-	fresh, err := Marshal(report)
-	require.NoError(t, err)
-
 	committed, err := os.ReadFile(filepath.Join("..", "..", DefaultOut))
 	require.NoError(t, err, "the dashboard data is missing — run: go run ./scripts/coordinatereport")
 
+	var stamp struct {
+		Generated string `json:"generated"`
+		Commit    string `json:"commit"`
+	}
+	require.NoError(t, json.Unmarshal(committed, &stamp),
+		"the committed dashboard data is not valid JSON")
+
+	report, err := Build(t.Context())
+	require.NoError(t, err)
+	report.Generated = stamp.Generated
+	report.Commit = stamp.Commit
+
+	fresh, err := Marshal(report)
+	require.NoError(t, err)
+
 	assert.Equal(t, string(committed), string(fresh),
 		"the committed dashboard data is stale — regenerate with: go run ./scripts/coordinatereport")
+}
+
+// TestCommittedReportSurvivesANewCommit is the regression on the gate itself.
+//
+// The report stamps the commit it was built at, so a gate that compared the
+// stamp went red the moment anything else merged and stayed red until someone
+// regenerated — which held only until the next merge. Content equal, provenance
+// different, must pass.
+func TestCommittedReportSurvivesANewCommit(t *testing.T) {
+	report, err := Build(t.Context())
+	require.NoError(t, err)
+
+	report.Generated = "2020-01-01T00:00:00Z"
+	report.Commit = "0000000"
+	stamped, err := Marshal(report)
+	require.NoError(t, err)
+
+	report.Generated = "2026-12-31T23:59:59Z"
+	report.Commit = "fffffff"
+	restamped, err := Marshal(report)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, string(stamped), string(restamped),
+		"the provenance is in the file, which is what made the naive gate fail")
+
+	var a, b map[string]any
+	require.NoError(t, json.Unmarshal(stamped, &a))
+	require.NoError(t, json.Unmarshal(restamped, &b))
+	delete(a, "generated")
+	delete(a, "commit")
+	delete(b, "generated")
+	delete(b, "commit")
+	assert.Equal(t, a, b, "and everything the report says is the same either way")
 }
 
 // TestReportProvesTheGateBothWays: the report is only worth publishing if it
