@@ -297,15 +297,15 @@
       "method": "benchmark",
       "status": "measured",
       "spends": true,
-      "corpus": "A fixed corpus swept across batch sizes and models.",
-      "covers": "Throughput and structural integrity as blocks per call rises, priced per model.",
+      "corpus": "600 blocks swept across four batch sizes on two models, plus the earlier sweeps kept in the same history.",
+      "covers": "Throughput and structural integrity as blocks per call rises, priced per model. Both models hold every block to 128 per call and neither can answer at 600.",
       "misses": "Concurrency is recorded because throughput depends on it, so two models swept at different concurrencies cannot be raced on speed. Segmentation (M-02) is not measured at all, and it decides what a block is before any of this runs.",
       "reproduce": "make batch-eval",
       "settings": "Not recorded, and not pinned. Concurrency is recorded; the sampling settings are not.",
       "data": "web/src/pages/batch-eval/_batcheval.json",
       "page": "/batch-eval",
       "fresh": {
-        "date": "2026-07-15"
+        "date": "2026-08-27"
       }
     },
     {

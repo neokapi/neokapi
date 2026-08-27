@@ -1426,6 +1426,173 @@
           "cost_usd": 0.026661
         }
       ]
+    },
+    {
+      "date": "2026-08-27",
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:haiku",
+        "resolves_to": "Claude Haiku 4.5",
+        "input_per_mtok": 1,
+        "output_per_mtok": 5,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "600 blocks (181 ui, 118 ui-ambiguous, 120 placeholder, 61 inline-tag, 120 prose)",
+      "corpus_words": 9991,
+      "corpus_blocks": 600,
+      "corpus_digest": "d0fa376e55aa",
+      "results": [
+        {
+          "n": 8,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 600,
+          "input_tokens": 750,
+          "output_tokens": 319107,
+          "cache_creation_tokens": 664876,
+          "cache_read_tokens": 809444,
+          "elapsed_seconds": 1002.978807834,
+          "words": 9991
+        },
+        {
+          "n": 32,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 600,
+          "input_tokens": 190,
+          "output_tokens": 128633,
+          "cache_creation_tokens": 198528,
+          "cache_read_tokens": 206291,
+          "elapsed_seconds": 402.419837,
+          "words": 9991
+        },
+        {
+          "n": 128,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 600,
+          "input_tokens": 74,
+          "output_tokens": 93916,
+          "cache_creation_tokens": 92201,
+          "cache_read_tokens": 150350,
+          "elapsed_seconds": 292.529366917,
+          "words": 9991
+        },
+        {
+          "n": 600,
+          "blocks": 600,
+          "missing": 600,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 0,
+          "failed": true,
+          "error": "translate batch: claude-code: call timed out after 5m0s — set KAPI_CLAUDE_CODE_TIMEOUT to allow more time",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "elapsed_seconds": 0
+        }
+      ]
+    },
+    {
+      "date": "2026-08-27",
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:sonnet",
+        "resolves_to": "Claude Sonnet 5",
+        "input_per_mtok": 2,
+        "output_per_mtok": 10,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "600 blocks (181 ui, 118 ui-ambiguous, 120 placeholder, 61 inline-tag, 120 prose)",
+      "corpus_words": 9991,
+      "corpus_blocks": 600,
+      "corpus_digest": "d0fa376e55aa",
+      "results": [
+        {
+          "n": 8,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 2,
+          "translated": 600,
+          "input_tokens": 162,
+          "output_tokens": 154076,
+          "cache_creation_tokens": 814025,
+          "cache_read_tokens": 1363919,
+          "elapsed_seconds": 500.634432708,
+          "words": 9991
+        },
+        {
+          "n": 32,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 600,
+          "input_tokens": 38,
+          "output_tokens": 122288,
+          "cache_creation_tokens": 203148,
+          "cache_read_tokens": 347358,
+          "elapsed_seconds": 314.677976625,
+          "words": 9991
+        },
+        {
+          "n": 128,
+          "blocks": 600,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 600,
+          "input_tokens": 10,
+          "output_tokens": 136444,
+          "cache_creation_tokens": 84736,
+          "cache_read_tokens": 91410,
+          "elapsed_seconds": 344.975249459,
+          "words": 9991
+        },
+        {
+          "n": 600,
+          "blocks": 600,
+          "missing": 600,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 0,
+          "failed": true,
+          "error": "translate batch: claude-code: call timed out after 5m0s — set KAPI_CLAUDE_CODE_TIMEOUT to allow more time",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "elapsed_seconds": 0
+        }
+      ]
     }
   ]
 }
