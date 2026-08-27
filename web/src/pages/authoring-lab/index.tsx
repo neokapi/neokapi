@@ -28,6 +28,7 @@ interface AgentRun {
   searches?: string[];
   messages: number;
   durationMs: number;
+  toolCalls?: Record<string, number>;
   inputTokens?: number;
   outputTokens?: number;
   costUsd?: number;
@@ -132,6 +133,7 @@ function fmtTokens(n?: number): string {
 // that read nothing is a document about what it already believed.
 function Reading({ run }: { run: AgentRun }): ReactElement {
   const files = run.filesRead ?? [];
+  const tools = Object.entries(run.toolCalls ?? {}).sort((a, b) => b[1] - a[1]);
   return (
     <div style={{ marginBottom: ".7rem" }}>
       <div style={s.sub}>
@@ -139,6 +141,15 @@ function Reading({ run }: { run: AgentRun }): ReactElement {
         context · {run.messages} messages · {(run.durationMs / 1000).toFixed(0)}s
         {run.costUsd ? ` · $${run.costUsd.toFixed(2)}` : ""}
       </div>
+      {/* How it read matters as much as how much. Models do not agree: some
+          call the Read tool, opus-5 opens a source tree with `ls` and `cat`.
+          Counting one and not the other reported zero files for a run that
+          spent 1.7M tokens on the repository. */}
+      {tools.length > 0 && (
+        <div style={{ ...s.sub, marginTop: ".2rem" }}>
+          {tools.map(([name, n]) => `${name}×${n}`).join(" · ")}
+        </div>
+      )}
       {files.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: ".3rem", marginTop: ".3rem" }}>
           {files.map((f) => (

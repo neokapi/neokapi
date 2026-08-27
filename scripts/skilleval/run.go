@@ -50,6 +50,10 @@ type Run struct {
 	Gate *GateResult `json:"gate,omitempty"`
 	// Changed is the workspace diff: which files the agent created or edited.
 	Changed []FileChange `json:"changed,omitempty"`
+	// Sandboxed says whether Claude Code's sandbox confined this run. Recorded
+	// rather than assumed, so a reader can tell a confined transcript from one
+	// produced before this existed.
+	Sandboxed bool `json:"sandboxed,omitempty"`
 	// Err is set when the agent could not be run at all.
 	Err string `json:"error,omitempty"`
 
@@ -439,6 +443,13 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 		// The control gets neither.
 		args = append(args, "--mcp-config", mcpConfigName, "--strict-mcp-config")
 	}
+
+	// Confined by Claude Code's own sandbox. bypassPermissions keeps a headless
+	// run from hanging on a prompt; the sandbox decides what it can reach. The
+	// two are layered, not traded off. See sandbox.go.
+	sandbox, confined := sandboxArgs(dir)
+	args = append(args, sandbox...)
+	r.Sandboxed = confined
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = dir

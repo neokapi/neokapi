@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -41,10 +42,20 @@ type AgentRun struct {
 	Text string `json:"text"`
 	// FilesRead is every path the agent opened, in order of first read. The
 	// evidence that it read the repository rather than recalling it.
+	//
+	// Counted from the Read tool AND from read-like shell commands, because
+	// models do not agree on how to open a file: opus-5 reads a source tree
+	// with `ls` and `cat` and never calls Read at all. Counting only the tool
+	// recorded zero files for a run that spent 1.7M tokens of context on the
+	// repository, which is a fact about the parser published as a fact about
+	// the model.
 	FilesRead []string `json:"filesRead,omitempty"`
 	// Searches is every grep or glob pattern it ran, which shows what it went
 	// looking for before it found anything.
 	Searches []string `json:"searches,omitempty"`
+	// ToolCalls counts every tool by name. Unlike FilesRead this needs no
+	// interpretation, so it is the number to check when FilesRead looks wrong.
+	ToolCalls map[string]int `json:"toolCalls,omitempty"`
 	// Messages, Turns and DurationMS say what the reading cost.
 	Messages   int   `json:"messages"`
 	DurationMS int64 `json:"durationMs"`
@@ -55,7 +66,11 @@ type AgentRun struct {
 	OutputTokens int     `json:"outputTokens,omitempty"`
 	CostUSD      float64 `json:"costUsd,omitempty"`
 	Model        string  `json:"model,omitempty"`
-	Err          string  `json:"error,omitempty"`
+	// Sandboxed says whether the OS confined this run. Recorded rather than
+	// assumed: the harness runs unconfined where the platform has no seatbelt,
+	// and a reader should be able to tell which they are looking at.
+	Sandboxed bool   `json:"sandboxed"`
+	Err       string `json:"error,omitempty"`
 }
 
 // runAgent gives the agent the repository and a task, and reads back what it
@@ -88,6 +103,13 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 	if opts.SystemPrompt != "" {
 		args = append(args, "--append-system-prompt", opts.SystemPrompt)
 	}
+
+	// Confined by Claude Code's own sandbox: bypassPermissions keeps a headless
+	// run from hanging on a prompt, and the sandbox decides what the process
+	// can actually reach. The two are layered, not traded off. See sandbox.go.
+	sandbox, confined := sandboxArgs(home)
+	args = append(args, sandbox...)
+	r.Sandboxed = confined
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = opts.RepoDir
@@ -180,17 +202,29 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 			if c.Type != "tool_use" {
 				continue
 			}
+			if out.ToolCalls == nil {
+				out.ToolCalls = map[string]int{}
+			}
+			out.ToolCalls[c.Name]++
+
+			addFile := func(p string) {
+				p = relToRepo(p, repoDir)
+				// "." is the tree itself, which a Read on the directory
+				// produces. A directory is not a file read.
+				if p == "" || p == "." || seenFile[p] {
+					return
+				}
+				seenFile[p] = true
+				out.FilesRead = append(out.FilesRead, p)
+			}
+
 			switch c.Name {
 			case "Read":
 				var in struct {
 					FilePath string `json:"file_path"`
 				}
 				if json.Unmarshal(c.Input, &in) == nil && in.FilePath != "" {
-					p := relToRepo(in.FilePath, repoDir)
-					if !seenFile[p] {
-						seenFile[p] = true
-						out.FilesRead = append(out.FilesRead, p)
-					}
+					addFile(in.FilePath)
 				}
 			case "Grep", "Glob":
 				var in struct {
@@ -199,9 +233,70 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 				if json.Unmarshal(c.Input, &in) == nil && in.Pattern != "" {
 					out.Searches = append(out.Searches, in.Pattern)
 				}
+			case "Bash":
+				var in struct {
+					Command string `json:"command"`
+				}
+				if json.Unmarshal(c.Input, &in) != nil {
+					break
+				}
+				for _, f := range filesFromShell(in.Command, repoDir) {
+					addFile(f)
+				}
 			}
 		}
 	}
+}
+
+// readCommands are the shell commands that open a file to look at it.
+//
+// Deliberately not `ls`, which lists a directory without reading anything, and
+// not `rg`/`grep`, whose subject is a pattern rather than a file — those are
+// searches and are counted as such.
+var readCommands = map[string]bool{
+	"cat": true, "head": true, "tail": true, "less": true, "more": true,
+	"bat": true, "sed": true, "awk": true, "wc": true, "kcat": true,
+}
+
+// filesFromShell picks the files a shell command opened.
+//
+// A heuristic over a command line, and it says so: a token is taken as a file
+// when it follows a reading command, is not a flag, and names something that
+// exists in the tree. Testing the filesystem is what keeps `head -20` from
+// being recorded as a file, and it is why this cannot invent a path the agent
+// never touched. It can still miss one — a path built by a variable, a file
+// behind a pipe — so ToolCalls is recorded beside it as the number that needs
+// no interpretation.
+func filesFromShell(command, repoDir string) []string {
+	var found []string
+	for _, segment := range strings.FieldsFunc(command, func(r rune) bool {
+		return r == '|' || r == ';' || r == '\n' || r == '&'
+	}) {
+		fields := strings.Fields(segment)
+		reading := false
+		for _, f := range fields {
+			base := path.Base(f)
+			if readCommands[base] {
+				reading = true
+				continue
+			}
+			if !reading || strings.HasPrefix(f, "-") {
+				continue
+			}
+			candidate := strings.Trim(f, `"'`)
+			if candidate == "" || strings.ContainsAny(candidate, "*?$") {
+				continue
+			}
+			full := candidate
+			if !filepath.IsAbs(full) {
+				full = filepath.Join(repoDir, candidate)
+			}
+			if st, err := os.Stat(full); err == nil && !st.IsDir() {
+				found = append(found, full)
+			}
+		}
+	}
+	return found
 }
 
 // relToRepo names a path the way a reader of the repository would.
