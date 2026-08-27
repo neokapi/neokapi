@@ -2,13 +2,11 @@
 
 # File-Type Filtering in ripgrep
 
-## Overview
-
-ripgrep's file-type filtering system lives in the `ignore` crate (`crates/ignore/src/types.rs`). It allows users to selectively match or exclude files based on their type, where types are defined as collections of glob patterns. The system is built in two stages: definition and building, then matching.
+File-type filtering allows ripgrep users to search only within specific file types using flags like `--type rust` to match only Rust files, or `--type-not test` to exclude test files. This document describes how type definitions are represented internally, how the matcher is built, and what contributors need to know when working in this area.
 
 ## Type Definitions
 
-A file type is represented by the `FileTypeDef` struct, which holds a name and a list of glob patterns:
+File-type definitions live in the `ignore` crate (`crates/ignore/src/`). The core type is `FileTypeDef` in `types.rs`:
 
 ```rust
 pub struct FileTypeDef {
@@ -17,41 +15,53 @@ pub struct FileTypeDef {
 }
 ```
 
-For example, the built-in Rust type is defined as name `"rust"` with globs `["*.rs"]`. The C type uses `["*.[chH]", "*.[chH].in", "*.cats"]`. Default types are hardcoded in `default_types.rs` as a static array `DEFAULT_TYPES: &[(&[&str], &[&str])]`, where each tuple pairs type name(s) with their globs. This structure allows multiple names to alias the same glob set (e.g., both `"batch"` and `"bat"` for `["*.bat"]`).
+Each definition associates a name like `"rust"` with a vector of glob patterns such as `["*.rs"]`. A single type can have multiple globs—for example, the C type definition includes both `*.c` and `*.h` patterns.
 
-## Building a Matcher: TypesBuilder and Types
+### Default Types
 
-Users build a file-type matcher using `TypesBuilder`, a builder that collects type definitions and selections:
+The crate ships with approximately 200 default type definitions, defined in `default_types.rs` as a constant array:
 
 ```rust
-pub struct TypesBuilder {
-    types: HashMap<String, FileTypeDef>,
-    selections: Vec<Selection<()>>,
-}
+pub(crate) const DEFAULT_TYPES: &[(&[&str], &[&str])] = &[
+    (&["ada"], &["*.adb", "*.ads"]),
+    (&["go"], &["*.go"]),
+    // ... etc
+];
 ```
 
-The builder supports four operations:
+Each entry is a tuple of alternate names and glob patterns. For example, both `"bat"` and `"batch"` refer to the same file type matching `"*.bat"`. The list is maintained by hand; contributors should keep it sorted lexicographically and wrapped to 79 columns as documented in the file header.
 
-- **`add_defaults()`** – Loads all built-in types from `DEFAULT_TYPES`.
-- **`add(name, glob)`** – Adds or extends a type definition with a new glob pattern.
-- **`add_def(def_string)`** – Parses a definition string in one of two formats:
-  - `"name:glob"` – Defines a root type.
-  - `"name:include:type1,type2"` – Defines a composite type by including globs from other types.
-- **`select(name)`** and **`negate(name)`** – Record the user's intent to whitelist or ignore a type. The special name `"all"` selects or negates every defined type.
+Users can extend these definitions at runtime with `--type-add "mytype:*.myext"`, which adds a new root definition, or compose existing types with `--type-add "combo:include:rust,cpp"`, which creates a definition that matches files of both types.
 
-When `build()` is called, the builder constructs a `Types` matcher. This is the critical step: every glob from every selected or negated type is compiled into a single `GlobSet` (from the `globset` crate). The builder also tracks two pieces of metadata:
+## Building the Matcher
 
-1. **`glob_to_selection: Vec<(usize, usize)>`** – Maps each compiled glob's index in the `GlobSet` to a pair: the selection index and the glob's position within that selection's `FileTypeDef`. This mapping is essential for reporting which type matched.
+The public API for constructing a file-type matcher is `TypesBuilder`, also in `types.rs`. The typical workflow is:
 
-2. **`has_selected: bool`** – Whether at least one `Selection::Select` (whitelist) exists. When true, unmatched files are treated as ignored rather than neutral.
+1. Create a `TypesBuilder`
+2. Add definitions (defaults, custom definitions, or both)
+3. Select or negate types to build a matcher
 
-The compiled matcher stores the full set of `FileTypeDef`s, the `GlobSet` for efficient matching, and a thread-safe pool of temporary vectors for collecting match indices during concurrent searches.
+```rust
+let mut builder = TypesBuilder::new();
+builder.add_defaults();
+builder.select("rust");
+let matcher = builder.build()?;
+```
 
-## Matching: Selection, Precedence, and the Match Enum
+The `TypesBuilder::build()` method transforms a set of definitions and selections into a `Types` matcher. This is where the glob-to-matcher compilation happens.
 
-When a file path is matched against the `Types` matcher via `matched(path, is_dir)`, the system extracts only the file name (using `pathutil::file_name()`) and searches for glob matches. Directories always return `Match::None`. If the glob set is empty, matching is skipped.
+### Internal State: Selection and GlobSet
 
-The matching logic uses the `Selection<T>` enum to track whether each type is selected (whitelisted) or negated (ignored):
+The built `Types` struct maintains:
+
+- **`defs: Vec<FileTypeDef>`** — All known type definitions, sorted by name
+- **`selections: Vec<Selection<FileTypeDef>>`** — The user's selections (select or negate), paired with the corresponding definition
+- **`has_selected: bool`** — True if at least one type was selected (affects the default behavior for unmatched files)
+- **`glob_to_selection: Vec<(usize, usize)>`** — A mapping from glob index in the compiled set to indices back into `selections` and the definition's glob list
+- **`set: GlobSet`** — The actual glob matcher, compiled from the `globset` crate
+- **`matches: Arc<Pool<Vec<usize>>>`** — Temporary storage for glob matches, allocated from a thread-local pool to avoid repeated allocation
+
+The `Selection<T>` enum captures whether a type is being selected (whitelist) or negated (ignore):
 
 ```rust
 enum Selection<T> {
@@ -60,44 +70,54 @@ enum Selection<T> {
 }
 ```
 
-The result is returned as a `Match<Glob<'a>>`:
+### Glob Compilation
+
+During `build()`, each glob pattern is compiled by the `globset` crate using a `GlobSetBuilder`. Two important details:
+
+1. All globs are built with `literal_separator(true)`, meaning wildcards like `*` never match path separators. This ensures patterns like `*.rs` match only filenames, not entire paths.
+2. Glob compilation can fail if the pattern is malformed; errors are wrapped in `Error::Glob`.
+
+The `glob_to_selection` vector is crucial: it maps each glob's position in the compiled set back to the original selection and definition. When a match is found, this mapping lets the matcher report which file type definition caused the match.
+
+## Matching
+
+The `Types::matched()` method performs the actual matching:
 
 ```rust
-pub enum Match<T> {
-    None,              // No glob matched
-    Ignore(T),         // A glob matched, indicating ignore
-    Whitelist(T),      // A glob matched, indicating include
-}
+pub fn matched<'a, P: AsRef<Path>>(
+    &'a self,
+    path: P,
+    is_dir: bool,
+) -> Match<Glob<'a>>
 ```
 
-### Precedence and Resolution
+The method returns a `Match<Glob>` from the `ignore` crate's public API. `Match<T>` is an enum with three variants:
 
-When multiple globs match, the **last match in the compiled `GlobSet`** has the highest precedence. The `GlobSet::matches_into()` method returns all matching indices in ascending order, so the code takes the last element to find the highest-precedent match. The corresponding selection determines whether that match translates to `Ignore` or `Whitelist`.
+- **`Match::None`** — No glob matched, and no type is selected
+- **`Match::Whitelist(glob)`** — A selected type matched
+- **`Match::Ignore(glob)`** — A negated type matched, or no type matched when at least one is selected
 
-If no globs match:
-- If `has_selected` is true (at least one selection exists), the file is treated as `Ignore(Glob::unmatched())`.
-- Otherwise, the result is `Match::None`, leaving the decision to other filters.
+Key implementation details:
 
-The `Glob<'a>` wrapper contains either `GlobInner::Matched { def }` (pointing to the matched `FileTypeDef`) or `GlobInner::UnmatchedIgnore` (no glob matched, but the file should be ignored). Callers can inspect the matched definition via `Glob::file_type_def()`.
+- Directories always return `Match::None` regardless of glob matches, because type filtering applies only to files
+- Only the file name is extracted and matched, never the full path (via `pathutil::file_name`)
+- The highest-precedent match is the last one returned by the glob set, reflecting the order in which globs were added during build
+- If selections exist but no glob matches, the path is ignored (converted from `Match::None` to `Match::Ignore`)
 
-## GlobSet Compilation
+The `Glob<'a>` wrapper struct contains either the matched `FileTypeDef` or signals that the file should be ignored despite no glob matching. The lifetime `'a` ties it to the matcher's lifetime, ensuring the definition reference is valid.
 
-The underlying `GlobSet` (from `crates/globset`) is built from individual `Glob` objects created via `GlobBuilder::new(glob).literal_separator(true).build()`. The `literal_separator(true)` flag is crucial: it prevents wildcards from matching path separators, ensuring that glob patterns match only the file name, not directory paths. The globset crate's optimizer analyzes all patterns and partitions them into strategies: literal string matches, extension matches, prefix/suffix matches, and full regex matching. This allows ripgrep to search millions of files quickly.
-
-## What Contributors Need to Know
+## Contributor Notes
 
 When modifying file-type filtering:
 
-1. **Maintain the `glob_to_selection` invariant.** The indices must align with the `GlobSet`—every glob added to the set must have a corresponding mapping. Build errors will occur if this breaks.
+1. **Adding default types:** Edit `default_types.rs` directly, keeping the list sorted and respecting the 79-column wrapping. Run `rg --type-list` afterward to verify the types appear correctly.
 
-2. **Default types are immutable.** Changes to `DEFAULT_TYPES` affect all users. Additions should be popular, stable formats, as noted in the `default_types.rs` header.
+2. **Modifying glob compilation:** Changes to how globs are built in `TypesBuilder::build()` affect all users. The `literal_separator(true)` setting is intentional and should rarely change. If you modify it, test that patterns like `*.rs` still match only filenames, not paths like `src/lib.rs`.
 
-3. **Precedence is by order in the compiled set.** If two types define conflicting globs, the last one added wins. Test precedence carefully, especially when using `include:` composite types.
+3. **Changing the Match behavior:** The logic in `Types::matched()` determines when files are included or excluded. The subtlety of how `has_selected` changes unmatched files to ignored is load-bearing: test both "select" and "negate" workflows when making changes. The pool-based temporary allocation is a performance detail; don't hoist it out without profiling.
 
-4. **File name extraction is non-negotiable.** The `file_name()` call extracts only the final path component. Ripgrep does not support matching on directory names or full paths via `--type`. This is intentional and enforced by the `literal_separator(true)` flag.
+4. **Testing:** The `types.rs` file includes comprehensive table-driven tests with the `matched!` macro. When adding a new type or changing matching logic, add corresponding test cases to guard the behavior.
 
-5. **Match results need context.** A `Match::Ignore(Glob::unmatched())` tells the walker "no type matched, but treat this as ignored because types were selected." Always check `is_whitelist()`, `is_ignore()`, and `file_type_def()` to interpret results.
+5. **Globset dependency:** File-type filtering depends on the `globset` crate for glob compilation and matching. If you find a glob pattern that behaves unexpectedly, check `crates/globset/src/glob.rs` to understand how patterns are interpreted. The `GlobBuilder` has options like `case_insensitive` and `backslash_escape` that may be relevant.
 
-6. **Selections are processed in order.** If a user passes `--type rust --negate rust`, the last selection wins (negation). This is by design, but can be counterintuitive.
-
-Performance is built into the foundation: `GlobSet` uses Aho-Corasick for prefix/suffix searches and regex automata for complex patterns, and the thread-safe `Pool<Vec<usize>>` reuses allocation across threads to avoid GC overhead in parallel walks.
+The design separates concerns neatly: `FileTypeDef` and `TypesBuilder` handle the user API and definition management, while `globset` handles the actual pattern compilation and matching. This layering makes the system maintainable and testable.

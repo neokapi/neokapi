@@ -2,135 +2,140 @@
 
 # Searching by file type in ripgrep
 
-When you search a project with `rg`, you're often only interested in one
-kind of file. If you're chasing a function definition, you probably don't
-want matches from `.md` changelogs or `.json` lock files cluttering the
-results. You could write out a glob pattern like `-g '*.rs'` every time, but
-ripgrep has a shortcut built for exactly this: file types.
+When you search a folder full of mixed files, most of the noise in your
+results comes from files you never meant to search: build output, log
+archives, images, whatever else lives alongside the text you actually care
+about. ripgrep's `--type` family of flags lets you say "only look in files
+like this" (or "never look in files like this") using a short name instead of
+writing out a glob pattern by hand every time.
 
-## `--type` / `-t`: search only this kind of file
+## `--type`: search only files of a given type
 
-`--type` (short form `-t`) tells ripgrep to only search files that belong to
-a named type. For example, to search only Rust source files:
-
-```
-$ rg 'fn run' --type rust
-```
-
-or, more tersely, with no space between the flag and the name:
+The `-t`/`--type` flag limits your search to files ripgrep recognizes as a
+particular type. If you keep a folder of notes and want to search only your
+Markdown files:
 
 ```
-$ rg 'fn run' -trust
+$ rg 'meeting notes' --type markdown
 ```
 
-A "type" here isn't a single file extension — it's a name attached to one or
-more glob patterns. That's the advantage over `-g`: the `c` type, for
-instance, covers both `*.c` and `*.h` files in one word, so `rg 'int main'
--tc` does the same job as `rg 'int main' -g '*.{c,h}'`.
-
-You can give `--type` more than once. Doing so is additive: `rg foo -trust
--ttoml` searches files that are Rust *or* TOML, not files that are somehow
-both.
-
-There's also a special type, `all`, which matches every type ripgrep knows
-about (including any you've defined yourself — see below). `--type all`
-searches only recognized file types, so an extensionless script that isn't
-covered by any type definition would still be skipped.
-
-One thing worth knowing: `--type` is checked after your `.gitignore` rules
-and after any `-g`/`--glob` patterns you've supplied. If a glob or an ignore
-rule already rules a file out, naming its type with `-t` won't bring it back.
-
-## `--type-not` / `-T`: search everything except this kind
-
-`--type-not` (short form `-T`) is the mirror image: it excludes a type
-instead of selecting one. To search everywhere except Rust files:
+or, more tersely:
 
 ```
-$ rg clap --type-not rust
+$ rg 'meeting notes' -tmd
 ```
 
-or
+`--type` works by matching file names against a set of glob patterns that
+ripgrep already knows for that type; `markdown` and its shorter alias `md`
+both match `*.markdown`, `*.md`, `*.mdown`, `*.mdwn`, `*.mkd`, `*.mkdn` and
+`*.mdx`, so you don't have to remember or type them all.
+
+You can give `--type` more than once. Each additional flag adds another type
+to the search rather than replacing the previous one, so this looks in both
+your CSV data and your log files:
 
 ```
-$ rg clap -Trust
+$ rg 'ERROR' --type csv --type log
 ```
 
-In short, `-t` means "only include this type" and `-T` means "exclude this
-type." You can combine several `-T` flags to exclude multiple types, and you
-can mix `-t` and `-T` in the same command — for example `-Trust -ttoml`
-excludes Rust files while restricting everything else to TOML.
+`--type` also accepts the special value `all`, which behaves as if you'd
+passed `--type` for every file type ripgrep knows about, including any you've
+defined yourself with `--type-add` (below). In practice this turns ripgrep
+into "whitelist mode": it searches only files it recognizes by name, and skips
+anything it can't identify a type for, such as a file with no extension.
 
-`--type-not` also understands the special `all` value. `--type-not all`
-searches only files that *don't* match any recognized type — the reverse of
-`--type all`. So if a shell script `my-script` has no extension and a
-library it sources, `my-script.bash`, does, `--type-not all` would search
-the extensionless script but skip the `.bash` file, while `--type all` does
-the opposite.
+One thing worth knowing: `--type` only has power over files it can name a
+type for. A note file saved without an extension won't be searched even by
+`--type all`, because it never matched a glob in the first place.
 
-## `--type-list`: see what types exist and what they match
+## `--type-not`: skip files of a given type
 
-ripgrep ships with a large collection of built-in types for common,
-well-known formats, but you don't have to memorize them. Run:
-
-```
-$ rg --type-list
-```
-
-to print every available type, one per line, each followed by the glob
-patterns it expands to. To check a single type, pipe the output back through
-`rg`:
-
-```
-$ rg --type-list | rg '^make:'
-make: *.mak, *.mk, GNUmakefile, Gnumakefile, Makefile, gnumakefile, makefile
-```
-
-If you've added your own types with `--type-add` (below) in the same
-command, they show up in this listing too.
-
-## `--type-add`: define your own type
-
-If the built-in types don't cover what you search for regularly, define a
-new one with `--type-add`, using a `name:glob` pair. To create a `web` type
-covering HTML, CSS and JavaScript:
-
-```
-$ rg --type-add 'web:*.html' --type-add 'web:*.css' --type-add 'web:*.js' -tweb title
-```
-
-Repeated globs for the same name accumulate, so a brace pattern does the
-same thing more concisely:
-
-```
-$ rg --type-add 'web:*.{html,css,js}' -tweb title
-```
-
-You can also build a type out of other types you've already defined, using
-`include:`. This creates a `src` type covering C++, Python and Markdown
+`-T`/`--type-not` is the mirror image of `--type`: it excludes a file type
+instead of requiring one. If you want to search everything except your log
 files:
 
 ```
-$ rg --type-add 'src:include:cpp,py,md'
+$ rg 'TODO' --type-not log
 ```
 
-A type name can only contain letters or numbers — no punctuation.
-
-The important catch: `--type-add` is **not remembered** between commands.
-Each invocation of `rg` starts over with only the built-in types, so a
-`--type-add` you typed once won't apply to your next search. To make a
-custom type available every time, either wrap it in a shell alias:
+or:
 
 ```
-alias rg="rg --type-add 'web:*.{html,css,js}'"
+$ rg 'TODO' -Tlog
 ```
 
-or add `--type-add=web:*.{html,css,js}` to your ripgrep configuration file,
-so it's applied automatically on every run.
+Like `--type`, `--type-not` can be repeated to exclude several types, and it
+also accepts `all`: `--type-not all` searches only files that ripgrep
+*doesn't* recognize as any known type, the opposite of `--type all`.
 
-## Putting it together
+You can combine `--type` and `--type-not` in the same search: `--type` sets
+which types to search, and `--type-not` entries are removed from that set.
 
-A typical workflow is: run `rg --type-list` once to check the name of the
-type you want (or to see if one exists at all), then reach for `-t`/`-T` in
-your everyday searches, and fall back to `--type-add` only when you're
-searching a format ripgrep doesn't already know about.
+## `--type-list`: see what types are available and what they match
+
+Before reaching for `-t` or `-T`, it helps to know what ripgrep already
+considers, say, a "python" file, or whether there's a type for your file
+format at all. `--type-list` prints every type ripgrep knows, one per line,
+followed by a colon and the comma-separated list of glob patterns behind it:
+
+```
+$ rg --type-list
+...
+csv: *.csv
+json: *.json, composer.lock, *.sarif
+log: *.log
+markdown: *.markdown, *.md, *.mdown, *.mdwn, *.mkd, *.mkdn, *.mdx
+...
+```
+
+Since the output is just text, you can narrow it down with ripgrep itself:
+`rg --type-list | rg '^json:'`. `--type-list` reflects the full list ripgrep
+will actually use for that command, including any types you add or remove
+with the flags below, so it's also the way to check that a type you just
+defined looks right.
+
+## `--type-add`: define your own file type
+
+If the built-in types don't cover something you search often, `--type-add`
+lets you define one for the current command. It takes a definition in the
+form `name:glob`:
+
+```
+$ rg 'draft' --type-add 'notes:*.txt' --type-add 'notes:*.md' --type notes
+```
+
+Multiple `--type-add` flags with the same name accumulate, so `notes` above
+ends up matching both `*.txt` and `*.md`. You can also combine several globs
+in one flag using brace syntax: `--type-add 'notes:*.{txt,md}'`.
+
+A type name can also be built out of types that already exist, using
+`include:`. For example, to define a `docs` type that covers Markdown and
+plain text together:
+
+```
+$ rg --type-add 'docs:include:markdown,txt' -tdocs 'quarterly report'
+```
+
+Type names may only contain letters and numbers, no punctuation.
+
+The important catch: `--type-add` only applies to the command you ran it on.
+ripgrep doesn't remember it for next time. If you want a custom type
+available every time you open a terminal, either set up a shell alias:
+
+```
+alias rg="rg --type-add 'notes:*.{txt,md}'"
+```
+
+or add `--type-add=notes:*.{txt,md}` as its own line in a ripgrep
+configuration file (pointed to by the `RIPGREP_CONFIG_PATH` environment
+variable), which ripgrep reads automatically on every run.
+
+## A couple of things to keep in mind
+
+File type filtering is convenient but not absolute: it's checked after your
+explicit `--glob` patterns and after your `.gitignore`-style rules, so a file
+excluded by an ignore file stays excluded even if it matches a type you asked
+for. And since type matching works purely from file names, a Markdown file
+saved with the wrong extension won't be found by `--type markdown` no matter
+how confident you are that it's Markdown, until you also add its actual glob
+with `--type-add`.
