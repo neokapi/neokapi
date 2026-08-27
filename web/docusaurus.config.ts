@@ -1085,10 +1085,35 @@ const config: Config = {
           label: "Tests & Evals",
           position: "left",
           items: [
+            // The whole set, grouped by the band each measurement belongs to,
+            // because the bands are three kinds of claim rather than three
+            // topics: deterministic assertions about the engine, sampled
+            // estimates about AI, scenario scores for an agent driving kapi.
+            //
+            // The list used to live in the Reference sidebar and on the
+            // Reference overview page, in two copies that had already drifted
+            // to twelve entries and six against a real eleven. Both now point
+            // here, and /evals is the one index: it is generated from
+            // scripts/evalindex, so a new eval appears in it without anybody
+            // remembering to add a link.
             { label: "Overview", to: "/evals" },
+
             { label: "Engine and formats", to: "/evals/engine" },
+            { label: "· Format maturity", to: "/format-maturity" },
+            { label: "· Document conversion", to: "/conversion-eval" },
+            { label: "· Engine throughput", to: "/pseudobench" },
+            { label: "· Local ML models", to: "/ml-benchmark" },
+            { label: "· Bundle conformance", to: "/kbf-tests" },
+
             { label: "AI and context", to: "/evals/ai" },
+            { label: "· Content checks", to: "/check-eval" },
+            { label: "· Context injection", to: "/context-eval" },
+            { label: "· Voice and authoring", to: "/authoring-eval" },
+            { label: "· Batching", to: "/batch-eval" },
+            { label: "· Reuse and governance", to: "/coordinate" },
+
             { label: "Agent skills", to: "/evals/skills" },
+            { label: "· Skill and MCP", to: "/skill-eval" },
           ],
         },
         {

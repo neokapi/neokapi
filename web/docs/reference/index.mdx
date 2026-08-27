@@ -45,21 +45,12 @@ Each entry also has its own static, indexable page (see the note below).
 - [Engine service](/reference/engine-service) — `kapi engine serve`, the
   content engine as a local gRPC API for any language.
 
-## Project status
+## What kapi is measured against
 
-These dashboards are generated from the test and benchmark suites:
-
-- [Format maturity](/format-maturity) — each format's position on the L0–L4
-  maturity rubric.
-- [Benchmarks](/pseudobench) — performance measurements.
-- [ML benchmark](/ml-benchmark) — measurements for the in-process ML models.
-- [Check eval](/check-eval) — evaluation of the verification checks.
-- [Context eval](/context-eval) — whether models follow the context kapi injects
-  (terms, voice profile, instruction), measured as the lift in adherence with the
-  context over adherence without it, per model and per dimension.
-- [Batch eval](/batch-eval) — what batching costs: cost per thousand words,
-  throughput, and structural integrity against the number of blocks packed into
-  one model call.
+Every measurement kapi publishes is indexed at [Tests and evals](/evals): what
+each one covers, what it does not, the corpus behind it and the date it was
+last run. The index is generated from the suites themselves, so it carries the
+evals that have not been built yet alongside the ones that have.
 
 :::note
 
