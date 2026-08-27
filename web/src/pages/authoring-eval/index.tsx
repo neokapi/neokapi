@@ -202,6 +202,12 @@ function Pill({ text, t }: { text: string; t: keyof typeof tone }): ReactElement
 }
 
 const pct = (v: number) => `${Math.round(100 * v)}%`;
+
+// Summed from the published per-document findings rather than stored as its own
+// field, so it cannot disagree with the rows below it.
+function countFindings(t: SteerResult, key: "bareFindings" | "steeredFindings"): number {
+  return t.docs.reduce((n, d) => n + (d[key]?.length ?? 0), 0);
+}
 const signed = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
 
 // A gain is good on the profile the guide came from and bad on the one it did
@@ -512,6 +518,20 @@ function SteerSection(): ReactElement | null {
                 gains the same way and land near zero.
               </div>
             </div>
+          </div>
+
+          <div style={s.card}>
+            <div style={s.label}>what actually moved</div>
+            <p style={{ ...s.sub, marginTop: ".4rem", marginBottom: 0 }}>
+              Counting the findings names the mechanism rather than leaving it to the reader.
+              Against the reference profile the guided documents drew{" "}
+              <strong>{countFindings(t, "steeredFindings")}</strong> findings where the bare ones
+              drew <strong>{countFindings(t, "bareFindings")}</strong>, and every one of them is a
+              passive construction: neither arm produced a single forbidden-term finding, so those
+              rules contributed nothing to the gain. The contrast profile can only move on its three
+              forbidden pronouns, so its loss is the shift to second person. Two mechanisms, not a
+              broad effect.
+            </p>
           </div>
 
           <div style={{ ...s.scroll, marginTop: "1rem" }}>
