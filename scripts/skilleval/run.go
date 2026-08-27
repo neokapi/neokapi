@@ -54,14 +54,9 @@ type Run struct {
 	Err string `json:"error,omitempty"`
 
 	// Events is the session: every assistant message and every tool call with
-	// the result it returned. Published to its own file rather than inline —
-	// see splitSessions.
+	// the result it returned, whole. Published to its own file rather than
+	// inline — see splitSessions.
 	Events []Event `json:"events,omitempty"`
-	// EventsDropped counts events past the per-session cap, so a truncated
-	// transcript says it is one.
-	EventsDropped int `json:"eventsDropped,omitempty"`
-	// eventBytes tracks what has been kept, against maxSessionBytes.
-	eventBytes int
 }
 
 // GateResult is whether the scenario's own completion command passed.

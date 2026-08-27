@@ -163,9 +163,13 @@ case "$FAMILY" in
   # behind otherwise, and a page linking a document from a scenario that no
   # longer exists is worse than a missing link.
   eval-artifacts)
-    SRC="web/static/skill-eval/artifacts"
+    # Both halves of a sweep's evidence: the documents the agents produced, and
+    # the full session transcripts. The transcripts were committed and capped
+    # until the caps were found to cut the part a reader wants — the file the
+    # agent read, the error it got. Uncapped they are too large for git.
+    SRC="web/static/skill-eval"
     [ -d "$SRC" ] || { echo "error: $SRC missing — run a sweep first (make skill-eval-completion)"; exit 1; }
-    DST="s3://$CDN_BUCKET/kapi/skill-eval/artifacts"
+    DST="s3://$CDN_BUCKET/kapi/skill-eval"
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE" --delete
     echo "✓ skill-eval artefacts published → $DST"

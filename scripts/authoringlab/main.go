@@ -1,23 +1,26 @@
-// Command authoringlab writes the same document at two coordinates, with and
-// without the governance bound there, across several models — and publishes the
-// prose rather than a score.
+// Command authoringlab has an agent read a real repository and document it,
+// once with the governance bound at a coordinate and once without, across
+// several models — and publishes the prose rather than a score.
 //
 // This is the read-it-yourself half of the authoring evals. `voice-guide-steering`
 // answers whether a guide moves a number, over six 120-word briefs on one model.
-// It cannot show what a coordinate does to a document, because 120 words has no
-// structure to change and one model cannot say whether the effect survives a
-// change of model.
+// It cannot show what a coordinate does to a document: 120 words has no
+// structure to change, one model cannot say whether an effect survives a change
+// of model, and a brief hands over every fact in the order it is needed, which
+// measures expansion rather than documentation.
 //
-// So this one scores nothing. The output is sixteen Markdown documents and a
-// page that puts them side by side: same product, same feature, same brand
-// voice, one axis different. If a coordinate does nothing, the two governed
-// documents read alike and a reader sees that as directly as they would see the
-// opposite. A number would be easier to quote and worth less, because nobody
-// has yet said what a good user guide is, and inventing that rubric here would
-// be measuring the rubric.
+// So the subject is ripgrep, pinned, and the agent reads it. Each run records
+// which files it opened and what it searched for, because that is most of the
+// difference between a document grounded in the source and one assembled from
+// what the model already believed about ripgrep.
 //
-//	make authoring-lab                  # the whole matrix (spends)
-//	make authoring-lab MODELS=claude-sonnet-5
+// It scores nothing. Nobody has written down what a good user guide is, and a
+// rubric invented here would be measuring the rubric. The output is the
+// documents, the context that produced them, and the reading each one did.
+//
+//	./scripts/fetch-lab-repo.sh          # once: clone the subject
+//	make authoring-lab                   # the whole matrix (spends)
+//	make authoring-lab AUTHORINGLAB_ARGS="-models claude-sonnet-5"
 package main
 
 import (
@@ -32,10 +35,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	coreprofile "github.com/neokapi/neokapi/core/profile"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	"gopkg.in/yaml.v3"
 )
 
 // DefaultOut is where the dataset lands, relative to the repo root.
@@ -46,37 +45,37 @@ const DefaultOut = "web/src/pages/authoring-lab/_authoringlab.json"
 // can read the diff.
 const DocDir = "web/static/authoring-lab"
 
-// Doc is one cell of the matrix.
+// Doc is one cell of the matrix: one task, at one coordinate, on one model,
+// written twice.
 type Doc struct {
-	Model string `json:"model"`
-	// Resolved is the model that actually answered, from the CLI's own usage
-	// report. Asked and answered are separate fields because an alias that
-	// quietly resolves elsewhere would turn a comparison of two models into a
-	// comparison of one with itself.
-	Resolved string `json:"resolved,omitempty"`
+	Model    string `json:"model"`
 	Audience string `json:"audience"`
-	// Bare is the document written from the task alone.
-	Bare string `json:"bare"`
-	// Governed is the same task with the voice profile bound at this point.
-	Governed string `json:"governed"`
-	// Files are where the two landed, relative to DocDir, for a reader who
-	// would rather open them than scroll.
+	// Bare is the run given the repository and the task.
+	Bare AgentRun `json:"bare"`
+	// Governed is the same, plus the guide the profile renders at this point.
+	Governed AgentRun `json:"governed"`
+	// Files are where the two documents landed, relative to DocDir, for a
+	// reader who would rather open them than scroll.
 	BareFile     string `json:"bareFile"`
 	GovernedFile string `json:"governedFile"`
-	Error        string `json:"error,omitempty"`
 }
 
 // Report is the dataset the page reads.
 type Report struct {
 	Generated string `json:"generated"`
-	// Brief and the guides are published because a reader cannot judge the
-	// documents without seeing what produced them.
-	Brief  string            `json:"brief"`
+	// Repo names the tree the agent read, at the tag it was pinned to.
+	Repo string `json:"repo"`
+	// Guides, Tasks and Labels are published because a reader cannot judge a
+	// document without seeing what the model was given. The guide especially:
+	// it is the whole independent variable.
 	Guides map[string]string `json:"guides"`
 	Tasks  map[string]string `json:"tasks"`
 	Labels map[string]string `json:"labels"`
-	Runner string            `json:"runner"`
-	Docs   []Doc             `json:"docs"`
+	// Profile is the voice profile as YAML, so a reader can see the rules the
+	// guide was rendered from rather than only the rendering.
+	Profile string `json:"profile"`
+	Runner  string `json:"runner"`
+	Docs    []Doc  `json:"docs"`
 }
 
 func main() {
@@ -88,17 +87,24 @@ func main() {
 
 func run() error {
 	var (
-		out      = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
-		provider = flag.String("provider", "claude-code", "AI provider")
-		models   = flag.String("models", "", "comma-separated model ids (default: the catalogued set)")
-		only     = flag.String("only", "", "one audience: end-user or developer")
-		date     = flag.String("date", "", "date to stamp (default: today)")
-		workers  = flag.Int("concurrency", 4, "documents in flight")
+		out     = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
+		models  = flag.String("models", "", "comma-separated model ids (default: the catalogued set)")
+		only    = flag.String("only", "", "one audience: end-user or developer")
+		date    = flag.String("date", "", "date to stamp (default: today)")
+		workers = flag.Int("concurrency", 2, "documents in flight")
 	)
 	flag.Parse()
 
 	ctx := context.Background()
 	root, err := repoRoot(ctx)
+	if err != nil {
+		return err
+	}
+	subject, err := repoDir(root)
+	if err != nil {
+		return err
+	}
+	claudeBin, err := findClaude()
 	if err != nil {
 		return err
 	}
@@ -133,30 +139,29 @@ func run() error {
 		}
 	}
 
-	// The guide each point's profile renders to, produced exactly as production
-	// produces it, so what the page shows is what the model was given.
+	base, err := loadProfile()
+	if err != nil {
+		return err
+	}
 	guides := map[string]string{}
 	for _, p := range pts {
-		var prof coreprofile.VoiceProfile
-		if err := yaml.Unmarshal([]byte(p.Voice), &prof); err != nil {
-			return fmt.Errorf("%s profile: %w", p.Audience, err)
+		g, err := guideFor(base, p)
+		if err != nil {
+			return err
 		}
-		guide := strings.TrimSpace(coreprofile.RenderVoiceGuideCompact(&prof))
-		if guide == "" {
-			return fmt.Errorf("%s profile rendered an empty guide, so its governed arm would be "+
-				"identical to its bare one", p.Audience)
-		}
-		guides[p.Audience] = guide
+		guides[p.Audience] = g
 	}
 
 	rep := &Report{
 		Generated: stamp,
-		Brief:     productBrief,
+		Repo:      LabRepo,
 		Guides:    guides,
 		Tasks:     map[string]string{},
 		Labels:    map[string]string{},
-		Runner: fmt.Sprintf("%s, greedy sampling, one pass per cell. Documents are the output; "+
-			"nothing here is scored.", *provider),
+		Profile:   string(ripgrepProfileYAML),
+		Runner: fmt.Sprintf("claude -p in the cloned tree, %d turns maximum per document, "+
+			"tools on, isolation contract applied. Documents are the output; nothing is scored.",
+			maxAgentTurns),
 	}
 	for _, p := range pts {
 		rep.Tasks[p.Audience] = p.Task
@@ -174,8 +179,8 @@ func run() error {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "authoring-lab: %d document(s) across %d model(s) and %d coordinate(s)\n",
-		len(cells)*2, len(wanted), len(pts))
+	fmt.Fprintf(os.Stderr, "authoring-lab: %d document(s) across %d model(s) and %d coordinate(s), reading %s\n",
+		len(cells)*2, len(wanted), len(pts), LabRepo)
 
 	docs := make([]Doc, len(cells))
 	sem := make(chan struct{}, max(1, *workers))
@@ -184,12 +189,17 @@ func run() error {
 		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			docs[i] = write(ctx, *provider, c.model, c.point, guides[c.point.Audience])
-			status := "ok"
-			if docs[i].Error != "" {
-				status = "FAILED: " + docs[i].Error
-			}
-			fmt.Fprintf(os.Stderr, "  %-18s %-10s %s\n", c.model, c.point.Audience, status)
+			d := Doc{Model: c.model, Audience: c.point.Audience}
+			base := AgentOpts{ClaudeBin: claudeBin, RepoDir: subject, Model: c.model, Prompt: c.point.Task}
+			d.Bare = runAgent(ctx, base)
+
+			governed := base
+			governed.SystemPrompt = guides[c.point.Audience]
+			d.Governed = runAgent(ctx, governed)
+
+			docs[i] = d
+			fmt.Fprintf(os.Stderr, "  %-18s %-10s bare:%s governed:%s\n",
+				c.model, c.point.Audience, armStatus(d.Bare), armStatus(d.Governed))
 		})
 	}
 	wg.Wait()
@@ -213,73 +223,12 @@ func run() error {
 	return nil
 }
 
-// write produces one cell: the same task twice, once with the point's
-// governance and once without.
-func write(ctx context.Context, providerID, model string, p Point, guide string) Doc {
-	d := Doc{Model: model, Audience: p.Audience}
-	llm, err := aiprovider.NewProvider(aiprovider.ProviderID(providerID), aiprovider.Config{
-		APIKey: os.Getenv("ANTHROPIC_API_KEY"),
-		Model:  model,
-		// Greedy: the difference being shown is what the context did, and
-		// sampling noise across sixteen generations would be read as it.
-		Temperature: new(float64),
-	})
-	if err != nil {
-		d.Error = err.Error()
-		return d
+// armStatus is one arm's one-line result: what it read, and what it cost.
+func armStatus(a AgentRun) string {
+	if a.Err != "" {
+		return "FAILED(" + a.Err + ")"
 	}
-	defer llm.Close()
-
-	bare, err := ask(ctx, llm, "", p)
-	if err != nil {
-		d.Error = "bare: " + err.Error()
-		return d
-	}
-	governed, err := ask(ctx, llm, guide, p)
-	if err != nil {
-		d.Error = "governed: " + err.Error()
-		return d
-	}
-	d.Bare, d.Governed = bare, governed
-	d.Resolved = resolvedModel(llm, model)
-	return d
-}
-
-// ask writes one document. The guide, when there is one, goes in the system
-// turn, which is where kapi puts it in production.
-func ask(ctx context.Context, llm aiprovider.LLMProvider, guide string, p Point) (string, error) {
-	var sys strings.Builder
-	sys.WriteString("You are writing product documentation. Use only the facts in the brief. ")
-	sys.WriteString("Output Markdown and nothing else: no preamble, no commentary on your own work.")
-	if guide != "" {
-		sys.WriteString("\n\n")
-		sys.WriteString(guide)
-	}
-	user := p.Task + "\n\n---\n\n" + productBrief
-
-	resp, err := llm.Chat(ctx, []aiprovider.Message{
-		aiprovider.TextMessage(aiprovider.RoleSystem, sys.String()),
-		aiprovider.TextMessage(aiprovider.RoleUser, user),
-	})
-	if err != nil {
-		return "", err
-	}
-	text := strings.TrimSpace(resp.Content)
-	if text == "" {
-		return "", errors.New("the model returned nothing")
-	}
-	return text, nil
-}
-
-// resolvedModel reports what actually answered, when the provider says.
-func resolvedModel(llm aiprovider.LLMProvider, asked string) string {
-	type resolver interface{ LastModel() string }
-	if r, ok := llm.(resolver); ok {
-		if m := r.LastModel(); m != "" {
-			return m
-		}
-	}
-	return asked
+	return fmt.Sprintf("%d files/%dk ctx/%ds", len(a.FilesRead), a.InputTokens/1000, a.DurationMS/1000)
 }
 
 // writeDocs puts the prose on disk, one file per arm, so it can be opened and
@@ -287,37 +236,37 @@ func resolvedModel(llm aiprovider.LLMProvider, asked string) string {
 func writeDocs(root string, docs []Doc) error {
 	dir := filepath.Join(root, DocDir)
 	// Only the cells this run produced. Clearing the whole tree would let
-	// `-models one -only one-audience` delete fifteen documents it cannot
+	// `-models one -only one-audience` delete the documents it cannot
 	// reproduce, which is what it did the first time.
 	for i := range docs {
-		if docs[i].Error != "" {
+		if docs[i].Model == "" {
 			continue
 		}
-		cell := filepath.Join(dir, docs[i].Model, docs[i].Audience)
-		if err := os.RemoveAll(cell); err != nil {
+		if err := os.RemoveAll(filepath.Join(dir, docs[i].Model, docs[i].Audience)); err != nil {
 			return err
 		}
 	}
 	for i := range docs {
 		d := &docs[i]
-		if d.Error != "" {
-			continue
-		}
 		for _, f := range []struct {
-			arm, body string
-			out       *string
+			arm string
+			run AgentRun
+			out *string
 		}{
 			{"bare", d.Bare, &d.BareFile},
 			{"governed", d.Governed, &d.GovernedFile},
 		} {
+			if f.run.Err != "" || f.run.Text == "" {
+				continue
+			}
 			rel := filepath.Join(d.Model, d.Audience, f.arm+".md")
 			path := filepath.Join(dir, rel)
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
-			header := fmt.Sprintf("<!-- %s · %s · %s arm · generated by `make authoring-lab` -->\n\n",
-				d.Model, d.Audience, f.arm)
-			if err := os.WriteFile(path, []byte(header+f.body+"\n"), 0o644); err != nil {
+			header := fmt.Sprintf("<!-- %s · %s · %s arm · read %d file(s) of %s · generated by `make authoring-lab` -->\n\n",
+				d.Model, d.Audience, f.arm, len(f.run.FilesRead), LabRepo)
+			if err := os.WriteFile(path, []byte(header+f.run.Text+"\n"), 0o644); err != nil {
 				return err
 			}
 			*f.out = filepath.ToSlash(rel)

@@ -1,5 +1,6 @@
-name: Inferred Voice
-description: Draft voice profile inferred from a content corpus. Review and adjust before adopting.
+name: ripgrep
+description: The voice of ripgrep's own documentation, inferred by kapi from README.md,
+    GUIDE.md and FAQ.md at 14.1.1, then corrected by hand.
 tone:
     personality:
         - knowledgeable peer, not a vendor
@@ -8,16 +9,17 @@ tone:
         - 'pragmatic: gives the workaround even when the cause is unfixed'
         - generous toward other tools and their users
     formality: technical
-    emotion: calm and matter-of-fact; enthusiasm reserved for genuinely good news ("Yes!"), mild exasperation permitted at real problems ("Owch.")
+    emotion: neutral
     humor: light
-    guidelines: Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
+    guidelines: Calm and matter-of-fact. Enthusiasm is reserved for genuinely good news
+        ("Yes!") and mild exasperation is permitted at real problems ("Owch."). Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
 style:
     active_voice: true
     sentence_length: varied
     person_pov: second
     contractions: always
     prohibited_patterns:
-        - regex: —
+        - regex: '\x{2014}'
           description: Em dashes. The corpus contains none across ~25 entries; asides are carried by parentheses, semicolons, or a new sentence.
           severity: minor
         - regex: (?i)\b(blazing(ly)?[ -]fast|lightning[ -]fast|revolutionary|game[ -]?chang(er|ing)|seamless(ly)?|effortless(ly)?|best[ -]in[ -]class|supercharge[ds]?)\b
@@ -35,7 +37,7 @@ style:
         - regex: (?i)\b(utilize|leverage|facilitate)\b
           description: Latinate substitutes for plain verbs. The corpus uses "use", "uses", "lets you" without exception.
           severity: minor
-        - regex: '[✅❌✨⚠\uD83C-\uDBFF]'
+        - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}]'
           description: Emoji and decorative symbols. Absent from the entire corpus, including headings and warnings.
           severity: minor
 vocabulary:
@@ -103,3 +105,67 @@ examples:
     - before: Unfortunately, we are unable to provide details on PCRE2's internal behavior at this time.
       after: Why doesn't PCRE2 do the same? This author isn't familiar with its internals, so we can't comment on it here.
       explanation: Candid admission of a limit, in contractions, without corporate hedging or apology. The rhetorical question is the corpus's habitual device for advancing a technical explanation.
+
+# Two points in the context space, expressed as the profile's own personas.
+#
+# Hand-added, not inferred: ripgrep's docs do not separate these audiences, so
+# there was nothing for inference to find. This is the part a person writes.
+#
+# core/profile.ResolveProfile applies a persona's vocabulary as a TIGHTENING
+# only: avoided_terms extend the forbidden set, and a preferred term the profile
+# already forbids is dropped. So neither reader can re-allow what ripgrep's
+# voice bans.
+personas:
+    end-user:
+        style:
+            active_voice: true
+            person_pov: second
+            contractions: always
+            sentence_length: short
+        avoided_terms:
+            - term: crate
+              replacement: part of ripgrep
+              severity: major
+              forms: [crates]
+            - term: struct
+              replacement: leave it out
+              severity: major
+              forms: [structs]
+            - term: trait
+              replacement: leave it out
+              severity: major
+              forms: [traits]
+            - term: API
+              replacement: leave it out
+              severity: major
+            - term: implementation
+              replacement: how it works
+              severity: minor
+            - term: instantiate
+              replacement: create
+              severity: major
+              forms: [instantiates, instantiated, instantiating]
+            - term: glob matcher
+              replacement: file name pattern
+              severity: minor
+    developer:
+        style:
+            active_voice: true
+            person_pov: second
+            contractions: always
+            sentence_length: varied
+        avoided_terms:
+            - term: simply
+              severity: major
+            - term: just
+              replacement: say what it takes instead
+              severity: major
+            - term: easy
+              replacement: say what it takes instead
+              severity: major
+              forms: [easily]
+            - term: straightforward
+              severity: major
+            - term: under the hood
+              replacement: name the module
+              severity: minor

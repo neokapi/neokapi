@@ -1,178 +1,126 @@
 package main
 
+import (
+	_ "embed"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"gopkg.in/yaml.v3"
+)
+
 // What the lab writes about, and what governs it at each point.
 //
-// The product is synthesized. A real one would let a model answer from what it
-// already knows about that product rather than from what it was given, and the
-// whole question here is what the given context does.
+// The subject is ripgrep, cloned at a pinned tag by scripts/fetch-lab-repo.sh.
+// A real source tree rather than a brief: a brief hands the model every fact it
+// needs in the order it needs them, which measures expansion and not
+// documentation. A person writing docs for a tool reads the tool.
 //
-// Two documents, one subject. A user guide and a developer reference for the
-// same feature is the ordinary case where the reader changes and nothing else
-// does, so it is the case where a coordinate has something to do.
+// The profile is ripgrep's own voice, inferred by kapi from README.md, GUIDE.md
+// and FAQ.md and then corrected by hand. What the correction changed is in the
+// git history of the file beside this one, and is itself a measurement of how
+// far inference gets.
 
-// productBrief is the same for every cell of the matrix. It states facts and
-// says nothing about voice, register or audience: those are what the arms and
-// the coordinates supply, and a brief that leaked them would answer the
-// question before the model did.
-const productBrief = `Harbourlight is a port logistics tool. Port operators use it to track
-vessels, file cargo paperwork with customs, and manage berth bookings.
+//go:embed corpus/ripgrep-inferred.yaml
+var ripgrepProfileYAML []byte
 
-The feature to document is ARRIVAL ALERTS.
-
-Facts:
-- An arrival alert tells someone that a vessel has reported a new position or a
-  revised arrival time.
-- Alerts can go to email, to SMS, or to another system.
-- A person chooses which vessels they want alerts for, and how close to arrival
-  the alert should fire (any of 24 hours, 6 hours, 1 hour, or on berth).
-- Alerts to another system are delivered as an HTTP POST to a URL the customer
-  supplies. The body is JSON. It carries the vessel id, the alert type, the new
-  estimated arrival time in UTC, and a signature.
-- The signature is HMAC-SHA256 over the raw body, using a shared secret, sent in
-  the X-Harbourlight-Signature header.
-- Delivery is retried 5 times with exponential backoff. A delivery is considered
-  failed after that and is visible in the alert history for 30 days.
-- Quiet hours can be set per person; alerts that fall inside them are held and
-  sent when quiet hours end, except "on berth" alerts, which always go out
-  immediately.`
+// LabRepo is the pinned tree the agent reads, relative to the repo root.
+const LabRepo = "lab-repo/ripgrep-14.1.1"
 
 // Point is one coordinate in the context space, and what is bound there.
 type Point struct {
-	// Audience is the declared axis value. The coordinate map is open (only
-	// product and channel are structural), so a project names the dimensions
+	// Audience is the declared axis value. The coordinate map is open — only
+	// product and channel are structural — so a project names the dimensions
 	// its content actually varies along, and this one varies by reader.
 	Audience string
 	// Label is how the page names it.
 	Label string
+	// Persona is the key in the profile's own `personas:` map. The lab does not
+	// hand-build two profiles: it resolves ONE profile at two personas through
+	// core/profile.ResolveProfile, which is the mechanism a project would use.
+	// Persona vocabulary can only tighten, so neither point can re-allow what
+	// ripgrep's voice forbids.
+	Persona string
 	// Task is the deliverable, stated in BOTH arms. The bare arm has to know it
-	// is writing a user guide, or the comparison measures whether the model was
-	// told who the reader is rather than what the governance did.
+	// is writing for a non-programmer, or the comparison measures whether the
+	// model was told who the reader is rather than what the governance did.
 	Task string
-	// Voice is the profile bound at this point. Both share the Harbourlight
-	// brand voice; they differ in what the reader is assumed to know, which is
-	// the thing the coordinate exists to carry.
-	Voice string
 }
 
-// The Harbourlight brand voice, shared by both points. Held here as a fragment
-// rather than a whole profile so the two points cannot drift apart on the
-// dimensions that are supposed to be identical.
-const brandVoice = `tone:
-    personality:
-        - plain
-        - direct
-        - calm
-    formality: neutral
-    emotion: neutral
-    humor: none
-    guidelines: Address the reader as you. State what to do next. No superlatives, no hedging.
-style:
-    active_voice: true
-    person_pov: second
-    contractions: sometimes
-`
-
-// points are the two coordinates the lab writes at.
-//
-// What differs between them is deliberately narrow: the same brand voice, the
-// same product, the same feature, and a different assumption about what the
-// reader already knows. If a coordinate does nothing, the two governed
-// documents will read alike, and that is the result.
 var points = []Point{
 	{
 		Audience: "end-user",
 		Label:    "End user (non-technical)",
-		Task: "Write the user guide for arrival alerts in Harbourlight, as a Markdown document " +
-			"of roughly 600 words. The reader is a port operator doing their job, not a programmer.",
-		// The jargon ban is expressed as forbidden_terms rather than as one
-		// prohibited_pattern over an alternation, because the compact guide
-		// renders a pattern by its description alone: the model would be told
-		// "avoid implementation vocabulary" and none of the words it means
-		// (#2240). Terms render as the words themselves, so this is the
-		// mechanism that reaches a model today.
-		Voice: `name: Harbourlight — end user
-description: Harbourlight's voice for people using the product, who are not programmers
-` + brandVoice + `    sentence_length: short
-vocabulary:
-    forbidden_terms:
-        - term: endpoint
-          replacement: address
-          severity: major
-          forms: [endpoints]
-        - term: payload
-          replacement: the alert's contents
-          severity: major
-          forms: [payloads]
-        - term: webhook
-          replacement: another system
-          severity: major
-          forms: [webhooks]
-        - term: JSON
-          replacement: a structured message
-          severity: major
-        - term: HMAC
-          replacement: a signature
-          severity: major
-        - term: HTTP POST
-          replacement: sends the alert
-          severity: major
-        - term: API
-          replacement: another system
-          severity: major
-        - term: exponential backoff
-          replacement: waits longer between tries
-          severity: major
-        - term: utilize
-          severity: major
-          forms: [utilizes, utilized, utilizing]
-        - term: configure
-          replacement: set up
-          severity: minor
-          forms: [configures, configured, configuring, configuration]
-`,
+		Persona:  "end-user",
+		Task: "Read this repository and write a user guide, in Markdown, of roughly 800 words, " +
+			"for ripgrep's file-type filtering: what `--type`, `--type-not`, `--type-add` and " +
+			"`--type-list` do and how someone uses them. The reader searches text for a living " +
+			"and is not a programmer: they have a terminal open and no interest in how the tool " +
+			"is built. Ground every claim in what the source and the existing docs actually say.",
 	},
 	{
 		Audience: "developer",
 		Label:    "Developer",
-		Task: "Write the developer documentation for arrival alerts in Harbourlight, as a Markdown " +
-			"document of roughly 600 words. The reader is integrating another system with it.",
-		// The mirror image: this reader is assumed to have the vocabulary the
-		// other is not, so what is banned here is the language that wastes
-		// their time. Same reason for using terms over patterns (#2240).
-		Voice: `name: Harbourlight — developer
-description: Harbourlight's voice for developers integrating with the product
-` + brandVoice + `    sentence_length: medium
-vocabulary:
-    forbidden_terms:
-        - term: simply
-          severity: major
-        - term: just
-          severity: major
-        - term: easy
-          replacement: say what it takes instead
-          severity: major
-          forms: [easily]
-        - term: straightforward
-          severity: major
-        - term: utilize
-          severity: major
-          forms: [utilizes, utilized, utilizing]
-        - term: seamless
-          severity: major
-          forms: [seamlessly]
-`,
+		Persona:  "developer",
+		Task: "Read this repository and write developer documentation, in Markdown, of roughly " +
+			"800 words, for ripgrep's file-type filtering: how type definitions are represented, " +
+			"how a matcher is built from them, and what a contributor changing this area needs to " +
+			"know. The reader is a Rust programmer reading the crates. Ground every claim in what " +
+			"the source actually does, and name the modules and types you are describing.",
 	},
 }
 
 // labModels is the matrix's model axis.
 //
-// Ids rather than aliases, and the run records what actually answered
-// (modelUsage from the CLI) rather than what was asked, so a silent alias
-// resolution cannot be read as a comparison between two models that were in
-// fact one.
+// Ids rather than aliases, and each run records the model that answered rather
+// than the one that was asked for, so a silent alias resolution cannot be read
+// as a comparison between two models that were in fact one.
 var labModels = []string{
 	"claude-opus-5",
 	"claude-sonnet-5",
 	"claude-opus-4-8",
 	"claude-haiku-4-5",
+}
+
+// loadProfile reads ripgrep's voice, embedded so a run needs nothing but the
+// binary and the cloned tree.
+func loadProfile() (*coreprofile.VoiceProfile, error) {
+	var p coreprofile.VoiceProfile
+	if err := yaml.Unmarshal(ripgrepProfileYAML, &p); err != nil {
+		return nil, fmt.Errorf("ripgrep profile: %w", err)
+	}
+	if probs := coreprofile.ValidateProfile(&p); len(probs) > 0 {
+		return nil, fmt.Errorf("ripgrep profile is not usable: %v", probs)
+	}
+	return &p, nil
+}
+
+// guideFor renders what the governed arm receives at one point: the profile
+// resolved at that persona, through the FULL renderer.
+//
+// The full one, deliberately. RenderVoiceGuideCompact drops the before/after
+// examples entirely, and those are the strongest steering the profile carries
+// (#2241). The compact form is what the translation path uses; an assistant
+// handed `kapi voice guide` gets this.
+func guideFor(base *coreprofile.VoiceProfile, p Point) (string, error) {
+	resolved := coreprofile.ResolveProfile(base, "", "", p.Persona)
+	if resolved == nil {
+		return "", fmt.Errorf("%s: profile resolved to nothing", p.Audience)
+	}
+	guide := coreprofile.RenderVoiceGuide(resolved)
+	if guide == "" {
+		return "", fmt.Errorf("%s: the guide rendered empty, so the governed arm "+
+			"would be identical to the bare one", p.Audience)
+	}
+	return guide, nil
+}
+
+// repoDir is the cloned tree, and says how to get it when it is missing.
+func repoDir(root string) (string, error) {
+	dir := filepath.Join(root, LabRepo)
+	if _, err := os.Stat(dir); err != nil {
+		return "", fmt.Errorf("%s is not there: run `./scripts/fetch-lab-repo.sh` first", LabRepo)
+	}
+	return dir, nil
 }

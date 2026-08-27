@@ -65,7 +65,6 @@ interface SessionEvent {
 }
 interface Session {
   events: SessionEvent[];
-  dropped?: number;
 }
 // The sidecar, fetched when a reader opens a scenario. Sessions are large and
 // the dataset above is imported into the bundle, so they are not in it.
@@ -191,7 +190,9 @@ function ControlArm({
             >
               {n[c.key] ?? 0}
             </div>
-            <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{c.label}</div>
+            <div style={{ fontWeight: 600, fontSize: ".9rem" }}>
+              {contributionLabel[c.key] ?? c.label}
+            </div>
             <div style={{ fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)" }}>
               {c.means}
             </div>
@@ -309,7 +310,11 @@ const s: Record<string, CSSProperties> = {
   metaK: { color: "var(--ifm-color-emphasis-700)" },
   row: {
     display: "grid",
-    gridTemplateColumns: "5.5rem 1fr auto",
+    // The first column holds a verdict and, on a gated sweep, a contribution
+    // beside it. A fixed 5.5rem fitted one pill and overlapped the prompt with
+    // the second. max-content sizes to whatever is actually there, and the
+    // minmax(0,1fr) lets a long prompt wrap instead of widening the grid.
+    gridTemplateColumns: "max-content minmax(0, 1fr) max-content",
     gap: ".8rem",
     alignItems: "center",
     width: "100%",
@@ -374,8 +379,36 @@ const s: Record<string, CSSProperties> = {
   table: { width: "100%", fontSize: ".84rem", borderCollapse: "collapse" },
 };
 
-function Pill({ text, t }: { text: string; t: Tone }): ReactElement {
-  return <span style={{ ...s.pill, color: tone[t].fg, background: tone[t].bg }}>{text}</span>;
+function Pill({ text, t, title }: { text: string; t: Tone; title?: string }): ReactElement {
+  return (
+    <span title={title} style={{ ...s.pill, color: tone[t].fg, background: tone[t].bg }}>
+      {text}
+    </span>
+  );
+}
+
+// What a contribution verdict means, on the verdict itself.
+//
+// The words are the runner's and two of them do not survive being read alone:
+// "neither" on a row says nothing without the panel at the top of the page that
+// defines it, and a reader meets the row first. The label is what it means; the
+// key stays what the dataset says.
+const contributionLabel: Record<string, string> = {
+  enabled: "kapi enabled it",
+  eased: "kapi eased it",
+  hindered: "kapi hindered it",
+  neither: "no difference",
+  unknown: "not comparable",
+};
+
+function contributionMeans(key: string): string {
+  return CONTRIBUTIONS.find((c) => c.key === key)?.means ?? "";
+}
+
+function contributionTone(key: string): Tone {
+  if (key === "enabled" || key === "eased") return "pass";
+  if (key === "hindered") return "fail";
+  return "flat";
 }
 
 // Every verdict the runner can emit needs an entry. A Record over the union
@@ -523,29 +556,22 @@ function Detail({ r }: { r: Result }): ReactElement {
                 gap: ".5rem",
               }}
             >
+              {/* One line per pass. The commands it ran and the message it
+                  closed on used to sit here, three passes deep, which made a
+                  scenario a wall of prose before a reader reached the gate.
+                  They are turns of the session, and that is where they are. */}
               <div
-                style={{ display: "flex", gap: ".6rem", alignItems: "center", flexWrap: "wrap" }}
+                style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}
               >
+                <span style={{ ...s.sub, fontWeight: 600 }}>pass {i + 1}</span>
                 <Pill
                   text={run.triggered ? "fired" : "silent"}
                   t={run.triggered === (sc.kind === "positive") ? "pass" : "fail"}
                 />
                 <span style={s.sub}>
                   {run.messages} msg · {(run.durationMs / 1000).toFixed(1)}s
+                  {(run.tools ?? []).length > 0 && ` · ${run.tools!.join(", ")}`}
                 </span>
-                {(run.tools ?? []).map((t) => (
-                  <span
-                    key={t}
-                    style={{
-                      ...s.pill,
-                      ...tone.flat,
-                      background: tone.flat.bg,
-                      color: tone.flat.fg,
-                    }}
-                  >
-                    {t}
-                  </span>
-                ))}
               </div>
 
               {run.error && <pre style={{ ...s.pre, color: tone.fail.fg }}>{run.error}</pre>}
@@ -562,16 +588,6 @@ function Detail({ r }: { r: Result }): ReactElement {
                       />
                     ))}
                   </div>
-                </div>
-              )}
-
-              {(run.kapiCommands ?? []).length > 0 && (
-                <div style={{ display: "grid", gap: ".25rem" }}>
-                  {run.kapiCommands!.map((c, j) => (
-                    <div key={j} style={s.cmd}>
-                      $ {c}
-                    </div>
-                  ))}
                 </div>
               )}
 
@@ -626,13 +642,6 @@ function Detail({ r }: { r: Result }): ReactElement {
                 </div>
               )}
 
-              {run.finalText && (
-                <div>
-                  <div style={s.h}>Closing message</div>
-                  <pre style={s.pre}>{run.finalText}</pre>
-                </div>
-              )}
-
               <SessionButton sessions={sessions} onOpen={() => show("runs", i)} />
             </div>
           ))}
@@ -664,7 +673,13 @@ interface Sessions {
 }
 
 function useSessions(r: Result): Sessions {
-  const dir = useBaseUrl("/skill-eval/transcripts/");
+  // Same place the artefacts go. The transcripts were committed while they were
+  // capped; uncapped they are far too large for git, so they follow the videos
+  // to the CDN and resolve same-origin when none is configured.
+  const { siteConfig } = useDocusaurusContext();
+  const cdn = readCdnConfig(siteConfig);
+  const local = useBaseUrl("/skill-eval/transcripts/");
+  const dir = cdnEnabled(cdn) ? cdnHref(cdn, "/skill-eval/transcripts/") : local;
   const [file, setFile] = useState<SessionFile | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
 
@@ -832,7 +847,7 @@ function SessionModal({
               it.
             </p>
           )}
-          {sess && <SessionView sess={sess} />}
+          {sess && <SessionView sess={sess} prompt={sessions.file?.prompt} />}
           {!sess && sessions.state === "idle" && sessions.file && (
             <p style={{ ...s.sub, margin: 0 }}>
               This pass has no recorded session. The transcript file covers the passes the run
@@ -889,65 +904,199 @@ function ArtifactLink({ c }: { c: FileChange }): ReactElement {
   );
 }
 
-// SessionView draws one conversation in order.
-function SessionView({ sess }: { sess: Session }): ReactElement {
+// SessionView draws one conversation the way it happened.
+//
+// A session is a conversation, so it is laid out as one: the prompt as the turn
+// that opened it, then each assistant message as prose, then each tool call
+// with what it returned, in order. The earlier version was a flat list of
+// bordered blocks that read as a log rather than as a session, and it truncated
+// every tool result at 1,200 characters — which cut the part a reader opens a
+// transcript for.
+function SessionView({ sess, prompt }: { sess: Session; prompt?: string }): ReactElement {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ display: "grid", gap: ".5rem", minWidth: 0 }}>
+      {prompt && <Turn role="user">{prompt}</Turn>}
+      <div style={{ display: "grid", gap: ".1rem", minWidth: 0 }}>
         {sess.events.map((e, i) => (
           <EventView key={i} e={e} />
         ))}
       </div>
-      {sess.dropped ? (
-        <p style={{ ...s.sub, margin: ".4rem 0 0" }}>
-          {sess.dropped} further event{sess.dropped === 1 ? "" : "s"} not recorded: this session
-          reached the size a published transcript is capped at.
-        </p>
-      ) : null}
     </div>
   );
 }
 
-function EventView({ e }: { e: SessionEvent }): ReactElement {
-  if (e.kind === "text") {
-    return (
+// Turn is one side of the conversation, labelled the way a session labels it.
+function Turn({
+  role,
+  children,
+}: {
+  role: "user" | "assistant";
+  children: React.ReactNode;
+}): ReactElement {
+  const isUser = role === "user";
+  return (
+    <div style={{ margin: "0 0 1rem", minWidth: 0 }}>
       <div
         style={{
-          borderLeft: "3px solid var(--ifm-color-emphasis-300)",
-          paddingLeft: ".7rem",
-          fontSize: ".87rem",
-          lineHeight: 1.55,
+          ...s.h,
+          marginBottom: ".3rem",
+          color: isUser ? "var(--ifm-color-primary)" : "var(--ifm-color-emphasis-700)",
+        }}
+      >
+        {isUser ? "User" : "Claude"}
+      </div>
+      <div
+        style={{
+          fontSize: ".9rem",
+          lineHeight: 1.6,
           whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          padding: isUser ? ".65rem .8rem" : 0,
+          background: isUser ? "var(--ifm-color-emphasis-100)" : "transparent",
+          borderRadius: isUser ? 6 : 0,
           minWidth: 0,
         }}
       >
-        {e.text}
+        {children}
       </div>
-    );
+    </div>
+  );
+}
+
+// EventView is one step: a message Claude wrote, or a tool it called.
+function EventView({ e }: { e: SessionEvent }): ReactElement {
+  const [open, setOpen] = useState(false);
+
+  if (e.kind === "text") {
+    return <Turn role="assistant">{e.text}</Turn>;
   }
-  const t = e.failed ? tone.fail : tone.flat;
+
+  const out = e.output ?? "";
+  const lines = out ? out.split("\n") : [];
+  // A tool result is shown short and opened in full. Uncapped transcripts carry
+  // whole files, and a reader scanning a forty-turn session wants the shape of
+  // it before they want the bytes.
+  const long = lines.length > 6 || out.length > 500;
+  const preview = long && !open ? lines.slice(0, 6).join("\n") : out;
+
   return (
-    <div style={{ borderLeft: `3px solid ${t.fg}`, paddingLeft: ".7rem", minWidth: 0 }}>
-      <div style={{ display: "flex", gap: ".5rem", alignItems: "center", marginBottom: ".2rem" }}>
-        <Pill text={e.name ?? "tool"} t={e.failed ? "fail" : "flat"} />
+    <div
+      style={{
+        margin: "0 0 .9rem",
+        paddingLeft: ".8rem",
+        borderLeft: `2px solid ${e.failed ? tone.fail.fg : "var(--ifm-color-emphasis-300)"}`,
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: ".5rem",
+          marginBottom: ".25rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: mono,
+            fontSize: ".74rem",
+            fontWeight: 700,
+            letterSpacing: ".04em",
+            color: e.failed ? tone.fail.fg : "var(--ifm-color-emphasis-700)",
+          }}
+        >
+          {e.name ?? "tool"}
+        </span>
         {e.failed && <span style={{ ...s.sub, color: tone.fail.fg }}>returned an error</span>}
       </div>
-      {e.input && <div style={s.cmd}>{e.input}</div>}
-      {e.output && (
-        <pre style={{ ...s.pre, marginTop: ".3rem", maxHeight: "18rem", overflow: "auto" }}>
-          {e.output}
+
+      {e.input && <ToolInput name={e.name ?? ""} input={e.input} />}
+
+      {out && (
+        <pre
+          style={{
+            ...s.pre,
+            marginTop: ".3rem",
+            fontSize: ".76rem",
+            background: "var(--ifm-color-emphasis-100)",
+            maxHeight: open ? "none" : "11rem",
+            overflow: "auto",
+          }}
+        >
+          {preview}
         </pre>
+      )}
+      {long && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            font: "inherit",
+            fontSize: ".75rem",
+            padding: ".1rem 0",
+            border: "none",
+            background: "none",
+            color: "var(--ifm-color-primary)",
+            cursor: "pointer",
+          }}
+        >
+          {open ? "show less" : `show all ${lines.length} lines`}
+        </button>
       )}
     </div>
   );
 }
 
-// UnaidedRuns shows the control arm beside the kapi one.
+// ToolInput renders a call the way the tool itself would read.
 //
-// The summary at the top of the page gives the counts; this is where a reader
-// checks them. Three of the scenarios on the first fully gated sweep failed
-// with kapi and passed without it, and two of those turned out to be the gate
-// rather than the tool. Neither would have been visible from a count.
+// The arguments arrive as the JSON the agent sent. For Bash that is a command,
+// and a command shown as `{"command":"kapi status","description":"…"}` is
+// harder to read than the command. The common shapes get their own line; the
+// rest keep the JSON, which is at least exact.
+function ToolInput({ name, input }: { name: string; input: string }): ReactElement {
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    const v: unknown = JSON.parse(input);
+    if (v && typeof v === "object") parsed = v as Record<string, unknown>;
+  } catch {
+    parsed = null;
+  }
+  const str = (k: string): string => (typeof parsed?.[k] === "string" ? (parsed[k] as string) : "");
+
+  const command = str("command");
+  if (name === "Bash" && command) {
+    return <div style={s.cmd}>$ {command}</div>;
+  }
+  const skill = str("skill");
+  if (skill) {
+    const args = str("args");
+    return (
+      <div style={s.cmd}>
+        /{skill}
+        {args && ` ${args}`}
+      </div>
+    );
+  }
+  const path = str("file_path") || str("path");
+  if (path) {
+    return (
+      <div style={s.cmd}>
+        {name} {path}
+      </div>
+    );
+  }
+  const pattern = str("pattern") || str("query");
+  if (pattern) {
+    return (
+      <div style={s.cmd}>
+        {name} {pattern}
+      </div>
+    );
+  }
+  return <div style={{ ...s.cmd, whiteSpace: "pre-wrap" }}>{input}</div>;
+}
+
 function UnaidedRuns({
   r,
   sessions,
@@ -967,14 +1116,9 @@ function UnaidedRuns({
         Without kapi{" "}
         {r.contribution && (
           <Pill
-            text={r.contribution}
-            t={
-              r.contribution === "enabled" || r.contribution === "eased"
-                ? "pass"
-                : r.contribution === "hindered"
-                  ? "fail"
-                  : "flat"
-            }
+            text={contributionLabel[r.contribution] ?? r.contribution}
+            t={contributionTone(r.contribution)}
+            title={contributionMeans(r.contribution)}
           />
         )}
       </div>
@@ -993,7 +1137,8 @@ function UnaidedRuns({
               gap: ".4rem",
             }}
           >
-            <div style={{ display: "flex", gap: ".6rem", alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ ...s.sub, fontWeight: 600 }}>pass {i + 1}</span>
               <span style={s.sub}>
                 {run.messages} msg · {(run.durationMs / 1000).toFixed(1)}s
               </span>
@@ -1013,7 +1158,6 @@ function UnaidedRuns({
                 ))}
               </div>
             )}
-            {run.finalText && <pre style={s.pre}>{run.finalText}</pre>}
             <SessionButton sessions={sessions} onOpen={() => onOpen(i)} />
           </div>
         ))}
@@ -1080,18 +1224,13 @@ function ScenarioRow({ r }: { r: Result }): ReactElement {
               because of kapi". */}
           {r.contribution && r.contribution !== "unknown" && (
             <Pill
-              text={r.contribution}
-              t={
-                r.contribution === "enabled" || r.contribution === "eased"
-                  ? "pass"
-                  : r.contribution === "hindered"
-                    ? "fail"
-                    : "flat"
-              }
+              text={contributionLabel[r.contribution] ?? r.contribution}
+              t={contributionTone(r.contribution)}
+              title={contributionMeans(r.contribution)}
             />
           )}
         </span>
-        <span>
+        <span style={{ minWidth: 0 }}>
           <div style={s.prompt}>{sc.prompt}</div>
           <div style={s.sub}>
             {sc.id} · {sc.path}

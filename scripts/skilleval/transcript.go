@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode/utf8"
 )
 
 // Recording the session, rather than a summary of it.
@@ -29,21 +28,17 @@ import (
 // reader opens it. The index stays the size it is; the evidence is one click
 // away rather than one machine away.
 
-const (
-	// maxEventText is what one assistant message keeps. Long enough for a plan
-	// or an explanation, which is the part worth reading.
-	maxEventText = 3000
-	// maxEventIO is what one tool call's arguments, and one tool result, keep.
-	// A file read returns the file; the first lines of it are enough to see
-	// what the agent was looking at, and the rest is the corpus, which the
-	// reader already has.
-	maxEventIO = 1200
-	// maxSessionEvents and maxSessionBytes bound one session. A completion run
-	// can go ninety turns, and the cap is against the pathological one rather
-	// than the ordinary one: at these limits a typical run is kept whole.
-	maxSessionEvents = 400
-	maxSessionBytes  = 256 << 10
-)
+// The session is published whole.
+//
+// It was capped — 400 events, 256KB, each message clipped to 3,000 characters
+// and each tool result to 1,200 — because it was committed to git. Those caps
+// cut exactly the part a reader wants: the file the agent actually read, the
+// error it actually got. A transcript that stops mid-tool-result is a summary
+// with a scrollbar.
+//
+// So the transcripts go where the artefacts go, an S3 bucket behind CloudFront,
+// and nothing is truncated on the way. What remains is scrubbing, which is not
+// a cap: a published transcript must not carry the machine it ran on.
 
 // Event is one step of a session, in the order it happened.
 type Event struct {
@@ -64,20 +59,15 @@ type Event struct {
 	Failed bool `json:"failed,omitempty"`
 }
 
-// record appends an event, scrubbed and capped.
+// record appends an event, scrubbed.
 //
 // Every string reaching an Event goes through here, so no caller has to
-// remember to scrub: these files are committed, and a transcript carries the
-// workspace path, the developer's home, and whatever the agent printed of both.
+// remember to scrub: a transcript carries the workspace path, the developer's
+// home, and whatever the agent printed of both.
 func (r *Run) record(e Event) {
-	if len(r.Events) >= maxSessionEvents || r.eventBytes >= maxSessionBytes {
-		r.EventsDropped++
-		return
-	}
-	e.Text = clip(scrubPaths(e.Text), maxEventText)
-	e.Input = clip(scrubPaths(e.Input), maxEventIO)
-	e.Output = clip(scrubPaths(e.Output), maxEventIO)
-	r.eventBytes += len(e.Text) + len(e.Input) + len(e.Output) + len(e.Name)
+	e.Text = scrubPaths(e.Text)
+	e.Input = scrubPaths(e.Input)
+	e.Output = scrubPaths(e.Output)
 	r.Events = append(r.Events, e)
 }
 
@@ -87,40 +77,24 @@ func (r *Run) recordResult(idx int, out string, failed bool) {
 		return
 	}
 	e := &r.Events[idx]
-	e.Output = clip(scrubPaths(out), maxEventIO)
+	e.Output = scrubPaths(out)
 	e.Failed = failed
-	r.eventBytes += len(e.Output)
 }
 
-// clip truncates on a rune boundary.
-//
-// Cutting mid-rune produces replacement characters in the published JSON, which
-// is a small thing in English and disfigures every second line of a Norwegian
-// one.
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	cut := n
-	for cut > 0 && !utf8.RuneStart(s[cut]) {
-		cut--
-	}
-	return s[:cut] + "\n…truncated…"
-}
-
-// Session is one run's recorded events.
+// Session is one run's recorded events, whole.
 type Session struct {
-	Events  []Event `json:"events"`
-	Dropped int     `json:"dropped,omitempty"`
+	Events []Event `json:"events"`
 }
 
 // SessionFile is one scenario's sessions, both arms, as published.
 type SessionFile struct {
-	Key      string    `json:"key"`
-	Scenario string    `json:"scenario"`
-	Prompt   string    `json:"prompt"`
-	Runs     []Session `json:"runs"`
-	Unaided  []Session `json:"unaided,omitempty"`
+	Key      string `json:"key"`
+	Scenario string `json:"scenario"`
+	// Prompt is the turn the conversation opens on, so the page can render it
+	// as the user message it was.
+	Prompt  string    `json:"prompt"`
+	Runs    []Session `json:"runs"`
+	Unaided []Session `json:"unaided,omitempty"`
 }
 
 // splitSessions moves every run's events out of the report and into one file
@@ -149,8 +123,8 @@ func splitSessions(r *Report) map[string]*SessionFile {
 func takeSessions(runs []Run) []Session {
 	out := make([]Session, 0, len(runs))
 	for i := range runs {
-		out = append(out, Session{Events: runs[i].Events, Dropped: runs[i].EventsDropped})
-		runs[i].Events, runs[i].EventsDropped = nil, 0
+		out = append(out, Session{Events: runs[i].Events})
+		runs[i].Events = nil
 	}
 	return out
 }
