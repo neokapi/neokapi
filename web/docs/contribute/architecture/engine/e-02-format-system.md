@@ -343,6 +343,18 @@ beside the content in an [overlay
 sidecar](/reference/serialization/overlays) unless a writer both can draw it and
 was not told otherwise.
 
+XLIFF 2 is the first writer to declare the capability, and it draws a term as an
+`<sm>`/`<em>` pair rather than an `<mrk>`. Both are spec shapes and `<mrk>` reads
+better when a span nests cleanly inside one element, but only the pair can carry
+a span that does not — and a term running from before a `<pc>` to after it is
+exactly what an `Anchor` is built to express. Because the two markers are
+independent nodes, each is placed wherever its own boundary lands, including
+inside an element whose partner sits outside. One shape for every span keeps the
+awkward case from being the least-tested one.
+
+A span a segmentation cannot carry — one straddling two `<segment>` elements —
+is recorded rather than half-drawn, and the writer reports it.
+
 **Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
 stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's
 skeleton emission to a writer **only when they are the same format** — so the

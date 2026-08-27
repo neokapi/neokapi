@@ -539,7 +539,7 @@ func parseMrkAttrs(el *etree.Element) MrkAttrs {
 }
 
 // markSpan is one annotation marker located in RUN coordinates: the half-open
-// span [Start, End) of the run sequence its content occupies.
+// span [Start, End) of the block's run sequence its content occupies.
 //
 // The marker itself contributes no run — an <mrk> wraps content rather than
 // being content, which is why the model carries it stand-off rather than as a
@@ -553,31 +553,39 @@ type markSpan struct {
 
 // inlinesToRunsWithMarks downconverts the xliff2 Inline IR to the framework's
 // generic model.Run sequence, and reports where each annotation marker sat in
-// run coordinates local to this inline sequence.
+// run coordinates.
 //
 // The run downconversion is lossy by design — Run is a simpler abstraction, and
-// the lossless path is the SegmentInlineAnnotation IR. Markers are the part
-// that must not be lost anyway: they carry a decision about specific characters
-// (this is a term, this must not be translated), and the model has somewhere to
-// put such a decision. So they come back as positions rather than as runs.
-//
-// Markers come in two shapes and both are collected. An <mrk> wraps its content
-// as children, so its span is where its children landed. An <sm>/<em> pair is
-// two siblings marking a span that need not nest cleanly — XLIFF 2 has them
-// precisely because a span can cross a <pc> boundary — so they are paired by
-// the em's startRef. An <sm> whose <em> never arrives marks nothing and is
-// dropped: an unterminated span has no end to anchor.
+// the lossless path is the SegmentInlineAnnotation IR. Markers are the part that
+// must not be lost anyway: they carry a decision about specific characters (this
+// is a term, this must not be translated), and the model has somewhere to put
+// such a decision. So they come back as positions rather than as runs.
 func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
-	var out []model.Run
-	var marks []markSpan
-	// Open <sm> markers by id, so an <em> can close the one it references.
-	open := map[string]markSpan{}
+	w := &markWalker{open: map[string]markSpan{}}
+	w.walk(inls)
+	// An <sm> whose <em> never arrived marks nothing: an unterminated span has
+	// no end to anchor, and inventing one puts a span where the file did not.
+	return w.runs, w.marks
+}
+
+// markWalker counts runs across the WHOLE sequence rather than per nesting
+// level, which is what lets an <sm> inside a <pc> pair with an <em> outside it.
+// Those are the spans XLIFF 2 has the pair shape for — a term running through a
+// paired code — so a walk that could not pair them would drop exactly the case
+// they exist to express.
+type markWalker struct {
+	runs  []model.Run
+	marks []markSpan
+	open  map[string]markSpan
+}
+
+func (w *markWalker) walk(inls []Inline) {
 	for _, in := range inls {
 		switch {
 		case in.Text != nil:
-			out = append(out, model.Run{Text: &model.TextRun{Text: in.Text.Content}})
+			w.runs = append(w.runs, model.Run{Text: &model.TextRun{Text: in.Text.Content}})
 		case in.Ph != nil:
-			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+			w.runs = append(w.runs, model.Run{Ph: &model.PlaceholderRun{
 				ID:      in.Ph.ID,
 				Type:    in.Ph.Type,
 				SubType: in.Ph.SubType,
@@ -585,23 +593,21 @@ func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 				Disp:    in.Ph.Disp,
 			}})
 		case in.Pc != nil:
-			out = append(out, model.Run{PcOpen: &model.PcOpenRun{
+			w.runs = append(w.runs, model.Run{PcOpen: &model.PcOpenRun{
 				ID:      in.Pc.ID,
 				Type:    in.Pc.Type,
 				SubType: in.Pc.SubType,
 				Equiv:   in.Pc.EquivStart,
 				Disp:    in.Pc.DispStart,
 			}})
-			nested, nestedMarks := inlinesToRunsWithMarks(in.Pc.Children)
-			marks = append(marks, shiftMarks(nestedMarks, len(out))...)
-			out = append(out, nested...)
-			out = append(out, model.Run{PcClose: &model.PcCloseRun{
+			w.walk(in.Pc.Children)
+			w.runs = append(w.runs, model.Run{PcClose: &model.PcCloseRun{
 				ID:    in.Pc.ID,
 				Type:  in.Pc.Type,
 				Equiv: in.Pc.EquivEnd,
 			}})
 		case in.Sc != nil:
-			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+			w.runs = append(w.runs, model.Run{Ph: &model.PlaceholderRun{
 				ID:      in.Sc.ID,
 				Type:    in.Sc.Type,
 				SubType: in.Sc.SubType,
@@ -609,7 +615,7 @@ func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 				Disp:    in.Sc.Disp,
 			}})
 		case in.Ec != nil:
-			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+			w.runs = append(w.runs, model.Run{Ph: &model.PlaceholderRun{
 				ID:      in.Ec.ID,
 				Type:    in.Ec.Type,
 				SubType: in.Ec.SubType,
@@ -620,36 +626,19 @@ func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 			// A marker has no Run analogue: it wraps content rather than being
 			// content. Its children fold through, and where they landed is
 			// recorded so the metadata survives as a stand-off span.
-			start := len(out)
-			nested, nestedMarks := inlinesToRunsWithMarks(in.Mrk.Children)
-			marks = append(marks, shiftMarks(nestedMarks, start)...)
-			out = append(out, nested...)
-			marks = append(marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: start, End: len(out)})
+			start := len(w.runs)
+			w.walk(in.Mrk.Children)
+			w.marks = append(w.marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: start, End: len(w.runs)})
 		case in.Sm != nil:
-			open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: len(out)}
+			w.open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: len(w.runs)}
 		case in.Em != nil:
-			if m, ok := open[in.Em.StartRef]; ok {
-				m.End = len(out)
-				marks = append(marks, m)
-				delete(open, in.Em.StartRef)
+			if m, ok := w.open[in.Em.StartRef]; ok {
+				m.End = len(w.runs)
+				w.marks = append(w.marks, m)
+				delete(w.open, in.Em.StartRef)
 			}
 		}
 	}
-	return out, marks
-}
-
-// shiftMarks rebases marks found in a nested sequence onto the enclosing one.
-func shiftMarks(marks []markSpan, by int) []markSpan {
-	if by == 0 || len(marks) == 0 {
-		return marks
-	}
-	out := make([]markSpan, len(marks))
-	for i, m := range marks {
-		m.Start += by
-		m.End += by
-		out[i] = m
-	}
-	return out
 }
 
 // hasNonEmptyInline reports whether any inline node has actual content.
