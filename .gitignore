@@ -221,6 +221,13 @@ web/reference/tools/
 web/static/img/bowrain/
 web/static/img/web-app/
 web/static/video/
+
+# What the skill-eval agents produced (translated .docx, rewritten .pptx, …),
+# staged by a sweep and published to the CDN by `make publish-cdn-eval-artifacts`.
+# About 50MB a run and rewritten every run, so it goes where the videos go
+# rather than into git. The per-scenario transcripts beside it ARE committed:
+# they are small, and a sweep's evidence is worth seeing in a diff.
+web/static/skill-eval/artifacts/
 web/static/data/test-comparison.json
 bowrain/apps/bowrain/frontend/recordings-output/
 bowrain/web/docs/build/

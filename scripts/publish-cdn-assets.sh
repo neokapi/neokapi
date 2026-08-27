@@ -37,9 +37,9 @@ cd "$(dirname "$0")/.."
 
 FAMILY="${1:-}"
 case "$FAMILY" in
-  wasm | vision-models | video-kapi | video-bowrain | icu | images-kapi | images-bowrain) ;;
+  wasm | vision-models | video-kapi | video-bowrain | icu | images-kapi | images-bowrain | eval-artifacts) ;;
   *)
-    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain|icu|images-kapi|images-bowrain>" >&2
+    echo "usage: publish-cdn-assets.sh <wasm|vision-models|video-kapi|video-bowrain|icu|images-kapi|images-bowrain|eval-artifacts>" >&2
     exit 2
     ;;
 esac
@@ -147,6 +147,28 @@ case "$FAMILY" in
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE"
     echo "✓ kapi images published → $DST"
+    ;;
+
+  # What the agents in the skill eval actually produced: the translated .docx,
+  # the rewritten .pptx, the catalog. The dataset can only carry a byte count
+  # for these, and a byte count is the weakest form of the claim — a reader who
+  # can open the document can check faithful write-back against their own idea
+  # of it, and the control arm's version sits beside it.
+  #
+  # Staged by the sweep, gitignored, and about 50MB a run. Not immutable: a
+  # re-run overwrites the same keys, so these get the same day-long cache the
+  # videos use rather than a year.
+  #
+  # --delete, because a scenario that is renamed or retired leaves its old tree
+  # behind otherwise, and a page linking a document from a scenario that no
+  # longer exists is worse than a missing link.
+  eval-artifacts)
+    SRC="web/static/skill-eval/artifacts"
+    [ -d "$SRC" ] || { echo "error: $SRC missing — run a sweep first (make skill-eval-completion)"; exit 1; }
+    DST="s3://$CDN_BUCKET/kapi/skill-eval/artifacts"
+    echo "→ syncing $SRC → ${DST}…"
+    "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE" --delete
+    echo "✓ skill-eval artefacts published → $DST"
     ;;
 
   images-bowrain)

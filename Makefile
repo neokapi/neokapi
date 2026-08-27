@@ -2432,6 +2432,13 @@ publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → CDN (bowrain/
 publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → CDN (kapi/icu/<ver>/)
 	@bash scripts/publish-cdn-assets.sh icu
 
+# What the skill-eval agents produced (translated .docx, rewritten .pptx, …).
+# Staged by the sweep under web/static/skill-eval/artifacts (gitignored, ~50MB a
+# run) and linked from the report, so a reader can open the document rather than
+# read a byte count. Needs CDN_BUCKET + an aws session, like the others.
+publish-cdn-eval-artifacts: ## Publish the skill-eval artefacts → CDN (needs CDN_BUCKET + aws session)
+	@bash scripts/publish-cdn-assets.sh eval-artifacts
+
 publish-cdn-images: ## Sync kapi docs images/screenshots (web/static/img) → CDN (kapi/img/)
 	@bash scripts/publish-cdn-assets.sh images-kapi
 
@@ -2442,6 +2449,9 @@ publish-cdn-bowrain-images: ## Sync bowrain docs images/screenshots → CDN (bow
 # renders videos/screenshots and fetch-vision-models stages the models). Run
 # after re-recording so the live + preview sites pick up the new assets. (wasm is
 # published by CI on the next docs build; not included here.)
+# Deliberately not including publish-cdn-eval-artifacts: those exist only after
+# a metered sweep has run, so the target would fail on a machine that has not
+# run one. They publish with the sweep that produced them.
 publish-cdn-all: publish-cdn-videos publish-cdn-bowrain-videos publish-cdn-images publish-cdn-bowrain-images publish-cdn-vision-models publish-cdn-icu ## Publish all desktop-produced assets → CDN (S3)
 	@echo "✓ all CDN assets published to the S3 CDN."
 

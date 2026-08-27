@@ -84,6 +84,17 @@ type FileChange struct {
 	// Binary marks a file whose content is not shown.
 	Binary     bool `json:"binary,omitempty"`
 	BytesAfter int  `json:"bytesAfter,omitempty"`
+	// Artifact is where this file was published, relative to the CDN's
+	// skill-eval artifact root, when it was. Set for changes the dataset
+	// cannot show: a reader downloads the document rather than reading a byte
+	// count. See artifacts.go.
+	Artifact string `json:"artifact,omitempty"`
+	// Skipped says why a file was not published, when it was not.
+	Skipped string `json:"skipped,omitempty"`
+	// content is the bytes, held until the run is staged. Unexported, so it
+	// never reaches the dataset: fifty megabytes of .docx in a JSON file the
+	// page imports would be the problem this solves.
+	content []byte
 }
 
 // harnessOwned are directories the harness puts in the workspace: the installed
@@ -278,6 +289,7 @@ func diffWorkspace(before, after map[string][]byte) []FileChange {
 		switch {
 		case isBinary(post) || len(post) > maxShownBytes:
 			c.Binary = true
+			c.content = post
 		default:
 			c.After = string(post)
 			if existed && !isBinary(pre) && len(pre) <= maxShownBytes {
@@ -295,6 +307,8 @@ func diffWorkspace(before, after map[string][]byte) []FileChange {
 			c.Before = string(pre)
 		} else {
 			c.Binary = true
+			// The file the agent deleted, so a reader can see what was lost.
+			c.content = pre
 		}
 		changes = append(changes, c)
 	}
