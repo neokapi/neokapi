@@ -69,7 +69,7 @@ interface Result {
   // server, and no kapi anywhere on PATH.
   unaided?: Run[];
   unaidedGatePassed?: number;
-  contribution?: "enabled" | "eased" | "neither" | "unknown";
+  contribution?: "enabled" | "eased" | "hindered" | "neither" | "unknown";
 }
 interface Runner {
   claudeVersion: string;
@@ -178,6 +178,12 @@ const CONTRIBUTIONS: { key: string; label: string; means: string; t: keyof typeo
     label: "eased",
     means: "both finished, and kapi took materially fewer messages",
     t: "pass",
+  },
+  {
+    key: "hindered",
+    label: "hindered",
+    means: "the unaided agent finished and the one with kapi did not",
+    t: "fail",
   },
   {
     key: "neither",

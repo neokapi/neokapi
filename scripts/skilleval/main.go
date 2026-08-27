@@ -400,9 +400,13 @@ func (s Summary) Line() string {
 		line += fmt.Sprintf(", %d with no gate to check", s.Ungated)
 	}
 	if n := s.Contributions; len(n) > 0 {
-		line += fmt.Sprintf("; kapi enabled %d, eased %d, neither %d, unknown %d",
-			n[string(ContributionEnabled)], n[string(ContributionEased)],
-			n[string(ContributionNeither)], n[string(ContributionUnknown)])
+		// Iterated rather than named: the first version spelled out four
+		// outcomes, and when a fifth was added the line kept printing four.
+		parts := make([]string, 0, len(AllContributions))
+		for _, c := range AllContributions {
+			parts = append(parts, fmt.Sprintf("%s %d", c, n[string(c)]))
+		}
+		line += "; kapi " + strings.Join(parts, ", ")
 	}
 	return line
 }

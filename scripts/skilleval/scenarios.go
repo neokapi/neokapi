@@ -176,6 +176,24 @@ const gateLocaleTranslated = `kapi status -p . --json 2>/dev/null | ` +
 	`python3 -c 'import json,sys;d=json.load(sys.stdin);` +
 	`sys.exit(0 if any(l["pct"].get("translated",0)>0 for l in d.get("locales",[])) else 1)'`
 
+// The app is translatable when the hardcoded string has left the component and
+// the strings it held live in a catalog.
+//
+// The second half used to be `-name '*.json' -path '*locale*'`, which is
+// react-i18next's convention rather than a definition of done. The agent
+// working with kapi extracted to `i18n/src/App.klf`, a catalog in kapi's own
+// exchange format, and the gate scored that a failure while an unaided agent
+// reaching for react-i18next passed. The gate was measuring which library was
+// chosen, and it made kapi look worse than no kapi on two scenarios.
+//
+// Any format a reader would recognise as a catalog counts now. The first half
+// is unchanged and still does the real work: a catalog beside an untouched
+// App.jsx is the likelier half-finished outcome.
+var gateStringsExtracted = `! grep -q "Welcome back, Alex" src/App.jsx && ` +
+	gateHasFileMatching(`\( -name '*.klf' -o -name '*.po' -o -name '*.pot' `+
+		`-o -name '*.xlf' -o -name '*.xliff' `+
+		`-o \( -name '*.json' -a \( -path '*locale*' -o -path '*i18n*' -o -path '*translation*' \) \) \)`)
+
 // gateAnswerMentions checks the agent's closing message, for the scenarios
 // whose deliverable is an answer rather than a file.
 func gateAnswerMentions(pattern string) string {
@@ -467,9 +485,8 @@ var scenarios = []Scenario{
 		// The strings must leave the component and land in a catalog. Checking
 		// only that a catalog appeared would pass on a scaffold beside an
 		// untouched App.jsx, which is the likelier half-finished outcome.
-		CompletionGate: `! grep -q "Welcome back, Alex" src/App.jsx && ` +
-			gateHasFileMatching(`-name '*.json' -path '*locale*'`),
-		KnownLimit: "The neokapi-i18n path installs @neokapi/i18n-react from a private registry that a sandbox does not have. A catalog-library route completes; that one cannot.",
+		CompletionGate: gateStringsExtracted,
+		KnownLimit:     "The neokapi-i18n path installs @neokapi/i18n-react from a private registry that a sandbox does not have. A catalog-library route completes; that one cannot.",
 	},
 	{
 		ID:     "p10-bootstrap",
@@ -550,7 +567,7 @@ var scenarios = []Scenario{
 			{As: "package.json", Body: `{"name":"demo","private":true,"dependencies":{"react":"^19.0.0"}}` + "\n"},
 		},
 		Turns:          12,
-		CompletionGate: `! grep -q "Welcome back, Alex" src/App.jsx && ` + gateHasFileMatching(`-name '*.json' -path '*locale*'`),
+		CompletionGate: gateStringsExtracted,
 		KnownLimit:     "Same private-registry limit as p09.",
 	},
 	{

@@ -27,14 +27,22 @@ import (
 // the difference, so every claim about what kapi adds is a measurement
 // alongside the with-kapi run rather than a sentence next to it.
 //
-// The honest outcomes are three, and only one of them is "kapi was necessary":
+// The honest outcomes are four, and only one of them is "kapi was necessary":
 //
-//   - ENABLED  the gate is green with kapi and red without. The task was not
+//   - ENABLED   the gate is green with kapi and red without. The task was not
 //     reachable otherwise.
-//   - EASED    green both ways, and the unaided arm took visibly more work.
+//   - EASED     green both ways, and the unaided arm took visibly more work.
 //     kapi saved effort, which is a real claim and a smaller one.
-//   - NEITHER  same outcome, similar effort. The scenario is not evidence for
+//   - NEITHER   same outcome, similar effort. The scenario is not evidence for
 //     kapi, and saying so is the point of measuring.
+//   - HINDERED  the unaided agent finished and the one with kapi did not. This
+//     had no name in the first version and was counted as "neither", which is
+//     the one place a taxonomy must not round: three scenarios landed here on
+//     the first fully gated sweep.
+//
+// AllContributions is the list, and the summary line and the dashboard both
+// iterate it. Naming them inline is how the fourth would go missing from a
+// total while every row still showed it.
 
 // armSkill and armUnaided name the two conditions.
 const (
@@ -87,7 +95,18 @@ const (
 	// ContributionUnknown: no gate, so there is no outcome to compare. The
 	// effort difference is still reported, but it settles nothing.
 	ContributionUnknown Contribution = "unknown"
+	// ContributionHindered: the unaided agent finished and the one with kapi did
+	// not. It is the outcome an eval exists to surface, so it gets its own name
+	// rather than being averaged into the ones that flatter.
+	ContributionHindered Contribution = "hindered"
 )
+
+// AllContributions is every outcome, in the order a reader should take them:
+// strongest claim first, and the two that are not claims at the end.
+var AllContributions = []Contribution{
+	ContributionEnabled, ContributionEased,
+	ContributionHindered, ContributionNeither, ContributionUnknown,
+}
 
 // easedFactor is how much more work the unaided arm must do before the
 // difference is called out rather than treated as noise.
@@ -110,9 +129,16 @@ func contribution(withKapi, unaided []Run, gated bool) Contribution {
 		switch {
 		case w > 0 && u == 0:
 			return ContributionEnabled
+		case w == 0 && u > 0:
+			// The unaided agent finished and the one with kapi did not. Folding
+			// this into "neither" was the first version, and it buried the one
+			// outcome nobody would want buried: three scenarios landed here on
+			// the first gated sweep, and the summary line called them the same
+			// thing as a scenario where both arms sailed through.
+			return ContributionHindered
 		case w == 0:
-			// kapi did not finish either. Whatever this scenario shows, it is
-			// not that kapi enabled the task.
+			// Neither finished. Whatever this scenario shows, it is not that
+			// kapi enabled the task.
 			return ContributionNeither
 		}
 		// Green both ways: fall through to the effort comparison.
