@@ -194,8 +194,9 @@ Agents were handed a project kapi refuses to load, and the sweep said nothing.
 
 `/evals` is the answer, and it is generated, so it does not go stale here.
 
-What building the last four turned up is worth keeping, because in each case the
-eval's first result was about kapi rather than about the thing it measured:
+Building the last four evals turned up five bugs, and they are worth keeping
+here because in each case the eval's first result was about kapi rather than
+about the thing the eval set out to measure:
 
 - **`kapi exec voice-check` and `voice-infer` write nothing and exit 0**, under
   every provider, profile and input tried, while sibling tools on the same file
