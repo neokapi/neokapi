@@ -73,7 +73,7 @@ func TestWithholdingClearsTheMentionAndKeepsTheNumbers(t *testing.T) {
 	}
 
 	withholdDownstream(r)
-	assert.NoError(t, stillMentionsDownstream(r), "withholding must clear every mention it claims to")
+	require.NoError(t, stillMentionsDownstream(r), "withholding must clear every mention it claims to")
 
 	clean, dirty := r.Results[0], r.Results[1]
 	assert.Empty(t, clean.Withheld, "a result that never mentioned it is untouched")
