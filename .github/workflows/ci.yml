@@ -94,7 +94,13 @@ jobs:
           # with five checks and no Go test run at all, which is how this was
           # found. cmd/ and examples/ are in the module too but hold only
           # binaries and samples; they are covered by the post-merge full run.
-          check_paths framework '^(core|kpz|memory|terms|providers)/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
+          #
+          # scripts/ is NOT one of those. It holds tests that fail this job —
+          # coordinatereport's drift gate, checkeval — so a PR editing one of
+          # them skipped the only job that runs it, and the break surfaced on
+          # main instead. That is the same shape as the kpz case above, found
+          # the same way: by a PR fixing a scripts/ test and getting no Go run.
+          check_paths framework '^(core|kpz|memory|terms|providers|scripts)/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
           check_paths cli       '^(cli|host)/'
           check_paths platform  '^bowrain/core/'
           # A baseline edit is the one change that can take production down
