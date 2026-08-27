@@ -70,6 +70,7 @@ func main() {
 		turnCap     = flag.Int("trigger-turns", 4, "hard turn cap in trigger mode")
 		compTurns   = flag.Int("completion-turns", 40, "minimum turns a completion run gets")
 		keep        = flag.Bool("keep", false, "keep the scenario workspaces for inspection")
+		sessions    = flag.String("transcripts", "", "directory for the per-scenario session files (default: web/static/skill-eval/transcripts when publishing, none otherwise)")
 		control     = flag.Bool("control", false, "also run each scenario with no skill and no kapi on PATH, to measure what kapi adds")
 		timeout     = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
 	)
@@ -115,7 +116,21 @@ func main() {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		fail(err.Error())
 	}
+	// Sessions are published beside the dataset rather than inside it: the page
+	// imports _skilleval.json into its bundle, and a hundred file reads per
+	// scenario would be paid by every reader who wanted the four numbers at the
+	// top. A run written elsewhere with -out keeps them inline, so one file is
+	// still one whole record.
+	sessionDir := *sessions
+	if sessionDir == "" && strings.Contains(target, filepath.Join("web", "src")) {
+		sessionDir = filepath.Join(root, "web", "static", "skill-eval", "transcripts")
+	}
 	for _, part := range partitionBySurface(report) {
+		if sessionDir != "" {
+			if err := writeSessions(sessionDir, part.Key(), splitSessions(part)); err != nil {
+				fail(err.Error())
+			}
+		}
 		if err := merge(target, part); err != nil {
 			fail(err.Error())
 		}
@@ -315,6 +330,11 @@ type Result struct {
 	// Contribution is what kapi added here, measured: enabled, eased, neither,
 	// or unknown when there is no gate to compare outcomes on.
 	Contribution Contribution `json:"contribution,omitempty"`
+
+	// Transcript names the file holding this scenario's sessions, when they
+	// were published. Empty on a dataset generated before sessions were kept,
+	// which is why the page treats it as optional rather than required.
+	Transcript string `json:"transcript,omitempty"`
 }
 
 func (r *Result) score(mode string) {

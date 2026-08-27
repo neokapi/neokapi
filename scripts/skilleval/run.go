@@ -52,6 +52,16 @@ type Run struct {
 	Changed []FileChange `json:"changed,omitempty"`
 	// Err is set when the agent could not be run at all.
 	Err string `json:"error,omitempty"`
+
+	// Events is the session: every assistant message and every tool call with
+	// the result it returned. Published to its own file rather than inline —
+	// see splitSessions.
+	Events []Event `json:"events,omitempty"`
+	// EventsDropped counts events past the per-session cap, so a truncated
+	// transcript says it is one.
+	EventsDropped int `json:"eventsDropped,omitempty"`
+	// eventBytes tracks what has been kept, against maxSessionBytes.
+	eventBytes int
 }
 
 // GateResult is whether the scenario's own completion command passed.
@@ -491,60 +501,124 @@ func parseStream(r io.Reader, out *Run) {
 
 	seenTool := map[string]bool{}
 	seenMCP := map[string]bool{}
+	// A call and its result arrive in different events, joined by the id the
+	// stream puts on both. This holds the call's place in Events until the
+	// result turns up.
+	awaiting := map[string]int{}
+
 	for sc.Scan() {
 		var ev struct {
 			Type    string `json:"type"`
 			Message struct {
 				Content []struct {
-					Type  string          `json:"type"`
-					Text  string          `json:"text"`
-					Name  string          `json:"name"`
-					Input json.RawMessage `json:"input"`
+					Type      string          `json:"type"`
+					Text      string          `json:"text"`
+					Name      string          `json:"name"`
+					ID        string          `json:"id"`
+					Input     json.RawMessage `json:"input"`
+					ToolUseID string          `json:"tool_use_id"`
+					Content   json.RawMessage `json:"content"`
+					IsError   bool            `json:"is_error"`
 				} `json:"content"`
 			} `json:"message"`
 		}
-		if json.Unmarshal(sc.Bytes(), &ev) != nil || ev.Type != "assistant" {
+		if json.Unmarshal(sc.Bytes(), &ev) != nil {
 			continue
 		}
-		out.Messages++
-		for _, c := range ev.Message.Content {
-			switch c.Type {
-			case "text":
-				if t := strings.TrimSpace(c.Text); t != "" {
-					out.FinalText = scrubPaths(truncate(t, 2000))
-				}
-			case "tool_use":
-				if !seenTool[c.Name] {
-					seenTool[c.Name] = true
-					out.Tools = append(out.Tools, c.Name)
-				}
-				if tool, ok := strings.CutPrefix(c.Name, "mcp__kapi__"); ok {
-					out.Triggered = true
-					if !seenMCP[tool] {
-						seenMCP[tool] = true
-						out.MCPTools = append(out.MCPTools, tool)
+
+		switch ev.Type {
+		case "assistant":
+			out.Messages++
+			for _, c := range ev.Message.Content {
+				switch c.Type {
+				case "text":
+					if t := strings.TrimSpace(c.Text); t != "" {
+						out.FinalText = scrubPaths(truncate(t, 2000))
+						out.record(Event{Kind: "text", Text: t})
 					}
-				}
-				if c.Name == "Skill" {
-					var in struct {
-						Skill string `json:"skill"`
+				case "tool_use":
+					if !seenTool[c.Name] {
+						seenTool[c.Name] = true
+						out.Tools = append(out.Tools, c.Name)
 					}
-					if json.Unmarshal(c.Input, &in) == nil && in.Skill == "kapi" {
+					if tool, ok := strings.CutPrefix(c.Name, "mcp__kapi__"); ok {
 						out.Triggered = true
+						if !seenMCP[tool] {
+							seenMCP[tool] = true
+							out.MCPTools = append(out.MCPTools, tool)
+						}
 					}
-				}
-				if c.Name == "Bash" {
-					var in struct {
-						Command string `json:"command"`
+					if c.Name == "Skill" {
+						var in struct {
+							Skill string `json:"skill"`
+						}
+						if json.Unmarshal(c.Input, &in) == nil && in.Skill == "kapi" {
+							out.Triggered = true
+						}
 					}
-					if json.Unmarshal(c.Input, &in) == nil && mentionsKapi(in.Command) {
-						out.Triggered = true
-						out.KapiCommands = append(out.KapiCommands, scrubPaths(truncate(in.Command, 300)))
+					if c.Name == "Bash" {
+						var in struct {
+							Command string `json:"command"`
+						}
+						if json.Unmarshal(c.Input, &in) == nil && mentionsKapi(in.Command) {
+							out.Triggered = true
+							out.KapiCommands = append(out.KapiCommands, scrubPaths(truncate(in.Command, 300)))
+						}
+					}
+					before := len(out.Events)
+					out.record(Event{Kind: "tool", Name: c.Name, Input: string(c.Input)})
+					if c.ID != "" && len(out.Events) > before {
+						awaiting[c.ID] = before
 					}
 				}
 			}
+		case "user":
+			// The half the summary never had: what the tool returned, which is
+			// what the agent read before deciding what to do next.
+			for _, c := range ev.Message.Content {
+				if c.Type != "tool_result" {
+					continue
+				}
+				idx, ok := awaiting[c.ToolUseID]
+				if !ok {
+					continue
+				}
+				delete(awaiting, c.ToolUseID)
+				out.recordResult(idx, resultText(c.Content), c.IsError)
+			}
 		}
 	}
+}
+
+// resultText renders a tool result, which the stream sends either as a string
+// or as the content blocks a tool returned.
+func resultText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var blocks []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &blocks) != nil {
+		return string(raw)
+	}
+	var parts []string
+	for _, b := range blocks {
+		switch {
+		case b.Text != "":
+			parts = append(parts, b.Text)
+		case b.Type != "":
+			// An image, or anything else without text. Naming the kind is
+			// more use than dropping the block silently.
+			parts = append(parts, "["+b.Type+"]")
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 // mentionsKapi reports whether a shell command drives kapi or one of the

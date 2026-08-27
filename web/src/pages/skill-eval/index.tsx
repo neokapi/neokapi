@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import data from "./_skilleval.json";
 
 // The skill-eval dashboard: does the shipped Agent Skill fire on the tasks it
@@ -44,6 +45,29 @@ interface Run {
   changed?: FileChange[];
   error?: string;
 }
+// One step of a recorded session: an assistant message, or a tool call with
+// what it returned.
+interface SessionEvent {
+  kind: "text" | "tool";
+  name?: string;
+  text?: string;
+  input?: string;
+  output?: string;
+  failed?: boolean;
+}
+interface Session {
+  events: SessionEvent[];
+  dropped?: number;
+}
+// The sidecar, fetched when a reader opens a scenario. Sessions are large and
+// the dataset above is imported into the bundle, so they are not in it.
+interface SessionFile {
+  key: string;
+  scenario: string;
+  prompt: string;
+  runs: Session[];
+  unaided?: Session[];
+}
 interface Scenario {
   id: string;
   kind: "positive" | "negative";
@@ -70,6 +94,9 @@ interface Result {
   unaided?: Run[];
   unaidedGatePassed?: number;
   contribution?: "enabled" | "eased" | "hindered" | "neither" | "unknown";
+  // The file holding this scenario's sessions. Absent on a dataset generated
+  // before they were kept, so everything below treats it as optional.
+  transcript?: string;
 }
 interface Runner {
   claudeVersion: string;
@@ -599,6 +626,132 @@ function Detail({ r }: { r: Result }): ReactElement {
       </div>
 
       <UnaidedRuns r={r} />
+      <FullSession r={r} />
+    </div>
+  );
+}
+
+// FullSession fetches and draws the whole conversation.
+//
+// The rows above are what the harness measured: which tools, how many messages,
+// what changed on disk. They answer what the agent did and not why, and why is
+// the question a surprising verdict raises. #2227 was found that way, from a
+// transcript showing an agent produce a correct change-set and then spend a
+// 40-turn budget on the one rejection — read on the machine that ran it,
+// because nothing published it.
+//
+// Loaded on demand rather than imported: sessions are much larger than the
+// dataset, and a reader who wants the four numbers at the top should not pay
+// for a hundred file reads to get them.
+function FullSession({ r }: { r: Result }): ReactElement | null {
+  const dir = useBaseUrl("/skill-eval/transcripts/");
+  const [file, setFile] = useState<SessionFile | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
+
+  if (!r.transcript) return null;
+
+  const load = (): void => {
+    setState("loading");
+    fetch(dir + r.transcript)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((body: SessionFile) => {
+        setFile(body);
+        setState("idle");
+      })
+      .catch(() => setState("failed"));
+  };
+
+  return (
+    <div>
+      <div style={s.h}>Full session</div>
+      {!file && state !== "failed" && (
+        <button
+          type="button"
+          onClick={load}
+          disabled={state === "loading"}
+          style={{
+            font: "inherit",
+            fontSize: ".85rem",
+            padding: ".35rem .8rem",
+            borderRadius: 6,
+            border: "1px solid var(--ifm-color-emphasis-300)",
+            background: "var(--ifm-background-surface-color)",
+            color: "var(--ifm-font-color-base)",
+            cursor: state === "loading" ? "default" : "pointer",
+          }}
+        >
+          {state === "loading" ? "Loading…" : "Load the transcript"}
+        </button>
+      )}
+      {state === "failed" && (
+        <p style={{ ...s.sub, margin: 0 }}>
+          The transcript could not be loaded. It is written by the run that produced this row, so a
+          dataset copied without <code>static/skill-eval/transcripts/</code> will not have it.
+        </p>
+      )}
+      {file && (
+        <div style={{ display: "grid", gap: "1.1rem", marginTop: ".6rem" }}>
+          {file.runs.map((sess, i) => (
+            <SessionView key={`k${i}`} label={`with kapi · pass ${i + 1}`} sess={sess} />
+          ))}
+          {(file.unaided ?? []).map((sess, i) => (
+            <SessionView key={`u${i}`} label={`control · pass ${i + 1}`} sess={sess} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// SessionView draws one conversation in order.
+function SessionView({ label, sess }: { label: string; sess: Session }): ReactElement {
+  return (
+    <div>
+      <div style={{ ...s.sub, marginBottom: ".4rem" }}>{label}</div>
+      <div style={{ display: "grid", gap: ".5rem" }}>
+        {sess.events.map((e, i) => (
+          <EventView key={i} e={e} />
+        ))}
+      </div>
+      {sess.dropped ? (
+        <p style={{ ...s.sub, margin: ".4rem 0 0" }}>
+          {sess.dropped} further event{sess.dropped === 1 ? "" : "s"} not recorded: this session
+          reached the size a published transcript is capped at.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EventView({ e }: { e: SessionEvent }): ReactElement {
+  if (e.kind === "text") {
+    return (
+      <div
+        style={{
+          borderLeft: "3px solid var(--ifm-color-emphasis-300)",
+          paddingLeft: ".7rem",
+          fontSize: ".87rem",
+          lineHeight: 1.55,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {e.text}
+      </div>
+    );
+  }
+  const t = e.failed ? tone.fail : tone.flat;
+  return (
+    <div style={{ borderLeft: `3px solid ${t.fg}`, paddingLeft: ".7rem" }}>
+      <div style={{ display: "flex", gap: ".5rem", alignItems: "center", marginBottom: ".2rem" }}>
+        <Pill text={e.name ?? "tool"} t={e.failed ? "fail" : "flat"} />
+        {e.failed && <span style={{ ...s.sub, color: tone.fail.fg }}>returned an error</span>}
+      </div>
+      {e.input && <div style={s.cmd}>{e.input}</div>}
+      {e.output && (
+        <pre style={{ ...s.pre, marginTop: ".3rem", maxHeight: "18rem", overflow: "auto" }}>
+          {e.output}
+        </pre>
+      )}
     </div>
   );
 }
