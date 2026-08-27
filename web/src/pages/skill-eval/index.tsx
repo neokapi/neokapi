@@ -61,7 +61,7 @@ interface Result {
   scenario: Scenario;
   runs: Run[];
   fired: number;
-  verdict: "pass" | "fail" | "flaky" | "not run";
+  verdict: "pass" | "fail" | "flaky" | "no gate" | "not run";
   gatePassed?: number;
   foundTool?: number;
   wrongTool?: string[];
@@ -236,10 +236,17 @@ function Pill({ text, t }: { text: string; t: Tone }): ReactElement {
   return <span style={{ ...s.pill, color: tone[t].fg, background: tone[t].bg }}>{text}</span>;
 }
 
+// Every verdict the runner can emit needs an entry. A Record over the union
+// makes that a compile error rather than a crash: "no gate" was added to the
+// Go side and this map was not, so the completion tab threw on its first
+// ungated row and the whole page fell back to the error boundary.
 const verdictTone: Record<Result["verdict"], Tone> = {
   pass: "pass",
   flaky: "flaky",
   fail: "fail",
+  // Not a pass and not a failure. Nothing about the scenario was verified,
+  // which is its own thing and reads as neutral.
+  "no gate": "flat",
   "not run": "flat",
 };
 
