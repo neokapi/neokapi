@@ -232,7 +232,7 @@ function WorstFiles({ c }: { c: ConverterResult }): ReactElement | null {
   return (
     <details style={s.card}>
       <summary>
-        <strong>{c.id}</strong> — the documents it lost the most on
+        <strong>{c.id}</strong>: the documents it lost the most on
       </summary>
       <p style={s.note}>{c.note}</p>
       <code style={s.code}>{c.command}</code>
@@ -335,8 +335,8 @@ export default function ConversionEval(): ReactElement {
 
         <h2 style={s.h2}>Across everything each tool accepted</h2>
         <p style={s.sub}>
-          Not a ranking. The tools read different file sets — textutil takes Word documents only,
-          LibreOffice has no text target for Impress, pandoc does not read spreadsheets — so these
+          Not a ranking. The tools read different file sets: textutil takes Word documents only,
+          LibreOffice has no text target for Impress, pandoc does not read spreadsheets. So these
           numbers are computed over different documents and the column cannot be compared top to
           bottom.
         </p>

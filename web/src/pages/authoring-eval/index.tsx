@@ -254,13 +254,13 @@ function CorpusSection(): ReactElement {
       </div>
       <details style={s.card}>
         <summary>
-          The reference profile — what the on-profile half was written from, and what an inferred
+          The reference profile: what the on-profile half was written from, and what an inferred
           draft is compared against
         </summary>
         <pre style={{ ...s.pre, marginTop: ".8rem" }}>{c.profile}</pre>
       </details>
       <details style={s.card}>
-        <summary>The contrast profile — the control for the steering measurement</summary>
+        <summary>The contrast profile: the control for the steering measurement</summary>
         <p style={s.sub}>
           It wants the opposite on every axis the schema allows. Steering toward the reference
           should push a document away from this one; guidance that only says &ldquo;write
@@ -278,7 +278,7 @@ function CorpusSection(): ReactElement {
               {d.plants?.length ? (
                 <span style={s.sub}>{d.plants.length} marked</span>
               ) : (
-                <span style={s.sub}>nothing marked — the right answer is silence</span>
+                <span style={s.sub}>nothing marked, so the right answer is silence</span>
               )}
             </div>
             <pre style={{ ...s.pre, marginTop: ".4rem" }}>{d.body}</pre>
@@ -286,7 +286,7 @@ function CorpusSection(): ReactElement {
               <ul style={{ marginTop: ".4rem", fontSize: ".85rem" }}>
                 {d.plants.map((p) => (
                   <li key={p.text}>
-                    <code style={s.code}>{p.text}</code> — {p.rule}{" "}
+                    <code style={s.code}>{p.text}</code> · {p.rule}{" "}
                     <Pill text={p.mechanism} t="flat" />
                   </li>
                 ))}
@@ -386,7 +386,7 @@ function CheckSection({ a }: { a: CheckAccuracy }): ReactElement {
                   <ul style={{ fontSize: ".85rem", marginTop: ".3rem" }}>
                     {o.findings.map((f, i) => (
                       <li key={`${f.original_text}-${i}`}>
-                        <code style={s.code}>{f.original_text}</code> — {f.message}{" "}
+                        <code style={s.code}>{f.original_text}</code> · {f.message}{" "}
                         {o.covered?.[i] ? (
                           <Pill text={`on “${o.covered[i]}”`} t="ok" />
                         ) : (
@@ -479,7 +479,7 @@ function SteerSection(): ReactElement | null {
     <section>
       <h2 style={s.h2}>Does the voice guide steer writing, or only improve it?</h2>
       <p style={s.sub}>
-        Each brief is written twice by {t.provider}:{t.model} — once with nothing, once with{" "}
+        Each brief is written twice by {t.provider}:{t.model}, once with nothing and once with{" "}
         <code style={s.code}>kapi voice guide</code> as the system turn. The user turn is identical.
         Both versions are scored against the profile the guide came from and against a profile that
         wants the opposite, because any competent writing guidance raises any reasonable score. The
@@ -548,7 +548,7 @@ function SteerSection(): ReactElement | null {
           </div>
 
           <details style={s.card}>
-            <summary>The guide, verbatim — the whole measurement is about this string</summary>
+            <summary>The guide, verbatim. The whole measurement is about this string</summary>
             <pre style={s.pre}>{t.guide}</pre>
           </details>
 
@@ -560,7 +560,7 @@ function SteerSection(): ReactElement | null {
                 {d.error ? <div style={s.banner}>{d.error}</div> : null}
                 <div style={{ ...s.two, marginTop: ".5rem" }}>
                   <div>
-                    <div style={s.label}>bare — no guide</div>
+                    <div style={s.label}>bare, no guide</div>
                     <pre style={s.pre}>{d.bare}</pre>
                     <Findings list={d.bareFindings} />
                   </div>
@@ -591,7 +591,7 @@ function Findings({ list }: { list?: Finding[] }): ReactElement {
     <ul style={{ fontSize: ".82rem", marginTop: ".3rem" }}>
       {list.map((f, i) => (
         <li key={`${f.original_text}-${i}`}>
-          <code style={s.code}>{f.original_text}</code> — {f.message}
+          <code style={s.code}>{f.original_text}</code> · {f.message}
         </li>
       ))}
     </ul>

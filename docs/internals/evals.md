@@ -65,13 +65,13 @@ and the row renders it before anyone clicks.
 Register an extractor there rather than typing the number on the card. A typed
 number goes wrong exactly the way a typed date does, and in the flattering
 direction. `TestARegisteredHeadlineResolves` fails if a registered extractor
-returns nothing, which is what happens when a dataset's shape moves under it —
-three of the first five read keys that do not exist and the only symptom was a
+returns nothing, which is what happens when a dataset's shape moves under it.
+Three of the first five read keys that do not exist, and the only symptom was a
 blank column.
 
 Pick the comparison the number claims to be, and check it is the one being
 computed. Engine speed divided the two engines' total wall times, and the
-engines do not succeed on the same files — 725 against 802 — so it compared one
+engines do not succeed on the same files (725 against 802), so it compared one
 engine's corpus against another's. Summing only the files both read gives 23.8×
 where the totals gave 22.7×. Close enough that nobody would have caught it, and
 no reason the next run would be as kind.
@@ -176,15 +176,15 @@ one that cannot pass wastes a metered sweep discovering its own bug.
 `TestAGateIsRedBeforeTheAgentRuns` now does that automatically: it builds every
 scenario's fixture and runs the gate against it, requiring a red exit. Reading
 the gate as a string was the first version and it missed three, all green before
-the agent started. One asked `kapi voice check`, which accepts any YAML at all —
+the agent started. One asked `kapi voice check`, which accepts any YAML at all:
 every profile field is optional, so an empty file scores 100/100 with no
 findings, and a directory merely containing a `.yaml` satisfied it. Use
 `kapi voice validate` when the question is whether a profile is usable.
 
 The fixtures need the same treatment. Both project fixtures were invented, and
-every key was wrong — `version: "1"` where the loader wants `v1`,
+every key was wrong. `version: "1"` where the loader wants `v1`,
 `source:`/`targets:` for `source_language`/`target_languages`, `include:` for
-`content: - path:` — and only the last was ever reported, because `Defaults` and
+`content: - path:`. Only the last was ever reported, because `Defaults` and
 `Collection` end in an inline `Extras` map and an unrecognised key is preserved
 rather than rejected ([#2223](https://github.com/neokapi/neokapi/issues/2223)).
 Agents were handed a project kapi refuses to load, and the sweep said nothing.
@@ -210,7 +210,7 @@ eval's first result was about kapi rather than about the thing it measured:
   term-mechanism miss in the authoring corpus.
 - **An empty voice profile scores 100/100** and reports the text as on brand
   ([#2224](https://github.com/neokapi/neokapi/issues/2224)).
-- **The engine benchmark wrote 844 files where nobody looked for them** — a
+- **The engine benchmark wrote 844 files where nobody looked for them.** A
   repo-relative `-output` resolved against each engine's scratch `cmd.Dir`, so
   every file scored "no output written" and the run reported 0/844 with real
   timings ([#2221](https://github.com/neokapi/neokapi/issues/2221), fixed in
@@ -218,7 +218,7 @@ eval's first result was about kapi rather than about the thing it measured:
 
 Three of the four are the same shape: a voice surface reporting silence as
 approval. An eval is the only thing that notices, because each failure is
-invisible from the outside — the command exits 0 and says nothing is wrong.
+invisible from the outside. The command exits 0 and says nothing is wrong.
 
 ## Comparing against other tools
 
