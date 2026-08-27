@@ -113,7 +113,13 @@ const reports = data as Record<string, Report>;
 // .pptx that "the agent has no other way to read it", and an unaided agent
 // answered correctly in three calls with unzip. A .pptx is a zip of XML. The
 // suite was full of assertions like that, and only the run settles them.
-function ControlArm({ sum }: { sum: Report["summary"] }): ReactElement | null {
+function ControlArm({
+  sum,
+  results,
+}: {
+  sum: Report["summary"];
+  results: Result[];
+}): ReactElement | null {
   const n = sum.contributions;
   if (!n) return null;
   const total = CONTRIBUTIONS.reduce((a, c) => a + (n[c.key] ?? 0), 0);
@@ -134,6 +140,7 @@ function ControlArm({ sum }: { sum: Report["summary"] }): ReactElement | null {
         comparison is deliberately conservative: kapi failing is never counted as a win, the message
         counts are medians, and a scenario with no gate is unknown rather than assumed.
       </p>
+      <MessageCost results={results} />
       <div style={{ display: "flex", flexWrap: "wrap", gap: "1.4rem", marginTop: ".8rem" }}>
         {CONTRIBUTIONS.map((c) => (
           <div key={c.key} style={{ minWidth: "13rem" }}>
@@ -667,6 +674,36 @@ function UnaidedRuns({ r }: { r: Result }): ReactElement | null {
   );
 }
 
+// MessageCost is the other half of the control, and the counts say it plainly:
+// on this suite the kapi route is not cheaper. "eased 0" on its own reads like
+// an absence of evidence; it is not. The unaided arm took fewer messages on
+// most scenarios, often several times fewer, and a page reporting what kapi
+// added has to report that too.
+function MessageCost({ results }: { results: Result[] }): ReactElement | null {
+  const pairs = results
+    .filter((r) => (r.unaided?.length ?? 0) > 0 && (r.runs?.length ?? 0) > 0)
+    .map((r) => ({
+      id: r.scenario.id,
+      withKapi: median((r.runs ?? []).map((x) => x.messages)),
+      unaided: median((r.unaided ?? []).map((x) => x.messages)),
+    }))
+    .filter((p) => p.withKapi > 0 && p.unaided > 0);
+  if (pairs.length === 0) return null;
+
+  const cheaper = pairs.filter((p) => p.unaided < p.withKapi).length;
+  const totalWith = pairs.reduce((n, p) => n + p.withKapi, 0);
+  const totalWithout = pairs.reduce((n, p) => n + p.unaided, 0);
+  return (
+    <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
+      <strong>What it cost.</strong> Across {pairs.length} scenarios the agent sent{" "}
+      <strong>{totalWith}</strong> messages with kapi and <strong>{totalWithout}</strong> without,
+      and the unaided arm was shorter on {cheaper} of them. That is the honest counterweight to the
+      counts below: on this suite kapi reaches answers the unaided agent cannot, and it is not the
+      cheaper route to the ones it can.
+    </p>
+  );
+}
+
 function median(xs: number[]): number {
   if (xs.length === 0) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -866,7 +903,7 @@ export default function SkillEval(): ReactElement {
           {surfaceNote[surface]}
         </p>
 
-        <ControlArm sum={sum} />
+        <ControlArm sum={sum} results={report.results} />
 
         <h2>
           {surface === "mcp" ? "Must pick the right tool" : "Must fire"} ({positives.length})
