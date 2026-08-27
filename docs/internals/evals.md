@@ -198,6 +198,34 @@ rather than rejected ([#2223](https://github.com/neokapi/neokapi/issues/2223)).
 Agents were handed a project kapi refuses to load, and the sweep said nothing.
 `TestEveryFixtureRecipeLoads` loads every fixture recipe through kapi.
 
+## What the control arm found
+
+The first fully gated sweep with the unaided control, over 17 scenarios:
+
+```
+kapi enabled 3, eased 1, hindered 3, neither 10
+```
+
+`hindered` means the agent with kapi failed where the unaided one passed. It had
+no name in the first version, which counted it as `neither` and put it beside
+scenarios where both arms sailed through. Three of seventeen is the number that
+would have been lost.
+
+Two of the three are the same failure: **the kapi route extracts a catalog and
+stops.** p09 produced `i18n/src/App.klf` and never touched `src/App.jsx`; p14
+produced the catalog, edited `App.jsx`, and left `<h1>Welcome back, Alex</h1>`
+in it. Neither app is translatable, and both look finished from the catalog
+alone. That is why the gate asks for the string to have left the component as
+well: a catalog beside an untouched component is the likelier half-finished
+outcome, and it is what an agent following the extraction path produces.
+
+The third is #2227.
+
+The counts are also not the whole comparison. The unaided arm was shorter on
+most scenarios and often several times shorter, so the page reports the message
+totals beside the outcome counts. kapi reaches answers the unaided agent cannot,
+and it is not the cheaper route to the ones it can.
+
 ## Where the gaps are
 
 `/evals` is the answer, and it is generated, so it does not go stale here.
