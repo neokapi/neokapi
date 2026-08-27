@@ -151,15 +151,25 @@ sign in,se connecter,anmelden,
 // A profile is usable when `kapi voice validate` accepts it. Which file the
 // agent chose is its business, so the gate tries each candidate.
 //
-// The first version asked `kapi voice check` instead, and it was green on any
-// YAML file in the directory: every profile field is optional, so an empty file
-// and `hello: world` both load as a profile and score 100/100 "on brand" with
-// no findings. validate is the command that has an opinion — it rejects both
-// for a missing name, rejects a recipe outright, and rejects unknown fields.
-// Reported as issue #2224, because a check that scores an empty profile as
-// passing misleads a user the same way it misled this gate.
-const gateUsableVoiceProfile = `for f in *.yaml *.yml; do [ -e "$f" ] || continue; ` +
-	`kapi voice validate "$f" >/dev/null 2>&1 && exit 0; done; exit 1`
+// Three things this had wrong, all found by running it rather than reading it:
+//
+// It asked `kapi voice check`, which is green on any YAML in the directory:
+// every profile field is optional, so an empty file and `hello: world` both
+// load as a profile and score 100/100 "on brand". validate is the command with
+// an opinion, and it rejects both for a missing name. See issue #2224.
+//
+// It globbed `*.yaml` in the working directory only, while kapi's own
+// convention puts the profile at `.kapi/voice.yaml`. The agent that did exactly
+// the right thing was scored a failure for it.
+//
+// It ended in `exit 1`, so composing it with `&&` produced a gate whose second
+// half could never run: `…; exit 1 && test -n "$(find …)"` terminates at the
+// exit. p16 asked for a voice profile and terms, found both, and failed.
+//
+// It is one `test` now, which composes.
+var gateUsableVoiceProfile = `test -n "$(find . -path ./node_modules -prune -o ` +
+	`\( -name '*.yaml' -o -name '*.yml' \) -print | while read -r f; do ` +
+	`kapi voice validate "$f" >/dev/null 2>&1 && echo "$f"; done)"`
 
 // A project exists when the recipe is there AND kapi can read it. The first
 // half alone passes on a file the agent hand-wrote and kapi rejects.
@@ -193,6 +203,20 @@ var gateStringsExtracted = `! grep -q "Welcome back, Alex" src/App.jsx && ` +
 	gateHasFileMatching(`\( -name '*.klf' -o -name '*.po' -o -name '*.pot' `+
 		`-o -name '*.xlf' -o -name '*.xliff' `+
 		`-o \( -name '*.json' -a \( -path '*locale*' -o -path '*i18n*' -o -path '*translation*' \) \) \)`)
+
+// A translated .docx exists when some document other than the source carries
+// Japanese, and kapi can still read it. Existence alone would pass on an empty
+// file, and a text search alone would pass on a corrupt one. Which file the
+// agent wrote is its business.
+//
+// One `test`, not a loop ending in `exit 0`. A gate that ends the shell cannot
+// be composed, and that same shape in gateUsableVoiceProfile silently ate the
+// second half of p16's gate.
+var gateDocxContainsJapanese = `test -n "$(find . -name '*.docx' ! -name 'announcement.docx' | ` +
+	`while read -r f; do kapi kcat "$f" 2>/dev/null | python3 -c ` +
+	`"import sys; t=sys.stdin.read(); ` +
+	`sys.exit(0 if any(chr(0x3040)<=c<=chr(0x9fff) for c in t) else 1)" ` +
+	`&& echo "$f"; done)"`
 
 // gateAnswerMentions checks the agent's closing message, for the scenarios
 // whose deliverable is an answer rather than a file.
@@ -429,10 +453,7 @@ var scenarios = []Scenario{
 		// A second .docx that kapi can still read and that contains kana or
 		// kanji. Existence alone would pass on an empty file, and a text search
 		// alone would pass on a corrupt one.
-		CompletionGate: `for f in $(find . -name '*.docx' ! -name 'announcement.docx'); do ` +
-			`kapi kcat "$f" 2>/dev/null | python3 -c ` +
-			`"import sys; t=sys.stdin.read(); ` +
-			`sys.exit(0 if any(chr(0x3040)<=c<=chr(0x9fff) for c in t) else 1)" && exit 0; done; exit 1`,
+		CompletionGate: gateDocxContainsJapanese,
 	},
 	{
 		ID:     "p07-translate-json-terms",

@@ -97,6 +97,51 @@ func TestGateSyntaxCannotBeTriviallyTrue(t *testing.T) {
 	}
 }
 
+// TestAGateDoesNotEndTheShell.
+//
+// `exit` in a gate cannot be composed. gateUsableVoiceProfile ended in
+// `exit 1`, and p16 chained it with `&& test -n "$(find …)"` to ask for a voice
+// profile and terms: the shell reached the exit and stopped, so the terms half
+// never ran and the voice half was the whole gate. The scenario produced both
+// artefacts and was scored a failure.
+//
+// A gate is one expression whose status is the answer. `exit` is how it stops
+// being that.
+func TestAGateDoesNotEndTheShell(t *testing.T) {
+	for _, sc := range scenarios {
+		if sc.CompletionGate == "" {
+			continue
+		}
+		t.Run(sc.ID, func(t *testing.T) {
+			// Shell `exit` only. `sys.exit(...)` inside a `python3 -c` is the
+			// script reporting its own status, which is exactly how a gate
+			// should end, so matching a bare \bexit\b flags the right answer.
+			assert.NotRegexp(t, `(^|[;&|]\s*|\bdo\s+)exit\b`, sc.CompletionGate,
+				"a shell `exit` cannot be composed with && or ||, and the half after it never runs")
+		})
+	}
+}
+
+// TestGatesSearchTheWholeWorkspace.
+//
+// A gate that globs the working directory misses what the agent put where the
+// tool's own convention puts it. gateUsableVoiceProfile globbed `*.yaml` while
+// kapi writes `.kapi/voice.yaml`, so the agent that did exactly the right thing
+// failed. Anything looking for a file the agent chose the location of searches
+// with find.
+func TestGatesSearchTheWholeWorkspace(t *testing.T) {
+	for _, sc := range scenarios {
+		g := sc.CompletionGate
+		if g == "" || !strings.Contains(g, "*.yaml") {
+			continue
+		}
+		t.Run(sc.ID, func(t *testing.T) {
+			assert.Contains(t, g, "find ",
+				"this gate globs for YAML in the working directory; kapi's own convention is .kapi/voice.yaml")
+		})
+	}
+}
+
 // TestProjectGatesPassTheProjectExplicitly.
 //
 // The isolation contract sets KAPI_NO_PROJECT=1, so discovery is off. A bare
