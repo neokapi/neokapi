@@ -35,6 +35,9 @@ import (
 // Tail between their children so significant whitespace is never
 // modified.
 type Writer struct {
+	// unplacedTermMarks accumulates the term spans this write could not
+	// draw. Read it with UnplacedTermMarks.
+	unplacedTermMarks []UnplacedTermMark
 	format.BaseFormatWriter
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
@@ -1514,7 +1517,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 
 		srcEl := segEl.CreateElement("source")
-		writeSegmentInline(srcEl, srcSeg)
+		w.writeSegmentInline(srcEl, srcSeg)
 
 		// Pair the target segment: by id when ids are present (the
 		// segmented case carries overlay span ids), else positionally
@@ -1537,7 +1540,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		// unmatched prefill segments don't produce empty <target>s.
 		if tgt != nil && (byID || len(tgt.Runs) > 0 || tgt.Content != nil) {
 			tgtEl := segEl.CreateElement("target")
-			writeSegmentInline(tgtEl, tgt)
+			w.writeSegmentInline(tgtEl, tgt)
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
@@ -1555,12 +1558,21 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 // fresh per-segment Inline IR when available, falling back to the
 // segment's Run text otherwise. See freshInlineIR for staleness
 // detection.
-func writeSegmentInline(el *etree.Element, s *seg) {
+func (w *Writer) writeSegmentInline(el *etree.Element, s *seg) {
 	if s == nil {
 		return
 	}
 	if ir := freshInlineIR(s); ir != nil {
-		renderInlinesInto(el, ir.Inlines)
+		// Marks are spliced here rather than stored on the IR: the IR is the
+		// document's own inline structure, and a term span is a conclusion
+		// about it. Drawing at emit time keeps a re-read from finding marks
+		// the source file never carried.
+		inls, unplaced := spliceMarks(ir.Inlines, s.Marks)
+		// A mark this segmentation cannot carry is recorded, never dropped
+		// quietly: the caller reads UnplacedTermMarks to say what was not
+		// drawn and why.
+		w.noteUnplaced(s, unplaced)
+		renderInlinesInto(el, inls)
 		return
 	}
 	el.SetText(model.RenderRunsWithData(s.Runs))

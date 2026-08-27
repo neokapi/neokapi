@@ -40,9 +40,13 @@ type seg struct {
 	Runs []model.Run
 	// Marks are the annotation markers this segment carried, in run
 	// coordinates local to Runs.
-	Marks     []markSpan
-	Ignorable bool
-	Content   *Content // full inline IR for this segment's body
+	Marks []markSpan
+	// UnplacedMarks are term spans this segmentation cannot carry — one
+	// straddling two segments. The writer reports them rather than drawing
+	// half of a pair.
+	UnplacedMarks []model.Span
+	Ignorable     bool
+	Content       *Content // full inline IR for this segment's body
 }
 
 // UnitSegmentsAnnotation carries the per-segment inline IR for a unit's
@@ -272,7 +276,24 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 	if ir != nil {
 		srcIR = ir.Source
 	}
-	return segsFromOverlay(block.Source, overlay, srcIR)
+	segs := segsFromOverlay(block.Source, overlay, srcIR)
+	return withTermMarks(segs, block.OverlayOf(model.OverlayTerm))
+}
+
+// withTermMarks hands each segment the term spans that fall inside it, so the
+// writer can draw them without needing the block in scope.
+func withTermMarks(segs []seg, overlay *model.Overlay) []seg {
+	if overlay == nil || len(overlay.Spans) == 0 {
+		return segs
+	}
+	placed, unplaced := marksForSegments(segs, overlay.Spans)
+	for i := range segs {
+		segs[i].Marks = placed[i]
+	}
+	if len(unplaced) > 0 && len(segs) > 0 {
+		segs[0].UnplacedMarks = unplaced
+	}
+	return segs
 }
 
 // targetSegsFromBlock reconstructs the target seg list for a locale.
