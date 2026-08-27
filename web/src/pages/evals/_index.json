@@ -237,6 +237,11 @@
       "page": "/coordinate",
       "fresh": {
         "date": "2026-08-26T22:55:36Z"
+      },
+      "headline": {
+        "value": "4",
+        "of": "governed points resolved, 5 reuse chains traced",
+        "tone": "ok"
       }
     },
     {
@@ -336,6 +341,11 @@
       "page": "/coordinate",
       "fresh": {
         "date": "2026-08-27T05:24:05Z"
+      },
+      "headline": {
+        "value": "6",
+        "of": "prompts captured and inspected",
+        "tone": "ok"
       }
     },
     {
@@ -353,6 +363,11 @@
       "page": "/batch-eval",
       "fresh": {
         "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "128",
+        "of": "blocks per call still intact, of 600 tried",
+        "tone": "gap"
       }
     },
     {

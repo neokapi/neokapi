@@ -50,6 +50,9 @@ var extractors = map[string]func(doc any) *Headline{
 	"format-maturity":       headlineMaturity,
 	"engine-speed":          headlineEngineSpeed,
 	"reuse-effect":          headlineReuseEffect,
+	"batching-cost":         headlineBatching,
+	"reuse-rules":           headlineReuseRules,
+	"prompt-contents":       headlinePromptContents,
 }
 
 // readHeadline pulls the number out of a dataset, or returns nil.
@@ -349,6 +352,88 @@ func headlineContext(doc any) *Headline {
 		Of:    "adherence, context against none",
 		Tone:  band(lift, 20, 5),
 	}
+}
+
+// headlineBatching reports the largest batch size that came back intact.
+//
+// The question batching poses is not how fast it is but where it breaks: a
+// block that never returns, a placeholder that does not survive, a segment that
+// comes back untranslated. So the headline is the biggest N with none of those.
+func headlineBatching(doc any) *Headline {
+	runs, ok := dig(doc, "runs").([]any)
+	if !ok || len(runs) == 0 {
+		return nil
+	}
+	results, ok := dig(runs[len(runs)-1], "results").([]any)
+	if !ok || len(results) == 0 {
+		return nil
+	}
+	best, tried := 0.0, 0.0
+	for _, r := range results {
+		n, ok := num(dig(r, "n"))
+		if !ok {
+			continue
+		}
+		tried = maxf(tried, n)
+		broken := false
+		for _, k := range []string{"missing", "placeholder_breaks", "tag_breaks", "untranslated"} {
+			if v, ok := num(dig(r, k)); ok && v > 0 {
+				broken = true
+			}
+		}
+		if !broken {
+			best = maxf(best, n)
+		}
+	}
+	if tried == 0 {
+		return nil
+	}
+	return &Headline{
+		Value: fmt.Sprintf("%d", int(best)),
+		Of:    fmt.Sprintf("blocks per call still intact, of %d tried", int(tried)),
+		Tone:  band(best/tried, 1, 0.5),
+	}
+}
+
+// headlineReuseRules reports how many governed points the recipe resolves.
+func headlineReuseRules(doc any) *Headline {
+	points, ok := dig(doc, "points").([]any)
+	if !ok || len(points) == 0 {
+		return nil
+	}
+	chains, _ := dig(doc, "chains").([]any)
+	return &Headline{
+		Value: fmt.Sprintf("%d", len(points)),
+		Of:    fmt.Sprintf("governed points resolved, %d reuse chains traced", len(chains)),
+		Tone:  "ok",
+	}
+}
+
+// headlinePromptContents reports how many prompts were captured and checked.
+//
+// This eval reads what kapi sent rather than what came back, so its number is a
+// count of prompts inspected. Nothing here is a quality score, and the card says
+// so.
+func headlinePromptContents(doc any) *Headline {
+	// `cases` is the list of them, not a count. Reading it as a number returned
+	// nothing, which TestARegisteredHeadlineResolves caught — the point of that
+	// test being that a nil headline is invisible on the page.
+	cases, ok := dig(doc, "cases").([]any)
+	if !ok || len(cases) == 0 {
+		return nil
+	}
+	return &Headline{
+		Value: fmt.Sprintf("%d", len(cases)),
+		Of:    "prompts captured and inspected",
+		Tone:  "ok",
+	}
+}
+
+func maxf(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // --- helpers ----------------------------------------------------------------
