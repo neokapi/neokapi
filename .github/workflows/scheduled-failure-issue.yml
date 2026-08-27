@@ -1,0 +1,95 @@
+# A failing scheduled run tells someone.
+#
+# Nothing here watches a schedule itself: it listens for the scheduled
+# workflows finishing and files an issue when one fails. That indirection is
+# the point — a `workflow_run` listener covers every workflow named below
+# without editing any of them, so a new scheduled job is one line here rather
+# than a failure path in eight files that each have to remember it.
+#
+# The gap this closes: a nightly failure previously reached a log and stopped.
+# e2e.yml already records two suites promoted to pre-merge because they went
+# red and stayed red unnoticed ("because the job was nightly-only, nothing said
+# so"). Two more followed. The E2E image build broke when the vite-plus
+# installer moved its tree, and Dogfood Sync broke when the push protocol
+# retired /push/diff without re-cutting the plugin that calls it — six days,
+# with the evidence sitting in CloudWatch the whole time.
+#
+# One open issue per workflow, reopened and commented rather than duplicated,
+# so a job failing every night is one thread and not thirty.
+name: Scheduled failure
+
+on:
+  workflow_run:
+    workflows:
+      - Nightly
+      - E2E
+      - Dogfood Sync
+      - Security
+      - Container Scan
+      - Contract Audit
+      - Evals Refresh
+      - Bowrain Build
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    name: File the failure
+    runs-on: ubuntu-latest
+    # Only a SCHEDULED failure. A push or dispatch failure already has someone
+    # watching it — the person who pushed — and filing for those turns the
+    # tracker into a second, worse copy of the Actions tab.
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'schedule'
+    steps:
+      - name: Open or update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_AT: ${{ github.event.workflow_run.updated_at }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          title="Scheduled run failing: ${WORKFLOW}"
+          body="$(printf '%s\n' \
+            "\`${WORKFLOW}\` failed on its schedule." \
+            "" \
+            "- Run: ${RUN_URL}" \
+            "- Commit: \`${SHA}\`" \
+            "- At: ${RUN_AT}" \
+            "" \
+            "This issue is reused for every subsequent failure of this workflow," \
+            "so the thread is the failure's history. Close it when the run is" \
+            "green again; the next failure reopens it.")"
+
+          # One thread per workflow, found by exact title among open AND closed,
+          # so a recurrence reopens the history instead of starting a new one.
+          # The title goes to jq as DATA (--arg), never spliced into the program:
+          # a workflow name carrying a quote would otherwise rewrite the filter.
+          existing="$(gh issue list \
+            --state all \
+            --label scheduled-failure \
+            --limit 100 \
+            --json number,title,state \
+            | jq -c --arg t "$title" 'map(select(.title == $t)) | first // empty')"
+
+          if [ -z "$existing" ]; then
+            gh issue create \
+              --title "$title" \
+              --body "$body" \
+              --label scheduled-failure
+            exit 0
+          fi
+
+          number="$(printf '%s' "$existing" | jq -r .number)"
+          state="$(printf '%s' "$existing" | jq -r .state)"
+          if [ "$state" = "CLOSED" ]; then
+            gh issue reopen "$number"
+          fi
+          gh issue comment "$number" --body "$body"
