@@ -2126,6 +2126,17 @@ authoring-eval: build ## Score the voice checks and the voice guide → /authori
 	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
 	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
 
+# The read-it-yourself half. Writes the same document at two coordinates, with
+# and without the governance bound there, across four models, and publishes the
+# prose rather than a score: sixteen Markdown documents under
+# web/static/authoring-lab and a page that puts bare and governed side by side.
+#
+# It scores nothing on purpose. Nobody has yet said what a good user guide is,
+# and a rubric invented here would be measuring the rubric.
+AUTHORINGLAB_ARGS ?=
+authoring-lab: ## Write the same document at two coordinates, with and without governance (spends)
+	$(GO) run ./scripts/authoringlab $(AUTHORINGLAB_ARGS)
+
 authoring-eval-checks: build ## Score the offline voice check only (free, no model)
 	$(GO) run ./scripts/authoringeval -only checks -provider none -model ""
 

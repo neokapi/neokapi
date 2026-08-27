@@ -1114,6 +1114,7 @@ const config: Config = {
 
             { label: "Agent skills", to: "/evals/skills" },
             { label: "· Skill and MCP", to: "/skill-eval" },
+            { label: "· Authoring lab", to: "/authoring-lab" },
           ],
         },
         {

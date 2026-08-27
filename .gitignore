@@ -279,6 +279,7 @@ platform/docker/traefik/certs
 # tool, because a partial list is how two 10MB binaries reached a pull request.
 # scripts/check-tracked-binaries.sh is the backstop.
 /scripts/authoringeval/authoringeval
+/scripts/authoringlab/authoringlab
 /scripts/batcheval/batcheval
 /scripts/checkeval/checkeval
 /scripts/contention-harness/contention-harness
@@ -298,6 +299,7 @@ platform/docker/traefik/certs
 
 # The same tools built from the repo root, plus the other stray `go build` outputs.
 /authoringeval
+/authoringlab
 /batcheval
 /checkeval
 /contention-harness
