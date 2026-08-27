@@ -198,6 +198,11 @@ type Eval struct {
 	// Page is where its results are rendered. Empty for an absent eval.
 	Page string `json:"page,omitempty"`
 
+	// FreshAt is the key inside Data holding this card's own numbers, for the
+	// datasets that carry several cards' results in one file. Empty means the
+	// whole file is this card's.
+	FreshAt string `json:"-"`
+
 	// Fresh is how old the committed numbers are, read out of the dataset
 	// rather than typed here. A hand-written date is a date nobody updates;
 	// /pseudobench spent three months showing results measured on 2026-05-20

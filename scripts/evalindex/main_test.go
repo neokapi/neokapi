@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -188,6 +189,29 @@ func TestARegisteredHeadlineResolves(t *testing.T) {
 			assert.NotEmpty(t, e.Headline.Value)
 			assert.NotEmpty(t, e.Headline.Of, "a number with no unit is not a headline")
 			assert.Contains(t, []string{"ok", "warn", "gap"}, e.Headline.Tone)
+		})
+	}
+}
+
+// TestAFreshAtKeyExists.
+//
+// A card naming a section its dataset does not have reports Undated, which is
+// the honest fallback and an invisible one: the row just stops showing an age.
+// Three cards share _skilleval.json and each names its own mode, so a mode
+// renamed in the harness would silently un-date all of them.
+func TestAFreshAtKeyExists(t *testing.T) {
+	root := repoRoot(t)
+	for _, e := range evals {
+		if e.FreshAt == "" || e.Data == "" {
+			continue
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			body, err := os.ReadFile(filepath.Join(root, e.Data))
+			require.NoError(t, err)
+			var doc map[string]any
+			require.NoError(t, json.Unmarshal(body, &doc))
+			assert.Contains(t, doc, e.FreshAt,
+				"the card reads its date from %q, which %s does not have", e.FreshAt, e.Data)
 		})
 	}
 }

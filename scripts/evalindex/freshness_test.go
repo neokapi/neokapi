@@ -36,7 +36,7 @@ func TestReadFreshnessFindsEverySpelling(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			write(t, dir, c.name, c.body)
-			f := readFreshness(dir, c.name)
+			f := readFreshness(dir, c.name, "")
 			assert.False(t, f.Undated)
 			assert.Equal(t, c.wantDate, f.Date)
 		})
@@ -77,7 +77,7 @@ func TestReadFreshnessTakesTheNewest(t *testing.T) {
 	    {"date": "2026-06-15"}
 	  ]
 	}`)
-	f := readFreshness(dir, "history.json")
+	f := readFreshness(dir, "history.json", "")
 	assert.Equal(t, "2026-08-20", f.Date, "the newest entry is when this was last refreshed")
 }
 
@@ -87,11 +87,11 @@ func TestReadFreshnessTakesTheNewest(t *testing.T) {
 func TestUndatedIsReportedNotGuessed(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "nodate.json", `{"generated_note":"Run the thing to regenerate.","total":{"f1":1.0}}`)
-	f := readFreshness(dir, "nodate.json")
+	f := readFreshness(dir, "nodate.json", "")
 	assert.True(t, f.Undated)
 	assert.Empty(t, f.Date)
 
-	missing := readFreshness(dir, "not-here.json")
+	missing := readFreshness(dir, "not-here.json", "")
 	assert.True(t, missing.Undated, "a dataset that is not there certainly cannot say how old it is")
 }
 
@@ -103,7 +103,7 @@ func TestUndatedIsReportedNotGuessed(t *testing.T) {
 func TestDeepDatesAreNotMistakenForTheDataset(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "deep.json", `{"a":{"b":{"c":{"d":{"generated":"2020-01-01"}}}}}`)
-	f := readFreshness(dir, "deep.json")
+	f := readFreshness(dir, "deep.json", "")
 	assert.True(t, f.Undated, "a date four levels down is a record's, not the dataset's")
 }
 

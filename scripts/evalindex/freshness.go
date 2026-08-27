@@ -45,7 +45,15 @@ type Freshness struct {
 // dataset's own, and one three levels down is probably a record inside it. Two
 // levels covers the wrappers that hold reports by mode or by model without
 // reaching into individual results.
-func readFreshness(root, rel string) Freshness {
+// at, when set, is the key inside the dataset this card's numbers live under.
+//
+// Three cards read web/src/pages/skill-eval/_skilleval.json, which holds one
+// report per mode with its own `generated`. Taking the newest stamp anywhere in
+// the file gave all three the date of whichever mode ran last, so a trigger
+// sweep from yesterday and an MCP sweep from yesterday both claimed to have run
+// this morning. A stale dataset reading as fresh is the one thing this file
+// exists to prevent, and it was doing it to two cards in three.
+func readFreshness(root, rel, at string) Freshness {
 	body, err := os.ReadFile(filepath.Join(root, rel))
 	if err != nil {
 		return Freshness{Undated: true}
@@ -53,6 +61,19 @@ func readFreshness(root, rel string) Freshness {
 	var doc any
 	if json.Unmarshal(body, &doc) != nil {
 		return Freshness{Undated: true}
+	}
+	if at != "" {
+		m, ok := doc.(map[string]any)
+		if !ok {
+			return Freshness{Undated: true}
+		}
+		section, ok := m[at]
+		if !ok {
+			// The card names a section the dataset does not have. Undated is
+			// the honest answer; guessing the file's date would be the bug.
+			return Freshness{Undated: true}
+		}
+		doc = section
 	}
 
 	stamp := findStamp(doc, 0)
