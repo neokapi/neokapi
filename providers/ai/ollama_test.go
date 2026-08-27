@@ -63,7 +63,7 @@ func TestOllamaChatRespectsExplicitTemperature(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOllamaProvider(Config{BaseURL: srv.URL, Model: "m", Temperature: 0.9})
+	p := NewOllamaProvider(Config{BaseURL: srv.URL, Model: "m", Temperature: new(0.9)})
 	_, err := p.Chat(context.Background(), []Message{TextMessage("user", "hi")})
 	require.NoError(t, err)
 	require.NotNil(t, got.Options.Temperature)

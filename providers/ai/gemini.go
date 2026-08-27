@@ -82,6 +82,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
+			Temperature:     p.config.Temperature,
 			MaxOutputTokens: p.maxTokens(ctx),
 			ThinkingConfig:  noThinking(p.config.Model),
 		},
@@ -114,6 +115,7 @@ func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message,
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
+			Temperature:      p.config.Temperature,
 			MaxOutputTokens:  p.maxTokens(ctx),
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   stripAdditionalProperties(schema.Schema),
@@ -151,6 +153,7 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, messages []Message, onE
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
+			Temperature:     p.config.Temperature,
 			MaxOutputTokens: p.maxTokens(ctx),
 			ThinkingConfig:  &geminiThinkingConfig{IncludeThoughts: true},
 		},
@@ -169,6 +172,7 @@ func (p *GeminiProvider) ChatStructuredStream(ctx context.Context, messages []Me
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
+			Temperature:      p.config.Temperature,
 			MaxOutputTokens:  p.maxTokens(ctx),
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   stripAdditionalProperties(schema.Schema),
@@ -529,7 +533,9 @@ func requiresThinking(model string) bool {
 }
 
 type geminiGenerationConfig struct {
-	MaxOutputTokens  int                   `json:"maxOutputTokens,omitempty"`
+	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
+	// Omitted when the caller did not set one. It used to be omitted always.
+	Temperature      *float64              `json:"temperature,omitempty"`
 	ResponseMIMEType string                `json:"responseMimeType,omitempty"`
 	ResponseSchema   map[string]any        `json:"responseSchema,omitempty"`
 	ThinkingConfig   *geminiThinkingConfig `json:"thinkingConfig,omitempty"`

@@ -259,8 +259,10 @@ func (p *Provider) converseInput(messages []aiprovider.Message) (*bedrockruntime
 			&brtypes.SystemContentBlockMemberText{Value: system},
 		}
 	}
-	if p.cfg.Temperature > 0 {
-		in.InferenceConfig.Temperature = aws.Float32(float32(p.cfg.Temperature))
+	// Not `> 0`: that spelling made temperature 0, the one an eval wants, the
+	// only value you could not ask for.
+	if p.cfg.Temperature != nil {
+		in.InferenceConfig.Temperature = aws.Float32(float32(*p.cfg.Temperature))
 	}
 	return in, nil
 }

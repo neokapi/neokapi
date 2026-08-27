@@ -168,12 +168,14 @@ type Eval struct {
 	// seed. Required of any eval that spends, because a command alone does not
 	// reproduce a number that was sampled.
 	//
-	// "not recorded" is a valid answer and is currently the true one for every
-	// eval here. providers/ai carries a Config.Temperature that Ollama honours,
-	// Bedrock honours unless it is zero, and Anthropic, OpenAI, Azure and Gemini
-	// drop on the floor, so a cloud eval runs at whatever the API defaults to
-	// and no harness writes down what that was. The field exists to make the
-	// omission visible rather than to let it stay implied.
+	// "not recorded" is a valid answer, and it was the true one for every eval
+	// here until providers/ai learned to send the field: Config.Temperature was
+	// honoured by Ollama, honoured-except-zero by Bedrock, and dropped on the
+	// floor by Anthropic, OpenAI, Azure and Gemini. Every cloud eval ran at
+	// whatever the API defaulted to, and none of them wrote it down.
+	//
+	// The field existed to make that visible rather than let it stay implied.
+	// It now carries the pinned value instead.
 	Settings string `json:"settings,omitempty"`
 
 	// Data is the committed result this eval publishes, relative to the repo

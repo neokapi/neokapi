@@ -199,8 +199,9 @@ func (m modelTarget) String() string {
 // not the other.
 func (m modelTarget) newLLM() (aiprovider.LLMProvider, error) {
 	return aiprovider.NewProvider(aiprovider.ProviderID(m.provider), aiprovider.Config{
-		APIKey: os.Getenv(apiKeyEnv(m.provider)),
-		Model:  m.model,
+		APIKey:      os.Getenv(apiKeyEnv(m.provider)),
+		Model:       m.model,
+		Temperature: evalTemperature,
 	})
 }
 
@@ -683,3 +684,16 @@ func orDefault(s, d string) string {
 	}
 	return s
 }
+
+// evalTemperature is what every eval in this repo samples at.
+//
+// Zero, because an eval that cannot be re-run to the same numbers is a
+// description of a method rather than a measurement. Until recently this was
+// not expressible: Config.Temperature was a float64 with `omitempty`, so 0 and
+// "unset" were the same value, and four of six providers dropped the field on
+// the floor regardless. Every number this harness has published so far was
+// sampled at whatever the API defaults to, which for Anthropic is 1.0.
+//
+// It is a variable rather than a constant so a sweep can deliberately raise it
+// to measure variance, which is a different question and should say so.
+var evalTemperature = new(0.0)

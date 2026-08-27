@@ -110,10 +110,14 @@ func (p *localBrowserProvider) generate(ctx context.Context, messages []aiprovid
 		return nil, errors.New("local model (in-browser) not loaded: host did not define globalThis." + localJSFunc + " — call installLocalLLMBridge() on the page")
 	}
 	payload := map[string]any{
-		"messages":    toLocalMessages(messages),
-		"model":       p.cfg.Model,
-		"max_tokens":  p.cfg.MaxTokens,
-		"temperature": p.cfg.Temperature,
+		"messages":   toLocalMessages(messages),
+		"model":      p.cfg.Model,
+		"max_tokens": p.cfg.MaxTokens,
+	}
+	// Omitted when unset rather than sent as null: the page's own default
+	// should survive a caller that expressed no opinion.
+	if p.cfg.Temperature != nil {
+		payload["temperature"] = *p.cfg.Temperature
 	}
 	if len(schema) > 0 {
 		payload["schema"] = schema

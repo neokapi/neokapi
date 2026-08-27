@@ -73,10 +73,11 @@ func (p *AnthropicProvider) buildRequest(ctx context.Context, messages []Message
 		return anthropicRequest{}, err
 	}
 	return anthropicRequest{
-		Model:     p.config.Model,
-		MaxTokens: p.maxTokens(ctx),
-		System:    system,
-		Messages:  apiMessages,
+		Model:       p.config.Model,
+		MaxTokens:   p.maxTokens(ctx),
+		Temperature: p.config.Temperature,
+		System:      system,
+		Messages:    apiMessages,
 	}, nil
 }
 
@@ -250,12 +251,15 @@ func toAnthropicMessages(messages []Message) ([]anthropicMessage, error) {
 }
 
 type anthropicRequest struct {
-	Model      string               `json:"model"`
-	MaxTokens  int                  `json:"max_tokens"`
-	System     string               `json:"system,omitempty"`
-	Messages   []anthropicMessage   `json:"messages"`
-	Tools      []anthropicTool      `json:"tools,omitempty"`
-	ToolChoice *anthropicToolChoice `json:"tool_choice,omitempty"`
+	Model     string `json:"model"`
+	MaxTokens int    `json:"max_tokens"`
+	// Temperature is omitted when the caller did not set one, which leaves the
+	// API's own default in place. It used to be omitted always.
+	Temperature *float64             `json:"temperature,omitempty"`
+	System      string               `json:"system,omitempty"`
+	Messages    []anthropicMessage   `json:"messages"`
+	Tools       []anthropicTool      `json:"tools,omitempty"`
+	ToolChoice  *anthropicToolChoice `json:"tool_choice,omitempty"`
 }
 
 type anthropicTool struct {
