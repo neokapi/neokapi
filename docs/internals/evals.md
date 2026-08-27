@@ -88,9 +88,17 @@ you changed.
   test for a path scrubber has to contain paths.
 - **No downstream product references** (`scripts/check-docs-bowrain-clean.sh`).
   The datasets land under `web/src`, which the docs site serves and which is
-  held to zero mentions. `skilleval` refuses to publish a run that would break
-  this rather than editing the transcript, because quietly rewriting recorded
-  evidence to get past a lint is not something an evidence page should do.
+  held to zero mentions. Scenario text is under the suite's control and a test
+  keeps it clean; a transcript is not, because the shipped skill's own
+  description names the platform and an agent can repeat it on any scenario.
+
+  `skilleval` withholds the transcript rather than refusing the run. Refusing
+  was the first version, and it threw away a seventeen-scenario sweep for one
+  word in one closing message. The result keeps its verdict, gate, message
+  counts and file changes and loses the prose, and the omission is recorded on
+  the result and counted on the report so the page can say what is missing. An
+  omission a reader can see is not a quiet rewrite. The guard applies only when
+  publishing under `web/src`; a run sent elsewhere with `-out` is for reading.
 
 ## Evals that spend
 
