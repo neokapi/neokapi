@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -91,7 +91,7 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = opts.RepoDir
-	cmd.Env = append(os.Environ(), isolationEnv(home)...)
+	cmd.Env = append(agentEnv(), isolationEnv(home)...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		r.Err = err.Error()
@@ -212,6 +212,34 @@ func relToRepo(p, repoDir string) string {
 	return filepath.Base(p)
 }
 
+// agentEnv is the environment the agent gets: an allow-list, not the
+// developer's.
+//
+// The agent runs with bypassPermissions over a THIRD-PARTY source tree that
+// scripts/fetch-lab-repo.sh cloned from a URL an operator can override. That is
+// a different exposure from the skill eval's, whose workspaces hold fixtures
+// this repository authors. Prose in someone else's README is untrusted input to
+// a model with a shell, and `os.Environ()` handed that shell every credential
+// on the machine — ANTHROPIC_API_KEY, GITHUB_TOKEN, AWS_*, whatever else is
+// exported — none of which the lab needs.
+//
+// What it does need: PATH to find its tools, HOME because the CLI authenticates
+// from ~/.claude, and enough locale and terminal state to run. Everything else
+// is dropped.
+//
+// This narrows what a compromised or merely obedient run can exfiltrate. It is
+// not a sandbox: the agent still has a shell and a network. See issue #2243.
+func agentEnv() []string {
+	const allowed = "PATH HOME LANG LC_ALL LC_CTYPE TERM TMPDIR SHELL USER LOGNAME"
+	var out []string
+	for name := range strings.SplitSeq(allowed, " ") {
+		if v, ok := os.LookupEnv(name); ok {
+			out = append(out, name+"="+v)
+		}
+	}
+	return out
+}
+
 // isolationEnv is the in-repo isolation contract: an agent driven here must not
 // reach the developer's kapi config, plugins or caches. See CLAUDE.md.
 func isolationEnv(home string) []string {
@@ -232,7 +260,7 @@ func findClaude() (string, error) {
 	}
 	p, err := exec.LookPath("claude")
 	if err != nil {
-		return "", fmt.Errorf("no `claude` on PATH: the lab drives the CLI (set CLAUDE_BIN to override)")
+		return "", errors.New("no `claude` on PATH: the lab drives the CLI (set CLAUDE_BIN to override)")
 	}
 	return p, nil
 }

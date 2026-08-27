@@ -335,6 +335,34 @@ func sortChanges(c []FileChange) {
 // inside the tree, so an unisolated run would bind to it and act on it. The
 // workspace here is under os.TempDir() rather than the repo, but the contract
 // is cheap to honour and the failure it prevents is silent.
+// agentEnv is the environment a driven agent gets: an allow-list, not the
+// developer's.
+//
+// The agent runs with bypassPermissions and its transcript is published. Those
+// two facts together are why this is not optional: a transcript now carries
+// every tool result whole, so an agent that runs `env` — or any command that
+// echoes one — writes whatever it was given into a file served from a public
+// CDN. scrubPaths removes paths; it knows nothing about credentials.
+//
+// What a run needs: PATH to find its tools, HOME because the CLI authenticates
+// from ~/.claude, and enough locale and terminal state to run. ANTHROPIC_API_KEY,
+// GITHUB_TOKEN, AWS_* and the rest are not passed.
+//
+// This closes the easy path and not the whole one: the agent still has HOME and
+// a shell, so it could read a credential file if it went looking. That is what
+// the pre-publish scan in scripts/publish-cdn-assets.sh is for, and what
+// issue #2243 is about.
+func agentEnv() []string {
+	const allowed = "PATH HOME LANG LC_ALL LC_CTYPE TERM TMPDIR SHELL USER LOGNAME"
+	var out []string
+	for name := range strings.SplitSeq(allowed, " ") {
+		if v, ok := os.LookupEnv(name); ok {
+			out = append(out, name+"="+v)
+		}
+	}
+	return out
+}
+
 func isolationEnv(home string) []string {
 	return []string{
 		"KAPI_NO_PROJECT=1",
@@ -414,7 +442,7 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), isolationEnv(dir)...)
+	cmd.Env = append(agentEnv(), isolationEnv(dir)...)
 	switch {
 	case arm == armUnaided:
 		// Every directory holding a kapi or toolbox binary is removed. A
@@ -479,7 +507,7 @@ func runGate(ctx context.Context, dir, gate string, opts Options) *GateResult {
 	}
 	cmd := exec.CommandContext(ctx, "sh", "-c", gate)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), isolationEnv(dir)...)
+	cmd.Env = append(agentEnv(), isolationEnv(dir)...)
 	if opts.KapiBin != "" {
 		// The gate calls `kapi` and the toolbox names by bare word, so this
 		// checkout's build has to win over anything installed on the machine.

@@ -169,6 +169,9 @@ case "$FAMILY" in
     # agent read, the error it got. Uncapped they are too large for git.
     SRC="web/static/skill-eval"
     [ -d "$SRC" ] || { echo "error: $SRC missing — run a sweep first (make skill-eval-completion)"; exit 1; }
+    # Asked before anything leaves the machine, because this destination is
+    # public and an uncapped transcript records whatever the agent printed.
+    ./scripts/check-eval-publishable.sh "$SRC"
     DST="s3://$CDN_BUCKET/kapi/skill-eval"
     echo "→ syncing $SRC → ${DST}…"
     "${S3[@]}" sync "$SRC" "$DST" --cache-control "$VIDEO_CACHE" --delete
