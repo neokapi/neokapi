@@ -2,7 +2,6 @@ package openxml
 
 import (
 	"encoding/xml"
-	"fmt"
 	"slices"
 	"strings"
 )
@@ -1336,10 +1335,9 @@ func removeRPrChildAt(children []rPrChild, i int) []rPrChild {
 }
 
 // appendOpeningRuns emits PcOpen runs for this run's formatting.
-func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
+func (rp runProps) appendOpeningRuns(b *runBuilder, ids *spanIDs) {
 	emit := func(typ, subType, data string) {
-		*idCounter++
-		b.AddPcOpen(idStr(*idCounter), typ, subType, data, "", "", true, true, true)
+		b.AddPcOpen(ids.openSpan(), typ, subType, data, "", "", true, true, true)
 	}
 	if rp.bold {
 		// Use the captured explicit-on form (e.g.
@@ -1368,10 +1366,9 @@ func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 
 // appendClosingRuns emits PcClose runs for this run's formatting in
 // reverse order.
-func (rp runProps) appendClosingRuns(b *runBuilder, idCounter *int) {
+func (rp runProps) appendClosingRuns(b *runBuilder, ids *spanIDs) {
 	emit := func(typ, subType, data string) {
-		*idCounter++
-		b.AddPcClose(idStr(*idCounter), typ, subType, data, "")
+		b.AddPcClose(ids.closeSpan(), typ, subType, data, "")
 	}
 	if rp.vertAlign == "subscript" {
 		emit(TypeSubscript, SubTypeSubscript, "</w:vertAlign>")
@@ -1391,10 +1388,6 @@ func (rp runProps) appendClosingRuns(b *runBuilder, idCounter *int) {
 	if rp.bold {
 		emit(TypeBold, SubTypeBold, "</w:b>")
 	}
-}
-
-func idStr(n int) string {
-	return fmt.Sprintf("c%d", n)
 }
 
 // parseRunProps extracts run properties from a <w:rPr> element.

@@ -769,16 +769,16 @@ func (p *smlParser) renderSI(runs []textRun) string {
 // buildBlock creates a model.Block from shared string text runs.
 func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int) *model.Block {
 	b := &runBuilder{}
-	spanCounter := 0
+	ids := &spanIDs{}
 	var activeProps *runProps
 
 	for _, run := range runs {
 		if activeProps == nil || !activeProps.equal(run.props) {
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 			}
 			if !run.props.isEmpty() {
-				run.props.appendOpeningRuns(b, &spanCounter)
+				run.props.appendOpeningRuns(b, ids)
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
@@ -788,7 +788,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {
-		activeProps.appendClosingRuns(b, &spanCounter)
+		activeProps.appendClosingRuns(b, ids)
 	}
 
 	return &model.Block{

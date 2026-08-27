@@ -458,13 +458,12 @@ func parseDMLRunProps(el xml.StartElement) runProps {
 // buildBlock creates a model.Block from text runs.
 func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *model.Block {
 	b := &runBuilder{}
-	spanCounter := 0
+	ids := &spanIDs{}
 	var activeProps *runProps
 
 	for _, run := range runs {
 		if run.text == "\n" {
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeBreak, SubTypeBreak,
 				"<a:br/>", "\n", "",
 				false, false, false)
@@ -473,10 +472,10 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 
 		if activeProps == nil || !activeProps.equal(run.props) {
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 			}
 			if !run.props.isEmpty() {
-				run.props.appendOpeningRuns(b, &spanCounter)
+				run.props.appendOpeningRuns(b, ids)
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
@@ -486,7 +485,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {
-		activeProps.appendClosingRuns(b, &spanCounter)
+		activeProps.appendClosingRuns(b, ids)
 	}
 
 	return &model.Block{

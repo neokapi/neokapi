@@ -40,7 +40,7 @@ func newCodeFinder(rules []string) (*codeFinder, error) {
 // Returns the (possibly rewritten) run slice. If no patterns match, or
 // the sequence contains anything other than a single TextRun, the
 // input is returned unchanged.
-func (cf *codeFinder) applyToRuns(runs []model.Run, spanCounter *int) []model.Run {
+func (cf *codeFinder) applyToRuns(runs []model.Run, ids *spanIDs) []model.Run {
 	if len(cf.patterns) == 0 {
 		return runs
 	}
@@ -83,8 +83,7 @@ func (cf *codeFinder) applyToRuns(runs []model.Run, spanCounter *int) []model.Ru
 			b.AddText(text[pos:m.start])
 		}
 
-		*spanCounter++
-		b.AddPh(fmt.Sprintf("c%d", *spanCounter),
+		b.AddPh(ids.placeholder(),
 			"fmt:code", "openxml:codeFinder",
 			m.text, m.text, "",
 			false, false, false)
