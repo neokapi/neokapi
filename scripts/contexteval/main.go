@@ -232,6 +232,7 @@ func measure(ctx context.Context, provider aiprovider.LLMProvider, mt modelTarge
 		Target:         corpus.Target,
 		Repeat:         opts.repeat,
 		Concurrency:    opts.concurrency,
+		Temperature:    evalTemperature,
 		Corpus:         corpus.Describe(),
 		CorpusFixtures: len(corpus.Fixtures),
 		CorpusChecks:   corpus.Checks(),

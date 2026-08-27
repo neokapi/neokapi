@@ -180,6 +180,7 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 		Target:       string(opts.target),
 		Repeat:       opts.repeat,
 		Concurrency:  opts.concurrency,
+		Temperature:  evalTemperature,
 		Corpus:       corpus.Describe(),
 		CorpusWords:  corpus.Words(),
 		CorpusBlocks: len(corpus.Cases),
