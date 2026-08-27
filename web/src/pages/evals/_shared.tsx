@@ -33,7 +33,7 @@ export interface Eval {
   id: string;
   title: string;
   method: "deterministic" | "labelled" | "judged" | "benchmark" | "comparative" | "scenario";
-  status: "measured" | "partial" | "unvalidated" | "absent";
+  status: "measured" | "partial" | "unvalidated" | "blocked" | "absent";
   spends?: boolean;
   local?: boolean;
   corpus: string;
@@ -91,10 +91,15 @@ export const tone = {
 } as const;
 export type Tone = keyof typeof tone;
 
+// Record<Eval["status"], …> is a mapped type over the union, so adding a status
+// to the union fails to compile here until each of these maps answers for it.
+// That is deliberate: the Go side lost a status from a switch that had no
+// default, and the same shape on this side would have dropped it from the page.
 export const statusTone: Record<Eval["status"], Tone> = {
   measured: "ok",
   partial: "warn",
   unvalidated: "warn",
+  blocked: "gap",
   absent: "gap",
 };
 
@@ -105,6 +110,7 @@ export const statusLabel: Record<Eval["status"], string> = {
   measured: "measured",
   partial: "partial",
   unvalidated: "unvalidated",
+  blocked: "blocked",
   absent: "not measured",
 };
 
@@ -112,6 +118,7 @@ export const statusMeans: Record<Eval["status"], string> = {
   measured: "runs, data committed, numbers can be read as they stand",
   partial: "runs, and covers less than the layer needs",
   unvalidated: "produces numbers that should not yet be relied on",
+  blocked: "the harness runs; the surface it measures returns nothing",
   absent: "nothing measures this",
 };
 
@@ -254,6 +261,7 @@ export function bandTally(b: BandInfo): Record<Eval["status"], number> {
     measured: 0,
     partial: 0,
     unvalidated: 0,
+    blocked: 0,
     absent: 0,
   };
   for (const layerID of b.layers) {

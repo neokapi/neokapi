@@ -128,10 +128,23 @@ const (
 	// relied on, such as a judged eval whose agreement with a person is
 	// unmeasured, or a scenario suite whose last run has gone stale.
 	StatusUnvalidated Status = "unvalidated"
+	// StatusBlocked: the harness is written and runs, and the surface it
+	// measures returns nothing to measure. Distinct from absent, because the
+	// work left is a fix rather than a build, and the card can name the issue
+	// number and link to a page that shows what is ready to run.
+	StatusBlocked Status = "blocked"
 	// StatusAbsent: nothing measures this. Listed because a gap a reader cannot
 	// see is a gap they will assume is covered.
 	StatusAbsent Status = "absent"
 )
+
+// AllStatuses is every status, and the totals are computed from it rather than
+// from a switch. A switch over these silently ignored the one that was added
+// last, so every eval carrying it vanished from the coverage line while each
+// row still rendered.
+var AllStatuses = []Status{
+	StatusMeasured, StatusPartial, StatusUnvalidated, StatusBlocked, StatusAbsent,
+}
 
 // Eval is one measurement and everything needed to judge or repeat it.
 type Eval struct {

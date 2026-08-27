@@ -2080,6 +2080,31 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 	$(GO) run ./scripts/checkeval
 	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
+# ── Authoring eval ───────────────────────────────────────────────────────────
+# Measures the authoring side: the voice checks, voice-infer, and whether
+# `kapi voice guide` steers writing toward its profile rather than just
+# improving it.
+#
+# The corpus is synthesized and says so in the data. Two of the three questions
+# need ground truth no repository carries — a profile a person wrote from a
+# known corpus, and prose whose every violation is marked — and labelling real
+# material to that standard is the eval rather than preparation for it.
+#
+# The checks leg is free and offline. The steering leg writes six documents
+# twice with a real model, so it costs calls.
+AUTHORINGEVAL_PROVIDER ?= claude-code
+AUTHORINGEVAL_MODEL    ?= sonnet
+
+authoring-eval: build ## Score the voice checks and the voice guide → /authoring-eval (steering leg costs calls)
+	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
+	$(GO) run ./scripts/authoringeval -only infer -provider ollama -model ""
+	$(GO) run ./scripts/authoringeval -only steer \
+	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
+	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
+
+authoring-eval-checks: build ## Score the voice checks only (free, offline, no model)
+	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
+
 # ── Batch-size eval (issue #1227) ────────────────────────────────────────────
 # Measures what batching costs, by sweeping blocks-per-call and scoring each N on
 # structural integrity: does every segment come back, under the id it was sent,

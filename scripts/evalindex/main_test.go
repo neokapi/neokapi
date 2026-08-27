@@ -65,6 +65,10 @@ func TestAMeasuredEvalHasSomethingToShow(t *testing.T) {
 // TestAnAbsentEvalPromisesNothing: an unbuilt eval must not carry a reproduce
 // command or a page, because both would be false. What it must carry is the
 // shape of what is missing.
+//
+// A blocked eval is the other case and takes the opposite rule below: its
+// harness runs, so it has a command and a page, and what it lacks is a working
+// surface to point at.
 func TestAnAbsentEvalPromisesNothing(t *testing.T) {
 	for _, e := range evals {
 		if e.Status != StatusAbsent {
@@ -76,6 +80,25 @@ func TestAnAbsentEvalPromisesNothing(t *testing.T) {
 			assert.Empty(t, e.Page, "nothing to link")
 			assert.NotEmpty(t, e.Covers, "say what it would measure, or the gap has no shape")
 			assert.NotEmpty(t, e.Misses, "say plainly that it is not built")
+		})
+	}
+}
+
+// TestABlockedEvalNamesTheBlocker.
+//
+// Blocked means the harness is written and something it drives returns nothing.
+// The card has to be runnable — a reader who does not believe it should be able
+// to reproduce the silence — and it has to name the issue, or "blocked" is
+// indistinguishable from an excuse.
+func TestABlockedEvalNamesTheBlocker(t *testing.T) {
+	for _, e := range evals {
+		if e.Status != StatusBlocked {
+			continue
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			assert.NotEmpty(t, e.Reproduce, "a blocked eval still runs; say how")
+			assert.NotEmpty(t, e.Page, "link the page that shows what is ready")
+			assert.Regexp(t, `#\d+`, e.Misses, "name the issue the eval is waiting on")
 		})
 	}
 }
@@ -144,9 +167,12 @@ func TestCoverageIsNotFlattering(t *testing.T) {
 	index, err := Build()
 	require.NoError(t, err)
 
-	total := index.Coverage.Measured + index.Coverage.Partial +
-		index.Coverage.Unvalidated + index.Coverage.Absent
-	assert.Equal(t, len(evals), total, "every eval is counted exactly once")
+	assert.Equal(t, len(evals), index.Coverage.Total(), "every eval is counted exactly once")
+	// The named fields are what the page reads, so they have to agree with the
+	// tally they are derived from.
+	assert.Equal(t, index.Coverage.ByStatus[StatusMeasured], index.Coverage.Measured)
+	assert.Equal(t, index.Coverage.ByStatus[StatusBlocked], index.Coverage.Blocked)
+	assert.Equal(t, index.Coverage.ByStatus[StatusAbsent], index.Coverage.Absent)
 	assert.Positive(t, index.Coverage.Absent,
 		"if nothing is absent, either the work is finished or the registry has stopped listing gaps")
 
