@@ -1,5 +1,5 @@
-// Package locate answers one question for the whole engine: which declared
-// terms does this passage use, and where exactly.
+// This file answers one question for the whole engine: which declared terms
+// does this passage use, and where exactly.
 //
 // A term can be declared in two places. A voice profile lists the words a brand
 // forbids and a competitor's names it must not print; a tool's `term_rules:`
@@ -19,28 +19,27 @@
 // vocabulary gate raises a finding, term-check reports a violation, dnt-check
 // asserts the target preserved it, and term-locate writes it onto the block as
 // an annotation. Locating is the part they share.
-package locate
+package terms
 
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // Source says where a declared term came from.
-type Source string
+type OccurrenceSource string
 
 const (
 	// SourceRule is a rule the caller held: a voice profile's vocabulary, a
 	// tool's `term_rules:`, a recipe's list.
-	SourceRule Source = "rule"
+	SourceRule OccurrenceSource = "rule"
 	// SourceStore is a concept in the bound terms store.
-	SourceStore Source = "store"
+	SourceStore OccurrenceSource = "store"
 )
 
 // An Occurrence is one use of one declared term in a piece of content, anchored
@@ -65,23 +64,38 @@ type Occurrence struct {
 	// graph. Empty for a rule that names none, which a standalone profile with
 	// no backing store is entitled to.
 	ConceptID string
-	Severity  profile.Severity
-	Category  profile.Dimension
-	Kind      profile.VocabKind
-	// Status is the concept's standing for a store match: forbidden, deprecated,
-	// approved. Empty for a rule hit, which carries its severity instead.
+	// Severity and Kind come from the rule that matched and are empty for a
+	// store match, which carries Status and Competitor instead. Nothing here is
+	// a judgement about whether the occurrence is a problem: a term being used
+	// is a fact, and which uses are violations is the consuming gate's policy.
+	Severity profile.Severity
+	Category profile.Dimension
+	Kind     profile.VocabKind
+	// Status is the concept's standing for a store match: preferred, approved,
+	// forbidden, deprecated.
 	Status model.TermStatus
+	// Competitor marks a store term recorded as a rival's name.
+	Competitor bool
+	// Concept is the store concept the occurrence denotes, for a consumer that
+	// needs more of it than the id — its sibling terms in another language,
+	// say. Nil for a rule hit, which denotes no concept of its own.
+	Concept *Concept
+	// Score and MatchType record how the store matched: 1.0 and exact for a
+	// literal hit, lower for a fuzzy one. Zero for a rule hit, which matches
+	// through the shared matcher rather than the store's scoring.
+	Score     float64
+	MatchType model.MatchStrategy
 	// DoNotTranslate marks a term that must survive into every target exactly as
 	// it stands.
 	DoNotTranslate bool
-	Source         Source
+	Source         OccurrenceSource
 	// Start and End are byte offsets into the searched text, for a consumer that
 	// reports over flat text rather than over runs.
 	Start, End int
 }
 
-// A Request is one pass over one piece of content.
-type Request struct {
+// A LocateRequest is one pass over one piece of content.
+type LocateRequest struct {
 	// Text is the content searched, and Runs are the runs it flattens from.
 	// Offsets reported by the matcher index into Text; the anchor on each
 	// occurrence is resolved against Runs. Runs may be nil for a caller
@@ -97,19 +111,21 @@ type Request struct {
 	// it is consulted rather than the voice vocabulary alone: a term decision
 	// lands in the terminology source, so a vocabulary-only filter would
 	// enforce a source nothing writes to and ignore the one everything does.
-	Store terms.Terminology
+	Store Terminology
 	// Locale is the language the store is asked in. The lookup matches a locale
 	// exactly, so the region is tried and then the language beneath it.
 	Locale model.LocaleID
-	// StoreStatuses are the concept standings that count as an occurrence.
-	// Empty means the three the gates care about: forbidden, deprecated, and a
-	// competitor's name.
-	StoreStatuses []model.TermStatus
+	// Domains, MinScore and Scope are passed through to the store lookup. They
+	// narrow WHICH declarations are consulted, which is a different question
+	// from which uses of them matter — that stays with the caller.
+	Domains  []string
+	MinScore float64
+	Scope    *graph.Scope
 }
 
 // Find returns every occurrence of every declared term in the request's content,
 // rule hits first and store matches after, each in the order it was declared.
-func Find(ctx context.Context, req Request) ([]Occurrence, error) {
+func Locate(ctx context.Context, req LocateRequest) ([]Occurrence, error) {
 	if strings.TrimSpace(req.Text) == "" {
 		return nil, nil
 	}
@@ -125,7 +141,7 @@ func Find(ctx context.Context, req Request) ([]Occurrence, error) {
 }
 
 // ruleOccurrences matches the caller's declared rules through the one matcher.
-func ruleOccurrences(req Request) []Occurrence {
+func ruleOccurrences(req LocateRequest) []Occurrence {
 	hits := profile.MatchTermRules(req.RuleSets, req.Text)
 	if len(hits) == 0 {
 		return nil
@@ -171,7 +187,7 @@ func doNotTranslateTerms(sets []profile.TermRuleSet) map[string]bool {
 // Matches are deduped across the candidate languages: a term recorded in both
 // en-GB and en is one decision about one word, and reporting it twice would
 // penalize the same characters twice.
-func storeOccurrences(ctx context.Context, req Request) ([]Occurrence, error) {
+func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, error) {
 	type hit struct {
 		text string
 		pos  int
@@ -179,7 +195,12 @@ func storeOccurrences(ctx context.Context, req Request) ([]Occurrence, error) {
 	seen := map[hit]bool{}
 	var out []Occurrence
 	for _, loc := range LookupLocales(req.Locale) {
-		found, err := req.Store.LookupAll(ctx, req.Text, terms.LookupOptions{SourceLocale: loc})
+		found, err := req.Store.LookupAll(ctx, req.Text, LookupOptions{
+			SourceLocale: loc,
+			Domains:      req.Domains,
+			MinScore:     req.MinScore,
+			Scope:        req.Scope,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -189,14 +210,11 @@ func storeOccurrences(ctx context.Context, req Request) ([]Occurrence, error) {
 				continue
 			}
 			seen[key] = true
-			kind, severity, ok := standing(m, req.StoreStatuses)
-			if !ok {
-				continue
-			}
 			replacement, err := PreferredTerm(ctx, req.Store, m, req.Locale)
 			if err != nil {
 				return nil, err
 			}
+			concept := m.Concept
 			out = append(out, Occurrence{
 				Anchor:         anchorFor(req.Runs, m.Position.Start, m.Position.End),
 				Text:           req.Text[m.Position.Start:m.Position.End],
@@ -204,9 +222,11 @@ func storeOccurrences(ctx context.Context, req Request) ([]Occurrence, error) {
 				Replacement:    replacement,
 				Note:           m.Term.Note,
 				ConceptID:      m.Concept.ID,
-				Severity:       severity,
 				Category:       profile.DimensionVocabulary,
-				Kind:           kind,
+				Competitor:     m.Term.CompetitorTerm,
+				Concept:        &concept,
+				Score:          m.Score,
+				MatchType:      m.MatchType,
 				Status:         m.Term.Status,
 				DoNotTranslate: m.Concept.DoNotTranslate,
 				Source:         SourceStore,
@@ -216,28 +236,6 @@ func storeOccurrences(ctx context.Context, req Request) ([]Occurrence, error) {
 		}
 	}
 	return out, nil
-}
-
-// standing reads a store match's kind and severity from the concept's status.
-//
-// A competitor's name is critical and a forbidden term major, the same way the
-// two are weighted in a voice profile. A retired term is minor: the word was
-// the project's own until a decision replaced it, so it reads as the softer
-// finding rather than turning every legacy spelling in a corpus into a build
-// failure the day a term is retired.
-func standing(m terms.TermMatch, want []model.TermStatus) (profile.VocabKind, profile.Severity, bool) {
-	if len(want) > 0 && !slices.Contains(want, m.Term.Status) && !m.Term.CompetitorTerm {
-		return 0, "", false
-	}
-	switch {
-	case m.Term.CompetitorTerm:
-		return profile.VocabCompetitor, profile.SeverityCritical, true
-	case m.Term.Status == model.TermForbidden:
-		return profile.VocabForbidden, profile.SeverityMajor, true
-	case m.Term.Status == model.TermDeprecated:
-		return profile.VocabForbidden, profile.SeverityMinor, true
-	}
-	return 0, "", false
 }
 
 // anchorFor resolves a byte span onto the runs it sits in. A caller matching
@@ -285,25 +283,25 @@ func LookupLocales(loc model.LocaleID) []model.LocaleID {
 // vocabulary that files each word separately, has the replacement in the note
 // and nowhere else, and a finding that names no alternative is the beat of the
 // correction loop that lands without its fix.
-func PreferredTerm(ctx context.Context, store terms.Terminology, m terms.TermMatch, loc model.LocaleID) (string, error) {
+func PreferredTerm(ctx context.Context, store Terminology, m TermMatch, loc model.LocaleID) (string, error) {
 	if pref := m.Concept.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
 	if m.Concept.ID == "" || len(m.Concept.Terms) > 0 {
 		// Nothing to look up, or the concept was whole and named none.
-		return terms.ReplacementFromNote(m.Term.Note), nil
+		return ReplacementFromNote(m.Term.Note), nil
 	}
 	full, found, err := store.GetConcept(ctx, m.Concept.ID)
 	if err != nil {
 		return "", fmt.Errorf("read concept %s: %w", m.Concept.ID, err)
 	}
 	if !found {
-		return terms.ReplacementFromNote(m.Term.Note), nil
+		return ReplacementFromNote(m.Term.Note), nil
 	}
 	if pref := full.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
-	return terms.ReplacementFromNote(m.Term.Note), nil
+	return ReplacementFromNote(m.Term.Note), nil
 }
 
 // Hit presents the occurrence as a vocabulary hit, so a consumer can pass it
