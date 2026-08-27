@@ -1036,6 +1036,9 @@ const config: Config = {
             // reader cannot reconstruct by browsing the others.
             { label: "Reference Overview", to: "/reference" },
             { label: "Tests and Evals", to: "/evals" },
+            { label: "· Engine and formats", to: "/evals/engine" },
+            { label: "· AI and context", to: "/evals/ai" },
+            { label: "· Agent skills", to: "/evals/skills" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },

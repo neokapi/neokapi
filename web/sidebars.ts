@@ -307,6 +307,9 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         { type: "link", label: "All evals", href: "/evals" },
+        { type: "link", label: "· Engine and formats", href: "/evals/engine" },
+        { type: "link", label: "· AI and context", href: "/evals/ai" },
+        { type: "link", label: "· Agent skills", href: "/evals/skills" },
         { type: "link", label: "Format maturity", href: "/format-maturity" },
         { type: "link", label: "Reuse and governance", href: "/coordinate" },
         { type: "link", label: "Check eval", href: "/check-eval" },

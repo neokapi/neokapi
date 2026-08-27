@@ -155,9 +155,11 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "What does slide 3 of pitch.pptx say?",
 		Path:   "read (binary)",
-		Why:    "An editor cannot open a .pptx. Reading it is the plainest case the skill exists for.",
+		Why: "The plainest case the skill exists for. It does NOT test whether kapi is necessary: a .pptx is a " +
+			"zip of XML, and an unaided agent read this deck with `unzip -p` in three calls and answered " +
+			"correctly. What is measured is whether the skill fires; what kapi adds is the control arm's job.",
 		Fixture: []FixtureFile{
-			{As: "pitch.pptx", From: fxPptx, Note: "a real deck; the agent has no other way to read it"},
+			{As: "pitch.pptx", From: fxPptx, Note: "a real three-slide deck"},
 		},
 		Turns: 5,
 	},
@@ -166,9 +168,11 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "Make the intro of report.docx more concise, and keep the formatting.",
 		Path:   "edit (round-trip)",
-		Why:    "Editing inside a binary format while preserving structure is the round-trip claim.",
+		Why: "Editing inside a binary format is the round-trip claim. Whether the formatting actually survived " +
+			"is not checked here: no gate reads the result back, so this scenario shows the route taken and " +
+			"not the fidelity of what came out.",
 		Fixture: []FixtureFile{
-			{As: "report.docx", From: fxDocx, Note: "formatting must survive the edit"},
+			{As: "report.docx", From: fxDocx, Note: "a formatted document to edit in place"},
 		},
 		Turns: 6,
 	},
@@ -195,9 +199,10 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "We renamed SalesPilot to Northwind. Update every mention across docs/.",
 		Path:   "toolbox (kgrep/ksed)",
-		Why: "The fixture is the whole point. SalesPilot appears nine times inside the .docx and the " +
-			".xlsx, where grep cannot see it, and once in the Markdown, where it can. An agent that " +
-			"sweeps with grep alone finishes with nine misses and no error, so the gate counts what is left.",
+		Why: "SalesPilot appears nine times inside the .docx and the .xlsx and once in the Markdown. Plain grep " +
+			"reads only the Markdown, so a grep-only sweep finishes with nine misses and no error, which is " +
+			"what the gate catches. An unaided agent can still get there by unzipping and editing the XML, so " +
+			"the control arm is what says whether kapi enabled this or merely shortened it.",
 		Fixture: []FixtureFile{
 			{As: "docs/proposal.docx", From: fxDocx, Note: "5 mentions, opaque to grep"},
 			{As: "docs/pricing.xlsx", From: fxXlsx, Note: "4 mentions, opaque to grep"},
@@ -226,9 +231,11 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "Translate announcement.docx into Japanese.",
 		Path:   "translate",
-		Why:    "Translation through a faithful round-trip, which is the format claim and the language claim at once.",
+		Why: "Translation through a round-trip, which is the format claim and the language claim at once. " +
+			"Neither is verified here: no gate opens the result, so a .docx that came back corrupt would " +
+			"still read as a pass.",
 		Fixture: []FixtureFile{
-			{As: "announcement.docx", From: fxDocxAnn, Note: "must come back as a valid .docx"},
+			{As: "announcement.docx", From: fxDocxAnn, Note: "the document to translate"},
 		},
 		Turns: 10,
 	},
@@ -301,8 +308,9 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "Which i18n library should we use for our Next.js app?",
 		Path:   "i18n (advice)",
-		Why: "Advice rather than action. The bar is higher than a recommendation: it must quote the toil grades, " +
-			"which is what EVALS.md records it failing to do last run.",
+		Why: "Advice rather than action. EVALS.md sets a bar above a bare recommendation, that the answer quote " +
+			"the toil grades, and records the last manual run failing it. Nothing here checks that: the " +
+			"scenario scores whether the skill fired, so a confident wrong answer passes.",
 		Fixture: []FixtureFile{
 			{As: "src/app/page.tsx", From: fxNextPage},
 			{As: "package.json", From: fxNextPkg, Note: "identifies the framework"},
@@ -314,7 +322,8 @@ var scenarios = []Scenario{
 		Kind:   positive,
 		Prompt: "Internationalize this Flutter app and translate it to German.",
 		Path:   "i18n (flutter)",
-		Why:    "A framework with its own codegen, reached through detection rather than a flag.",
+		Why: "A framework with its own codegen, which the skill should reach through detection rather than a " +
+			"flag. Which route it took is visible in the recorded commands rather than scored.",
 		Fixture: []FixtureFile{
 			{As: "pubspec.yaml", Body: "name: northwind\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n"},
 			{As: "lib/main.dart", Body: "import 'package:flutter/material.dart';\n\nvoid main() => runApp(const App());\n\nclass App extends StatelessWidget {\n  const App({super.key});\n  @override\n  Widget build(BuildContext c) =>\n      const MaterialApp(home: Scaffold(body: Center(child: Text('Sign in to your workspace'))));\n}\n",

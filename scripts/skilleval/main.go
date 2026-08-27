@@ -50,6 +50,8 @@ type Options struct {
 	Repeat         int
 	Concurrency    int
 	TriggerTurnCap int
+	// Control runs the unaided arm alongside each scenario.
+	Control bool
 	// CompletionTurnFloor is the least room a completion run gets, whatever the
 	// scenario's own cap says. Triggering and finishing are different budgets.
 	CompletionTurnFloor int
@@ -68,6 +70,7 @@ func main() {
 		turnCap     = flag.Int("trigger-turns", 4, "hard turn cap in trigger mode")
 		compTurns   = flag.Int("completion-turns", 40, "minimum turns a completion run gets")
 		keep        = flag.Bool("keep", false, "keep the scenario workspaces for inspection")
+		control     = flag.Bool("control", false, "also run each scenario with no skill and no kapi on PATH, to measure what kapi adds")
 		timeout     = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
 	)
 	flag.Parse()
@@ -88,7 +91,7 @@ func main() {
 		Mode: *mode, Surface: *surface, RepoRoot: root, ClaudeBin: claudeBin,
 		KapiBin: findKapi(root), Model: *model, Repeat: *repeat,
 		Concurrency: *concurrency, TriggerTurnCap: *turnCap,
-		CompletionTurnFloor: *compTurns, Keep: *keep,
+		CompletionTurnFloor: *compTurns, Keep: *keep, Control: *control,
 	}
 	if opts.Mode == modeCompletion && opts.KapiBin == "" {
 		fail("completion mode needs a built kapi: run `make build` first")
@@ -170,7 +173,15 @@ func execute(ctx context.Context, set []Scenario, opts Options) *Report {
 				if ctx.Err() != nil {
 					break
 				}
-				res.Runs = append(res.Runs, runScenario(ctx, &sc, opts))
+				res.Runs = append(res.Runs, runScenario(ctx, &sc, opts, armSkill))
+			}
+			if opts.Control {
+				// One control pass rather than Repeat: the question it answers
+				// is "could this be done without kapi at all", which does not
+				// need the same statistical weight as "does the skill fire".
+				if ctx.Err() == nil {
+					res.Unaided = append(res.Unaided, runScenario(ctx, &sc, opts, armUnaided))
+				}
 			}
 			res.Scenario = sc // fixture sizes were filled in during the run
 			res.score(opts.Mode)
@@ -255,6 +266,20 @@ type Result struct {
 	Verdict string `json:"verdict"`
 	// GatePassed counts passes whose completion gate went green.
 	GatePassed int `json:"gatePassed,omitempty"`
+
+	// Unaided is the control arm: the same prompt and workspace with no skill,
+	// no MCP server, and no kapi anywhere on PATH.
+	//
+	// It exists because a scenario note claimed of a .pptx that "the agent has
+	// no other way to read it", and an unaided agent answered correctly in
+	// three calls with unzip. A .pptx is a zip of XML. The suite was full of
+	// assertions like that, and the only thing that settles them is the run.
+	Unaided []Run `json:"unaided,omitempty"`
+	// UnaidedGatePassed counts control passes whose gate went green.
+	UnaidedGatePassed int `json:"unaidedGatePassed,omitempty"`
+	// Contribution is what kapi added here, measured: enabled, eased, neither,
+	// or unknown when there is no gate to compare outcomes on.
+	Contribution Contribution `json:"contribution,omitempty"`
 }
 
 func (r *Result) score(mode string) {
@@ -277,6 +302,16 @@ func (r *Result) score(mode string) {
 		}
 	}
 	sortStrings(r.WrongTool)
+
+	r.UnaidedGatePassed = 0
+	for _, run := range r.Unaided {
+		if run.Gate != nil && run.Gate.ExitCode == 0 {
+			r.UnaidedGatePassed++
+		}
+	}
+	if len(r.Unaided) > 0 {
+		r.Contribution = contribution(r.Runs, r.Unaided, r.Scenario.CompletionGate != "")
+	}
 
 	n := len(r.Runs)
 
@@ -351,6 +386,11 @@ type Summary struct {
 	// carry no definition of done. It belongs beside the pass count, not
 	// hidden behind it.
 	Ungated int `json:"ungated,omitempty"`
+
+	// Contributions counts what kapi added across the suite, when the control
+	// arm ran. "neither" is the number worth reading first: it says how much
+	// of this suite is not evidence for kapi.
+	Contributions map[string]int `json:"contributions,omitempty"`
 }
 
 func (s Summary) Line() string {
@@ -358,6 +398,11 @@ func (s Summary) Line() string {
 		s.Scenarios, s.Pass, s.Flaky, s.Fail, s.FalseTriggers)
 	if s.Ungated > 0 {
 		line += fmt.Sprintf(", %d with no gate to check", s.Ungated)
+	}
+	if n := s.Contributions; len(n) > 0 {
+		line += fmt.Sprintf("; kapi enabled %d, eased %d, neither %d, unknown %d",
+			n[string(ContributionEnabled)], n[string(ContributionEased)],
+			n[string(ContributionNeither)], n[string(ContributionUnknown)])
 	}
 	return line
 }
@@ -374,6 +419,12 @@ func summarize(rs []Result) Summary {
 			if r.Fired > 0 {
 				s.FalseTriggers++
 			}
+		}
+		if r.Contribution != "" {
+			if s.Contributions == nil {
+				s.Contributions = map[string]int{}
+			}
+			s.Contributions[string(r.Contribution)]++
 		}
 		if surfaceOf(r.Scenario) == surfaceMCP && len(r.WrongTool) > 0 {
 			s.WrongToolPicks++
