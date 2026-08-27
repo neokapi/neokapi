@@ -186,7 +186,17 @@ can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
 passage use* — and answers it with `check.TermMatcher`, the single definition of
 what it means for a text to use a term. The voice-profile vocabulary rules, the
 do-not-translate check and the occurrence graph scan with the same matcher, so a
-word is a hit for the whole gate or for none of it. The rule is whole-word and
+word is a hit for the whole gate or for none of it.
+
+`term-check` is the exception, and deliberately. A mandate names a lemma while
+content inflects it: a source reading "Two new alerts" uses the term `alert`,
+and an obedient Norwegian rendering of `alarmmelding` is `alarmmeldinger`. So
+both its sides match on containment rather than on word boundaries. The cost is
+real — a mandate on `use` also fires inside `user` — and no boundary rule
+separates the two cases, because `user` is a word that starts with `use` exactly
+as `alerts` is a word that starts with `alert`. Telling an inflection from a
+coincidence needs stemming or explicitly declared forms, not a stricter matcher;
+`scripts/contexteval` pins the Norwegian case that would regress first. The rule is whole-word and
 Unicode-aware: an underscore continues a word, so `mooring_id` is one token
 rather than a use of `mooring`; scripts written without word separators take no
 boundary rule at all; and a multi-word term matches across any run of
@@ -210,13 +220,21 @@ concepts the project has decided, which is where `kapi apply` writes. Both are
 the same kind of statement about the same words, so a gate that asks them
 separately is two gates that can disagree about whether a word is in use.
 
-`terms/locate` asks once. `Find` takes the rules the caller holds and the bound
+`terms.Locate` asks once. It takes the rules the caller holds and the bound
 store, matches the rules through `profile.MatchTermRules` and the store through
 `LookupAll`, and returns **occurrences**: the matched surface text, the
 declaration that governs it, the concept it denotes, and a `model.Anchor`
 positioning it in the block's runs. Store matches are deduped across the
 candidate languages, because a term recorded in both `en-GB` and `en` is one
 decision about one word.
+
+An occurrence is a **use**, not a verdict. The pass reports every declared term
+it finds, including the preferred and approved ones, and says nothing about
+whether any of them is a problem. Which uses are violations is the consuming
+gate's policy and lives there: the voice vocabulary gate objects to a
+competitor's name, a forbidden term and a retired one, and `term-lookup`
+annotates all of them because context is what it is for. A pass that filtered to
+one caller's three statuses was a pass only that caller could use.
 
 The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
 term rule *sets*, each carrying the kind of violation a hit is and the severity
@@ -299,9 +317,11 @@ voice guardrails without depending on the whole voice module.
 
 The framework ships terminology tools as ordinary pipeline stages:
 
-- **`term-lookup`** (enrich) — scans source text for known terms and attaches
-  term annotations with run-anchored positions. Downstream tools use these for
-  context.
+- **`term-lookup`** (enrich) — records where the source uses a declared term,
+  as term annotations with run-anchored positions. It reads both sources through
+  `terms.Locate`: the concepts in the store and the rules a project carries under
+  `term_rules:`, so terminology declared in a recipe counts as much as
+  terminology decided in the store. Downstream tools use these for context.
 - **`term-enforce`** (validate) — for each known source term, checks that an
   acceptable target-locale translation is present, and flags blocks where it is
   missing. Forbidden, deprecated and competitor detection is

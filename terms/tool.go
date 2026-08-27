@@ -11,11 +11,16 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
 // TermLookupConfig holds configuration for the term lookup tool.
 type TermLookupConfig struct {
+	// TermRules are the terms declared outside the store — a voice profile's
+	// vocabulary, a recipe's `term_rules:` — under the same key every governed
+	// step takes them.
+	TermRules    []profile.TermRule `json:"term_rules,omitempty" schema:"-"`
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
 	Domains      []string // optional domain filter
@@ -88,32 +93,39 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 		return fmt.Errorf("term-lookup: %w", err)
 	}
 
-	// Find all term occurrences in the source text.
-	matches, err := t.tb.LookupAll(v.Context(), sourceText, LookupOptions{
-		SourceLocale: t.cfg.SourceLocale,
-		Domains:      t.cfg.Domains,
-		MinScore:     t.cfg.MinScore,
-		Scope:        scope,
+	// Every declared term, wherever the project declared it: the concepts in
+	// the store, and the rules a voice profile or a recipe carries. Asking the
+	// store alone meant a project whose terminology lives in `term_rules:` got
+	// nothing from this tool at all.
+	occurrences, err := Locate(v.Context(), LocateRequest{
+		Text:     sourceText,
+		Runs:     v.SourceRuns(),
+		RuleSets: []profile.TermRuleSet{{Rules: t.cfg.TermRules}},
+		Store:    t.tb,
+		Locale:   t.cfg.SourceLocale,
+		Domains:  t.cfg.Domains,
+		MinScore: t.cfg.MinScore,
+		Scope:    scope,
 	})
 	if err != nil {
 		return err
 	}
 
-	if len(matches) == 0 {
+	if len(occurrences) == 0 {
 		return nil
 	}
 
-	// Attach each matched term as a TermAnnotation.
-	for i, match := range matches {
+	// Attach each occurrence as a TermAnnotation.
+	for i, occ := range occurrences {
 		// Build target term refs for the target locale. A forbidden or
 		// deprecated source term redirects through its USE_INSTEAD or
 		// REPLACED_BY relation: the refs then name the replacement concept's
 		// preferred term instead of the matched concept's own translations.
 		var targetRefs []model.TermRef
-		if !t.cfg.TargetLocale.IsEmpty() {
-			targetRefs = termRefs(match.Concept, t.cfg.TargetLocale)
-			if replaceableStatus(match.Term.Status) {
-				repl, ok, err := resolveReplacement(v.Context(), t.tb, match.Concept.ID, scope)
+		if !t.cfg.TargetLocale.IsEmpty() && occ.Concept != nil {
+			targetRefs = termRefs(*occ.Concept, t.cfg.TargetLocale)
+			if replaceableStatus(occ.Status) {
+				repl, ok, err := resolveReplacement(v.Context(), t.tb, occ.ConceptID, scope)
 				if err != nil {
 					return err
 				}
@@ -126,23 +138,25 @@ func (t *TermLookupTool) annotate(v tool.BlockView) error {
 		}
 
 		annotation := &model.TermAnnotation{
-			SourceTerm:  match.Term.Text,
-			ConceptID:   match.Concept.ID,
+			SourceTerm:  occ.Term,
+			ConceptID:   occ.ConceptID,
 			TargetTerms: targetRefs,
-			Status:      match.Term.Status,
-			Score:       match.Score,
-			MatchType:   match.MatchType,
+			Status:      occ.Status,
+			Score:       occ.Score,
+			MatchType:   occ.MatchType,
 		}
 
 		v.AddOverlaySpan(model.OverlayTerm, model.Span{
-			ID:    fmt.Sprintf("term:%d", i),
-			Range: model.RangeAnchorForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
+			ID: fmt.Sprintf("term:%d", i),
+			// The pass already anchored it, so the offsets are not converted
+			// twice and cannot be converted differently by two callers.
+			Range: occ.Anchor,
 			Value: annotation,
 		})
 	}
 
 	// Set the count as a property for quick access.
-	v.SetProperty("term-count", strconv.Itoa(len(matches)))
+	v.SetProperty("term-count", strconv.Itoa(len(occurrences)))
 
 	return nil
 }

@@ -9,7 +9,6 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/terms"
-	"github.com/neokapi/neokapi/terms/locate"
 )
 
 // VoiceVocabConfig holds configuration for the voice vocabulary check tool.
@@ -107,7 +106,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	if lookupIn == "" {
 		lookupIn = t.sourceLocale
 	}
-	occurrences, err := locate.Find(v.Context(), locate.Request{
+	occurrences, err := terms.Locate(v.Context(), terms.LocateRequest{
 		Text:     sourceText,
 		Runs:     sourceRuns,
 		RuleSets: coreprofile.VocabularyRuleSets(t.profile),
@@ -117,7 +116,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	if err != nil {
 		return err
 	}
-	findings = append(findings, findingsFor(occurrences, sourceText, sourceRuns)...)
+	findings = append(findings, findingsFor(violations(occurrences), sourceText, sourceRuns)...)
 
 	if len(findings) > 0 {
 		// Add the voice annotation (which carries the findings + score).
@@ -136,6 +135,43 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	return nil
 }
 
+// violations keeps the occurrences this gate is about, and grades them.
+//
+// Locating a term and objecting to it are different questions, and only the
+// second is this gate's. A terms store holds preferred and approved terms too;
+// term-lookup annotates those for context and is right to. Here they are simply
+// uses of words the project likes.
+//
+// A rule the caller declared is a violation by construction — a voice profile's
+// forbidden and competitor lists exist to be objected to — so it keeps the kind
+// and severity its rule set gave it. A store match is graded by the concept's
+// standing: a competitor's name is critical and a forbidden term major, matching
+// how the two are weighted in a profile. A retired term is minor, because the
+// word was the project's own until a decision replaced it, and `--strict` should
+// not turn every legacy spelling in a corpus into a build failure the day a term
+// is retired.
+func violations(occurrences []terms.Occurrence) []terms.Occurrence {
+	out := make([]terms.Occurrence, 0, len(occurrences))
+	for _, occ := range occurrences {
+		if occ.Source == terms.SourceRule {
+			out = append(out, occ)
+			continue
+		}
+		switch {
+		case occ.Competitor:
+			occ.Kind, occ.Severity = coreprofile.VocabCompetitor, coreprofile.SeverityCritical
+		case occ.Status == model.TermForbidden:
+			occ.Kind, occ.Severity = coreprofile.VocabForbidden, coreprofile.SeverityMajor
+		case occ.Status == model.TermDeprecated:
+			occ.Kind, occ.Severity = coreprofile.VocabForbidden, coreprofile.SeverityMinor
+		default:
+			continue
+		}
+		out = append(out, occ)
+	}
+	return out
+}
+
 // findingsFor presents located occurrences as voice findings.
 //
 // The mapping is profile.HitsToFindings, the one every vocabulary surface
@@ -147,7 +183,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 // phrasings are deliberate: "forbidden by the profile" and "forbidden in terms"
 // send a writer to different places to argue with the decision, and a single
 // wording would hide which one is holding them.
-func findingsFor(occurrences []locate.Occurrence, text string, runs []model.Run) []coreprofile.VoiceFinding {
+func findingsFor(occurrences []terms.Occurrence, text string, runs []model.Run) []coreprofile.VoiceFinding {
 	if len(occurrences) == 0 {
 		return nil
 	}
@@ -157,7 +193,7 @@ func findingsFor(occurrences []locate.Occurrence, text string, runs []model.Run)
 	}
 	findings := coreprofile.HitsToFindings(hits, text, runs)
 	for i, occ := range occurrences {
-		if occ.Source == locate.SourceStore {
+		if occ.Source == terms.SourceStore {
 			findings[i].Message = storeMessage(occ)
 		}
 	}
@@ -167,9 +203,9 @@ func findingsFor(occurrences []locate.Occurrence, text string, runs []model.Run)
 // storeMessage names the terms store as where the decision lives. A retired
 // term reads as the softer complaint it is: the word was the project's own
 // until a decision replaced it.
-func storeMessage(occ locate.Occurrence) string {
+func storeMessage(occ terms.Occurrence) string {
 	switch {
-	case occ.Kind == coreprofile.VocabCompetitor:
+	case occ.Competitor:
 		return fmt.Sprintf("Competitor term %q found in terms", occ.Term)
 	case occ.Status == model.TermDeprecated:
 		return fmt.Sprintf("Retired term %q found in terms", occ.Term)
