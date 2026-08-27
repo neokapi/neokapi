@@ -36,6 +36,8 @@ interface ExtScore {
   meanRecall: number;
   medianRecall: number;
   medianMs: number;
+  topFile?: string;
+  topFileShare?: number;
 }
 interface ConverterResult {
   id: string;
@@ -169,6 +171,13 @@ function ExtTable({ ext }: { ext: string }): ReactElement {
     .map((c) => ({ c, e: c.byExt[ext] }))
     .sort((a, b) => b.e.recall - a.e.recall);
   const words = rows[0]?.e.truthWords ?? 0;
+  // Every converter in this table read the same files, so the top-file share is
+  // the same for all of them; the first row's is the format's.
+  const first = rows[0]?.e;
+  const top =
+    first?.topFile && first.topFileShare
+      ? { file: first.topFile, share: first.topFileShare }
+      : undefined;
   return (
     <div style={s.card}>
       <div style={{ display: "flex", gap: ".6rem", alignItems: "baseline", flexWrap: "wrap" }}>
@@ -181,6 +190,13 @@ function ExtTable({ ext }: { ext: string }): ReactElement {
           documents went badly wrong.
         </span>
       </div>
+      {top && top.share > 0.5 ? (
+        <div style={{ ...s.banner, marginTop: ".7rem" }}>
+          <code style={s.code}>{top.file}</code> carries {Math.round(100 * top.share)}% of this
+          format&rsquo;s ground truth, so the words-kept column is mostly a score about that one
+          document. The typical-file and mean columns weight every document equally.
+        </div>
+      ) : null}
       <div style={{ ...s.scroll, marginTop: ".8rem" }}>
         <table style={s.table}>
           <thead>

@@ -100,6 +100,15 @@ type ExtScore struct {
 	MeanRecall   float64 `json:"meanRecall"`
 	MedianRecall float64 `json:"medianRecall"`
 	MedianMs     int64   `json:"medianMs"`
+	// TopFile and TopFileShare name the single document carrying the largest
+	// share of this format's ground truth.
+	//
+	// A word-weighted score over a corpus where one file holds most of the
+	// words is a score about that file. `large.xlsx` is 99% of the spreadsheet
+	// ground truth here, and without this the reader has no way to know that
+	// the .xlsx row is one workbook wearing a corpus's clothes.
+	TopFile      string  `json:"topFile,omitempty"`
+	TopFileShare float64 `json:"topFileShare,omitempty"`
 }
 
 // CorpusInfo describes what was read.
@@ -230,7 +239,7 @@ func discover(root string, limit int) ([]doc, int, error) {
 			return nil //nolint:nilerr // an unreadable corner of the corpus is not a reason to stop
 		}
 		ext := strings.ToLower(filepath.Ext(p))
-		if _, ok := specs[ext]; !ok {
+		if !readable(ext) {
 			return nil
 		}
 		info, err := d.Info()
@@ -393,6 +402,13 @@ func summarize(c Converter, list []FileResult) ConverterResult {
 		}
 		if truth > 0 {
 			e.Recall = float64(matched) / float64(truth)
+			top := 0
+			for _, f := range fs {
+				if f.Error == "" && f.Recall.TruthWords > top {
+					top, e.TopFile = f.Recall.TruthWords, f.File
+				}
+			}
+			e.TopFileShare = float64(top) / float64(truth)
 		}
 		res.ByExt[ext] = e
 	}
@@ -459,6 +475,13 @@ func report(rs []ConverterResult) {
 			fmt.Printf("  %-14s %6d %7.1f%% %9d %6.1f%% %6.1f%% %8s %7d %9d\n",
 				r.ID, e.Files, 100*e.Recall, e.TruthWords,
 				100*e.MeanRecall, 100*e.MedianRecall, "-", e.Failed, e.MedianMs)
+		}
+		for _, r := range rs {
+			if e, ok := r.ByExt[ext]; ok && e.TopFileShare > 0.5 {
+				fmt.Printf("  note: %s carries %.0f%% of this format's ground truth, so the word-weighted column is mostly about that one document\n",
+					e.TopFile, 100*e.TopFileShare)
+				break
+			}
 		}
 	}
 	fmt.Printf("\nacross every document each tool accepted (not a ranking: the file sets differ)\n")

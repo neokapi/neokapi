@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -58,30 +59,37 @@ var specs = map[string]spec{
 		},
 		element: "t",
 	},
-	".xlsx": {
-		// Shared strings hold most cell text; inline strings in the sheets hold
-		// the rest. Both use <t>.
-		match: func(n string) bool {
-			return n == "xl/sharedStrings.xml" ||
-				(strings.HasPrefix(n, "xl/worksheets/sheet") && path.Ext(n) == ".xml")
-		},
-		element: "t",
-	},
+	// .xlsx is handled by xlsxCellText rather than by a spec entry. A
+	// spreadsheet's text lives in its cells, and the cells refer to a shared
+	// string table rather than carrying their words, so no single part holds
+	// the answer.
 }
 
 // supportedExts is every extension ground truth can be read for, sorted so a
 // report reads the same twice.
+//
+// Not derived from specs alone: .xlsx has no spec entry because its text is
+// assembled from two parts rather than read out of one.
 func supportedExts() []string {
-	out := make([]string, 0, len(specs))
+	out := make([]string, 0, len(specs)+1)
 	for k := range specs {
 		out = append(out, k)
 	}
+	out = append(out, ".xlsx")
 	sort.Strings(out)
 	return out
 }
 
-// groundTruth returns the text nodes a document's own parts declare.
+// readable reports whether ground truth can be read for an extension.
+func readable(ext string) bool {
+	return slices.Contains(supportedExts(), ext)
+}
+
+// groundTruth returns the text a document's own parts declare.
 func groundTruth(file, ext string) ([]string, error) {
+	if ext == ".xlsx" {
+		return xlsxCellText(file)
+	}
 	sp, ok := specs[ext]
 	if !ok {
 		return nil, fmt.Errorf("no ground-truth spec for %s", ext)

@@ -65,6 +65,11 @@ interface Result {
   gatePassed?: number;
   foundTool?: number;
   wrongTool?: string[];
+  // The control arm: the same prompt and workspace with no skill, no MCP
+  // server, and no kapi anywhere on PATH.
+  unaided?: Run[];
+  unaidedGatePassed?: number;
+  contribution?: "enabled" | "eased" | "neither" | "unknown";
 }
 interface Runner {
   claudeVersion: string;
@@ -93,11 +98,100 @@ interface Report {
     gatesRun?: number;
     gatesPassed?: number;
     wrongToolPicks?: number;
+    ungated?: number;
+    contributions?: Record<string, number>;
   };
   results: Result[];
 }
 
 const reports = data as Record<string, Report>;
+
+// ControlArm reports what kapi added, measured rather than asserted.
+//
+// Every scenario runs a second time with no skill, no MCP server, and no kapi
+// anywhere on PATH. The comparison exists because a scenario note claimed of a
+// .pptx that "the agent has no other way to read it", and an unaided agent
+// answered correctly in three calls with unzip. A .pptx is a zip of XML. The
+// suite was full of assertions like that, and only the run settles them.
+function ControlArm({ sum }: { sum: Report["summary"] }): ReactElement | null {
+  const n = sum.contributions;
+  if (!n) return null;
+  const total = CONTRIBUTIONS.reduce((a, c) => a + (n[c.key] ?? 0), 0);
+  if (total === 0) return null;
+  return (
+    <section
+      style={{
+        border: "1px solid var(--ifm-color-emphasis-300)",
+        borderRadius: 8,
+        padding: "1.1rem 1.3rem",
+        margin: "1.4rem 0",
+        background: "var(--ifm-background-surface-color)",
+      }}
+    >
+      <h2 style={{ marginTop: 0, fontSize: "1.2rem" }}>What kapi added</h2>
+      <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
+        Each scenario ran a second time with no skill, no MCP server, and no kapi on PATH. The
+        comparison is deliberately conservative: kapi failing is never counted as a win, the message
+        counts are medians, and a scenario with no gate is unknown rather than assumed.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1.4rem", marginTop: ".8rem" }}>
+        {CONTRIBUTIONS.map((c) => (
+          <div key={c.key} style={{ minWidth: "13rem" }}>
+            <div
+              style={{
+                fontFamily: "var(--ifm-font-family-monospace)",
+                fontSize: "1.7rem",
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: tone[c.t].fg,
+                lineHeight: 1.1,
+              }}
+            >
+              {n[c.key] ?? 0}
+            </div>
+            <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{c.label}</div>
+            <div style={{ fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)" }}>
+              {c.means}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// What the control arm answers, in the order a reader should take it.
+//
+// "neither" first would be defensive and "enabled" first would be a pitch, so
+// the order is the strength of the claim, and the neither count is given the
+// same weight as the rest rather than tucked at the end. It is the number that
+// says how much of this suite is not evidence for kapi.
+const CONTRIBUTIONS: { key: string; label: string; means: string; t: keyof typeof tone }[] = [
+  {
+    key: "enabled",
+    label: "enabled",
+    means: "the unaided agent could not finish and the one with kapi did",
+    t: "pass",
+  },
+  {
+    key: "eased",
+    label: "eased",
+    means: "both finished, and kapi took materially fewer messages",
+    t: "pass",
+  },
+  {
+    key: "neither",
+    label: "neither",
+    means: "both finished, and kapi saved nothing measurable",
+    t: "flat",
+  },
+  {
+    key: "unknown",
+    label: "unknown",
+    means: "no gate, so there is no outcome to compare",
+    t: "flat",
+  },
+];
 
 // The dataset holds one report per surface and mode. The keys are exact and
 // unlovely, so the tabs get names a reader can act on.
@@ -671,6 +765,8 @@ export default function SkillEval(): ReactElement {
         <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
           {surfaceNote[surface]}
         </p>
+
+        <ControlArm sum={sum} />
 
         <h2>
           {surface === "mcp" ? "Must pick the right tool" : "Must fire"} ({positives.length})

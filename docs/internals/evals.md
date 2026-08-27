@@ -235,6 +235,16 @@ Three things that comparison has to get right, and each was wrong first:
 - **Weight by content, not by file.** The corpus holds two-word fixtures;
   averaging per-file recall gives one of those the same vote as a full report,
   and every converter scored 0% on the same two-word document.
+- **Then check what the weight lands on.** Weighting by content makes one large
+  document the score: `large.xlsx` carries 99% of the spreadsheet ground truth,
+  so the .xlsx row is one workbook wearing a corpus's clothes. The dataset now
+  records the top file's share and the page says so above 50%.
+- **Read the cells, not the string table.** `xl/sharedStrings.xml` holds each
+  distinct string once and the sheets refer to it by index, so a string in five
+  hundred cells appeared once in the truth and five hundred times in the output.
+  Recall is min(output, truth)/truth, so undercounting the truth made every
+  score easier, and both converters returned exactly 100.0% on .xlsx. A metric
+  that cannot fail looks precisely like a good result.
 - **Compare within a format.** The tools accept different ones, so a single
   column ranks them by what they declined.
 

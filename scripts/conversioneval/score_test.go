@@ -109,8 +109,8 @@ func TestEveryConverterDeclaresWhatItReads(t *testing.T) {
 		t.Run(c.ID, func(t *testing.T) {
 			assert.NotEmpty(t, c.Exts, "a converter that reads nothing should not be listed")
 			for _, e := range c.Exts {
-				assert.Contains(t, specs, e,
-					"%s claims %s, which has no ground-truth spec, so nothing could score it", c.ID, e)
+				assert.True(t, readable(e),
+					"%s claims %s, which no ground-truth reader handles, so nothing could score it", c.ID, e)
 			}
 			assert.NotEmpty(t, c.Note, "say what kind of tool this is, or four numbers read as four attempts at one thing")
 		})
