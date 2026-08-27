@@ -25,6 +25,10 @@ with nothing behind it shows as a hole rather than as an absence from a list.
    `registry.go`.
 3. `make eval-index`, then `go test ./scripts/evalindex/`.
 
+Run `make eval-index` after **re-running** an eval too, not only after adding
+one. The index records each dataset's date, so a refresh makes the committed
+index stale and its drift test fails.
+
 The tests will refuse the card unless every claim in it resolves: a `make`
 target must exist in the Makefile, a page must have a file, a dataset must
 exist, a judged eval must declare its validation or admit it has none. That is

@@ -173,7 +173,7 @@
       "data": "web/static/data/pseudobench.json",
       "page": "/pseudobench",
       "fresh": {
-        "date": "2026-08-26T23:27:54Z"
+        "date": "2026-08-26T23:47:41Z"
       }
     },
     {
@@ -350,7 +350,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-26T23:26:08Z"
+        "date": "2026-08-26T23:55:58Z"
       }
     },
     {
@@ -368,7 +368,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-26T23:26:08Z"
+        "date": "2026-08-26T23:55:58Z"
       }
     },
     {
@@ -386,7 +386,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-26T23:26:08Z"
+        "date": "2026-08-26T23:55:58Z"
       }
     }
   ],
