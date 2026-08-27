@@ -10,11 +10,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -74,11 +78,16 @@ type Metric struct {
 
 // Report is the full eval result consumed by the /check-eval dashboard.
 type Report struct {
-	GeneratedNote string             `json:"generated_note"`
-	Total         Metric             `json:"total"`
-	ByCheck       []Metric           `json:"by_check"`
-	Cases         []CaseResult       `json:"cases"`
-	Corrections   *CorrectionsReport `json:"corrections,omitempty"`
+	GeneratedNote string `json:"generated_note"`
+	// Generated is when this ran. A deterministic eval regenerates on demand,
+	// so without a stamp its age is invisible and a stale dataset reads exactly
+	// like a fresh one.
+	Generated   string             `json:"generated"`
+	Commit      string             `json:"commit,omitempty"`
+	Total       Metric             `json:"total"`
+	ByCheck     []Metric           `json:"by_check"`
+	Cases       []CaseResult       `json:"cases"`
+	Corrections *CorrectionsReport `json:"corrections,omitempty"`
 }
 
 // runCase runs the case's check and returns the set of finding categories and
@@ -117,7 +126,11 @@ func runCase(c Case) (cats []string, score int, err error) {
 
 // Evaluate runs every case and aggregates per-check and overall metrics.
 func Evaluate(corpus Corpus) (Report, error) {
-	rep := Report{GeneratedNote: "Run `go run ./scripts/checkeval` to regenerate."}
+	rep := Report{
+		GeneratedNote: "Run `go run ./scripts/checkeval` to regenerate.",
+		Generated:     time.Now().UTC().Format(time.RFC3339),
+		Commit:        headCommit(),
+	}
 	perCheck := map[string]*Metric{}
 	for _, c := range corpus.Cases {
 		got, score, err := runCase(c)
@@ -272,4 +285,16 @@ func main() {
 		fmt.Printf("checkeval: corrections-stream · %d promoted/%d · P %.2f R %.2f F1 %.2f · caught %d missed %d over-flagged %d\n",
 			c.Promoted, c.Total, c.Precision, c.Recall, c.F1, c.TP, c.FN, c.FP)
 	}
+}
+
+// headCommit records which checkout produced the numbers, so a dataset can be
+// tied back to the code that made it rather than only to a date.
+func headCommit() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

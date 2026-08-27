@@ -230,7 +230,7 @@ func runFileTrace(ctx context.Context, fp FileProcessor, cfg *Config) []FileTimi
 
 		if err != nil {
 			ft.Success = false
-			ft.Error = err.Error()
+			ft.Error = scrubPaths(err.Error())
 			ft.WallMs = ft.EndMs - ft.StartMs
 		} else {
 			ft.Success = true

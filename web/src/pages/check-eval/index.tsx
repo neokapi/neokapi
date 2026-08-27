@@ -51,6 +51,8 @@ interface CorrectionsReport {
   cases: CorrectionCase[];
 }
 interface Report {
+  generated?: string;
+  commit?: string;
   total: Metric;
   by_check: Metric[];
   cases: CaseResult[];
@@ -90,6 +92,19 @@ export default function CheckEval(): ReactElement {
           the build. The corpus is seeded from the checkers' unit and adversarial cases and grows
           from real corrections (issue #759).
         </p>
+
+        {r.generated && (
+          <p
+            style={{
+              fontFamily: "var(--ifm-font-family-monospace)",
+              fontSize: ".82rem",
+              color: "var(--ifm-color-emphasis-700)",
+            }}
+          >
+            measured {r.generated.slice(0, 10)}
+            {r.commit && ` · ${r.commit}`}
+          </p>
+        )}
 
         <div
           style={{

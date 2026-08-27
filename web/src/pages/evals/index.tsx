@@ -1,173 +1,112 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
 import index from "./_index.json";
 
-// The /evals cover page: every measurement kapi publishes, grouped by the
-// question it answers.
+// The /evals cover page.
 //
-// Organised by question rather than by eval, and the questions are questions
-// rather than claims, because a question can be answered badly. "Is authoring
-// governed too" reads honestly when the answer is "not measured yet"; a heading
-// asserting that it is would not.
+// Three bands, split by what an eval has under test, because the subject
+// decides what its numbers can mean: kapi's own code is deterministic and can
+// gate a build; a model's output is sampled and can only be tracked; an agent's
+// behaviour is stochastic in a third way and is scored per scenario.
 //
-// The rows that matter most are the absent ones. A gap a reader cannot see is a
-// gap they will assume is covered, so an unbuilt eval carries the same card as
-// a built one, minus its data, and says plainly what it would have measured.
+// Inside a band the structure is the architecture, the same six AD series the
+// contributor docs use, so an eval sits beside the document describing what it
+// measures and a series with nothing behind it shows as a hole in the
+// architecture rather than as an absence from a list.
 //
-// Regenerate with `go run ./scripts/evalindex`.
+// Short text, dense data. Everything a reader might weigh is a field on a card;
+// the long-form argument belongs in the dashboards the cards link to.
+//
+// Regenerate with `make eval-index`.
 
-interface Question {
+interface BandInfo {
   id: string;
-  ask: string;
-  why: string;
+  title: string;
+  subject: string;
+  evidence: string;
+  gates: string;
+  layers: string[];
+}
+interface Layer {
+  id: string;
+  band: string;
+  series: string;
+  title: string;
+  scope: string;
+  rests?: string;
+  ad: string;
   evals: string[];
 }
 interface Eval {
   id: string;
   title: string;
-  method: "deterministic" | "labelled" | "judged" | "benchmark" | "comparative";
+  method: "deterministic" | "labelled" | "judged" | "benchmark" | "comparative" | "scenario";
   status: "measured" | "partial" | "unvalidated" | "absent";
   spends?: boolean;
+  local?: boolean;
   corpus: string;
   covers: string;
   misses?: string;
   reproduce?: string;
+  settings?: string;
   data?: string;
   page?: string;
   validation?: string;
-  settings?: string;
-}
-interface Coverage {
-  measured: number;
-  partial: number;
-  unvalidated: number;
-  absent: number;
-  questionsUnanswered: number;
+  fresh?: { date?: string; undated?: boolean };
 }
 interface Index {
   _note: string;
-  questions: Question[];
+  bands: BandInfo[];
+  layers: Layer[];
   evals: Eval[];
-  coverage: Coverage;
+  coverage: {
+    measured: number;
+    partial: number;
+    unvalidated: number;
+    absent: number;
+    layersUnmeasured: number;
+    perBand: Record<string, number>;
+    undated: number;
+  };
 }
 
 const data = index as Index;
-const byID = new Map(data.evals.map((e) => [e.id, e]));
+const evalByID = new Map(data.evals.map((e) => [e.id, e]));
+const layerByID = new Map(data.layers.map((l) => [l.id, l]));
 
 const mono = "var(--ifm-font-family-monospace)";
 
-const styles: Record<string, CSSProperties> = {
-  lede: { fontSize: "1.1rem", lineHeight: 1.6, maxWidth: "64ch" },
-  prose: { maxWidth: "66ch" },
-  strip: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "1.5rem",
-    padding: "1.1rem 1.3rem",
-    border: "1px solid var(--ifm-color-emphasis-300)",
-    borderRadius: 8,
-    background: "var(--ifm-background-surface-color)",
-    margin: "1.8rem 0 1rem",
+// Infima's `-contrast-foreground` tokens invert with the theme; `-darker` does
+// not, and mixing them puts mid-red on dark red for anyone in dark mode.
+const tone = {
+  ok: {
+    fg: "var(--ifm-color-success-contrast-foreground)",
+    bg: "var(--ifm-color-success-contrast-background)",
   },
-  stat: { display: "flex", flexDirection: "column", gap: ".15rem" },
-  statN: { fontSize: "1.5rem", fontWeight: 650, lineHeight: 1, fontVariantNumeric: "tabular-nums" },
-  statL: {
-    fontSize: ".72rem",
-    letterSpacing: ".1em",
-    textTransform: "uppercase",
-    color: "var(--ifm-color-emphasis-700)",
+  warn: {
+    fg: "var(--ifm-color-warning-contrast-foreground)",
+    bg: "var(--ifm-color-warning-contrast-background)",
   },
-  question: {
-    paddingTop: "2.5rem",
-    marginTop: "2.5rem",
-    borderTop: "1px solid var(--ifm-color-emphasis-300)",
+  gap: {
+    fg: "var(--ifm-color-danger-contrast-foreground)",
+    bg: "var(--ifm-color-danger-contrast-background)",
   },
-  ask: { fontSize: "1.4rem", fontWeight: 640, letterSpacing: "-.015em", margin: "0 0 .5rem" },
-  why: { color: "var(--ifm-color-emphasis-800)", maxWidth: "66ch", margin: "0 0 1.3rem" },
-  cards: { display: "grid", gap: "1rem" },
-  card: {
-    border: "1px solid var(--ifm-color-emphasis-300)",
-    borderRadius: 8,
-    padding: "1.1rem 1.25rem",
-    background: "var(--ifm-background-surface-color)",
-  },
-  cardAbsent: {
-    border: "1px dashed var(--ifm-color-emphasis-400)",
-    borderRadius: 8,
-    padding: "1.1rem 1.25rem",
-    background: "transparent",
-  },
-  cardHead: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    gap: ".8rem",
-    flexWrap: "wrap",
-    marginBottom: ".5rem",
-  },
-  title: { fontWeight: 640, fontSize: "1.02rem" },
-  pills: { display: "flex", gap: ".4rem", flexWrap: "wrap" },
-  pill: {
-    fontFamily: mono,
-    fontSize: ".67rem",
-    letterSpacing: ".08em",
-    textTransform: "uppercase",
-    padding: ".15rem .45rem",
-    borderRadius: 4,
-    whiteSpace: "nowrap",
-  },
-  row: {
-    display: "grid",
-    gridTemplateColumns: "6.5rem 1fr",
-    gap: ".35rem 1rem",
-    fontSize: ".9rem",
-    lineHeight: 1.5,
-    marginTop: ".5rem",
-  },
-  key: { color: "var(--ifm-color-emphasis-700)" },
-  // Infima's `-contrast-foreground` swaps with the theme; `-darker` does not.
-  // Misses in `--ifm-color-danger-darker` measured 3.2:1 on the dark card
-  // surface, under the 4.5:1 floor, which would have made the honest half of
-  // every card the hardest part to read for anyone browsing in dark mode.
-  misses: { color: "var(--ifm-color-danger-contrast-foreground)" },
-  cmd: { fontFamily: mono, fontSize: ".8rem", wordBreak: "break-all" },
-};
+  flat: { fg: "var(--ifm-color-emphasis-800)", bg: "var(--ifm-color-emphasis-200)" },
+} as const;
+type Tone = keyof typeof tone;
 
-// Callers place pills as JSX siblings, never as an array, so the pill owns no
-// key. Deriving one from its text collided the moment a card's method and its
-// status were the same word, which model-cost (measured/measured) is.
-function pill(text: string, tone: "ok" | "warn" | "gap" | "flat"): ReactElement {
-  const bg = {
-    ok: "var(--ifm-color-success-contrast-background)",
-    warn: "var(--ifm-color-warning-contrast-background)",
-    gap: "var(--ifm-color-danger-contrast-background)",
-    flat: "var(--ifm-color-emphasis-200)",
-  }[tone];
-  // Paired deliberately: each `-contrast-background` has a matching
-  // `-contrast-foreground`, and both sides of the pair invert together in dark
-  // mode. Mixing in a `-darker` foreground puts mid-red on dark red.
-  const fg = {
-    ok: "var(--ifm-color-success-contrast-foreground)",
-    warn: "var(--ifm-color-warning-contrast-foreground)",
-    gap: "var(--ifm-color-danger-contrast-foreground)",
-    flat: "var(--ifm-color-emphasis-800)",
-  }[tone];
-  return <span style={{ ...styles.pill, background: bg, color: fg }}>{text}</span>;
-}
-
-const statusTone = {
+const statusTone: Record<Eval["status"], Tone> = {
   measured: "ok",
   partial: "warn",
   unvalidated: "warn",
   absent: "gap",
-} as const;
+};
 
-// The status id is "absent", which is the right word for a registry and the
-// wrong one for a reader: it invites "absent from what?". Every surface shows
-// "not measured" instead, and one map keeps the pill, the legend and the
-// summary strip from drifting apart on it.
+// The status id is "absent", which is right for a registry and wrong for a
+// reader: it invites "absent from what?". One map keeps every surface saying
+// "not measured" instead.
 const statusLabel: Record<Eval["status"], string> = {
   measured: "measured",
   partial: "partial",
@@ -175,149 +114,406 @@ const statusLabel: Record<Eval["status"], string> = {
   absent: "not measured",
 };
 
-/** What a status means, said once here rather than assumed. */
+// Mirrors StaleAfterDays in scripts/evalindex. Six weeks is roughly how long it
+// takes this repo to move enough that a number is worth re-earning.
+const STALE_AFTER_DAYS = 42;
+
+// Age is computed here rather than stored, so it is right every morning. The
+// generator records only the date; a baked-in age would be a committed file
+// that goes wrong overnight.
+function ageDays(f?: { date?: string }): number | undefined {
+  if (!f?.date) return undefined;
+  const t = Date.parse(f.date);
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
+}
+
+function freshnessBadge(e: Eval): ReactElement | null {
+  if (!e.data) return null;
+  if (e.fresh?.undated) return <Pill text="undated" t="gap" />;
+  const age = ageDays(e.fresh);
+  if (age === undefined) return null;
+  return (
+    <Pill
+      text={`${age}d old`}
+      t={age > STALE_AFTER_DAYS ? "gap" : age > STALE_AFTER_DAYS / 2 ? "warn" : "ok"}
+    />
+  );
+}
+
+/** How many published datasets have gone stale as of right now. */
+function staleCount(evals: Eval[]): number {
+  return evals.filter((e) => {
+    const age = ageDays(e.fresh);
+    return e.data && age !== undefined && age > STALE_AFTER_DAYS;
+  }).length;
+}
+
 const statusMeans: Record<Eval["status"], string> = {
   measured: "runs, data committed, numbers can be read as they stand",
-  partial: "runs, and covers less than the question needs",
+  partial: "runs, and covers less than the layer needs",
   unvalidated: "produces numbers that should not yet be relied on",
   absent: "nothing measures this",
 };
 
-function EvalCard({ e }: { e: Eval }): ReactElement {
+const s: Record<string, CSSProperties> = {
+  lede: { fontSize: "1.05rem", lineHeight: 1.6, maxWidth: "68ch" },
+  strip: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1.6rem",
+    padding: "1.1rem 1.3rem",
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    borderRadius: 8,
+    background: "var(--ifm-background-surface-color)",
+    margin: "1.5rem 0",
+  },
+  stat: { display: "flex", flexDirection: "column", gap: ".15rem" },
+  statN: { fontSize: "1.6rem", fontWeight: 650, lineHeight: 1, fontVariantNumeric: "tabular-nums" },
+  statL: {
+    fontSize: ".7rem",
+    letterSpacing: ".1em",
+    textTransform: "uppercase",
+    color: "var(--ifm-color-emphasis-700)",
+  },
+  band: { marginTop: "3rem" },
+  bandHead: {
+    borderTop: "3px solid var(--ifm-color-emphasis-800)",
+    paddingTop: ".9rem",
+    marginBottom: "1.2rem",
+  },
+  bandTitle: { fontSize: "1.55rem", fontWeight: 660, letterSpacing: "-.02em", margin: "0 0 .5rem" },
+  bandGrid: {
+    display: "grid",
+    gridTemplateColumns: "6rem 1fr",
+    gap: ".3rem 1rem",
+    fontSize: ".88rem",
+    lineHeight: 1.5,
+    maxWidth: "76ch",
+  },
+  bandK: {
+    color: "var(--ifm-color-emphasis-700)",
+    fontSize: ".7rem",
+    letterSpacing: ".08em",
+    textTransform: "uppercase",
+    paddingTop: ".18rem",
+  },
+  layer: { marginTop: "1.8rem" },
+  layerHead: { display: "flex", alignItems: "baseline", gap: ".6rem", flexWrap: "wrap" },
+  series: {
+    fontFamily: mono,
+    fontSize: ".78rem",
+    fontWeight: 700,
+    padding: ".1rem .4rem",
+    borderRadius: 3,
+    background: "var(--ifm-color-emphasis-200)",
+    color: "var(--ifm-color-emphasis-800)",
+  },
+  layerTitle: { fontSize: "1.1rem", fontWeight: 640, margin: 0 },
+  scope: {
+    color: "var(--ifm-color-emphasis-800)",
+    fontSize: ".9rem",
+    lineHeight: 1.5,
+    maxWidth: "72ch",
+    margin: ".35rem 0 .8rem",
+  },
+  rests: { fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)", fontStyle: "italic" },
+  cards: { display: "grid", gap: ".55rem" },
+  row: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: ".8rem",
+    alignItems: "center",
+    width: "100%",
+    textAlign: "left",
+    padding: ".65rem .85rem",
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    background: "var(--ifm-background-surface-color)",
+    cursor: "pointer",
+    font: "inherit",
+    color: "inherit",
+  },
+  rowAbsent: { borderStyle: "dashed", background: "transparent" },
+  pills: { display: "flex", gap: ".35rem", flexWrap: "wrap" },
+  pill: {
+    fontFamily: mono,
+    fontSize: ".65rem",
+    letterSpacing: ".07em",
+    textTransform: "uppercase",
+    padding: ".16rem .45rem",
+    borderRadius: 4,
+    whiteSpace: "nowrap",
+  },
+  detail: {
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    borderTop: "none",
+    borderRadius: "0 0 6px 6px",
+    padding: ".9rem 1rem",
+    display: "grid",
+    gridTemplateColumns: "6rem 1fr",
+    gap: ".4rem 1rem",
+    fontSize: ".88rem",
+    lineHeight: 1.5,
+  },
+  k: {
+    color: "var(--ifm-color-emphasis-700)",
+    fontSize: ".7rem",
+    letterSpacing: ".08em",
+    textTransform: "uppercase",
+    paddingTop: ".15rem",
+  },
+  cmd: { fontFamily: mono, fontSize: ".8rem", wordBreak: "break-all" },
+};
+
+function Pill({ text, t }: { text: string; t: Tone }): ReactElement {
+  return <span style={{ ...s.pill, color: tone[t].fg, background: tone[t].bg }}>{text}</span>;
+}
+
+function EvalRow({ e }: { e: Eval }): ReactElement {
+  const [open, setOpen] = useState(false);
   const absent = e.status === "absent";
   return (
-    <div style={absent ? styles.cardAbsent : styles.card}>
-      <div style={styles.cardHead}>
-        <span style={styles.title}>{e.page ? <Link to={e.page}>{e.title}</Link> : e.title}</span>
-        <span style={styles.pills}>
-          {pill(e.method, "flat")}
-          {e.spends && pill("spends", "flat")}
-          {pill(statusLabel[e.status], statusTone[e.status])}
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          ...s.row,
+          ...(absent ? s.rowAbsent : {}),
+          borderRadius: open ? "6px 6px 0 0" : 6,
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "baseline", gap: ".45rem" }}>
+          <span aria-hidden style={{ fontFamily: mono, opacity: 0.45 }}>
+            {open ? "−" : "+"}
+          </span>
+          <span style={{ fontWeight: 600 }}>{e.title}</span>
         </span>
-      </div>
-      <div style={styles.row}>
-        <span style={styles.key}>Covers</span>
-        <span>{e.covers}</span>
-        {e.misses && (
-          <>
-            <span style={styles.key}>Misses</span>
-            <span style={styles.misses}>{e.misses}</span>
-          </>
-        )}
-        <span style={styles.key}>Corpus</span>
-        <span>{e.corpus}</span>
-        {e.settings && (
-          <>
-            <span style={styles.key}>Settings</span>
-            <span style={e.settings.startsWith("Not recorded") ? styles.misses : undefined}>
-              {e.settings}
-            </span>
-          </>
-        )}
-        {e.validation && (
-          <>
-            <span style={styles.key}>Validation</span>
-            <span>{e.validation}</span>
-          </>
-        )}
-        {e.reproduce && (
-          <>
-            <span style={styles.key}>Reproduce</span>
-            <code style={styles.cmd}>{e.reproduce}</code>
-          </>
-        )}
-      </div>
+        <span style={s.pills}>
+          <Pill text={e.method} t="flat" />
+          {e.local && <Pill text="local only" t="flat" />}
+          {e.spends && <Pill text="spends" t="flat" />}
+          {freshnessBadge(e)}
+          <Pill text={statusLabel[e.status]} t={statusTone[e.status]} />
+        </span>
+      </button>
+      {open && (
+        <div style={{ ...s.detail, borderStyle: absent ? "dashed" : "solid", borderTop: "none" }}>
+          <span style={s.k}>Covers</span>
+          <span>{e.covers}</span>
+          {e.misses && (
+            <>
+              <span style={s.k}>Misses</span>
+              <span style={{ color: tone.gap.fg }}>{e.misses}</span>
+            </>
+          )}
+          <span style={s.k}>Corpus</span>
+          <span>{e.corpus}</span>
+          {e.settings && (
+            <>
+              <span style={s.k}>Settings</span>
+              <span
+                style={e.settings.startsWith("Not recorded") ? { color: tone.gap.fg } : undefined}
+              >
+                {e.settings}
+              </span>
+            </>
+          )}
+          {e.validation && (
+            <>
+              <span style={s.k}>Validation</span>
+              <span>{e.validation}</span>
+            </>
+          )}
+          {e.reproduce && (
+            <>
+              <span style={s.k}>Reproduce</span>
+              <code style={s.cmd}>{e.reproduce}</code>
+            </>
+          )}
+          {e.fresh?.date && (
+            <>
+              <span style={s.k}>Measured</span>
+              <span
+                style={
+                  (ageDays(e.fresh) ?? 0) > STALE_AFTER_DAYS ? { color: tone.gap.fg } : undefined
+                }
+              >
+                {e.fresh.date.slice(0, 10)} · {ageDays(e.fresh)} days ago
+              </span>
+            </>
+          )}
+          {e.fresh?.undated && (
+            <>
+              <span style={s.k}>Measured</span>
+              <span style={{ color: tone.gap.fg }}>
+                The dataset records no date, so its age cannot be shown.
+              </span>
+            </>
+          )}
+          {e.page && (
+            <>
+              <span style={s.k}>Results</span>
+              <Link to={e.page}>{e.page}</Link>
+            </>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+// A band's own tally, so the three can be weighed against each other rather
+// than only against the global strip at the top.
+function bandTally(b: BandInfo): Record<Eval["status"], number> {
+  const counts: Record<Eval["status"], number> = {
+    measured: 0,
+    partial: 0,
+    unvalidated: 0,
+    absent: 0,
+  };
+  for (const layerID of b.layers) {
+    for (const id of layerByID.get(layerID)?.evals ?? []) {
+      const e = evalByID.get(id);
+      if (e) counts[e.status]++;
+    }
+  }
+  return counts;
+}
+
+function LayerBlock({ l }: { l: Layer }): ReactElement {
+  const list = l.evals.map((id) => evalByID.get(id)).filter((e): e is Eval => Boolean(e));
+  const unmeasured = list.every((e) => e.status === "absent");
+  return (
+    <section style={s.layer}>
+      <div style={s.layerHead}>
+        <span style={s.series}>{l.series}</span>
+        <h3 style={s.layerTitle}>{l.title}</h3>
+        <Link to={l.ad} style={{ fontSize: ".78rem" }}>
+          architecture
+        </Link>
+        {unmeasured && <Pill text="nothing measured" t="gap" />}
+      </div>
+      <p style={s.scope}>
+        {l.scope}
+        {l.rests && <span style={s.rests}> Rests on {l.rests}.</span>}
+      </p>
+      <div style={s.cards}>
+        {list.map((e) => (
+          <EvalRow key={e.id} e={e} />
+        ))}
+      </div>
+    </section>
   );
 }
 
 export default function Evals(): ReactElement {
   const c = data.coverage;
   const total = c.measured + c.partial + c.unvalidated + c.absent;
+  const stale = staleCount(data.evals);
 
   return (
     <Layout
       title="Tests and Evals"
-      description="Every measurement kapi publishes, grouped by the question it answers, including the questions nothing answers yet."
+      description="Every measurement kapi publishes, grouped by the layer it measures, including the layers nothing measures yet."
     >
       <main className="container margin-vert--lg">
         <h1>Tests and Evals</h1>
-        <p style={styles.lede}>
-          What kapi is measured on, what those measurements say, and where they stop. Grouped by the
-          question a reader might arrive with rather than by the tool that answers it.
+        <p style={s.lede}>
+          Three bands, by what is under test. kapi's own code can be asserted. A model's output can
+          only be estimated. An agent's behaviour is scored scenario by scenario. Inside each band
+          the structure is the architecture.
         </p>
 
-        <div style={styles.strip}>
-          <div style={styles.stat}>
-            <span style={styles.statN}>{c.measured}</span>
-            <span style={styles.statL}>measured</span>
+        <div style={s.strip}>
+          <div style={s.stat}>
+            <span style={{ ...s.statN, color: tone.ok.fg }}>{c.measured}</span>
+            <span style={s.statL}>measured</span>
           </div>
-          <div style={styles.stat}>
-            <span style={styles.statN}>{c.partial}</span>
-            <span style={styles.statL}>partial</span>
+          <div style={s.stat}>
+            <span style={{ ...s.statN, color: tone.warn.fg }}>{c.partial}</span>
+            <span style={s.statL}>partial</span>
           </div>
-          <div style={styles.stat}>
-            <span style={styles.statN}>{c.unvalidated}</span>
-            <span style={styles.statL}>unvalidated</span>
+          <div style={s.stat}>
+            <span style={{ ...s.statN, color: tone.warn.fg }}>{c.unvalidated}</span>
+            <span style={s.statL}>unvalidated</span>
           </div>
-          <div style={styles.stat}>
-            <span style={styles.statN}>{c.absent}</span>
-            <span style={styles.statL}>{statusLabel.absent}</span>
+          <div style={s.stat}>
+            <span style={{ ...s.statN, color: tone.gap.fg }}>{c.absent}</span>
+            <span style={s.statL}>not measured</span>
           </div>
-          <div style={{ ...styles.stat, marginLeft: "auto" }}>
-            <span style={styles.statN}>
-              {c.questionsUnanswered}/{data.questions.length}
+          <div style={s.stat}>
+            <span style={{ ...s.statN, color: stale + c.undated ? tone.gap.fg : undefined }}>
+              {stale + c.undated}
             </span>
-            <span style={styles.statL}>questions with no answer</span>
+            <span style={s.statL}>stale or undated</span>
+          </div>
+          <div style={{ ...s.stat, marginLeft: "auto" }}>
+            <span style={{ ...s.statN, color: c.layersUnmeasured ? tone.gap.fg : undefined }}>
+              {c.layersUnmeasured}/{data.layers.length}
+            </span>
+            <span style={s.statL}>layers with nothing behind them</span>
           </div>
         </div>
 
-        <p style={styles.prose}>
-          Of {total} evals, {c.absent} are not built. Those are the most useful rows on this page: a
-          gap a reader cannot see is a gap they will assume is covered. Each unbuilt eval carries
-          the same card as a built one and says what it would have measured.
-        </p>
-        <p style={styles.prose}>
-          A card states what an eval <strong>misses</strong> as well as what it covers, names the
-          corpus it ran over, and gives the command that reproduces it. That last one is not
-          courtesy: across more than 50,000 published evaluation records surveyed in 2026, 96.5%
-          were missing at least one field needed to re-run them. A number nobody can reproduce is an
-          assertion with a table around it.
-        </p>
-        <p style={styles.prose}>
-          By that standard three cards here fall short today, and their <strong>Settings</strong>{" "}
-          row says so. Every eval that calls a hosted model runs at whatever sampling the API
-          defaults to, and no harness writes the value down, so re-running one of those commands
-          gives you the method rather than the number.
-        </p>
-
-        <h2 style={{ marginTop: "2.5rem" }}>What the statuses mean</h2>
-        <div style={{ ...styles.row, gridTemplateColumns: "8rem 1fr", maxWidth: "62rem" }}>
-          {(Object.keys(statusMeans) as Eval["status"][]).map((s) => (
-            <Fragment key={s}>
-              <span>{pill(statusLabel[s], statusTone[s])}</span>
-              <span>{statusMeans[s]}</span>
+        <div
+          style={{
+            ...s.bandGrid,
+            gridTemplateColumns: "7.5rem 1fr",
+            maxWidth: "64rem",
+            marginBottom: "1rem",
+          }}
+        >
+          {(Object.keys(statusMeans) as Eval["status"][]).map((k) => (
+            <Fragment key={k}>
+              <span>
+                <Pill text={statusLabel[k]} t={statusTone[k]} />
+              </span>
+              <span style={{ color: "var(--ifm-color-emphasis-800)" }}>{statusMeans[k]}</span>
             </Fragment>
           ))}
         </div>
+        <p style={{ ...s.lede, fontSize: ".92rem" }}>
+          {c.absent} of {total} are not built. Those rows carry the same card as a built one, minus
+          the data: a gap a reader cannot see is a gap they will assume is covered. Each card's age
+          is read from its own dataset, not typed here, because a hand-written date is a date nobody
+          updates.
+        </p>
 
-        {data.questions.map((q) => {
-          const list = q.evals.map((id) => byID.get(id)).filter((e): e is Eval => Boolean(e));
-          const unanswered = list.every((e) => e.status === "absent");
-          return (
-            <section key={q.id} style={styles.question}>
-              <h2 style={styles.ask}>
-                {q.ask} {unanswered && pill("no answer yet", "gap")}
-              </h2>
-              <p style={styles.why}>{q.why}</p>
-              <div style={styles.cards}>
-                {list.map((e) => (
-                  <EvalCard key={e.id} e={e} />
-                ))}
+        {data.bands.map((b) => (
+          <section key={b.id} style={s.band}>
+            <div style={s.bandHead}>
+              <div
+                style={{ display: "flex", alignItems: "baseline", gap: ".8rem", flexWrap: "wrap" }}
+              >
+                <h2 style={s.bandTitle}>{b.title}</h2>
+                <span style={{ display: "flex", gap: ".3rem", flexWrap: "wrap" }}>
+                  {(Object.keys(statusMeans) as Eval["status"][])
+                    .map((k) => [k, bandTally(b)[k]] as const)
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => (
+                      <Pill key={k} text={`${n} ${statusLabel[k]}`} t={statusTone[k]} />
+                    ))}
+                </span>
               </div>
-            </section>
-          );
-        })}
+              <div style={s.bandGrid}>
+                <span style={s.bandK}>Subject</span>
+                <span>{b.subject}</span>
+                <span style={s.bandK}>Evidence</span>
+                <span>{b.evidence}</span>
+                <span style={s.bandK}>Gates CI</span>
+                <span>{b.gates}</span>
+              </div>
+            </div>
+            {b.layers
+              .map((id) => layerByID.get(id))
+              .filter((l): l is Layer => Boolean(l))
+              .map((l) => (
+                <LayerBlock key={l.id} l={l} />
+              ))}
+          </section>
+        ))}
       </main>
     </Layout>
   );

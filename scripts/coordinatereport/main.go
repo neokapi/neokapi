@@ -22,8 +22,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/edit"
 	"github.com/neokapi/neokapi/core/project"
@@ -72,8 +74,13 @@ func Marshal(r *Report) ([]byte, error) {
 
 // Report is the whole dashboard payload.
 type Report struct {
-	Note   string `json:"_note"`
-	Recipe string `json:"recipe"`
+	Note string `json:"_note"`
+	// Generated is when this ran, and Commit is what it ran against. Neither
+	// changes what the report says — it is deterministic — but both let a
+	// reader tell a current dataset from one nobody has refreshed.
+	Generated string `json:"generated"`
+	Commit    string `json:"commit,omitempty"`
+	Recipe    string `json:"recipe"`
 	// Points is what governs each place the recipe declares content at.
 	Points []Point `json:"points"`
 	// Axes is every coordinate value the recipe declares, so a map can tell a
@@ -240,14 +247,16 @@ func Build(ctx context.Context) (*Report, error) {
 	}
 
 	return &Report{
-		Note:     reportNote,
-		Recipe:   reportRecipe,
-		Points:   points,
-		Axes:     buildAxes(&p),
-		Chains:   chains,
-		Prompts:  prompts,
-		Ladder:   ladder,
-		Segments: segments,
+		Note:      reportNote,
+		Generated: time.Now().UTC().Format(time.RFC3339),
+		Commit:    headCommit(ctx),
+		Recipe:    reportRecipe,
+		Points:    points,
+		Axes:      buildAxes(&p),
+		Chains:    chains,
+		Prompts:   prompts,
+		Ladder:    ladder,
+		Segments:  segments,
 	}, nil
 }
 
@@ -350,4 +359,16 @@ func buildAxes(p *project.KapiProject) Axes {
 	}
 	sort.Strings(axes.Channels)
 	return axes
+}
+
+// headCommit ties a dataset back to the code that produced it, so a reader can
+// tell whether the numbers describe the checkout in front of them.
+func headCommit(ctx context.Context) string {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

@@ -149,4 +149,10 @@ func TestCoverageIsNotFlattering(t *testing.T) {
 	assert.Equal(t, len(evals), total, "every eval is counted exactly once")
 	assert.Positive(t, index.Coverage.Absent,
 		"if nothing is absent, either the work is finished or the registry has stopped listing gaps")
+
+	perBand := 0
+	for _, n := range index.Coverage.PerBand {
+		perBand += n
+	}
+	assert.Equal(t, len(evals), perBand, "the per-band counts must add up to every eval, once each")
 }

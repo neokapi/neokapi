@@ -180,3 +180,59 @@ func TestASpendingEvalDeclaresItsSettings(t *testing.T) {
 		})
 	}
 }
+
+// TestLayerADExists.
+//
+// Each layer links the first architecture decision of its series, so a reader
+// can go from "this is what we measure here" to "this is what it is". The
+// series directories carry no _category_ link, so Docusaurus generates no index
+// page for them and a tidy-looking /contribute/architecture/foundations would
+// 404 in production and soft-404 in dev, where nobody would notice.
+func TestLayerADExists(t *testing.T) {
+	root := repoRoot(t)
+
+	for _, l := range layers {
+		t.Run(l.ID, func(t *testing.T) {
+			require.NotEmpty(t, l.AD, "a layer without its architecture decision is a heading")
+			slug := strings.TrimPrefix(l.AD, "/")
+			for _, ext := range []string{".md", ".mdx"} {
+				if _, err := os.Stat(filepath.Join(root, "web", "docs", slug+ext)); err == nil {
+					return
+				}
+			}
+			t.Errorf("layer links %s, and no architecture decision is there", l.AD)
+		})
+	}
+}
+
+// TestALocalEvalCommitsItsData.
+//
+// An eval marked Local never runs in CI, so the committed dataset is the only
+// thing anyone but the maintainer ever sees. Without it the page renders an
+// empty section that reads as "nothing to report" rather than "nobody has run
+// this".
+func TestALocalEvalCommitsItsData(t *testing.T) {
+	for _, e := range evals {
+		if !e.Local || e.Status == StatusAbsent {
+			continue
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			assert.NotEmpty(t, e.Data,
+				"this eval never runs in CI, so its committed dataset is the only evidence that survives the run")
+		})
+	}
+}
+
+// TestAScenarioEvalSpends: driving an agent costs money by definition, and a
+// scenario eval that claims otherwise has misdescribed what it does.
+func TestAScenarioEvalSpends(t *testing.T) {
+	for _, e := range evals {
+		if e.Method != MethodScenario {
+			continue
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			assert.True(t, e.Spends, "a scenario drives a model, so it spends")
+			assert.True(t, e.Local, "an agent-driving scenario runs on a maintainer's machine, never in CI")
+		})
+	}
+}

@@ -62,13 +62,7 @@ func runProcess(ctx context.Context, env []string, name string, args ...string) 
 	}
 
 	start := time.Now()
-	if err := cmd.Run(); err != nil {
-		errMsg := stderrBuf.String()
-		if errMsg != "" {
-			return nil, fmt.Errorf("command %s failed: %w\nstderr: %s", name, err, errMsg)
-		}
-		return nil, fmt.Errorf("command %s failed: %w", name, err)
-	}
+	runErr := cmd.Run()
 	wallTime := time.Since(start)
 
 	var userCPU, sysCPU time.Duration
@@ -85,12 +79,28 @@ func runProcess(ctx context.Context, env []string, name string, args ...string) 
 		}
 	}
 
-	return &RunResult{
+	// The timing is returned even on a non-zero exit, because it is a fact
+	// either way: the process ran, and how long it took is what this harness
+	// exists to record. Discarding it made the caller unable to tell a run that
+	// did the work and reported two bad fixtures from one that never started,
+	// and kapi now exits non-zero for the former. Three iterations of a
+	// 843-file corpus were thrown away over two files, and the engine
+	// disappeared from the comparison entirely.
+	//
+	// Whether the exit code should sink the measurement is the caller's call.
+	result := &RunResult{
 		WallTime:  wallTime,
 		UserCPU:   userCPU,
 		SystemCPU: sysCPU,
 		PeakRSSKB: peakRSS,
-	}, nil
+	}
+	if runErr != nil {
+		if errMsg := stderrBuf.String(); errMsg != "" {
+			return result, fmt.Errorf("command %s failed: %w\nstderr: %s", name, runErr, errMsg)
+		}
+		return result, fmt.Errorf("command %s failed: %w", name, runErr)
+	}
+	return result, nil
 }
 
 // runProcessWithOutput executes a command, captures stdout, and collects resource usage metrics.
@@ -240,6 +250,10 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 		args = append(args, inputs[i])
 		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
 	}
+	// Set when the process exited non-zero but still ran: kept for the record
+	// on the files that did not produce output, rather than applied to all.
+	var partialErr string
+
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
 	// Don't pass --fail-on-unknown: some engines legitimately can't
 	// handle some formats (no native idml/openxml reader), and we want
@@ -254,11 +268,25 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 
 	result, err := runProcess(ctx, env, binPath, args...)
 	if err != nil {
-		for i := range fileResults {
-			fileResults[i].Success = false
-			fileResults[i].Error = err.Error()
+		if result == nil {
+			// The process could not be started or produced no timing at all.
+			// Nothing to salvage.
+			for i := range fileResults {
+				fileResults[i].Success = false
+				fileResults[i].Error = scrubPaths(err.Error())
+			}
+			return nil, fileResults, err
 		}
-		return nil, fileResults, err
+		// A non-zero exit with a completed run means SOME files failed, not
+		// that the run is worthless: kapi reports "2 of 843 file(s) failed"
+		// and writes the other 841. Blanket-failing here threw the whole
+		// iteration away over two bad fixtures, and with all three iterations
+		// discarded the engine reported "all iterations failed" and vanished
+		// from the comparison.
+		//
+		// The per-file output check below is authoritative and already accepts
+		// partial coverage; the exit code is recorded rather than obeyed.
+		partialErr = scrubPaths(err.Error())
 	}
 
 	// Sanity check 1: did each input actually produce an output file?
@@ -273,6 +301,11 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 		}
 		fileResults[i].Success = false
 		fileResults[i].Error = "no output written"
+		if partialErr != "" {
+			// The run reported why. Better than "no output written" alone,
+			// which cannot tell an unreadable fixture from a silent skip.
+			fileResults[i].Error = partialErr
+		}
 		missing++
 	}
 	// We don't fail the engine when missing > 0 — partial coverage is
@@ -518,7 +551,7 @@ func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, 
 		if runErr != nil {
 			for _, it := range items {
 				fileResults[it.i].Success = false
-				fileResults[it.i].Error = runErr.Error()
+				fileResults[it.i].Error = scrubPaths(runErr.Error())
 			}
 			continue
 		}
@@ -682,3 +715,23 @@ func detectVersion(binPath string) string {
 
 	return filepath.Base(binPath)
 }
+
+// scrubPaths removes absolute paths from anything that reaches the committed
+// dataset.
+//
+// The results are checked in, and scripts/check-abs-paths.sh holds every
+// tracked file to zero of them: /Users/<name>/... resolves on exactly one
+// laptop. Error strings are the way they get in, because a failing engine
+// reports the binary and the fixture by full path, and a run where nothing
+// fails carries none — so the guard stays quiet until the first bad run and
+// then fails a build that looks unrelated.
+func scrubPaths(msg string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		msg = strings.ReplaceAll(msg, home, "~")
+	}
+	return absPathPattern.ReplaceAllString(msg, "<path>")
+}
+
+// absPathPattern matches the absolute paths that survive the home-directory
+// substitution: a temp dir, a system root, another checkout.
+var absPathPattern = regexp.MustCompile(`(?:/(?:Users|home|private|var|tmp|opt)/)[^\s"']*`)
