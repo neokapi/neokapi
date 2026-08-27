@@ -204,6 +204,12 @@ type Eval struct {
 	// with nothing on the page saying so.
 	Fresh Freshness `json:"fresh,omitzero"`
 
+	// Headline is the one number this eval is for, extracted from its dataset
+	// rather than typed here. See headline.go: a status is not a result, and a
+	// number written beside the prose goes wrong the way a hand-written date
+	// does.
+	Headline *Headline `json:"headline,omitempty"`
+
 	// Validation is required when Method is judged: what agreement with a human
 	// has been measured, and whether it clears the bar. Empty means unmeasured,
 	// and the status must then be unvalidated.

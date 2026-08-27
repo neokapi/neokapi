@@ -158,6 +158,11 @@
       "page": "/format-maturity",
       "fresh": {
         "date": "2026-07-25"
+      },
+      "headline": {
+        "value": "0/36",
+        "of": "formats at L4",
+        "tone": "gap"
       }
     },
     {
@@ -174,6 +179,11 @@
       "page": "/pseudobench",
       "fresh": {
         "date": "2026-08-27T01:07:42Z"
+      },
+      "headline": {
+        "value": "23.7×",
+        "of": "faster on the 697 files both engines read",
+        "tone": "ok"
       }
     },
     {
@@ -194,14 +204,24 @@
     },
     {
       "id": "conversion-comparison",
-      "title": "kapi against other converters",
+      "title": "How much of a document each converter keeps",
       "method": "comparative",
-      "status": "absent",
+      "status": "partial",
       "spends": false,
-      "corpus": "Needs a document corpus and independent ground truth, meaning rendered pages rather than another tool's output.",
-      "covers": "Would measure conversion speed and fidelity against markitdown, pandoc, docling, unstructured and LibreOffice.",
-      "misses": "Not built here. A harness of this shape exists in the anydoc repository and already includes kapi in its speed tables; neokapi publishes nothing of its own.",
-      "reproduce": ""
+      "corpus": "The Okapi Framework's own integration-test resources — real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
+      "covers": "Text-extraction completeness against ground truth read from each document's own XML parts, so no converter's output stands in for the answer, plus how long each conversion took. Compared per format, because the tools accept different ones and a single column would rank them by what they declined.",
+      "misses": "Text only. Structure and ordering are not compared, so a converter that flattens every heading scores the same as one that keeps the outline. Headers, footnotes, comments and speaker notes are excluded because converters disagree about whether they belong in the output. Only the converters installed on the machine that ran it appear.",
+      "reproduce": "make conversion-eval",
+      "data": "web/src/pages/conversion-eval/_conversioneval.json",
+      "page": "/conversion-eval",
+      "fresh": {
+        "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "98.2%",
+        "of": "of text kept, in its weakest format (.pptx)",
+        "tone": "warn"
+      }
     },
     {
       "id": "reuse-rules",
@@ -234,6 +254,11 @@
       "page": "/coordinate",
       "fresh": {
         "date": "2026-08-27T05:24:05Z"
+      },
+      "headline": {
+        "value": "0/6",
+        "of": "judged better with context, n=6, judge unvalidated",
+        "tone": "gap"
       }
     },
     {
@@ -251,6 +276,11 @@
       "page": "/context-eval",
       "fresh": {
         "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "+54pp",
+        "of": "adherence, context against none",
+        "tone": "ok"
       }
     },
     {
@@ -268,6 +298,11 @@
       "page": "/authoring-eval",
       "fresh": {
         "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "+12.5",
+        "of": "points of profile-specific steering",
+        "tone": "ok"
       }
     },
     {
@@ -334,6 +369,11 @@
       "page": "/check-eval",
       "fresh": {
         "date": "2026-08-26T22:55:38Z"
+      },
+      "headline": {
+        "value": "1.00",
+        "of": "F1 over 10 labelled cases",
+        "tone": "ok"
       }
     },
     {
@@ -350,6 +390,11 @@
       "page": "/authoring-eval",
       "fresh": {
         "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "89%",
+        "of": "of marked violations found",
+        "tone": "warn"
       }
     },
     {
@@ -368,6 +413,11 @@
       "page": "/skill-eval",
       "fresh": {
         "date": "2026-08-27T00:40:30Z"
+      },
+      "headline": {
+        "value": "22/22",
+        "of": "scenarios fired correctly",
+        "tone": "ok"
       }
     },
     {
@@ -386,6 +436,11 @@
       "page": "/skill-eval",
       "fresh": {
         "date": "2026-08-27T00:40:30Z"
+      },
+      "headline": {
+        "value": "8/17",
+        "of": "scenarios reached a green gate",
+        "tone": "gap"
       }
     },
     {
@@ -404,20 +459,24 @@
       "page": "/skill-eval",
       "fresh": {
         "date": "2026-08-27T00:40:30Z"
+      },
+      "headline": {
+        "value": "8/8",
+        "of": "MCP scenarios picked the right tool",
+        "tone": "ok"
       }
     }
   ],
   "coverage": {
     "measured": 7,
-    "partial": 7,
+    "partial": 8,
     "unvalidated": 2,
     "blocked": 1,
-    "absent": 1,
+    "absent": 0,
     "byStatus": {
-      "absent": 1,
       "blocked": 1,
       "measured": 7,
-      "partial": 7,
+      "partial": 8,
       "unvalidated": 2
     },
     "layersUnmeasured": 0,

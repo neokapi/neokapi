@@ -56,6 +56,26 @@ artifact is wrong the next morning, and the drift test that keeps the index
 honest would fail daily and be muted inside a week. The page does the
 subtraction.
 
+## Each card shows its number
+
+A status is not a result: "partial" is true of an eval at 96% and of one at 40%.
+`scripts/evalindex/headline.go` extracts one number per eval **from its dataset**
+and the row renders it before anyone clicks.
+
+Register an extractor there rather than typing the number on the card. A typed
+number goes wrong exactly the way a typed date does, and in the flattering
+direction. `TestARegisteredHeadlineResolves` fails if a registered extractor
+returns nothing, which is what happens when a dataset's shape moves under it —
+three of the first five read keys that do not exist and the only symptom was a
+blank column.
+
+Pick the comparison the number claims to be, and check it is the one being
+computed. Engine speed divided the two engines' total wall times, and the
+engines do not succeed on the same files — 725 against 802 — so it compared one
+engine's corpus against another's. Summing only the files both read gives 23.8×
+where the totals gave 22.7×. Close enough that nobody would have caught it, and
+no reason the next run would be as kind.
+
 ## Two rules the committed datasets keep tripping over
 
 Both are CI guards, and both fail on a build that looks unrelated to whatever
@@ -153,10 +173,70 @@ Run each new gate by hand first, in both directions, against a workspace shaped
 like the one an agent leaves behind. A gate that cannot fail proves nothing, and
 one that cannot pass wastes a metered sweep discovering its own bug.
 
+`TestAGateIsRedBeforeTheAgentRuns` now does that automatically: it builds every
+scenario's fixture and runs the gate against it, requiring a red exit. Reading
+the gate as a string was the first version and it missed three, all green before
+the agent started. One asked `kapi voice check`, which accepts any YAML at all —
+every profile field is optional, so an empty file scores 100/100 with no
+findings, and a directory merely containing a `.yaml` satisfied it. Use
+`kapi voice validate` when the question is whether a profile is usable.
+
+The fixtures need the same treatment. Both project fixtures were invented, and
+every key was wrong — `version: "1"` where the loader wants `v1`,
+`source:`/`targets:` for `source_language`/`target_languages`, `include:` for
+`content: - path:` — and only the last was ever reported, because `Defaults` and
+`Collection` end in an inline `Extras` map and an unrecognised key is preserved
+rather than rejected ([#2223](https://github.com/neokapi/neokapi/issues/2223)).
+Agents were handed a project kapi refuses to load, and the sweep said nothing.
+`TestEveryFixtureRecipeLoads` loads every fixture recipe through kapi.
+
 ## Where the gaps are
 
-`/evals` is the answer, and it is generated, so it does not go stale here. What
-it shows at the time of writing: four evals not built (three on the authoring
-side, one comparing kapi to other converters), the parity suite publishing
-nothing, and the engine benchmark reporting a run in which no file succeeded
-([#2221](https://github.com/neokapi/neokapi/issues/2221)).
+`/evals` is the answer, and it is generated, so it does not go stale here.
+
+What building the last four turned up is worth keeping, because in each case the
+eval's first result was about kapi rather than about the thing it measured:
+
+- **`kapi exec voice-check` and `voice-infer` write nothing and exit 0**, under
+  every provider, profile and input tried, while sibling tools on the same file
+  print results ([#2225](https://github.com/neokapi/neokapi/issues/2225)). Both
+  declare `model.AnnoVoice` output, which appears nowhere under `cli/` or
+  `host/`. So two of the three authoring evals had no output to score, and
+  `voice-infer-quality` is `blocked` rather than absent: its comparison is
+  written and runs the moment there is a draft.
+- **A forbidden term matches no inflection**, so a profile forbidding `utilize`
+  passes "the platform utilizes your data"
+  ([#2226](https://github.com/neokapi/neokapi/issues/2226)). That is the single
+  term-mechanism miss in the authoring corpus.
+- **An empty voice profile scores 100/100** and reports the text as on brand
+  ([#2224](https://github.com/neokapi/neokapi/issues/2224)).
+- **The engine benchmark wrote 844 files where nobody looked for them** — a
+  repo-relative `-output` resolved against each engine's scratch `cmd.Dir`, so
+  every file scored "no output written" and the run reported 0/844 with real
+  timings ([#2221](https://github.com/neokapi/neokapi/issues/2221), fixed in
+  #2220).
+
+Three of the four are the same shape: a voice surface reporting silence as
+approval. An eval is the only thing that notices, because each failure is
+invisible from the outside — the command exits 0 and says nothing is wrong.
+
+## Comparing against other tools
+
+`scripts/conversioneval` compares document converters, and the hard part is
+ground truth. Scoring against pandoc's output would measure agreement with
+pandoc. OOXML avoids that: the spec designates which elements carry text, so
+each document states its own contents and no converter stands in for the answer.
+
+Three things that comparison has to get right, and each was wrong first:
+
+- **Ask each tool only for what it claims.** `--convert-to txt` has no Impress
+  target, so LibreOffice was scored eight failures for a capability it does not
+  offer, and it looked broken across two thirds of the corpus.
+- **Weight by content, not by file.** The corpus holds two-word fixtures;
+  averaging per-file recall gives one of those the same vote as a full report,
+  and every converter scored 0% on the same two-word document.
+- **Compare within a format.** The tools accept different ones, so a single
+  column ranks them by what they declined.
+
+The corpus is the okapi-testdata tree the parity harness already downloads. It
+matters that it was collected by another project for another purpose.

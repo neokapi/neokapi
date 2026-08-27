@@ -77,13 +77,16 @@ var evals = []Eval{
 		Page:      "/ml-benchmark",
 	},
 	{
-		ID:     "conversion-comparison",
-		Title:  "kapi against other converters",
-		Method: MethodComparative,
-		Status: StatusAbsent,
-		Corpus: "Needs a document corpus and independent ground truth, meaning rendered pages rather than another tool's output.",
-		Covers: "Would measure conversion speed and fidelity against markitdown, pandoc, docling, unstructured and LibreOffice.",
-		Misses: "Not built here. A harness of this shape exists in the anydoc repository and already includes kapi in its speed tables; neokapi publishes nothing of its own.",
+		ID:        "conversion-comparison",
+		Title:     "How much of a document each converter keeps",
+		Method:    MethodComparative,
+		Status:    StatusPartial,
+		Corpus:    "The Okapi Framework's own integration-test resources — real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
+		Covers:    "Text-extraction completeness against ground truth read from each document's own XML parts, so no converter's output stands in for the answer, plus how long each conversion took. Compared per format, because the tools accept different ones and a single column would rank them by what they declined.",
+		Misses:    "Text only. Structure and ordering are not compared, so a converter that flattens every heading scores the same as one that keeps the outline. Headers, footnotes, comments and speaker notes are excluded because converters disagree about whether they belong in the output. Only the converters installed on the machine that ran it appear.",
+		Reproduce: "make conversion-eval",
+		Data:      "web/src/pages/conversion-eval/_conversioneval.json",
+		Page:      "/conversion-eval",
 	},
 
 	// ==========================================================================

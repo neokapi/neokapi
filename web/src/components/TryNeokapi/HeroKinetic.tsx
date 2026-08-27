@@ -215,7 +215,9 @@ function KineticStack({
 // ── The live brand-guide asset (RIGHT column) ────────────────────────────────
 
 function AssetCard({
-  phase,
+  // The gates below already encode which phase is on, so the phase itself is
+  // destructured only to keep it out of the rest of the props.
+  phase: _phase,
   typeLabel,
   // phase 1 gates
   rowsIn,

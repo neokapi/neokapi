@@ -2080,6 +2080,22 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 	$(GO) run ./scripts/checkeval
 	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
+# ── Conversion eval ──────────────────────────────────────────────────────────
+# Compares document converters on how much of a document's text each one keeps.
+#
+# Ground truth comes from the documents rather than from any converter: OOXML
+# designates which elements carry text, so each file states its own contents.
+# The corpus is the okapi-testdata tree the parity harness already downloads —
+# real documents collected by another project for another purpose.
+#
+# Free and offline. It needs whichever converters are installed; each one that
+# is absent is left out of the report rather than scored zero.
+CONVERSIONEVAL_LIMIT ?= 0
+
+conversion-eval: build ## Compare converters on text-extraction completeness → /conversion-eval
+	$(GO) run ./scripts/conversioneval -limit $(CONVERSIONEVAL_LIMIT) -jobs 6
+	@echo "Published conversion-eval report → web/src/pages/conversion-eval/_conversioneval.json"
+
 # ── Authoring eval ───────────────────────────────────────────────────────────
 # Measures the authoring side: the voice checks, voice-infer, and whether
 # `kapi voice guide` steers writing toward its profile rather than just

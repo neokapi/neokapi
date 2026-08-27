@@ -45,6 +45,10 @@ export interface Eval {
   page?: string;
   validation?: string;
   fresh?: { date?: string; undated?: boolean };
+  // The one number this eval is for, extracted from its dataset by
+  // scripts/evalindex/headline.go. Absent where an eval does not reduce to one
+  // number, or where nothing has been measured yet.
+  headline?: { value: string; of: string; tone: "ok" | "warn" | "gap" };
 }
 export interface Index {
   _note: string;
@@ -208,6 +212,9 @@ export const s: Record<string, CSSProperties> = {
   },
   rowAbsent: { borderStyle: "dashed", background: "transparent" },
   pills: { display: "flex", gap: ".35rem", flexWrap: "wrap" },
+  headline: { display: "inline-flex", alignItems: "baseline", gap: ".35rem", marginLeft: ".2rem" },
+  headlineValue: { fontFamily: mono, fontWeight: 700, fontVariantNumeric: "tabular-nums" },
+  headlineOf: { fontSize: ".78rem", color: "var(--ifm-color-emphasis-600)" },
   pill: {
     fontFamily: mono,
     fontSize: ".65rem",
@@ -297,6 +304,14 @@ export function EvalRow({ e }: { e: Eval }): ReactElement {
             {open ? "−" : "+"}
           </span>
           <span style={{ fontWeight: 600 }}>{e.title}</span>
+          {e.headline && (
+            <span style={s.headline}>
+              <span style={{ ...s.headlineValue, color: tone[e.headline.tone].fg }}>
+                {e.headline.value}
+              </span>
+              <span style={s.headlineOf}>{e.headline.of}</span>
+            </span>
+          )}
         </span>
         <span style={s.pills}>
           <Pill text={e.method} t="flat" />

@@ -160,6 +160,38 @@ func TestEveryEvalStatesWhatItMisses(t *testing.T) {
 	}
 }
 
+// TestARegisteredHeadlineResolves.
+//
+// A headline is extracted from its dataset, so an extractor that guesses the
+// shape wrong returns nil and the row silently loses its number. That is how
+// the first version shipped: three of five extractors read keys the datasets do
+// not have — `bare.overall` where the scores are under `dimensions`, `level` as
+// a number where it is the string "L1" — and the only symptom was a blank
+// column that looked like a card without a headline.
+//
+// Registering an extractor is the claim that it works. This checks it.
+func TestARegisteredHeadlineResolves(t *testing.T) {
+	root := repoRoot(t)
+	index, err := Build()
+	require.NoError(t, err)
+
+	for _, e := range index.Evals {
+		if _, registered := extractors[e.ID]; !registered || e.Data == "" {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, e.Data)); err != nil {
+			continue // the dataset has not been generated on this machine
+		}
+		t.Run(e.ID, func(t *testing.T) {
+			require.NotNil(t, e.Headline,
+				"an extractor is registered for this eval and it returned nothing, so it is reading keys %s does not have", e.Data)
+			assert.NotEmpty(t, e.Headline.Value)
+			assert.NotEmpty(t, e.Headline.Of, "a number with no unit is not a headline")
+			assert.Contains(t, []string{"ok", "warn", "gap"}, e.Headline.Tone)
+		})
+	}
+}
+
 // TestCoverageIsNotFlattering: the summary counts must match the cards. A
 // coverage number computed anywhere other than from the cards themselves would
 // be the first thing to drift, and the last thing anyone would check.
@@ -173,8 +205,14 @@ func TestCoverageIsNotFlattering(t *testing.T) {
 	assert.Equal(t, index.Coverage.ByStatus[StatusMeasured], index.Coverage.Measured)
 	assert.Equal(t, index.Coverage.ByStatus[StatusBlocked], index.Coverage.Blocked)
 	assert.Equal(t, index.Coverage.ByStatus[StatusAbsent], index.Coverage.Absent)
-	assert.Positive(t, index.Coverage.Absent,
-		"if nothing is absent, either the work is finished or the registry has stopped listing gaps")
+	// Not `Absent > 0`. Absent went to zero when the four unbuilt evals were
+	// built, and the assertion failed for the one reason it should not: the
+	// work was done. What it was guarding is that the registry keeps saying
+	// where it falls short — so the claim to check is that not everything is
+	// measured, which stays true and stays meaningful whichever gap-shaped
+	// status the shortfalls carry.
+	assert.Less(t, index.Coverage.Measured, len(evals),
+		"every eval reads as fully measured, which means either the work is finished or the registry has stopped listing what it misses")
 
 	perBand := 0
 	for _, n := range index.Coverage.PerBand {

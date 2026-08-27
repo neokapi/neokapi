@@ -202,6 +202,7 @@ func Build() (*Index, error) {
 			continue
 		}
 		dated[i].Fresh = readFreshness(root, dated[i].Data)
+		dated[i].Headline = readHeadline(root, dated[i].Data, dated[i].ID)
 		byID[dated[i].ID] = dated[i]
 	}
 
