@@ -175,6 +175,16 @@ type TermRule struct {
 	// ordinary rules would skip — "say this instead" needs a this — so the flag
 	// is what gives a bare term meaning: leave it exactly as it is.
 	DoNotTranslate bool `json:"do_not_translate,omitempty" yaml:"do_not_translate,omitempty"`
+	// Exact restricts the rule to the term as written, with no inflections.
+	//
+	// A term is matched with its regular inflections by default, because the
+	// words a profile forbids are mostly verbs and prose uses them inflected: a
+	// rule about `utilize` means `utilizes` too, and matching only the bare
+	// stem let "the platform utilizes your data" through at 100/100 (#2226).
+	//
+	// Set this where the exact string is the point: a product name, an
+	// identifier, a term whose plural is a different and permitted word.
+	Exact bool `json:"exact,omitempty" yaml:"exact,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for voice profile.

@@ -79,7 +79,13 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				continue
 			}
 			sev := severityForRule(rule.Severity, fallback)
-			for _, h := range check.FindTerm(text, rule.Term) {
+			// Inflected unless the rule asks for the exact string. See
+			// TermRule.Exact and core/check.Inflections.
+			find := check.FindTermInflected
+			if rule.Exact {
+				find = check.FindTerm
+			}
+			for _, h := range find(text, rule.Term) {
 				hits = append(hits, VocabHit{
 					Kind:        set.Kind,
 					Category:    category,
