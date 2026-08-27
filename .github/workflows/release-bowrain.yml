@@ -345,6 +345,11 @@ jobs:
       - name: Publish plugin archives to release
         uses: softprops/action-gh-release@v3
         with:
+          # kapi-bowrain is a plugin on its own tag line, so it must never
+          # become the repo's "latest" release. Today its tags are all
+          # prereleases, which hides that — the day one ships stable it would
+          # take "latest" from the kapi CLI, exactly as check-v0.1.0 did.
+          make_latest: false
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: |
@@ -973,6 +978,11 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
+          # kapi-bowrain is a plugin on its own tag line, so it must never
+          # become the repo's "latest" release. Today its tags are all
+          # prereleases, which hides that — the day one ships stable it would
+          # take "latest" from the kapi CLI, exactly as check-v0.1.0 did.
+          make_latest: false
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
@@ -1050,6 +1060,11 @@ jobs:
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
+          # kapi-bowrain is a plugin on its own tag line, so it must never
+          # become the repo's "latest" release. Today its tags are all
+          # prereleases, which hides that — the day one ships stable it would
+          # take "latest" from the kapi CLI, exactly as check-v0.1.0 did.
+          make_latest: false
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
           tag_name: ${{ needs.setup.outputs.tag }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"

@@ -1035,6 +1035,8 @@ jobs:
         run: ./scripts/check-plugin-licenses.sh
       - name: Guard — no compiled executable is tracked in git
         run: ./scripts/check-tracked-binaries.sh
+      - name: Guard — no plugin release claims the repo's "latest"
+        run: ./scripts/check-plugin-release-latest.sh
 
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real

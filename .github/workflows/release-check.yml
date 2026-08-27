@@ -266,6 +266,10 @@ jobs:
       - name: Upload all assets to the release
         uses: softprops/action-gh-release@v3
         with:
+          # This plugin has its own tag line; it must NOT become the repo's
+          # "latest" release, or setup-kapi's resolve-version (which reads
+          # releases/latest) would resolve the kapi CLI to this tag.
+          make_latest: false
           files: |
             check-release/*.tar.gz
             check-release/*.tar.gz.sigstore.json

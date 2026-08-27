@@ -65,16 +65,22 @@ BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
 
 See [Self-Hosting](/server/self-hosting) for the full production walkthrough, including TLS, backups, and the complete service topology.
 
-## Native binary
+## Building the binaries
 
-The server and worker also ship as native binaries on [GitHub Releases](https://github.com/neokapi/neokapi/releases). Both still require a reachable PostgreSQL, plus a shared job queue (SQS or an SQS-compatible broker) and Redis when the server and worker run as separate processes.
+The server and worker are built from source. Neither is published as a
+download: the GitHub Releases for this repository carry the kapi CLI, the
+`kapi-bowrain` plugin and the Bowrain desktop app, and no server artifact.
+The compose stack above builds the server image locally for the same reason.
 
 ```bash
-# Linux (x86_64)
-curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-linux-amd64.tar.gz
-tar xzf bowrain-server-linux-amd64.tar.gz
-sudo mv bowrain-server /usr/local/bin/
+git clone https://github.com/neokapi/neokapi.git
+cd neokapi
+make -C bowrain build-server
 ```
+
+Both still require a reachable PostgreSQL, plus a shared job queue (SQS or an
+SQS-compatible broker) and Redis when the server and worker run as separate
+processes.
 
 Run the server (PostgreSQL is required; the connection string must use the `postgres://` scheme):
 
