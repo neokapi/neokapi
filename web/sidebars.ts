@@ -214,12 +214,15 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  // Kept in sync with the /reference overview page, which lists the same set.
-  // The Reference navbar dropdown (docusaurus.config.ts) carries the
-  // reader-facing references only — the Project status dashboards are
-  // measurements of the suites, so they appear here and not there. The grids
-  // (/commands, /formats, /tools) and status dashboards are React pages under
-  // src/pages, so they appear here as `link` entries rather than doc ids.
+  // Reader-facing reference only: what a command takes, what a format supports,
+  // what the wire contract is.
+  //
+  // What kapi is measured against is not reference material, and keeping a list
+  // of it here meant maintaining a second index that drifted from the generated
+  // one. It lives under the Tests & Evals navbar item, over /evals.
+  //
+  // The grids (/commands, /formats, /tools) are React pages under src/pages, so
+  // they appear as `link` entries rather than doc ids.
   referenceSidebar: [
     "reference/index",
     {
@@ -289,35 +292,6 @@ const sidebars: SidebarsConfig = {
         "reference/serialization/voice-profile",
         "reference/serialization/choosing",
         { type: "link", label: "Bundle anatomy", href: "/kbf-lab" },
-        { type: "link", label: "Bundle tests", href: "/kbf-tests" },
-      ],
-    },
-    {
-      // Every measurement kapi publishes, entered through /evals. The cover
-      // page is first because each dashboard below shows one slice and none of
-      // them can say what is NOT measured; the cover page carries the unbuilt
-      // evals and the layers with nothing behind them, which is the half a
-      // reader cannot reconstruct by browsing the others.
-      //
-      // The registry behind it is scripts/evalindex, and its tests resolve
-      // every command, page and dataset a card names.
-      type: "category",
-      label: "Tests and evals",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        { type: "link", label: "All evals", href: "/evals" },
-        { type: "link", label: "· Engine and formats", href: "/evals/engine" },
-        { type: "link", label: "· AI and context", href: "/evals/ai" },
-        { type: "link", label: "· Agent skills", href: "/evals/skills" },
-        { type: "link", label: "Format maturity", href: "/format-maturity" },
-        { type: "link", label: "Reuse and governance", href: "/coordinate" },
-        { type: "link", label: "Check eval", href: "/check-eval" },
-        { type: "link", label: "Context eval", href: "/context-eval" },
-        { type: "link", label: "Batch eval", href: "/batch-eval" },
-        { type: "link", label: "Engine benchmarks", href: "/pseudobench" },
-        { type: "link", label: "ML benchmark", href: "/ml-benchmark" },
-        { type: "link", label: "Skill eval", href: "/skill-eval" },
       ],
     },
   ],
