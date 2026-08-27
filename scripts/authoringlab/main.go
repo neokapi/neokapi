@@ -97,7 +97,8 @@ func run() error {
 	)
 	flag.Parse()
 
-	root, err := repoRoot()
+	ctx := context.Background()
+	root, err := repoRoot(ctx)
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func run() error {
 	wanted := labModels
 	if strings.TrimSpace(*models) != "" {
 		wanted = nil
-		for _, m := range strings.Split(*models, ",") {
+		for m := range strings.SplitSeq(*models, ",") {
 			if m = strings.TrimSpace(m); m != "" {
 				wanted = append(wanted, m)
 			}
@@ -176,14 +177,11 @@ func run() error {
 	fmt.Fprintf(os.Stderr, "authoring-lab: %d document(s) across %d model(s) and %d coordinate(s)\n",
 		len(cells)*2, len(wanted), len(pts))
 
-	ctx := context.Background()
 	docs := make([]Doc, len(cells))
 	sem := make(chan struct{}, max(1, *workers))
 	var wg sync.WaitGroup
 	for i, c := range cells {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			docs[i] = write(ctx, *provider, c.model, c.point, guides[c.point.Audience])
@@ -192,7 +190,7 @@ func run() error {
 				status = "FAILED: " + docs[i].Error
 			}
 			fmt.Fprintf(os.Stderr, "  %-18s %-10s %s\n", c.model, c.point.Audience, status)
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -288,8 +286,17 @@ func resolvedModel(llm aiprovider.LLMProvider, asked string) string {
 // diffed outside a browser.
 func writeDocs(root string, docs []Doc) error {
 	dir := filepath.Join(root, DocDir)
-	if err := os.RemoveAll(dir); err != nil {
-		return err
+	// Only the cells this run produced. Clearing the whole tree would let
+	// `-models one -only one-audience` delete fifteen documents it cannot
+	// reproduce, which is what it did the first time.
+	for i := range docs {
+		if docs[i].Error != "" {
+			continue
+		}
+		cell := filepath.Join(dir, docs[i].Model, docs[i].Audience)
+		if err := os.RemoveAll(cell); err != nil {
+			return err
+		}
 	}
 	for i := range docs {
 		d := &docs[i]
@@ -319,8 +326,8 @@ func writeDocs(root string, docs []Doc) error {
 	return nil
 }
 
-func repoRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+func repoRoot(ctx context.Context) (string, error) {
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return "", errors.New("not in a git checkout")
 	}
