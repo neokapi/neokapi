@@ -84,8 +84,17 @@ func run() error {
 		saveOutputs = flag.String("save-outputs", "", "also write every (fixture, variant, translation) to this JSON file — inspection, and the raw material for judge-validation labels")
 		judgeSpec   = flag.String("judge", "", "provider:model to judge the subjective voice criteria (must be a different model family than the model under test)")
 		validate    = flag.String("judge-validate", "", "labels JSON of human verdicts; measures judge–human agreement with -judge and records it via -append, then exits")
+		label       = flag.String("label", "", "label saved outputs interactively for judge validation; takes the -save-outputs file and writes verdicts to -labels")
+		labelsOut   = flag.String("labels", "scripts/contexteval/labels.json", "where -label reads and writes the human verdicts")
+		labelTarget = flag.Int("label-target", TargetJudgeItems, "how many labelled items -label aims for")
 	)
 	flag.Parse()
+
+	if *label != "" {
+		// No provider is constructed: labelling is a person and a file, and
+		// asking for credentials to do it would be a reason not to.
+		return runLabelling(*label, *labelsOut, *labelTarget)
+	}
 	dumpFailures = *dump
 
 	if *recost != "" {

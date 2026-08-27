@@ -36,7 +36,15 @@ import (
 // everything; the item floor, because kappa over a handful of labels is noise.
 const (
 	MinJudgeKappa = 0.6
-	MinJudgeItems = 30
+	// MinJudgeItems is the floor below which kappa is noise rather than a
+	// measurement. Thirty was optimistic: the reliability literature puts the
+	// useful floor nearer 100, and a kappa from 30 items carries a confidence
+	// interval wide enough to span "substantial" and "poor".
+	MinJudgeItems = 100
+	// TargetJudgeItems is what a labelling session aims for. The interval at
+	// 150 is tight enough that the number can be quoted without a caveat
+	// longer than the number.
+	TargetJudgeItems = 150
 )
 
 // Criterion is one yes/no rubric question, derived from the corpus's synthetic

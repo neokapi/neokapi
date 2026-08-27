@@ -75,12 +75,46 @@ you changed.
 ## Evals that spend
 
 Anything calling a model commits its dataset; a build cannot be asked to pay for
-it. State the sampling settings on the card. Every spending eval currently
-answers "not recorded", which is true: `providers/ai` carries a
-`Config.Temperature` that Ollama honours, Bedrock honours unless it is zero, and
-Anthropic, OpenAI, Azure and Gemini drop on the floor. A cloud eval therefore
-runs at whatever the API defaults to, and a command alone does not reproduce a
-number that was sampled.
+it. State the sampling settings on the card, and pin them in the harness:
+
+```go
+Temperature: new(0.0)   // greedy, so a re-run lands on the same numbers
+```
+
+Set it with `new(expr)`. `Config.Temperature` is a `*float64` because 0 is a
+real request rather than an absent one, and it used to be a bare `float64` with
+`omitempty`, which made greedy decoding the one value you could not ask for.
+Worse, four of six providers accepted the field and never sent it, so every eval
+in this repo sampled at whatever the API defaulted to and none of them wrote it
+down. `TestEveryProviderSendsTemperature` keeps that from coming back.
+
+## Validating a judge
+
+A judged score cannot be trusted above the judge's measured agreement with a
+person, and until that measurement exists the dashboard withholds the judged
+dimension. Three steps, and the middle one needs a human:
+
+```bash
+make judge-candidates   # sweep and save every scored translation (costs calls)
+make judge-label        # answer y/n per criterion, resumable, roughly 20 minutes
+make judge-validate     # measure Cohen's kappa and record it in the history
+```
+
+The loop is blind on purpose. It never shows the judge's verdict, the model, or
+whether the translation came from the steered or the bare pass, because a
+labeller who sees any of them agrees with it and the result becomes a
+measurement of suggestibility. Items are shuffled deterministically, so fatigue
+does not correlate with condition, and the same seed replays the same order on
+a resume.
+
+"I am not sure" is an answer. A forced guess is noise that kappa cannot tell
+from disagreement, and it drags the estimate toward chance in a way that looks
+like a bad judge. Skipped items are recorded and counted.
+
+The floor is 100 items and a session aims for 150. Thirty was the old number
+and it was optimistic: a kappa over thirty items carries an interval wide
+enough to span "substantial" and "poor", which is the situation this exercise
+exists to get out of.
 
 ## Evals that drive an agent
 
