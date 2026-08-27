@@ -14,8 +14,12 @@ ENV CI=true
 # corepack so the pinned pnpm version is available.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
-    && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
-    && chmod +x /usr/local/bin/vp \
+    # Copy through the installer's own symlink rather than a path inside it.
+    # ~/.local/share/vite-plus/bin/vp points at current/bin/vp, and current/
+    # points at the installed version — so a version bump moves the binary but
+    # not this path. Naming a path inside the tree is what broke the build when
+    # the installer moved from ~/.vite-plus to ~/.local/share/vite-plus.
+    && install -m 0755 /root/.local/share/vite-plus/bin/vp /usr/local/bin/vp \
     && ln -sf vp /usr/local/bin/vpx \
     && corepack enable \
     && rm -rf /var/lib/apt/lists/*
