@@ -427,10 +427,10 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-26T23:52:19Z"
+        "date": "2026-08-27T11:38:59Z"
       },
       "headline": {
-        "value": "22/22",
+        "value": "30/30",
         "of": "scenarios fired correctly",
         "tone": "ok"
       }
