@@ -13,7 +13,7 @@
       "pattern": 4,
       "term": 13
     },
-    "profile": "name: Harbourlight\ndescription: Plain, direct voice for a port logistics tool\ntone:\n    personality:\n        - plain\n        - direct\n        - calm\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Address the reader as you. State what to do next. No superlatives, no hedging.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\n    prohibited_patterns:\n        - regex: '\\b(?:is|are|was|were|be|been|being|may be|has been|have been)\\s+\\w+(?:ed|en)\\b'\n          description: passive construction\n          severity: major\n        - regex: '(?i)\\bit should be noted that\\b'\n          description: hedged filler\n          severity: minor\nvocabulary:\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: best-in-class\n          severity: major\n        - term: seamless\n          severity: major\n        - term: revolutionary\n          severity: major\n        - term: game-changing\n          severity: major\n",
+    "profile": "name: Harbourlight\ndescription: Plain, direct voice for a port logistics tool\ntone:\n    personality:\n        - plain\n        - direct\n        - calm\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Address the reader as you. State what to do next. No superlatives, no hedging.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\n    prohibited_patterns:\n        - regex: '\\b(?:is|are|was|were|be|been|being|may be|has been|have been)\\s+\\w+(?:ed|en)\\b'\n          description: passive construction\n          severity: major\n        - regex: '(?i)\\bit should be noted that\\b'\n          description: hedged filler\n          severity: minor\nvocabulary:\n    forbidden_terms:\n        - term: utilize\n          severity: major\n          forms: [utilizes, utilized, utilizing]\n        - term: leverage\n          severity: major\n          forms: [leverages, leveraged, leveraging]\n        - term: best-in-class\n          severity: major\n        - term: seamless\n          severity: major\n          forms: [seamlessly]\n        - term: revolutionary\n          severity: major\n        - term: game-changing\n          severity: major\n",
     "contrast": "name: Meridian Compliance\ndescription: Formal, impersonal register for regulatory filings\ntone:\n    personality:\n        - formal\n        - measured\n    formality: formal\n    emotion: neutral\n    humor: none\n    guidelines: Maintain an impersonal register. Refer to the operator in the third person.\nstyle:\n    active_voice: false\n    sentence_length: varied\n    person_pov: third\n    contractions: never\nvocabulary:\n    forbidden_terms:\n        - term: you\n          severity: major\n        - term: we\n          severity: major\n        - term: let's\n          severity: major\n",
     "documents": [
       {
@@ -185,9 +185,9 @@
       "check": "voice check (offline)",
       "surface": "kapi voice check --profile-file voice.yaml --json \u003c \u003cdoc\u003e",
       "plants": 18,
-      "covered": 16,
-      "recall": 0.8888888888888888,
-      "findings": 28,
+      "covered": 17,
+      "recall": 0.9444444444444444,
+      "findings": 29,
       "byMechanism": {
         "declared": {
           "plants": 1,
@@ -201,8 +201,8 @@
         },
         "term": {
           "plants": 13,
-          "covered": 12,
-          "recall": 0.9230769230769231
+          "covered": 13,
+          "recall": 1
         }
       },
       "cleanDocs": 6,
@@ -562,7 +562,7 @@
         {
           "doc": "status-page.md",
           "kind": "off-profile",
-          "score": 85,
+          "score": 80,
           "plants": [
             {
               "text": "utilizes",
@@ -596,6 +596,12 @@
             {
               "category": "vocabulary",
               "severity": "major",
+              "message": "Forbidden term \"utilize\" found",
+              "original_text": "utilizes"
+            },
+            {
+              "category": "vocabulary",
+              "severity": "major",
               "message": "Forbidden term \"seamless\" found",
               "original_text": "seamless"
             }
@@ -603,25 +609,19 @@
           "covered": [
             "is initiated",
             "",
+            "utilizes",
             "seamless"
-          ],
-          "missed": [
-            {
-              "text": "utilizes",
-              "rule": "vocabulary.forbidden_terms",
-              "mechanism": "term"
-            }
           ]
         }
       ]
     },
     {
-      "check": "exec voice-check (ollama:)",
-      "surface": "kapi exec voice-check \u003cdoc\u003e --profile-id harbourlight --provider ollama --json",
+      "check": "exec voice-check (claude-code:sonnet)",
+      "surface": "kapi exec voice-check \u003cdoc\u003e --profile-id harbourlight --provider claude-code --json",
       "plants": 18,
-      "covered": 18,
-      "recall": 0,
-      "findings": 0,
+      "covered": 15,
+      "recall": 0.8333333333333334,
+      "findings": 60,
       "byMechanism": {
         "declared": {
           "plants": 1,
@@ -630,59 +630,273 @@
         },
         "pattern": {
           "plants": 4,
-          "covered": 4,
-          "recall": 1
+          "covered": 3,
+          "recall": 0.75
         },
         "term": {
           "plants": 13,
-          "covered": 13,
-          "recall": 1
+          "covered": 11,
+          "recall": 0.8461538461538461
         }
       },
       "cleanDocs": 6,
-      "cleanFalsePositives": 0,
-      "cleanDocsWithFindings": 0,
+      "cleanFalsePositives": 28,
+      "cleanDocsWithFindings": 6,
       "outcomes": [
         {
           "doc": "berth-plan.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "berth-plan.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 86,
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "The passage is built entirely on a nautical metaphor (berth, vessel, quay, plan) but never states what real feature or action it maps to. A reader can't tell if 'berth' means a calendar slot, a resource reservation, a queue position, or something else.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"Harbourlight tells the terminal and the agent\" is ambiguous: \"tells\" doesn't specify what is communicated (a confirmation? a status update? an error?), and \"the terminal\" and \"the agent\" are introduced without any prior reference, so a reader can't tell what these are or how they relate to the booking.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The text 'Plan a berth' is too short and ambiguous to evaluate meaningfully — it's unclear what 'berth' refers to (a bed, a parking/mooring spot, a job position, etc.) or what kind of plan is being requested.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "If this text is end-user facing, sustained metaphor in place of plain description conflicts with the preference for no mechanism jargon and plain, literal language in end-user docs.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "Opening with a self-contained, aphorism-like analogy ('You book a berth before the vessel arrives') before any concrete instruction reads as a stock scene-setting device rather than direct guidance.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The two sentences sit side by side without a connective, jumping from an instruction (\"Confirm the booking...\") to an unrelated-sounding system statement (\"Harbourlight tells...\"), which reads as two disconnected fragments rather than one coherent instruction.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
         },
         {
           "doc": "manifest.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "manifest.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 86,
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"call view\" doesn't match the rest of the text's domain (manifest, consignee, hazard class are shipping/logistics terms, while \"call view\" reads as a telephony/CRM feature). It's unclear what UI element this refers to.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "The passage is a fully extended nautical metaphor (manifest/vessel/crew/Harbourlight) with no plain-language anchor. A reader unfamiliar with the metaphor can't tell what actually changed, what 'Harbourlight' is, or what 'declared' means in product terms.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Call\" and \"manifest\" are used without domain context, so a reader can't tell if this refers to a phone/sales call, an API call, a flight, or a shipment.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"consignee\" and \"hazard class\" are specialized logistics terms used without context, which may confuse readers unfamiliar with shipping terminology.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The triadic list (\"what is on board, who owns it, and where it goes next\") plus the abstract pronoun subject \"It\" gives the passage a generic tagline/aphorism cadence rather than plain descriptive prose.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "Copy leans on abstract, unexplained subjects ('A manifest changes', 'the crew declared') rather than a concrete actor and action — a pattern flagged elsewhere as an AI-writing tell.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "neutral",
+              "message": "The two filter options are phrased as parallel instructions (\"Filter by X to find Y\"), which reads clearly and consistently.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "neutral",
+              "message": "The nautical framing (vessel, crew, manifest) is consistent and not disparaging or off-brand, but it's a stylistic choice not grounded in any stated brand metaphor.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
         },
         {
           "doc": "arrivals.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "arrivals.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 98,
+          "findings": [
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "Antecedent mismatch: 'every vessel' (distributive/plural sense) in the first sentence is referred back to as 'the vessel' (singular, definite) in the second sentence, which reads as if a single specific vessel was already introduced.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"what lands first\" uses aviation/land terminology for a vessel (ship) context. Vessels arrive or dock; they don't \"land\".",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            ""
+          ]
         },
         {
           "doc": "roles.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "roles.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 98,
+          "findings": [
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Change a role from the team page\" uses \"from,\" which reads as removing something from the page rather than performing the action there.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"the next sign-in\" doesn't say whose sign-in — the admin making the change or the user whose role changed.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            ""
+          ]
         },
         {
           "doc": "customs.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "customs.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 94,
+          "findings": [
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"File\" has no explicit object — the reader must infer what document or form is being referred to (a customs declaration? a manifest?). Without surrounding context, the instruction is actionable-sounding but not actually actionable.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Check the consignee details and the hazard codes\" doesn't specify what checking entails (verify for accuracy, compare against source documents, confirm completeness, etc.), which could leave the reader unsure what action to take.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "It's ambiguous whether 'the reason appears on the call view' and 'the clerk...is told' describe one notification mechanism or two separate ones (e.g., in-app display plus a separate alert/email).",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"File with customs\" is ambiguous — it's unclear whether \"customs\" refers to user customizations/settings, customs duties/import declarations, or something else entirely.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The passage shifts voice mid-paragraph: the first sentence narrates what the system (Harbourlight) does in third person, then the second sentence switches to a direct imperative aimed at the reader. This inconsistency can make it unclear whether the text is describing the product or instructing the user.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "'the clerk who filed it is told' uses passive voice with a vague agent, leaving unclear who or what does the telling.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
         },
         {
           "doc": "alerts.md",
           "kind": "on-profile",
-          "score": 0,
-          "error": "alerts.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "score": 96,
+          "findings": [
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"what Harbourlight tells you about\" is vague — it doesn't specify what kind of content or notifications are meant (topics? updates? alerts?).",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "'a filing is answered' is ambiguous — it doesn't say whether 'answered' means approved, rejected, or just acknowledged/received.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The sentence has the shape of a short, punchy aphorism (subject-decides-object tagline), which reads as generic marketing/AI-style phrasing rather than a concrete statement.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "All three sentences use the identical template 'Turn on [X] alerts to hear when [Y]', giving the passage a formulaic, listicle-like rhythm rather than natural prose.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "",
+            "",
+            ""
+          ]
         },
         {
           "doc": "overview-marketing.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 88,
           "plants": [
             {
               "text": "revolutionary",
@@ -710,12 +924,55 @@
               "mechanism": "term"
             }
           ],
-          "error": "overview-marketing.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Dense corporate jargon throughout: 'utilize', 'single pane of glass', 'leverage', 'best-in-class', 'seamless', 'at scale'. These are stock buzzwords that substitute for concrete meaning.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "The copy leans on inflated marketing hyperbole ('revolutionary', 'best-in-class') rather than a grounded description of what the product does. This reads as generic promotional voice rather than a confident, substantive claim.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The text makes abstract claims ('every terminal touchpoint', 'berth allocation at scale') without saying concretely what the platform shows or does day to day.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "'Organizations can leverage our...' uses an abstract institutional subject rather than addressing the reader directly.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "utilize",
+            "revolutionary",
+            "",
+            "leverage"
+          ],
+          "missed": [
+            {
+              "text": "best-in-class",
+              "rule": "vocabulary.forbidden_terms",
+              "mechanism": "term"
+            },
+            {
+              "text": "seamless",
+              "rule": "vocabulary.forbidden_terms",
+              "mechanism": "term"
+            }
+          ]
         },
         {
           "doc": "release-notes.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 82,
           "plants": [
             {
               "text": "game-changing",
@@ -733,12 +990,57 @@
               "mechanism": "term"
             }
           ],
-          "error": "release-notes.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Passive construction 'Performance has been improved' hides the actor and the specific change — no metric, benchmark, or concrete detail is given.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"Game-changing\" is marketing hype language, not the plain, concrete voice this project uses for release notes.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "'the experience is now seamless' is an unsubstantiated marketing superlative — a vague, feel-good claim rather than a verifiable statement.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Allowing users to utilize filters that were previously unavailable\" is an indirect, wordy way to say the filters are new.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Utilize\" is corporate jargon where \"use\" says the same thing more plainly.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "Abstract subjects ('Performance', 'the experience') with no concrete agent or object read as generic AI-generated phrasing rather than a specific engineering claim.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "game-changing",
+            "seamless",
+            "utilize",
+            "utilize",
+            ""
+          ]
         },
         {
           "doc": "onboarding-email.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 81,
           "plants": [
             {
               "text": "best-in-class",
@@ -756,12 +1058,64 @@
               "mechanism": "term"
             }
           ],
-          "error": "onboarding-email.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"Best-in-class solution trusted by leading operators worldwide\" is an unverifiable superlative stack — a classic AI-generated marketing tell (abstract subject + hype claim with no supporting specifics).",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Opens with generic corporate-welcome effusiveness (\"We are delighted to welcome you\") that reads as templated marketing filler rather than a distinct voice.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"revolutionary capabilities\" is unearned hype/marketing language rather than a concrete claim.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The sentence never states what Harbourlight actually does or the specific value the reader gets — it's pure positioning language with zero content.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The message doesn't specify what 'shortly' means or what action (if any) the reader should take.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Trusted by leading operators worldwide\" is an unsubstantiated comparative/social-proof claim with no attribution or evidence.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"leverage the full breadth of\" is vague corporate filler that adds no information.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "best-in-class",
+            "",
+            "revolutionary",
+            "",
+            "",
+            "",
+            "leverage"
+          ]
         },
         {
           "doc": "help-passive.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 84,
           "plants": [
             {
               "text": "may be allocated",
@@ -779,12 +1133,50 @@
               "mechanism": "pattern"
             }
           ],
-          "error": "help-passive.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "The second sentence stacks multiple nested clauses ('allocations which have been submitted cannot subsequently be amended by users other than those to whom supervisory permissions have been granted'), forcing the reader to hold several negations and qualifiers at once.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "The passage is written almost entirely in passive voice ('may be allocated by', 'has been confirmed by', 'cannot subsequently be amended by', 'will be recorded in'), which distances the actor from the action and reads as bureaucratic rather than direct.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Phrasing such as 'It should be noted that' and 'for the purpose of subsequent review' is legalistic filler that adds formality without adding information.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The final clause ('the audit trail that is maintained by the platform') uses a wordy relative clause where a possessive or simple noun phrase would suffice.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "may be allocated",
+            "It should be noted that",
+            ""
+          ],
+          "missed": [
+            {
+              "text": "has been confirmed",
+              "rule": "style.prohibited_patterns/passive",
+              "mechanism": "pattern"
+            }
+          ]
         },
         {
           "doc": "faq-thirdperson.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 96,
           "plants": [
             {
               "text": "The operator",
@@ -792,12 +1184,43 @@
               "mechanism": "declared"
             }
           ],
-          "error": "faq-thirdperson.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"the filing in question\" is a filler phrase that adds no information beyond \"the filing\".",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"call view\" is an unexplained term and its meaning isn't obvious from context (filing/amendment/customs suggests a case or claim workflow, not a call).",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"The operator\" is repeated three times across two short sentences, which reads stilted and mechanical.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"on the operator's behalf\" is a wordier, more formal construction than needed for a procedural description.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "",
+            "",
+            "The operator",
+            "The operator"
+          ]
         },
         {
           "doc": "status-page.md",
           "kind": "off-profile",
-          "score": 0,
+          "score": 77,
           "plants": [
             {
               "text": "utilizes",
@@ -815,19 +1238,128 @@
               "mechanism": "pattern"
             }
           ],
-          "error": "status-page.md: the tool exited 0 and wrote nothing to stdout (issue #2225)"
+          "findings": [
+            {
+              "category": "",
+              "severity": "major",
+              "message": "\"Globally distributed infrastructure\" and \"seamless experience\" are vague marketing abstractions that convey no concrete, verifiable claim about what Harbourlight actually does or delivers.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Key terms are undefined and abstract: 'degradation' (of what — latency, data, service?), 'remediation' (what action, specifically?), 'affected parties' (which users or systems?).",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Entirely passive voice with no actor: 'remediation is initiated', 'parties are notified'. No one is doing anything — the system reads as automated corporate boilerplate rather than a person describing behavior.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "major",
+              "message": "Formal, hedged, legalistic phrasing ('Should X occur...') reads as distant and evasive rather than direct — a hallmark of vague AI-generated or compliance-speak text.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "'In due course' gives no concrete timing, leaving the reader unable to know what to expect or when.",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "\"Utilizes\" is inflated, formal filler for \"uses.\"",
+              "original_text": ""
+            },
+            {
+              "category": "",
+              "severity": "minor",
+              "message": "The sentence reads as generic corporate boilerplate (abstract subject + stock phrase \"seamless experience\") rather than a specific, grounded statement.",
+              "original_text": ""
+            }
+          ],
+          "covered": [
+            "seamless",
+            "",
+            "is initiated",
+            "",
+            "",
+            "utilizes",
+            "seamless"
+          ]
         }
-      ],
-      "blocked": "the tool returned no findings on any document, including the six written to violate the profile. It writes nothing to stdout and exits 0 under every provider and profile tried — see issue #2225. Until it emits results there is nothing here to score."
+      ]
     }
   ],
   "infer": {
-    "surface": "kapi exec voice-infer \u003con-profile docs\u003e --provider ollama --json",
+    "surface": "kapi exec voice-infer \u003con-profile docs\u003e --provider claude-code --json",
     "sources": 6,
-    "recovered": 0,
-    "compared": 0,
-    "rate": 0,
-    "blocked": "voice-infer wrote nothing to stdout and exited 0 (issue #2225). There is no draft to compare, and the tool has no other surface — there is no `kapi voice infer` subcommand. The comparison below runs as soon as the tool emits a profile."
+    "draft": "name: Harbourlight Draft\ndescription: Draft voice profile inferred from a content corpus. Review and adjust before adopting.\ntone:\n    personality:\n        - direct\n        - matter-of-fact\n        - procedural\n        - trustworthy\n    formality: neutral\n    emotion: calm and reassuring\n    humor: none\n    guidelines: 'Write like an operator explaining a workflow to a colleague on the dock: state what the system does, then what the user does, in that order. No enthusiasm, no hedging, no apology. Every section answers ''what happens'' and ''what do I do about it.'''\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: never\n    prohibited_patterns:\n        - regex: \\b(we|our|us)\\b\n          description: Corpus never speaks as 'we' about the company; instructions address the reader directly as 'you' and the product as 'Harbourlight'\n          severity: minor\n        - regex: n't\\b|'re\\b|'ll\\b|'ve\\b|'d\\b\n          description: No contractions appear anywhere in the corpus, even in otherwise casual instructional lines\n          severity: minor\n        - regex: —|--\n          description: No em dashes; the corpus breaks ideas into separate short sentences instead of joining them with a dash\n          severity: minor\nvocabulary:\n    preferred_terms:\n        - term: vessel\n          replacement: vessel\n          note: Used consistently instead of 'ship' or 'boat' throughout every section\n        - term: clash\n          replacement: clash\n          note: Used for scheduling conflicts instead of 'conflict' or 'collision' ('the plan flags the clash')\n        - term: quay\n          replacement: quay\n          note: Used instead of 'dock' or 'wharf' for the physical berth location\nexamples:\n    - before: Users have the ability to filter the manifest by consignee in order to more easily locate a particular shipment of interest.\n      after: Filter by consignee to find one shipment.\n      explanation: Corpus favors short imperative sentences over nominalized, hedged phrasing ('Open the manifest from the call view. Filter by consignee to find one shipment.').\n    - before: In the event that two vessels are scheduled for the same berth slot, the system will automatically generate a scheduling conflict alert for the user's review.\n      after: If two vessels want the same slot, the plan flags the clash.\n      explanation: The corpus uses plain domain vocabulary ('clash', not 'scheduling conflict alert') and active voice with the system as subject ('the plan flags'), matching lines like 'the plan flags the clash. Move one of them or shorten the stay.'\n    - before: We've made it possible for you to customize which notifications you'd like to receive from us.\n      after: You decide what Harbourlight tells you about.\n      explanation: Corpus never uses 'we' or contractions; it addresses the reader as 'you' and names the product directly as the actor, as in 'Harbourlight tells the terminal and the agent.'",
+    "fields": [
+      {
+        "field": "tone.formality",
+        "reference": "neutral",
+        "draft": "neutral",
+        "recovered": true
+      },
+      {
+        "field": "tone.emotion",
+        "reference": "neutral",
+        "draft": "calm and reassuring",
+        "recovered": false
+      },
+      {
+        "field": "tone.humor",
+        "reference": "none",
+        "draft": "none",
+        "recovered": true
+      },
+      {
+        "field": "style.sentence_length",
+        "reference": "short",
+        "draft": "short",
+        "recovered": true
+      },
+      {
+        "field": "style.person_pov",
+        "reference": "second",
+        "draft": "second",
+        "recovered": true
+      },
+      {
+        "field": "style.contractions",
+        "reference": "sometimes",
+        "draft": "never",
+        "recovered": false
+      },
+      {
+        "field": "style.active_voice",
+        "reference": "true",
+        "draft": "true",
+        "recovered": true
+      },
+      {
+        "field": "tone.personality",
+        "reference": "plain, direct, calm",
+        "draft": "direct, matter-of-fact, procedural, trustworthy",
+        "recovered": false,
+        "partial": true,
+        "ratio": 0.3333333333333333
+      },
+      {
+        "field": "vocabulary.forbidden_terms",
+        "reference": "utilize, leverage, best-in-class, seamless, revolutionary, game-changing",
+        "draft": "",
+        "recovered": false
+      }
+    ],
+    "recovered": 5,
+    "compared": 9,
+    "rate": 0.5555555555555556
   },
   "steer": {
     "provider": "claude-code",

@@ -79,13 +79,9 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				continue
 			}
 			sev := severityForRule(rule.Severity, fallback)
-			// Inflected unless the rule asks for the exact string. See
-			// TermRule.Exact and core/check.Inflections.
-			find := check.FindTermInflected
-			if rule.Exact {
-				find = check.FindTerm
-			}
-			for _, h := range find(text, rule.Term) {
+			// Every shape the rule declares, matched exactly. See
+			// TermRule.Forms and core/check/forms.go.
+			for _, h := range check.FindTermForms(text, rule.AllForms()) {
 				hits = append(hits, VocabHit{
 					Kind:        set.Kind,
 					Category:    category,

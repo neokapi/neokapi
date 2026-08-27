@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -80,6 +81,9 @@ type profileShape struct {
 	} `yaml:"vocabulary"`
 }
 
+// inferTimeout bounds the one inference this eval runs.
+const inferTimeout = 6 * time.Minute
+
 func runInfer(ctx context.Context, bin, workdir, provider, model string) (*InferResult, error) {
 	sources := docsOfKind(onProfile)
 	res := &InferResult{
@@ -91,11 +95,20 @@ func runInfer(ctx context.Context, bin, workdir, provider, model string) (*Infer
 	for _, d := range sources {
 		args = append(args, filepath.Join(workdir, "docs", d.Name))
 	}
-	args = append(args, "--provider", provider, "--json", "--profile-name", "Harbourlight Draft")
+	// No --json: the command emits the drafted profile as YAML, which is a
+	// profile and parses straight into profileShape. The JSON form nests it
+	// under a "profile" key, and reading that envelope as a profile finds no
+	// tone and no style and reports every field missing, which is what the
+	// first run of this did.
+	args = append(args, "--provider", provider, "--profile-name", "Harbourlight Draft")
 	if model != "" {
 		args = append(args, "--model", model)
 	}
-	ctx, cancel := withTimeout(ctx)
+	// One call over the whole corpus, not one per document, so it gets its own
+	// budget: the shared per-invocation timeout is sized for a check on one
+	// file and a local model needed longer than that to read six. The first
+	// run reported "wrote nothing" for what was actually a deadline.
+	ctx, cancel := context.WithTimeout(ctx, inferTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Env = append(os.Environ(), isolationEnv(workdir)...)
@@ -105,17 +118,19 @@ func runInfer(ctx context.Context, bin, workdir, provider, model string) (*Infer
 
 	draft := strings.TrimSpace(stdout.String())
 	if ctx.Err() != nil {
-		res.Blocked = fmt.Sprintf("voice-infer did not return within %s", toolTimeout)
+		res.Blocked = fmt.Sprintf("voice-infer did not return within %s", inferTimeout)
+		return res, nil
+	}
+	// The error is read before the empty output, not after. The first version
+	// had these the other way round and reported "wrote nothing" for a run that
+	// had failed with a message, which sent the reader looking for a missing
+	// output path instead of at the error the tool had already printed.
+	if err != nil {
+		res.Blocked = fmt.Sprintf("voice-infer failed: %v: %s", err, truncate(stderr.String(), 400))
 		return res, nil
 	}
 	if draft == "" {
-		res.Blocked = "voice-infer wrote nothing to stdout and exited 0 (issue #2225). There is no draft to compare, " +
-			"and the tool has no other surface — there is no `kapi voice infer` subcommand. The comparison below " +
-			"runs as soon as the tool emits a profile."
-		return res, nil
-	}
-	if err != nil {
-		res.Blocked = fmt.Sprintf("voice-infer failed: %v: %s", err, truncate(stderr.String(), 300))
+		res.Blocked = "voice-infer exited 0 and wrote nothing to stdout. There is no draft to compare."
 		return res, nil
 	}
 	res.Draft = draft
