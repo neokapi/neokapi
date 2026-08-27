@@ -21,7 +21,7 @@ import (
 // Deriving the forms was tried and belongs to nobody: English suffix rules gave
 // English the right answer, Norwegian a set of non-words, and every other
 // language nothing. Morphology is per-language knowledge and the tools that
-// hold it — LanguageTool, Acrolinx — ship a linguistic pack per language.
+// hold it, LanguageTool and Acrolinx, ship a linguistic pack per language.
 //
 // A model has that knowledge for every language, so this asks once, at
 // authoring time, and writes the answer into the profile. What the check then
@@ -32,8 +32,8 @@ func newVoiceExpandCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "expand",
 		Short: "Fill in the surface forms a profile's terms take (writes the profile)",
-		Long: `Ask a model for the other shapes each vocabulary term takes — inflections,
-declensions, conjugations — and write them into the profile as ` + "`forms:`" + `.
+		Long: `Ask a model for the other shapes each vocabulary term takes (inflections,
+declensions, conjugations) and write them into the profile as ` + "`forms:`" + `.
 
 The check matches those forms exactly, so this is authoring-time work whose
 result you review in a diff. Run it again after adding terms; rules that already

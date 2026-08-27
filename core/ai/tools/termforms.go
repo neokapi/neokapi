@@ -168,7 +168,7 @@ func sharesAPrefix(term, form string) bool {
 		//
 		// Declining is the right way to be wrong here. A term of one or two
 		// characters in a voice profile is almost always a product or a
-		// technology — Go, AI, UI, R — where every inflection of the ordinary
+		// technology (Go, AI, UI, R) where every inflection of the ordinary
 		// word that shares its spelling is a false accusation. An author who
 		// does mean the verb can write the forms themselves, which is one line
 		// and unambiguous.

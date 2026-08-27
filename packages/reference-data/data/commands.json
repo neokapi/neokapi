@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-27T17:24:51Z",
+  "generatedAt": "2026-08-27T17:29:42Z",
   "commands": [
     {
       "id": "add",
@@ -7950,7 +7950,7 @@
       ],
       "use": "expand",
       "short": "Fill in the surface forms a profile's terms take (writes the profile)",
-      "long": "Ask a model for the other shapes each vocabulary term takes — inflections,\ndeclensions, conjugations — and write them into the profile as `forms:`.\n\nThe check matches those forms exactly, so this is authoring-time work whose\nresult you review in a diff. Run it again after adding terms; rules that already\ncarry forms are left alone unless --overwrite is given.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
+      "long": "Ask a model for the other shapes each vocabulary term takes (inflections,\ndeclensions, conjugations) and write them into the profile as `forms:`.\n\nThe check matches those forms exactly, so this is authoring-time work whose\nresult you review in a diff. Run it again after adding terms; rules that already\ncarry forms are left alone unless --overwrite is given.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
       "flags": [
         {
           "name": "api-key",
