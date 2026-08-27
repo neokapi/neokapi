@@ -106,7 +106,7 @@ func cmdRun(args []string) {
 		Iterations:    *iterations,
 		Warmup:        *warmup,
 		OkapiTestdata: *okapiTestdata,
-		OutputDir:     *output,
+		OutputDir:     mustAbs(*output),
 		ResultsDir:    *results,
 		HTMLFile:      *htmlFile,
 		TraceDir:      *traceDir,
@@ -187,4 +187,21 @@ func cmdBuildVersions(args []string) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// mustAbs resolves a path against the caller's working directory before it is
+// handed to an engine.
+//
+// The engines run with cmd.Dir set to a scratch directory, so a relative
+// -output was resolved against THAT: kapi wrote 844 files into
+// $TMPDIR/kapi-bench-cwd/bench/pseudobench/results/output/... while
+// collectOutputs looked under the repo and found nothing. Every file was
+// scored "no output written", the engine reported 0/844, and the timing was
+// real but described a run whose results nobody could see.
+func mustAbs(p string) string {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return p
+	}
+	return abs
 }
