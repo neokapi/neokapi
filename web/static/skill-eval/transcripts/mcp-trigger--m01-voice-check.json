@@ -1,0 +1,153 @@
+{
+  "key": "mcp:trigger",
+  "scenario": "m01-voice-check",
+  "prompt": "Score the text in README.md against the voice profile in voice.yaml and tell me the number.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by reading both files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and read README and voice.yaml\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:39 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:39 ..\n-rw-r--r--      1 asgeirf  staff     780 Aug 27 20:39 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 kapi-config\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:39 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:39 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 xdg-cache\n=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - t\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `voice_check` MCP tool available for exactly this. Let me load its schema."
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_check\",\"max_results\":3}",
+          "output": "[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .mcp.json \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config -type f | head -50\",\"description\":\"Inspect MCP config and kapi-config directory\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}=== kapi-config ===\nkapi-config/update-channel"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\",\"profile_file\":\"voice.yaml\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"utilize\\\" found\",\"original_text\":\"utilize\",\"position\":{\"end\":{\"offset\":73,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":66,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":40,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":28,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "text",
+          "text": "**Score: 90/100**\n\nTwo major vocabulary violations, both forbidden terms in `voice.yaml`:\n\n| Term | Severity | Location |\n|---|---|---|\n| `cutting-edge` | major | offset 28 |\n| `utilize` | major | offset 66 |\n\nDimension breakdown — vocabulary 90 (2 issues, −10); tone, style, clarity, and compliance all 100.\n\nThe profile lists `use` as the preferred replacement for `utilize`. `cutting-edge` is flagged under the \"no marketing superlatives\" guideline and has no preferred substitute — it just goes. Say the word and I'll rewrite the line."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at both files first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and show README and voice profile\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     780 Aug 27 20:40 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:40 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:40 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache\n=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - t\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `voice_check` MCP tool available for exactly this. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_check\",\"max_results\":1}",
+          "output": "[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .mcp.json \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config -type f | head -50\",\"description\":\"Inspect MCP config and kapi-config contents\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}=== kapi-config ===\nkapi-config/update-channel"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\\n\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"utilize\\\" found\",\"original_text\":\"utilize\",\"position\":{\"end\":{\"offset\":73,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":66,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":40,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":28,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "text",
+          "text": "**Score: 90/100**\n\nTwo vocabulary findings, both `major`:\n\n| Dimension | Score | Issues |\n|---|---|---|\n| tone | 100 | 0 |\n| style | 100 | 0 |\n| vocabulary | **90** | 2 (−10) |\n| clarity | 100 | 0 |\n| compliance | 100 | 0 |\n\n- `cutting-edge` — forbidden term (offset 28)\n- `utilize` — forbidden term (offset 66); the profile prefers `use`\n\nBoth are forbidden terms in `voice.yaml:19-26`. Want me to rewrite the line to clear them?"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at both files first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and show README and voice.yaml\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     780 Aug 27 20:40 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:40 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:40 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache\n=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - t\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `voice_check` tool available from the kapi MCP server — let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_check\",\"max_results\":3}",
+          "output": "[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel.\",\"profile_file\":\"voice.yaml\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"utilize\\\" found\",\"original_text\":\"utilize\",\"position\":{\"end\":{\"offset\":73,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":66,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":40,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":28,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "text",
+          "text": "**Score: 90/100**\n\nThe `voice_check` tool scored README.md against the Northwind profile. Two findings, both major, both in the vocabulary dimension:\n\n| Dimension | Score | Issues |\n|---|---|---|\n| tone | 100 | 0 |\n| style | 100 | 0 |\n| vocabulary | **90** | 2 |\n| clarity | 100 | 0 |\n| compliance | 100 | 0 |\n\n- `cutting-edge` (offset 28) — forbidden term\n- `utilize` (offset 66) — forbidden term; profile prefers `use`\n\nOne caveat worth flagging: the style dimension scored 100, but the sentence is written in third person about the product (\"Northwind is a platform that lets teams…\") while the profile specifies second-person POV and addressing the reader as \"you.\" The deterministic vocabulary rules didn't catch that, so 90 is likely a touch generous relative to the profile as written.\n\nWant me to run `voice_rewrite` to produce a compliant version?"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by reading both files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e 2\u003e/dev/null\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      4 asgeirf  staff     128 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:40 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:40 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read voice.yaml\"}",
+          "output": "name: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read README.md\"}",
+          "output": "# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel."
+        },
+        {
+          "kind": "text",
+          "text": "**25 / 100**\n\n`voice.yaml` defines no weights or rubric, so I scored it on the three sections it does define — vocabulary 40%, tone 30%, style 30%:\n\n| Section | Score | Findings |\n|---|---|---|\n| Vocabulary | 0 / 40 | `cutting-edge` (major) and `utilize` (major) — two forbidden terms in a 14-word sentence. `utilize` also has an explicit preferred replacement: `use`. |\n| Tone | 10 / 30 | Fails `plain` and the \"no marketing superlatives\" guideline — \"cutting-edge platform… every channel\" is pure marketing. Formality and humor (none) pass. |\n| Style | 15 / 30 | `active_voice` passes. `person_pov: second` fails — it's third person (\"teams… their\"), and the guidelines explicitly say address the reader as you. `sentence_length: short` is borderline at 14 words of stacked qualifiers. |\n\nThe two major vocabulary hits are the dominant penalty; the third-person framing is the next biggest gap. A compliant rewrite would be roughly: \"Northwind lets you use your content across every channel.\""
+        }
+      ]
+    }
+  ]
+}

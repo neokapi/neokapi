@@ -1,0 +1,180 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p06-translate-docx",
+  "prompt": "Translate announcement.docx into Japanese.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\n-rw-r--r--      1 asgeirf  staff   11087 Aug 27 20:27 announcement.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find .claude -type f | head -50\",\"description\":\"List .claude directory files\"}",
+          "output": ".claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"translate announcement.docx into Japanese\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261; echo \\\"---\\\"; kapi status 2\u003e\u00261 | head -30; echo \\\"--- project?\\\"; ls -la .kapi 2\u003e\u00261 | head\",\"description\":\"Check kapi version and project status\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n--- project?\nls: .kapi: No such file or directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/translate.md\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi credentials list 2\u003e\u00261 | head -20; echo \\\"=== FORMATS docx ===\\\"; kapi formats 2\u003e\u00261 | grep -i -E \\\"docx|word\\\" ; echo \\\"=== STATS ===\\\"; kapi stats ./announcement.docx 2\u003e\u00261 | head -30\",\"description\":\"Check credentials, docx format support, and stats\"}",
+          "output": "No saved credentials. Use 'kapi credentials add' to save one.\n=== FORMATS docx ===\n  openxml        Office Open XML              ✓     ✓      faithful  built-in  .docx, .docm, .dotx, .dotm, .xlsx, .xlsm, .xltx, .xltm, .pptx, .pptm, .ppsx, .potx  application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n=== STATS ===\nBlocks:                     10\n  translatable:             10\n  non-translatable:          0\nWords:                      81\nCharacters:                530\n  (no spaces):             459\n  unique:                   45\nSegments:                   10\n\nBy role:\n\n  ROLE       BLOCKS\n  heading    4\n  list-item  3"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read edit reference\"}",
+          "output": "# Edit content in any format\n\nEdit the text inside a file an editor can't open directly — a Word document, a\nPowerPoint deck, a JSON catalog, an XLIFF file, Markdown — and write it back in\nthe same format, byte-for-byte except for the text you changed. You do the\nediting; kapi parses the format, enforces a faithful round-trip, and is the\nchecker. No model provider is involved.\n\nThis is the **read → edit → write → verify** loop. It is the deliberate,\nreviewed counterpart to a `ksed` find-and-replace (see [toolbox.md](toolbox.md)):\nreach for this loop when you are rewriting block text by hand (an on-brand fix, a\nclarity pass, a terminology correction), and for `ksed` when a regex\nsubstitution expresses the change.\n\n## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block — the text,\nthe block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the \u003cx \n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\n-rw-r--r--      1 asgeirf  staff   11087 Aug 27 20:27 announcement.docx"
+        },
+        {
+          "kind": "text",
+          "text": "The `kapi` skill covers translating .docx files. Let me invoke it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"translate announcement.docx into Japanese\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261; echo \\\"---\\\"; ls -la .claude/skills/kapi/references/ 2\u003e\u00261; echo \\\"---\\\"; find . -name \\\".kapi\\\" -maxdepth 3 2\u003e/dev/null; echo \\\"no project marker search done\\\"\",\"description\":\"Check kapi version and references\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\ntotal 168\ndrwxr-xr-x  11 asgeirf  staff    352 Aug 27 20:27 .\ndrwxr-xr-x   4 asgeirf  staff    128 Aug 27 20:27 ..\n-rw-r--r--   1 asgeirf  staff  17319 Aug 27 20:27 context-discovery.md\n-rw-r--r--   1 asgeirf  staff   4360 Aug 27 20:27 create.md\n-rw-r--r--   1 asgeirf  staff   5747 Aug 27 20:27 edit.md\ndrwxr-xr-x  15 asgeirf  staff    480 Aug 27 20:27 i18n\n-rw-r--r--   1 asgeirf  staff   5643 Aug 27 20:27 i18n.md\n-rw-r--r--   1 asgeirf  staff   7191 Aug 27 20:27 project.md\n-rw-r--r--   1 asgeirf  staff  10178 Aug 27 20:27 toolbox.md\n-rw-r--r--   1 asgeirf  staff   9444 Aug 27 20:27 translate.md\n-rw-r--r--   1 asgeirf  staff   6718 Aug 27 20:27 voice.md\n---\nno project marker search done"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/translate.md\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by locating the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 .claude\n-rw-r--r--      1 asgeirf  staff   11087 Aug 27 20:28 announcement.docx"
+        },
+        {
+          "kind": "text",
+          "text": "The `kapi` skill covers exactly this — reading and translating `.docx` content. Let me invoke it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Translate announcement.docx into Japanese\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261; echo \\\"---PROJECT---\\\"; kapi status 2\u003e\u00261 | head -40\",\"description\":\"Check kapi version and project status\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PROJECT---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Single loose file, no project. Let me pre-flight it and read the edit-loop reference."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"===FORMATS(docx)===\\\"; kapi formats 2\u003e\u00261 | grep -i -E \\\"docx|word\\\" ; echo \\\"===STATS===\\\"; kapi stats ./announcement.docx 2\u003e\u00261 | head -30; echo \\\"===CREDS===\\\"; kapi credentials list 2\u003e\u00261 | head -20\",\"description\":\"Check docx format support, stats, credentials\"}",
+          "output": "===FORMATS(docx)===\n  openxml        Office Open XML              ✓     ✓      faithful  built-in  .docx, .docm, .dotx, .dotm, .xlsx, .xlsm, .xltx, .xltm, .pptx, .pptm, .ppsx, .potx  application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n===STATS===\nBlocks:                     10\n  translatable:             10\n  non-translatable:          0\nWords:                      81\nCharacters:                530\n  (no spaces):             459\n  unique:                   45\nSegments:                   10\n\nBy role:\n\n  ROLE       BLOCKS\n  heading    4\n  list-item  3\n===CREDS===\nNo saved credentials. Use 'kapi credentials add' to save one."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read edit reference\"}",
+          "output": "# Edit content in any format\n\nEdit the text inside a file an editor can't open directly — a Word document, a\nPowerPoint deck, a JSON catalog, an XLIFF file, Markdown — and write it back in\nthe same format, byte-for-byte except for the text you changed. You do the\nediting; kapi parses the format, enforces a faithful round-trip, and is the\nchecker. No model provider is involved.\n\nThis is the **read → edit → write → verify** loop. It is the deliberate,\nreviewed counterpart to a `ksed` find-and-replace (see [toolbox.md](toolbox.md)):\nreach for this loop when you are rewriting block text by hand (an on-brand fix, a\nclarity pass, a terminology correction), and for `ksed` when a regex\nsubstitution expresses the change.\n\n## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block — the text,\nthe block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the \u003cx \n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding and examining the document."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      3 asgeirf  staff      96 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\n-rw-r--r--      1 asgeirf  staff   11087 Aug 27 20:28 announcement.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p work \u0026\u0026 cp announcement.docx work/ \u0026\u0026 cd work \u0026\u0026 unzip -o announcement.docx -d extracted \u003e /dev/null \u0026\u0026 find extracted -type f | sort\",\"description\":\"Unzip docx and list contents\"}",
+          "output": "extracted/_rels/.rels\nextracted/[Content_Types].xml\nextracted/docProps/app.xml\nextracted/docProps/core.xml\nextracted/docProps/custom.xml\nextracted/word/_rels/document.xml.rels\nextracted/word/_rels/footnotes.xml.rels\nextracted/word/comments.xml\nextracted/word/document.xml\nextracted/word/fontTable.xml\nextracted/word/footnotes.xml\nextracted/word/numbering.xml\nextracted/word/settings.xml\nextracted/word/styles.xml\nextracted/word/theme/theme1.xml\nextracted/word/webSettings.xml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd work/extracted \u0026\u0026 python3 -c \\\"\\nimport re,sys\\nd=open('word/document.xml',encoding='utf-8').read()\\nprint('LEN',len(d))\\n\\\" \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport xml.dom.minidom\\nfor f in ['word/document.xml','word/comments.xml','word/footnotes.xml','docProps/core.xml','docProps/app.xml','docProps/custom.xml']:\\n    p='work/extracted/'+f\\n    try:\\n        s=open(p,encoding='utf-8').read()\\n    except Exception as e:\\n        print(f,'ERR',e); continue\\n    print('='*20,f,len(s))\\nEOF\",\"description\":\"Check file sizes\"}",
+          "output": "Exit code 1\n(eval):cd:1: no such file or directory: work/extracted",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd \u0026\u0026 ls -R work | head -50\",\"description\":\"Check current dir and work tree\"}",
+          "output": "\u003cpath\u003e\nls: work: No such file or directory"
+        }
+      ]
+    }
+  ]
+}

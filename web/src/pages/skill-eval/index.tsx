@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import data from "./_skilleval.json";
 
 // The skill-eval dashboard: does the shipped Agent Skill fire on the tasks it
@@ -27,6 +29,12 @@ interface FileChange {
   after?: string;
   binary?: boolean;
   bytesAfter?: number;
+  // Where the file itself was published, for the changes this page cannot
+  // show. A .docx diff is meaningless as text, so the alternative to a link is
+  // a byte count.
+  artifact?: string;
+  // Why it was not published, when it was not.
+  skipped?: string;
 }
 interface GateResult {
   command: string;
@@ -428,6 +436,12 @@ function Diff({ before, after }: { before: string; after: string }): ReactElemen
 function Detail({ r }: { r: Result }): ReactElement {
   const sc = r.scenario;
   const runs = r.runs ?? [];
+  const sessions = useSessions(r);
+  const [open, setOpen] = useState<OpenSession | null>(null);
+  const show = (arm: "runs" | "unaided", index: number): void => {
+    sessions.load();
+    setOpen({ arm, index });
+  };
   return (
     <div style={s.detail}>
       <div>
@@ -598,9 +612,7 @@ function Detail({ r }: { r: Result }): ReactElement {
                         >
                           <Pill text={c.kind} t={c.kind === "removed" ? "fail" : "pass"} />
                           <code style={{ fontFamily: mono, fontSize: ".8rem" }}>{c.path}</code>
-                          {c.binary && (
-                            <span style={s.sub}>binary, {c.bytesAfter?.toLocaleString()} B</span>
-                          )}
+                          {c.binary && <ArtifactLink c={c} />}
                         </div>
                         {!c.binary && c.before !== undefined && c.after !== undefined && (
                           <Diff before={c.before} after={c.after} />
@@ -620,37 +632,44 @@ function Detail({ r }: { r: Result }): ReactElement {
                   <pre style={s.pre}>{run.finalText}</pre>
                 </div>
               )}
+
+              <SessionButton sessions={sessions} onOpen={() => show("runs", i)} />
             </div>
           ))}
         </div>
       </div>
 
-      <UnaidedRuns r={r} />
-      <FullSession r={r} />
+      <UnaidedRuns r={r} sessions={sessions} onOpen={(i) => show("unaided", i)} />
+
+      {open && <SessionModal r={r} sessions={sessions} open={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-// FullSession fetches and draws the whole conversation.
+// The recorded session belongs to the pass it came from.
 //
-// The rows above are what the harness measured: which tools, how many messages,
-// what changed on disk. They answer what the agent did and not why, and why is
-// the question a surprising verdict raises. #2227 was found that way, from a
-// transcript showing an agent produce a correct change-set and then spend a
-// 40-turn budget on the one rejection — read on the machine that ran it,
-// because nothing published it.
+// It was one block at the bottom of the scenario listing every pass in turn,
+// which put pass 3's conversation four screens below pass 3's tool list and its
+// diff. The transcript is evidence about one run, so it sits with that run, and
+// the control arm's passes get the same.
 //
-// Loaded on demand rather than imported: sessions are much larger than the
-// dataset, and a reader who wants the four numbers at the top should not pay
-// for a hundred file reads to get them.
-function FullSession({ r }: { r: Result }): ReactElement | null {
+// One fetch per scenario, shared: the sidecar holds every pass, so loading it
+// from any one of them fills in the rest.
+
+interface Sessions {
+  file: SessionFile | null;
+  state: "idle" | "loading" | "failed";
+  available: boolean;
+  load: () => void;
+}
+
+function useSessions(r: Result): Sessions {
   const dir = useBaseUrl("/skill-eval/transcripts/");
   const [file, setFile] = useState<SessionFile | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "failed">("idle");
 
-  if (!r.transcript) return null;
-
   const load = (): void => {
+    if (!r.transcript || state === "loading" || file) return;
     setState("loading");
     fetch(dir + r.transcript)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
@@ -660,55 +679,221 @@ function FullSession({ r }: { r: Result }): ReactElement | null {
       })
       .catch(() => setState("failed"));
   };
+  return { file, state, available: Boolean(r.transcript), load };
+}
 
+// OpenSession names the pass whose transcript is on screen.
+interface OpenSession {
+  arm: "runs" | "unaided";
+  index: number;
+}
+
+// SessionButton opens the transcript for the pass it sits in.
+//
+// A button rather than the conversation itself: a completion run is up to a
+// hundred events, and drawing that inline pushed the pass's own tool list, diff
+// and gate result off the screen. The row stays scannable and the transcript
+// gets a surface the size it needs.
+function SessionButton({
+  sessions,
+  onOpen,
+}: {
+  sessions: Sessions;
+  onOpen: () => void;
+}): ReactElement | null {
+  if (!sessions.available) return null;
   return (
-    <div>
-      <div style={s.h}>Full session</div>
-      {!file && state !== "failed" && (
-        <button
-          type="button"
-          onClick={load}
-          disabled={state === "loading"}
+    <button
+      type="button"
+      onClick={onOpen}
+      style={{
+        font: "inherit",
+        fontSize: ".8rem",
+        padding: ".25rem .7rem",
+        borderRadius: 6,
+        border: "1px solid var(--ifm-color-emphasis-300)",
+        background: "var(--ifm-background-surface-color)",
+        color: "var(--ifm-font-color-base)",
+        cursor: "pointer",
+        justifySelf: "start",
+      }}
+    >
+      Full session
+    </button>
+  );
+}
+
+// SessionModal draws one pass's conversation over the page.
+function SessionModal({
+  r,
+  sessions,
+  open,
+  onClose,
+}: {
+  r: Result;
+  sessions: Sessions;
+  open: OpenSession;
+  onClose: () => void;
+}): ReactElement {
+  // Escape closes, and the page behind does not scroll while this is up.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prior;
+    };
+  }, [onClose]);
+
+  const sess = sessions.file?.[open.arm]?.[open.index];
+  const arm = open.arm === "runs" ? "with kapi" : "control, no kapi";
+  return (
+    <div
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "clamp(.5rem, 4vw, 3rem)",
+        zIndex: 400,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Session transcript: ${r.scenario.id}, ${arm}, pass ${open.index + 1}`}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          // --ifm-background-color is `transparent` in Infima: it reads as the
+          // page's own ground because the page is what is behind it. A panel
+          // over a dimmed backdrop needs a real surface colour, or the page
+          // shows through the transcript.
+          background: "var(--ifm-background-surface-color)",
+          border: "1px solid var(--ifm-color-emphasis-300)",
+          borderRadius: 10,
+          width: "min(100%, 62rem)",
+          maxHeight: "100%",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 18px 48px rgba(0,0,0,.35)",
+        }}
+      >
+        <div
           style={{
-            font: "inherit",
-            fontSize: ".85rem",
-            padding: ".35rem .8rem",
-            borderRadius: 6,
-            border: "1px solid var(--ifm-color-emphasis-300)",
-            background: "var(--ifm-background-surface-color)",
-            color: "var(--ifm-font-color-base)",
-            cursor: state === "loading" ? "default" : "pointer",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "1rem",
+            padding: "1rem 1.2rem",
+            borderBottom: "1px solid var(--ifm-color-emphasis-200)",
           }}
         >
-          {state === "loading" ? "Loading…" : "Load the transcript"}
-        </button>
-      )}
-      {state === "failed" && (
-        <p style={{ ...s.sub, margin: 0 }}>
-          The transcript could not be loaded. It is written by the run that produced this row, so a
-          dataset copied without <code>static/skill-eval/transcripts/</code> will not have it.
-        </p>
-      )}
-      {file && (
-        <div style={{ display: "grid", gap: "1.1rem", marginTop: ".6rem" }}>
-          {file.runs.map((sess, i) => (
-            <SessionView key={`k${i}`} label={`with kapi · pass ${i + 1}`} sess={sess} />
-          ))}
-          {(file.unaided ?? []).map((sess, i) => (
-            <SessionView key={`u${i}`} label={`control · pass ${i + 1}`} sess={sess} />
-          ))}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700 }}>
+              {r.scenario.id} · {arm} · pass {open.index + 1}
+            </div>
+            <div style={{ ...s.sub, marginTop: ".15rem" }}>{r.scenario.prompt}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            autoFocus
+            aria-label="Close the transcript"
+            style={{
+              font: "inherit",
+              fontSize: "1.1rem",
+              lineHeight: 1,
+              padding: ".3rem .6rem",
+              borderRadius: 6,
+              border: "1px solid var(--ifm-color-emphasis-300)",
+              background: "var(--ifm-background-surface-color)",
+              color: "var(--ifm-font-color-base)",
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
         </div>
-      )}
+
+        <div style={{ overflow: "auto", padding: "1.1rem 1.2rem", minWidth: 0 }}>
+          {sessions.state === "loading" && <p style={s.sub}>Loading the transcript…</p>}
+          {sessions.state === "failed" && (
+            <p style={{ ...s.sub, margin: 0 }}>
+              The transcript could not be loaded. It is written by the run that produced this row,
+              so a dataset copied without <code>static/skill-eval/transcripts/</code> will not have
+              it.
+            </p>
+          )}
+          {sess && <SessionView sess={sess} />}
+          {!sess && sessions.state === "idle" && sessions.file && (
+            <p style={{ ...s.sub, margin: 0 }}>
+              This pass has no recorded session. The transcript file covers the passes the run
+              produced, and this row predates it.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-// SessionView draws one conversation in order.
-function SessionView({ label, sess }: { label: string; sess: Session }): ReactElement {
+// ArtifactLink offers the file itself.
+//
+// A .docx cannot be diffed as text, so this page used to say `binary, 41,205 B`
+// and stop there. That is the weakest form of the claim: a byte count says a
+// file exists, the gate says a check passed, and the document says what kapi
+// actually wrote — the only one a reader can hold against their own idea of
+// what faithful write-back means. The control arm's version of the same file is
+// one row down.
+//
+// The files are too large for git (about 50MB a sweep, rewritten every run), so
+// they go where the walkthrough videos go. With no CDN configured they resolve
+// same-origin from web/static, which is where a local sweep stages them.
+function ArtifactLink({ c }: { c: FileChange }): ReactElement {
+  const { siteConfig } = useDocusaurusContext();
+  const cdn = readCdnConfig(siteConfig);
+  const local = useBaseUrl("/skill-eval/artifacts/");
+  const size = c.bytesAfter ? `${(c.bytesAfter / 1024).toFixed(0)} KB` : "binary";
+
+  if (!c.artifact) {
+    return (
+      <span style={s.sub}>
+        {size}
+        {c.skipped ? ` · not published: ${c.skipped}` : ""}
+      </span>
+    );
+  }
+  const href = cdnEnabled(cdn)
+    ? cdnHref(cdn, `/skill-eval/artifacts/${c.artifact}`)
+    : local + c.artifact;
   return (
-    <div>
-      <div style={{ ...s.sub, marginBottom: ".4rem" }}>{label}</div>
-      <div style={{ display: "grid", gap: ".5rem" }}>
+    <>
+      <span style={s.sub}>{size}</span>
+      <a
+        href={href}
+        download
+        style={{ fontSize: ".8rem", fontWeight: 600 }}
+        title={`Download ${c.path} exactly as the run produced it`}
+      >
+        Download
+      </a>
+    </>
+  );
+}
+
+// SessionView draws one conversation in order.
+function SessionView({ sess }: { sess: Session }): ReactElement {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ display: "grid", gap: ".5rem", minWidth: 0 }}>
         {sess.events.map((e, i) => (
           <EventView key={i} e={e} />
         ))}
@@ -733,6 +918,7 @@ function EventView({ e }: { e: SessionEvent }): ReactElement {
           fontSize: ".87rem",
           lineHeight: 1.55,
           whiteSpace: "pre-wrap",
+          minWidth: 0,
         }}
       >
         {e.text}
@@ -741,7 +927,7 @@ function EventView({ e }: { e: SessionEvent }): ReactElement {
   }
   const t = e.failed ? tone.fail : tone.flat;
   return (
-    <div style={{ borderLeft: `3px solid ${t.fg}`, paddingLeft: ".7rem" }}>
+    <div style={{ borderLeft: `3px solid ${t.fg}`, paddingLeft: ".7rem", minWidth: 0 }}>
       <div style={{ display: "flex", gap: ".5rem", alignItems: "center", marginBottom: ".2rem" }}>
         <Pill text={e.name ?? "tool"} t={e.failed ? "fail" : "flat"} />
         {e.failed && <span style={{ ...s.sub, color: tone.fail.fg }}>returned an error</span>}
@@ -762,7 +948,15 @@ function EventView({ e }: { e: SessionEvent }): ReactElement {
 // checks them. Three of the scenarios on the first fully gated sweep failed
 // with kapi and passed without it, and two of those turned out to be the gate
 // rather than the tool. Neither would have been visible from a count.
-function UnaidedRuns({ r }: { r: Result }): ReactElement | null {
+function UnaidedRuns({
+  r,
+  sessions,
+  onOpen,
+}: {
+  r: Result;
+  sessions: Sessions;
+  onOpen: (index: number) => void;
+}): ReactElement | null {
   const runs = r.unaided ?? [];
   if (runs.length === 0) return null;
   const withKapi = median((r.runs ?? []).map((x) => x.messages));
@@ -820,6 +1014,7 @@ function UnaidedRuns({ r }: { r: Result }): ReactElement | null {
               </div>
             )}
             {run.finalText && <pre style={s.pre}>{run.finalText}</pre>}
+            <SessionButton sessions={sessions} onOpen={() => onOpen(i)} />
           </div>
         ))}
       </div>

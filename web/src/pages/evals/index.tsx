@@ -92,8 +92,6 @@ function BandCard({ b }: { b: BandInfo }): ReactElement {
 
 export default function Evals(): ReactElement {
   const c = data.coverage;
-  const total = Object.values(c.byStatus).reduce((a, n) => a + n, 0);
-  const short = total - c.measured;
   const stale = staleCount(data.evals);
 
   return (
@@ -147,19 +145,6 @@ export default function Evals(): ReactElement {
             </Fragment>
           ))}
         </div>
-
-        <p style={{ ...s.lede, fontSize: ".92rem", marginTop: "1.2rem" }}>
-          {short} of {total} fall short of measured, and each one says how. A card that is not built
-          carries the same fields as a built one minus the data, because a gap a reader cannot see
-          is a gap they will assume is covered. Each card's age is read from its own dataset, not
-          typed here, since a hand-written date is a date nobody updates.
-        </p>
-        <p style={{ ...s.lede, fontSize: ".92rem" }}>
-          Every card states what it <strong>misses</strong> as well as what it covers, and gives the
-          command that reproduces it. Across more than 50,000 published evaluation records surveyed
-          in 2026, 96.5% were missing at least one field needed to re-run them. A number nobody can
-          reproduce is an assertion with a table around it.
-        </p>
       </main>
     </Layout>
   );

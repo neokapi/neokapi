@@ -1,0 +1,177 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p04-cross-format-sweep",
+  "prompt": "We renamed SalesPilot to Northwind. Update every mention across docs/.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the docs/ directory to see what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find docs -type f | head -100\",\"description\":\"List working dir and docs tree\"}",
+          "output": "total 0\ndrwx------      4 asgeirf  staff     128 Aug 27 20:25 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:25 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:25 .claude\ndrwxr-xr-x      5 asgeirf  staff     160 Aug 27 20:25 docs\n---TREE---\ndocs/pricing.xlsx\ndocs/proposal.docx\ndocs/notes.md"
+        },
+        {
+          "kind": "text",
+          "text": "Three formats — Markdown plus Word and Excel, which can't be edited as plain text. The `kapi` skill covers exactly this."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find .claude -type f | head -50\",\"description\":\"Inspect .claude directory\"}",
+          "output": ".claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"rename SalesPilot to Northwind across docs/ (md, docx, xlsx)\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -5; echo \\\"---PROJECT---\\\"; ls -a; kapi status 2\u003e\u00261 | head -30\",\"description\":\"Check kapi binary and project status\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PROJECT---\n.\n..\n.claude\ndocs\nkapi-config\nxdg-cache\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "text",
+          "text": "No project bound — this is an ad hoc, one-off sweep. Let me find every mention across the three formats first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kgrep -i salespilot docs/ 2\u003e\u00261 | head -60\",\"description\":\"Search for SalesPilot mentions across docs\"}",
+          "output": "kgrep: docs/: is a directory"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by surveying what's in `docs/` and where the name appears."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find docs -type f | sort\",\"description\":\"List repo root and docs tree\"}",
+          "output": "total 0\ndrwx------      4 asgeirf  staff     128 Aug 27 20:26 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:26 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:26 .claude\ndrwxr-xr-x      5 asgeirf  staff     160 Aug 27 20:26 docs\n---TREE---\ndocs/notes.md\ndocs/pricing.xlsx\ndocs/proposal.docx"
+        },
+        {
+          "kind": "text",
+          "text": "Three files, two of which are binary formats (`.xlsx`, `.docx`). Let me load the skill that handles cross-format content editing and peek at the markdown."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"rename SalesPilot to Northwind across docs/ (notes.md, pricing.xlsx, proposal.docx)\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n docs/notes.md\",\"description\":\"Show notes.md contents\"}",
+          "output": "     1\tSalesPilot is the workspace we use daily."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e version 2\u003e\u00261 | head -5\\necho \\\"---PROJECT---\\\"\\nls -la .kapi 2\u003e\u00261 | head -5\\nls -la .claude/skills 2\u003e\u00261\\necho \\\"---STATUS---\\\"\\nkapi status 2\u003e\u00261 | head -20\",\"description\":\"Check kapi binary and project context\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PROJECT---\nls: .kapi: No such file or directory\ntotal 0\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 20:26 .\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 20:26 ..\ndrwxr-xr-x  4 asgeirf  staff  128 Aug 27 20:26 kapi\n---STATUS---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "text",
+          "text": "No kapi project — this is an ad-hoc, one-time sweep. Let me read the toolbox reference for the search/replace verbs."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e -n '1,200p' .claude/skills/kapi/references/toolbox.md\",\"description\":\"Read kapi toolbox reference\"}",
+          "output": "# Read, search, and rewrite content inside any format\n\n`kcat`, `kgrep`, `ksed` and `kdiff` are format-aware reimaginings of `cat`,\n`grep`, `sed` and `diff` that operate on the **content** kapi extracts from a\ndocument — the prose, not the bytes. They read, edit and compare the\nhuman-readable text inside any format kapi understands, from a Word `.docx` to a\nJSON catalog to a Markdown page to an XLIFF file, without converting anything\nfirst.\n\nThey install with the kapi CLI, so `kcat`/`kgrep`/`ksed`/`kdiff` are on PATH\nwherever `kapi` is.\n\n## Reach for these instead of your built-in tools — when content is the target\n\nThe point of the toolbox is that your default file tools fail or mislead on the\nformats kapi supports:\n\n- **Reading.** You cannot open a `.docx`, `.pptx`, `.xlsx`, `.idml` or `.epub`\n  with an ordinary file read — they are zip containers, so you get binary.\n  `kcat report.docx` prints the prose, one block per line. This is the only way\n  to read the text of an office or container format.\n- **Searching.** A byte-level grep over those files finds nothing useful (the\n  text is split across zipped XML). Even on XLIFF, JSON, Markdown or HTML a byte\n  grep matches keys, \n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by surveying what's in `docs/` and where the name appears."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- docs tree ---\\\" \u0026\u0026 find docs -type f | head -100\",\"description\":\"List working dir and docs tree\"}",
+          "output": "total 0\ndrwx------      4 asgeirf  staff     128 Aug 27 20:26 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:26 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:26 .claude\ndrwxr-xr-x      5 asgeirf  staff     160 Aug 27 20:26 docs\n--- docs tree ---\ndocs/pricing.xlsx\ndocs/proposal.docx\ndocs/notes.md"
+        },
+        {
+          "kind": "text",
+          "text": "Three files, two of them binary formats (`.xlsx`, `.docx`) that a plain grep/sed can't touch. This is exactly what the `kapi` skill covers."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Rename SalesPilot to Northwind across docs/ (notes.md, proposal.docx, pricing.xlsx)\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261; echo \\\"--- .kapi project? ---\\\"; ls -la .kapi 2\u003e\u00261 | head -20; echo \\\"--- .claude ---\\\"; find .claude -type f | head -20\",\"description\":\"Check kapi binary and project state\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n--- .kapi project? ---\nls: .kapi: No such file or directory\n--- .claude ---\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md"
+        },
+        {
+          "kind": "text",
+          "text": "No `.kapi` project — this is an ad-hoc find-and-replace. Reading the toolbox reference for the right verbs."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read kapi toolbox reference\"}",
+          "output": "# Read, search, and rewrite content inside any format\n\n`kcat`, `kgrep`, `ksed` and `kdiff` are format-aware reimaginings of `cat`,\n`grep`, `sed` and `diff` that operate on the **content** kapi extracts from a\ndocument — the prose, not the bytes. They read, edit and compare the\nhuman-readable text inside any format kapi understands, from a Word `.docx` to a\nJSON catalog to a Markdown page to an XLIFF file, without converting anything\nfirst.\n\nThey install with the kapi CLI, so `kcat`/`kgrep`/`ksed`/`kdiff` are on PATH\nwherever `kapi` is.\n\n## Reach for these instead of your built-in tools — when content is the target\n\nThe point of the toolbox is that your default file tools fail or mislead on the\nformats kapi supports:\n\n- **Reading.** You cannot open a `.docx`, `.pptx`, `.xlsx`, `.idml` or `.epub`\n  with an ordinary file read — they are zip containers, so you get binary.\n  `kcat report.docx` prints the prose, one block per line. This is the only way\n  to read the text of an office or container format.\n- **Searching.** A byte-level grep over those files finds nothing useful (the\n  text is split across zipped XML). Even on XLIFF, JSON, Markdown or HTML a byte\n  grep matches keys, \n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding every mention of SalesPilot in docs/."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- docs tree ---\\\" \u0026\u0026 find docs -type f | sort\",\"description\":\"List repo root and docs file tree\"}",
+          "output": "total 0\ndrwx------      3 asgeirf  staff      96 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      5 asgeirf  staff     160 Aug 27 20:27 docs\n--- docs tree ---\ndocs/notes.md\ndocs/pricing.xlsx\ndocs/proposal.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== notes.md ===\\\" \u0026\u0026 cat docs/notes.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== file types ===\\\" \u0026\u0026 file docs/*\",\"description\":\"Show notes.md content and file types\"}",
+          "output": "=== notes.md ===\nSalesPilot is the workspace we use daily.\n\n=== file types ===\ndocs/notes.md:      ASCII text\ndocs/pricing.xlsx:  Microsoft Excel 2007+\ndocs/proposal.docx: Microsoft Word 2007+"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls ~/.claude/skills/ 2\u003e/dev/null; echo \\\"--- plugins ---\\\"; ls ~/.claude/plugins/ 2\u003e/dev/null; echo \\\"--- find docx skills ---\\\"; find ~/.claude -maxdepth 5 -iname \\\"*docx*\\\" -o -maxdepth 5 -iname \\\"*xlsx*\\\" 2\u003e/dev/null | head -20\",\"description\":\"Check for document-handling skills on disk\"}",
+          "output": "ast-grep\nfind-skills\nflow-graph\ngolang-code-style\ngraphilizer\nmobile-design\nokapi-expert\nshadcn\nskill-creator\nvercel-composition-patterns\nvercel-react-best-practices\nvercel-react-native-skills\nweb-design-guidelines\n--- plugins ---\nblocklist.json\ncache\ndata\ninstalled_plugins.json\nknown_marketplaces.json\nmarketplaces\nplugin-catalog-cache.json\n--- find docx skills ---\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-423330605\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-3927596115\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-1195766106\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-2071367350\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-2917674443\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-1968403913\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p06-translate-docx-749098753\n~/.claude/projects/-pr\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No document skills installed here, so I'll edit the OOXML directly. First, let me see where the string actually lives in each file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e -rf \u003cpath\u003e \u0026\u0026 mkdir -p \u003cpath\u003e \u003cpath\u003e -q docs/proposal.docx -d \u003cpath\u003e -q docs/pricing.xlsx -d \u003cpath\u003e \\\"=== DOCX parts ===\\\"; (cd \u003cpath\u003e \u0026\u0026 find . -type f | sort)\\necho \\\"=== XLSX parts ===\\\"; (cd \u003cpath\u003e \u0026\u0026 find . -type f | sort)\\necho \\\"=== grep SalesPilot (whole) ===\\\"; grep -rl \\\"SalesPilot\\\" \u003cpath\u003e || echo \\\"(no whole-token hits)\\\"\\necho \\\"=== grep Sales (any) ===\\\"; grep -rlo \\\"Sales\\\" \u003cpath\u003e | sort -u\",\"description\":\"Unzip both Office files and locate the string\"}",
+          "output": "=== DOCX parts ===\n./_rels/.rels\n./[Content_Types].xml\n./docProps/app.xml\n./docProps/core.xml\n./docProps/custom.xml\n./word/_rels/document.xml.rels\n./word/_rels/footnotes.xml.rels\n./word/comments.xml\n./word/document.xml\n./word/fontTable.xml\n./word/footnotes.xml\n./word/numbering.xml\n./word/settings.xml\n./word/styles.xml\n./word/theme/theme1.xml\n./word/webSettings.xml\n=== XLSX parts ===\n./_rels/.rels\n./[Content_Types].xml\n./docProps/app.xml\n./docProps/core.xml\n./xl/_rels/workbook.xml.rels\n./xl/styles.xml\n./xl/theme/theme1.xml\n./xl/workbook.xml\n./xl/worksheets/sheet1.xml\n=== grep SalesPilot (whole) ===\n\u003cpath\u003e\n\u003cpath\u003e\n=== grep Sales (any) ===\n\u003cpath\u003e\n\u003cpath\u003e"
+        }
+      ]
+    }
+  ]
+}

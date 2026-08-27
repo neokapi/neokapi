@@ -1,0 +1,141 @@
+{
+  "key": "skill:trigger",
+  "scenario": "n03-fix-test",
+  "prompt": "Fix the failing unit test in auth_test.go.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the test file and seeing what's failing."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name \\\"auth*.go\\\" -not -path \\\"*/vendor/*\\\"\",\"description\":\"List directory and find auth Go files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:33 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:33 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:33 .claude\n-rw-r--r--      1 asgeirf  staff     128 Aug 27 20:33 auth_test.go\n./auth_test.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n auth_test.go; echo \\\"--- .claude ---\\\"; find .claude -type f | head -50\",\"description\":\"Read test file and inspect .claude directory\"}",
+          "output": "     1\tpackage auth\n     2\t\n     3\timport \"testing\"\n     4\t\n     5\tfunc TestLogin(t *testing.T) {\n     6\t\tif Login(\"a\", \"b\") != true {\n     7\t\t\tt.Fatal(\"expected success\")\n     8\t\t}\n     9\t}\n--- .claude ---\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "text",
+          "text": "Only the test file exists — no implementation, no `go.mod`. Let me confirm what actually happens when running it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which go \u0026\u0026 go version; echo \\\"=== go test ===\\\"; go test ./... 2\u003e\u00261 | head -30\",\"description\":\"Check Go install and run the test\"}",
+          "output": "\u003cpath\u003e\ngo version go1.26.5 darwin/arm64\n=== go test ===\n# ./...\npattern ./...: directory prefix . does not contain main module or its selected dependencies\nFAIL\t./... [setup failed]\nFAIL"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"d=$(pwd); while [ \\\"$d\\\" != \\\"/\\\" ]; do [ -f \\\"$d/go.mod\\\" ] \u0026\u0026 echo \\\"FOUND go.mod: $d\\\"; d=$(dirname \\\"$d\\\"); done; echo \\\"no parent go.mod search done\\\"; echo \\\"=== files (incl hidden, all types) ===\\\"; find . -maxdepth 1 -mindepth 1; echo \\\"=== try vet single file ===\\\"; go vet auth_test.go 2\u003e\u00261 | head -20\",\"description\":\"Search parent dirs for go.mod and vet the file\"}",
+          "output": "no parent go.mod search done\n=== files (incl hidden, all types) ===\n./auth_test.go\n./.claude\n=== try vet single file ===\n# command-line-arguments\n# [command-line-arguments]\nvet: ./auth_test.go:6:5: undefined: Login"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the repo to find the test file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name \\\"*.go\\\" | head -50\",\"description\":\"List repo contents and find Go files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:34 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:34 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:34 .claude\n-rw-r--r--      1 asgeirf  staff     128 Aug 27 20:34 auth_test.go\n./auth_test.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n auth_test.go; echo \\\"---- .claude ----\\\"; find .claude -type f | head -50\",\"description\":\"Show test file and .claude contents\"}",
+          "output": "     1\tpackage auth\n     2\t\n     3\timport \"testing\"\n     4\t\n     5\tfunc TestLogin(t *testing.T) {\n     6\t\tif Login(\"a\", \"b\") != true {\n     7\t\t\tt.Fatal(\"expected success\")\n     8\t\t}\n     9\t}\n---- .claude ----\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which go \u0026\u0026 go version; echo \\\"--- exit: $? ---\\\"; ls -a\",\"description\":\"Check Go toolchain availability\"}",
+          "output": "\u003cpath\u003e\ngo version go1.26.5 darwin/arm64\n--- exit: 0 ---\n.\n..\n.claude\nauth_test.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"go test ./... 2\u003e\u00261 | head -30\",\"description\":\"Run go test to see failure\"}",
+          "output": "# ./...\npattern ./...: directory prefix . does not contain main module or its selected dependencies\nFAIL\t./... [setup failed]\nFAIL"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the test file and seeing what's failing."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find \u003cpath\u003e -name \\\"*.go\\\" -o -name \\\"go.mod\\\" | head -50\",\"description\":\"Find Go files in the project\"}",
+          "output": "\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 cat auth_test.go\",\"description\":\"List directory and show test file\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:34 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:34 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:34 .claude\n-rw-r--r--      1 asgeirf  staff     128 Aug 27 20:34 auth_test.go\npackage auth\n\nimport \"testing\"\n\nfunc TestLogin(t *testing.T) {\n\tif Login(\"a\", \"b\") != true {\n\t\tt.Fatal(\"expected success\")\n\t}\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find .claude -type f | head -50 \u0026\u0026 echo \\\"---GO---\\\" \u0026\u0026 go version 2\u003e\u00261\",\"description\":\"Inspect .claude directory and Go version\"}",
+          "output": ".claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md\n---GO---\ngo version go1.26.5 darwin/arm64"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"go test ./... 2\u003e\u00261 | head -30\",\"description\":\"Run the Go test suite\"}",
+          "output": "# ./...\npattern ./...: directory prefix . does not contain main module or its selected dependencies\nFAIL\t./... [setup failed]\nFAIL"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the test file and seeing what's failing."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find \u003cpath\u003e -type f -name \\\"*.go\\\" | head -50; echo \\\"---\\\"; ls -la \u003cpath\u003e\",\"description\":\"Find Go files and list working directory\"}",
+          "output": "\u003cpath\u003e\n---\ntotal 8\ndrwx------      3 asgeirf  staff      96 Aug 27 20:35 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:35 ..\n-rw-r--r--      1 asgeirf  staff     128 Aug 27 20:35 auth_test.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n \u003cpath\u003e\",\"description\":\"Show contents of auth_test.go\"}",
+          "output": "     1\tpackage auth\n     2\t\n     3\timport \"testing\"\n     4\t\n     5\tfunc TestLogin(t *testing.T) {\n     6\t\tif Login(\"a\", \"b\") != true {\n     7\t\t\tt.Fatal(\"expected success\")\n     8\t\t}\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- go env ---\\\" \u0026\u0026 go version 2\u003e\u00261 \u0026\u0026 echo \\\"--- test run ---\\\" \u0026\u0026 go test ./... 2\u003e\u00261 | head -30\",\"description\":\"Check for go.mod and run the test\"}",
+          "output": "total 8\ndrwx------      3 asgeirf  staff      96 Aug 27 20:35 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:35 ..\n-rw-r--r--      1 asgeirf  staff     128 Aug 27 20:35 auth_test.go\n--- go env ---\ngo version go1.26.5 darwin/arm64\n--- test run ---\n# ./...\npattern ./...: directory prefix . does not contain main module or its selected dependencies\nFAIL\t./... [setup failed]\nFAIL"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"T=$(mktemp -d) \u0026\u0026 cp \u003cpath\u003e \\\"$T\\\"/ \u0026\u0026 cd \\\"$T\\\" \u0026\u0026 go mod init auth \u003e/dev/null 2\u003e\u00261 \u0026\u0026 go test ./... 2\u003e\u00261 | head -20; echo \\\"(scratch dir: $T)\\\"\",\"description\":\"Reproduce compile error in scratch copy\"}",
+          "output": "# auth [auth.test]\n./auth_test.go:6:5: undefined: Login\nFAIL\tauth [build failed]\nFAIL\n(scratch dir: \u003cpath\u003e\nShell cwd was reset to \u003cpath\u003e"
+        }
+      ]
+    }
+  ]
+}

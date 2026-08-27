@@ -1,0 +1,172 @@
+{
+  "key": "mcp:trigger",
+  "scenario": "m03-check-file",
+  "prompt": "Check the content inside app.json for problems.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      6 asgeirf  staff     192 Aug 27 20:39 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:39 ..\n-rw-r--r--      1 asgeirf  staff     776 Aug 27 20:39 .mcp.json\n-rw-r--r--      1 asgeirf  staff     138 Aug 27 20:39 app.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 kapi-config\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat app.json \u0026\u0026 echo \\\"--- MCP ---\\\" \u0026\u0026 cat .mcp.json \u0026\u0026 echo \\\"--- kapi-config ---\\\" \u0026\u0026 find kapi-config -type f | head -50\",\"description\":\"Show app.json and config files\"}",
+          "output": "{\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",\n  \"cart.checkout\": \"Checkout\",\n  \"welcome\": \"Welcome to Acme Cloud\"\n}\n--- MCP ---\n{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}--- kapi-config ---\nkapi-config/update-channel"
+        },
+        {
+          "kind": "text",
+          "text": "This is a localization string file, and there's a `kapi` MCP server available with a content-checking tool. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__check_file\",\"max_results\":3}",
+          "output": "[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__check_file",
+          "input": "{\"file\":\"\u003cpath\u003e\",\"validate\":\"report\"}",
+          "output": "{\"findings\":[],\"gate\":{\"failed\":[],\"max_critical\":0,\"max_major\":-1,\"max_minor\":-1,\"min_score\":0},\"pass\":true,\"schema\":\"kapi.check/v1\",\"summary\":{\"critical\":0,\"findings\":0,\"major\":0,\"minor\":0,\"neutral\":0,\"score\":100},\"target\":{\"blocks\":3,\"file\":\"\u003cpath\u003e\",\"kind\":\"file\"}}"
+        },
+        {
+          "kind": "text",
+          "text": "`app.json` passes the content checkset cleanly — 3 blocks checked, 0 findings, score 100/100 (no critical, major, or minor issues; structure/encoding validation also clean).\n\n```\ncart.items     \"You have {count} items in your Acme Cloud cart\"\ncart.checkout  \"Checkout\"\nwelcome        \"Welcome to Acme Cloud\"\n```\n\nOne thing the checkset doesn't cover that's worth flagging yourself: `cart.items` hardcodes the plural noun (\"items\") around the `{count}` placeholder, so it renders \"You have 1 items in your Acme Cloud cart\". Many target languages also need more than two plural forms. If your i18n library supports ICU MessageFormat, a plural rule would be the more robust form:\n\n```json\n\"cart.items\": \"You have {count, plural, one {# item} other {# items}} in your Acme Cloud cart\"\n```\n\nThat's a design suggestion, not a check failure — the file as it stands passes."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      6 asgeirf  staff     192 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     776 Aug 27 20:40 .mcp.json\n-rw-r--r--      1 asgeirf  staff     138 Aug 27 20:40 app.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e 2\u003e/dev/null || echo \\\"NOT FOUND at top level\\\"\",\"description\":\"Show app.json contents\"}",
+          "output": "{\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",\n  \"cart.checkout\": \"Checkout\",\n  \"welcome\": \"Welcome to Acme Cloud\"\n}"
+        },
+        {
+          "kind": "text",
+          "text": "This is a UI string resource file, and there's a kapi MCP server configured here with a linting tool. Let me check the setup and run it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e echo \\\"--- kapi-config ---\\\"; find \u003cpath\u003e -type f -exec echo \\\"== {} ==\\\" \\\\; -exec cat {} \\\\;\",\"description\":\"Inspect MCP and kapi config\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}--- kapi-config ---\n== \u003cpath\u003e ==\nbeta"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__check_file\",\"max_results\":3}",
+          "output": "[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__check_file",
+          "input": "{\"file\":\"\u003cpath\u003e\",\"validate\":\"report\"}",
+          "output": "{\"findings\":[],\"gate\":{\"failed\":[],\"max_critical\":0,\"max_major\":-1,\"max_minor\":-1,\"min_score\":0},\"pass\":true,\"schema\":\"kapi.check/v1\",\"summary\":{\"critical\":0,\"findings\":0,\"major\":0,\"minor\":0,\"neutral\":0,\"score\":100},\"target\":{\"blocks\":3,\"file\":\"\u003cpath\u003e\",\"kind\":\"file\"}}"
+        },
+        {
+          "kind": "text",
+          "text": "Ran `check_file` (with structure/encoding validation) on `app.json`.\n\n**Automated result: clean** — 3 blocks checked, 0 findings, score 100/100, gate passed. No structure, encoding, or content-checkset problems.\n\nOne thing the checkset doesn't cover, worth flagging:\n\n- `app.json:2` — `\"You have {count} items in your Acme Cloud cart\"` has a hardcoded plural. It renders as \"You have 1 items\" and won't pluralize correctly in target languages (Polish, Russian, Arabic have 3–6 plural forms). If your i18n runtime supports it, use an ICU plural: `You have {count, plural, one {# item} other {# items}} in your Acme Cloud cart`.\n\nThe other two strings (`cart.checkout`, `welcome`) are fine as-is. Note that \"Acme Cloud\" appears as a product name in two strings — if it should stay untranslated, pass it as a DNT term when checking translated targets."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      6 asgeirf  staff     192 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     776 Aug 27 20:40 .mcp.json\n-rw-r--r--      1 asgeirf  staff     138 Aug 27 20:40 app.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== app.json ===\\\" \u0026\u0026 cat app.json \u0026\u0026 echo \u0026\u0026 echo \\\"=== .mcp.json ===\\\" \u0026\u0026 cat .mcp.json \u0026\u0026 echo \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config -type f | head -50\",\"description\":\"Show app.json, mcp config, and kapi-config files\"}",
+          "output": "=== app.json ===\n{\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",\n  \"cart.checkout\": \"Checkout\",\n  \"welcome\": \"Welcome to Acme Cloud\"\n}\n\n=== .mcp.json ===\n{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}\n=== kapi-config ===\nkapi-config/update-channel"
+        },
+        {
+          "kind": "text",
+          "text": "This is a localization strings file, and there's a `kapi` MCP server available with a file-checking tool. Let me load its schema."
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__check_file,mcp__kapi__check_text\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__check_file",
+          "input": "{\"file\":\"\u003cpath\u003e\",\"validate\":\"report\"}",
+          "output": "{\"findings\":[],\"gate\":{\"failed\":[],\"max_critical\":0,\"max_major\":-1,\"max_minor\":-1,\"min_score\":0},\"pass\":true,\"schema\":\"kapi.check/v1\",\"summary\":{\"critical\":0,\"findings\":0,\"major\":0,\"minor\":0,\"neutral\":0,\"score\":100},\"target\":{\"blocks\":3,\"file\":\"\u003cpath\u003e\",\"kind\":\"file\"}}"
+        },
+        {
+          "kind": "text",
+          "text": "Ran the content checkset over `app.json` — **clean, no findings.**\n\n| | |\n|---|---|\n| Blocks checked | 3 |\n| Score | 100 / 100 |\n| Critical / Major / Minor | 0 / 0 / 0 |\n| Gate | pass |\n\nStructure/encoding validation was included (`validate: report`) and turned up nothing either — the JSON parses cleanly and all three strings are well-formed.\n\nOne thing the automated checkset doesn't cover, worth a human eye:\n\n- `cart.items` — `\"You have {count} items in your Acme Cloud cart\"` hardcodes the plural. It renders \"You have 1 items\" at count 1, and many target languages need more plural forms than English's two. If your i18n library supports ICU MessageFormat, a `{count, plural, one {...} other {...}}` form would be the durable fix.\n\nThe other two strings (`cart.checkout`, `welcome`) have no issues.\n\nNote: this was a monolingual check — there's no translated target file here. If you have one, pass it as `target` with its `target_lang` and I can run the bilingual checks (placeholder survival, terminology consistency, do-not-translate terms) against it."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll take a look at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 8\ndrwx------      3 asgeirf  staff      96 Aug 27 20:41 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:41 ..\n-rw-r--r--      1 asgeirf  staff     138 Aug 27 20:41 app.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -A \u003cpath\u003e\",\"description\":\"Show file content with invisible chars\"}",
+          "output": "Exit code 1\ncat: illegal option -- A\nusage: cat [-belnstuv] [file ...]",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e echo \\\"---- with control chars ----\\\"; cat -v -e -t \u003cpath\u003e\",\"description\":\"Display app.json contents\"}",
+          "output": "{\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",\n  \"cart.checkout\": \"Checkout\",\n  \"welcome\": \"Welcome to Acme Cloud\"\n}\n---- with control chars ----\n{$\n  \"cart.items\": \"You have {count} items in your Acme Cloud cart\",$\n  \"cart.checkout\": \"Checkout\",$\n  \"welcome\": \"Welcome to Acme Cloud\"$\n}$"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 -c \\\"\\nimport json,sys\\nraw=open('app.json','rb').read()\\nprint('bytes:',len(raw))\\nprint('BOM:', raw[:3]==b'\\\\xef\\\\xbb\\\\xbf')\\nd=json.loads(raw.decode('utf-8'))\\nprint('valid JSON, keys:',len(d))\\nfor k,v in d.items(): print(repr(k),'-\u003e',repr(v))\\n\\\"\",\"description\":\"Validate JSON and inspect keys\"}",
+          "output": "bytes: 138\nBOM: False\nvalid JSON, keys: 3\n'cart.items' -\u003e 'You have {count} items in your Acme Cloud cart'\n'cart.checkout' -\u003e 'Checkout'\n'welcome' -\u003e 'Welcome to Acme Cloud'"
+        },
+        {
+          "kind": "text",
+          "text": "The JSON parses cleanly (valid UTF-8, no BOM, 3 keys), so the problems are all in the *content*. This is a UI string catalog, and it has several localization defects:\n\n## 1. `cart.items` has no plural handling — this is a real bug\n\n```\n\"You have {count} items in your Acme Cloud cart\"\n```\n\nAt `count == 1` this renders \"You have 1 items\". Worse, a single hardcoded form is untranslatable for most locales: Polish needs one/few/many/other, Russian needs 3 forms, Arabic 6; Japanese and Chinese want no plural distinction at all. No amount of translator skill fixes this — the string shape itself is wrong.\n\nUse ICU MessageFormat so the plural category is selected per-locale:\n\n```json\n\"cart.items\": \"{count, plural, =0 {Your Acme Cloud cart is empty} one {You have # item in your Acme Cloud cart} other {You have # items in your Acme Cloud cart}}\"\n```\n\nThe `=0` case is optional but worth having — \"You have 0 items\" is a poor empty state.\n\n## 2. \"Checkout\" is ambiguous out of context\n\n`cart.checkout` is a homograph in English: noun (page title \"Checkout\") vs. verb (button \"Check out\"). German splits these as *Kasse* vs. *Zur Kasse*; French as *Commande* vs. *Passer commande*. A translator seeing the bare word will guess, and half your locales will guess wrong. This needs a description/context note stating it's a button label (or a heading, whichever it is), plus ideally a screenshot reference in your TMS.\n\n## 3. No description or placeholder metadata anywhere\n\n`{count}` is undocumented — a translator can't tell it's an integer rather than, say, a product name, which affects whether they can safely move it and how it should be number-formatted. Flat `key: string` JSON has no room for this. If your i18n library supports it, switch to a format with per-key descriptions (e.g. Chrome i18n's `{\"message\": ..., \"description\": ..., \"placeholders\": {...}}`, or `.arb` with `@key` metadata). Otherwise the context has to live in the TMS, which is fragile.\n\n## 4. \"Acme Cloud\" is embedded in translatable text\n\nIt appears in two strings. Unless it's marked do-not-translate, you'll get it translated in some locales and transliterated in others — inconsistently between the two strings. Add it as a DNT glossary term. If the product is ever white-labeled or renamed, parameterize it instead (`{brand}`) so a rename doesn't invalidate every translation.\n\n## 5. Inconsistent key namespacing\n\n`cart.items` and `cart.checkout` are namespaced; `welcome` is bare. Also `cart.items` names the data rather than the message role — it's a cart summary line, not a list. Something like `cart.summary.itemCount` is clearer to future maintainers deciding whether a string is safe to reuse.\n\n## Suggested rewrite\n\n```json\n{\n  \"cart.itemCount\": \"{count, plural, =0 {Your Acme Cloud cart is empty} one {You have # item in your Acme Cloud cart} other {You have # items in your Acme Cloud cart}}\",\n  \"cart.checkoutButton\": \"Checkout\",\n  \"home.welcome\": \"Welcome to Acme Cloud\"\n}\n```\n\nTwo things I had\n…truncated…"
+        }
+      ]
+    }
+  ]
+}

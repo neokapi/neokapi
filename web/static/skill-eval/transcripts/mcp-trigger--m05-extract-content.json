@@ -1,0 +1,137 @@
+{
+  "key": "mcp:trigger",
+  "scenario": "m05-extract-content",
+  "prompt": "Pull the readable text out of proposal.docx so I can look at it.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll check the file, then pull the text out."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 32\ndrwx------      6 asgeirf  staff     192 Aug 27 20:39 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:39 ..\n-rw-r--r--      1 asgeirf  staff     796 Aug 27 20:39 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 kapi-config\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:39 proposal.docx\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:39 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__extract_content,mcp__kapi__detect_format\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__extract_content",
+          "input": "{\"path\":\"\u003cpath\u003e\"}",
+          "output": "{\"blocks\":[{\"content_hash\":\"f0d15a6fa54429261628928ca8a198cd4c307ebe3603a334c17c3a3ad31af65a\",\"id\":\"tu1\",\"source_text\":\"Partnership Proposal\",\"word_count\":2},{\"content_hash\":\"8f2e30882028a34e9a4c33ba282620c4c469dcefce8d360ad67ba15d2fd8ef8b\",\"id\":\"tu2\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared for:\u003cx id=\\\"/c1\\\"/\u003e Meridian Retail Group\",\"word_count\":5},{\"content_hash\":\"012ef6d92d97cf65bdeed05bb9b2530cd2e7366d35f172d43cd10fbe8e32120d\",\"id\":\"tu3\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared by:\u003cx id=\\\"/c1\\\"/\u003e the SalesPilot team\",\"word_count\":5},{\"content_hash\":\"80fbe41fee15ef6aa28ff7da4876bd43fd99913c949cc3e007bee07826833e32\",\"id\":\"tu4\",\"source_text\":\"Thank you for the opportunity to introduce \u003cx id=\\\"c1\\\"/\u003eSalesPilot\u003cx id=\\\"/c1\\\"/\u003e to your team.\",\"word_count\":11},{\"content_hash\":\"f6e8c514be01f1b10b5ceef60280b27d7957cc5b57ec0ce34fa3bec8704f233a\",\"id\":\"tu5\",\"source_text\":\"What SalesPilot delivers\",\"word_count\":3},{\"content_hash\":\"f66320d23f0c88b991ec74a87e98fed84162fac80c3258209a67b398620849ce\",\"id\":\"tu6\",\"source_text\":\"A single pipeline view across every region.\",\"word_count\":7},{\"content_hash\":\"25b7f4d4fcdf118028fdc34bd605c37633368a4a6a850cd957ad64bcbbe20ca5\",\"id\":\"tu7\",\"source_text\":\"Automated\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Here's the text from **proposal.docx** (11 blocks, 62 words). Inline `\u003cx id=\"c1\"/\u003e` tags in the raw extract are formatting markers (bold runs) — I've rendered them as formatting below:\n\n---\n\n**Partnership Proposal**\n\n**Prepared for:** Meridian Retail Group\n\n**Prepared by:** the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nNote: the extractor returns translatable text only, so anything in headers/footers, comments, or images isn't included. If you want to edit the wording and write it back into the .docx while preserving formatting, the block IDs above (`tu1`–`tu11`) are the handles for that — just say the word."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 32\ndrwx------      6 asgeirf  staff     192 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     796 Aug 27 20:40 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:40 proposal.docx\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__extract_content,mcp__kapi__detect_format\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__extract_content",
+          "input": "{\"path\":\"\u003cpath\u003e\"}",
+          "output": "{\"blocks\":[{\"content_hash\":\"f0d15a6fa54429261628928ca8a198cd4c307ebe3603a334c17c3a3ad31af65a\",\"id\":\"tu1\",\"source_text\":\"Partnership Proposal\",\"word_count\":2},{\"content_hash\":\"8f2e30882028a34e9a4c33ba282620c4c469dcefce8d360ad67ba15d2fd8ef8b\",\"id\":\"tu2\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared for:\u003cx id=\\\"/c1\\\"/\u003e Meridian Retail Group\",\"word_count\":5},{\"content_hash\":\"012ef6d92d97cf65bdeed05bb9b2530cd2e7366d35f172d43cd10fbe8e32120d\",\"id\":\"tu3\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared by:\u003cx id=\\\"/c1\\\"/\u003e the SalesPilot team\",\"word_count\":5},{\"content_hash\":\"80fbe41fee15ef6aa28ff7da4876bd43fd99913c949cc3e007bee07826833e32\",\"id\":\"tu4\",\"source_text\":\"Thank you for the opportunity to introduce \u003cx id=\\\"c1\\\"/\u003eSalesPilot\u003cx id=\\\"/c1\\\"/\u003e to your team.\",\"word_count\":11},{\"content_hash\":\"f6e8c514be01f1b10b5ceef60280b27d7957cc5b57ec0ce34fa3bec8704f233a\",\"id\":\"tu5\",\"source_text\":\"What SalesPilot delivers\",\"word_count\":3},{\"content_hash\":\"f66320d23f0c88b991ec74a87e98fed84162fac80c3258209a67b398620849ce\",\"id\":\"tu6\",\"source_text\":\"A single pipeline view across every region.\",\"word_count\":7},{\"content_hash\":\"25b7f4d4fcdf118028fdc34bd605c37633368a4a6a850cd957ad64bcbbe20ca5\",\"id\":\"tu7\",\"source_text\":\"Automated\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Here's the text from `proposal.docx` — 11 blocks, 62 words:\n\n---\n\n**Partnership Proposal**\n\n**Prepared for:** Meridian Retail Group\n**Prepared by:** the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nNote: the extractor returns inline formatting as `\u003cx id=\"c1\"/\u003e…\u003cx id=\"/c1\"/\u003e` placeholder pairs, which I've rendered as bold above — those wrapped \"Prepared for:\", \"Prepared by:\", and \"SalesPilot\" in the intro line. If you want to edit any of this and write it back to the docx, keep those placeholders intact in the text you send back."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll pull the text out of the .docx. Let me check the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 32\ndrwx------      6 asgeirf  staff     192 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff     792 Aug 27 20:40 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 kapi-config\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:40 proposal.docx\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:40 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read MCP config\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__extract_content,mcp__kapi__detect_format\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__extract_content",
+          "input": "{\"path\":\"\u003cpath\u003e\"}",
+          "output": "{\"blocks\":[{\"content_hash\":\"f0d15a6fa54429261628928ca8a198cd4c307ebe3603a334c17c3a3ad31af65a\",\"id\":\"tu1\",\"source_text\":\"Partnership Proposal\",\"word_count\":2},{\"content_hash\":\"8f2e30882028a34e9a4c33ba282620c4c469dcefce8d360ad67ba15d2fd8ef8b\",\"id\":\"tu2\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared for:\u003cx id=\\\"/c1\\\"/\u003e Meridian Retail Group\",\"word_count\":5},{\"content_hash\":\"012ef6d92d97cf65bdeed05bb9b2530cd2e7366d35f172d43cd10fbe8e32120d\",\"id\":\"tu3\",\"source_text\":\"\u003cx id=\\\"c1\\\"/\u003ePrepared by:\u003cx id=\\\"/c1\\\"/\u003e the SalesPilot team\",\"word_count\":5},{\"content_hash\":\"80fbe41fee15ef6aa28ff7da4876bd43fd99913c949cc3e007bee07826833e32\",\"id\":\"tu4\",\"source_text\":\"Thank you for the opportunity to introduce \u003cx id=\\\"c1\\\"/\u003eSalesPilot\u003cx id=\\\"/c1\\\"/\u003e to your team.\",\"word_count\":11},{\"content_hash\":\"f6e8c514be01f1b10b5ceef60280b27d7957cc5b57ec0ce34fa3bec8704f233a\",\"id\":\"tu5\",\"source_text\":\"What SalesPilot delivers\",\"word_count\":3},{\"content_hash\":\"f66320d23f0c88b991ec74a87e98fed84162fac80c3258209a67b398620849ce\",\"id\":\"tu6\",\"source_text\":\"A single pipeline view across every region.\",\"word_count\":7},{\"content_hash\":\"25b7f4d4fcdf118028fdc34bd605c37633368a4a6a850cd957ad64bcbbe20ca5\",\"id\":\"tu7\",\"source_text\":\"Automated\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Here's the readable text from `proposal.docx` (11 blocks, 62 words). Inline `\u003cx .../\u003e` markers are formatting codes — I've stripped them here:\n\n---\n\n**Partnership Proposal**\n\n*Prepared for:* Meridian Retail Group\n*Prepared by:* the SalesPilot team\n\nThank you for the opportunity to introduce SalesPilot to your team.\n\n**What SalesPilot delivers**\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n**Next steps**\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nEach block has a stable id (`tu1`–`tu11`) if you want to edit any of them in place — tell me which and what to change, and I can push the edit back into the .docx with the formatting preserved."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll locate the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      3 asgeirf  staff      96 Aug 27 20:40 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:40 ..\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:40 proposal.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 file proposal.docx \u0026\u0026 unzip -l proposal.docx\",\"description\":\"Inspect docx archive contents\"}",
+          "output": "proposal.docx: Microsoft Word 2007+\nArchive:  proposal.docx\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n     1933  05-25-2026 21:57   [Content_Types].xml\n      722  05-25-2026 21:57   _rels/.rels\n     3290  05-25-2026 21:57   word/document.xml\n     1203  05-25-2026 21:57   word/_rels/document.xml.rels\n      124  05-25-2026 21:57   word/_rels/footnotes.xml.rels\n     4178  05-25-2026 21:57   word/numbering.xml\n    27124  05-25-2026 21:57   word/styles.xml\n      843  05-25-2026 21:57   word/footnotes.xml\n      625  05-25-2026 21:57   word/comments.xml\n      583  05-25-2026 21:57   docProps/core.xml\n      212  05-25-2026 21:57   docProps/custom.xml\n     1320  05-25-2026 21:57   word/settings.xml\n      724  05-25-2026 21:57   docProps/app.xml\n    11370  05-25-2026 21:57   word/theme/theme1.xml\n     2324  05-25-2026 21:57   word/fontTable.xml\n      199  05-25-2026 21:57   word/webSettings.xml\n---------                     -------\n    56774                     16 files"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 which pandoc textutil python3; echo \\\"---DOC---\\\"; unzip -p proposal.docx word/document.xml\",\"description\":\"Check tools and dump document.xml\"}",
+          "output": "pandoc not found\n/usr/bin/textutil\n~/.pyenv/shims/python3\n---DOC---\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cw:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"\u003e\n\u003cw:body\u003e\n    \u003cw:bookmarkStart w:id=\"11\" w:name=\"partnership-proposal\" /\u003e\n    \u003cw:p\u003e\u003cw:pPr\u003e\u003cw:pStyle w:val=\"Heading1\" /\u003e\u003c/w:pPr\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003ePartnership Proposal\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n    \u003cw:p\u003e\u003cw:pPr\u003e\u003cw:pStyle w:val=\"FirstParagraph\" /\u003e\u003c/w:pPr\u003e\u003cw:r\u003e\u003cw:rPr\u003e\u003cw:b /\u003e\u003cw:bCs /\u003e\u003c/w:rPr\u003e\u003cw:t xml:space=\"preserve\"\u003ePrepared for:\u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003e \u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eMeridian Retail Group\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n    \u003cw:p\u003e\u003cw:pPr\u003e\u003cw:pStyle w:val=\"BodyText\" /\u003e\u003c/w:p\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 for f in word/footnotes.xml word/comments.xml docProps/core.xml docProps/custom.xml docProps/app.xml; do echo \\\"=== $f ===\\\"; unzip -p proposal.docx $f; echo; done\",\"description\":\"Dump footnotes, comments, and doc properties\"}",
+          "output": "=== word/footnotes.xml ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003cw:footnotes xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"\u003e\u003cw:footnote w:type=\"continuationSeparator\" w:id=\"0\"\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:continuationSeparator /\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:footnote\u003e\u003cw:footnote w:type=\"separator\" w:id=\"-1\"\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:separator /\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:footnote\u003e\u003c/w:footnotes\u003e\n=== word/comments.xml ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003cw:comments xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Here's the full readable text of `proposal.docx`:\n\n---\n\n# Partnership Proposal\n\n**Prepared for:** Meridian Retail Group\n\n**Prepared by:** the SalesPilot team\n\nThank you for the opportunity to introduce **SalesPilot** to your team.\n\n## What SalesPilot delivers\n\n- A single pipeline view across every region.\n- Automated follow-ups that keep deals moving.\n- Forecasts your leadership can rely on.\n\n## Next steps\n\nWe will provision your SalesPilot workspace within two business days.\n\nWarm regards, the SalesPilot team.\n\n---\n\nThat's everything — I also checked the parts of the archive that can hide text (`word/footnotes.xml`, `word/comments.xml`, and the doc properties), and they're all empty, so nothing is being left out. Bold formatting is preserved above as it appears in the document; the three bullets are a real bulleted list.\n\nSay the word if you want this written out as `proposal.md` or plain `.txt` alongside the original."
+        }
+      ]
+    }
+  ]
+}

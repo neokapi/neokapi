@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-08-27T17:29:42Z",
-  "asOf": "2026-07-15",
+  "generatedAt": "2026-08-27T20:17:10Z",
+  "asOf": "2026-08-27",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [
     {
-      "id": "claude-opus-4-8",
+      "id": "claude-opus-5",
       "provider": "anthropic",
       "providerLabel": "Anthropic",
-      "label": "Claude Opus 4.8",
+      "label": "Claude Opus 5",
       "aliases": [
         "opus"
       ],
@@ -15,7 +15,20 @@
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
       "status": "active",
+      "introduced": "2026-08-27",
+      "note": "1M context is standard, with no long-context surcharge."
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 4.8",
+      "recommended": false,
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "superseded",
       "introduced": "2026-07-14",
+      "supersededBy": "claude-opus-5",
       "note": "1M context is standard, with no long-context surcharge."
     },
     {

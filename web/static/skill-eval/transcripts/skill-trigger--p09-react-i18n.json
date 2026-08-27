@@ -1,0 +1,151 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p09-react-i18n",
+  "prompt": "Add i18n to this React app.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the app structure."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/node_modules/*\\\" -not -path \\\"*/.git/*\\\" | head -100\",\"description\":\"List project structure\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 .claude\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 20:28 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 src\n---TREE---\n./package.json\n./src/App.jsx\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"---APP---\\\" \u0026\u0026 cat src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n---APP---\nexport default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}"
+        },
+        {
+          "kind": "text",
+          "text": "This task matches the `kapi` skill (i18n setup). Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"add i18n to this React app\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/i18n.md; echo \\\"===KAPI VERSION===\\\"; kapi version 2\u003e\u00261 | head -5\",\"description\":\"Read i18n reference and check kapi binary\"}",
+          "output": "# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi preset and flags to use, toil scores, and status\n(`recommended`/`supported`/`caution`/`avoid`). Check dependency manifests and\nmarker files against it. `kapi init --list-presets` shows the presets kapi can\nscaffold directly.\n\nRouting:\n\n| Detected | Go to |\n|---|---|\n| React/Next.js (any of: greenfie\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the app to understand what I'm working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/node_modules/*\\\" -not -path \\\"*/.git/*\\\" | head -50\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 20:29 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n---TREE---\n./package.json\n./src/App.jsx\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `kapi` skill in this project that covers i18n setup. Let me look at the app and invoke the skill."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"===APP.JSX===\\\" \u0026\u0026 cat src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n===APP.JSX===\nexport default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"add i18n to this React app\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---I18N.MD---\\\"; cat .claude/skills/kapi/references/i18n.md\",\"description\":\"Check kapi binary and read i18n reference\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---I18N.MD---\n# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi preset and flags to use, toil scores, and status\n(`recommended`/`supported`/`caution`/`avoid`). Check dependency manifests and\nmarker files against it. `kapi init --list-presets` shows the presets kapi\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the app to understand its structure."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/node_modules/*\\\" -not -path \\\"*/.git/*\\\" | head -100\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 20:29 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n---TREE---\n./package.json\n./src/App.jsx\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"---APP---\\\" \u0026\u0026 cat src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n---APP---\nexport default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"add i18n to this React app\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/i18n.md\",\"description\":\"Read i18n reference\"}",
+          "output": "# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi preset and flags to use, toil scores, and status\n(`recommended`/`supported`/`caution`/`avoid`). Check dependency manifests and\nmarker files against it. `kapi init --list-presets` shows the presets kapi can\nscaffold directly.\n\nRouting:\n\n| Detected | Go to |\n|---|---|\n| React/Next.js (any of: greenfie\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/i18n/react.md\",\"description\":\"Read React i18n reference\"}",
+          "output": "# React / Next.js i18n — adoption playbook\n\nGrades are the recommended-config Toil Index (see [../i18n.md](../i18n.md);\nscores in [frameworks.yaml](frameworks.yaml)).\n\n| Stack | Grade | One-liner |\n|---|---|---|\n| **neokapi-i18n** | **T0** | Plain JSX is the catalog; bundler extracts at build time. The greenfield default. |\n| next-intl | T2 | The Next.js App Router standard; IDs + hand-authored catalogs, best RSC ergonomics. |\n| Lingui | T2 | Source-as-key macros + PO catalogs; lowest marking cost of the runtime libs. |\n| react-i18next | T2 | The incumbent; biggest ecosystem, key hygiene forever. |\n| next-i18next | T2 | Only for existing i18next investments on Next.js (v16 revived it). |\n| react-intl | **T3 — warn** | Maximum boilerplate + hash-ID churn; right only with an ICU/TMS mandate. |\n\n**Opinionated defaults:** greenfield React (Vite/webpack) → **neokapi-i18n**.\nNext.js App Router with no i18n yet → **next-intl** (neokapi-i18n works via the\nwebpack hook, but next-intl is the ecosystem-native choice — offer both).\nTeam wants source-as-key with a classic library → **Lingui**. Existing\nlibrary already installed → keep it, install its recommended config below.\nNeve\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the project structure."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path './node_modules/*' -not -path './.git/*' | head -100\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 20:29 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n---TREE---\n./package.json\n./src/App.jsx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"=== App.jsx ===\\\" \u0026\u0026 cat -n src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n=== App.jsx ===\n     1\texport default function App() {\n     2\t  const count = 3;\n     3\t  return (\n     4\t    \u003cmain\u003e\n     5\t      \u003cnav\u003e\n     6\t        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n     7\t        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n     8\t      \u003c/nav\u003e\n     9\t      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n    10\t      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n    11\t      \u003cbutton\u003eAdd a task\u003c/button\u003e\n    12\t      \u003clabel\u003e\n    13\t        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n    14\t      \u003c/label\u003e\n    15\t    \u003c/main\u003e\n    16\t  );\n    17\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm view i18next version 2\u003e\u00261 | tail -2; npm view react-i18next version 2\u003e\u00261 | tail -2; npm view i18next-browser-languagedetector version 2\u003e\u00261 | tail -2\",\"description\":\"Check latest published versions of i18n packages\"}",
+          "output": "26.4.0\n17.0.12\n8.2.1"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm view react-i18next@17 peerDependencies 2\u003e\u00261; echo \\\"--- i18next 26 engines/peers ---\\\"; npm view i18next@26 engines 2\u003e\u00261; npm view i18next-browser-languagedetector@8 peerDependencies 2\u003e\u00261\",\"description\":\"Check peer dependencies for i18n packages\"}",
+          "output": "react-i18next@17.0.0 { react: '\u003e= 16.8.0', i18next: '\u003e= 25.10.10', typescript: '^5 || ^6' }\nreact-i18next@17.0.1 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.2 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.3 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.4 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.5 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.6 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.1', typescript: '^5 || ^6' }\nreact-i18next@17.0.7 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.0.10', typescript: '^5 || ^6' }\nreact-i18next@17.0.8 { react: '\u003e= 16.8.0', i18next: '\u003e= 26.2.0', typescript: '^5 || ^6' }\nreact-i18next@17.0.9 {\n  react: '\u003e= 16.8.0',\n  i18next: '\u003e= 26.2.0',\n  typescript: '^5 || ^6 || ^7'\n}\nreact-i18next@17.0.10 {\n  react: '\u003e= 16.8.0',\n  i18next: '\u003e= 26.2.0',\n  typescript: '^5 || ^6 || ^7'\n}\nreact-i18next@17.0.11 {\n  react: '\u003e= 16.8.0',\n  i18next: '\u003e= 26.2.0',\n  typescript: '^5 || ^6 || ^7'\n}\nreact-i18next@17.0.12 {\n  react: '\u003e= 16.8.0',\n  i18next: '\u003e= 26.2.0',\n  typescr\n…truncated…"
+        }
+      ]
+    }
+  ]
+}

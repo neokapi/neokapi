@@ -1,0 +1,596 @@
+{
+  "key": "skill:completion",
+  "scenario": "p14-retrofit",
+  "prompt": "Our app has hardcoded strings everywhere, make it translatable.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's actually in this project."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- TREE ---\\\" \u0026\u0026 find . -type f -not -path './.git/*' -not -path '*/node_modules/*' | head -100\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 22:01 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:01 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:01 .claude\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 22:01 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:01 src\n--- TREE ---\n./package.json\n./src/App.jsx\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kap\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is an i18n retrofit task, and there's a skill for exactly that. Let me look at the app and load the skill."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"=== App.jsx ===\\\" \u0026\u0026 cat src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n=== App.jsx ===\nexport default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"internationalize existing React app with hardcoded strings\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"--- exit: $? ---\\\"; ls -a; echo \\\"--- .kapi? ---\\\"; find . -name '.kapi' -maxdepth 3 -not -path './.claude/*'\",\"description\":\"Check kapi binary and existing project\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n--- exit: 0 ---\n.\n..\n.claude\nkapi-config\npackage.json\nsrc\nxdg-cache\n--- .kapi? ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read i18n reference\"}",
+          "output": "# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi preset and flags to use, toil scores, and status\n(`recommended`/`supported`/`caution`/`avoid`). Check dependency manifests and\nmarker files against it. `kapi init --list-presets` shows the presets kapi can\nscaffold directly.\n\nRouting:\n\n| Detected | Go to |\n|---|---|\n| React/Next.js (any of: greenfie\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "React 19 app, no i18n yet. Let me read the React ecosystem guide and the registry."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read React i18n guide\"}",
+          "output": "# React / Next.js i18n — adoption playbook\n\nGrades are the recommended-config Toil Index (see [../i18n.md](../i18n.md);\nscores in [frameworks.yaml](frameworks.yaml)).\n\n| Stack | Grade | One-liner |\n|---|---|---|\n| **neokapi-i18n** | **T0** | Plain JSX is the catalog; bundler extracts at build time. The greenfield default. |\n| next-intl | T2 | The Next.js App Router standard; IDs + hand-authored catalogs, best RSC ergonomics. |\n| Lingui | T2 | Source-as-key macros + PO catalogs; lowest marking cost of the runtime libs. |\n| react-i18next | T2 | The incumbent; biggest ecosystem, key hygiene forever. |\n| next-i18next | T2 | Only for existing i18next investments on Next.js (v16 revived it). |\n| react-intl | **T3 — warn** | Maximum boilerplate + hash-ID churn; right only with an ICU/TMS mandate. |\n\n**Opinionated defaults:** greenfield React (Vite/webpack) → **neokapi-i18n**.\nNext.js App Router with no i18n yet → **next-intl** (neokapi-i18n works via the\nwebpack hook, but next-intl is the ecosystem-native choice — offer both).\nTeam wants source-as-key with a classic library → **Lingui**. Existing\nlibrary already installed → keep it, install its recommended config below.\nNeve\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -n '1,80p' \\\"\u003cpath\u003e\"; echo \\\"=== presets ===\\\"; kapi init --list-presets 2\u003e\u00261 | head -40\",\"description\":\"Read registry head and list kapi presets\"}",
+          "output": "# i18n framework registry — the machine-readable source of truth behind the\n# per-ecosystem playbooks in this directory. Schema and scoring rubric:\n# docs/internals/i18n-toil.md (repo). Maintained by the refresh-i18n-framework\n# skill (.skills/) and the i18n-triage workflow (.claude/workflows/i18n-triage.js).\n#\n# Toil axes 0-3: w=marking, x=extraction, s=sync, r=runtime-correctness,\n# e=ecosystem risk. grade is derived from `recommended` per the rubric.\n# status: recommended | supported | caution | avoid.\n# All `watch` claims verified 2026-07-10 (see strategy/i18n-skill/research-*.md).\n\nversion: 1\nrubric: docs/internals/i18n-toil.md\n\nframeworks:\n  # ── React ──────────────────────────────────────────────────────────────\n  - id: neokapi-i18n\n    ecosystem: react\n    reference: react.md\n    status: recommended\n    detect:\n      deps: [\"@neokapi/i18n-react\"]\n      files: [\"i18n/*.kbf.json\"]\n    catalog: { format: kbf, layout: \"i18n/{lang}.kbf.json\" }\n    kapi: { preset: neokapi-i18n, flags: null }   # preset is detection-only; adoption is the bundler workfl\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Stack detected: plain React 19, no bundler config, no i18n library. Per the registry that's greenfield React → **neokapi-i18n (Path A, T0)**, the zero-wrapper default. Let me set it up."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm install -D @neokapi/i18n-react @neokapi/i18n-react-lint 2\u003e\u00261 | tail -20\",\"description\":\"Install neokapi i18n react packages\",\"timeout\":180000}",
+          "output": "added 16 packages, and audited 17 packages in 10s\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn install-scripts 1 package has install scripts not yet covered by allowScripts:\nnpm warn install-scripts   @swc/core@1.16.1 (postinstall: node postinstall.js)\nnpm warn install-scripts\nnpm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve \u003cpkg\u003e` to allow."
+        },
+        {
+          "kind": "text",
+          "text": "Installed. Now the linter pass — per the skill I shouldn't eyeball which strings need `t()`, the linter decides."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls node_modules/@neokapi/i18n-react/ node_modules/@neokapi/i18n-react-lint/ \u0026\u0026 echo \\\"=== pkg exports ===\\\" \u0026\u0026 node -e \\\"console.log(JSON.stringify(require('./node_modules/@neokapi/i18n-react/package.json').exports,null,1))\\\" \u0026\u0026 echo \\\"=== lint pkg ===\\\" \u0026\u0026 node -e \\\"const p=require('./node_modules/@neokapi/i18n-react-lint/package.json');console.log(JSON.stringify({exports:p.exports,bin:p.bin,peer:p.peerDependencies},null,1))\\\" \u0026\u0026 echo \\\"=== bins ===\\\" \u0026\u0026 ls node_modules/.bin/\",\"description\":\"Inspect installed package layout\"}",
+          "output": "node_modules/@neokapi/i18n-react-lint/:\ndist\nLICENSE\npackage.json\nREADME.md\n\nnode_modules/@neokapi/i18n-react/:\ndist\nLICENSE\npackage.json\nREADME.md\n=== pkg exports ===\n{\n \".\": {\n  \"types\": \"./dist/plugin/index.d.ts\",\n  \"default\": \"./dist/plugin/index.js\"\n },\n \"./vite\": {\n  \"types\": \"./dist/plugin/vite.d.ts\",\n  \"default\": \"./dist/plugin/vite.js\"\n },\n \"./webpack\": {\n  \"types\": \"./dist/plugin/webpack.d.ts\",\n  \"default\": \"./dist/plugin/webpack.js\"\n },\n \"./rollup\": {\n  \"types\": \"./dist/plugin/rollup.d.ts\",\n  \"default\": \"./dist/plugin/rollup.js\"\n },\n \"./esbuild\": {\n  \"types\": \"./dist/plugin/esbuild.d.ts\",\n  \"default\": \"./dist/plugin/esbuild.js\"\n },\n \"./runtime\": {\n  \"types\": \"./dist/runtime/index.d.ts\",\n  \"default\": \"./dist/runtime/index.js\"\n },\n \"./runtime/pseudo\": {\n  \"types\": \"./dist/runtime/pseudo.d.ts\",\n  \"default\": \"./dist/runtime/pseudo.js\"\n },\n \"./head\": {\n  \"types\": \"./dist/head/index.d.ts\",\n  \"default\": \"./dist/head/index.js\"\n },\n \"./review\": {\n  \"types\": \"./dist/review/index.d.ts\",\n  \"default\": \"./dist/review/index.js\"\n },\n \"./review/hosted\": {\n  \"types\": \"./dist/review/hosted.d.ts\",\n  \"default\": \"./dist/review/hosted.js\"\n },\n \"./review/manifest\": {\n  \"types\": \"./dist/review/m\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -n '1,120p' node_modules/@neokapi/i18n-react-lint/README.md\",\"description\":\"Read lint README\"}",
+          "output": "# @neokapi/i18n-react-lint\n\nAuthoring-time lint rules for [neokapi-i18n](../i18n-react/README.md). The same\nrule objects run under **oxlint** (the primary target — rules are authored\nagainst `@oxlint/plugins` types) and **ESLint** (8.57+, 9, and 10). oxlint's\nplugin API is a strict subset of ESLint v9's, so you install one package and\nwire it into whichever linter you already use.\n\nneokapi-i18n's build-time transform catches a lot, but some authoring mistakes\nonly show up _after_ extraction:\n\n- `t(variable)` — unextractable, the extractor only sees literals\n- `\u003cimg alt={'Logo ' + brand} /\u003e` — the attribute is translatable, the concat isn't\n- `const ITEMS = [{ label: 'Light' }]` — the string never reaches the JSX walker\n\nThese rules give you editor squigglies for those cases, plus a `--strict`\npath for CI enforcement.\n\n## Install\n\n```bash\nvp install -D @neokapi/i18n-react-lint\n```\n\n## Oxlint\n\n```jsonc title=\".oxlintrc.json\"\n{\n  \"jsPlugins\": [\"@neokapi/i18n-react-lint/oxlint\"],\n  \"rules\": {\n    \"neokapi-i18n/t-literal-first-arg\": \"error\",\n    \"neokapi-i18n/t-no-concat\": \"error\",\n    \"neokapi-i18n/no-concat-in-translatable-attr\": \"error\",\n    \"neokapi-i18n/no-string-literal-js\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Wiring the linter with the **strict** preset for the adoption pass:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e .oxlintrc.json \u003c\u003c'EOF'\\n{\\n  \\\"jsPlugins\\\": [\\\"@neokapi/i18n-react-lint/oxlint\\\"],\\n  \\\"rules\\\": {\\n    \\\"neokapi-i18n/t-literal-first-arg\\\": \\\"error\\\",\\n    \\\"neokapi-i18n/t-no-concat\\\": \\\"error\\\",\\n    \\\"neokapi-i18n/no-concat-in-translatable-attr\\\": \\\"error\\\",\\n    \\\"neokapi-i18n/no-string-literal-jsx-expr\\\": \\\"error\\\",\\n    \\\"neokapi-i18n/prefer-t-for-label-props\\\": \\\"error\\\"\\n  }\\n}\\nEOF\\ncat .oxlintrc.json\",\"description\":\"Write oxlint strict config\"}",
+          "output": "{\n  \"jsPlugins\": [\"@neokapi/i18n-react-lint/oxlint\"],\n  \"rules\": {\n    \"neokapi-i18n/t-literal-first-arg\": \"error\",\n    \"neokapi-i18n/t-no-concat\": \"error\",\n    \"neokapi-i18n/no-concat-in-translatable-attr\": \"error\",\n    \"neokapi-i18n/no-string-literal-jsx-expr\": \"error\",\n    \"neokapi-i18n/prefer-t-for-label-props\": \"error\"\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx --yes oxlint@latest --fix src/ 2\u003e\u00261 | tail -30\",\"description\":\"Run oxlint strict pass with autofix\",\"timeout\":180000}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx --yes oxlint@latest --fix src/ ; echo \\\"--- exit=$? ---\\\"\",\"description\":\"Rerun oxlint showing exit code\",\"timeout\":180000}",
+          "output": "--- exit=0 ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx --yes oxlint@latest --version; echo \\\"exit=$?\\\"; echo \\\"=== verbose run ===\\\"; npx --yes oxlint@latest src/ --format=default 2\u003e\u00261; echo \\\"exit=$?\\\"\",\"description\":\"Verify oxlint runs and reports\",\"timeout\":180000}",
+          "output": "Version: 1.80.0\n\nexit=0\n=== verbose run ===\nFound 0 warnings and 0 errors.\nFinished in 57ms on 1 file with 101 rules using 10 threads.\nexit=0"
+        },
+        {
+          "kind": "text",
+          "text": "Zero findings — but I need to confirm the plugin actually loaded before trusting that. Testing with a known violation:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\nconst ITEMS = [{ label: 'Light mode' }];\\nexport default function Probe({ brand }) {\\n  return (\\n    \u003cdiv\u003e\\n      \u003cp\u003e{'Hello'}\u003c/p\u003e\\n      \u003cimg alt={'Logo ' + brand} /\u003e\\n      {ITEMS.map(i =\u003e \u003cspan key={i.label}\u003e{i.label}\u003c/span\u003e)}\\n    \u003c/div\u003e\\n  );\\n}\\nEOF\\ncp \u003cpath\u003e src/__probe.jsx\\nnpx --yes oxlint@latest src/__probe.jsx --format=default 2\u003e\u00261 | tail -30\",\"description\":\"Probe whether neokapi lint rules fire\",\"timeout\":180000}",
+          "output": "  x neokapi-i18n(prefer-t-for-label-props): String literal stored in `label` is not visible to the extractor when rendered as a JSX expression. Wrap with `t(...)` or store the translated value elsewhere.\n   ,-[src/__probe.jsx:1:18]\n 1 | const ITEMS = [{ label: 'Light mode' }];\n   :                  ^^^^^^^^^^^^^^^^^^^\n 2 | export default function Probe({ brand }) {\n   `----\n\n  x neokapi-i18n(no-string-literal-jsx-expr): String literal inside a JSX expression container is not extractable. Write it as JSX text (`\u003cp\u003eHello\u003c/p\u003e`) or wrap with `t()` if it must be an expression.\n   ,-[src/__probe.jsx:5:10]\n 4 |     \u003cdiv\u003e\n 5 |       \u003cp\u003e{'Hello'}\u003c/p\u003e\n   :          ^^^^^^^^^\n 6 |       \u003cimg alt={'Logo ' + brand} /\u003e\n   `----\n\n  x neokapi-i18n(no-concat-in-translatable-attr): Attribute `alt` is translatable — concatenating values produces non-extractable text. Use a literal with a placeholder pattern, or compute via `t(\"... {name}\")`.\n   ,-[src/__probe.jsx:6:12]\n 5 |       \u003cp\u003e{'Hello'}\u003c/p\u003e\n 6 |       \u003cimg alt={'Logo ' + brand} /\u003e\n   :            ^^^^^^^^^^^^^^^^^^^^^\n 7 |       {ITEMS.map(i =\u003e \u003cspan key={i.label}\u003e{i.label}\u003c/span\u003e)}\n   `----\n\nFound 0 warnings and 3 errors.\nFinished in 58ms on\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Plugin confirmed live (3 rules fired on the probe) — so the clean result on `App.jsx` is real: every string there is plain JSX text the extractor already sees. No `t()` wrapping needed."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm src/__probe.jsx \u0026\u0026 node -e \\\"\\nconst fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));\\np.scripts={...(p.scripts||{}),extract:'neokapi-i18n extract',compile:'neokapi-i18n compile out/ --out public/translations',lint:'oxlint src/'};\\nfs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\\\n');\\n\\\" \u0026\u0026 cat package.json\",\"description\":\"Add extract/compile/lint scripts\"}",
+          "output": "remove src/__probe.jsx? {\n  \"name\": \"demo\",\n  \"private\": true,\n  \"dependencies\": {\n    \"react\": \"^19.0.0\"\n  },\n  \"devDependencies\": {\n    \"@neokapi/i18n-react\": \"^1.2.3\",\n    \"@neokapi/i18n-react-lint\": \"^0.1.1\"\n  },\n  \"scripts\": {\n    \"extract\": \"neokapi-i18n extract\",\n    \"compile\": \"neokapi-i18n compile out/ --out public/translations\",\n    \"lint\": \"oxlint src/\"\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm run extract 2\u003e\u00261 | tail -20; echo \\\"--- i18n dir ---\\\"; ls -la i18n/ 2\u003e/dev/null \u0026\u0026 cat i18n/*.kbf.json 2\u003e/dev/null\",\"description\":\"Run extraction and inspect catalog\",\"timeout\":180000}",
+          "output": "Exit code 1\n\n\u003e extract\n\u003e neokapi-i18n extract\n\nScanning 2 files...\n[neokapi] src/__probe.jsx:7: {i.label} is rendered as JSX text — the property name suggests a user-visible string that won't be translated. Extract the label (e.g. t(\"key\") or \u003cT\u003e…\u003c/T\u003e) or mark the parent translate=\"no\" if intentional.\n  ↳ {ITEMS.map(i =\u003e \u003cspan key={i.label}\u003e{i.label}\u003c/span\u003e)}\nExtracted 4 blocks from 1 files → i18n/\n--- i18n dir ---\ntotal 0\ndrwxr-xr-x   3 asgeirf  staff   96 Aug 27 22:02 .\ndrwx------  11 asgeirf  staff  352 Aug 27 22:02 ..\ndrwxr-xr-x   3 asgeirf  staff   96 Aug 27 22:02 src\n(eval):1: no matches found: i18n/*.kbf.json",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "The probe file survived (interactive `rm` prompt). Removing it properly and re-extracting:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -f src/__probe.jsx \u0026\u0026 ls src/ \u0026\u0026 rm -rf i18n \u0026\u0026 npm run extract 2\u003e\u00261 | tail -20; echo \\\"--- catalog tree ---\\\"; find i18n -type f | head; echo \\\"--- contents ---\\\"; find i18n -name '*.json' -exec cat {} \\\\;\",\"description\":\"Remove probe, re-extract clean\",\"timeout\":180000}",
+          "output": "App.jsx\n\n\u003e extract\n\u003e neokapi-i18n extract\n\nScanning 1 files...\nExtracted 4 blocks from 1 files → i18n/\n--- catalog tree ---\ni18n/src/App.klf\n--- contents ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat i18n/src/App.klf\",\"description\":\"Inspect extracted catalog\"}",
+          "output": "{\n  \"schemaVersion\": \"1.0\",\n  \"kind\": \"kapi-localization-format\",\n  \"generator\": {\n    \"id\": \"@neokapi/i18n-react\",\n    \"version\": \"1.2.3\"\n  },\n  \"project\": {\n    \"id\": \"app\",\n    \"sourceLocale\": \"en\"\n  },\n  \"documents\": [\n    {\n      \"id\": \"src/App.jsx\",\n      \"documentType\": \"jsx\",\n      \"path\": \"src/App.jsx\",\n      \"blocks\": [\n        {\n          \"id\": \"src/App.jsx:5:0\",\n          \"hash\": \"6D8IVWpGEnO\",\n          \"translatable\": true,\n          \"type\": \"jsx:element\",\n          \"source\": [\n            {\n              \"pcOpen\": {\n                \"id\": \"0\",\n                \"type\": \"jsx:element\",\n                \"subType\": \"a\",\n                \"data\": \"\u003ca href=\\\"/\\\"\u003e\",\n                \"equiv\": \"=m0\"\n              }\n            },\n            {\n              \"text\": \"Dashboard\"\n            },\n            {\n              \"pcClose\": {\n                \"id\": \"0\",\n                \"type\": \"jsx:element\",\n                \"subType\": \"a\",\n                \"data\": \"\u003c/a\u003e\",\n                \"equiv\": \"=m0\"\n              }\n            },\n            {\n              \"text\": \" \"\n            },\n            {\n              \"pcOpen\": {\n                \"id\": \"1\",\n                \"type\": \"jsx:element\",\n    \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "4 blocks extracted — but the app has 5 user-visible strings. The `\u003clabel\u003e` text isn't there. Running the readiness gate, which exists precisely to catch this:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi pseudo-translate i18n/ --target-lang qps 2\u003e\u00261 | tail -40; echo \\\"--- exit=$? ---\\\"\",\"description\":\"Run pseudo-translate readiness gate\",\"timeout\":180000}",
+          "output": "Error: detect format for \"App.klf\": no format found for extension \".klf\"\n--- exit=0 ---"
+        },
+        {
+          "kind": "text",
+          "text": "Format mismatch — the extractor writes `.klf`, kapi doesn't recognize that extension. Let me check both sides."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx neokapi-i18n extract --help 2\u003e\u00261 | head -40; echo \\\"=== compile help ===\\\"; npx neokapi-i18n compile --help 2\u003e\u00261 | head -20; echo \\\"=== neokapi-i18n --help ===\\\"; npx neokapi-i18n --help 2\u003e\u00261 | head -30\",\"description\":\"Check extractor CLI options\",\"timeout\":120000}",
+          "output": "neokapi-i18n extract — scan JSX/TSX files and emit translatable blocks.\n\nUsage:\n  neokapi-i18n extract [options]\n\nBy default, writes one .klf file per source document under --out.\nPass --stream to emit NDJSON block records to stdout for piping.\n\nOptions:\n  --src \u003cglob\u003e            Source files to scan (repeatable; default:\n                          \"src/**/*.{tsx,jsx}\"). Pass multiple when your\n                          app pulls translatable JSX from workspace\n                          packages, e.g. --src \"src/**/*.tsx\" --src\n                          \"../../packages/ui/src/**/*.tsx\"\n  --ignore \u003cglob\u003e         Exclude pattern (repeatable). E.g. --ignore \"src/stories/**\"\n  --out \u003cdir\u003e             Output directory for .klf files (default: \"i18n\").\n                          Catalogs mirror the source tree, so the default\n                          \"src/**\" glob writes them under \"i18n/src/\" —\n                          leaving \"i18n/{lang}/\" free for kapi's per-locale\n                          targets.\n  --stream                Emit NDJSON block records on stdout instead\n                          of writing .klf files. Reads NUL-separated\n                          paths on stdin ins\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi formats 2\u003e\u00261 | head -40; echo \\\"=== kapi pseudo-translate help ===\\\"; kapi pseudo-translate --help 2\u003e\u00261 | head -40\",\"description\":\"Check kapi supported formats\",\"timeout\":120000}",
+          "output": "Available formats:\n\n  FORMAT         NAME                         READ  WRITE  EDIT      SOURCE    EXTENSIONS                                                                          MIME TYPES\n  androidxml     Android String Resources     ✓     ✓      faithful  built-in  —                                                                                   —\n  applestrings   Apple Strings                ✓     ✓      faithful  built-in  .strings, .stringsdict                                                              —\n  arb            Flutter ARB                  ✓     ✓      faithful  built-in  .arb                                                                                —\n  archive        Archive (ZIP/TAR)            ✓     —      —         built-in  .zip, .tar, .tgz, .tar.gz                                                           application/zip, application/x-tar, application/gzip, application/x-gzip\n  asciidoc       AsciiDoc                     ✓     ✓      faithful  built-in  .adoc, .asciidoc, .adfm, .asc                                                       text/asciidoc\n  audio          Audio                        ✓     ✓      yes  \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "kapi has a `kbf` format and a `--format` override. Testing whether `.klf` is the same model under a new extension:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi pseudo-translate i18n/src/App.klf --target-lang qps -f kbf -o \u003cpath\u003e 2\u003e\u00261 | tail -20; echo \\\"--- exit=$? ---\\\"; echo \\\"=== output ===\\\"; head -c 1500 \u003cpath\u003e 2\u003e/dev/null\",\"description\":\"Try kbf format override on klf file\",\"timeout\":180000}",
+          "output": "Exit code 1\nError: read \"App.klf\": kbf: parse kbf: kbf: unexpected kind \"kapi-localization-format\" (want \"kapi-bundle\")\n--- exit=0 ---\n=== output ===",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "Genuinely different formats, not just an extension rename. Let me check the version landscape and simultaneously audit that missing `\u003clabel\u003e` string."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm view @neokapi/i18n-react versions --json 2\u003e\u00261 | tail -20; echo \\\"=== dist-tags ===\\\"; npm view @neokapi/i18n-react dist-tags --json 2\u003e\u00261\",\"description\":\"List available extractor versions\",\"timeout\":120000}",
+          "output": "[\n  \"1.2.1\",\n  \"1.2.2\",\n  \"1.2.3\"\n]\n=== dist-tags ===\n{\n  \"latest\": \"1.2.3\"\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx neokapi-i18n explain --help 2\u003e\u00261 | head -20; echo \\\"=== EXPLAIN RUN ===\\\"; npx neokapi-i18n explain 2\u003e\u00261 | head -60\",\"description\":\"Audit translatability decisions\",\"timeout\":120000}",
+          "output": "neokapi-i18n explain — show the translatability decision for every JSX\nelement: the W3C ITS classification, why it was or wasn't extracted,\nand the hash it received.\n\nUsage:\n  neokapi-i18n explain \u003cfile-or-glob\u003e... [options]\n\nOptions:\n  --config \u003cpath\u003e   Config file with componentMap, rules, …\n  --extracted       Only show elements that produced a block\n\n=== EXPLAIN RUN ===\n\nneokapi-i18n explain — show the translatability decision for every JSX\nelement: the W3C ITS classification, why it was or wasn't extracted,\nand the hash it received.\n\nUsage:\n  neokapi-i18n explain \u003cfile-or-glob\u003e... [options]\n\nOptions:\n  --config \u003cpath\u003e   Config file with componentMap, rules, …\n  --extracted       Only show elements that produced a block"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npx neokapi-i18n explain \\\"src/App.jsx\\\" 2\u003e\u00261 | head -60\",\"description\":\"Explain translatability decisions for App.jsx\",\"timeout\":120000}",
+          "output": "src/App.jsx\n  L4    \u003cmain\u003e                       [container] skipped — has block-level children (they extract separately)\n  L5    \u003cnav\u003e                        [container] extracted (container promoted: direct text + inline children)  hash=6D8IVWpGEnO\n  L9    \u003ch1\u003e                         [translatable] extracted  hash=8UYiQpPbXw3\n  L10   \u003cp\u003e                          [translatable] extracted  hash=cgWJFTu48Gs\n  L11   \u003cbutton\u003e                     [translatable] extracted  hash=kjij0zCp4qm\n  L12   \u003clabel\u003e                      [translatable] skipped — has block-level children (they extract separately)\n  L13   \u003cinput\u003e                      [container] skipped — no translator-editable text"
+        },
+        {
+          "kind": "text",
+          "text": "Found it — a real extraction gap, not something I'd have caught by eye:\n\n`\u003clabel\u003e` is classified **translatable** but skipped as \"has block-level children\", because `\u003cinput\u003e` is treated as block-level. Then `\u003cinput\u003e` itself has no text. So **\"Email me about updates\" falls through entirely** — it would silently ship untranslated. Let me test the two candidate fixes:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\nimport { t } from \\\"@neokapi/i18n-react/runtime\\\";\\nexport default function P() {\\n  return (\\n    \u003cmain\u003e\\n      \u003clabel\u003e\\n        \u003cinput type=\\\"checkbox\\\" /\u003e \u003cspan\u003eSpan wrapped variant\u003c/span\u003e\\n      \u003c/label\u003e\\n      \u003clabel\u003e\\n        \u003cinput type=\\\"checkbox\\\" /\u003e {t(\\\"T-call variant\\\")}\\n      \u003c/label\u003e\\n    \u003c/main\u003e\\n  );\\n}\\nEOF\\ncd \u003cpath\u003e \u0026\u0026 npx --yes --package=@neokapi/i18n-react neokapi-i18n explain \\\"src/P.jsx\\\" 2\u003e\u00261 | head -30\",\"description\":\"Probe span vs t() fix for label\",\"timeout\":180000}",
+          "output": "src/P.jsx\n  L4    \u003cmain\u003e                       [container] skipped — has block-level children (they extract separately)\n  L5    \u003clabel\u003e                      [translatable] skipped — has block-level children (they extract separately)\n  L6    \u003cinput\u003e                      [container] skipped — no translator-editable text\n  L6    \u003cspan\u003e                       [translatable] extracted  hash=5TYYfoFoc43\n  L8    \u003clabel\u003e                      [translatable] skipped — has block-level children (they extract separately)\n  L9    \u003cinput\u003e                      [container] skipped — no translator-editable text\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "`\u003cspan\u003e` extracts. The `t()` call isn't a JSX element so `explain` won't show it — verifying it via actual extraction:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 npx --yes --package=@neokapi/i18n-react neokapi-i18n extract 2\u003e\u00261 | tail -5 \u0026\u0026 echo \\\"=== extracted texts ===\\\" \u0026\u0026 node -e \\\"\\nconst fs=require('fs');\\nconst f=JSON.parse(fs.readFileSync('i18n/src/P.klf','utf8'));\\nfor(const d of f.documents) for(const b of d.blocks) console.log(JSON.stringify({type:b.type, text:b.source.map(s=\u003es.text??(s.ph?'{'+s.ph.equiv+'}':'')).join('')}));\\n\\\"\",\"description\":\"Verify t() extraction in probe\",\"timeout\":180000}",
+          "output": "Scanning 1 files...\nExtracted 2 blocks from 1 files → i18n/\n=== extracted texts ===\n{\"type\":\"jsx:element\",\"text\":\"Span wrapped variant\"}\n{\"type\":\"js:t\",\"text\":\"T-call variant\"}\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Both fixes work. Now let me apply the `\u003cspan\u003e` fix — it keeps the string on the auto-extracted path (no provider dependency for that one string):"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'EOF'\\nimport re\\np='src/App.jsx'\\ns=open(p).read()\\nold='        \u003cinput type=\\\"checkbox\\\" /\u003e Email me about updates\\\\n'\\nnew='        \u003cinput type=\\\"checkbox\\\" /\u003e \u003cspan\u003eEmail me about updates\u003c/span\u003e\\\\n'\\nassert old in s, \\\"anchor not found\\\"\\nopen(p,'w').write(s.replace(old,new))\\nEOF\\ncat src/App.jsx\",\"description\":\"Wrap label text in span\"}",
+          "output": "export default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e \u003cspan\u003eEmail me about updates\u003c/span\u003e\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi --help 2\u003e\u00261 | sed -n '1,60p'\",\"description\":\"Check kapi command surface\"}",
+          "output": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context — the terms, the voice and the rules it goes by — so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.\n\nUsage:\n  kapi [flags]\n  kapi [command]\n\nWork:\n  add              Add file patterns to the project's content\n  apply            Apply a typed change-set (content + asset edits) — the one write verb\n  check            Verify content against a checkset and gate on severity, like tests over code\n  commit           Write staged unit state into the project's committed record\n  context          Ask what this project's content context says\n  init             Scaffold a new kapi project in the current directory\n  ls               List the files the project's content tracks\n  rm               Remove file patterns from the project's content\n  status           Show per-locale translation coverage and ship-gate standing\n  up               Bring the project up to date (run the default flow until every gated scope ships or parks)\n\nTranslate:\n  pseudo-translate Pseudo-translate f\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Let me determine whether the KLF/KBF gap is version skew or me holding it wrong — kapi's source is on this machine:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd ~/src/neokapi/neokapi 2\u003e/dev/null \u0026\u0026 grep -rl \\\"kapi-localization-format\\\" --include=*.go . 2\u003e/dev/null | head -10; echo \\\"--- klf mentions in go ---\\\"; grep -rn \\\"kapi-localization-format\\\\|\\\\.klf\\\" --include=*.go . 2\u003e/dev/null | head -20; echo \\\"--- kbf kind ---\\\"; grep -rn \\\"kapi-bundle\\\" --include=*.go . 2\u003e/dev/null | head -5\",\"description\":\"Check kapi source for KLF support\"}",
+          "output": "(eval):1: no matches found: --include=*.go\n--- klf mentions in go ---\n(eval):1: no matches found: --include=*.go\n--- kbf kind ---\n(eval):1: no matches found: --include=*.go\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls ~/src/neokapi/neokapi/ 2\u003e\u00261 | head -20; echo \\\"=== grep klf ===\\\"; grep -rn \\\"kapi-localization-format\\\" ~/src/neokapi/neokapi/ --exclude-dir=node_modules --exclude-dir=.git -l 2\u003e/dev/null | head -10\",\"description\":\"Locate kapi source and search KLF\",\"timeout\":120000}",
+          "output": "after-bowrain-context.png\nafter-bowrain-sheet.png\nafter-bowrain-sheet2.png\nafter-desktop-sheet.png\napps\nbench\nbin\nbowrain\nBrewfile\nCLAUDE.md\ncli\ncmd\ncodecov.yml\nCONTRIBUTING.md\ncore\ncoverage\ndeploy\ndocker\ndocs\nexamples\n=== grep klf ===\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/web/build/qps/assets/js/79d037bf.85703365.js\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/web/build/nb/assets/js/79d037bf.6a863116.js\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/web/build/assets/js/79d037bf.d3149aed.js\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/web/src/pages/skill-eval/_skilleval.json\n~/src/neokapi/neokapi/.claude/worktrees/bowrain-ui-review2/web/src/pages/skill-eval/_skilleval.json"
+        },
+        {
+          "kind": "text",
+          "text": "No Go source implements a KLF reader — only web build artifacts mention it. So the CLI genuinely can't read the extractor's output. Let me test whether the difference is deeper than the `kind` string:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst fs=require('fs');\\nconst o=JSON.parse(fs.readFileSync('i18n/src/App.klf','utf8'));\\no.kind='kapi-bundle';\\nfs.writeFileSync('\u003cpath\u003e',JSON.stringify(o,null,2));\\n\\\"\\nkapi pseudo-translate \u003cpath\u003e --target-lang qps -o \u003cpath\u003e 2\u003e\u00261 | tail -20; echo \\\"--- exit=$? ---\\\"\",\"description\":\"Test if kind rename bridges KLF to KBF\",\"timeout\":180000}",
+          "output": "Flow pseudo-translate completed: \u003cpath\u003e → \u003cpath\u003e\n--- exit=0 ---"
+        },
+        {
+          "kind": "text",
+          "text": "Only the `kind` string differs. Let me verify the output is actually semantically correct, not just parseable:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst fs=require('fs');\\nconst f=JSON.parse(fs.readFileSync('\u003cpath\u003e','utf8'));\\nfor(const d of f.documents) for(const b of d.blocks){\\n  const render=a=\u003e(a||[]).map(s=\u003es.text??(s.ph?'{'+s.ph.equiv+'}':(s.pcOpen?'\u003c'+s.pcOpen.subType+'\u003e':(s.pcClose?'\u003c/'+s.pcClose.subType+'\u003e':'')))).join('');\\n  console.log('SRC:', render(b.source));\\n  console.log('TGT:', JSON.stringify(b.targets??b.target??null)===null?'(none)':render((b.targets\u0026\u0026(b.targets.qps||Object.values(b.targets)[0]))||b.target));\\n  console.log('---');\\n}\\n\\\" 2\u003e\u00261 | head -40\",\"description\":\"Inspect pseudo-translated output\"}",
+          "output": "SRC: \u003ca\u003eDashboard\u003c/a\u003e \u003ca\u003eTasks\u003c/a\u003e\nTGT: ▒ \u003ca\u003eĐàšĥƃöàŕđ\u003c/a\u003e \u003ca\u003eŢàšķš\u003c/a\u003e ▒\n---\nSRC: Welcome back, Alex\nTGT: ▒ Ŵéļçöḿé ƃàçķ, Àļéẋ ▒\n---\nSRC: You have {count} tasks due today.\nTGT: ▒ Ýöü ĥàṽé {count} ţàšķš đüé ţöđàý. ▒\n---\nSRC: Add a task\nTGT: ▒ Àđđ à ţàšķ ▒\n---"
+        },
+        {
+          "kind": "text",
+          "text": "Pseudo-translation is semantically correct — inline `\u003ca\u003e` codes preserved, `{count}` placeholder left verbatim, text accented and padded. So the KLF/KBF gap is purely the `kind` discriminator: a version skew between `@neokapi/i18n-react@1.2.3` (writes `kapi-localization-format`) and `kapi v1.2.0-rc29` (reads `kapi-bundle`).\n\nRe-extracting now that the label is fixed:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf i18n \u0026\u0026 npm run extract 2\u003e\u00261 | tail -5; echo \\\"=== blocks ===\\\"; node -e \\\"\\nconst fs=require('fs');\\nconst f=JSON.parse(fs.readFileSync('i18n/src/App.klf','utf8'));\\nlet n=0;\\nfor(const d of f.documents) for(const b of d.blocks){n++;\\n  console.log(n+'.', b.source.map(s=\u003es.text??(s.ph?'{'+s.ph.equiv+'}':(s.pcOpen?'\u003c'+s.pcOpen.subType+'\u003e':(s.pcClose?'\u003c/'+s.pcClose.subType+'\u003e':'')))).join(''));}\\n\\\"\",\"description\":\"Re-extract after label fix\",\"timeout\":180000}",
+          "output": "\u003e extract\n\u003e neokapi-i18n extract\n\nScanning 1 files...\nExtracted 5 blocks from 1 files → i18n/\n=== blocks ===\n1. \u003ca\u003eDashboard\u003c/a\u003e \u003ca\u003eTasks\u003c/a\u003e\n2. Welcome back, Alex\n3. You have {count} tasks due today.\n4. Add a task\n5. Email me about updates"
+        },
+        {
+          "kind": "text",
+          "text": "All 5 strings extract now. Building the version-skew bridge so the documented kapi pipeline actually runs:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p scripts \u0026\u0026 cat \u003e scripts/klf-kbf.mjs \u003c\u003c'EOF'\\n#!/usr/bin/env node\\n/**\\n * SHIM — delete once the toolchain agrees on one catalog format.\\n *\\n * @neokapi/i18n-react@1.2.3 writes catalogs with kind \\\"kapi-localization-format\\\"\\n * (.klf); the kapi CLI (v1.2.0-rc29) reads kind \\\"kapi-bundle\\\" (.kbf.json).\\n * The two schemas are otherwise byte-identical, so bridging is a rename of the\\n * `kind` discriminator plus the file extension. Verified by round-tripping a\\n * pseudo-translate: inline codes and {placeholders} survive intact.\\n *\\n *   node scripts/klf-kbf.mjs to-kbf \u003csrcDir\u003e \u003cdstDir\u003e\\n *   node scripts/klf-kbf.mjs to-klf \u003csrcDir\u003e \u003cdstDir\u003e\\n */\\nimport { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync } from \\\"node:fs\\\";\\nimport { join, dirname, relative } from \\\"node:path\\\";\\n\\nconst [dir, src, dst] = process.argv.slice(2);\\nconst MODES = {\\n  \\\"to-kbf\\\": { from: \\\".klf\\\", to: \\\".kbf.json\\\", kind: \\\"kapi-bundle\\\" },\\n  \\\"to-klf\\\": { from: \\\".kbf.json\\\", to: \\\".klf\\\", kind: \\\"kapi-localization-format\\\" },\\n};\\nconst mode = MODES[dir];\\nif (!mode || !src || !dst) {\\n  console.error(\\\"usage: klf-kbf.mjs \u003cto-kbf|to-klf\u003e \u003csrcDir\u003e \u003cdstDir\u003e\\\");\\n \n…truncated…",
+          "output": "to-kbf: 1 file(s) → .kapi-bridge/in\n.kapi-bridge/in/src/App.kbf.json"
+        },
+        {
+          "kind": "text",
+          "text": "Now the readiness gate the skill mandates before any real translation:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi pseudo-translate .kapi-bridge/in --target-lang qps -o '.kapi-bridge/qps/{name}.{ext}' 2\u003e\u00261 | tail -20; echo \\\"--- exit=$? ---\\\"; find .kapi-bridge/qps -type f 2\u003e/dev/null\",\"description\":\"Run pseudo-translate readiness gate\",\"timeout\":180000}",
+          "output": "Flow pseudo-translate completed: .kapi-bridge/in/src/App.kbf.json → .kapi-bridge/qps/App.kbf.json\n--- exit=0 ---\n.kapi-bridge/qps/App.kbf.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst fs=require('fs');\\nconst f=JSON.parse(fs.readFileSync('.kapi-bridge/qps/App.kbf.json','utf8'));\\nconst render=a=\u003e(a||[]).map(s=\u003es.text??(s.ph?'{'+s.ph.equiv+'}':(s.pcOpen?'\u003c'+s.pcOpen.subType+'\u003e':(s.pcClose?'\u003c/'+s.pcClose.subType+'\u003e':'')))).join('');\\nfor(const d of f.documents) for(const b of d.blocks){\\n  const t=b.targets?(b.targets.qps||Object.values(b.targets)[0]):b.target;\\n  console.log('SRC:', render(b.source));\\n  console.log('QPS:', render(t));\\n  console.log();\\n}\\n\\\"\",\"description\":\"Verify all 5 blocks pseudo-translated\"}",
+          "output": "SRC: \u003ca\u003eDashboard\u003c/a\u003e \u003ca\u003eTasks\u003c/a\u003e\nQPS: ▒ \u003ca\u003eĐàšĥƃöàŕđ\u003c/a\u003e \u003ca\u003eŢàšķš\u003c/a\u003e ▒\n\nSRC: Welcome back, Alex\nQPS: ▒ Ŵéļçöḿé ƃàçķ, Àļéẋ ▒\n\nSRC: You have {count} tasks due today.\nQPS: ▒ Ýöü ĥàṽé {count} ţàšķš đüé ţöđàý. ▒\n\nSRC: Add a task\nQPS: ▒ Àđđ à ţàšķ ▒\n\nSRC: Email me about updates\nQPS: ▒ Éḿàîļ ḿé àƃöüţ üþđàţéš ▒"
+        },
+        {
+          "kind": "text",
+          "text": "Gate passes on all 5 — including the string that was invisible before. Now proving the back half of the round-trip (translated catalog → runtime dictionary):"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node scripts/klf-kbf.mjs to-klf .kapi-bridge/qps out \u0026\u0026 npm run compile 2\u003e\u00261 | tail -10; echo \\\"=== dictionaries ===\\\"; find public/translations -type f 2\u003e/dev/null -exec echo \\\"--- {} ---\\\" \\\\; -exec cat {} \\\\;\",\"description\":\"Compile translated catalog to runtime dictionary\",\"timeout\":180000}",
+          "output": "to-klf: 1 file(s) → out\n\n\u003e compile\n\u003e neokapi-i18n compile out/ --out public/translations\n\nCompiled 5 entries → public/translations/qps.json\n=== dictionaries ===\n--- public/translations/qps.json ---\n{\n  \"6D8IVWpGEnO\": \"▒ {=m0}Đàšĥƃöàŕđ{/=m0} {=m1}Ţàšķš{/=m1} ▒\",\n  \"8UYiQpPbXw3\": \"▒ Ŵéļçöḿé ƃàçķ, Àļéẋ ▒\",\n  \"cgWJFTu48Gs\": \"▒ Ýöü ĥàṽé {count} ţàšķš đüé ţöđàý. ▒\",\n  \"kjij0zCp4qm\": \"▒ Àđđ à ţàšķ ▒\",\n  \"8DSilxjn1nE\": \"▒ Éḿàîļ ḿé àƃöüţ üþđàţéš ▒\"\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Full round-trip proven end-to-end. Wiring it into repeatable scripts:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));\\np.scripts={\\n  lint: 'oxlint src/',\\n  extract: 'neokapi-i18n extract',\\n  compile: 'neokapi-i18n compile out/ --out public/translations',\\n  'i18n:gate': 'npm run extract \u0026\u0026 node scripts/klf-kbf.mjs to-kbf i18n .kapi-bridge/in \u0026\u0026 kapi pseudo-translate .kapi-bridge/in --target-lang qps -o \\\\\\\".kapi-bridge/qps/{name}.{ext}\\\\\\\" \u0026\u0026 node scripts/klf-kbf.mjs to-klf .kapi-bridge/qps out \u0026\u0026 npm run compile',\\n  'i18n:translate': 'node scripts/translate.mjs'\\n};\\nfs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\\\\n');\\n\\\"\\ncat \u003e scripts/translate.mjs \u003c\u003c'EOF'\\n#!/usr/bin/env node\\n/**\\n * Translate the extracted catalog into one or more locales, routed through kapi\\n * so terminology, placeholders and inline codes are enforced.\\n *\\n *   npm run i18n:translate -- fr de ja\\n */\\nimport { execFileSync } from \\\"node:child_process\\\";\\n\\nconst locales = process.argv.slice(2);\\nif (!locales.length) {\\n  console.error(\\\"usage: npm run i18n:translate -- \u003clocale\u003e...\\\");\\n  process.exit(2);\\n}\\nconst run = (cmd, args) =\u003e execFileSync(cmd, args, { stdio: \\\"inherit\\\" });\\n\\nrun(\\\"npm\\\", \n…truncated…",
+          "output": "{\n  \"name\": \"demo\",\n  \"private\": true,\n  \"dependencies\": {\n    \"react\": \"^19.0.0\"\n  },\n  \"devDependencies\": {\n    \"@neokapi/i18n-react\": \"^1.2.3\",\n    \"@neokapi/i18n-react-lint\": \"^0.1.1\"\n  },\n  \"scripts\": {\n    \"lint\": \"oxlint src/\",\n    \"extract\": \"neokapi-i18n extract\",\n    \"compile\": \"neokapi-i18n compile out/ --out public/translations\",\n    \"i18n:gate\": \"npm run extract \u0026\u0026 node scripts/klf-kbf.mjs to-kbf i18n .kapi-bridge/in \u0026\u0026 kapi pseudo-translate .kapi-bridge/in --target-lang qps -o \\\".kapi-bridge/qps/{name}.{ext}\\\" \u0026\u0026 node scripts/klf-kbf.mjs to-klf .kapi-bridge/qps out \u0026\u0026 npm run compile\",\n    \"i18n:translate\": \"node scripts/translate.mjs\"\n  }\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Verifying the wired gate runs clean from scratch:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf i18n out .kapi-bridge public/translations \u0026\u0026 npm run i18n:gate 2\u003e\u00261 | tail -12; echo \\\"--- exit=$? ---\\\"; echo \\\"=== result ===\\\"; cat public/translations/qps.json\",\"description\":\"Run full gate from clean state\",\"timeout\":300000}",
+          "output": "\u003e neokapi-i18n extract\n\nScanning 1 files...\nExtracted 5 blocks from 1 files → i18n/\nto-kbf: 1 file(s) → .kapi-bridge/in\nFlow pseudo-translate completed: .kapi-bridge/in/src/App.kbf.json → .kapi-bridge/qps/App.kbf.json\nto-klf: 1 file(s) → out\n\n\u003e compile\n\u003e neokapi-i18n compile out/ --out public/translations\n\nCompiled 5 entries → public/translations/qps.json\n--- exit=0 ---\n=== result ===\n{\n  \"6D8IVWpGEnO\": \"▒ {=m0}Đàšĥƃöàŕđ{/=m0} {=m1}Ţàšķš{/=m1} ▒\",\n  \"8UYiQpPbXw3\": \"▒ Ŵéļçöḿé ƃàçķ, Àļéẋ ▒\",\n  \"cgWJFTu48Gs\": \"▒ Ýöü ĥàṽé {count} ţàšķš đüé ţöđàý. ▒\",\n  \"kjij0zCp4qm\": \"▒ Àđđ à ţàšķ ▒\",\n  \"8DSilxjn1nE\": \"▒ Éḿàîļ ḿé àƃöüţ üþđàţéš ▒\"\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm run lint 2\u003e\u00261 | tail -5; echo \\\"--- lint exit=$? ---\\\"; echo \\\"=== final App.jsx ===\\\"; cat src/App.jsx; echo \\\"=== tree ===\\\"; find . -type f -not -path './node_modules/*' -not -path './.claude/*' -not -path './.kapi-bridge/*' -not -path './xdg-cache/*' -not -path './kapi-config/*' | sort\",\"description\":\"Final lint check and file inventory\",\"timeout\":180000}",
+          "output": "\u003e lint\n\u003e oxlint src/\n\nsh: oxlint: command not found\n--- lint exit=0 ---\n=== final App.jsx ===\nexport default function App() {\n  const count = 3;\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\n      \u003clabel\u003e\n        \u003cinput type=\"checkbox\" /\u003e \u003cspan\u003eEmail me about updates\u003c/span\u003e\n      \u003c/label\u003e\n    \u003c/main\u003e\n  );\n}\n=== tree ===\n./.gitignore\n./.oxlintrc.json\n./i18n/src/App.klf\n./out/App.klf\n./package-lock.json\n./package.json\n./public/translations/qps.json\n./scripts/klf-kbf.mjs\n./scripts/translate.mjs\n./src/App.jsx"
+        },
+        {
+          "kind": "text",
+          "text": "`npm run lint` can't find oxlint — I'd been running it via `npx`. Installing it properly, since the skill requires the linter in CI:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm install -D oxlint@^1.80.0 2\u003e\u00261 | tail -5; echo \\\"=== lint run ===\\\"; npm run lint; echo \\\"--- lint exit=$? ---\\\"\",\"description\":\"Install oxlint and verify lint script\",\"timeout\":300000}",
+          "output": "found 0 vulnerabilities\nnpm warn install-scripts 1 package has install scripts not yet covered by allowScripts:\nnpm warn install-scripts   @swc/core@1.16.1 (postinstall: node postinstall.js)\nnpm warn install-scripts\nnpm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve \u003cpkg\u003e` to allow.\n=== lint run ===\n\n\u003e lint\n\u003e oxlint src/\n\n--- lint exit=0 ---"
+        },
+        {
+          "kind": "text",
+          "text": "Confirming the installed linter still catches regressions (not silently passing):"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp \u003cpath\u003e src/__probe.jsx \u0026\u0026 npm run lint 2\u003e\u00261 | tail -6; echo \\\"--- exit=${PIPESTATUS[0]} ---\\\"; npm run lint \u003e /dev/null 2\u003e\u00261; echo \\\"real exit=$?\\\"; rm -f src/__probe.jsx; echo \\\"cleaned: $(ls src/)\\\"\",\"description\":\"Verify lint catches regressions\",\"timeout\":180000}",
+          "output": "\u003e lint\n\u003e oxlint src/\n\nsrc/__probe.jsx:1:18: error neokapi-i18n(prefer-t-for-label-props): String literal stored in `label` is not visible to the extractor when rendered as a JSX expression. Wrap with `t(...)` or store the translated value elsewhere.\nsrc/__probe.jsx:5:10: error neokapi-i18n(no-string-literal-jsx-expr): String literal inside a JSX expression container is not extractable. Write it as JSX text (`\u003cp\u003eHello\u003c/p\u003e`) or wrap with `t()` if it must be an expression.\nsrc/__probe.jsx:6:12: error neokapi-i18n(no-concat-in-translatable-attr): Attribute `alt` is translatable — concatenating values produces non-extractable text. Use a literal with a placeholder pattern, or compute via `t(\"... {name}\")`.\n--- exit= ---\nreal exit=1\ncleaned: App.jsx"
+        },
+        {
+          "kind": "text",
+          "text": "Done. The app is translatable end-to-end, and the pipeline is verified working — not just wired.\n\n## What I chose\n\nPlain React 19, no bundler, no existing i18n library → the registry's greenfield default: **`@neokapi/i18n-react` (Toil Index T0, \"add and forget\")**. Plain JSX *is* the catalog; nothing gets wrapped.\n\n## The change to your code is one word\n\n```diff\n-        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n+        \u003cinput type=\"checkbox\" /\u003e \u003cspan\u003eEmail me about updates\u003c/span\u003e\n```\n\nThat's the whole source diff. Every other string — nav links, heading, the `{count}` sentence, the button — stays exactly as written and is extracted at build time. No `t()` calls, no message IDs; the English text is the key.\n\n## The bug that word fixes\n\n`neokapi-i18n explain` flagged something I would not have caught by reading the file:\n\n```\nL12   \u003clabel\u003e   [translatable] skipped — has block-level children (they extract separately)\nL13   \u003cinput\u003e   [container]    skipped — no translator-editable text\n```\n\n`\u003clabel\u003e` was correctly classified translatable but skipped because `\u003cinput\u003e` counts as a block-level child — and then `\u003cinput\u003e` has no text of its own. **\"Email me about updates\" fell through the gap entirely** and would have silently shipped in English forever, in every locale. Extraction went 4 blocks → 5 after the fix. I'd treat the heuristic itself as an upstream bug worth reporting: `\u003cinput\u003e` is a void element, not block-level.\n\nI verified both candidate fixes before picking; `t()` also works, but the `\u003cspan\u003e` keeps the string on the auto-extracted path so it doesn't depend on provider wiring.\n\n## Verified, not assumed\n\n- **Linter**: strict preset in `.oxlintrc.json`, and I confirmed the plugin actually loads by feeding it a file with known violations — 3 rules fired. A clean pass is now meaningful. `npm run lint` exits 1 on regressions, 0 on your source.\n- **Readiness gate**: `npm run i18n:gate` runs the full extract → pseudo-translate → compile round-trip. All 5 strings come back accented, `{count}` preserved verbatim, `\u003ca\u003e` inline codes intact.\n\n```\n\"cgWJFTu48Gs\": \"▒ Ýöü ĥàṽé {count} ţàšķš đüé ţöđàý. ▒\"\n```\n\n## Two things you need to know\n\n**1. A version skew forced a shim.** `@neokapi/i18n-react@1.2.3` writes catalogs tagged `kapi-localization-format` (`.klf`); the `kapi` CLI on your PATH (`v1.2.0-rc29`) only reads `kapi-bundle` (`.kbf.json`). I checked the kapi source — no KLF reader exists, and 1.2.3 is the only line on npm. The schemas are otherwise byte-identical, so `scripts/klf-kbf.mjs` renames the discriminator. **Delete it once the tools agree on one format** — the header comment says so.\n\n**2. I could not complete the app-side wiring, because there's no app to wire.** The project has no bundler config, no `index.html`, no entry point — just `src/App.jsx`. So the bundler plugin and runtime loader have nowhere to go, and the skill's real gate (\"run it in the target locale and confirm th\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by getting oriented in the codebase before making any changes."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/node_modules/*\\\" -not -path \\\"*/.git/*\\\" | head -100\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 22:07 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:07 ..\n-rw-r--r--      1 asgeirf  staff      66 Aug 27 22:07 package.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:07 src\n---TREE---\n./package.json\n./src/App.jsx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat package.json \u0026\u0026 echo \\\"=== App.jsx ===\\\" \u0026\u0026 cat -n src/App.jsx\",\"description\":\"Read package.json and App.jsx\"}",
+          "output": "{\"name\":\"demo\",\"private\":true,\"dependencies\":{\"react\":\"^19.0.0\"}}\n=== App.jsx ===\n     1\texport default function App() {\n     2\t  const count = 3;\n     3\t  return (\n     4\t    \u003cmain\u003e\n     5\t      \u003cnav\u003e\n     6\t        \u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\n     7\t        \u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\n     8\t      \u003c/nav\u003e\n     9\t      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\n    10\t      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\n    11\t      \u003cbutton\u003eAdd a task\u003c/button\u003e\n    12\t      \u003clabel\u003e\n    13\t        \u003cinput type=\"checkbox\" /\u003e Email me about updates\n    14\t      \u003c/label\u003e\n    15\t    \u003c/main\u003e\n    16\t  );\n    17\t}"
+        },
+        {
+          "kind": "text",
+          "text": "Small codebase — one component. Let me check the tooling situation before deciding on an approach."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -v 2\u003e\u00261; npm -v 2\u003e\u00261; echo \\\"--- net check ---\\\"; timeout 12 npm view react-i18next version 2\u003e\u00261 | tail -3; echo \\\"--- node_modules ---\\\"; ls node_modules 2\u003e\u00261 | head -3\",\"description\":\"Check node, npm, and registry access\"}",
+          "output": "v24.20.0\n11.19.0\n--- net check ---\n(eval):1: command not found: timeout\n--- node_modules ---\nls: node_modules: No such file or directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"npm view react-i18next version --fetch-timeout=8000 --fetch-retries=0 2\u003e\u00261 | tail -5; echo \\\"=== ICU check ===\\\"; node -e \\\"console.log('plural pl 2 -\u003e', new Intl.PluralRules('pl').select(2)); console.log('full-icu:', typeof Intl.PluralRules !== 'undefined' \u0026\u0026 new Intl.NumberFormat('ar-EG').format(3))\\\"\",\"description\":\"Test npm registry reachability and Node ICU support\",\"timeout\":40000}",
+          "output": "17.0.12\n=== ICU check ===\nplural pl 2 -\u003e few\nfull-icu: ٣"
+        },
+        {
+          "kind": "text",
+          "text": "Network and full ICU are available. Let me verify a couple of `Intl` APIs I want to rely on for plurals and RTL."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst l = new Intl.Locale('ar');\\nconsole.log('getTextInfo:', typeof l.getTextInfo, 'textInfo:', typeof l.textInfo);\\ntry { console.log('ar dir:', (l.getTextInfo?.() ?? l.textInfo).direction); } catch(e) { console.log('err', e.message); }\\nconsole.log('pl categories:', ['pl','ar','en'].map(x =\u003e x+':'+new Intl.PluralRules(x).resolvedOptions().pluralCategories.join('/')).join('  '));\\nconsole.log('pl selects:', [0,1,2,5,22].map(n =\u003e n+'-\u003e'+new Intl.PluralRules('pl').select(n)).join(' '));\\n\\\"\",\"description\":\"Verify Intl.Locale text direction and plural categories\"}",
+          "output": "getTextInfo: function textInfo: object\nar dir: rtl\npl categories: pl:one/few/many/other  ar:zero/one/two/few/many/other  en:one/other\npl selects: 0-\u003emany 1-\u003eone 2-\u003efew 5-\u003emany 22-\u003efew"
+        },
+        {
+          "kind": "text",
+          "text": "Full ICU, `getTextInfo`, and correct CLDR plural categories all work. Here's my plan:\n\n- Extract every string into a JSON catalog with dot-namespaced keys\n- Build a small zero-dependency i18n core whose `t()` API **deliberately matches i18next's contract** (`{{var}}` interpolation, `key_one`/`key_other` plural suffixes), so swapping in `react-i18next` later needs no call-site changes\n- Use `Intl.PluralRules` for real CLDR plurals (not a naive `n === 1`), `Intl.NumberFormat` for numbers, and `Intl.Locale` for RTL direction\n- Cover the core with tests\n\nStarting with the core:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p src/i18n src/locales \u0026\u0026 cat \u003e src/i18n/translate.js \u003c\u003c'EOF'\\n/**\\n * Framework-agnostic translation core.\\n *\\n * The `t(key, vars)` contract intentionally mirrors i18next:\\n *   - `{{name}}` placeholders\\n *   - plural forms as sibling keys `foo_one` / `foo_other` / `foo_few` / ...\\n * so this module can be swapped for `react-i18next` without touching call sites.\\n */\\n\\nconst RTL_LANGUAGES = new Set([\\n  'ar', 'ckb', 'dv', 'fa', 'he', 'ks', 'nqo', 'ps', 'sd', 'ug', 'ur', 'yi',\\n]);\\n\\nconst isProduction =\\n  typeof process !== 'undefined' \u0026\u0026 process.env?.NODE_ENV === 'production';\\n\\nconst warnedOnce = new Set();\\n\\nfunction warn(message) {\\n  if (isProduction) return;\\n  if (warnedOnce.has(message)) return;\\n  warnedOnce.add(message);\\n  console.warn(`[i18n] ${message}`);\\n}\\n\\n/** Collapse a nested catalog into dot-separated keys: {a:{b:'x'}} -\u003e {'a.b':'x'} */\\nexport function flattenCatalog(messages, prefix = '', out = {}) {\\n  for (const [name, value] of Object.entries(messages ?? {})) {\\n    const key = prefix ? `${prefix}.${name}` : name;\\n    if (value \u0026\u0026 typeof value === 'object' \u0026\u0026 !Array.isArray(value)) {\\n      flattenCatalog(value, key, out);\\n   \n…truncated…",
+          "output": "core: syntax OK"
+        },
+        {
+          "kind": "text",
+          "text": "Now the React binding, catalog, and the refactored component:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e src/i18n/I18nProvider.jsx \u003c\u003c'EOF'\\nimport { createContext, useContext, useEffect, useMemo } from 'react';\\nimport { createTranslator, negotiateLocale, textDirection } from './translate.js';\\n\\nconst I18nContext = createContext(null);\\n\\nfunction detectPreferredLocales() {\\n  if (typeof navigator === 'undefined') return [];\\n  return navigator.languages?.length ? [...navigator.languages] : [navigator.language];\\n}\\n\\n/**\\n * Provides the active locale and its translator to the tree.\\n * Pass `locale` to force one; otherwise the browser's preference is negotiated\\n * against the locales present in `catalogs`.\\n */\\nexport function I18nProvider({ catalogs, locale, fallbackLocale = 'en', children }) {\\n  const value = useMemo(() =\u003e {\\n    const available = Object.keys(catalogs);\\n    const active = negotiateLocale(\\n      locale ?? detectPreferredLocales(),\\n      available,\\n      fallbackLocale,\\n    );\\n    const t = createTranslator({\\n      locale: active,\\n      messages: catalogs[active],\\n      fallbackLocale,\\n      fallbackMessages: catalogs[fallbackLocale],\\n    });\\n    return { t, locale: active, dir: textDirection(active) };\\n  }, [catalogs, locale, fall\n…truncated…",
+          "output": "catalog + locales: OK"
+        },
+        {
+          "kind": "text",
+          "text": "Adding ESM + a test script to `package.json`, then the test suite:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nconst fs = require('fs');\\nconst pkg = JSON.parse(fs.readFileSync('package.json'));\\nconst next = {\\n  name: pkg.name,\\n  private: pkg.private,\\n  type: 'module',\\n  scripts: { ...(pkg.scripts ?? {}), test: 'node --test src/**/*.test.js' },\\n  dependencies: pkg.dependencies,\\n};\\nfs.writeFileSync('package.json', JSON.stringify(next, null, 2) + '\\\\n');\\n\\\" \u0026\u0026 cat package.json\",\"description\":\"Add type:module and test script to package.json\"}",
+          "output": "{\n  \"name\": \"demo\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"scripts\": {\n    \"test\": \"node --test src/**/*.test.js\"\n  },\n  \"dependencies\": {\n    \"react\": \"^19.0.0\"\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e src/i18n/translate.test.js \u003c\u003c'EOF'\\nimport { test } from 'node:test';\\nimport assert from 'node:assert/strict';\\nimport { readFileSync } from 'node:fs';\\nimport { fileURLToPath } from 'node:url';\\n\\nimport {\\n  createTranslator,\\n  flattenCatalog,\\n  negotiateLocale,\\n  textDirection,\\n} from './translate.js';\\nimport { catalogs } from '../locales/index.js';\\n\\nconst en = catalogs.en;\\n\\n// A deliberately Polish fixture: pl uses one/few/many/other, so it exercises\\n// plural handling that an `n === 1` check would silently get wrong.\\nconst pl = {\\n  dashboard: {\\n    tasksDue_one: 'Masz {{count}} zadanie na dziś.',\\n    tasksDue_few: 'Masz {{count}} zadania na dziś.',\\n    tasksDue_many: 'Masz {{count}} zadań na dziś.',\\n    tasksDue_other: 'Masz {{count}} zadania na dziś.',\\n  },\\n};\\n\\nfunction translator(locale, messages) {\\n  return createTranslator({\\n    locale,\\n    messages,\\n    fallbackLocale: 'en',\\n    fallbackMessages: en,\\n  });\\n}\\n\\ntest('selects English singular and plural forms', () =\u003e {\\n  const t = translator('en', en);\\n  assert.equal(t('dashboard.tasksDue', { count: 1 }), 'You have 1 task due today.');\\n  assert.equal(t('dashboard.tasksD\n…truncated…",
+          "output": "ℹ suites 0\nℹ pass 9\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 80.186666\n\n✖ failing tests:\n\ntest at src/i18n/translate.test.js:51:1\n✖ formats numbers using the active locale (1.032167ms)\n  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /٣/. Input:\n  \n  'You have 3 tasks due today.'\n  \n      at TestContext.\u003canonymous\u003e (file://\u003cpath\u003e\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1397:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)\n      at Test.postRun (node:internal/test_runner/test:1537:19)\n      at Test.run (node:internal/test_runner/test:1462:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 'You have 3 tasks due today.',\n    expected: /٣/,\n    operator: 'match',\n    diff: 'simple'\n  }"
+        },
+        {
+          "kind": "text",
+          "text": "My test assumed `ar` uses Arabic-Indic digits; that's the numbering-system default, not something my code controls. Let me check what's actually correct:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e \\\"\\nfor (const l of ['ar','ar-EG','ar-SA','en']) {\\n  console.log(l, '-\u003e', new Intl.NumberFormat(l).format(3), '| ns:', new Intl.NumberFormat(l).resolvedOptions().numberingSystem);\\n}\\\"\",\"description\":\"Check numbering systems per Arabic locale\"}",
+          "output": "ar -\u003e 3 | ns: latn\nar-EG -\u003e ٣ | ns: arab\nar-SA -\u003e ٣ | ns: arab\nen -\u003e 3 | ns: latn"
+        },
+        {
+          "kind": "text",
+          "text": "The code was right — bare `ar` resolves to Latin digits per CLDR; `ar-EG` resolves to Arabic-Indic. Fixing the test's expectation and pinning both cases:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re, pathlib\\np = pathlib.Path('src/i18n/translate.test.js')\\ns = p.read_text()\\nold = \\\"\\\"\\\"  const arabic = createTranslator({ locale: 'ar', messages: {}, fallbackMessages: en });\\n  assert.match(arabic('dashboard.tasksDue', { count: 3 }), /٣/);\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"  // Numbering system follows CLDR, not the language: ar-EG uses Arabic-Indic\\n  // digits while bare `ar` resolves to Latin ones.\\n  const egyptian = createTranslator({ locale: 'ar-EG', messages: {}, fallbackMessages: en });\\n  assert.match(egyptian('dashboard.tasksDue', { count: 3 }), /٣/);\\n\\n  const plainArabic = createTranslator({ locale: 'ar', messages: {}, fallbackMessages: en });\\n  assert.match(plainArabic('dashboard.tasksDue', { count: 3 }), /3/);\\\"\\\"\\\"\\nassert old in s\\np.write_text(s.replace(old, new))\\nPY\\nnpm test 2\u003e\u00261 | tail -18\",\"description\":\"Fix Arabic numbering-system test expectation and rerun\"}",
+          "output": "✔ selects English singular and plural forms (15.207375ms)\n✔ selects the right Polish plural category for each count (0.285417ms)\n✔ formats numbers using the active locale (0.837542ms)\n✔ interpolates named values without translating them (0.125917ms)\n✔ falls back per key, using the fallback locale plural rules (0.2675ms)\n✔ degrades visibly instead of throwing (0.128458ms)\n✔ flattens nested catalogs into dot keys (0.477416ms)\n✔ negotiates the closest available locale (0.134542ms)\n✔ resolves writing direction (0.144625ms)\n✔ every key used in the UI exists in the source catalog (0.488084ms)\nℹ tests 10\nℹ suites 0\nℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 78.120541"
+        },
+        {
+          "kind": "text",
+          "text": "All green. Now let me verify the refactor renders **exactly** the same markup as the original — that's the thing a retrofit must not break. I'll do this in a scratch dir so the project stays clean:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\nV=\u003cpath\u003e rm -rf $V; mkdir -p $V/src\\ncd $V\\ncat \u003e package.json \u003c\u003c'EOF'\\n{\\\"name\\\":\\\"verify\\\",\\\"private\\\":true,\\\"type\\\":\\\"module\\\"}\\nEOF\\nnpm install --silent --no-audit --no-fund react@19 react-dom@19 esbuild \u003e/dev/null 2\u003e\u00261\\necho \\\"installed:\\\" \u0026\u0026 node -e \\\"console.log(require('react').version, '| esbuild', require('esbuild').version)\\\" 2\u003e/dev/null || npx esbuild --version\",\"description\":\"Set up scratch verification environment\",\"timeout\":180000}",
+          "output": "installed:\n19.2.8 | esbuild 0.28.2\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\nV=\u003cpath\u003e -R src/i18n src/locales src/App.jsx $V/src/\\n\\n# The pre-refactor component, verbatim, as the reference.\\ncat \u003e $V/src/OriginalApp.jsx \u003c\u003c'EOF'\\nexport default function OriginalApp() {\\n  const count = 3;\\n  return (\\n    \u003cmain\u003e\\n      \u003cnav\u003e\\n        \u003ca href=\\\"/\\\"\u003eDashboard\u003c/a\u003e\\n        \u003ca href=\\\"/tasks\\\"\u003eTasks\u003c/a\u003e\\n      \u003c/nav\u003e\\n      \u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\\n      \u003cp\u003eYou have {count} tasks due today.\u003c/p\u003e\\n      \u003cbutton\u003eAdd a task\u003c/button\u003e\\n      \u003clabel\u003e\\n        \u003cinput type=\\\"checkbox\\\" /\u003e Email me about updates\\n      \u003c/label\u003e\\n    \u003c/main\u003e\\n  );\\n}\\nEOF\\n\\ncat \u003e $V/entry.jsx \u003c\u003c'EOF'\\nimport { renderToStaticMarkup } from 'react-dom/server';\\nimport OriginalApp from './src/OriginalApp.jsx';\\nimport App from './src/App.jsx';\\n\\nconsole.log('BEFORE:' + renderToStaticMarkup(\u003cOriginalApp /\u003e));\\nconsole.log('AFTER:' + renderToStaticMarkup(\u003cApp /\u003e));\\nEOF\\n\\ncd $V\\nnpx esbuild entry.jsx --bundle --platform=node --format=esm --loader:.js=jsx --outfile=out.mjs --log-level=warning\\nnode out.mjs \u003e render.txt 2\u003eerr.txt || { echo \\\"RENDER FAILED\\\"; cat err.txt; exit 1; }\\ngrep '^BEFORE:' render.txt | sed 's/^BEFORE://' \u003e before.html\\ngrep '^AFTER:'  render.txt \n…truncated…",
+          "output": "Exit code 1\nRENDER FAILED\nfile://\u003cpath\u003e\n  throw Error('Dynamic require of \"' + x + '\" is not supported');\n        ^\n\nError: Dynamic require of \"util\" is not supported\n    at file://\u003cpath\u003e\n    at file://\u003cpath\u003e\n    at node_modules/react-dom/cjs/react-dom-server.node.development.js (file://\u003cpath\u003e\n    at __require2 (file://\u003cpath\u003e\n    at node_modules/react-dom/server.node.js (file://\u003cpath\u003e\n    at __require2 (file://\u003cpath\u003e\n    at file://\u003cpath\u003e\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.20.0",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "Bundling React's server build broke it — I'll keep the packages external so Node resolves them natively:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncd \u003cpath\u003e esbuild entry.jsx --bundle --platform=node --format=esm --packages=external --loader:.js=jsx --outfile=out.mjs --log-level=warning\\nnode out.mjs \u003e render.txt 2\u003eerr.txt || { echo \\\"RENDER FAILED\\\"; cat err.txt; exit 1; }\\ngrep '^BEFORE:' render.txt | sed 's/^BEFORE://' \u003e before.html\\ngrep '^AFTER:'  render.txt | sed 's/^AFTER://'  \u003e after.html\\necho \\\"--- rendered markup (after) ---\\\"; cat after.html; echo\\necho \\\"--- diff vs original (empty == identical) ---\\\"\\nif diff before.html after.html; then echo \\\"IDENTICAL ✓\\\"; fi\",\"description\":\"Rebuild with external packages and diff rendered markup\",\"timeout\":120000}",
+          "output": "Exit code 1\nRENDER FAILED\nfile://\u003cpath\u003e\nconsole.log(\"BEFORE:\" + renderToStaticMarkup(/* @__PURE__ */ React.createElement(OriginalApp, null)));\n                                                             ^\n\nReferenceError: React is not defined\n    at file://\u003cpath\u003e\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.20.0",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncd \u003cpath\u003e esbuild entry.jsx --bundle --platform=node --format=esm --packages=external --jsx=automatic --loader:.js=jsx --outfile=out.mjs --log-level=warning\\nnode out.mjs \u003e render.txt 2\u003eerr.txt || { echo \\\"RENDER FAILED\\\"; cat err.txt; exit 1; }\\ngrep '^BEFORE:' render.txt | sed 's/^BEFORE://' \u003e before.html\\ngrep '^AFTER:'  render.txt | sed 's/^AFTER://'  \u003e after.html\\necho \\\"--- rendered markup (after) ---\\\"; cat after.html; echo\\necho \\\"--- warnings on stderr ---\\\"; cat err.txt\\necho \\\"--- diff vs original (empty == identical) ---\\\"\\nif diff before.html after.html; then echo \\\"IDENTICAL ✓\\\"; fi\",\"description\":\"Build with automatic JSX runtime and diff rendered markup\",\"timeout\":120000}",
+          "output": "--- rendered markup (after) ---\n\u003cmain\u003e\u003cnav\u003e\u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\u003c/nav\u003e\u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\u003cp\u003eYou have 3 tasks due today.\u003c/p\u003e\u003cbutton\u003eAdd a task\u003c/button\u003e\u003clabel\u003e\u003cinput type=\"checkbox\"/\u003e Email me about updates\u003c/label\u003e\u003c/main\u003e\n\n--- warnings on stderr ---\n--- diff vs original (empty == identical) ---\nIDENTICAL ✓\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Byte-identical markup, and esbuild accepted the `with { type: 'json' }` import attribute without warnings. Let me make the locale overridable (useful for a language switcher and for tests), then prove a real translation renders:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\npython3 - \u003c\u003c'PY'\\nimport pathlib\\np = pathlib.Path('src/App.jsx')\\ns = p.read_text()\\nold = \\\"\\\"\\\"export default function App() {\\n  // Stand-in for the signed-in user; the name is data, never a translated string.\\n  const user = { name: 'Alex' };\\n\\n  return (\\n    \u003cI18nProvider catalogs={catalogs} fallbackLocale={DEFAULT_LOCALE}\u003e\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"/** `locale` forces a language; omit it to follow the browser's preference. */\\nexport default function App({ locale }) {\\n  // Stand-in for the signed-in user; the name is data, never a translated string.\\n  const user = { name: 'Alex' };\\n\\n  return (\\n    \u003cI18nProvider catalogs={catalogs} locale={locale} fallbackLocale={DEFAULT_LOCALE}\u003e\\\"\\\"\\\"\\nassert old in s\\np.write_text(s.replace(old, new))\\nPY\\n\\nV=\u003cpath\u003e src/App.jsx $V/src/App.jsx\\n\\n# Prove an actual translated + RTL locale renders end-to-end through the provider.\\ncat \u003e $V/entry2.jsx \u003c\u003c'EOF'\\nimport { renderToStaticMarkup } from 'react-dom/server';\\nimport { I18nProvider, useTranslation } from './src/i18n/I18nProvider.jsx';\\nimport App from './src/App.jsx';\\n\\nconst pl = {\\n  nav: { dashboard: 'Panel', tasks: 'Zadania' },\\n  dashboard: {\\n    greeting: 'Wi\n…truncated…",
+          "output": "Exit code 143\nCommand timed out after 2m 0s\noverwrite \u003cpath\u003e (y/n [n])",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "The `cp` alias prompted interactively and blocked. Re-running non-interactively:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\nsed -n '1,12p' src/App.jsx\\nV=\u003cpath\u003e cp -f src/App.jsx $V/src/App.jsx\\necho \\\"--- copied ---\\\"\",\"description\":\"Confirm App edit and copy to scratch without prompting\"}",
+          "output": "import { I18nProvider, useTranslation } from './i18n/I18nProvider.jsx';\nimport { catalogs, DEFAULT_LOCALE } from './locales/index.js';\n\n/** `locale` forces a language; omit it to follow the browser's preference. */\nexport default function App({ locale }) {\n  // Stand-in for the signed-in user; the name is data, never a translated string.\n  const user = { name: 'Alex' };\n\n  return (\n    \u003cI18nProvider catalogs={catalogs} locale={locale} fallbackLocale={DEFAULT_LOCALE}\u003e\n      \u003cDashboard user={user} /\u003e\n    \u003c/I18nProvider\u003e\n--- copied ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncd \u003cpath\u003e esbuild entry2.jsx --bundle --platform=node --format=esm --packages=external --jsx=automatic --loader:.js=jsx --outfile=out2.mjs --log-level=warning\\nNODE_ENV=production node out2.mjs\",\"description\":\"Render translated, RTL, and fallback locales\",\"timeout\":120000}",
+          "output": "Exit code 1\n✘ [ERROR] The entry point \"entry2.jsx\" cannot be marked as external\n\nnode:internal/modules/cjs/loader:1568\n  throw err;\n  ^\n\nError: Cannot find module '\u003cpath\u003e'\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)\n    at Module._load (node:internal/modules/cjs/loader:1341:5)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47 {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}\n\nNode.js v24.20.0",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncd \u003cpath\u003e esbuild ./entry2.jsx --bundle --platform=node --format=esm --packages=external --jsx=automatic --loader:.js=jsx --outfile=out2.mjs --log-level=warning\\nNODE_ENV=production node out2.mjs\",\"description\":\"Rebuild with relative entry path and render locales\",\"timeout\":120000}",
+          "output": "Exit code 1\n✘ [ERROR] Could not resolve \"./entry2.jsx\"\n\nnode:internal/modules/cjs/loader:1568\n  throw err;\n  ^\n\nError: Cannot find module '\u003cpath\u003e'\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)\n    at Module._load (node:internal/modules/cjs/loader:1341:5)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47 {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}\n\nNode.js v24.20.0",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "`entry2.jsx` was never created — the earlier script died at the `cp` prompt before reaching it. Recreating it:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\nimport { renderToStaticMarkup } from 'react-dom/server';\\nimport { I18nProvider, useTranslation } from './src/i18n/I18nProvider.jsx';\\nimport App from './src/App.jsx';\\n\\nconst pl = {\\n  nav: { dashboard: 'Panel', tasks: 'Zadania' },\\n  dashboard: {\\n    greeting: 'Witaj ponownie, {{name}}',\\n    tasksDue_one: 'Masz {{count}} zadanie na dziś.',\\n    tasksDue_few: 'Masz {{count}} zadania na dziś.',\\n    tasksDue_many: 'Masz {{count}} zadań na dziś.',\\n    addTask: 'Dodaj zadanie',\\n    // emailOptIn intentionally absent -\u003e must fall back to English.\\n  },\\n};\\nconst ar = { nav: { dashboard: 'لوحة التحكم' } };\\n\\nfunction Probe() {\\n  const { t, locale, dir } = useTranslation();\\n  return \u003cp lang={locale} dir={dir}\u003e{t('nav.dashboard')} | {t('dashboard.tasksDue', { count: 5 })} | {t('dashboard.emailOptIn')}\u003c/p\u003e;\\n}\\n\\nconst catalogs = { en: {}, pl, ar };\\nconsole.log('EN-app :' + renderToStaticMarkup(\u003cApp locale=\\\"en\\\" /\u003e));\\nconsole.log('PL     :' + renderToStaticMarkup(\u003cI18nProvider catalogs={{ pl }} locale=\\\"pl\\\"\u003e\u003cProbe /\u003e\u003c/I18nProvider\u003e));\\nconsole.log('AR-EG  :' + renderToStaticMarkup(\u003cI18nProvider catalogs={catalogs} locale\n…truncated…",
+          "output": "EN-app :\u003cmain\u003e\u003cnav\u003e\u003ca href=\"/\"\u003eDashboard\u003c/a\u003e\u003ca href=\"/tasks\"\u003eTasks\u003c/a\u003e\u003c/nav\u003e\u003ch1\u003eWelcome back, Alex\u003c/h1\u003e\u003cp\u003eYou have 3 tasks due today.\u003c/p\u003e\u003cbutton\u003eAdd a task\u003c/button\u003e\u003clabel\u003e\u003cinput type=\"checkbox\"/\u003e Email me about updates\u003c/label\u003e\u003c/main\u003e\nPL     :\u003cp lang=\"pl\" dir=\"ltr\"\u003ePanel | Masz 5 zadań na dziś. | dashboard.emailOptIn\u003c/p\u003e\nAR-EG  :\u003cp lang=\"ar\" dir=\"rtl\"\u003eلوحة التحكم | dashboard.tasksDue | dashboard.emailOptIn\u003c/p\u003e\nPT-BR  :\u003cp lang=\"en\" dir=\"ltr\"\u003enav.dashboard | dashboard.tasksDue | dashboard.emailOptIn\u003c/p\u003e\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Plural selection (`zadań` = the \"many\" form for 5) and RTL both work. The PL row shows the raw key because that fixture had no `en` catalog to fall back to. Let me confirm the realistic config — real English catalog present:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\nimport { renderToStaticMarkup } from 'react-dom/server';\\nimport { I18nProvider, useTranslation } from './src/i18n/I18nProvider.jsx';\\nimport en from './src/locales/en.json' with { type: 'json' };\\n\\nconst pl = {\\n  nav: { dashboard: 'Panel', tasks: 'Zadania' },\\n  dashboard: {\\n    greeting: 'Witaj ponownie, {{name}}',\\n    tasksDue_one: 'Masz {{count}} zadanie na dziś.',\\n    tasksDue_few: 'Masz {{count}} zadania na dziś.',\\n    tasksDue_many: 'Masz {{count}} zadań na dziś.',\\n    addTask: 'Dodaj zadanie',\\n    // Not yet translated -\u003e should show English, not a raw key.\\n  },\\n};\\n\\nfunction Probe({ count }) {\\n  const { t, locale, dir } = useTranslation();\\n  return (\\n    \u003cp lang={locale} dir={dir}\u003e\\n      {t('nav.dashboard')} / {t('dashboard.greeting', { name: 'Alex' })} / {t('dashboard.tasksDue', { count })} / {t('dashboard.emailOptIn')}\\n    \u003c/p\u003e\\n  );\\n}\\n\\nconst catalogs = { en, pl };\\nfor (const count of [1, 2, 5]) {\\n  console.log(`pl n=${count}: ` + renderToStaticMarkup(\u003cI18nProvider catalogs={catalogs} locale=\\\"pl\\\"\u003e\u003cProbe count={count} /\u003e\u003c/I18nProvider\u003e));\\n}\\nconsole.log('en n=1  : ' + renderToStaticMarkup(\u003cI18nProvider \n…truncated…",
+          "output": "pl n=1: \u003cp lang=\"pl\" dir=\"ltr\"\u003ePanel / Witaj ponownie, Alex / Masz 1 zadanie na dziś. / Email me about updates\u003c/p\u003e\npl n=2: \u003cp lang=\"pl\" dir=\"ltr\"\u003ePanel / Witaj ponownie, Alex / Masz 2 zadania na dziś. / Email me about updates\u003c/p\u003e\npl n=5: \u003cp lang=\"pl\" dir=\"ltr\"\u003ePanel / Witaj ponownie, Alex / Masz 5 zadań na dziś. / Email me about updates\u003c/p\u003e\nen n=1  : \u003cp lang=\"en\" dir=\"ltr\"\u003eDashboard / Welcome back, Alex / You have 1 task due today. / Email me about updates\u003c/p\u003e\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Correct Polish plural forms, interpolation, and per-key fallback to English for the untranslated string. Cleaning up and running final checks:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"set -e\\ncat \u003e src/locales/README.md \u003c\u003c'EOF'\\n# Translations\\n\\n`en.json` is the source of truth. Translators work from it; no other catalog is\\nedited by hand in English.\\n\\n## Adding a language\\n\\n1. Copy `en.json` to `\u003clocale\u003e.json` (a BCP 47 tag, e.g. `pt-BR.json`).\\n2. Register it in `index.js`:\\n   ```js\\n   import ptBR from './pt-BR.json' with { type: 'json' };\\n   export const catalogs = { en, 'pt-BR': ptBR };\\n   ```\\n3. Ship it. Missing keys fall back to English per key, so a partial catalog is\\n   safe to release.\\n\\n## Rules for keys and values\\n\\n- **Never concatenate translated fragments.** Put the whole sentence in one key\\n  and use `{{placeholders}}`; word order differs between languages.\\n- **Never put user data in a catalog.** Names, counts and dates are passed in as\\n  variables: `t('dashboard.greeting', { name: user.name })`.\\n- **Plurals are sibling keys**, not an `if`. English needs `_one` / `_other`;\\n  Polish also needs `_few` / `_many`, and Arabic adds `_zero` / `_two`. The\\n  correct form is chosen with `Intl.PluralRules` for that language, so a\\n  translator adds whichever forms their language requires:\\n  ```json\\n  \\\"tasksDue_one\\\":   \\\"You \n…truncated…",
+          "output": "ℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 120.037125\n=== files ===\nsrc/App.jsx\nsrc/i18n/I18nProvider.jsx\nsrc/i18n/translate.js\nsrc/i18n/translate.test.js\nsrc/locales/en.json\nsrc/locales/index.js\nsrc/locales/README.md\n=== App.jsx ===\nimport { I18nProvider, useTranslation } from './i18n/I18nProvider.jsx';\nimport { catalogs, DEFAULT_LOCALE } from './locales/index.js';\n\n/** `locale` forces a language; omit it to follow the browser's preference. */\nexport default function App({ locale }) {\n  // Stand-in for the signed-in user; the name is data, never a translated string.\n  const user = { name: 'Alex' };\n\n  return (\n    \u003cI18nProvider catalogs={catalogs} locale={locale} fallbackLocale={DEFAULT_LOCALE}\u003e\n      \u003cDashboard user={user} /\u003e\n    \u003c/I18nProvider\u003e\n  );\n}\n\nfunction Dashboard({ user }) {\n  const { t } = useTranslation();\n  const count = 3;\n\n  return (\n    \u003cmain\u003e\n      \u003cnav\u003e\n        \u003ca href=\"/\"\u003e{t('nav.dashboard')}\u003c/a\u003e\n        \u003ca href=\"/tasks\"\u003e{t('nav.tasks')}\u003c/a\u003e\n      \u003c/nav\u003e\n      \u003ch1\u003e{t('dashboard.greeting', { name: user.name })}\u003c/h1\u003e\n      \u003cp\u003e{t('dashboard.tasksDue', { count })}\u003c/p\u003e\n      \u003cbutton\u003e{t('dashboard.addTask')}\u003c/button\u003e\n      \u003clabel\u003e\n\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Done. All 6 hardcoded strings are extracted, and the app renders byte-identical markup to before.\n\n## What changed\n\n| File | Purpose |\n|---|---|\n| `src/locales/en.json` | Message catalog — the source of truth for translators |\n| `src/locales/index.js` | Catalog registry + `DEFAULT_LOCALE` |\n| `src/locales/README.md` | Rules for translators and for adding a language |\n| `src/i18n/translate.js` | Framework-agnostic core: lookup, plurals, interpolation, direction |\n| `src/i18n/I18nProvider.jsx` | React provider + `useTranslation()` hook |\n| `src/i18n/translate.test.js` | 10 tests |\n| `src/App.jsx` | Strings replaced with `t()` calls |\n\n## The decisions that matter\n\n**Plurals are real, not `n === 1`.** `You have {count} tasks due today.` became `tasksDue_one`/`tasksDue_other`, resolved through `Intl.PluralRules`. This is the usual place a retrofit quietly breaks: Polish needs four forms, Arabic six. Verified rendering in Polish — `1 zadanie` / `2 zadania` / `5 zadań`.\n\n**\"Alex\" is data, not copy.** It was inside the translatable sentence, where translators would have translated a person's name and it could never vary per user. It's now `t('dashboard.greeting', { name: user.name })`.\n\n**Fallback is per key, not per locale.** A half-translated catalog shows English for the missing lines rather than dropping the whole language — so translations can ship incrementally. Each catalog is selected with its *own* language's plural rules, since Polish asks for `_few` but the English fallback only has `_one`/`_other`.\n\n**RTL and number formatting** come along: the provider sets `\u003chtml lang\u003e`/`\u003chtml dir\u003e`, and interpolated numbers format per locale (`1,234` vs `1.234`).\n\n## Verification\n\nRendered the old and new components side by side with `react-dom/server` and diffed: **identical**. Also confirmed end-to-end that Polish plurals, Arabic RTL (`dir=\"rtl\"`), locale negotiation (`pt-BR` → `pt`), and per-key English fallback all work through the real provider. `npm test` passes 10/10.\n\nOne test of mine was wrong, not the code: I'd assumed `ar` renders Arabic-Indic digits, but CLDR resolves bare `ar` to Latin — only `ar-EG`/`ar-SA` use `٣`. The test now pins both.\n\n## Two things worth your call\n\n1. **No i18n library.** I wrote a ~120-line core rather than adding `react-i18next` to a project whose only dependency is React and which has no bundler config I could verify against. The `t()` contract deliberately matches i18next (`{{var}}`, `key_one`/`key_other`), so switching is a change to `I18nProvider.jsx` only — no call sites move. Worth doing once you want lazy-loaded catalogs or translator-tooling integration.\n\n2. **`package.json` now has `\"type\": \"module\"`**, needed to run the tests under `node --test`. The catalog uses standard import attributes (`with { type: 'json' }`) — verified with esbuild 0.28; fine on Vite 5+/webpack 5, but an older toolchain may want a plain JSON import.\n\nAlso worth knowing: \"everywhere\" turned out to be one component. The\n…truncated…"
+        }
+      ]
+    }
+  ]
+}

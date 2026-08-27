@@ -1,0 +1,189 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p08-interchange",
+  "prompt": "Get report.docx ready for a translation vendor in French.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and understanding what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:28 report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "The `kapi` skill covers exactly this — reading .docx and producing translation interchange formats. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"prepare report.docx for a French translation vendor\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "text",
+          "text": "The skill points to the translate reference for vendor hand-off. Let me check the environment and read it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 kapi version 2\u003e\u00261; echo \\\"--- project? ---\\\"; ls -la .kapi 2\u003e\u00261 | head -5; echo \\\"--- status ---\\\"; kapi status 2\u003e\u00261 | head -30\",\"description\":\"Check kapi version and project state\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n--- project? ---\nls: .kapi: No such file or directory\n--- status ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat references/translate.md\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Ad hoc, single file, no project. For a **vendor** hand-off the deliverable is a bilingual XLIFF (vendor does the translating), not a translated docx. Let me confirm the format round-trips and check the exact flags."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== formats (docx) ===\\\"; kapi formats 2\u003e\u00261 | grep -i -E \\\"docx|word|xliff\\\" ; echo; echo \\\"=== stats ===\\\"; kapi stats ./report.docx 2\u003e\u00261 | head -40\",\"description\":\"Check docx format support and word counts\"}",
+          "output": "=== formats (docx) ===\n  openxml        Office Open XML              ✓     ✓      faithful  built-in  .docx, .docm, .dotx, .dotm, .xlsx, .xlsm, .xltx, .xltm, .pptx, .pptm, .ppsx, .potx  application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n  xliff          XLIFF 1.2                    ✓     ✓      —         built-in  .xlf, .xliff                                                                        application/xliff+xml, application/x-xliff+xml\n  xliff2         XLIFF 2.x                    ✓     ✓      —         built-in  .xlf, .xliff                                                                        application/xliff+xml\n\n=== stats ===\nBlocks:                     11\n  translatable:             11\n  non-translatable:          0\nWords:                      62\nCharacters:                416\n  (no spaces):             365\n  unique:                   38\nSegments:                   11\n\nBy role:\n\n  ROLE       BLOCKS\n  heading    3\n  list-item  3"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== extract --help ===\\\"; kapi extract --help 2\u003e\u00261 | head -50\",\"description\":\"Read extract help\"}",
+          "output": "=== extract --help ===\nEmit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\n\nUsage:\n  kapi extract [flags]\n\nExamples:\n  kapi extract -p kapi.yaml --no-memory\n  kapi extract -p kapi.yaml --target-lang fr\n  kapi extract -p kapi.yaml --target-lang fr,de,es\n  kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace\n\nFlags:\n      --force                  re-extract every file, ignoring the incremental reuse of unchanged sources\n      --format string          bilingual output format (xliff2 | po | kpz) (default \"xliff2\")\n  -h, --help                   help for extract\n      --no-memory              skip content-memory pre-fill on extract\n      --only string            restrict to a single content collection by name\n      --out string             merge-time output layout recorded in the .kpz (e.g. 'translated/{lang}/{name}.{ext}')\n      --out-dir string         directory for emitted bilingual files (rel\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and understanding what's in it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name \\\"*.docx\\\" 2\u003e/dev/null\",\"description\":\"List working directory and find docx files\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:29 report.docx\n./report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Get report.docx ready for a translation vendor in French\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---PROJECT---\\\"; ls -la .kapi 2\u003e\u00261 | head; echo \\\"---SKILLDIR---\\\"; ls .claude/skills/kapi/references/\",\"description\":\"Check kapi version and project state\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PROJECT---\nls: .kapi: No such file or directory\n---SKILLDIR---\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/translate.md\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and understanding what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:29 report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find .claude -type f | head -50; echo \\\"---\\\"; file report.docx\",\"description\":\"Inspect .claude config and file type\"}",
+          "output": ".claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md\n---\nreport.docx: Microsoft Word 2007+"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"prepare report.docx for a French translation vendor\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"--- project ---\\\"; kapi status 2\u003e\u00261 | head -30\",\"description\":\"Check kapi binary and project status\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n--- project ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No kapi project here, and this is a single file — so it's a one-off vendor hand-off. Let me pre-flight the document first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi formats --json 2\u003e\u00261 | head -60\",\"description\":\"List supported formats\"}",
+          "output": "{\n  \"formats\": [\n    {\n      \"name\": \"androidxml\",\n      \"display_name\": \"Android String Resources\",\n      \"has_reader\": true,\n      \"has_writer\": true,\n      \"generative\": true,\n      \"editable\": true,\n      \"round_trip\": true,\n      \"source\": \"built-in\"\n    },\n    {\n      \"name\": \"applestrings\",\n      \"display_name\": \"Apple Strings\",\n      \"has_reader\": true,\n      \"has_writer\": true,\n      \"generative\": true,\n      \"editable\": true,\n      \"round_trip\": true,\n      \"source\": \"built-in\",\n      \"extensions\": [\n        \".strings\",\n        \".stringsdict\"\n      ]\n    },\n    {\n      \"name\": \"arb\",\n      \"display_name\": \"Flutter ARB\",\n      \"has_reader\": true,\n      \"has_writer\": true,\n      \"generative\": true,\n      \"editable\": true,\n      \"round_trip\": true,\n      \"source\": \"built-in\",\n      \"extensions\": [\n        \".arb\"\n      ]\n    },\n    {\n      \"name\": \"archive\",\n      \"display_name\": \"Archive (ZIP/TAR)\",\n      \"has_reader\": true,\n      \"has_writer\": false,\n      \"editable\": false,\n      \"source\": \"built-in\",\n      \"extensions\": [\n        \".zip\",\n        \".tar\",\n        \".tgz\",\n        \".tar.gz\"\n      ],\n      \"mime_types\": [\n        \"application/zip\",\n        \"application/x-tar\",\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi stats ./report.docx --json 2\u003e\u00261 | head -40\",\"description\":\"Get translatable word/segment count\"}",
+          "output": "{\n  \"files\": [\n    {\n      \"file\": \"./report.docx\",\n      \"blocks\": 11,\n      \"translatable\": 11,\n      \"non_translatable\": 0,\n      \"words\": 62,\n      \"characters\": 416,\n      \"characters_no_space\": 365,\n      \"unique_characters\": 38,\n      \"segments\": 11,\n      \"by_role\": {\n        \"heading\": 3,\n        \"list-item\": 3\n      }\n    }\n  ],\n  \"total\": {\n    \"blocks\": 11,\n    \"translatable\": 11,\n    \"non_translatable\": 0,\n    \"words\": 62,\n    \"characters\": 416,\n    \"characters_no_space\": 365,\n    \"unique_characters\": 38,\n    \"segments\": 11,\n    \"by_role\": {\n      \"heading\": 3,\n      \"list-item\": 3\n    }\n  }\n}"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and seeing what's in it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find \u003cpath\u003e -iname \\\"*.docx\\\" -o -iname \\\"*.doc\\\" | head -50; echo \\\"---\\\"; ls -la \u003cpath\u003e\",\"description\":\"Find report.docx and list working directory\"}",
+          "output": "\u003cpath\u003e\n---\ntotal 24\ndrwx------      3 asgeirf  staff      96 Aug 27 20:30 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:30 ..\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:30 report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"unzip -l report.docx\",\"description\":\"List docx internal structure\"}",
+          "output": "Archive:  report.docx\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n     1933  05-25-2026 21:57   [Content_Types].xml\n      722  05-25-2026 21:57   _rels/.rels\n     3290  05-25-2026 21:57   word/document.xml\n     1203  05-25-2026 21:57   word/_rels/document.xml.rels\n      124  05-25-2026 21:57   word/_rels/footnotes.xml.rels\n     4178  05-25-2026 21:57   word/numbering.xml\n    27124  05-25-2026 21:57   word/styles.xml\n      843  05-25-2026 21:57   word/footnotes.xml\n      625  05-25-2026 21:57   word/comments.xml\n      583  05-25-2026 21:57   docProps/core.xml\n      212  05-25-2026 21:57   docProps/custom.xml\n     1320  05-25-2026 21:57   word/settings.xml\n      724  05-25-2026 21:57   docProps/app.xml\n    11370  05-25-2026 21:57   word/theme/theme1.xml\n     2324  05-25-2026 21:57   word/fontTable.xml\n      199  05-25-2026 21:57   word/webSettings.xml\n---------                     -------\n    56774                     16 files"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which tikal rainbow okapi java python3 2\u003e/dev/null; echo \\\"---\\\"; python3 -c \\\"import docx; print('python-docx available')\\\" 2\u003e\u00261 | tail -1\",\"description\":\"Check for localization tooling\"}",
+          "output": "tikal not found\nrainbow not found\nokapi not found\n~/.jenv/shims/java\n~/.pyenv/shims/python3\n---\npython-docx available"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 unzip -o -q report.docx -d \u003cpath\u003e \u0026\u0026 python3 -c \\\"\\nimport sys,re\\nd=open('\u003cpath\u003e').read()\\nprint(re.sub(r'\u003e\u003c',r'\u003e\\\\n\u003c',d))\\n\\\"\",\"description\":\"Dump document.xml formatted\"}",
+          "output": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cw:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"\u003e\n\u003cw:body\u003e\n    \u003cw:bookmarkStart w:id=\"11\" w:name=\"partnership-proposal\" /\u003e\n    \u003cw:p\u003e\n\u003cw:pPr\u003e\n\u003cw:pStyle w:val=\"Heading1\" /\u003e\n\u003c/w:pPr\u003e\n\u003cw:r\u003e\n\u003cw:t xml:space=\"preserve\"\u003ePartnership Proposal\u003c/w:t\u003e\n\u003c/w:r\u003e\n\u003c/w:p\u003e\n    \u003cw:p\u003e\n\u003cw:pPr\u003e\n\u003cw:pStyle w:val=\"FirstParagraph\" /\u003e\n\u003c/w:pPr\u003e\n\u003cw:r\u003e\n\u003cw:rPr\u003e\n\u003cw:b /\u003e\n\u003cw:bCs /\u003e\n\u003c/w:rPr\u003e\n\u003cw:t xml:space=\"preserve\"\u003ePrepared for:\u003c/w:t\u003e\n\u003c/w:r\u003e\n\u003cw:r\u003e\n\u003cw:t xml:space=\"preserve\"\u003e \u003c/w:t\u003e\n\u003c/w:r\u003e\n\u003cw:r\u003e\n\u003cw:t xml:space=\"preserve\"\u003eMeridian Retail Group\u003c/w:t\u003e\n\u003c/w:r\u003e\n\u003c/w:p\u003e\n    \u003cw:p\u003e\n\u003cw:pPr\u003e\n\u003cw:pStyle w:val=\"BodyText\" /\u003e\n\u003c/w:pPr\u003e\n\u003cw:r\u003e\n\u003cw:rPr\u003e\n\u003cw:b /\u003e\n\u003cw:bCs /\u003e\n\u003c/w:r\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 for f in word/footnotes.xml word/comments.xml docProps/core.xml docProps/custom.xml docProps/app.xml word/settings.xml word/_rels/document.xml.rels word/_rels/footnotes.xml.rels; do echo \\\"=== $f ===\\\"; python3 -c \\\"\\nimport re,sys\\nprint(re.sub(r'\u003e\u003c',r'\u003e\\\\n\u003c',open('$f').read()))\\n\\\"; done\",\"description\":\"Dump ancillary docx parts\"}",
+          "output": "=== word/footnotes.xml ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cw:footnotes xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"\u003e\n\u003cw:footnote w:type=\"continuationSeparator\" w:id=\"0\"\u003e\n\u003cw:p\u003e\n\u003cw:r\u003e\n\u003cw:continuationSeparator /\u003e\n\u003c/w:r\u003e\n\u003c/w:p\u003e\n\u003c/w:footnote\u003e\n\u003cw:footnote w:type=\"separator\" w:id=\"-1\"\u003e\n\u003cw:p\u003e\n\u003cw:r\u003e\n\u003cw:separator /\u003e\n\u003c/w:r\u003e\n\u003c/w:p\u003e\n\u003c/w:footnote\u003e\n\u003c/w:footnotes\u003e\n=== word/comments.xml ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cw:comments xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schem\n…truncated…"
+        }
+      ]
+    }
+  ]
+}

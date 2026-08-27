@@ -127,6 +127,21 @@ func main() {
 	}
 	for _, part := range partitionBySurface(report) {
 		if sessionDir != "" {
+			// Ask before replacing anything: the artefacts and transcripts of
+			// the run already published are about to be deleted, and merge
+			// would refuse this run afterwards.
+			if err := wouldShrink(target, part); err != nil {
+				fail(err.Error())
+			}
+			n, size, err := stageArtifacts(root, part)
+			if err != nil {
+				fail(err.Error())
+			}
+			if n > 0 {
+				fmt.Printf("skilleval: %s: staged %d artefact(s), %.1f MB → %s\n",
+					part.Key(), n, float64(size)/(1<<20), ArtifactDir)
+				fmt.Println("skilleval: publish them with `make publish-cdn-eval-artifacts`")
+			}
 			if err := writeSessions(sessionDir, part.Key(), splitSessions(part)); err != nil {
 				fail(err.Error())
 			}
@@ -532,31 +547,9 @@ func (r *Report) stamp(opts Options, claudeBin string) {
 // merge writes the new report while keeping the other mode's results, so a
 // trigger sweep does not erase the completion numbers or the reverse.
 func merge(target string, fresh *Report) error {
-	combined := map[string]*Report{}
-	if old, err := os.ReadFile(target); err == nil {
-		var prior map[string]*Report
-		if json.Unmarshal(old, &prior) == nil {
-			// Reports written before the MCP surface existed are keyed by mode
-			// alone. They were skill sweeps, so name them that way rather than
-			// leaving the dataset with two spellings of the same thing.
-			for k, r := range prior {
-				if k == modeTrigger || k == modeCompletion {
-					delete(prior, k)
-					prior[surfaceSkill+":"+k] = r
-				}
-			}
-			combined = prior
-		}
-	}
-	// A partial run must not quietly shrink the published dataset. `-only` is
-	// the everyday way to re-check one scenario, and writing its one result
-	// over a full sweep leaves the dashboard showing a suite of one with
-	// nothing to say the rest was ever measured.
-	if prior, ok := combined[fresh.Key()]; ok && len(prior.Results) > len(fresh.Results) {
-		return fmt.Errorf(
-			"refusing to replace %d recorded scenarios with %d: re-run the full sweep, "+
-				"or pass -out to write this partial run somewhere else",
-			len(prior.Results), len(fresh.Results))
+	combined := readDataset(target)
+	if err := checkNotShrinking(combined, fresh); err != nil {
+		return err
 	}
 	combined[fresh.Key()] = fresh
 
@@ -565,6 +558,54 @@ func merge(target string, fresh *Report) error {
 		return err
 	}
 	return os.WriteFile(target, append(data, '\n'), 0o644)
+}
+
+// readDataset loads what is already published, or an empty set.
+func readDataset(target string) map[string]*Report {
+	old, err := os.ReadFile(target)
+	if err != nil {
+		return map[string]*Report{}
+	}
+	var prior map[string]*Report
+	if json.Unmarshal(old, &prior) != nil {
+		return map[string]*Report{}
+	}
+	// Reports written before the MCP surface existed are keyed by mode alone.
+	// They were skill sweeps, so name them that way rather than leaving the
+	// dataset with two spellings of the same thing.
+	for k, r := range prior {
+		if k == modeTrigger || k == modeCompletion {
+			delete(prior, k)
+			prior[surfaceSkill+":"+k] = r
+		}
+	}
+	return prior
+}
+
+// checkNotShrinking refuses a partial run that would replace a recorded sweep.
+//
+// `-only` is the everyday way to re-check one scenario, and writing its one
+// result over a full sweep leaves the dashboard showing a suite of one with
+// nothing to say the rest was ever measured.
+//
+// Separate from the write because transcripts and artefacts are replaced on the
+// same terms and are staged before the dataset is written. Asking only at write
+// time deleted seventeen scenarios' artefacts on behalf of a run of one, which
+// is the outcome this refusal exists to prevent.
+func checkNotShrinking(combined map[string]*Report, fresh *Report) error {
+	prior, ok := combined[fresh.Key()]
+	if !ok || len(prior.Results) <= len(fresh.Results) {
+		return nil
+	}
+	return fmt.Errorf(
+		"refusing to replace %d recorded scenarios with %d: re-run the full sweep, "+
+			"or pass -out to write this partial run somewhere else",
+		len(prior.Results), len(fresh.Results))
+}
+
+// wouldShrink asks the same question before anything is replaced.
+func wouldShrink(target string, fresh *Report) error {
+	return checkNotShrinking(readDataset(target), fresh)
 }
 
 func repoRoot() (string, error) {

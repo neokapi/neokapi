@@ -1,0 +1,98 @@
+{
+  "key": "skill:trigger",
+  "scenario": "n05-locale-code",
+  "prompt": "Format this date according to the user's locale.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"defaults read -g AppleLocale 2\u003e/dev/null; echo \\\"---\\\"; defaults read -g AppleLanguages 2\u003e/dev/null; echo \\\"---\\\"; locale 2\u003e/dev/null; echo \\\"---\\\"; defaults read .GlobalPreferences AppleICUDateFormatStrings 2\u003e/dev/null\",\"description\":\"Read system locale settings\"}",
+          "output": "Exit code 1\nen_NO\n---\n(\n    \"en-NO\",\n    \"nb-NO\"\n)\n---\nLANG=\"en_US.UTF-8\"\nLC_COLLATE=\"en_US.UTF-8\"\nLC_CTYPE=\"UTF-8\"\nLC_MESSAGES=\"en_US.UTF-8\"\nLC_MONETARY=\"en_US.UTF-8\"\nLC_NUMERIC=\"en_US.UTF-8\"\nLC_TIME=\"en_US.UTF-8\"\nLC_ALL=\n---",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"command -v node \u003e/dev/null \u0026\u0026 node -e '\\nconst d = new Date(Date.UTC(2026,7,27));\\nfor (const s of [\\\"short\\\",\\\"medium\\\",\\\"long\\\",\\\"full\\\"]) {\\n  console.log(s.padEnd(7), new Intl.DateTimeFormat(\\\"en-NO\\\",{dateStyle:s,timeZone:\\\"UTC\\\"}).format(d));\\n}\\nconsole.log(\\\"nb-NO full\\\", new Intl.DateTimeFormat(\\\"nb-NO\\\",{dateStyle:\\\"full\\\",timeZone:\\\"UTC\\\"}).format(d));\\n' || echo \\\"no node\\\"\",\"description\":\"Format date with ICU for en-NO\"}",
+          "output": "short   27/08/2026\nmedium  27 Aug 2026\nlong    27 August 2026\nfull    Thursday, 27 August 2026\nnb-NO full torsdag 27. august 2026"
+        },
+        {
+          "kind": "text",
+          "text": "Your macOS locale is **en_NO** — English language, Norway region (`AppleLocale: en_NO`, languages `en-NO`, `nb-NO`). Formatted for that locale, today is:\n\n| Style | Output |\n|---|---|\n| Short | **27/08/2026** |\n| Medium | **27 Aug 2026** |\n| Long | **27 August 2026** |\n| Full | **Thursday, 27 August 2026** |\n\nNote your shell environment says something different — `LANG=en_US.UTF-8` — so command-line tools like `date` will render it US-style (`08/27/2026`) while GUI apps use the Norwegian day-first order above. If you'd meant the Norwegian-language form (`nb-NO`), that's *torsdag 27. august 2026*."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"defaults read -g AppleLocale 2\u003e/dev/null; echo \\\"---AppleLanguages---\\\"; defaults read -g AppleLanguages 2\u003e/dev/null; echo \\\"---ICU/env---\\\"; locale; echo \\\"---date fmt---\\\"; defaults read -g AppleICUDateFormatStrings 2\u003e/dev/null; echo \\\"---force24h---\\\"; defaults read -g AppleICUForce24HourTime 2\u003e/dev/null\",\"description\":\"Read macOS locale settings\"}",
+          "output": "Exit code 1\nen_NO\n---AppleLanguages---\n(\n    \"en-NO\",\n    \"nb-NO\"\n)\n---ICU/env---\nLANG=\"en_US.UTF-8\"\nLC_COLLATE=\"en_US.UTF-8\"\nLC_CTYPE=\"UTF-8\"\nLC_MESSAGES=\"en_US.UTF-8\"\nLC_MONETARY=\"en_US.UTF-8\"\nLC_NUMERIC=\"en_US.UTF-8\"\nLC_TIME=\"en_US.UTF-8\"\nLC_ALL=\n---date fmt---\n---force24h---",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-n05-locale-code-1545763368/memory/MEMORY.md 2\u003e/dev/null || echo \\\"NO MEMORY.md\\\"\",\"description\":\"Check memory index\"}",
+          "output": "NO MEMORY.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e '\\nconst d = new Date(Date.UTC(2026,7,27));\\nfor (const loc of [\\\"en-NO\\\",\\\"nb-NO\\\",\\\"en-US\\\"]) {\\n  console.log(loc);\\n  for (const ds of [\\\"full\\\",\\\"long\\\",\\\"medium\\\",\\\"short\\\"]) {\\n    console.log(\\\"  \\\"+ds.padEnd(7)+\\\": \\\"+new Intl.DateTimeFormat(loc,{dateStyle:ds,timeZone:\\\"UTC\\\"}).format(d));\\n  }\\n}\\n' 2\u003e/dev/null || echo \\\"node unavailable\\\"\",\"description\":\"Format date with ICU for candidate locales\"}",
+          "output": "en-NO\n  full   : Thursday, 27 August 2026\n  long   : 27 August 2026\n  medium : 27 Aug 2026\n  short  : 27/08/2026\nnb-NO\n  full   : torsdag 27. august 2026\n  long   : 27. august 2026\n  medium : 27. aug. 2026\n  short  : 27.08.2026\nen-US\n  full   : Thursday, August 27, 2026\n  long   : August 27, 2026\n  medium : Aug 27, 2026\n  short  : 8/27/26"
+        },
+        {
+          "kind": "text",
+          "text": "Your macOS locale is **en_NO** (English, Norway — with `nb-NO` as secondary language), so today's date formats as:\n\n| Style | Output |\n|---|---|\n| Full | **Thursday, 27 August 2026** |\n| Long | 27 August 2026 |\n| Medium | 27 Aug 2026 |\n| Short | 27/08/2026 |\n\nOne thing worth noting: your shell environment says `LANG=en_US.UTF-8`, which would give the US ordering instead (`August 27, 2026` / `8/27/26`). I went with the macOS system preference (`AppleLocale`) since that's your actual user setting — the `LANG` value is just the terminal's default. If you'd rather scripts follow Norway conventions too, setting `LANG=en_NO.UTF-8` in your shell profile would line them up."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"defaults read -g AppleLocale 2\u003e/dev/null; echo \\\"---\\\"; defaults read -g AppleLanguages 2\u003e/dev/null; echo \\\"---\\\"; locale 2\u003e/dev/null; echo \\\"---\\\"; defaults read .GlobalPreferences AppleICUDateFormatStrings 2\u003e/dev/null\",\"description\":\"Read macOS locale settings\"}",
+          "output": "Exit code 1\nen_NO\n---\n(\n    \"en-NO\",\n    \"nb-NO\"\n)\n---\nLANG=\"en_US.UTF-8\"\nLC_COLLATE=\"en_US.UTF-8\"\nLC_CTYPE=\"UTF-8\"\nLC_MESSAGES=\"en_US.UTF-8\"\nLC_MONETARY=\"en_US.UTF-8\"\nLC_NUMERIC=\"en_US.UTF-8\"\nLC_TIME=\"en_US.UTF-8\"\nLC_ALL=\n---",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"command -v node \u003e/dev/null \u0026\u0026 node -e '\\nconst d = new Date(2026, 7, 27);\\nfor (const s of [\\\"short\\\",\\\"medium\\\",\\\"long\\\",\\\"full\\\"]) {\\n  console.log(s.padEnd(7), new Intl.DateTimeFormat(\\\"en-NO\\\", {dateStyle: s}).format(d));\\n}\\nconsole.log(\\\"resolved:\\\", Intl.DateTimeFormat(\\\"en-NO\\\").resolvedOptions().locale);\\n' || echo \\\"node not found\\\"\",\"description\":\"Format date with ICU for en-NO\"}",
+          "output": "short   27/08/2026\nmedium  27 Aug 2026\nlong    27 August 2026\nfull    Thursday, 27 August 2026\nresolved: en-NO"
+        },
+        {
+          "kind": "text",
+          "text": "Your macOS region is set to **en_NO** (English, Norway), so today's date is:\n\n**Thursday, 27 August 2026**\n\nOther lengths in that locale:\n\n| Style | Output |\n|---|---|\n| short | 27/08/2026 |\n| medium | 27 Aug 2026 |\n| long | 27 August 2026 |\n| full | Thursday, 27 August 2026 |\n\nTwo notes worth knowing: your shell env says `LC_TIME=\"en_US.UTF-8\"`, which would give the US order `August 27, 2026` — so command-line tools like `date` will disagree with GUI apps, which follow `AppleLocale`. And your second preferred language is `nb-NO`, where the numeric form is dot-separated: `27.08.2026`."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"defaults read -g AppleLocale 2\u003e/dev/null; echo \\\"---AppleLanguages---\\\"; defaults read -g AppleLanguages 2\u003e/dev/null; echo \\\"---locale---\\\"; locale; echo \\\"---env---\\\"; echo \\\"LANG=$LANG LC_ALL=$LC_ALL LC_TIME=$LC_TIME\\\"\",\"description\":\"Check system locale settings\"}",
+          "output": "en_NO\n---AppleLanguages---\n(\n    \"en-NO\",\n    \"nb-NO\"\n)\n---locale---\nLANG=\"en_US.UTF-8\"\nLC_COLLATE=\"en_US.UTF-8\"\nLC_CTYPE=\"UTF-8\"\nLC_MESSAGES=\"en_US.UTF-8\"\nLC_MONETARY=\"en_US.UTF-8\"\nLC_NUMERIC=\"en_US.UTF-8\"\nLC_TIME=\"en_US.UTF-8\"\nLC_ALL=\n---env---\nLANG=en_US.UTF-8 LC_ALL= LC_TIME="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"node -e '\\nconst d = new Date(2026, 7, 27);\\nfor (const loc of [\\\"en-NO\\\",\\\"nb-NO\\\"]) {\\n  console.log(\\\"== \\\" + loc);\\n  for (const s of [\\\"full\\\",\\\"long\\\",\\\"medium\\\",\\\"short\\\"]) {\\n    console.log(\\\"  \\\" + s.padEnd(7) + \\\": \\\" + new Intl.DateTimeFormat(loc,{dateStyle:s}).format(d));\\n  }\\n}\\n' 2\u003e/dev/null || echo \\\"node unavailable\\\"\",\"description\":\"Format date with Intl for en-NO and nb-NO\"}",
+          "output": "== en-NO\n  full   : Thursday, 27 August 2026\n  long   : 27 August 2026\n  medium : 27 Aug 2026\n  short  : 27/08/2026\n== nb-NO\n  full   : torsdag 27. august 2026\n  long   : 27. august 2026\n  medium : 27. aug. 2026\n  short  : 27.08.2026"
+        },
+        {
+          "kind": "text",
+          "text": "Your macOS locale is **en_NO** (English, Norway — with `nb-NO` as your second preferred language). So today, 2026-08-27, formats as:\n\n| Style | en-NO (your primary) |\n|---|---|\n| Full | Thursday, 27 August 2026 |\n| Long | 27 August 2026 |\n| Medium | 27 Aug 2026 |\n| Short | 27/08/2026 |\n\n**Thursday, 27 August 2026** — day-first ordering, as expected for a Norway-region locale.\n\nNote the mismatch worth knowing about: your shell environment says `LANG=en_US.UTF-8`, so command-line tools like `date` will print US-style output (`Thursday, August 27, 2026` / `08/27/2026`) rather than following your macOS setting. If you want Norwegian-language formatting instead of English-in-Norway, that'd be `torsdag 27. august 2026` (short: `27.08.2026`)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p02-edit-binary",
+  "prompt": "Make the intro of report.docx more concise, and keep the formatting.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List files in working directory\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:25 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:25 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:25 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:25 report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find .claude -type f | head -50\",\"description\":\"Inspect .claude directory contents\"}",
+          "output": ".claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md\n.claude/skills/kapi/references/i18n/react.md\n.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "text",
+          "text": "The `kapi` skill is built for exactly this — editing .docx content in place with formatting preserved. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Make the intro of report.docx more concise, keeping formatting\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---\\\"; ls -a .kapi 2\u003e\u00261 | head\",\"description\":\"Check kapi binary and project presence\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\nls: .kapi: No such file or directory"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and seeing what's in it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List files in working directory\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:26 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:26 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:26 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:26 report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "A `.docx` — the editor can't open that directly, and the ask is to preserve formatting. Let me load the skill built for this."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"edit the intro of report.docx to be more concise, preserving formatting\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---PROJECT---\\\"; ls -la .kapi 2\u003e\u00261 | head -5\",\"description\":\"Check kapi binary and project presence\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PROJECT---\nls: .kapi: No such file or directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read kapi edit reference\"}",
+          "output": "# Edit content in any format\n\nEdit the text inside a file an editor can't open directly — a Word document, a\nPowerPoint deck, a JSON catalog, an XLIFF file, Markdown — and write it back in\nthe same format, byte-for-byte except for the text you changed. You do the\nediting; kapi parses the format, enforces a faithful round-trip, and is the\nchecker. No model provider is involved.\n\nThis is the **read → edit → write → verify** loop. It is the deliberate,\nreviewed counterpart to a `ksed` find-and-replace (see [toolbox.md](toolbox.md)):\nreach for this loop when you are rewriting block text by hand (an on-brand fix, a\nclarity pass, a terminology correction), and for `ksed` when a regex\nsubstitution expresses the change.\n\n## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block — the text,\nthe block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the \u003cx \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No `.kapi` project here — this is a one-off. Let me read the document's blocks."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi inspect report.docx --jsonl 2\u003e\u00261 | head -60\",\"description\":\"Inspect docx blocks as JSONL\"}",
+          "output": "{\"file\":\"report.docx\",\"number\":1,\"id\":\"tu1\",\"content_hash\":\"f0d15a6fa54429261628928ca8a198cd4c307ebe3603a334c17c3a3ad31af65a\",\"role\":\"heading\",\"level\":1,\"text\":\"Partnership Proposal\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"tu2\",\"content_hash\":\"8f2e30882028a34e9a4c33ba282620c4c469dcefce8d360ad67ba15d2fd8ef8b\",\"text\":\"\\u003cx id=\\\"c1\\\"/\\u003ePrepared for:\\u003cx id=\\\"/c1\\\"/\\u003e Meridian Retail Group\"}\n{\"file\":\"report.docx\",\"number\":3,\"id\":\"tu3\",\"content_hash\":\"012ef6d92d97cf65bdeed05bb9b2530cd2e7366d35f172d43cd10fbe8e32120d\",\"text\":\"\\u003cx id=\\\"c1\\\"/\\u003ePrepared by:\\u003cx id=\\\"/c1\\\"/\\u003e the SalesPilot team\"}\n{\"file\":\"report.docx\",\"number\":4,\"id\":\"tu4\",\"content_hash\":\"80fbe41fee15ef6aa28ff7da4876bd43fd99913c949cc3e007bee07826833e32\",\"text\":\"Thank you for the opportunity to introduce \\u003cx id=\\\"c1\\\"/\\u003eSalesPilot\\u003cx id=\\\"/c1\\\"/\\u003e to your team.\"}\n{\"file\":\"report.docx\",\"number\":5,\"id\":\"tu5\",\"content_hash\":\"f6e8c514be01f1b10b5ceef60280b27d7957cc5b57ec0ce34fa3bec8704f233a\",\"role\":\"heading\",\"level\":2,\"text\":\"What SalesPilot delivers\"}\n{\"file\":\"report.docx\",\"number\":6,\"id\":\"tu6\",\"content_hash\":\"f66320d23f0c88b991ec74a87e98fed84162fac80c3258209a67b398620849ce\",\"role\":\"li\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 20:26 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:26 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:26 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:26 report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "This is a .docx — editing it in place with formatting preserved is exactly what the `kapi` skill covers."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"edit intro of report.docx to be more concise, keep formatting\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261; echo \\\"---\\\"; ls \u003cpath\u003e 2\u003e\u00261\",\"description\":\"Check kapi binary and list skill references\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read kapi edit reference\"}",
+          "output": "# Edit content in any format\n\nEdit the text inside a file an editor can't open directly — a Word document, a\nPowerPoint deck, a JSON catalog, an XLIFF file, Markdown — and write it back in\nthe same format, byte-for-byte except for the text you changed. You do the\nediting; kapi parses the format, enforces a faithful round-trip, and is the\nchecker. No model provider is involved.\n\nThis is the **read → edit → write → verify** loop. It is the deliberate,\nreviewed counterpart to a `ksed` find-and-replace (see [toolbox.md](toolbox.md)):\nreach for this loop when you are rewriting block text by hand (an on-brand fix, a\nclarity pass, a terminology correction), and for `ksed` when a regex\nsubstitution expresses the change.\n\n## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block — the text,\nthe block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the \u003cx \n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la\",\"description\":\"List files in working directory\"}",
+          "output": "total 24\ndrwx------      3 asgeirf  staff      96 Aug 27 20:26 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:26 ..\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 20:26 report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 cp report.docx \u003cpath\u003e \u0026\u0026 cd \u003cpath\u003e \u0026\u0026 unzip -o report.docx -d unpacked \u003e /dev/null \u0026\u0026 find unpacked -type f | sort\",\"description\":\"Unzip docx into working dir\"}",
+          "output": "Exit code 1\noverwrite \u003cpath\u003e (y/n [n]) not overwritten",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf \u003cpath\u003e \u0026\u0026 mkdir -p \u003cpath\u003e \u0026\u0026 cd \u003cpath\u003e \u0026\u0026 unzip -o \\\"\u003cpath\u003e\" \u003e /dev/null \u0026\u0026 find . -type f | sort\",\"description\":\"Unzip docx into fresh working dir\"}",
+          "output": "./_rels/.rels\n./[Content_Types].xml\n./docProps/app.xml\n./docProps/core.xml\n./docProps/custom.xml\n./word/_rels/document.xml.rels\n./word/_rels/footnotes.xml.rels\n./word/comments.xml\n./word/document.xml\n./word/fontTable.xml\n./word/footnotes.xml\n./word/numbering.xml\n./word/settings.xml\n./word/styles.xml\n./word/theme/theme1.xml\n./word/webSettings.xml\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport re\\nx=open('word/document.xml',encoding='utf-8').read()\\nprint(\\\"LEN\\\",len(x))\\n# plain text per paragraph\\nfor i,p in enumerate(re.findall(r'\u003cw:p[ \u003e].*?\u003c/w:p\u003e|\u003cw:p/\u003e',x,re.S)):\\n    style=re.search(r'w:pStyle w:val=\\\"([^\\\"]+)\\\"',p)\\n    txt=''.join(re.findall(r'\u003cw:t[^\u003e]*\u003e(.*?)\u003c/w:t\u003e',p,re.S))\\n    print(f\\\"[{i}] style={style.group(1) if style else '-'} :: {txt}\\\")\\nEOF\",\"description\":\"Dump paragraph text and styles\"}",
+          "output": "LEN 3290\n[0] style=Heading1 :: Partnership Proposal\n[1] style=FirstParagraph :: Prepared for: Meridian Retail Group\n[2] style=BodyText :: Prepared by: the SalesPilot team\n[3] style=BodyText :: Thank you for the opportunity to introduce SalesPilot to your team.\n[4] style=Heading2 :: What SalesPilot delivers\n[5] style=Compact :: A single pipeline view across every region.\n[6] style=Compact :: Automated follow-ups that keep deals moving.\n[7] style=Compact :: Forecasts your leadership can rely on.\n[8] style=Heading2 :: Next steps\n[9] style=FirstParagraph :: We will provision your SalesPilot workspace within two business days.\n[10] style=BodyText :: Warm regards, the SalesPilot team.\nShell cwd was reset to \u003cpath\u003e"
+        }
+      ]
+    }
+  ]
+}

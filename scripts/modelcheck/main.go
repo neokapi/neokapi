@@ -39,6 +39,16 @@ import (
 	"time"
 )
 
+// checkedNames lists the providers a run actually reached, in a stable order.
+func checkedNames(live map[string][]string) []string {
+	names := make([]string, 0, len(live))
+	for k := range live {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "modelcheck: %v\n", err)
@@ -92,7 +102,21 @@ func run() error {
 	}
 
 	if len(missing) == 0 && len(priced) == 0 {
-		fmt.Println("\nthe catalog matches what the providers serve, and every price is for a catalogued model")
+		// Say what was actually checked. Skipping every provider for want of a
+		// key and then reporting that the catalog matches what they serve is a
+		// pass that cannot fail, which is indistinguishable from a real one at
+		// the moment a reader most needs to tell them apart.
+		switch {
+		case len(live) == 0:
+			fmt.Println("\nno provider could be reached, so nothing was checked against a live list. " +
+				"Every price is for a catalogued model, which is all this run verified.")
+		case len(live) < 3:
+			fmt.Printf("\n%s: catalogued models are all still served, and every price is for a "+
+				"catalogued model. The other provider(s) were skipped and are unchecked.\n",
+				strings.Join(checkedNames(live), ", "))
+		default:
+			fmt.Println("\nthe catalog matches what the providers serve, and every price is for a catalogued model")
+		}
 		return nil
 	}
 	if *check {

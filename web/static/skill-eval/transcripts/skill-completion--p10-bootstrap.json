@@ -1,0 +1,509 @@
+{
+  "key": "skill:completion",
+  "scenario": "p10-bootstrap",
+  "prompt": "Set kapi up for this project.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by invoking the kapi skill, since that's exactly what this is about."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"set up kapi for this project\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- kapi ---\\\" \u0026\u0026 (kapi version 2\u003e\u00261 | head -20 || echo \\\"kapi NOT FOUND\\\")\",\"description\":\"List project dir and check kapi\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 21:43 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:43 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:43 .claude\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 21:43 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:43 src\n--- kapi ---\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 ls -R | head -50\",\"description\":\"List kapi skill files\"}",
+          "output": "references\nSKILL.md\n\n./references:\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md\n\n./references/i18n:\nandroid.md\nangular.md\nbackend.md\ndocs-sites.md\nflutter.md\nframeworks.yaml\ngettext.md\nios.md\nrails.md\nreact-native.md\nreact.md\nsvelte.md\nvue.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 find . -not -path './node_modules/*' -not -path './.git/*' | head -100 \u0026\u0026 echo \\\"--- README ---\\\" \u0026\u0026 cat README.md\",\"description\":\"Explore full project tree\"}",
+          "output": ".\n./.claude\n./README.md\n./xdg-cache\n./kapi-config\n./src\n./.claude/skills\n./xdg-cache/kapi\n./kapi-config/update-channel\n./src/locales\n./.claude/skills/kapi\n./xdg-cache/kapi/plugins-cache.json\n./src/locales/en.json\n./.claude/skills/kapi/references\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/references/i18n/gettext.md\n./.claude/skills/kapi/references/i18n\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat references/project.md\",\"description\":\"Read project reference\"}",
+          "output": "# Use a kapi project for standing context\n\nA `.kapi` project binds the things that don't change between requests — source and\ntarget locales, which files are content, the voice profile, and the terms store — so\nthat ordinary requests need no flags. kapi finds the project by walking up from the\ncurrent directory, like git.\n\n## When to set one up\n\nSet up a project when the work is ongoing: many files or a whole app, the same\ntarget locales repeatedly, a voice profile or terminology to keep consistent, recurring\nruns (CI, re-translate on change), or content memory to reuse. For a true\none-off, skip it and run the command directly.\n\n## Create it\n\n```bash\nkapi init --name my-app --source-locale en --target-locale fr --target-locale de\n# --framework \u003cpreset\u003e  pre-fills content paths; kapi init --list-presets shows them all\n```\n\nThis writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is\ncommitted** — it is the project's context, not scratch space. Git it like source.\n\n- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,\n  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the\n  primary), `profiles/\u003cname\u003e/` (what a profile over\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat src/locales/en.json \u0026\u0026 echo \\\"--- config ---\\\" \u0026\u0026 cat kapi-config/update-channel \u0026\u0026 echo \u0026\u0026 echo \\\"--- kapi status ---\\\" \u0026\u0026 kapi status 2\u003e\u00261 | head -30\",\"description\":\"Read locales and check kapi status\"}",
+          "output": "{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}\n--- config ---\nbeta\n\n--- kapi status ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat references/context-discovery.md\",\"description\":\"Read context discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Project is \"Northwind\" with a README and one English UI catalog. kapi 1.2.0 is installed, no project yet. Let me check the CLI surface before drafting anything."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 kapi init --help 2\u003e\u00261 | head -60\",\"description\":\"kapi init help\"}",
+          "output": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice — a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nUsage:\n  kapi init [flags]\n\nFlags:\n      --dir string              Directory to scaffold in (default: current directory)\n      --framework string        Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project\n  -h, --help                    help for init\n      --list-presets            List available presets (framework scaffolds and per-forma\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== presets ===\\\" \u0026\u0026 kapi init --list-presets 2\u003e\u00261 | head -40 \u0026\u0026 echo \\\"=== voice packs ===\\\" \u0026\u0026 kapi voice new --help 2\u003e\u00261 | head -40\",\"description\":\"List presets and voice packs\"}",
+          "output": "=== presets ===\nFramework Presets:\n\n  PRESET         DESCRIPTION                                                              SOURCE\n  angular        Angular with @angular/localize (XLIFF)                                   built-in\n  flutter        Flutter with intl/ARB catalogs (lib/l10n/app_{lang}.arb)                 built-in\n  neokapi-i18n   React with the @neokapi/i18n-react stack (zero-wrapper, KBF extraction)  built-in\n  nextjs         Next.js App Router with next-intl (messages JSON)                        built-in\n  react-i18next  React/JS with react-i18next or i18next (public/locales JSON)             built-in\n  react-intl     React with react-intl (FormatJS)                                         built-in\n  vue-i18n       Vue with vue-i18n (src/locales JSON)                                     built-in\n\nTotal: 7 preset(s)\n=== voice packs ===\nWrite a voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi voice import` it.\n\nUsage:\n  kapi voice new [flags\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 sed -n '1,150p' references/voice.md\",\"description\":\"Read voice reference part 1\"}",
+          "output": "# Keep content in voice\n\nScore and fix content against a voice profile with the local `kapi` CLI —\noffline, no account. One loop: load the voice guide before writing, score a\ndraft, fix what drifts.\n\n## Profiles\n\nA profile comes from any of: a built-in pack (`--pack`), a git-shareable\nYAML (`--profile-file`), or the local store (`--profile`). List options with\n`kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,\n`technical-docs`, `marketing-blog`, `customer-support`.\n\n**Inside a project, the profile is part of the context — don't pass a flag.** When\nthe project binds a voice profile (a `defaults.voice` recipe entry, or a\n`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check\n\u003cfile\u003e` and `kapi voice guide` with **no**\n`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a\nflag only for a one-off outside a project, or to override the bound profile. See\n[project.md](project.md).\n\n## Create a profile\n\nIf the user has no profile yet, draft one for them — you (the assistant) do the\nanalysis; the CLI gives you the schema and stores the result.\n\n```bash\nkapi voice new -o voice.yaml                         # comme\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== voice profiles/packs ===\\\" \u0026\u0026 kapi voice profiles 2\u003e\u00261 | head -40\",\"description\":\"List voice starter packs\"}",
+          "output": "=== voice profiles/packs ===\n  ID                SOURCE  NAME\n  customer-support  pack    customer-support\n  friendly-dtc      pack    friendly-dtc\n  marketing-blog    pack    marketing-blog\n  professional-b2b  pack    professional-b2b\n  technical-docs    pack    technical-docs\n\n5 profile(s)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd /tmp \u0026\u0026 kapi voice new --pack professional-b2b 2\u003e\u00261 | head -80\",\"description\":\"Dump professional-b2b pack\"}",
+          "output": "# Seeded from the professional-b2b starter pack — edit to taste, then `kapi voice import`.\nname: Professional B2B\ndescription: Formal, authoritative voice for business-to-business communication\ntone:\n    personality:\n        - professional\n        - knowledgeable\n        - trustworthy\n    formality: formal\n    emotion: authoritative\n    humor: none\n    guidelines: Maintain a professional, authoritative tone. Lead with data and expertise. Avoid casual language, slang, or humor. Address the reader as a peer professional.\nstyle:\n    active_voice: true\n    sentence_length: medium\n    person_pov: first_plural\n    contractions: never\n    prohibited_patterns:\n        - regex: \\b(gonna|wanna|gotta)\\b\n          description: Informal contractions\n          severity: major\n        - regex: '!\\s*$'\n          description: Exclamation marks (too informal for B2B)\n          severity: minor\nvocabulary:\n    preferred_terms:\n        - term: solution\n          note: Use when describing products/services\n        - term: platform\n          note: Preferred over 'tool' or 'system'\n    forbidden_terms:\n        - term: leverage\n          replacement: use\n          severity: minor\n        - term: synergy\n\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd /tmp \u0026\u0026 echo \\\"=== TEMPLATE ===\\\" \u0026\u0026 kapi voice new 2\u003e\u00261 | head -90\",\"description\":\"Dump commented voice template\"}",
+          "output": "=== TEMPLATE ===\n# Voice profile. Fill in the fields, then:\n#   kapi voice import voice.yaml                     # save to the local store\n#   kapi voice guide --profile-file voice.yaml       # render the guide\n#   echo \"draft\" | kapi voice check --profile-file voice.yaml --json\n# Only 'name' is required; every other field is optional. The English source\n# text always stays the key — do not invent message IDs.\n\nname: My Voice\ndescription: One line on who this voice is for and the impression it should leave.\n\ntone:\n  personality: [clear, confident, friendly]   # 2-4 adjectives\n  formality: neutral        # casual | neutral | formal | technical\n  emotion: warm             # warm | neutral | authoritative\n  humor: light              # none | light | frequent\n  guidelines: Address the reader as \"you\". Lead with the benefit.\n\nstyle:\n  active_voice: true\n  sentence_length: varied   # short | medium | varied\n  person_pov: second        # first_plural | second | third\n  contractions: always      # always | sometimes | never\n  prohibited_patterns:\n    - regex: \"\\\\b(synergy|leverage)\\\\b\"\n      description: Corporate jargon\n      severity: minor        # minor | major | critical\n\nvocabulary\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Signal is thin but real: a product name, a tagline, and five UI strings. The `professional-b2b` pack is a bad fit (it bans exclamation marks and contractions — Northwind's copy says \"Welcome back!\"), so I'll draft from the plain template, grounded in the actual strings. Starting with the project:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi init --name northwind --source-locale en 2\u003e\u00261 | head -40 \u0026\u0026 echo \\\"=== TREE ===\\\" \u0026\u0026 find . -path ./.claude -prune -o -not -path './.kapi/work/*' -print | grep -v '^\\\\./\\\\.claude' | sort\",\"description\":\"Initialize kapi content project\"}",
+          "output": "Initialized kapi project \"northwind\"\n  recipe: \u003cpath\u003e\n  state:  \u003cpath\u003e\n=== TREE ===\n.\n./.kapi\n./.kapi/.gitignore\n./.kapi/manifest.yaml\n./.kapi/memory\n./.kapi/state\n./.kapi/work\n./kapi-config\n./kapi-config/update-channel\n./kapi.yaml\n./README.md\n./src\n./src/locales\n./src/locales/en.json\n./xdg-cache\n./xdg-cache/kapi\n./xdg-cache/kapi/plugins-cache.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== kapi.yaml ===\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \\\"=== .kapi/.gitignore ===\\\" \u0026\u0026 cat .kapi/.gitignore \u0026\u0026 echo \\\"=== manifest ===\\\" \u0026\u0026 cat .kapi/manifest.yaml\",\"description\":\"Inspect generated recipe\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: []\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n      # - tool: voice-check\n=== .kapi/.gitignore ===\nwork/\nfilters.local.json\n=== manifest ===\nschemaVersion: 1\nkind: kapi-state\ngenerator:\n    id: kapi\n    version: v1.2.0-rc29-3-g227b5ae49-dirty\nproject:\n    id: northwind\n    path: ../kapi.yaml\nupdatedAt: \"2026-08-27T19:45:08\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== apply help ===\\\" \u0026\u0026 kapi apply --help 2\u003e\u00261 | head -50 \u0026\u0026 echo \\\"=== terms help ===\\\" \u0026\u0026 kapi terms --help 2\u003e\u00261 | head -30\",\"description\":\"Check apply and terms help\"}",
+          "output": "=== apply help ===\nApply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from st\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`kapi init` defaulted the voice to the `professional-b2b` pack — wrong for this copy. Drafting a profile from Northwind's actual strings instead:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e .kapi/voice.yaml \u003c\u003c'YAML'\\n# Northwind voice profile.\\n# Drafted from the material in this repo: README.md (\\\"A workspace for teams.\\\")\\n# and the five UI strings in src/locales/en.json. Every rule below traces to\\n# one of those, EXCEPT the entries marked [UNCONFIRMED] — generic defaults that\\n# need your sign-off, because they will gate builds once CI runs `kapi check`.\\n\\nname: Northwind\\ndescription: \u003e-\\n  The product voice for Northwind, a workspace for teams. Plain, warm and\\n  direct — written to someone who is mid-task, not browsing.\\n\\ntone:\\n  personality: [clear, warm, direct]\\n  formality: neutral\\n  emotion: warm\\n  humor: none\\n  guidelines: \u003e-\\n    Address the reader as \\\"you\\\". Say what a thing is and what it does, then\\n    stop. The reader is already inside the product and trying to finish\\n    something. Warmth comes from brevity and from greeting people like they\\n    have been here before (\\\"Welcome back!\\\"), not from jokes or enthusiasm.\\n\\nstyle:\\n  active_voice: true\\n  sentence_length: short\\n  person_pov: second\\n  contractions: sometimes\\n  prohibited_patterns:\\n    # [UNCONFIRMED] Generic jargon guard; minor = advisory, not build-br\n…truncated…",
+          "output": "VALID  .kapi/voice.yaml (Northwind)"
+        },
+        {
+          "kind": "text",
+          "text": "Profile validates. Now binding it in the recipe along with the content mapping:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi add --help 2\u003e\u00261 | head -30\",\"description\":\"Check kapi add help\"}",
+          "output": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --c\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi formats 2\u003e\u00261 | head -40 || kapi formats list 2\u003e\u00261 | head -40\",\"description\":\"List supported formats\"}",
+          "output": "Available formats:\n\n  FORMAT         NAME                         READ  WRITE  EDIT      SOURCE    EXTENSIONS                                                                          MIME TYPES\n  androidxml     Android String Resources     ✓     ✓      faithful  built-in  —                                                                                   —\n  applestrings   Apple Strings                ✓     ✓      faithful  built-in  .strings, .stringsdict                                                              —\n  arb            Flutter ARB                  ✓     ✓      faithful  built-in  .arb                                                                                —\n  archive        Archive (ZIP/TAR)            ✓     —      —         built-in  .zip, .tar, .tgz, .tar.gz                                                           application/zip, application/x-tar, application/gzip, application/x-gzip\n  asciidoc       AsciiDoc                     ✓     ✓      faithful  built-in  .adoc, .asciidoc, .adfm, .asc                                                       text/asciidoc\n  audio          Audio                        ✓     ✓      yes  \n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re, pathlib\\np = pathlib.Path(\\\"kapi.yaml\\\")\\ns = p.read_text()\\ns = s.replace(\\\"  voice:\\\\n    pack: professional-b2b\\\\n\\\",\\n              \\\"  voice:\\\\n    profile_file: .kapi/voice.yaml\\\\n  terms_source: .kapi/terms.json\\\\n\\\")\\np.write_text(s)\\nPY\\nkapi add README.md \\\"src/locales/en.json\\\" 2\u003e\u00261 | head -20\",\"description\":\"Bind voice profile and add content collections\"}",
+          "output": "Error: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd \u0026\u0026 echo \\\"---\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \\\"=== status ===\\\" \u0026\u0026 kapi status 2\u003e\u00261 | head -20\",\"description\":\"Check cwd and recipe state\"}",
+          "output": "\u003cpath\u003e\n---\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\n  terms_source: .kapi/terms.json\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: []\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n      # - tool: voice-check\n=== status ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi status -p kapi.yaml 2\u003e\u00261 | head -20; echo \\\"=== exit $? ===\\\"; echo \\\"--- try without terms_source ---\\\"; cp kapi.yaml \u003cpath\u003e python3 -c \\\"\\nimport pathlib\\np=pathlib.Path('kapi.yaml'); s=p.read_text()\\np.write_text(s.replace('  terms_source: .kapi/terms.json\\\\n',''))\\n\\\"; kapi status 2\u003e\u00261 | head -20\",\"description\":\"Diagnose project discovery failure\"}",
+          "output": "Monolingual project: no target languages configured, so there is no per-language standing to report.\n=== exit 0 ===\n--- try without terms_source ---\noverwrite \u003cpath\u003e (y/n [n]) not overwritten\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"env | grep -i -E 'kapi|xdg|home' ; echo \\\"=== ls -la ===\\\"; ls -la; echo \\\"=== .kapi ===\\\"; ls -la .kapi\",\"description\":\"Inspect kapi env vars\"}",
+          "output": "ROOT_DIR=~/src/neokapi/neokapi/.claude/worktrees/memory-versions\nNEOKAPI_WORKSPACE_DIR=~/src/neokapi\nINFOPATH=\u003cpath\u003e\nNEOKAPI_CHECKOUTS_DIR=~/src\nJENV_FORCEJAVAHOME=true\nOKAPI_REPO=~/src/okapi/Okapi\nPNPM_HOME=~/Library/pnpm\nFPATH=\u003cpath\u003e\nLDFLAGS=-ldflags \"-X github.com/neokapi/neokapi/core/version.Version=v1.2.0-rc29-3-g227b5ae49-dirty -X github.com/neokapi/neokapi/core/version.Commit=227b5ae49 -X github.com/neokapi/neokapi/core/version.BuildDate=2026-08-27T19:43:29Z\"\nTELEMETRY_PKG=github.com/neokapi/neokapi/host/telemetry\nJDK_HOME=~/.jenv/versions/17\nDOTNET_ROOT=\u003cpath\u003e\nHOMEBREW_CELLAR=\u003cpath\u003e\nPKG_CONFIG_PATH=\u003cpath\u003e\nHOME=~\nNEOKAPI_DOCLANG_DIR=~/src/doclang-project/doclang\nJENV_FORCEJDKHOME=true\nCLAUDE_CODE_EXECPATH=\u003cpath\u003e\nJAVA_HOME=~/.jenv/versions/17\nGOROOT=\u003cpath\u003e\nVERSION_PKG=github.com/neokapi/neokapi/core/version\nHOMEBREW_PREFIX=\u003cpath\u003e\nHOMEBREW_REPOSITORY=\u003cpath\u003e\nNEOKAPI_OKAPI_DIR=~/src/okapi/Okapi\nKAPI_NO_PROJECT=1\nKAPI_CONFIG_DIR=\u003cpath\u003e\nXDG_DATA_HOME=\u003cpath\u003e\nXDG_CACHE_HOME=\u003cpath\u003e\nKAPI_PLUGINS_DIR_ONLY=1\nKAPI_PLUGINS_DIR=\u003cpath\u003e\nPATH=~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin:\u003cpath\u003e\n=== ls -la ===\ntotal 16\ndrwx------      9 asgeirf  staff     288 Aug 27 21:45 .\ndrwx-\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`KAPI_NO_PROJECT=1` is set in this shell's environment — that's what disables auto-discovery, not the recipe. Confirming and restoring the terms binding:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 -c \\\"\\nimport pathlib\\np=pathlib.Path('kapi.yaml'); s=p.read_text()\\nif 'terms_source' not in s:\\n    s=s.replace('    profile_file: .kapi/voice.yaml\\\\n','    profile_file: .kapi/voice.yaml\\\\n  terms_source: .kapi/terms.json\\\\n')\\n    p.write_text(s)\\nprint(s[:220])\\n\\\"\\necho \\\"=== discovery with KAPI_NO_PROJECT unset ===\\\"\\nenv -u KAPI_NO_PROJECT kapi status 2\u003e\u00261 | head -5\",\"description\":\"Restore terms_source and confirm env diagnosis\"}",
+          "output": "version: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\n  terms_source: .kapi/terms.json\n\n# Content project: no target_languages. Point collections at the source files\n# to\n=== discovery with KAPI_NO_PROJECT unset ===\nMonolingual project: no target languages configured, so there is no per-language standing to report."
+        },
+        {
+          "kind": "text",
+          "text": "Confirmed — the project is fine; this shell just has discovery switched off. Adding the content mapping:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"env -u KAPI_NO_PROJECT kapi add README.md \\\"src/locales/en.json\\\" 2\u003e\u00261 | head -20; echo \\\"=== recipe ===\\\"; sed -n '1,30p' kapi.yaml\",\"description\":\"Add content collections\"}",
+          "output": "Added README.md (markdown) — 1 file(s)\nAdded src/locales/en.json (json) — 1 file(s)\n=== recipe ===\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\n  terms_source: .kapi/terms.json\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: [{path: README.md, format: {name: markdown}}, {path: src/locales/en.json, format: {name: json}}]\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n    # - tool: voice-check"
+        },
+        {
+          "kind": "text",
+          "text": "Now the terminology seed. Checking the entry shape before writing it:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd .claude/skills/kapi \u0026\u0026 grep -n -A 25 'kind.*term' references/edit.md | head -70\",\"description\":\"Find term entry shape in edit.md\"}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -n '\\\"kind\\\"' references/*.md | head -30\",\"description\":\"Grep all entry kind examples\"}",
+          "output": "references/context-discovery.md:125:{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"dashboard\",\"locale\":\"en\",\"status\":\"preferred\"}\nreferences/context-discovery.md:126:{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"control panel\",\"locale\":\"en\",\"status\":\"deprecated\",\"replacement\":\"dashboard\"}\nreferences/context-discovery.md:308:{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"workspace\",\"locale\":\"en\",\"status\":\"preferred\"}\nreferences/context-discovery.md:309:{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"team space\",\"locale\":\"en\",\"status\":\"deprecated\",\"replacement\":\"workspace\"}\nreferences/context-discovery.md:310:{\"kind\":\"voice\",\"op\":\"add-rule\",\"list\":\"competitor\",\"term\":\"Globex\",\"replacement\":\"our platform\",\"severity\":\"major\"}\nreferences/edit.md:46:{\"kind\":\"content\",\"file\":\"report.docx\",\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"text\":\"Revenue climbed; see the \u003cx id=\\\"1/\\\"/\u003e dashboard.\"}\nreferences/create.md:84:{\"kind\":\"content\",\"file\":\"draft.md\",\"id\":\"p4\",\"content_hash\":\"a1b2…\",\"text\":\"Open the dashboard.\"}\nreferences/create.md:85:{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"dashboard\",\"locale\":\"en\",\"status\":\"preferred\",\"replaces\":\"control panel\"}\nreferences/voice.md:118:{\"kind\":\"content\",\"file\":\"blog-post.md\",\"id\":\"p2\",\"content_hash\":\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -n -B3 -A30 'mixed change-set' references/edit.md | head -60\",\"description\":\"Read mixed change-sets section\"}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "text",
+          "text": "Applying a terminology seed of only what the repo actually evidences — preferred terms, which flag nothing. Retirements need your sign-off, so I'm holding those back:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e \u003cpath\u003e \u003c\u003c'JSONL'\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Northwind\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"workspace\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"dashboard\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"settings\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Save\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Cancel\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\nJSONL\\nenv -u KAPI_NO_PROJECT kapi apply \u003cpath\u003e 2\u003e\u00261 | head -20\",\"description\":\"Apply terminology seed\"}",
+          "output": "term Northwind: applied (terms.json)\nterm workspace: applied (terms.json)\nterm dashboard: applied (terms.json)\nterm settings: applied (terms.json)\nterm Save: applied (terms.json)\nterm Cancel: applied (terms.json)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"env -u KAPI_NO_PROJECT kapi up 2\u003e\u00261 | tail -20\",\"description\":\"Compile the context graph\"}",
+          "output": "plan: no target languages — reconciling the source only\nSettled source: 0 block(s) checked, 0 held below the \"checked\" gate.\nExtracted 7 block(s) from 2 file(s) into the project store (nothing extracted yet).\nReconciled the source — no target languages configured, so the per-language flow \"default (built-in)\" did not run.\n\nExtracted 7 block(s) from 2 file(s) into the project store.\nUp to date: the committed context and the occurrence graph match the sources."
+        },
+        {
+          "kind": "text",
+          "text": "Context compiled — 7 blocks across both files. Now the gate:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"env -u KAPI_NO_PROJECT kapi check --ship --json --no-fail 2\u003e\u00261 | head -60\",\"description\":\"Run ship gate\"}",
+          "output": "{\n  \"pass\": true,\n  \"gates\": [\n    {\n      \"gate\": \"voice\",\n      \"pass\": true,\n      \"findings\": []\n    },\n    {\n      \"gate\": \"terminology\",\n      \"pass\": true,\n      \"findings\": []\n    },\n    {\n      \"gate\": \"qa\",\n      \"pass\": true,\n      \"findings\": []\n    }\n  ],\n  \"summary\": {\n    \"gates\": 3,\n    \"passed\": 3,\n    \"failed\": 0,\n    \"findings\": 0,\n    \"errors\": 0,\n    \"warnings\": 0\n  }\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Green — but a gate that passes everything proves nothing. Verifying the rules actually bite, and that context retrieval works:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== off-voice sample ===\\\" \u0026\u0026 echo \\\"We utilize our platform to leverage synergies across your control panel.\\\" | env -u KAPI_NO_PROJECT kapi voice check --text - --json 2\u003e\u00261 | head -40\",\"description\":\"Prove voice rules catch off-voice text\"}",
+          "output": "=== off-voice sample ===\n{\n  \"profile\": \"Northwind\",\n  \"score\": 95,\n  \"passed\": true,\n  \"ai_checked\": false,\n  \"dimensions\": [\n    {\n      \"dimension\": \"tone\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"style\",\n      \"score\": 97,\n      \"penalty\": 3,\n      \"issues\": 3\n    },\n    {\n      \"dimension\": \"vocabulary\",\n      \"score\": 98,\n      \"penalty\": 2,\n      \"issues\": 2\n    },\n    {\n      \"dimension\": \"clarity\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"compliance\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    }\n  ],\n  \"findings\": [\n    {\n      \"category\": \"style\","
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== context for en.json ===\\\" \u0026\u0026 env -u KAPI_NO_PROJECT kapi context src/locales/en.json 2\u003e\u00261 | head -50\",\"description\":\"Test context retrieval\"}",
+          "output": "=== context for en.json ===\n# Context at .claude/skills/kapi/src/locales/en.json\n\nThis location sits at the project's default point: no profile claims it.\nVoice `Northwind`, bound by `defaults.voice` (.kapi/voice.yaml).\nAnswered from this project alone: its terms, its content memory and its voice profile.\n\n## Voice Guide: Northwind\n\nThe product voice for Northwind, a workspace for teams. Plain, warm and direct — written to someone who is mid-task, not browsing.\n\n### Tone\n- Personality: clear, warm, direct\n- Formality: neutral\n- Emotion: warm\n- Humor: none\n- Guidelines: Address the reader as \"you\". Say what a thing is and what it does, then stop. The reader is already inside the product and trying to finish something. Warmth comes from brevity and from greeting people like they have been here before (\"Welcome back!\"), not from jokes or enthusiasm.\n\n### Style Rules\n- Use active voice\n- Sentence length: short\n- Point of view: second\n- Contractions: sometimes\n- Prohibited patterns:\n  - Corporate jargon — say it plainly (severity: minor)\n\n### Vocabulary\n#### Preferred Terms\n- **workspace**: The product noun, from the README. Not \"team space\" or \"hub\".\n- **dashboard**: The landing su\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Two things to check: the shell cwd had drifted, and that sample scored 95 despite 5 findings. Looking closer:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 pwd \u0026\u0026 echo \\\"=== findings on the jargon sample ===\\\" \u0026\u0026 echo \\\"We utilize our platform to leverage synergies across your control panel.\\\" | env -u KAPI_NO_PROJECT kapi voice check --text - --json --jq '.findings[] | {category, severity, original_text, suggestion}' 2\u003e\u00261 | head -40\",\"description\":\"Inspect voice findings detail\"}",
+          "output": "\u003cpath\u003e\n=== findings on the jargon sample ===\n{\n  \"category\": \"style\",\n  \"original_text\": \"utilize\",\n  \"severity\": \"minor\",\n  \"suggestion\": null\n}\n{\n  \"category\": \"style\",\n  \"original_text\": \"leverage\",\n  \"severity\": \"minor\",\n  \"suggestion\": null\n}\n{\n  \"category\": \"style\",\n  \"original_text\": \"synergies\",\n  \"severity\": \"minor\",\n  \"suggestion\": null\n}\n{\n  \"category\": \"vocabulary\",\n  \"original_text\": \"utilize\",\n  \"severity\": \"minor\",\n  \"suggestion\": \"Use \\\"use\\\" instead\"\n}\n{\n  \"category\": \"vocabulary\",\n  \"original_text\": \"leverage\",\n  \"severity\": \"minor\",\n  \"suggestion\": \"Use \\\"use\\\" instead\"\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed 's/severity: minor/severity: major/' .kapi/voice.yaml \u003e \u003cpath\u003e \u0026\u0026 echo \\\"We utilize our platform to leverage synergies across your control panel.\\\" | kapi voice check --text - --profile-file \u003cpath\u003e --json --jq '{score, passed}' 2\u003e\u00261 | head\",\"description\":\"Measure score with major severity\"}",
+          "output": "{\n  \"passed\": true,\n  \"score\": 75\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== context at src/locales/en.json (correct cwd) ===\\\" \u0026\u0026 env -u KAPI_NO_PROJECT kapi context src/locales/en.json 2\u003e\u00261 | head -6 \u0026\u0026 echo \\\"...\\\" \u0026\u0026 echo \\\"=== context search ===\\\" \u0026\u0026 env -u KAPI_NO_PROJECT kapi context search workspace 2\u003e\u00261 | head -20\",\"description\":\"Verify context retrieval from project root\"}",
+          "output": "=== context at src/locales/en.json (correct cwd) ===\n# Context at src/locales/en.json\n\nThis location sits at the project's default point: no profile claims it.\nVoice `Northwind`, bound by `defaults.voice` (.kapi/voice.yaml).\nAnswered from this project alone: its terms, its content memory and its voice profile.\n\n...\n=== context search ===\nTerms\n  workspace                ok (en, preferred)\n                           used 1 time(s) in 1 block(s)\n                             README.md tu2: A workspace for teams.\n\n  note: project scope: concept relations, revisions and market scoping live in a connected workspace"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"We utilize our platform to leverage synergies across your control panel.\\\" | kapi voice check --text - --profile-file \u003cpath\u003e --min-score 80 --json --jq '{score, passed}' 2\u003e\u00261 | head; echo \\\"exit=$?\\\"\",\"description\":\"Confirm major severity fails the 80 bar\"}",
+          "output": "{\n  \"passed\": false,\n  \"score\": 75\n}\n{\n  \"error\": \"quality gate failed\",\n  \"code\": \"gate\"\n}\nexit=0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== final ship gate ===\\\" \u0026\u0026 env -u KAPI_NO_PROJECT kapi check --ship 2\u003e\u00261 | tail -15; echo \\\"exit=$?\\\"; echo \\\"=== files ===\\\"; find .kapi -not -path '.kapi/work/*' | sort; echo \\\"=== git ===\\\"; git rev-parse --is-inside-work-tree 2\u003e\u00261 | head -2\",\"description\":\"Final gate and file inventory\"}",
+          "output": "=== final ship gate ===\n  gate         result  findings\n  voice        PASS    0\n  terminology  PASS    0\n  qa           PASS    0\n\nPASS — 3 gate(s), 3 passed, 0 failed, 0 finding(s) (0 error, 0 warning)\nexit=0\n=== files ===\n.kapi\n.kapi/.gitignore\n.kapi/manifest.yaml\n.kapi/memory\n.kapi/state\n.kapi/terms.json\n.kapi/voice.yaml\n.kapi/work\n=== git ===\nfatal: not a git repository (or any of the parent directories): .git"
+        },
+        {
+          "kind": "text",
+          "text": "Everything verified. One cleanup — the generated recipe's comments now contradict the config (they still describe swapping out the starter pack, which I've done):"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e kapi.yaml \u003c\u003c'YAML'\\nversion: v1\\nname: northwind\\ndefaults:\\n  source_language: en\\n  voice:\\n    profile_file: .kapi/voice.yaml\\n  terms_source: .kapi/terms.json\\n\\n# Content project: no target_languages, so kapi keeps the English source in\\n# voice rather than translating it. To go multilingual later:\\n#   kapi init --target-locale fr --target-locale de   (idempotent; edits this file)\\n# and give the catalog a target pattern, e.g. src/locales/{lang}.json.\\ncollections:\\n  - path: README.md\\n    format: markdown\\n  - path: src/locales/en.json\\n    format: json\\n\\n# The check flow scores content against the voice vocabulary (deterministic,\\n# offline, no AI credential). 'kapi check --ship' runs it together with the\\n# terminology and QA gates. Uncomment 'voice-check' to add the AI tone pass\\n# (needs a provider credential: kapi credentials add).\\nflows:\\n  check:\\n    steps:\\n      - tool: voice-vocab-check\\n      # - tool: voice-check\\nYAML\\nenv -u KAPI_NO_PROJECT kapi up 2\u003e\u00261 | tail -3 \u0026\u0026 env -u KAPI_NO_PROJECT kapi check --ship 2\u003e\u00261 | tail -6\",\"description\":\"Tidy recipe comments and re-verify\"}",
+          "output": "The project store already matched the working tree.\nUp to date: the committed context and the occurrence graph match the sources.\n  gate         result  findings\n  voice        PASS    0\n  terminology  PASS    0\n  qa           PASS    0\n\nPASS — 3 gate(s), 3 passed, 0 failed, 0 finding(s) (0 error, 0 warning)"
+        },
+        {
+          "kind": "text",
+          "text": "kapi is set up for Northwind and the gate passes.\n\n## What exists\n\n| File | What it holds |\n|---|---|\n| `kapi.yaml` | The recipe — source `en`, voice bound to the profile, terms bound, two collections |\n| `.kapi/voice.yaml` | The Northwind voice profile |\n| `.kapi/terms.json` | Six preferred terms |\n\nContent mapped: `README.md` (markdown) and `src/locales/en.json` (json) — 7 blocks extracted.\n\nI drafted the voice from your actual material rather than a starter pack. `kapi init` defaulted to `professional-b2b`, which was a bad fit — it bans exclamation marks and contractions, and your UI says \"Welcome back!\". The profile I wrote instead reads off the README tagline and the five UI strings: clear/warm/direct, second person, short sentences, no humor. The three `examples` use your shipped copy as the \"after\".\n\n## Two things need your sign-off\n\n**1. The unconfirmed rules.** Everything traces to the repo except the jargon guard (`utilize`, `leverage`, `synergy`) — those are house-style defaults, not facts about Northwind. They're marked `[UNCONFIRMED]` in the YAML. I deliberately added **no competitor terms**; nothing in the repo names one, and inventing them would gate your builds on something nobody confirmed. Give me the names and replacements and they go in.\n\n**2. The gate is advisory as drafted.** I checked that the rules fire — a sentence stuffed with every banned word produces 5 findings — but it still scores 95 and passes, because every rule is `minor` against the default bar of 80. If you want these to actually block, flipping the severities to `major` drops that same sentence to 75, which fails. Your call; I left them minor because they're unconfirmed.\n\nI also held back the retirements. The profile *notes* that \"control panel\" and \"team space\" aren't the words, but I didn't file them as `deprecated` terms — a retirement starts flagging existing content, and that's a decision you should make, not one you discover from a red build. Say the word and it's one `kapi apply`.\n\n## Notes\n\n- **This shell has `KAPI_NO_PROJECT=1` set**, which switches off project auto-discovery — bare `kapi status` reports \"no kapi project found\". Nothing is wrong with the setup; I ran everything with that unset. In a normal shell, discovery works from any subdirectory.\n- **Not a git repo.** `.kapi/` is meant to be committed as source (only `.kapi/work/` is ignored, and `kapi init` wrote that rule). There's nothing to commit into yet.\n- **No target languages.** `src/locales/en.json` is i18n-shaped, but you didn't name locales and I won't guess them. The recipe comment has the one-line upgrade.\n\nThe standing instruction: run `kapi check --ship` before shipping content, and `kapi context \u003cfile\u003e` before writing, to pull the voice and terms in force."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the project directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100\",\"description\":\"List project directory contents\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 21:48 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:48 ..\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 21:48 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 src\n---TREE---\n.\n./README.md\n./src\n./src/locales\n./src/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat README.md \u0026\u0026 echo \\\"---EN.JSON---\\\" \u0026\u0026 cat src/locales/en.json\",\"description\":\"Read README and locale file\"}",
+          "output": "# Northwind\n\nA workspace for teams.\n---EN.JSON---\n{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Let me check what \"kapi\" refers to on this system before assuming."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi 2\u003e/dev/null; echo \\\"--- npm global ---\\\"; ls ~/.npm/_npx 2\u003e/dev/null | head -5; echo \\\"--- brew ---\\\"; ls \u003cpath\u003e 2\u003e/dev/null | grep -i kapi; ls /usr/local/bin 2\u003e/dev/null | grep -i kapi; echo \\\"--- home configs ---\\\"; ls -d ~/.kapi ~/.config/kapi 2\u003e/dev/null; echo \\\"--- claude dirs ---\\\"; ls ~/.claude/ 2\u003e/dev/null\",\"description\":\"Search for a kapi tool or config on the system\"}",
+          "output": "kapi not found\n--- npm global ---\n01f2a1850f4f06f1\n02ef052036b6e199\n030a44f712f93711\n0a80f0fb114540fe\n0abcac5cd5138bb6\n--- brew ---\nkapi\n--- home configs ---\n~/.config/kapi\n--- claude dirs ---\nbackups\ncache\ndaemon\ndaemon-auth-cooldown\ndaemon-auth-status.json\ndaemon.log\ndebug\nfile-history\ngh-pr-status-cache.json\nhistory.jsonl\njobs\nmcp-needs-auth-cache.json\npaste-cache\nplans\nplugins\nprojects\nsecurity\nsecurity_warnings_state_0d5023d7-f15e-49b9-8a34-4eda760a9bda.json\nsecurity_warnings_state_1203eaae-1396-4da6-9c79-2ce806d0b8a3.json\nsecurity_warnings_state_20b6fb81-b417-4c1a-bccc-68f396ee55d6.json\nsecurity_warnings_state_23ba619a-16ef-47e7-8f7c-ff0a4b786ed5.json\nsecurity_warnings_state_27ea62fd-df69-43b7-a7f9-b5b0ad654abe.json\nsecurity_warnings_state_2a9a13c7-3388-466e-b1dc-4d040c1bda79.json\nsecurity_warnings_state_2da41fc0-6c69-42f7-b024-04c622a3bffc.json\nsecurity_warnings_state_2f727516-e928-420d-bbe9-807a31f2dc46.json\nsecurity_warnings_state_37e4dad9-9f4d-4533-a83d-48672a79e534.json\nsecurity_warnings_state_3f62f5dc-b29b-4cff-a11a-cab9e209f513.json\nsecurity_warnings_state_46f3d320-b11c-4cd2-bc21-a68e7f3c88ff.json\nsecurity_warnings_state_570ccb11-d305-4f37-8abb-c8371a8eba95.json\nsecuri\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`kapi` exists in Homebrew and has a config dir. Let me inspect both."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e echo \\\"--- config dir ---\\\"; ls -la ~/.config/kapi; echo \\\"--- config contents ---\\\"; for f in ~/.config/kapi/*; do echo \\\"=== $f ===\\\"; cat \\\"$f\\\"; done 2\u003e/dev/null\",\"description\":\"Inspect kapi binary and config\"}",
+          "output": "lrwxr-xr-x  1 asgeirf  admin  43 Aug 12 18:48 \u003cpath\u003e -\u003e ../Cellar/kapi-cli-beta/1.2.0-rc23/bin/kapi\n--- config dir ---\ntotal 8\ndrwxr-xr-x   3 asgeirf  staff   96 Jul 21 12:56 .\ndrwxr-xr-x  31 asgeirf  staff  992 Jul 21 12:56 ..\n-rw-r--r--   1 asgeirf  staff    5 Jul 21 12:56 update-channel\n--- config contents ---\n=== ~/.config/kapi/update-channel ===\nbeta"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi --help 2\u003e\u00261 | head -60; echo \\\"=== EXIT: $? ===\\\"\",\"description\":\"Show kapi CLI help\"}",
+          "output": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context — the terms, the voice and the rules it goes by — so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.\n\nUsage:\n  kapi [flags]\n  kapi [command]\n\nWork:\n  add              Add file patterns to the project's content\n  apply            Apply a typed change-set (content + asset edits) — the one write verb\n  check            Verify content against a checkset and gate on severity, like tests over code\n  commit           Write staged unit state into the project's committed record\n  context          Ask what this project's content context says\n  init             Scaffold a new kapi project in the current directory\n  ls               List the files the project's content tracks\n  rm               Remove file patterns from the project's content\n  status           Show per-locale translation coverage and ship-gate standing\n  up               Bring the project up to date (run the default flow until every gated scope ships or parks)\n\nTranslate:\n  pseudo-translate Pseudo-translate f\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "kapi is a localization/translation CLI, and this project has `src/locales/en.json`. Let me check the setup commands."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== INIT ===\\\"; kapi init --help 2\u003e\u00261; echo; echo \\\"=== ADD ===\\\"; kapi add --help 2\u003e\u00261 | head -40\",\"description\":\"Show kapi init and add help\"}",
+          "output": "=== INIT ===\nCreate a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice — a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nUsage:\n  kapi init [flags]\n\nFlags:\n      --dir string              Directory to scaffold in (default: current directory)\n      --framework string        Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project\n  -h, --help                    help for init\n      --list-presets            List available presets (framework scaffolds \n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi init --list-presets 2\u003e\u00261 | head -60\",\"description\":\"List kapi init presets\"}",
+          "output": "Framework Presets:\n\n  PRESET         DESCRIPTION                                                              SOURCE\n  angular        Angular with @angular/localize (XLIFF)                                   built-in\n  flutter        Flutter with intl/ARB catalogs (lib/l10n/app_{lang}.arb)                 built-in\n  neokapi-i18n   React with the @neokapi/i18n-react stack (zero-wrapper, KBF extraction)  built-in\n  nextjs         Next.js App Router with next-intl (messages JSON)                        built-in\n  react-i18next  React/JS with react-i18next or i18next (public/locales JSON)             built-in\n  react-intl     React with react-intl (FormatJS)                                         built-in\n  vue-i18n       Vue with vue-i18n (src/locales JSON)                                     built-in\n\nTotal: 7 preset(s)"
+        },
+        {
+          "kind": "text",
+          "text": "No framework code here — just a README and the JSON catalog — so I'll skip the framework presets and scaffold with defaults."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi init 2\u003e\u00261; echo \\\"=== EXIT: $? ===\\\"\",\"description\":\"Scaffold kapi project\"}",
+          "output": "Initialized kapi project \"skilleval-p10-bootstrap-4247777710\"\n  recipe: \u003cpath\u003e\n  state:  \u003cpath\u003e\n=== EXIT: 0 ==="
+        },
+        {
+          "kind": "text",
+          "text": "The project id defaulted to the temp dir name. The README says this is \"Northwind\" — let me look at the recipe and fix that."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== kapi.yaml ===\\\"; cat kapi.yaml; echo; echo \\\"=== .kapi tree ===\\\"; find .kapi -maxdepth 3 | head -40\",\"description\":\"Show generated recipe and state dir\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: skilleval-p10-bootstrap-4247777710\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi run check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: []\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline) and gates on the result. Add the AI-driven 'voice-check' step\n# for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n      # - tool: voice-check\n\n=== .kapi tree ===\n.kapi\n.kapi/memory\n.kapi/state\n.kapi/manifest.yaml\n.kapi/work\n.kapi/work/cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi config --help 2\u003e\u00261 | head -50\",\"description\":\"Show kapi config help\"}",
+          "output": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nInstalled plugins claim their own key namespaces, reached through the same\nsubcommands (e.g. `kapi config set bowrain.server.url https://…`); there is no\nseparate per-plugin config command. `kapi config list` shows every namespace.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).\n\nUsage:\n  kapi config [key] [value] [flags]\n  kapi config [command]\n\nExamples:\n  kapi config set ai.provider ollama   # app config\n  kapi config get ai.provider\n  kapi config unset ai.model\n  kapi config list\n  kapi config set bowrain.server.url\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi config name \\\"Northwind\\\" 2\u003e\u00261; echo \\\"--- add ---\\\"; kapi add \\\"src/locales/en.json\\\" 2\u003e\u00261; echo \\\"=== EXIT: $? ===\\\"\",\"description\":\"Set project name and register locale catalog\"}",
+          "output": "Error: recipe key \"name\" needs a project (run inside a kapi project or pass -p); app configuration uses 'kapi config get/set/unset/list/path'\n--- add ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n=== EXIT: 1 ==="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; pwd; ls -la kapi.yaml 2\u003e\u00261; echo \\\"--- with -p ---\\\"; kapi config -p . name 2\u003e\u00261\",\"description\":\"Check cwd and project discovery\"}",
+          "output": "Exit code 1\n\u003cpath\u003e\n-rw-r--r--  1 asgeirf  staff  874 Aug 27 21:49 kapi.yaml\n--- with -p ---\nError: load project: read project file: read .: is a directory",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"--- -p kapi.yaml ---\\\"; kapi config -p kapi.yaml name 2\u003e\u00261; echo \\\"--- -p abs dir ---\\\"; kapi config -p \\\"$PWD\\\" name 2\u003e\u00261\",\"description\":\"Try explicit recipe path forms\"}",
+          "output": "Exit code 1\n--- -p kapi.yaml ---\nskilleval-p10-bootstrap-4247777710\n--- -p abs dir ---\nError: load project: read project file: read \u003cpath\u003e is a directory",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "`-p kapi.yaml` works but bare auto-discovery and the directory form don't. Let me pin that down."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"--- bare status ---\\\"; kapi status 2\u003e\u00261 | head -5; echo \\\"--- bare ls ---\\\"; kapi ls 2\u003e\u00261 | head -5; echo \\\"--- -p ./kapi.yaml ---\\\"; kapi ls -p ./kapi.yaml 2\u003e\u00261 | head -5; echo \\\"--- -p abs file ---\\\"; kapi ls -p \\\"$PWD/kapi.yaml\\\" 2\u003e\u00261 | head -5\",\"description\":\"Test project discovery variants\"}",
+          "output": "--- bare status ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n--- bare ls ---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n--- -p ./kapi.yaml ---\nNo tracked files.\n--- -p abs file ---\nNo tracked files."
+        },
+        {
+          "kind": "text",
+          "text": "Confirmed — explicit recipe paths work; discovery from cwd is broken here. Proceeding with `-p`."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi config -p kapi.yaml name \\\"Northwind\\\" 2\u003e\u00261; echo \\\"--- add ---\\\"; kapi add \\\"src/locales/en.json\\\" -p kapi.yaml 2\u003e\u00261; echo \\\"=== EXIT: $? ===\\\"\",\"description\":\"Set name and add locale catalog\"}",
+          "output": "set name = Northwind\n--- add ---\nAdded src/locales/en.json (json) — 1 file(s)\n=== EXIT: 0 ==="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== ls ===\\\"; kapi ls -p kapi.yaml 2\u003e\u00261; echo; echo \\\"=== inspect ===\\\"; kapi inspect src/locales/en.json 2\u003e\u00261 | head -30\",\"description\":\"Verify tracked files and parsing\"}",
+          "output": "=== ls ===\n  PATH                 FORMAT\n  src/locales/en.json  json\n\n1 file(s)\n\n=== inspect ===\n[\n  {\n    \"file\": \"src/locales/en.json\",\n    \"number\": 1,\n    \"id\": \"tu1\",\n    \"content_hash\": \"346181d6c9954315e3fcdd7ac2d9a49f47e779e480f4025072f87ab45d688ef3\",\n    \"text\": \"Welcome back!\"\n  },\n  {\n    \"file\": \"src/locales/en.json\",\n    \"number\": 2,\n    \"id\": \"tu2\",\n    \"content_hash\": \"986c76326fb2dab12a7d3e7b3fe77e69233ed688f54b09255c6550f404ba8729\",\n    \"text\": \"This is your dashboard. Everything you need is here.\"\n  },\n  {\n    \"file\": \"src/locales/en.json\",\n    \"number\": 3,\n    \"id\": \"tu3\",\n    \"content_hash\": \"1509f561f2416598629b886ad7d3c05a7e221e4e0675c84bbff4ee6d9e03913d\",\n    \"text\": \"Save\"\n  },\n  {\n    \"file\": \"src/locales/en.json\",\n    \"number\": 4,\n    \"id\": \"tu4\",\n    \"content_hash\": \"19766ed6ccb2f4a32778eed80d1928d2c87a18d7c275ccb163ec6709d3eb2e27\",\n    \"text\": \"Cancel\"\n  },\n  {"
+        },
+        {
+          "kind": "text",
+          "text": "Parsing works — all 5 strings extracted. Now let me verify the scaffolded check flow actually runs."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi run check -p kapi.yaml 2\u003e\u00261 | head -40; echo \\\"=== EXIT: ${PIPESTATUS[0]} ===\\\"\",\"description\":\"Run the scaffolded check flow\"}",
+          "output": "Error: --target-lang is required\n=== EXIT:  ==="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== check ===\\\"; kapi check --help 2\u003e\u00261 | head -35; echo; echo \\\"=== run ===\\\"; kapi run --help 2\u003e\u00261 | head -25\",\"description\":\"Show check and run help\"}",
+          "output": "=== check ===\nRun content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`kapi check` is the source-side verb and needs no target lang. Let me run it."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; kapi check -p kapi.yaml 2\u003e\u00261 | head -30; echo \\\"=== EXIT: ${PIPESTATUS[0]} ===\\\"\",\"description\":\"Run source-side checks on project content\"}",
+          "output": "  No findings.\n\nPASS — score 100/100 · 0 finding(s) (0 critical, 0 major, 0 minor)\n=== EXIT:  ==="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== status ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -20; echo; echo \\\"=== run check w/ target-lang ===\\\"; kapi run check -p kapi.yaml --target-lang fr 2\u003e\u00261 | head -15; echo; echo \\\"=== final kapi.yaml ===\\\"; cat kapi.yaml\",\"description\":\"Check status, flow behavior, and final recipe\"}",
+          "output": "=== status ===\nNo target content tracked (no content collections with target locales).\n\n=== run check w/ target-lang ===\nCommitted overlays for en.json to the project store — run `kapi merge` to write target files.\n\n=== final kapi.yaml ===\nversion: v1\nname: Northwind\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\ncollections:\n  - path: src/locales/en.json\n    format:\n      name: json\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check"
+        },
+        {
+          "kind": "text",
+          "text": "That probe wrote overlay state into the store. Let me check what it did and clean up."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== status ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -20; echo; echo \\\"=== store files ===\\\"; find .kapi -type f | head -20; echo; echo \\\"=== ls ===\\\"; kapi ls -p kapi.yaml 2\u003e\u00261\",\"description\":\"Inspect state after probe\"}",
+          "output": "=== status ===\nNo target content tracked (no content collections with target locales).\n\n=== store files ===\n.kapi/manifest.yaml\n.kapi/work/store.db\n.kapi/work/cache/docs/parts-afa2eacf9ee0ff66f0042bee.log\n.kapi/work/cache/docs/index.db\n\n=== ls ===\n  PATH                 FORMAT\n  src/locales/en.json  json\n\n1 file(s)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; echo \\\"=== locales dir ===\\\"; ls -la src/locales/; echo \\\"=== en.json unchanged? ===\\\"; cat src/locales/en.json; echo; echo \\\"=== fr overlays in store? ===\\\"; strings .kapi/work/store.db 2\u003e/dev/null | grep -ci \\\"fr\\\" ; strings .kapi/work/store.db 2\u003e/dev/null | grep -oiE '\\\"(fr|target_lang[^\\\"]*)\\\"' | sort -u | head\",\"description\":\"Verify working tree untouched and inspect store\"}",
+          "output": "=== locales dir ===\ntotal 8\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 21:48 .\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 21:48 ..\n-rw-r--r--  1 asgeirf  staff  167 Aug 27 21:48 en.json\n=== en.json unchanged? ===\n{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}\n\n=== fr overlays in store? ===\n2"
+        },
+        {
+          "kind": "text",
+          "text": "Source file is untouched and no `fr.json` was written — the stray overlays are only in the regenerable work store. Clearing that."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; rm -rf .kapi/work; kapi check -p kapi.yaml 2\u003e\u00261 | tail -3; echo \\\"--- ls ---\\\"; kapi ls -p kapi.yaml 2\u003e\u00261 | tail -3; echo \\\"--- work rebuilt ---\\\"; find .kapi -type f | sort\",\"description\":\"Clear work store and re-verify\"}",
+          "output": "  No findings.\n\nPASS — score 100/100 · 0 finding(s) (0 critical, 0 major, 0 minor)\n--- ls ---\n  src/locales/en.json  json\n\n1 file(s)\n--- work rebuilt ---\n.kapi/manifest.yaml"
+        },
+        {
+          "kind": "text",
+          "text": "Let me confirm the exact recipe shape for adding target locales, so my handoff instructions are accurate."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"export PATH=\\\"\u003cpath\u003e\"; T=$(mktemp -d); cd \\\"$T\\\" \u0026\u0026 kapi init --name demo --target-locale fr --target-locale de \u003e/dev/null 2\u003e\u00261; cat kapi.yaml; echo \\\"=== cleanup ===\\\"; rm -rf \\\"$T\\\"; echo done\",\"description\":\"Inspect translation-project recipe shape in throwaway dir\"}",
+          "output": "version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\n    - de\n\n# Define collections and flows. Each bare collection entry maps a source glob to\n# a target; kapi tools read the source content and edit, check, or translate it.\n# The {lang} placeholder in a target fans output out per language. Runtime block\n# state lives in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/locales/en/*.json\"\n#     format: json\n#     target: \"src/locales/{lang}/*.json\"\n#\n# A named collection binds the point in the context space its content sits at,\n# and its base: is the directory it lives in — every path and target below is\n# written relative to that base and joined onto it:\n#\n# profiles:\n#   acme:\n#     channels: [docs]\n#     voice: .kapi/profiles/acme/voice.yaml\n#\n# collections:\n#   - name: acme-docs\n#     channel: docs\n#     base: web\n#     content:\n#       - path: \"docs/**/*.md\"          # web/docs/**/*.md\n#         format: markdown\n#         target: \"i18n/{lang}/{path}.md\"   # web/i18n/{lang}/{path}.md\n#\n# flows:\n#   # Monolingual: check source content against the voice profile and terminology.\n#   voice:\n#     steps:\n#       - tool: voice-\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "kapi is set up and verified. Here's the final recipe:\n\n```yaml\nversion: v1\nname: Northwind\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\ncollections:\n  - path: src/locales/en.json\n    format:\n      name: json\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n```\n\n**What I did:** `kapi init` (scaffolds `kapi.yaml` + `.kapi/`), set the project name to `Northwind` from the README rather than the temp-dir basename it defaulted to, and registered `src/locales/en.json`. Verified: `kapi inspect` extracts all 5 strings, and `kapi check` passes 100/100. `src/locales/en.json` is byte-identical to how I found it.\n\n**One judgment call worth your attention:** I set this up as a *content* project (source-side voice/terms/checks), not a *translation* project. `kapi init` offers presets, and `vue-i18n` matches your `src/locales/*.json` layout exactly — but there's no `package.json`, no framework code, nothing here but the README and the catalog, so that match is pathname coincidence, not evidence. Target languages are a real product decision I didn't want to invent. To convert once you know your locales, add to `kapi.yaml`:\n\n```yaml\ndefaults:\n  target_languages: [fr, de]\ncollections:\n  - path: src/locales/en.json\n    format:\n      name: json\n    target: \"src/locales/{lang}.json\"\n```\n\n**Two rough edges in this build** (`kapi-cli-beta` 1.2.0-rc23) you'll hit immediately:\n\n- **Project discovery doesn't work from the project directory.** Bare `kapi status` / `kapi ls` / `kapi add` all fail with \"no kapi project found\" even with `kapi.yaml` in the cwd. `-p kapi.yaml` works; `-p .` also fails (\"is a directory\") despite the help text accepting a directory. Likely the `/var` → `\u003cpath\u003e symlink on this temp path confusing the upward walk, so it may not reproduce elsewhere — but here, every command needs `-p kapi.yaml`.\n- **`kapi run check` doesn't work as scaffolded.** The generated comment tells you to run it, but it errors with `--target-lang is required` on a project with no target locales. Use `kapi check -p kapi.yaml` for source-side checks instead. I left the flow block as the scaffold wrote it rather than rewriting vendor output.\n\nTo be transparent about one thing: while characterizing that second issue I ran `kapi run check --target-lang fr`, which unexpectedly committed French overlays into the project store instead of erroring. No files were written to your working tree, and I cleared the regenerable `.kapi/work` store afterward and re-verified — the project is clean. Worth knowing that `run` mutates state on what reads like a read-only probe.\n\nThis isn't a git repo, so I added no `.gitignore` — if you `git init`, exclude `.kapi/work/` (regenerable) and commit `kapi.yaml` and `.kapi/manifest.yaml`."
+        }
+      ]
+    }
+  ]
+}

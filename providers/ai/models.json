@@ -1,20 +1,32 @@
 {
-  "as_of": "2026-07-15",
-  "note": "The curated catalog of models kapi ships support for — ceilings, provider, and neokapi lifecycle. Single source of truth: limits.go and the provider defaults read from here. Maintained by hand (the vendors' APIs do not carry lifecycle); `make check-models` flags when the live model lists diverge from this file. See scripts/prompts/update-model-catalog.md.",
+  "as_of": "2026-08-27",
+  "note": "The curated catalog of models kapi ships support for \u2014 ceilings, provider, and neokapi lifecycle. Single source of truth: limits.go and the provider defaults read from here. Maintained by hand (the vendors' APIs do not carry lifecycle); `make check-models` flags when the live model lists diverge from this file. See scripts/prompts/update-model-catalog.md.",
   "models": [
     {
-      "id": "claude-opus-4-8",
+      "id": "claude-opus-5",
       "provider": "anthropic",
-      "label": "Claude Opus 4.8",
+      "label": "Claude Opus 5",
       "aliases": [
         "opus"
       ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
       "status": "active",
-      "introduced": "2026-07-14",
+      "introduced": "2026-08-27",
       "note": "1M context is standard, with no long-context surcharge.",
       "recommended": false
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "label": "Claude Opus 4.8",
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "note": "1M context is standard, with no long-context surcharge.",
+      "recommended": false,
+      "superseded_by": "claude-opus-5"
     },
     {
       "id": "claude-sonnet-5",
@@ -132,7 +144,7 @@
       "status": "superseded",
       "superseded_by": "gpt-5.6",
       "introduced": "2026-04-03",
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default — Azure deployments lag the public API, so the default is deliberately conservative."
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default \u2014 Azure deployments lag the public API, so the default is deliberately conservative."
     },
     {
       "id": "o3",

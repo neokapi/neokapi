@@ -1,0 +1,153 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p13-flutter",
+  "prompt": "Internationalize this Flutter app and translate it to German.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the project structure to understand what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/.git/*\\\" -not -path \\\"*/build/*\\\" -not -path \\\"*/.dart_tool/*\\\" | head -100\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:30 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:30 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:30 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:30 lib\n-rw-r--r--      1 asgeirf  staff     137 Aug 27 20:30 pubspec.yaml\n---TREE---\n./pubspec.yaml\n./lib/main.dart\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kap\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat pubspec.yaml \u0026\u0026 echo \\\"---MAIN---\\\" \u0026\u0026 cat lib/main.dart\"}",
+          "output": "name: northwind\nenvironment:\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n---MAIN---\nimport 'package:flutter/material.dart';\n\nvoid main() =\u003e runApp(const App());\n\nclass App extends StatelessWidget {\n  const App({super.key});\n  @override\n  Widget build(BuildContext c) =\u003e\n      const MaterialApp(home: Scaffold(body: Center(child: Text('Sign in to your workspace'))));\n}"
+        },
+        {
+          "kind": "text",
+          "text": "This matches the `kapi` skill (i18n setup + translation). Let me invoke it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Internationalize this Flutter app and translate it to German\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---\\\"; ls \u003cpath\u003e 2\u003e\u00261 | head\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\nls: \u003cpath\u003e No such file or directory"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the project structure."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/.git/*\\\" -not -path \\\"*/build/*\\\" -not -path \\\"*/.dart_tool/*\\\" | head -100\",\"description\":\"List project structure\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:31 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:31 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:31 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:31 lib\n-rw-r--r--      1 asgeirf  staff     137 Aug 27 20:31 pubspec.yaml\n---TREE---\n./pubspec.yaml\n./lib/main.dart\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kap\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat pubspec.yaml \u0026\u0026 echo \\\"===MAIN===\\\" \u0026\u0026 cat lib/main.dart\",\"description\":\"Read pubspec and main.dart\"}",
+          "output": "name: northwind\nenvironment:\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n===MAIN===\nimport 'package:flutter/material.dart';\n\nvoid main() =\u003e runApp(const App());\n\nclass App extends StatelessWidget {\n  const App({super.key});\n  @override\n  Widget build(BuildContext c) =\u003e\n      const MaterialApp(home: Scaffold(body: Center(child: Text('Sign in to your workspace'))));\n}"
+        },
+        {
+          "kind": "text",
+          "text": "This matches the `kapi` skill (i18n + translation). Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Internationalize this Flutter app and translate it to German\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"---\\\"; cat \u003cpath\u003e\",\"description\":\"Check kapi binary and read i18n reference\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---\n# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi preset and flags to use, toil scores, and status\n(`recommended`/`supported`/`caution`/`avoid`). Check dependency manifests and\nmarker files agains\n…truncated…"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the project structure to understand what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -type f -not -path \\\"*/.git/*\\\" -not -path \\\"*/build/*\\\" -not -path \\\"*/.dart_tool/*\\\" | head -100\",\"description\":\"List project files\"}",
+          "output": "./pubspec.yaml\n./lib/main.dart\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/references/i18n/gettext.md\n./.claude/skills/kapi/references/i18n/docs-sites.md\n./.claude/skills/kapi/references/i18n/react.md\n./.claude/skills/kapi/references/i18n/ios.md"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `kapi` skill in this project that covers exactly this — i18n setup and translation. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Internationalize this Flutter app and translate it to German.\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---STATUS---\\\"; kapi status 2\u003e\u00261 | head -30; echo \\\"---PUBSPEC---\\\"; cat pubspec.yaml; echo \\\"---MAIN---\\\"; wc -l lib/main.dart\",\"description\":\"Check kapi and project state\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---STATUS---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n---PUBSPEC---\nname: northwind\nenvironment:\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n---MAIN---\n      10 lib/main.dart"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat lib/main.dart; echo \\\"===I18N REF===\\\"; cat .claude/skills/kapi/references/i18n.md\",\"description\":\"Read main.dart and i18n reference\"}",
+          "output": "import 'package:flutter/material.dart';\n\nvoid main() =\u003e runApp(const App());\n\nclass App extends StatelessWidget {\n  const App({super.key});\n  @override\n  Widget build(BuildContext c) =\u003e\n      const MaterialApp(home: Scaffold(body: Center(child: Text('Sign in to your workspace'))));\n}\n===I18N REF===\n# Add i18n to a project\n\nkapi's goal for i18n is **zero toil**: after adoption, a developer ships a\nfeature in every language by writing plain source-language text, and translation\nis an ambient consequence of a source change — extraction, sync, QA, and fill\nhappen in the build and CI, never as a chore someone remembers. Every framework\nthis skill knows is graded on how close it gets (the **Toil Index**, below); your\njob is to (1) detect the stack, (2) install the *recommended configuration*\nthat earns the framework its grade — not the stock setup — and (3) warn the\nuser honestly when their stack can't get below T3.\n\n## Step 1 — detect the stack\n\nConsult [i18n/frameworks.yaml](i18n/frameworks.yaml) — the registry of every\nframework this skill knows: detection signals (`detect.deps` in\npackage.json/pubspec/Gemfile/go.mod/csproj, `detect.files` markers), catalog\nlayout, the kapi \n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the project structure to understand what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -type f -not -path \\\"*/.git/*\\\" -not -path \\\"*/build/*\\\" -not -path \\\"*/.dart_tool/*\\\" | head -100\",\"description\":\"List project files\"}",
+          "output": "./pubspec.yaml\n./lib/main.dart"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat pubspec.yaml; echo \\\"=========== MAIN.DART ===========\\\"; wc -l lib/main.dart; cat lib/main.dart\",\"description\":\"Read pubspec and main.dart\"}",
+          "output": "name: northwind\nenvironment:\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n=========== MAIN.DART ===========\n      10 lib/main.dart\nimport 'package:flutter/material.dart';\n\nvoid main() =\u003e runApp(const App());\n\nclass App extends StatelessWidget {\n  const App({super.key});\n  @override\n  Widget build(BuildContext c) =\u003e\n      const MaterialApp(home: Scaffold(body: Center(child: Text('Sign in to your workspace'))));\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which flutter dart 2\u003e\u00261; flutter --version 2\u003e\u00261 | head -5\",\"description\":\"Check for Flutter SDK\"}",
+          "output": "flutter not found\ndart not found\n(eval):1: command not found: flutter"
+        },
+        {
+          "kind": "text",
+          "text": "No Flutter SDK here, so I can't run `flutter gen-l10n` — I'll wire up the standard `gen_l10n` setup and hand-write the generated output so it compiles as-is (and regenerates identically on your machine)."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p lib/l10n \u0026\u0026 cat \u003e pubspec.yaml \u003c\u003c'EOF'\\nname: northwind\\nenvironment:\\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\\ndependencies:\\n  flutter:\\n    sdk: flutter\\n  flutter_localizations:\\n    sdk: flutter\\n  intl: any\\n\\nflutter:\\n  generate: true\\nEOF\\ncat \u003e l10n.yaml \u003c\u003c'EOF'\\narb-dir: lib/l10n\\ntemplate-arb-file: app_en.arb\\noutput-dir: lib/l10n\\noutput-localization-file: app_localizations.dart\\noutput-class: AppLocalizations\\nnullable-getter: false\\nEOF\\ncat pubspec.yaml l10n.yaml\",\"description\":\"Write pubspec.yaml and l10n.yaml\"}",
+          "output": "name: northwind\nenvironment:\n  sdk: '\u003e=3.0.0 \u003c4.0.0'\ndependencies:\n  flutter:\n    sdk: flutter\n  flutter_localizations:\n    sdk: flutter\n  intl: any\n\nflutter:\n  generate: true\narb-dir: lib/l10n\ntemplate-arb-file: app_en.arb\noutput-dir: lib/l10n\noutput-localization-file: app_localizations.dart\noutput-class: AppLocalizations\nnullable-getter: false"
+        }
+      ]
+    }
+  ]
+}

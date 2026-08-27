@@ -2126,6 +2126,17 @@ authoring-eval: build ## Score the voice checks and the voice guide → /authori
 	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
 	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
 
+# The read-it-yourself half. Writes the same document at two coordinates, with
+# and without the governance bound there, across four models, and publishes the
+# prose rather than a score: sixteen Markdown documents under
+# web/static/authoring-lab and a page that puts bare and governed side by side.
+#
+# It scores nothing on purpose. Nobody has yet said what a good user guide is,
+# and a rubric invented here would be measuring the rubric.
+AUTHORINGLAB_ARGS ?=
+authoring-lab: ## Write the same document at two coordinates, with and without governance (spends)
+	$(GO) run ./scripts/authoringlab $(AUTHORINGLAB_ARGS)
+
 authoring-eval-checks: build ## Score the offline voice check only (free, no model)
 	$(GO) run ./scripts/authoringeval -only checks -provider none -model ""
 
@@ -2432,6 +2443,13 @@ publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → CDN (bowrain/
 publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → CDN (kapi/icu/<ver>/)
 	@bash scripts/publish-cdn-assets.sh icu
 
+# What the skill-eval agents produced (translated .docx, rewritten .pptx, …).
+# Staged by the sweep under web/static/skill-eval/artifacts (gitignored, ~50MB a
+# run) and linked from the report, so a reader can open the document rather than
+# read a byte count. Needs CDN_BUCKET + an aws session, like the others.
+publish-cdn-eval-artifacts: ## Publish the skill-eval artefacts → CDN (needs CDN_BUCKET + aws session)
+	@bash scripts/publish-cdn-assets.sh eval-artifacts
+
 publish-cdn-images: ## Sync kapi docs images/screenshots (web/static/img) → CDN (kapi/img/)
 	@bash scripts/publish-cdn-assets.sh images-kapi
 
@@ -2442,6 +2460,9 @@ publish-cdn-bowrain-images: ## Sync bowrain docs images/screenshots → CDN (bow
 # renders videos/screenshots and fetch-vision-models stages the models). Run
 # after re-recording so the live + preview sites pick up the new assets. (wasm is
 # published by CI on the next docs build; not included here.)
+# Deliberately not including publish-cdn-eval-artifacts: those exist only after
+# a metered sweep has run, so the target would fail on a machine that has not
+# run one. They publish with the sweep that produced them.
 publish-cdn-all: publish-cdn-videos publish-cdn-bowrain-videos publish-cdn-images publish-cdn-bowrain-images publish-cdn-vision-models publish-cdn-icu ## Publish all desktop-produced assets → CDN (S3)
 	@echo "✓ all CDN assets published to the S3 CDN."
 

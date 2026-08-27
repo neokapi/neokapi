@@ -1,0 +1,189 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p17-refresh",
+  "prompt": "We renamed Tidewatch to Tideguard and launched a support site, refresh our context.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by loading the kapi skill, which covers refreshing an existing project context after a rename."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"refresh context: renamed Tidewatch to Tideguard, launched a support site\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- kapi ---\\\" \u0026\u0026 which kapi \u0026\u0026 kapi version 2\u003e\u00261 | head -20\",\"description\":\"Inspect working dir and kapi binary\"}",
+          "output": "total 16\ndrwx------      7 asgeirf  staff     224 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 docs\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 20:27 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 20:27 voice.yaml\n--- kapi ---\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read context-discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Project found. Starting with the read-only baseline — no governance file gets touched until you've seen the delta."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== kapi.yaml ===\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== tree ===\\\" \u0026\u0026 find docs support -type f | sort\",\"description\":\"Read recipe, voice profile, content tree\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n\n=== voice.yaml ===\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n\n=== tree ===\ndocs/intro.md\nsupport/faq.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== ls --untracked ===\\\" \u0026\u0026 kapi ls --untracked 2\u003e\u00261 | head -40 \u0026\u0026 echo \u0026\u0026 echo \\\"=== status ===\\\" \u0026\u0026 kapi status 2\u003e\u00261 | head -30\",\"description\":\"List untracked surfaces and project status\"}",
+          "output": "=== ls --untracked ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n\n=== status ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la .kapi 2\u003e\u00261 | head; echo \\\"--- retry with -p ---\\\"; kapi ls --untracked -p kapi.yaml 2\u003e\u00261 | head -40; echo \\\"=== status ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -30\",\"description\":\"Check for .kapi dir, retry with explicit recipe path\"}",
+          "output": "ls: .kapi: No such file or directory\n--- retry with -p ---\n  PATH                               FORMAT\n  support/faq.md                     markdown\n  xdg-cache/kapi/plugins-cache.json  json\n\n2 file(s) tracked by no collection\n=== status ===\nsource      2 units · authored 100% · checked 100% · approved 0%\n\nMonolingual project: no target languages configured, so there is no per-language standing to report."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by invoking the kapi skill, which handles project content context refreshes like this."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"refresh our context: renamed Tidewatch to Tideguard, launched a support site\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---PWD---\\\"; ls -la; echo \\\"---KAPI PROJECT---\\\"; find . -maxdepth 3 -name \\\".kapi\\\" -o -maxdepth 3 -name \\\"kapi.yaml\\\" -o -maxdepth 3 -name \\\"kapi.toml\\\" 2\u003e/dev/null | head\",\"description\":\"Check kapi version and list working directory\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---PWD---\ntotal 16\ndrwx------      9 asgeirf  staff     288 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 docs\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 kapi-config\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 20:27 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 20:27 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 xdg-cache\n---KAPI PROJECT---\n./kapi.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \\\"\u003cpath\u003e\"\",\"description\":\"Read context discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "A kapi project exists here. Starting with the read-only baseline — no governance files get touched until I know what actually moved."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== kapi.yaml ===\\\"; cat kapi.yaml; echo; echo \\\"=== voice.yaml ===\\\"; cat voice.yaml; echo; echo \\\"=== tree ===\\\"; find docs support kapi-config xdg-cache .claude -type f | head -50\",\"description\":\"Read recipe, voice profile, and file tree\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n\n=== voice.yaml ===\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n\n=== tree ===\ndocs/intro.md\nsupport/faq.md\nkapi-config/update-channel\nxdg-cache/kapi/plugins-cache.json\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== ls --untracked ===\\\"; kapi ls --untracked 2\u003e\u00261 | head -40; echo; echo \\\"=== status ===\\\"; kapi status 2\u003e\u00261 | head -30\",\"description\":\"List untracked surfaces and project status\"}",
+          "output": "=== ls --untracked ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n\n=== status ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "text",
+          "text": "Found the recipe but kapi isn't picking it up. Let me check with an explicit path."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== -p kapi.yaml ===\\\"; kapi ls --untracked -p kapi.yaml 2\u003e\u00261 | head -30; echo; echo \\\"=== status -p ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -30; echo; echo \\\"=== hidden files ===\\\"; ls -la; echo \\\"=== .kapi? ===\\\"; ls -la .kapi 2\u003e\u00261 | head\",\"description\":\"Retry kapi with explicit project path\"}",
+          "output": "=== -p kapi.yaml ===\n  PATH                               FORMAT\n  support/faq.md                     markdown\n  xdg-cache/kapi/plugins-cache.json  json\n\n2 file(s) tracked by no collection\n\n=== status -p ===\nsource      2 units · authored 100% · checked 100% · approved 0%\n\nMonolingual project: no target languages configured, so there is no per-language standing to report.\n\n=== hidden files ===\ntotal 16\ndrwx------     10 asgeirf  staff     320 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 .kapi\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 docs\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 kapi-config\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 20:27 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 20:27 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 xdg-cache\n=== .kapi? ===\ntotal 0\ndrwxr-xr-x   3 asgeirf  staff   96 Aug 27 20:28 .\ndrwx------  10 asgeirf  staff  320 Aug 27 20:28 ..\ndrwxr-xr-x   4 asgeirf  staff  128 Aug 27 20:28 work"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== docs/intro.md ===\\\"; cat docs/intro.md; echo; echo \\\"=== support/faq.md ===\\\"; cat support/faq.md; echo; echo \\\"=== kapi-config ===\\\"; cat kapi-config/update-channel\",\"description\":\"Read content files\"}",
+          "output": "=== docs/intro.md ===\n# Tidewatch\n\nTidewatch keeps an eye on your tides.\n\n=== support/faq.md ===\n# Tideguard support\n\nTideguard is the new name for Tidewatch.\n\n=== kapi-config ===\nbeta"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the current context setup."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---\\\" \u0026\u0026 find . -maxdepth 3 -not -path '*/.git/*' | head -60\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      7 asgeirf  staff     224 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 docs\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 20:28 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 20:28 voice.yaml\n---\n.\n./.claude\n./docs\n./support\n./kapi.yaml\n./voice.yaml\n./.claude/skills\n./docs/intro.md\n./support/faq.md\n./.claude/skills/kapi"
+        },
+        {
+          "kind": "text",
+          "text": "This is a kapi project and the request matches its refresh workflow — invoking the skill."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"refresh context: renamed Tidewatch to Tideguard, launched a support site\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== kapi.yaml ===\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \\\"=== docs/intro.md ===\\\" \u0026\u0026 cat docs/intro.md \u0026\u0026 echo \\\"=== support/faq.md ===\\\" \u0026\u0026 cat support/faq.md \u0026\u0026 echo \\\"=== kapi version ===\\\" \u0026\u0026 kapi version 2\u003e\u00261 | head -5\",\"description\":\"Read project config and content files\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n=== voice.yaml ===\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n=== docs/intro.md ===\n# Tidewatch\n\nTidewatch keeps an eye on your tides.\n=== support/faq.md ===\n# Tideguard support\n\nTideguard is the new name for Tidewatch.\n=== kapi version ===\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -n '1,400p' .claude/skills/kapi/references/context-discovery.md\",\"description\":\"Read context-discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the current memory directory to see what's there."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p17-refresh-40981237/memory/ 2\u003e\u00261\",\"description\":\"List memory directory contents\"}",
+          "output": "total 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 20:28 .\ndrwxr-xr-x  4 asgeirf  staff  128 Aug 27 20:28 .."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la 2\u003e\u00261 | head -50; echo \\\"---FIND---\\\"; find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' 2\u003e/dev/null | head -60\",\"description\":\"Inspect working directory\"}",
+          "output": "total 16\ndrwx------      6 asgeirf  staff     192 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 docs\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 20:28 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:28 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 20:28 voice.yaml\n---FIND---\n.\n./docs\n./support\n./kapi.yaml\n./voice.yaml\n./docs/intro.md\n./support/faq.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p17-refresh-40981237/ 2\u003e\u00261; echo \\\"---GREP for Tidewatch anywhere in claude dir---\\\"; grep -ril \\\"tidewatch\\\\|tideguard\\\" ~/.claude/ 2\u003e/dev/null | head -30\",\"description\":\"Check project dir and search for Tidewatch references\"}",
+          "output": "total 104\ndrwxr-xr-x     4 asgeirf  staff    128 Aug 27 20:28 .\ndrwx------@ 1003 asgeirf  staff  32096 Aug 27 20:28 ..\n-rw-------     1 asgeirf  staff  50328 Aug 27 20:28 dd4367ec-1ce1-41ab-9a7d-a891b118fdd6.jsonl\ndrwxr-xr-x     2 asgeirf  staff     64 Aug 27 20:28 memory\n---GREP for Tidewatch anywhere in claude dir---\n~/.claude/security/security_warnings_state_01fc999f-416d-473e-b379-c3a4de6d1da7.json\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p16-onboard-3204116993/24767fe5-0ca9-4f3b-8664-74894015d97e.jsonl\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p10-bootstrap-733258110/0fb5737b-ebac-462f-8bb3-421a25fc9919.jsonl\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-n03-fix-test-1946877844/20a89744-bdbb-4373-9846-ce6dd2b11efe/tool-results/bxjh12djh.txt\n~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p10-bootstrap-3337043504/89c5afbf-6df0-470f-8d91-1dddfddad55b.jsonl\n~/.claude/projects/-Users-asgeirf-src-neokapi-neokapi--claude-worktrees-agent-af9b06b8f05e6831a/41e1ff9d-c9c4-47a8-a614-2278d4a9b156.jsonl\n~/.claude/projects/-pr\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"for f in kapi.yaml voice.yaml docs/intro.md support/faq.md; do echo \\\"===== $f =====\\\"; cat \\\"$f\\\"; echo; done\",\"description\":\"Read all project files\"}",
+          "output": "===== kapi.yaml =====\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n\n===== voice.yaml =====\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n\n===== docs/intro.md =====\n# Tidewatch\n\nTidewatch keeps an eye on your tides.\n\n===== support/faq.md =====\n# Tideguard support\n\nTideguard is the new name for Tidewatch."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi neokapi 2\u003e\u00261; echo \\\"---\\\"; ls -d ~/src/neokapi/neokapi 2\u003e\u00261; ls ~/src/neokapi/neokapi 2\u003e\u00261 | head -30\",\"description\":\"Look for kapi CLI and source repo\"}",
+          "output": "kapi not found\nneokapi not found\n---\n~/src/neokapi/neokapi\nafter-bowrain-context.png\nafter-bowrain-sheet.png\nafter-bowrain-sheet2.png\nafter-desktop-sheet.png\napps\nbench\nbin\nbowrain\nBrewfile\nCLAUDE.md\ncli\ncmd\ncodecov.yml\nCONTRIBUTING.md\ncore\ncoverage\ndeploy\ndocker\ndocs\nexamples\ngo.mod\ngo.sum\ngo.work\ngo.work.sum\nharness\nhost\nkapi\nkapi.yaml\nkpz\nLICENSE"
+        }
+      ]
+    }
+  ]
+}

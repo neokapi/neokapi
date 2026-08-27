@@ -1,0 +1,176 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p10-bootstrap",
+  "prompt": "Set kapi up for this project.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in this project, then invoke the kapi skill."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100\",\"description\":\"List project contents\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 20:29 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n---TREE---\n.\n./.claude\n./README.md\n./src\n./.claude/skills\n./src/locales\n./.claude/skills/kapi\n./src/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat README.md; echo \\\"---EN.JSON---\\\"; cat src/locales/en.json\",\"description\":\"Read README and locale file\"}",
+          "output": "# Northwind\n\nA workspace for teams.\n---EN.JSON---\n{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"set up kapi for this project\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---EXISTING PROJECT---\\\"; ls -la .kapi 2\u003e\u00261 | head; echo \\\"---SKILL FILES---\\\"; ls -R .claude/skills/kapi\",\"description\":\"Check kapi binary and existing project\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---EXISTING PROJECT---\nls: .kapi: No such file or directory\n---SKILL FILES---\nreferences\nSKILL.md\n\n.claude/skills/kapi/references:\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md\n\n.claude/skills/kapi/references/i18n:\nandroid.md\nangular.md\nbackend.md\ndocs-sites.md\nflutter.md\nframeworks.yaml\ngettext.md\nios.md\nrails.md\nreact-native.md\nreact.md\nsvelte.md\nvue.md"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by invoking the kapi skill, which covers project setup."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Set kapi up for this project\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---KAPI---\\\" \u0026\u0026 kapi version 2\u003e\u00261 | head -20\",\"description\":\"List project files and check kapi version\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 20:29 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n---KAPI---\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat README.md; echo \\\"---TREE---\\\"; find . -not -path './.claude/*' -not -name '.claude' | head -50; echo \\\"---SRC---\\\"; find src -type f | head -50\",\"description\":\"Inspect project contents\"}",
+          "output": "# Northwind\n\nA workspace for teams.\n---TREE---\n.\n./README.md\n./xdg-cache\n./kapi-config\n./src\n./xdg-cache/kapi\n./kapi-config/update-channel\n./src/locales\n./xdg-cache/kapi/plugins-cache.json\n./src/locales/en.json\n---SRC---\nsrc/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat src/locales/en.json; echo \\\"---STATUS---\\\"; kapi status 2\u003e\u00261 | head -30; echo \\\"---CONFIG---\\\"; cat kapi-config/update-channel 2\u003e/dev/null; ls -la kapi-config xdg-cache/kapi 2\u003e/dev/null\",\"description\":\"Read locale file and check kapi status\"}",
+          "output": "{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}\n---STATUS---\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n---CONFIG---\nbeta\nkapi-config:\ntotal 8\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 20:29 .\ndrwx------  7 asgeirf  staff  224 Aug 27 20:29 ..\n-rw-r--r--  1 asgeirf  staff    5 Aug 27 20:29 update-channel\n\nxdg-cache/kapi:\ntotal 8\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 20:29 .\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 20:29 ..\n-rw-r--r--  1 asgeirf  staff  309 Aug 27 20:29 plugins-cache.json"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll use the kapi skill for this."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Set kapi up for this project.\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- kapi ---\\\" \u0026\u0026 kapi version 2\u003e\u00261 | head -20\",\"description\":\"List project files and check kapi version\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 20:29 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:29 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 .claude\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 20:29 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:29 src\n--- kapi ---\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 ls -la \u0026\u0026 echo \\\"=== references ===\\\" \u0026\u0026 ls -la references/\",\"description\":\"List kapi skill directory contents\"}",
+          "output": "total 24\ndrwxr-xr-x   4 asgeirf  staff    128 Aug 27 20:29 .\ndrwxr-xr-x   3 asgeirf  staff     96 Aug 27 20:29 ..\ndrwxr-xr-x  11 asgeirf  staff    352 Aug 27 20:29 references\n-rw-r--r--   1 asgeirf  staff  12075 Aug 27 20:29 SKILL.md\n=== references ===\ntotal 168\ndrwxr-xr-x  11 asgeirf  staff    352 Aug 27 20:29 .\ndrwxr-xr-x   4 asgeirf  staff    128 Aug 27 20:29 ..\n-rw-r--r--   1 asgeirf  staff  17319 Aug 27 20:29 context-discovery.md\n-rw-r--r--   1 asgeirf  staff   4360 Aug 27 20:29 create.md\n-rw-r--r--   1 asgeirf  staff   5747 Aug 27 20:29 edit.md\ndrwxr-xr-x  15 asgeirf  staff    480 Aug 27 20:29 i18n\n-rw-r--r--   1 asgeirf  staff   5643 Aug 27 20:29 i18n.md\n-rw-r--r--   1 asgeirf  staff   7191 Aug 27 20:29 project.md\n-rw-r--r--   1 asgeirf  staff  10178 Aug 27 20:29 toolbox.md\n-rw-r--r--   1 asgeirf  staff   9444 Aug 27 20:29 translate.md\n-rw-r--r--   1 asgeirf  staff   6718 Aug 27 20:29 voice.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== tree ===\\\" \u0026\u0026 find . -not -path '*/.git/*' -not -path './.claude/skills/*' | head -50 \u0026\u0026 echo \\\"=== .claude ===\\\" \u0026\u0026 find .claude -type f | head -20\",\"description\":\"Inspect project structure and README\"}",
+          "output": "# Northwind\n\nA workspace for teams.\n=== tree ===\n.\n./.claude\n./README.md\n./xdg-cache\n./kapi-config\n./src\n./.claude/skills\n./xdg-cache/kapi\n./kapi-config/update-channel\n./src/locales\n./xdg-cache/kapi/plugins-cache.json\n./src/locales/en.json\n=== .claude ===\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/kapi/references/edit.md\n.claude/skills/kapi/references/i18n/rails.md\n.claude/skills/kapi/references/i18n/react-native.md\n.claude/skills/kapi/references/i18n/svelte.md\n.claude/skills/kapi/references/i18n/android.md\n.claude/skills/kapi/references/i18n/vue.md\n.claude/skills/kapi/references/i18n/frameworks.yaml\n.claude/skills/kapi/references/i18n/backend.md\n.claude/skills/kapi/references/i18n/angular.md\n.claude/skills/kapi/references/i18n/flutter.md\n.claude/skills/kapi/references/i18n/gettext.md\n.claude/skills/kapi/references/i18n/docs-sites.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read kapi project reference\"}",
+          "output": "# Use a kapi project for standing context\n\nA `.kapi` project binds the things that don't change between requests — source and\ntarget locales, which files are content, the voice profile, and the terms store — so\nthat ordinary requests need no flags. kapi finds the project by walking up from the\ncurrent directory, like git.\n\n## When to set one up\n\nSet up a project when the work is ongoing: many files or a whole app, the same\ntarget locales repeatedly, a voice profile or terminology to keep consistent, recurring\nruns (CI, re-translate on change), or content memory to reuse. For a true\none-off, skip it and run the command directly.\n\n## Create it\n\n```bash\nkapi init --name my-app --source-locale en --target-locale fr --target-locale de\n# --framework \u003cpreset\u003e  pre-fills content paths; kapi init --list-presets shows them all\n```\n\nThis writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is\ncommitted** — it is the project's context, not scratch space. Git it like source.\n\n- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,\n  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the\n  primary), `profiles/\u003cname\u003e/` (what a profile over\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== en.json ===\\\" \u0026\u0026 cat src/locales/en.json \u0026\u0026 echo \\\"=== existing project? ===\\\" \u0026\u0026 ls -la .kapi 2\u003e\u00261 | head -5; cat kapi.yaml 2\u003e\u00261 | head -5; echo \\\"=== kapi-config ===\\\" \u0026\u0026 cat kapi-config/update-channel; echo \\\"=== env ===\\\" \u0026\u0026 env | grep -i -E 'kapi|xdg' \",\"description\":\"Inspect locales file and existing kapi config\"}",
+          "output": "=== en.json ===\n{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}\n=== existing project? ===\nls: .kapi: No such file or directory\ncat: kapi.yaml: No such file or directory\n=== kapi-config ===\nbeta\n=== env ===\nROOT_DIR=~/src/neokapi/neokapi/.claude/worktrees/memory-versions\nNEOKAPI_WORKSPACE_DIR=~/src/neokapi\nNEOKAPI_CHECKOUTS_DIR=~/src\nOKAPI_REPO=~/src/okapi/Okapi\nLDFLAGS=-ldflags \"-X github.com/neokapi/neokapi/core/version.Version=v1.2.0-rc29-2-gf3f0c2eff -X github.com/neokapi/neokapi/core/version.Commit=f3f0c2eff -X github.com/neokapi/neokapi/core/version.BuildDate=2026-08-27T18:25:49Z\"\nTELEMETRY_PKG=github.com/neokapi/neokapi/host/telemetry\nNEOKAPI_DOCLANG_DIR=~/src/doclang-project/doclang\nVERSION_PKG=github.com/neokapi/neokapi/core/version\nNEOKAPI_OKAPI_DIR=~/src/okapi/Okapi\nKAPI_NO_PROJECT=1\nKAPI_CONFIG_DIR=\u003cpath\u003e\nXDG_DATA_HOME=\u003cpath\u003e\nXDG_CACHE_HOME=\u003cpath\u003e\nKAPI_PLUGINS_DIR_ONLY=1\nKAPI_PLUGINS_DIR=\u003cpath\u003e\nPATH=~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin:\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read context discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd \u0026\u0026 ls -la\",\"description\":\"List project directory contents\"}",
+          "output": "\u003cpath\u003e\ntotal 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:30 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:30 ..\n-rw-r--r--      1 asgeirf  staff      36 Aug 27 20:30 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:30 src"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p10-bootstrap-560251772/memory/ 2\u003e/dev/null \u0026\u0026 echo \\\"--- MEMORY.md ---\\\" \u0026\u0026 cat ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p10-bootstrap-560251772/memory/MEMORY.md 2\u003e/dev/null\",\"description\":\"Check memory directory and index\"}",
+          "output": "Exit code 1\ntotal 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 20:30 .\ndrwxr-xr-x  4 asgeirf  staff  128 Aug 27 20:30 ..\n--- MEMORY.md ---",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat README.md; echo \\\"--- tree ---\\\"; find . -type f | head -50\",\"description\":\"Read README and list files\"}",
+          "output": "# Northwind\n\nA workspace for teams.\n--- tree ---\n./README.md\n./src/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi 2\u003e/dev/null; ls /usr/local/bin 2\u003e/dev/null | grep -i kapi; ls ~/.local/bin 2\u003e/dev/null | grep -i kapi; echo \\\"exit\\\"\",\"description\":\"Check if kapi is an installed CLI\"}",
+          "output": "kapi not found\nexit"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat src/locales/en.json\",\"description\":\"Read locales file\"}",
+          "output": "{\n  \"greeting\": \"Welcome back!\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\",\n  \"settings\": \"Settings\"\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -ril \\\"kapi\\\" ~/.claude --include=\\\"*.md\\\" --include=\\\"*.json\\\" --include=\\\"*.txt\\\" 2\u003e/dev/null | head -20; echo \\\"---done---\\\"\",\"description\":\"Search Claude config for kapi references\"}",
+          "output": "~/.claude/security_warnings_state_a3b182ae-92f5-48ce-aa12-7f4bd377a274.json\n~/.claude/security_warnings_state_2f727516-e928-420d-bbe9-807a31f2dc46.json\n~/.claude/settings.json\n~/.claude/security_warnings_state_2da41fc0-6c69-42f7-b024-04c622a3bffc.json\n~/.claude/security_warnings_state_27ea62fd-df69-43b7-a7f9-b5b0ad654abe.json\n~/.claude/security_warnings_state_bc484842-084f-400b-970c-9474eafe3992.json\n~/.claude/security_warnings_state_20b6fb81-b417-4c1a-bccc-68f396ee55d6.json\n~/.claude/security_warnings_state_1203eaae-1396-4da6-9c79-2ce806d0b8a3.json\n~/.claude/gh-pr-status-cache.json\n~/.claude/security_warnings_state_23ba619a-16ef-47e7-8f7c-ff0a4b786ed5.json\n~/.claude/security_warnings_state_b612b5d1-5366-4f42-9a59-e6c3b32f3223.json\n~/.claude/security_warnings_state_bc86632a-b929-4bc2-9858-382b71883d48.json\n~/.claude/security_warnings_state_2a9a13c7-3388-466e-b1dc-4d040c1bda79.json\n~/.claude/security_warnings_state_46f3d320-b11c-4cd2-bc21-a68e7f3c88ff.json\n~/.claude/security_warnings_state_b55796e7-7b89-4046-8a72-cfdf7a97414b.json\n~/.claude/security_warnings_state_570ccb11-d305-4f37-8abb-c8371a8eba95.json\n~/.claude/security_warnings_state_3f62f5dc-b29b-4cff-a11a-cab9e209f513.json\n~/\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -i -o \\\".\\\\{40\\\\}kapi.\\\\{40\\\\}\\\" ~/.claude/settings.json | head -20\",\"description\":\"Show kapi context in settings.json\"}",
+          "output": "**Repository visibility**: PUBLIC — `neokapi/neokapi` is public per the authenticate\n org repos per gh: public `registry`, `okapi-bridge`, `neokapi.github.io`, `homebrew\n-tap`, `setup-kapi`, `kapi-workflows`, `kapi-action`, `agent-skills`, `claude-plugin\nY; plus local keychain credentials via `kapi`/`host/credentials_cmd.go` and untracke\nns workflows in this repo (ci.yml, docs-kapi.yml, pages-deploy.yml); GitHub Pages si\nub Releases binaries, Homebrew tap (`neokapi/homebrew-tap`), winget package, plugin \nurce control**: GitHub — `github.com:neokapi/neokapi.git` (origin) and the wider `ne\nocal Keycloak OIDC via `compose.yaml`, okapi-bridge gRPC service, plugin registry in\nn`, local keychain credentials read by `kapi`, and credential-handling code paths (`\nntials_cmd.go`, `bowrain/auth/*`, `apps/kapi-desktop/backend/credentials.go`, `bowra\n Code**: software development on the neokapi Go monorepo — framework/CLI/desktop cod\n*Trusted repo**: `~/src/neokapi/neokapi` with remote `github.com:neokap\n   \"**Org-specific CLIs**: `kapi` (and `kapi-bowrain` plugin), `vp` (pnpm workspace \nll` at repo root, and isolated in-repo `kapi` invocations that set `KAPI_NO_PROJECT="
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls ~/.claude/skills/ 2\u003e/dev/null; echo \\\"--- plugins ---\\\"; ls ~/.claude/plugins 2\u003e/dev/null | head\",\"description\":\"List installed skills and plugins\"}",
+          "output": "ast-grep\nfind-skills\nflow-graph\ngolang-code-style\ngraphilizer\nmobile-design\nokapi-expert\nshadcn\nskill-creator\nvercel-composition-patterns\nvercel-react-best-practices\nvercel-react-native-skills\nweb-design-guidelines\n--- plugins ---\nblocklist.json\ncache\ndata\ninstalled_plugins.json\nknown_marketplaces.json\nmarketplaces\nplugin-catalog-cache.json"
+        }
+      ]
+    }
+  ]
+}

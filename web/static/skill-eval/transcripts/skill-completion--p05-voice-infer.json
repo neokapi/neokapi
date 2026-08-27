@@ -1,0 +1,220 @@
+{
+  "key": "skill:completion",
+  "scenario": "p05-voice-infer",
+  "prompt": "Set up a voice profile for us from our landing page.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100\",\"description\":\"List working directory contents\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 21:50 .\ndrwx------@ 22082 asgeirf  staff  706624 Aug 27 21:50 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:50 .claude\n-rw-r--r--      1 asgeirf  staff    4059 Aug 27 21:50 index.html\n---TREE---\n./index.html\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/references/i18n/gettext.md\n./.claude/skills/kapi/references/i18n/docs-sites.\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "There's a `kapi` skill for exactly this. Let me invoke it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Set up a voice profile from our landing page (index.html)\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"---\\\"; cat \u003cpath\u003e\",\"description\":\"Check kapi and read landing page\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n---\n\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n  \u003chead\u003e\n    \u003cmeta charset=\"utf-8\" /\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /\u003e\n    \u003ctitle\u003eLumen Notes — think clearly\u003c/title\u003e\n    \u003cstyle\u003e\n      * { box-sizing: border-box; margin: 0; padding: 0; }\n      body {\n        font-family: -apple-system, \"Segoe UI\", Inter, system-ui, sans-serif;\n        color: #1a1f2e;\n        background: radial-gradient(1100px 600px at 80% -10%, #fff1e8 0%, #ffffff 55%);\n      }\n      header {\n        display: flex; align-items: center; justify-content: space-between;\n        padding: 28px 64px; max-width: 1180px; margin: 0 auto;\n      }\n      .brand { font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }\n      .brand span { color: #ff7a45; }\n      nav a { margin-left: 30px; text-decoration: none; color: #475069; font-weight: 600; font-size: 16px; }\n      .cta-top {\n        background: #1a1f2e; color: #fff; padding: 11px 20px; border-radius: 10px;\n      }\n      .hero { max-width: 920px; margin: 56px auto 0; padding: 0 64px;\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 wc -l context-discovery.md voice.md project.md \u0026\u0026 echo \\\"=====CONTEXT-DISCOVERY=====\\\" \u0026\u0026 cat context-discovery.md\",\"description\":\"Read context-discovery reference\"}",
+          "output": "     382 context-discovery.md\n     157 voice.md\n     156 project.md\n     695 total\n=====CONTEXT-DISCOVERY=====\n# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of th\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat voice.md\",\"description\":\"Read voice reference\"}",
+          "output": "# Keep content in voice\n\nScore and fix content against a voice profile with the local `kapi` CLI —\noffline, no account. One loop: load the voice guide before writing, score a\ndraft, fix what drifts.\n\n## Profiles\n\nA profile comes from any of: a built-in pack (`--pack`), a git-shareable\nYAML (`--profile-file`), or the local store (`--profile`). List options with\n`kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,\n`technical-docs`, `marketing-blog`, `customer-support`.\n\n**Inside a project, the profile is part of the context — don't pass a flag.** When\nthe project binds a voice profile (a `defaults.voice` recipe entry, or a\n`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check\n\u003cfile\u003e` and `kapi voice guide` with **no**\n`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a\nflag only for a one-off outside a project, or to override the bound profile. See\n[project.md](project.md).\n\n## Create a profile\n\nIf the user has no profile yet, draft one for them — you (the assistant) do the\nanalysis; the CLI gives you the schema and stores the result.\n\n```bash\nkapi voice new -o voice.yaml                         # comme\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== PROFILES ===\\\" \u0026\u0026 kapi voice profiles 2\u003e\u00261 | head -40; echo \\\"=== KCAT index.html ===\\\" \u0026\u0026 kapi kcat index.html 2\u003e\u00261 | head -40 || kcat index.html 2\u003e\u00261 | head -40\",\"description\":\"List voice packs and extract landing page copy\"}",
+          "output": "=== PROFILES ===\n  ID                SOURCE  NAME\n  customer-support  pack    customer-support\n  friendly-dtc      pack    friendly-dtc\n  marketing-blog    pack    marketing-blog\n  professional-b2b  pack    professional-b2b\n  technical-docs    pack    technical-docs\n\n5 profile(s)\n=== KCAT index.html ===\nLumen Notes — think clearly\nLumenNotes\nFeatures Pricing Blog Start free\nNotes that think with you\nCapture every idea before it slips away\nLumen Notes turns scattered thoughts into clear, organized writing. Jot it down, and let the assistant connect the dots, suggest the next step, and keep everything searchable.\nGet started for free Watch the two-minute tour\n✶\nWrite without friction\nA calm, distraction-free editor that stays out of your way so the words can flow.\n⚡\nFind anything instantly\nFull-text search across every note, so nothing you wrote is ever truly lost.\n◎\nStay in control of your data\nYour notes are encrypted and exportable. Leave whenever you like — no lock-in.\n© 2026 Lumen Notes. Made for people who think on paper."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice new -o \u003cpath\u003e 2\u003e\u00261 \u0026\u0026 echo \\\"=== TEMPLATE ===\\\" \u0026\u0026 cat \u003cpath\u003e\",\"description\":\"Generate voice profile template\"}",
+          "output": "Wrote \u003cpath\u003e — fill it in, then: kapi voice import \u003cpath\u003e\n=== TEMPLATE ===\n# Voice profile. Fill in the fields, then:\n#   kapi voice import voice.yaml                     # save to the local store\n#   kapi voice guide --profile-file voice.yaml       # render the guide\n#   echo \"draft\" | kapi voice check --profile-file voice.yaml --json\n# Only 'name' is required; every other field is optional. The English source\n# text always stays the key — do not invent message IDs.\n\nname: My Voice\ndescription: One line on who this voice is for and the impression it should leave.\n\ntone:\n  personality: [clear, confident, friendly]   # 2-4 adjectives\n  formality: neutral        # casual | neutral | formal | technical\n  emotion: warm             # warm | neutral | authoritative\n  humor: light              # none | light | frequent\n  guidelines: Address the reader as \"you\". Lead with the benefit.\n\nstyle:\n  active_voice: true\n  sentence_length: varied   # short | medium | varied\n  person_pov: second        # first_plural | second | third\n  contractions: always      # always | sometimes | never\n  prohibited_patterns:\n    - regex: \"\\\\b(synergy|leverage)\\\\b\"\n      description: Corporate jargon\n      s\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "The page gives me solid signal. Let me look at the closest built-in pack for reference, then draft."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice guide --pack friendly-dtc 2\u003e\u00261 | head -50\",\"description\":\"Render friendly-dtc pack guide as reference\"}",
+          "output": "# Voice Guide: Friendly DTC\n\nCasual, warm voice for direct-to-consumer brands\n\n## Tone\n- Personality: friendly, approachable, authentic\n- Formality: casual\n- Emotion: warm\n- Humor: light\n- Guidelines: Write like you're talking to a friend. Be warm, genuine, and relatable. Use everyday language that feels natural. Show personality and let humor come through organically.\n\n## Style Rules\n- Use active voice\n- Sentence length: varied\n- Point of view: second\n- Contractions: always\n- Prohibited patterns:\n  - Legalese and overly formal language (severity: major)\n  - Corporate verbs that feel stiff (severity: minor)\n\n## Vocabulary\n### Preferred Terms\n- **you**: Always address the customer directly\n- **we**: Use to create a sense of partnership\n- **easy**: Reinforce simplicity in messaging\n\n### Forbidden Terms\n- ~~utilize~~ → use **use**\n- ~~facilitate~~ → use **help**\n- ~~implement~~ → use **set up**\n- ~~purchase~~ → use **buy**\n- ~~commence~~ → use **start**\n- ~~inquire~~ → use **ask**\n\n## Examples\n### Example 1 (tone)\n- Before: \"We are pleased to inform you that your order has been dispatched.\"\n- After: \"Great news — your order's on its way!\"\n- Why: Replace formal notificati\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`friendly-dtc` is warmer/chirpier than this page (exclamations, \"Got questions?\"), so I'll draft from the template against the actual copy rather than seed from a pack."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e voice.yaml \u003c\u003c'YAML'\\n# Voice profile for Lumen Notes — drafted from the landing page (index.html).\\n# Every rule below traces to something the page actually does; see the notes.\\n#   kapi voice guide --profile-file voice.yaml\\n#   kapi voice check \u003cfile\u003e --profile-file voice.yaml --json\\n\\nname: Lumen Notes\\ndescription: Calm, plainspoken voice for a notes app that promises less noise — clarity offered without hype.\\n\\ntone:\\n  personality: [calm, clear, warm, plainspoken]\\n  formality: neutral        # \\\"Jot it down\\\", \\\"Leave whenever you like\\\" — relaxed, never slangy\\n  emotion: warm             # \\\"Made for people who think on paper\\\"\\n  humor: none               # the page makes no jokes; the register is quiet, not playful\\n  guidelines: \u003e-\\n    Address the reader as \\\"you\\\". Lead with what they get, not with the technology —\\n    the page says \\\"let the assistant connect the dots\\\", never \\\"AI-powered\\\". Keep the\\n    register calm: the product's promise is less noise, so the copy must not add any.\\n    Prefer a concrete detail (\\\"the two-minute tour\\\") to a vague intensifier (\\\"quick\\\").\\n    Name the worry, then settle it — \\\"so nothing you wrot\n…truncated…",
+          "output": "VALID  voice.yaml (Lumen Notes)"
+        },
+        {
+          "kind": "text",
+          "text": "Schema-valid. Now the real test — the page it was derived from should score well against it:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice check index.html --profile-file voice.yaml --json 2\u003e\u00261 | head -60\",\"description\":\"Score landing page against the new profile\"}",
+          "output": "{\n  \"profile\": \"Lumen Notes\",\n  \"score\": 99,\n  \"passed\": true,\n  \"ai_checked\": false,\n  \"dimensions\": [\n    {\n      \"dimension\": \"tone\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"style\",\n      \"score\": 99,\n      \"penalty\": 1,\n      \"issues\": 1\n    },\n    {\n      \"dimension\": \"vocabulary\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"clarity\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"compliance\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    }\n  ],\n  \"findings\": [\n    {\n      \"category\": \"style\",\n      \"severity\": \"minor\",\n      \"message\": \"Prohibited pattern: Exclamation marks — the page has none; the voice is calm, not excited\",\n      \"position\": {\n        \"kind\": \"range\",\n        \"start\": {\n          \"run\": 0,\n          \"offset\": 1\n        },\n        \"end\": {\n          \"run\": 0,\n          \"offset\": 2\n        }\n      },\n      \"original_text\": \"!\",\n      \"metadata\": {\n        \"pattern\": \"!\"\n      }\n    }\n  ]\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Score 99 — but that one finding is a false positive: it's matching the `!` in `\u003c!doctype html\u003e`, not prose. Let me tighten that regex to only catch exclamations after a word:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re,io\\np='voice.yaml'; s=open(p).read()\\ns=s.replace('''    - regex: \\\"!\\\"\\n      description: Exclamation marks — the page has none; the voice is calm, not excited''','''    - regex: \\\"[A-Za-z0-9,)\\\\\\\\\\\"']!\\\"\\n      description: Exclamation marks — the page has none; the voice is calm, not excited''')\\nopen(p,'w').write(s)\\nPY\\nsed -n '/prohibited_patterns/,/^vocabulary/p' voice.yaml \u0026\u0026 kapi voice validate voice.yaml \u0026\u0026 kapi voice check index.html --profile-file voice.yaml --json | head -5\",\"description\":\"Tighten exclamation regex and re-check\"}",
+          "output": "  prohibited_patterns:\n    - regex: \"[A-Za-z0-9,)\\\"']!\"\n      description: Exclamation marks — the page has none; the voice is calm, not excited\n      severity: minor\n    - regex: \"\\\\b(revolutionary|game.?changing|blazing|insanely|10x|supercharge[sd]?|unlock)\\\\b\"\n      description: Hype words — they contradict a product sold on calm\n      severity: major\n    - regex: \"\\\\b(utilize|leverage|facilitate|robust|seamless(ly)?|cutting.edge)\\\\b\"\n      description: Corporate jargon — the page uses plain verbs (\"jot\", \"find\", \"leave\")\n      severity: minor\n\nvocabulary:\nVALID  voice.yaml (Lumen Notes)\n{\n  \"profile\": \"Lumen Notes\",\n  \"score\": 100,\n  \"passed\": true,\n  \"ai_checked\": false,"
+        },
+        {
+          "kind": "text",
+          "text": "Clean 100 on the source. Now the other direction — it must actually reject off-voice copy:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"Lumen Notes is a revolutionary AI-powered platform that leverages cutting-edge technology to supercharge productivity. Notes can be utilized by users for a seamless experience. Sign up now and unlock your free trial!\\\" | kapi voice check --profile-file voice.yaml --text - --json | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score:',d['score'],'passed:',d['passed']); [print(' -',f['severity'],'|',repr(f['original_text']),'|',f['message'][:70]) for f in d['findings']]\\\"\",\"description\":\"Verify profile rejects off-voice copy\"}",
+          "output": "score: 66 passed: True\n - minor | 'l!' | Prohibited pattern: Exclamation marks — the page has none; the voice i\n - major | 'revolutionary' | Prohibited pattern: Hype words — they contradict a product sold on cal\n - major | 'supercharge' | Prohibited pattern: Hype words — they contradict a product sold on cal\n - major | 'unlock' | Prohibited pattern: Hype words — they contradict a product sold on cal\n - minor | 'cutting-edge' | Prohibited pattern: Corporate jargon — the page uses plain verbs (\"jot\n - minor | 'seamless' | Prohibited pattern: Corporate jargon — the page uses plain verbs (\"jot\n - major | 'AI-powered' | Forbidden term \"AI-powered\" found\n - minor | 'seamless' | Forbidden term \"seamless\" found\n - major | 'supercharge' | Forbidden term \"supercharge\" found\n - major | 'revolutionary' | Forbidden term \"revolutionary\" found"
+        },
+        {
+          "kind": "text",
+          "text": "It discriminates (66 vs 100), but `leverages` and `utilized` slipped through — my regex only matched the bare stems. Fixing the inflections:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\np='voice.yaml'; s=open(p).read()\\ns=s.replace(\\n '''    - regex: \\\"\\\\\\\\\\\\\\\\b(revolutionary|game.?changing|blazing|insanely|10x|supercharge[sd]?|unlock)\\\\\\\\\\\\\\\\b\\\"''',\\n '''    - regex: \\\"\\\\\\\\\\\\\\\\b(revolutionary|revolutioniz(e|es|ed|ing)|game.?chang(er|ers|ing)|blazing|insanely|10x|supercharg(e|es|ed|ing)|unlock(s|ed|ing)?)\\\\\\\\\\\\\\\\b\\\"''')\\ns=s.replace(\\n '''    - regex: \\\"\\\\\\\\\\\\\\\\b(utilize|leverage|facilitate|robust|seamless(ly)?|cutting.edge)\\\\\\\\\\\\\\\\b\\\"''',\\n '''    - regex: \\\"\\\\\\\\\\\\\\\\b((utiliz|leverag|facilitat)(e|es|ed|ing)|robust|seamless(ly)?|cutting.edge)\\\\\\\\\\\\\\\\b\\\"''')\\nopen(p,'w').write(s)\\nPY\\nkapi voice validate voice.yaml \u0026\u0026 echo \\\"--- off-voice draft ---\\\" \u0026\u0026 echo \\\"Lumen Notes is a revolutionary AI-powered platform that leverages cutting-edge technology to supercharge productivity. Notes can be utilized by users for a seamless experience. Sign up now and unlock your free trial!\\\" | kapi voice check --profile-file voice.yaml --text - --json | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score:',d['score']); [print(' -',f['severity'],'|',repr(f['original_text'])) for f in d['findings']]\\\"\\necho \\\"--- source page (must stay 100\n…truncated…",
+          "output": "Exit code 1\nVALID  voice.yaml (Lumen Notes)\n--- off-voice draft ---\nscore: 64\n - minor | 'l!'\n - major | 'revolutionary'\n - major | 'supercharge'\n - major | 'unlock'\n - minor | 'leverages'\n - minor | 'cutting-edge'\n - minor | 'utilized'\n - minor | 'seamless'\n - major | 'AI-powered'\n - minor | 'seamless'\n - major | 'supercharge'\n - major | 'revolutionary'\n--- source page (must stay 100) ---\nTraceback (most recent call last):\n  File \"\u003cstring\u003e\", line 1, in \u003cmodule\u003e\nTypeError: object of type 'NoneType' has no len()",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "Inflections now caught. That traceback was my one-liner (`findings` is `null` when empty), not kapi — confirming the source page:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice check index.html --profile-file voice.yaml --json | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score:',d['score'],'| passed:',d['passed'],'| findings:',len(d['findings'] or []))\\\"\\necho \\\"--- CI gate behaviour (--min-score 80) ---\\\"\\necho \\\"We utilize a revolutionary AI-powered engine!\\\" | kapi voice check --profile-file voice.yaml --text - --min-score 80 --json \u003e/dev/null 2\u003e\u00261; echo \\\"off-voice exit code: $?\\\"\\nkapi voice check index.html --profile-file voice.yaml --min-score 80 --json \u003e/dev/null 2\u003e\u00261; echo \\\"landing page exit code: $?\\\"\",\"description\":\"Confirm source scores 100 and gate exits correctly\"}",
+          "output": "score: 100 | passed: True | findings: 0\n--- CI gate behaviour (--min-score 80) ---\noff-voice exit code: 0\nlanding page exit code: 0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"We utilize a revolutionary AI-powered engine!\\\" | kapi voice check --profile-file voice.yaml --text - --min-score 80 --json | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score:',d['score'],'passed:',d['passed'])\\\"; echo \\\"exit=$?\\\"\\necho \\\"--- longer off-voice (scored 64 earlier) ---\\\"\\necho \\\"Lumen Notes is a revolutionary AI-powered platform that leverages cutting-edge technology to supercharge productivity. Notes can be utilized by users for a seamless experience. Sign up now and unlock your free trial!\\\" | kapi voice check --profile-file voice.yaml --text - --min-score 80 --json \u003e/dev/null; echo \\\"exit=$?\\\"\",\"description\":\"Investigate min-score gate exit codes\"}",
+          "output": "score: 82 passed: True\nexit=0\n--- longer off-voice (scored 64 earlier) ---\n{\n  \"error\": \"quality gate failed\",\n  \"code\": \"gate\"\n}\nexit=3"
+        },
+        {
+          "kind": "text",
+          "text": "Gate fires correctly (exit 3 at 64; the short draft genuinely scores 82 since scoring is density-based). Saving to the local store and rendering the final guide:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice import voice.yaml \u0026\u0026 echo \\\"===\\\" \u0026\u0026 kapi voice profiles \u0026\u0026 echo \\\"=== GUIDE ===\\\" \u0026\u0026 kapi voice guide --profile-file voice.yaml\",\"description\":\"Import profile and render the guide\"}",
+          "output": "created voice profile \"Lumen Notes\" (id: lumen-notes)\n===\n  ID                SOURCE  NAME\n  lumen-notes       store   Lumen Notes\n  customer-support  pack    customer-support\n  friendly-dtc      pack    friendly-dtc\n  marketing-blog    pack    marketing-blog\n  professional-b2b  pack    professional-b2b\n  technical-docs    pack    technical-docs\n\n6 profile(s)\n=== GUIDE ===\n# Voice Guide: Lumen Notes\n\nCalm, plainspoken voice for a notes app that promises less noise — clarity offered without hype.\n\n## Tone\n- Personality: calm, clear, warm, plainspoken\n- Formality: neutral\n- Emotion: warm\n- Humor: none\n- Guidelines: Address the reader as \"you\". Lead with what they get, not with the technology — the page says \"let the assistant connect the dots\", never \"AI-powered\". Keep the register calm: the product's promise is less noise, so the copy must not add any. Prefer a concrete detail (\"the two-minute tour\") to a vague intensifier (\"quick\"). Name the worry, then settle it — \"so nothing you wrote is ever truly lost\", \"no lock-in\". Headings and buttons are sentence case.\n\n## Style Rules\n- Use active voice\n- Sentence length: varied\n- Point of view: second\n- Contractions: sometimes\n- Proh\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Voice profile is set up: `voice.yaml`, validated, and imported to the local store as `lumen-notes`.\n\n**What I read off the page.** The strongest signal is what the copy *doesn't* do. It never says \"AI\" — it credits \"the assistant\". It has zero exclamation marks, zero hype words, and sentence-case headings and buttons. It sells calm (\"stays out of your way\", \"no lock-in\"), so hype language isn't just off-tone, it contradicts the pitch. It also names a worry then settles it: \"so nothing you wrote is ever truly lost\". Those became the rules, each traceable to a line on the page (I left the notes in the YAML).\n\nThe three before/after examples are anchored in real page copy rather than invented, and I drafted from the template rather than seeding from `friendly-dtc` — that pack is chirpier than this page (\"Got questions?\", exclamations), so it would have imported the wrong register.\n\n**Verified both directions**, since a profile that only agrees with its source proves nothing:\n\n| Input | Score |\n|---|---|\n| `index.html` (the source) | **100**, 0 findings |\n| Hype-stacked rewrite of the same pitch | **64** → exits 3 under `--min-score 80` |\n\nTwo things that check caught, worth knowing about:\n- My first exclamation rule was a bare `!`, which flagged `\u003c!doctype html\u003e` — matching markup, not prose. Tightened to only fire after a word character.\n- The jargon rule matched bare stems only, so `leverages` and `utilized` walked straight through. Now handles inflections.\n\n**Two things I need you to confirm** — I deliberately didn't guess:\n1. **Competitor list is empty.** Your page names no competitors, and I won't invent bans that would gate your builds. If Notion/Evernote/Obsidian should never appear in your copy, tell me and I'll add them with replacements.\n2. **`contractions: sometimes` is an inference.** The page has no contractions at all across ~120 words, but nothing suggests you avoid them on principle. If the no-contractions read is deliberate, that should be `never`.\n\nAlso worth a decision: I forbade `AI-powered` but left plain \"AI\" allowed. Banning it outright is a bigger claim than one page supports, though your copy consistently sidesteps it.\n\nUsage from here:\n\n```bash\nkapi voice guide --profile-file voice.yaml            # load before writing\nkapi voice check \u003cfile\u003e --profile-file voice.yaml --json\n```\n\nRight now this is a standalone profile, so every command needs `--profile-file`. If you want this to govern your copy on an ongoing basis — resolved automatically, plus a terminology store and a `kapi check --ship` gate for CI — that's `kapi init` binding it into a project. Say the word and I'll set it up; I didn't want to impose project scaffolding on a request for a profile."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e 2\u003e\u00261 | head -50\",\"description\":\"List working directory contents\"}",
+          "output": "total 8\ndrwx------      3 asgeirf  staff      96 Aug 27 21:54 .\ndrwx------@ 22083 asgeirf  staff  706656 Aug 27 21:54 ..\n-rw-r--r--      1 asgeirf  staff    4059 Aug 27 21:54 index.html"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la ~/.claude/skills/ 2\u003e/dev/null | head -60; echo \\\"---PLUGINS---\\\"; ls ~/.claude/plugins/ 2\u003e/dev/null | head -30\",\"description\":\"List installed skills\"}",
+          "output": "total 0\ndrwxr-xr-x  15 asgeirf  staff   480 Jul 17 09:24 .\ndrwxr-xr-x@ 54 asgeirf  staff  1728 Aug 27 21:50 ..\nlrwxr-xr-x   1 asgeirf  staff    29 Jan 28  2026 ast-grep -\u003e ../../.agents/skills/ast-grep\nlrwxr-xr-x   1 asgeirf  staff    32 Jan 28  2026 find-skills -\u003e ../../.agents/skills/find-skills\nlrwxr-xr-x   1 asgeirf  staff    31 Feb  6  2026 flow-graph -\u003e ../../.agents/skills/flow-graph\nlrwxr-xr-x   1 asgeirf  staff    38 Apr 23 20:16 golang-code-style -\u003e ../../.agents/skills/golang-code-style\nlrwxr-xr-x   1 asgeirf  staff    32 Feb  6  2026 graphilizer -\u003e ../../.agents/skills/graphilizer\ndrwx------  17 asgeirf  staff   544 Feb  4  2026 mobile-design\ndrwxr-xr-x@  4 asgeirf  staff   128 Jan 28  2026 okapi-expert\nlrwxr-xr-x   1 asgeirf  staff    27 Mar 15 21:21 shadcn -\u003e ../../.agents/skills/shadcn\nlrwxr-xr-x   1 asgeirf  staff    34 Jan 28  2026 skill-creator -\u003e ../../.agents/skills/skill-creator\nlrwxr-xr-x   1 asgeirf  staff    48 Feb 23  2026 vercel-composition-patterns -\u003e ../../.agents/skills/vercel-composition-patterns\nlrwxr-xr-x   1 asgeirf  staff    48 Feb 23  2026 vercel-react-best-practices -\u003e ../../.agents/skills/vercel-react-best-practices\nlrwxr-xr-x   1 asgeirf  staff\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find ~/.claude/plugins ~/.agents/skills -maxdepth 4 -iname \\\"*voice*\\\" -o -maxdepth 4 -iname \\\"*brand*\\\" -o -maxdepth 4 -iname \\\"*writ*\\\" -o -maxdepth 4 -iname \\\"*tone*\\\" 2\u003e/dev/null | head -30\",\"description\":\"Search for voice/brand/writing skills\"}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read the landing page\"}",
+          "output": "\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n  \u003chead\u003e\n    \u003cmeta charset=\"utf-8\" /\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /\u003e\n    \u003ctitle\u003eLumen Notes — think clearly\u003c/title\u003e\n    \u003cstyle\u003e\n      * { box-sizing: border-box; margin: 0; padding: 0; }\n      body {\n        font-family: -apple-system, \"Segoe UI\", Inter, system-ui, sans-serif;\n        color: #1a1f2e;\n        background: radial-gradient(1100px 600px at 80% -10%, #fff1e8 0%, #ffffff 55%);\n      }\n      header {\n        display: flex; align-items: center; justify-content: space-between;\n        padding: 28px 64px; max-width: 1180px; margin: 0 auto;\n      }\n      .brand { font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }\n      .brand span { color: #ff7a45; }\n      nav a { margin-left: 30px; text-decoration: none; color: #475069; font-weight: 600; font-size: 16px; }\n      .cta-top {\n        background: #1a1f2e; color: #fff; padding: 11px 20px; border-radius: 10px;\n      }\n      .hero { max-width: 920px; margin: 56px auto 0; padding: 0 64px; text-align: center; }\n      .eyebrow { color: #ff7a45; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; }\n      h1 { font-\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find ~/.claude/plugins ~/.agents/skills ~/.claude/skills -maxdepth 5 \\\\( -iname \\\"*voice*\\\" -o -iname \\\"*brand*\\\" -o -iname \\\"*tone*\\\" -o -iname \\\"*copy*\\\" -o -iname \\\"*writing*\\\" \\\\) 2\u003e/dev/null | head -40\",\"description\":\"Search plugin and skill dirs for voice-related skills\"}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls ~/.claude/plugins/marketplaces 2\u003e/dev/null; echo \\\"---\\\"; find ~/.claude/plugins/marketplaces -maxdepth 3 -name \\\"SKILL.md\\\" 2\u003e/dev/null | head -40\",\"description\":\"List marketplace plugin skills\"}",
+          "output": "callstack-agent-skills\nclaude-code-plugins\nclaude-plugins-official\nclaude-plugins-official.bak\nsamber\n---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find ~/.claude ~/.agents -maxdepth 6 -path \\\"*frontend-design*\\\" -name \\\"*.md\\\" 2\u003e/dev/null | head -20\",\"description\":\"Locate frontend-design skill files\"}",
+          "output": "~/.claude/plugins/cache/claude-plugins-official/frontend-design/unknown/README.md\n~/.claude/plugins/marketplaces/claude-code-plugins/plugins/frontend-design/README.md\n~/.claude/plugins/marketplaces/claude-plugins-official/plugins/frontend-design/README.md\n~/.claude/plugins/marketplaces/claude-plugins-official.bak/plugins/frontend-design/README.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -rli \\\"voice profile\\\\|brand voice\\\\|tone of voice\\\" ~/.claude/plugins/marketplaces ~/.agents/skills ~/.claude/skills 2\u003e/dev/null | head -20\",\"description\":\"Grep skill contents for voice profile references\"}",
+          "output": "(Bash completed with no output)"
+        },
+        {
+          "kind": "text",
+          "text": "No skill or existing profile exists here, so I inferred one from the page copy. Reading it first, then writing the profile."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\n# Lumen Notes — voice profile\\n\\nInferred from the landing page (`index.html`) on 2026-08-27. Every rule traces to copy on\\nthat page, cited inline. The sample is a single page, so items marked ⚠️ are extrapolations\\nworth confirming before they harden into rules.\\n\\n## In one line\\n\\nCalm, plain-spoken, quietly confident — the voice of a tool that helps you think, and never\\nclaims to think for you.\\n\\n## Who is speaking, and to whom\\n\\n- **The reader is \\\"you.\\\"** Second person throughout: \\\"stays out of your way,\\\" \\\"nothing you\\n  wrote,\\\" \\\"Your notes,\\\" \\\"Leave whenever you like.\\\"\\n- **The product is \\\"it,\\\" named plainly.** \\\"Lumen Notes turns scattered thoughts into…,\\\" \\\"the\\n  assistant,\\\" \\\"A calm, distraction-free editor.\\\" No mascot, no personality of its own.\\n- **The company never appears.** There is no \\\"we,\\\" \\\"our team,\\\" or \\\"we built.\\\" ⚠️ Untested but\\n  consistent — keep first person out unless the format demands it (changelog, incident note,\\n  support reply).\\n- **The reader does the thinking.** \\\"Notes that think *with* you.\\\" \\\"Made for people who think\\n  on paper.\\\" Never \\\"let Lumen think for you,\\\" \\\"w\n…truncated…",
+          "output": "     137 \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Wrote `voice-profile.md` next to the landing page. It's derived entirely from the copy in `index.html` — every rule cites the line it came from.\n\n**What the page actually revealed:**\n\n- **The reader is \"you,\" the product is \"it,\" and the company never speaks.** No \"we\" anywhere. The assistant is described by behavior (\"connect the dots, suggest the next step\"), never named as AI — that's a deliberate-looking pattern worth protecting.\n- **The reader stays the thinker.** \"Notes that think *with* you\" and \"Made for people who think on paper\" both put the product in a supporting role. That's the load-bearing rule: never \"let Lumen think for you.\"\n- **Zero exclamation marks, zero urgency, zero jargon.** The most technical phrase on the whole page is \"full-text search.\"\n- **Specifics where most copy would use adjectives** — \"the two-minute tour\" instead of \"a demo,\" \"encrypted and exportable\" instead of \"enterprise-grade security.\"\n- **A repeated body-copy shape**: capability, then a plain consequence, joined by \"so\" — \"stays out of your way *so* the words can flow.\"\n\nThe profile covers traits with do/don't rules, sentence mechanics (sentence case, verb-first, spaced em dash, Oxford comma), a use/avoid word list, per-slot length targets, three on-voice/off-voice pairs, and a seven-point pre-ship check.\n\n**Two things I flagged rather than guessed**, both marked ⚠️ in the file: the page contains no contractions and no first person, but one page isn't enough to tell whether that's a rule or an accident of what these particular sentences needed. I recommended allowing contractions and keeping \"we\" out, and noted both as decisions to confirm.\n\nIf you want this to apply automatically when I write copy for you, I can convert it into a project skill at `.claude/skills/voice/SKILL.md` so it loads whenever there's writing to do — say the word."
+        }
+      ]
+    }
+  ]
+}

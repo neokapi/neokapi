@@ -1,0 +1,519 @@
+{
+  "key": "skill:completion",
+  "scenario": "p08-interchange",
+  "prompt": "Get report.docx ready for a translation vendor in French.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and understanding what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name \\\"*.docx\\\" -o -name \\\"*.doc\\\" | head -20\",\"description\":\"List working directory contents\"}",
+          "output": "total 24\ndrwx------      4 asgeirf  staff     128 Aug 27 21:58 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 21:58 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:58 .claude\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 21:58 report.docx\n./report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "The kapi skill covers exactly this — .docx content plus translation handoff. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"prepare report.docx for a French translation vendor\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -5; echo \\\"---PROJECT---\\\"; ls -a; find . -name \\\".kapi\\\" -maxdepth 3 2\u003e/dev/null; echo \\\"---SKILL FILES---\\\"; ls .claude/skills/kapi/ .claude/skills/kapi/references/ 2\u003e\u00261\",\"description\":\"Check kapi binary and project setup\"}",
+          "output": "kapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n---PROJECT---\n.\n..\n.claude\nkapi-config\nreport.docx\nxdg-cache\n---SKILL FILES---\n.claude/skills/kapi/:\nreferences\nSKILL.md\n\n.claude/skills/kapi/references/:\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/translate.md\",\"description\":\"Read translate reference doc\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No `.kapi` project here — this is a one-off file. Let me pre-flight it: confirm the format round-trips, count the words, and check translation readiness."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== FORMATS (docx) ===\\\" \u0026\u0026 kapi formats 2\u003e\u00261 | grep -i -E \\\"docx|xliff|format|read|write\\\" | head -30 \u0026\u0026 echo \u0026\u0026 echo \\\"=== STATS ===\\\" \u0026\u0026 kapi stats ./report.docx 2\u003e\u00261 | head -30\",\"description\":\"Check docx format support and word count\"}",
+          "output": "=== FORMATS (docx) ===\nAvailable formats:\n  FORMAT         NAME                         READ  WRITE  EDIT      SOURCE    EXTENSIONS                                                                          MIME TYPES\n  kbf            Kapi Bundle Format (KBF)     ✓     ✓      —         built-in  .kbf.json                                                                           application/vnd.neokapi.kbf+json\n  messageformat  ICU MessageFormat            ✓     ✓      faithful  built-in  .mf, .messageformat                                                                 text/x-messageformat\n  odf            Open Document Format         ✓     ✓      faithful  built-in  .odt, .ods, .odp, .odg, .odf                                                        application/vnd.oasis.opendocument.text, application/vnd.oasis.opendocument.spreadsheet, application/vnd.oasis.opendocument.presentation\n  openxml        Office Open XML              ✓     ✓      faithful  built-in  .docx, .docm, .dotx, .dotm, .xlsx, .xlsm, .xltx, .xltm, .pptx, .pptm, .ppsx, .potx  application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.pres\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "docx round-trips and XLIFF 2.x is available for the handoff. Now the readiness pre-flight and a look at the actual content:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== PSEUDO-TRANSLATE PRE-FLIGHT ===\\\" \u0026\u0026 kapi pseudo-translate ./report.docx --target-lang qps 2\u003e\u00261 | head -40 \u0026\u0026 echo \u0026\u0026 echo \\\"=== CONTENT ===\\\" \u0026\u0026 kapi kcat ./report.docx 2\u003e\u00261 | head -40\",\"description\":\"Run pseudo-translation pre-flight and read content\"}",
+          "output": "=== PSEUDO-TRANSLATE PRE-FLIGHT ===\nFlow pseudo-translate completed: ./report.docx → report_qps.docx\n\n=== CONTENT ===\nPartnership Proposal\nPrepared for: Meridian Retail Group\nPrepared by: the SalesPilot team\nThank you for the opportunity to introduce SalesPilot to your team.\nWhat SalesPilot delivers\nA single pipeline view across every region.\nAutomated follow-ups that keep deals moving.\nForecasts your leadership can rely on.\nNext steps\nWe will provision your SalesPilot workspace within two business days.\nWarm regards, the SalesPilot team."
+        },
+        {
+          "kind": "text",
+          "text": "Pre-flight passed cleanly. Let me verify the pseudo round-trip actually survived (that's what proves the vendor's return file will merge back), and find the right extract path for a loose file:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== PSEUDO ROUND-TRIP VERIFY ===\\\" \u0026\u0026 kapi kcat ./report_qps.docx 2\u003e\u00261 | head -12 \u0026\u0026 echo \u0026\u0026 echo \\\"=== EXTRACT HELP ===\\\" \u0026\u0026 kapi extract --help 2\u003e\u00261 | head -40\",\"description\":\"Verify pseudo round-trip and check extract options\"}",
+          "output": "=== PSEUDO ROUND-TRIP VERIFY ===\n▒ Þàŕţñéŕšĥîþ Þŕöþöšàļ ▒\n▒ Þŕéþàŕéđ ƒöŕ: Ḿéŕîđîàñ Ŕéţàîļ Ĝŕöüþ ▒\n▒ Þŕéþàŕéđ ƃý: ţĥé ŠàļéšÞîļöţ ţéàḿ ▒\n▒ Ţĥàñķ ýöü ƒöŕ ţĥé öþþöŕţüñîţý ţö îñţŕöđüçé ŠàļéšÞîļöţ ţö ýöüŕ ţéàḿ. ▒\n▒ Ŵĥàţ ŠàļéšÞîļöţ đéļîṽéŕš ▒\n▒ À šîñĝļé þîþéļîñé ṽîéŵ àçŕöšš éṽéŕý ŕéĝîöñ. ▒\n▒ Àüţöḿàţéđ ƒöļļöŵ-üþš ţĥàţ ķééþ đéàļš ḿöṽîñĝ. ▒\n▒ Ƒöŕéçàšţš ýöüŕ ļéàđéŕšĥîþ çàñ ŕéļý öñ. ▒\n▒ Ñéẋţ šţéþš ▒\n▒ Ŵé ŵîļļ þŕöṽîšîöñ ýöüŕ ŠàļéšÞîļöţ ŵöŕķšþàçé ŵîţĥîñ ţŵö ƃüšîñéšš đàýš. ▒\n▒ Ŵàŕḿ ŕéĝàŕđš, ţĥé ŠàļéšÞîļöţ ţéàḿ. ▒\n\n=== EXTRACT HELP ===\nEmit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file pe\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Round-trip verified — all 11 blocks survived the docx rebuild, including accent expansion. Now let me produce the vendor's bilingual file:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== TRY 1: direct xliff2 ===\\\" \u0026\u0026 kapi extract ./report.docx --target-lang fr --format xliff2 --out-dir ./handoff 2\u003e\u00261 | head -20; echo \\\"exit=$?\\\"\",\"description\":\"Attempt ad-hoc XLIFF extract\"}",
+          "output": "=== TRY 1: direct xliff2 ===\nError: extract: writing source files needs -o \u003cwork.kpz\u003e\nexit=0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi extract ./report.docx -o ./handoff/report.kpz --target-lang fr 2\u003e\u00261 | head -20; echo \\\"exit=$?\\\"; echo \\\"=== KPZ CONTENTS ===\\\" ; ls -la ./handoff/ 2\u003e\u00261; unzip -l ./handoff/report.kpz 2\u003e\u00261 | head -30\",\"description\":\"Extract to ad-hoc kpz workspace and inspect\"}",
+          "output": "Error: write snapshot: open handoff/.kapi-kpz-1460617108: no such file or directory\nexit=0\n=== KPZ CONTENTS ===\nls: ./handoff/: No such file or directory\nunzip:  cannot find or open ./handoff/report.kpz, ./handoff/report.kpz.zip or ./handoff/report.kpz.ZIP."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p ./handoff \u0026\u0026 kapi extract ./report.docx -o ./handoff/report.kpz --target-lang fr 2\u003e\u00261 | head -20; echo \\\"---\\\"; ls -la ./handoff/; echo \\\"=== KPZ CONTENTS ===\\\"; unzip -l ./handoff/report.kpz 2\u003e\u00261 | head -30\",\"description\":\"Extract to kpz workspace and inspect contents\"}",
+          "output": "Extracted 1 document(s) → ./handoff/report.kpz\n---\ntotal 16\ndrwxr-xr-x  3 asgeirf  staff    96 Aug 27 21:59 .\ndrwx------  8 asgeirf  staff   256 Aug 27 21:59 ..\n-rw-------  1 asgeirf  staff  7251 Aug 27 21:59 report.kpz\n=== KPZ CONTENTS ===\nArchive:  ./handoff/report.kpz\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      730  01-01-1980 01:00   manifest.json\n     6211  01-01-1980 01:00   skeletons/report.docx\n---------                     -------\n     6941                     2 files"
+        },
+        {
+          "kind": "text",
+          "text": "The `.kpz` is kapi's native workspace — a vendor needs XLIFF. Let me find the route to it:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== TRY: kpz + xliff2 format ===\\\"; kapi extract ./report.docx -o ./handoff/report.kpz --target-lang fr --format xliff2 2\u003e\u00261|head -5; ls ./handoff/; echo; echo \\\"=== TRY: out-dir with kpz ===\\\"; kapi extract ./report.docx -o ./handoff/r2.kpz --target-lang fr --format xliff2 --out-dir ./handoff 2\u003e\u00261|head -5; ls ./handoff/; echo; echo \\\"=== AVAILABLE TOOLS (extract/xliff) ===\\\"; kapi exec --help 2\u003e\u00261|head -20\",\"description\":\"Try combinations to emit XLIFF\"}",
+          "output": "=== TRY: kpz + xliff2 format ===\nExtracted 1 document(s) → ./handoff/report.kpz\nreport.kpz\n\n=== TRY: out-dir with kpz ===\nExtracted 1 document(s) → ./handoff/r2.kpz\nr2.kpz\nreport.kpz\n\n=== AVAILABLE TOOLS (extract/xliff) ===\nExecute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.\n\nUsage:\n  kapi exec [flags]\n  kapi exec [command]\n\nAvailable Commands:\n  case-transform      Case Transform\n  create-target       Create Target\n  diff-leverage       Diff Leverage"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi tools list 2\u003e\u00261 | head -60\",\"description\":\"List available registry tools\"}",
+          "output": "Available tools:\n\nTranslation:\n\n  TOOL              DESCRIPTION\n  translate         Translate content with an LLM or machine-translation provider (select an engine, then a provider)\n  pseudo-translate  Pseudo Translate\n  source-gate       Source Gate\n  recycle           Recycle\n  diff-leverage     Diff Leverage\n\nQuality:\n\n  TOOL               DESCRIPTION\n  qa                 Check translation quality with deterministic rules or an LLM (select with --mode)\n  xml-validation     XML Validation\n  dnt-check          Do-Not-Translate Check\n  placeholder-check  Placeholder Check\n  term-check         Terminology Check\n  review             Review translations with scoring using an LLM provider\n  voice-check        Check text against a voice profile using an LLM provider\n\nAnalysis:\n\n  TOOL             DESCRIPTION\n  voice-infer      Infer a draft voice profile from a content corpus using an LLM provider\n  term-extract     Extract candidate terminology from content using an LLM provider\n  entity-extract   Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both\n  encoding-detect  Encoding Detect\n\nText Processing:\n\n  TOOL                 DESCRIP\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi tools schema create-target 2\u003e\u00261 | head -40; echo \\\"=== EXEC create-target help ===\\\"; kapi exec create-target --help 2\u003e\u00261 | head -30\",\"description\":\"Inspect create-target tool schema\"}",
+          "output": "{\n  \"$id\": \"create-target\",\n  \"title\": \"Create Target\",\n  \"type\": \"object\",\n  \"toolMeta\": {\n    \"id\": \"create-target\",\n    \"category\": \"text-processing\",\n    \"displayName\": \"Create Target\",\n    \"tags\": [\n      \"l10n\"\n    ],\n    \"requires\": [\n      \"target-language\"\n    ],\n    \"cardinality\": \"bilingual\",\n    \"writesOutput\": true\n  },\n  \"properties\": {\n    \"copySource\": {\n      \"type\": \"boolean\",\n      \"title\": \"Copy Source\",\n      \"description\": \"Copy the source runs into the new target\",\n      \"default\": false\n    },\n    \"createOnNonTranslatable\": {\n      \"type\": \"boolean\",\n      \"title\": \"Create on Non-Translatable\",\n      \"description\": \"Create a target even for non-translatable text units\",\n      \"default\": true\n    },\n    \"overwrite\": {\n      \"type\": \"boolean\",\n      \"title\": \"Overwrite Existing\",\n      \"description\": \"Overwrite the existing target if one already exists\",\n      \"default\": false\n    },\n    \"targetLocale\": {\n      \"type\": \"string\",\n      \"title\": \"Target Locale\",\n      \"description\": \"Target locale to create\"\n=== EXEC create-target help ===\nCreate Target\n\nUsage:\n  kapi exec create-target [files...] [flags]\n\nFlags:\n  -j, --concurrency int              max parallel\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`create-target` writes a bilingual file and the output extension drives the format. Let me build the vendor file:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi exec create-target ./report.docx --source-lang en --target-lang fr -o ./handoff/report.en-fr.xlf 2\u003e\u00261 | head -20; echo \\\"---\\\"; ls -la ./handoff/; echo \\\"=== HEAD OF XLIFF ===\\\"; head -25 ./handoff/report.en-fr.xlf 2\u003e\u00261\",\"description\":\"Create bilingual XLIFF with empty French targets\"}",
+          "output": "---\ntotal 40\ndrwxr-xr-x  5 asgeirf  staff   160 Aug 27 22:00 .\ndrwx------  8 asgeirf  staff   256 Aug 27 21:59 ..\n-rw-------  1 asgeirf  staff  7251 Aug 27 21:59 r2.kpz\n-rw-r--r--  1 asgeirf  staff  1767 Aug 27 22:00 report.en-fr.xlf\n-rw-------  1 asgeirf  staff  7251 Aug 27 21:59 report.kpz\n=== HEAD OF XLIFF ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cxliff version=\"1.2\" xmlns=\"urn:oasis:names:tc:xliff:document:1.2\"\u003e\n  \u003cfile original=\"docProps/core.xml\" source-language=\"en\" target-language=\"fr\" datatype=\"plaintext\"\u003e\n    \u003cbody\u003e\n      \u003ctrans-unit id=\"tu1\"\u003e\n        \u003csource\u003ePartnership Proposal\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu2\"\u003e\n        \u003csource\u003ePrepared for: Meridian Retail Group\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu3\"\u003e\n        \u003csource\u003ePrepared by: the SalesPilot team\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu4\"\u003e\n        \u003csource\u003eThank you for the opportunity to introduce SalesPilot to your team.\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu5\"\u003e\n        \u003csource\u003eWhat SalesPilot delivers\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== UNIT COUNT ===\\\"; grep -c \\\"\u003ctrans-unit\\\" ./handoff/report.en-fr.xlf; echo \\\"=== FILE SECTIONS ===\\\"; grep \\\"\u003cfile \\\" ./handoff/report.en-fr.xlf; echo; echo \\\"=== FULL ===\\\"; cat ./handoff/report.en-fr.xlf\",\"description\":\"Verify all units present in XLIFF\"}",
+          "output": "=== UNIT COUNT ===\n11\n=== FILE SECTIONS ===\n  \u003cfile original=\"docProps/core.xml\" source-language=\"en\" target-language=\"fr\" datatype=\"plaintext\"\u003e\n\n=== FULL ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cxliff version=\"1.2\" xmlns=\"urn:oasis:names:tc:xliff:document:1.2\"\u003e\n  \u003cfile original=\"docProps/core.xml\" source-language=\"en\" target-language=\"fr\" datatype=\"plaintext\"\u003e\n    \u003cbody\u003e\n      \u003ctrans-unit id=\"tu1\"\u003e\n        \u003csource\u003ePartnership Proposal\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu2\"\u003e\n        \u003csource\u003ePrepared for: Meridian Retail Group\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu3\"\u003e\n        \u003csource\u003ePrepared by: the SalesPilot team\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu4\"\u003e\n        \u003csource\u003eThank you for the opportunity to introduce SalesPilot to your team.\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu5\"\u003e\n        \u003csource\u003eWhat SalesPilot delivers\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"tu6\"\u003e\n        \u003csource\u003eA single pipeline view across every region.\u003c/source\u003e\n        \u003ctarget\u003e\u003c/target\u003e\n      \u003c/trans-unit\u003e\n \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "All 11 segments are there. Now the part that actually matters — I need to prove the vendor's file can come *back* into the docx. Let me check the return path:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi merge --help 2\u003e\u00261 | head -35\",\"description\":\"Check merge options for return path\"}",
+          "output": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.\n\nUsage:\n  kapi merge [flags]\n\nExamples:\n  kapi merge                     # materialize target-language files from the project store\n  kapi merge -i out/app.en-to-fr.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-memory-update\n  kapi merge work.kpz -o out/    # emit tar\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Important: `merge -i` needs an extraction batch id that `create-target` doesn't write. Let me inspect the workspace manifest and test the actual return leg rather than assume it:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"unzip -p ./handoff/report.kpz manifest.json | python3 -m json.tool 2\u003e\u00261 | head -40\",\"description\":\"Inspect kpz manifest structure\"}",
+          "output": "{\n    \"schemaVersion\": \"1.0\",\n    \"kind\": \"kapi-project\",\n    \"generator\": {\n        \"id\": \"kapi\"\n    },\n    \"members\": [\n        {\n            \"path\": \"skeletons/report.docx\",\n            \"contentType\": \"skeleton\",\n            \"sha256\": \"4864256ac34a5ec86fc89bd2b0c3e72d9b07aa96edcb7f70d185008f79724f61\"\n        }\n    ],\n    \"rootHash\": \"7348363cef62820fc23949b8620816d2926adb60bbd6a4b7a285251acaa91bb3\",\n    \"recipe\": \"version: v1\\ndefaults:\\n    source_language: en\\n    target_languages:\\n        - fr\\nkpz:\\n    workspace: true\\n\",\n    \"sources\": [\n        {\n            \"sourcePath\": \"report.docx\",\n            \"formatId\": \"openxml\",\n            \"contentHash\": \"sha256:36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7\",\n            \"skeletonPath\": \"skeletons/report.docx\"\n        }\n    ]\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 cp ./handoff/report.kpz \u003cpath\u003e \u0026\u0026 cd \u003cpath\u003e \u0026\u0026 echo \\\"=== merge kpz (no targets yet) ===\\\" \u0026\u0026 kapi merge w.kpz -o ./out/ 2\u003e\u00261|head -10; ls -R ./out 2\u003e\u00261|head; echo; echo \\\"=== create-target ON the kpz, xliff out ===\\\"; kapi exec create-target w.kpz --source-lang en --target-lang fr -o ./from-kpz.xlf 2\u003e\u00261|head -10; ls -la \u003cpath\u003e\",\"description\":\"Test kpz merge and xliff emission paths\"}",
+          "output": "=== merge kpz (no targets yet) ===\nError: write \"report.docx\": openxml: writer requires original content for reconstruction\n\n=== create-target ON the kpz, xliff out ===\nError: running a tool on a .kpz updates it in place — use `kapi merge \u003cwork.kpz\u003e -o \u003cdir\u003e` to write output files\ntotal 16\ndrwxr-xr-x    4 asgeirf  wheel    128 Aug 27 22:00 .\ndrwxrwxrwt  376 root     wheel  12032 Aug 27 22:00 ..\ndrwxr-xr-x    2 asgeirf  wheel     64 Aug 27 22:00 out\n-rw-------    1 asgeirf  wheel   7251 Aug 27 22:00 w.kpz\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Two real constraints found: openxml needs `--with-source` in the workspace, and tools on a `.kpz` update in place. Let me fix the workspace and verify the return leg:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 rm -rf * ; kapi extract \u003cpath\u003e -o ./w.kpz --target-lang fr --with-source 2\u003e\u00261|head -5; unzip -l w.kpz; echo \\\"=== MERGE BACK ===\\\"; kapi merge w.kpz -o ./out/ 2\u003e\u00261|head -10; find ./out -type f 2\u003e/dev/null\",\"description\":\"Test kpz round-trip with embedded source\"}",
+          "output": "This Bash command contains multiple operations. The following parts require approval: cd \u003cpath\u003e \u0026\u0026 rm -rf * ; kapi extract \u003cpath\u003e -o ./w.kpz --target-lang fr --with-source 2\u003e\u00261, head -5; unzip -l w.kpz; echo \"=== MERGE BACK ===\"; kapi merge w.kpz -o ./out/ 2\u003e\u00261",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 kapi extract \\\"$PWD/report.docx\\\" -o \u003cpath\u003e --target-lang fr --with-source 2\u003e\u00261|head -5; unzip -l \u003cpath\u003e echo \\\"=== MERGE BACK ===\\\"; kapi merge \u003cpath\u003e -o \u003cpath\u003e 2\u003e\u00261|head -10; find \u003cpath\u003e -type f 2\u003e/dev/null\",\"description\":\"Test kpz round-trip with embedded source\"}",
+          "output": "Extracted 1 document(s) → \u003cpath\u003e\nArchive:  \u003cpath\u003e\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      921  01-01-1980 01:00   manifest.json\n     6211  01-01-1980 01:00   skeletons/report.docx\n    11003  01-01-1980 01:00   source/report.docx\n---------                     -------\n    18135                     3 files\n=== MERGE BACK ===\nMerged \u003cpath\u003e → 1 file(s) (fr)\n\u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "kpz round-trip works with `--with-source`. Now the decisive test — can a vendor-returned XLIFF merge back without a project?"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp ./handoff/report.en-fr.xlf \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'PY'\\nimport re\\np=\\\"\u003cpath\u003e\"\\ns=open(p,encoding=\\\"utf-8\\\").read()\\nfr={\\\"tu1\\\":\\\"Proposition de partenariat\\\",\\\"tu2\\\":\\\"Préparé pour : Meridian Retail Group\\\",\\\"tu3\\\":\\\"Préparé par : l'équipe SalesPilot\\\",\\\"tu4\\\":\\\"Merci de nous donner l'occasion de présenter SalesPilot à votre équipe.\\\",\\\"tu5\\\":\\\"Ce que SalesPilot vous apporte\\\",\\\"tu6\\\":\\\"Une vue unique du pipeline, dans toutes les régions.\\\",\\\"tu7\\\":\\\"Des relances automatisées qui font avancer les affaires.\\\",\\\"tu8\\\":\\\"Des prévisions sur lesquelles votre direction peut compter.\\\",\\\"tu9\\\":\\\"Prochaines étapes\\\",\\\"tu10\\\":\\\"Nous mettrons en service votre espace de travail SalesPilot sous deux jours ouvrés.\\\",\\\"tu11\\\":\\\"Cordialement, l'équipe SalesPilot.\\\"}\\ndef f(m):\\n    return m.group(0).replace(\\\"\u003ctarget\u003e\u003c/target\u003e\\\",\\\"\u003ctarget\u003e%s\u003c/target\u003e\\\"%fr[m.group(1)])\\ns=re.sub(r'\u003ctrans-unit id=\\\"(tu\\\\d+)\\\"\u003e.*?\u003c/trans-unit\u003e',f,s,flags=re.S)\\nopen(p,\\\"w\\\",encoding=\\\"utf-8\\\").write(s)\\nprint(\\\"filled\\\")\\nPY\\necho \\\"=== MERGE -i (no project) ===\\\"; kapi merge -i \u003cpath\u003e 2\u003e\u00261|head -10\",\"description\":\"Test project-less merge of filled XLIFF\"}",
+          "output": "filled\n=== MERGE -i (no project) ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "text",
+          "text": "Confirmed — the return leg requires a project. Since a handoff whose return path dead-ends isn't actually \"ready\", let me check what a minimal project involves:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -n '1,80p' .claude/skills/kapi/references/project.md\",\"description\":\"Read project reference\"}",
+          "output": "# Use a kapi project for standing context\n\nA `.kapi` project binds the things that don't change between requests — source and\ntarget locales, which files are content, the voice profile, and the terms store — so\nthat ordinary requests need no flags. kapi finds the project by walking up from the\ncurrent directory, like git.\n\n## When to set one up\n\nSet up a project when the work is ongoing: many files or a whole app, the same\ntarget locales repeatedly, a voice profile or terminology to keep consistent, recurring\nruns (CI, re-translate on change), or content memory to reuse. For a true\none-off, skip it and run the command directly.\n\n## Create it\n\n```bash\nkapi init --name my-app --source-locale en --target-locale fr --target-locale de\n# --framework \u003cpreset\u003e  pre-fills content paths; kapi init --list-presets shows them all\n```\n\nThis writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is\ncommitted** — it is the project's context, not scratch space. Git it like source.\n\n- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,\n  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the\n  primary), `profiles/\u003cname\u003e/` (what a profile over\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "A project is warranted — it's what makes the vendor's file mergeable back into the docx. Setting one up:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi init --name report --source-locale en --target-locale fr 2\u003e\u00261 | head -20; echo \\\"=== kapi.yaml ===\\\"; cat kapi.yaml 2\u003e\u00261; echo \\\"=== .kapi ===\\\"; ls -a .kapi 2\u003e\u00261\",\"description\":\"Initialize kapi project\"}",
+          "output": "Initialized kapi project \"report\"\n  recipe: \u003cpath\u003e\n  state:  \u003cpath\u003e\n=== kapi.yaml ===\nversion: v1\nname: report\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\n\n# Define collections and flows. Each bare collection entry maps a source glob to\n# a target; kapi tools read the source content and edit, check, or translate it.\n# The {lang} placeholder in a target fans output out per language. Runtime block\n# state lives in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/locales/en/*.json\"\n#     format: json\n#     target: \"src/locales/{lang}/*.json\"\n#\n# A named collection binds the point in the context space its content sits at,\n# and its base: is the directory it lives in — every path and target below is\n# written relative to that base and joined onto it:\n#\n# profiles:\n#   acme:\n#     channels: [docs]\n#     voice: .kapi/profiles/acme/voice.yaml\n#\n# collections:\n#   - name: acme-docs\n#     channel: acme/docs\n#     base: web\n#     content:\n#       - path: \"docs/**/*.md\"          # web/docs/**/*.md\n#         format: markdown\n#         target: \"i18n/{lang}/{path}.md\"   # web/i18n/{lang}/{path}.md\n#\n# flows:\n#   # Monolingual: check source content again\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Now binding the document as a collection:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\np=\\\"kapi.yaml\\\"\\ns=open(p,encoding=\\\"utf-8\\\").read()\\ns=s.replace(\\\"collections: []\\\",\\\"\\\"\\\"collections:\\n  - path: \\\"report.docx\\\"\\n    format: openxml\\n    target: \\\"translated/{lang}/report.docx\\\\\\\"\\\"\\\"\\\")\\nopen(p,\\\"w\\\",encoding=\\\"utf-8\\\").write(s)\\nPY\\ntail -5 kapi.yaml; echo \\\"=== STATUS ===\\\"; kapi status 2\u003e\u00261|head -25\",\"description\":\"Bind report.docx as project collection\"}",
+          "output": "collections:\n  - path: \"report.docx\"\n    format: openxml\n    target: \"translated/{lang}/report.docx\"\nflows: {}\n=== STATUS ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd; ls kapi.yaml .kapi -d 2\u003e\u00261; echo \\\"=== with -p ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -25\",\"description\":\"Debug project discovery\"}",
+          "output": "\u003cpath\u003e\nls: -d: No such file or directory\nkapi.yaml\n\n.kapi:\nmanifest.yaml\nmemory\nstate\nwork\n=== with -p ===\nsource      11 units · authored 100% · checked 100% · approved 0%\n\n  scope  units  draft  translated  reviewed  signed-off  pipeline  ship\n  fr     11     0%     0%          0%        0%          —         —"
+        },
+        {
+          "kind": "text",
+          "text": "Project is live (discovery needs explicit `-p` in this sandbox path). Now the real extract:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi extract -p kapi.yaml --target-lang fr 2\u003e\u00261|head -10; echo \\\"---\\\"; find ./out -type f 2\u003e/dev/null; echo \\\"=== HEAD ===\\\"; head -20 ./out/*.xliff 2\u003e/dev/null\",\"description\":\"Extract project XLIFF for vendor\"}",
+          "output": "Extracting batch be572196-16b9-4a9d-b6be-22cfd3b5af85 (format=xliff2, targets=fr, sources=1)\n\n  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n  fr      1      11      0      0      11\n\nBatch be572196-16b9-4a9d-b6be-22cfd3b5af85 complete. Manifest: \u003cpath\u003e\nAggregate content-memory leverage: exact=0 fuzzy=0 new=11 (total=11)\n---\n./out/report.en-to-fr.xliff\n=== HEAD ===\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003cxliff xmlns=\"urn:oasis:names:tc:xliff:document:2.2\" version=\"2.2\" srcLang=\"en\" trgLang=\"fr\"\u003e\n  \u003cfile id=\"report.docx\"\u003e\n    \u003cnotes\u003e\n      \u003cnote id=\"batch-id\" category=\"kapi\"\u003ebe572196-16b9-4a9d-b6be-22cfd3b5af85\u003c/note\u003e\n      \u003cnote id=\"source-file\" category=\"kapi\"\u003ereport.docx\u003c/note\u003e\n      \u003cnote id=\"source-hash\" category=\"kapi\"\u003esha256:36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7\u003c/note\u003e\n    \u003c/notes\u003e\n    \u003cunit id=\"tu1\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003ePartnership Proposal\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu2\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003e\u0026lt;w:b/\u0026gt;Prepared for:\u0026lt;/w:b\u0026gt; Meridian Retail Group\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu3\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003e\u0026lt;w:b/\u0026gt;Prepared by:\u0026lt;/w:b\u0026gt; the SalesPilot team\u003c/source\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Now I have proper XLIFF 2.2 with the batch id — and note it preserves inline bold codes the earlier route silently dropped. Let me see the whole file:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat ./out/report.en-to-fr.xliff\",\"description\":\"Read full vendor XLIFF\"}",
+          "output": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003cxliff xmlns=\"urn:oasis:names:tc:xliff:document:2.2\" version=\"2.2\" srcLang=\"en\" trgLang=\"fr\"\u003e\n  \u003cfile id=\"report.docx\"\u003e\n    \u003cnotes\u003e\n      \u003cnote id=\"batch-id\" category=\"kapi\"\u003ebe572196-16b9-4a9d-b6be-22cfd3b5af85\u003c/note\u003e\n      \u003cnote id=\"source-file\" category=\"kapi\"\u003ereport.docx\u003c/note\u003e\n      \u003cnote id=\"source-hash\" category=\"kapi\"\u003esha256:36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7\u003c/note\u003e\n    \u003c/notes\u003e\n    \u003cunit id=\"tu1\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003ePartnership Proposal\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu2\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003e\u0026lt;w:b/\u0026gt;Prepared for:\u0026lt;/w:b\u0026gt; Meridian Retail Group\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu3\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003e\u0026lt;w:b/\u0026gt;Prepared by:\u0026lt;/w:b\u0026gt; the SalesPilot team\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu4\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eThank you for the opportunity to introduce \u0026lt;w:b/\u0026gt;SalesPilot\u0026lt;/w:b\u0026gt; to your team.\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu5\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eWhat SalesPilot delivers\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu6\"\u003e\n      \u003csegment\u003e\n  \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Round-trip verification on a throwaway copy, so the deliverable stays pristine. I'll fill the targets (including the inline bold codes) and merge:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf \u003cpath\u003e \u0026\u0026 mkdir -p \u003cpath\u003e \u0026\u0026 cp -R kapi.yaml .kapi report.docx out \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'PY'\\nimport re\\np=\\\"\u003cpath\u003e\"\\ns=open(p,encoding=\\\"utf-8\\\").read()\\nfr={\\n\\\"tu1\\\":\\\"Proposition de partenariat\\\",\\n\\\"tu2\\\":\\\"\u0026lt;w:b/\u0026gt;Préparé pour :\u0026lt;/w:b\u0026gt; Meridian Retail Group\\\",\\n\\\"tu3\\\":\\\"\u0026lt;w:b/\u0026gt;Préparé par :\u0026lt;/w:b\u0026gt; l’équipe SalesPilot\\\",\\n\\\"tu4\\\":\\\"Nous vous remercions de nous donner l’occasion de présenter \u0026lt;w:b/\u0026gt;SalesPilot\u0026lt;/w:b\u0026gt; à votre équipe.\\\",\\n\\\"tu5\\\":\\\"Ce que SalesPilot vous apporte\\\",\\n\\\"tu6\\\":\\\"Une vue unique du pipeline, dans toutes les régions.\\\",\\n\\\"tu7\\\":\\\"Des relances automatisées qui font avancer les affaires.\\\",\\n\\\"tu8\\\":\\\"Des prévisions sur lesquelles votre direction peut compter.\\\",\\n\\\"tu9\\\":\\\"Prochaines étapes\\\",\\n\\\"tu10\\\":\\\"Nous mettrons en service votre espace de travail SalesPilot sous deux jours ouvrés.\\\",\\n\\\"tu11\\\":\\\"Cordialement, l’équipe SalesPilot.\\\",\\n}\\ndef f(m):\\n    uid=m.group(1)\\n    return m.group(0).replace(\\\"\u003c/source\u003e\\\",\\\"\u003c/source\u003e\\\\n        \u003ctarget\u003e%s\u003c/target\u003e\\\"%fr[uid])\\ns=re.sub(r'\u003cunit id=\\\"(tu\\\\d+)\\\"\u003e.*?\u003c/unit\u003e',f,s,flags=re.S)\\nopen(p,\\\"w\\\",encoding=\\\"utf-8\\\").write(s)\\nprint(\\\"tar\n…truncated…",
+          "output": "targets filled\n=== MERGE ===\nmerge: out/report.en-to-fr.xliff: write merged target \u003cpath\u003e openxml: writer requires original content for reconstruction\nRebuilding search index...\nRebuilding fuzzy index...\n  FILE                       APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n  out/report.en-to-fr.xliff  failed\n\nMerge complete. applied=0 stale=0 skipped=0 tm_new=0 tm_updated=0 (conflict_policy=translator-wins)\nError: merge: 1 input file(s) failed — see errors above\n=== RESULT ===\n\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"B=be572196-16b9-4a9d-b6be-22cfd3b5af85; echo \\\"=== extraction cache ===\\\"; find .kapi/work/cache/extractions/$B -type f | head -20; echo \\\"=== manifest ===\\\"; cat .kapi/work/cache/extractions/$B/manifest.yaml 2\u003e\u00261 | head -40\",\"description\":\"Inspect extraction manifest for skeleton/source\"}",
+          "output": "=== extraction cache ===\n.kapi/work/cache/extractions/be572196-16b9-4a9d-b6be-22cfd3b5af85/manifest.yaml\n.kapi/work/cache/extractions/be572196-16b9-4a9d-b6be-22cfd3b5af85/skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin\n=== manifest ===\nschemaVersion: 1\nkind: kapi-extraction\nbatchId: be572196-16b9-4a9d-b6be-22cfd3b5af85\ngenerator:\n  id: kapi\n  version: v1.2.0-rc29-3-g227b5ae49-dirty\ncreatedAt: \"2026-08-27T20:01:50Z\"\ninputsHash: sha256:62c277f1cdf739f525813a4ea584b38968472dd6cb3c321674aa5dac570361fe\nsourceLocale: en\noptions:\n  format: xliff2\n  xliffVersion: \"2.2\"\npairs:\n  - targetLocale: fr\n    output: out/report.en-to-fr.xliff\n    files:\n      - source: report.docx\n        sourceHash: sha256:36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7\n        format: xliff2\n        blocks: 11\n        segments: 11\n        leverage:\n          exact: 0\n          fuzzy: 0\n          new: 11\n        skeleton: skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin\ntotals:\n  exact: 0\n  fuzzy: 0\n  new: 11"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"B=be572196-16b9-4a9d-b6be-22cfd3b5af85; ls -la .kapi/work/cache/extractions/$B/; echo \\\"source docx: $(stat -f%z report.docx) bytes\\\"; echo \\\"=== is skeleton a zip? ===\\\"; file .kapi/work/cache/extractions/$B/skel-*.bin\",\"description\":\"Compare skeleton to original size\"}",
+          "output": "total 24\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:01 .\ndrwxr-xr-x  3 asgeirf  staff    96 Aug 27 22:01 ..\n-rw-r--r--  1 asgeirf  staff   798 Aug 27 22:01 manifest.yaml\n-rw-r--r--  1 asgeirf  staff  6211 Aug 27 22:01 skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin\nsource docx: 11003 bytes\n=== is skeleton a zip? ===\n.kapi/work/cache/extractions/be572196-16b9-4a9d-b6be-22cfd3b5af85/skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin: data"
+        },
+        {
+          "kind": "text",
+          "text": "Skeleton alone (6.2 KB) is smaller than the docx (11 KB) — openxml needs the original package. Let me test the merge in the real project where the source sits:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp ./out/report.en-to-fr.xliff \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'PY'\\nimport re\\np=\\\"\u003cpath\u003e\"\\ns=open(p,encoding=\\\"utf-8\\\").read()\\nfr={\\\"tu1\\\":\\\"Proposition de partenariat\\\",\\\"tu2\\\":\\\"\u0026lt;w:b/\u0026gt;Préparé pour :\u0026lt;/w:b\u0026gt; Meridian Retail Group\\\",\\\"tu3\\\":\\\"\u0026lt;w:b/\u0026gt;Préparé par :\u0026lt;/w:b\u0026gt; l’équipe SalesPilot\\\",\\\"tu4\\\":\\\"Nous vous remercions de nous donner l’occasion de présenter \u0026lt;w:b/\u0026gt;SalesPilot\u0026lt;/w:b\u0026gt; à votre équipe.\\\",\\\"tu5\\\":\\\"Ce que SalesPilot vous apporte\\\",\\\"tu6\\\":\\\"Une vue unique du pipeline, dans toutes les régions.\\\",\\\"tu7\\\":\\\"Des relances automatisées qui font avancer les affaires.\\\",\\\"tu8\\\":\\\"Des prévisions sur lesquelles votre direction peut compter.\\\",\\\"tu9\\\":\\\"Prochaines étapes\\\",\\\"tu10\\\":\\\"Nous mettrons en service votre espace de travail SalesPilot sous deux jours ouvrés.\\\",\\\"tu11\\\":\\\"Cordialement, l’équipe SalesPilot.\\\"}\\ns=re.sub(r'\u003cunit id=\\\"(tu\\\\d+)\\\"\u003e.*?\u003c/unit\u003e',lambda m:m.group(0).replace(\\\"\u003c/source\u003e\\\",\\\"\u003c/source\u003e\\\\n        \u003ctarget\u003e%s\u003c/target\u003e\\\"%fr[m.group(1)]),s,flags=re.S)\\nopen(p,\\\"w\\\",encoding=\\\"utf-8\\\").write(s)\\nPY\\nkapi merge -i \u003cpath\u003e -p kapi.yaml 2\u003e\u00261|head -12; echo \\\"=== OUTPUT ===\\\"; find ./translated -type f 2\u003e/d\n…truncated…",
+          "output": "merge: ../../../../../../..\u003cpath\u003e write merged target \u003cpath\u003e openxml: writer requires original content for reconstruction\nRebuilding search index...\nRebuilding fuzzy index...\n  FILE                                   APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n  ../../../../../../..\u003cpath\u003e  failed\n\nMerge complete. applied=0 stale=0 skipped=0 tm_new=0 tm_updated=0 (conflict_policy=translator-wins)\nError: merge: 1 input file(s) failed — see errors above\n=== OUTPUT ===\n-rw-r--r--  1 asgeirf  staff  0 Aug 27 22:02 ./translated/fr/report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "The XLIFF→docx merge fails and leaves a 0-byte file — the skeleton doesn't carry the package bytes. Let me try re-extracting with the source embedded:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf ./translated; kapi extract -p kapi.yaml --target-lang fr --with-source --force 2\u003e\u00261|head -8; echo \\\"=== new batch cache ===\\\"; ls -la .kapi/work/cache/extractions/*/ | head -20\",\"description\":\"Re-extract with embedded source bytes\"}",
+          "output": "Extracting batch 9efca6bb-0c01-49b5-91bf-aac23e3136c0 (format=xliff2, targets=fr, sources=1)\n\n  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n  fr      1      11      8      3      0\n\nBatch 9efca6bb-0c01-49b5-91bf-aac23e3136c0 complete. Manifest: \u003cpath\u003e\nAggregate content-memory leverage: exact=8 fuzzy=3 new=0 (total=11)\n=== new batch cache ===\n.kapi/work/cache/extractions/9efca6bb-0c01-49b5-91bf-aac23e3136c0/:\ntotal 24\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:03 .\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:03 ..\n-rw-r--r--  1 asgeirf  staff   796 Aug 27 22:03 manifest.yaml\n-rw-r--r--  1 asgeirf  staff  6211 Aug 27 22:03 skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin\n\n.kapi/work/cache/extractions/be572196-16b9-4a9d-b6be-22cfd3b5af85/:\ntotal 24\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:01 .\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:03 ..\n-rw-r--r--  1 asgeirf  staff   798 Aug 27 22:01 manifest.yaml\n-rw-r--r--  1 asgeirf  staff  6211 Aug 27 22:01 skel-36aaa5d788b7cd44cc750a159c235a85eea24369a863744d974a1961d54f9cb7.bin"
+        },
+        {
+          "kind": "text",
+          "text": "Two things to deal with: `--with-source` didn't embed bytes in project mode, and my verification strings got written into content memory and pre-filled the vendor file. Let me check and purge that:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la .kapi/memory/ 2\u003e\u00261; echo \\\"=== memory content ===\\\"; cat .kapi/memory/memory.json 2\u003e/dev/null | head -30; echo \\\"=== state ===\\\"; ls -la .kapi/state/ 2\u003e\u00261; head -5 .kapi/state/* 2\u003e/dev/null\",\"description\":\"Inspect content memory pollution\"}",
+          "output": "Exit code 1\ntotal 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 22:01 .\ndrwxr-xr-x  7 asgeirf  staff  224 Aug 27 22:01 ..\n=== memory content ===\n=== state ===\ntotal 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 22:01 .\ndrwxr-xr-x  7 asgeirf  staff  224 Aug 27 22:01 ..\n(eval):1: no matches found: .kapi/state/*",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "Committed memory is empty — the test strings live in the derived store. Since nothing is committed, I'll rebuild the derived state clean:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf .kapi/work out \u0026\u0026 kapi extract -p kapi.yaml --target-lang fr --no-memory 2\u003e\u00261|head -8; echo \\\"=== TARGETS PRESENT? ===\\\"; grep -c \\\"\u003ctarget\u003e\\\" ./out/report.en-to-fr.xliff 2\u003e/dev/null || echo \\\"0 targets (clean source-only handoff)\\\"; grep -c \\\"\u003cunit \\\" ./out/report.en-to-fr.xliff\",\"description\":\"Rebuild clean source-only vendor XLIFF\"}",
+          "output": "Extracting batch 93d1211d-a354-4d6a-9f63-869d106555e3 (format=xliff2, targets=fr, sources=1)\n\n  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n  fr      1      11      0      0      11\n\nBatch 93d1211d-a354-4d6a-9f63-869d106555e3 complete. Manifest: \u003cpath\u003e\nAggregate content-memory leverage: exact=0 fuzzy=0 new=11 (total=11)\n=== TARGETS PRESENT? ===\n0\n0 targets (clean source-only handoff)\n11"
+        },
+        {
+          "kind": "text",
+          "text": "Let me do one final clean confirmation of the return-leg behavior, without polluting memory:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp ./out/report.en-to-fr.xliff \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'PY'\\nimport re\\np=\\\"\u003cpath\u003e\"; s=open(p,encoding=\\\"utf-8\\\").read()\\ns=re.sub(r'(\u003csource\u003e(.*?)\u003c/source\u003e)',lambda m:m.group(1)+\\\"\\\\n        \u003ctarget\u003eTEST-FR\u003c/target\u003e\\\",s,flags=re.S)\\nopen(p,\\\"w\\\",encoding=\\\"utf-8\\\").write(s)\\nPY\\nkapi merge -i \u003cpath\u003e -p kapi.yaml --no-memory-update 2\u003e\u00261|head -8; echo \\\"=== artifact ===\\\"; ls -la ./translated/fr/ 2\u003e/dev/null; rm -rf ./translated\",\"description\":\"Final clean confirmation of merge behavior\"}",
+          "output": "merge: ../../../../../../..\u003cpath\u003e write merged target \u003cpath\u003e openxml: writer requires original content for reconstruction\n  FILE                               APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n  ../../../../../../..\u003cpath\u003e  failed\n\nMerge complete. applied=0 stale=0 skipped=0 tm_new=0 tm_updated=0 (conflict_policy=translator-wins)\nError: merge: 1 input file(s) failed — see errors above\n=== artifact ===\ntotal 0\ndrwxr-xr-x  3 asgeirf  staff  96 Aug 27 22:03 .\ndrwxr-xr-x  3 asgeirf  staff  96 Aug 27 22:03 ..\n-rw-r--r--  1 asgeirf  staff   0 Aug 27 22:03 report.docx"
+        },
+        {
+          "kind": "text",
+          "text": "Definitively confirmed and reproducible. Let me clean up my scratch artifacts and check the terminology setup for the return-leg QA:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf ./handoff ./translated \u003cpath\u003e \u003cpath\u003e \u003cpath\u003e \u003cpath\u003e \u003cpath\u003e report_qps.docx; ls -a; echo \\\"=== terms help ===\\\"; kapi terms --help 2\u003e\u00261|head -20; echo \\\"=== dnt-check ===\\\"; kapi tools schema dnt-check 2\u003e\u00261|head -35\",\"description\":\"Clean scratch artifacts, inspect terms and dnt-check\"}",
+          "output": ".\n..\n.claude\n.kapi\nkapi-config\nkapi.yaml\nout\nreport.docx\nxdg-cache\n=== terms help ===\nManage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms — a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).\n\nUsage:\n  kapi terms [command]\n\n=== dnt-check ===\n{\n  \"$id\": \"dnt-check\",\n  \"title\": \"Do-Not-Translate Check\",\n  \"type\": \"object\",\n  \"toolMeta\": {\n    \"id\": \"dnt-check\",\n    \"category\": \"quality\",\n    \"displayName\": \"Do-Not-Translate Check\",\n    \"tags\": [\n      \"quality\",\n      \"l10n\"\n    ],\n    \"requires\": [\n      \"target-language\"\n    ],\n    \"cardinality\": \"bilingual\",\n    \"consumes\": [\n      {\n        \"type\": \"target\",\n        \"\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Now let me set up the terminology so the vendor's return can be QA'd — the product and client names must survive untranslated:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms add --help 2\u003e\u00261|head -25; echo \\\"=== import formats ===\\\"; kapi terms import --help 2\u003e\u00261|head -20\",\"description\":\"Check terms add/import syntax\"}",
+          "output": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms — a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).\n\nUsage:\n  kapi terms [command]\n\nExamples:\n  kapi terms stats\n  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms import terms.csv -s en -t fr\n\n=== import formats ===\nImport terms from CSV, JSON, TBX, or a native .terms.json bundle\n\nUsage:\n  kapi terms import [file] [flags]\n\nExamples:\n  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json\n\nFlags:\n      --delimiter string       CS\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e \u003cpath\u003e \u003c\u003c'CSV'\\nsource,target\\nSalesPilot,SalesPilot\\nMeridian Retail Group,Meridian Retail Group\\nCSV\\nkapi terms import \u003cpath\u003e -s en -t fr --header -p kapi.yaml 2\u003e\u00261|head -10; echo \\\"=== VERIFY ===\\\"; kapi terms lookup \\\"SalesPilot\\\" -s en -t fr -p kapi.yaml 2\u003e\u00261|head -10; kapi terms stats -p kapi.yaml 2\u003e\u00261|head -10\",\"description\":\"Import do-not-translate glossary entries\"}",
+          "output": "Imported 2 concepts into \u003cpath\u003e (total: 2)\n=== VERIFY ===\n  TERM            LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  SalesPilot      en      approved  exact  1.00   csv-1    —\n    → SalesPilot  fr      approved\n\nTotal: 1 match(es)\nTerms: \u003cpath\u003e\n\n  Concepts:  2\n  Terms:     4\n\nLocales:\n\n  LOCALE  TERMS\n  en      2\n  fr      2"
+        },
+        {
+          "kind": "text",
+          "text": "Terms live in the derived store — let me export them to the committed source and bind it, so the glossary is durable and shippable:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms export --help 2\u003e\u00261|head -18\",\"description\":\"Check terms export options\"}",
+          "output": "Export terms to CSV, JSON, TBX, or a native .terms.json bundle\n\nUsage:\n  kapi terms export [flags]\n\nFlags:\n      --export-name string     terms name for JSON export\n      --file string            explicit path to resource file\n      --format string          export format (csv, json, tbx, bundle); a .terms.json -o path is detected automatically (default \"json\")\n  -h, --help                   help for export\n      --local                  use resource in current directory\n      --name string            named resource in KAPI_HOME (e.g. --name project-terms)\n  -o, --output string          output file (default: stdout)\n  -p, --project string         path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)\n  -s, --source-locale string   source locale for CSV export (default \"en\")\n  -t, --target-locale string   target locale for CSV export\n\nGlobal Flags:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms export -o .kapi/terms.json -p kapi.yaml 2\u003e\u00261|head -5; echo \\\"---\\\"; cat .kapi/terms.json 2\u003e/dev/null|head -30; echo \\\"=== TBX for vendor CAT tool ===\\\"; kapi terms export --format tbx -o \u003cpath\u003e -p kapi.yaml 2\u003e\u00261|head -3 \u0026\u0026 head -20 \u003cpath\u003e\",\"description\":\"Export glossary to committed source and TBX\"}",
+          "output": "Exported 2 concepts to .kapi/terms.json\n---\n{\n  \"schemaVersion\": \"1.0\",\n  \"kind\": \"kapi-terms\",\n  \"concepts\": [\n    {\n      \"id\": \"csv-1\",\n      \"source\": \"terminology\",\n      \"terms\": [\n        {\n          \"text\": \"SalesPilot\",\n          \"locale\": \"en\",\n          \"status\": \"approved\"\n        },\n        {\n          \"text\": \"SalesPilot\",\n          \"locale\": \"fr\",\n          \"status\": \"approved\"\n        }\n      ],\n      \"created_at\": \"2026-08-27T20:04:07Z\",\n      \"updated_at\": \"2026-08-27T20:04:07Z\"\n    },\n    {\n      \"id\": \"csv-2\",\n      \"source\": \"terminology\",\n      \"terms\": [\n        {\n          \"text\": \"Meridian Retail Group\",\n          \"locale\": \"en\",\n          \"status\": \"approved\"\n=== TBX for vendor CAT tool ===\nExported 2 concepts to \u003cpath\u003e\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003ctbx style=\"dca\" type=\"TBX-Basic\" xml:lang=\"en\"\u003e\n  \u003ctext\u003e\n    \u003cbody\u003e\n      \u003cconceptEntry id=\"csv-1\"\u003e\n        \u003clangSec xml:lang=\"en\"\u003e\n          \u003ctermSec\u003e\n            \u003cterm\u003eSalesPilot\u003c/term\u003e\n            \u003ctermNote type=\"administrativeStatus\"\u003eapprovedTerm-admn-sts\u003c/termNote\u003e\n          \u003c/termSec\u003e\n        \u003c/langSec\u003e\n        \u003clangSec xml:lang=\"fr\"\u003e\n          \u003ctermSec\u003e\n            \u003cterm\u003eSalesPilot\u003c/term\u003e\n     \n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by finding the file and understanding what we're working with."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 file report.docx 2\u003e/dev/null\",\"description\":\"List directory and inspect report.docx\"}",
+          "output": "total 24\ndrwx------      3 asgeirf  staff      96 Aug 27 22:04 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:04 ..\n-rw-r--r--      1 asgeirf  staff   11003 Aug 27 22:04 report.docx\nreport.docx: Microsoft Word 2007+"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p \u003cpath\u003e \u0026\u0026 unzip -o -q report.docx -d \u003cpath\u003e \u0026\u0026 find \u003cpath\u003e -type f | sort\",\"description\":\"Unzip docx and list internal parts\"}",
+          "output": "\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 -c \\\"\\nimport re,sys\\nd=open('word/document.xml',encoding='utf-8').read()\\nprint('LEN',len(d))\\n\\\" \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport xml.dom.minidom\\nprint(xml.dom.minidom.parse('\u003cpath\u003e').toprettyxml()[:8000])\\nEOF\",\"description\":\"Pretty print document.xml head\"}",
+          "output": "LEN 3290\n\u003c?xml version=\"1.0\" ?\u003e\n\u003cw:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"\u003e\n\t\n\n\t\u003cw:body\u003e\n\t\t\n    \n\t\t\u003cw:bookmarkStart w:id=\"11\" w:name=\"partnership-proposal\"/\u003e\n\t\t\n    \n\t\t\u003cw:p\u003e\n\t\t\t\u003cw:pPr\u003e\n\t\t\t\t\u003cw:pStyle w:val=\"Heading1\"/\u003e\n\t\t\t\u003c/w:pPr\u003e\n\t\t\t\u003cw:r\u003e\n\t\t\t\t\u003cw:t xml:space=\"preserve\"\u003ePartnership Proposal\u003c/w:t\u003e\n\t\t\t\u003c/w:r\u003e\n\t\t\u003c/w:p\u003e\n\t\t\n    \n\t\t\u003cw:p\u003e\n\t\t\t\u003cw:pPr\u003e\n\t\t\t\t\u003cw:pStyle w:val=\"FirstParagraph\"/\u003e\n\t\t\t\u003c/w:pPr\u003e\n\t\t\t\u003cw:r\u003e\n\t\t\t\t\u003cw:rPr\u003e\n\t\t\t\t\t\u003cw:b/\u003e\n\t\t\t\t\t\u003cw:bCs/\u003e\n\t\t\t\t\u003c/w:rPr\u003e\n\t\t\t\t\u003cw:t xml:space=\"preserve\"\u003ePrepared for:\u003c/w:t\u003e\n\t\t\t\u003c/w:r\u003e\n\t\t\t\u003cw:r\u003e\n\t\t\t\t\u003cw:t xml:space=\"preserve\"\u003e \u003c/w:t\u003e\n\t\t\t\u003c/w:r\u003e\n\t\t\t\u003cw:r\u003e\n\t\t\t\t\u003cw:t xml:space=\"preserve\"\u003eMeridian Retail Group\u003c/w:t\u003e\n\t\t\t\u003c/w:r\u003e\n\t\t\u003c/w:p\u003e\n\t\t\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 for f in word/comments.xml word/footnotes.xml docProps/core.xml docProps/app.xml docProps/custom.xml word/settings.xml; do echo \\\"===== $f =====\\\"; python3 -c \\\"\\nimport xml.dom.minidom,sys\\nprint(xml.dom.minidom.parse('$f').toprettyxml())\\n\\\" | grep -v '^\\\\s*$'; done\",\"description\":\"Dump comments, footnotes, props, settings\"}",
+          "output": "===== word/comments.xml =====\n\u003c?xml version=\"1.0\" ?\u003e\n\u003cw:comments xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"/\u003e\n===== word/footnotes.xml =====\n\u003c?xml version=\"1.0\" ?\u003e\n\u003cw:footnotes xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xm\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which tikal rainbow okapi 2\u003e/dev/null; ls /usr/local/okapi \u003cpath\u003e ~/okapi* 2\u003e/dev/null; python3 -c \\\"import docx; print('python-docx ok')\\\" 2\u003e\u00261 | tail -1; echo \\\"--- styles docDefaults ---\\\"; python3 -c \\\"\\nimport xml.dom.minidom\\ns=xml.dom.minidom.parse('\u003cpath\u003e').toprettyxml()\\nprint(s[:2500])\\n\\\"; echo \\\"--- lang refs ---\\\"; grep -o 'w:lang[^/\u003e]*' \u003cpath\u003e | head\",\"description\":\"Check for Okapi tooling and inspect styles defaults\"}",
+          "output": "tikal not found\nrainbow not found\nokapi not found\n(eval):1: no matches found: ~/okapi*\npython-docx ok\n--- styles docDefaults ---\n\u003c?xml version=\"1.0\" ?\u003e\n\u003cw:styles xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"\u003e\n\t\n  \n\t\u003cw:docDefaults\u003e\n\t\t\n    \n\t\t\u003cw:rPrDefault\u003e\n\t\t\t\n      \n\t\t\t\u003cw:rPr\u003e\n\t\t\t\t\n        \n\t\t\t\t\u003cw:rFonts w:asciiTheme=\"minorHAnsi\" w:cstheme=\"minorBidi\" w:eastAsiaTheme=\"minorEastAsia\" w:hAnsiTheme=\"minorHAnsi\"/\u003e\n\t\t\t\t\n        \n\t\t\t\t\u003cw:sz w:val=\"24\"/\u003e\n\t\t\t\t\n        \n\t\t\t\t\u003cw:szCs w:val=\"24\"/\u003e\n\t\t\t\t\n        \n\t\t\t\t\u003cw:lang w:bidi=\"ar-SA\" w:eastAsia=\"zh-CN\" w:val=\"en-US\"/\u003e\n\t\t\t\t\n      \n\t\t\t\u003c/w:rPr\u003e\n\t\t\t\n    \n\t\t\u003c/w:rPrDefault\u003e\n\t\t\n    \n\t\t\u003cw:pPrDefault\u003e\n\t\t\t\n      \n\t\t\t\u003cw:pPr\u003e\n\t\t\t\t\n        \n\t\t\t\t\u003cw:spacing w:after=\"200\"/\u003e\n\t\t\t\t\n      \n\t\t\t\u003c/w:pPr\u003e\n\t\t\t\n    \n\t\t\u003c/w:pPrDefault\u003e\n\t\t\n  \n\t\u003c/w:docDefaults\u003e\n\t\n  \n\t\u003cw:latentStyles w:count=\"276\" w:defLockedState=\"0\" w:defQFormat=\"0\" w:defSemiHidden=\"0\" w:defUIPriority=\"0\" w:defUnhideWhenUsed=\"0\"/\u003e\n\t\n  \n\t\u003cw:style w:default=\"1\" w:styleId=\"Normal\" w:type=\"paragraph\"\u003e\n\t\t\n    \n\t\t\u003cw:name w:val=\"Normal\"/\u003e\n\t\t\n    \n\t\t\u003cw:qFormat/\u003e\n\t\t\n  \n\t\u003c/w:style\u003e\n\t\n  \n\t\u003cw:style w:styleId=\"Bod\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No Okapi/Tikal tooling installed here, and the doc is clean (no tracked changes, comments, or footnotes). Let me load the localization domain skill before building the handoff kit."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"okapi-expert\",\"args\":\"Preparing a DOCX for a translation vendor: XLIFF interchange conventions, inline codes, source/target locale handling\"}",
+          "output": "Launching skill: okapi-expert"
+        },
+        {
+          "kind": "text",
+          "text": "Skill loaded — it's oriented to the Okapi Java codebase (not installed here), but it confirms the right model: text units with inline codes plus a skeleton for merge-back. I'll build that pipeline directly."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 -c \\\"import lxml.etree; print('lxml', lxml.etree.__version__)\\\" 2\u003e\u00261 | tail -1\",\"description\":\"Check for lxml availability\"}",
+          "output": "lxml 6.0.2"
+        },
+        {
+          "kind": "text",
+          "text": "lxml is available, which preserves the OOXML namespaces cleanly. Now building the prep + extraction pipeline."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p handoff/tools handoff/source handoff/xliff \u0026\u0026 cat \u003e handoff/tools/prep_docx.py \u003c\u003c'PYEOF'\\n\\\"\\\"\\\"\\nPre-translation cleanup for a DOCX source file.\\n\\nMerges adjacent runs (w:r) that carry identical formatting. Word routinely\\nsplits a single sentence across several runs; every split becomes a spurious\\ninline tag in the vendor's CAT tool, which hurts TM leverage and invites\\ntag-placement errors during translation.\\n\\\"\\\"\\\"\\nimport shutil\\nimport sys\\nimport zipfile\\nfrom pathlib import Path\\n\\nfrom lxml import etree\\n\\nW = \\\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\\\"\\nPARTS = (\\\"word/document.xml\\\", \\\"word/footnotes.xml\\\", \\\"word/endnotes.xml\\\", \\\"word/header1.xml\\\")\\n\\n\\ndef rpr_key(run):\\n    \\\"\\\"\\\"Formatting fingerprint of a run: canonical form of its w:rPr, or '' if unformatted.\\\"\\\"\\\"\\n    rpr = run.find(f\\\"{{{W}}}rPr\\\")\\n    if rpr is None:\\n        return \\\"\\\"\\n    return etree.tostring(rpr, method=\\\"c14n2\\\").decode()\\n\\n\\ndef is_text_only(run):\\n    \\\"\\\"\\\"True if the run holds nothing but rPr and w:t (no breaks, tabs, drawings, footnote refs).\\\"\\\"\\\"\\n    allowed = {f\\\"{{{W}}}rPr\\\", f\\\"{{{W}}}t\\\"}\\n    return all(child.tag in allowed fo\n…truncated…",
+          "output": "Exit code 1\nTraceback (most recent call last):\n  File \"\u003cpath\u003e\", line 80, in \u003cmodule\u003e\n    main(sys.argv[1], sys.argv[2])\n  File \"\u003cpath\u003e\", line 68, in main\n    n = merge_runs(tree)\n        ^^^^^^^^^^^^^^^^\n  File \"\u003cpath\u003e\", line 45, in merge_runs\n    if prev is not None and rpr_key(prev) == rpr_key(run):\n                            ^^^^^^^^^^^^^\n  File \"\u003cpath\u003e\", line 25, in rpr_key\n    return etree.tostring(rpr, method=\"c14n2\").decode()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"src/lxml/etree.pyx\", line 3597, in lxml.etree.tostring\n  File \"src/lxml/serializer.pxi\", line 879, in lxml.etree._tree_to_target\n  File \"src/lxml/serializer.pxi\", line 1064, in lxml.etree.C14NWriterTarget.start\n  File \"src/lxml/serializer.pxi\", line 1091, in lxml.etree.C14NWriterTarget._start\n  File \"src/lxml/serializer.pxi\", line 1021, in lxml.etree.C14NWriterTarget._qname\nValueError: Namespace \"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" of name \"rPr\" is not declared in scope",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "c14n needs in-scope namespace declarations. Switching to a structural fingerprint instead."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd handoff/tools \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport re\\np='prep_docx.py'\\ns=open(p).read()\\nold='''def rpr_key(run):\\n    \\\"\\\"\\\"Formatting fingerprint of a run: canonical form of its w:rPr, or '' if unformatted.\\\"\\\"\\\"\\n    rpr = run.find(f\\\"{{{W}}}rPr\\\")\\n    if rpr is None:\\n        return \\\"\\\"\\n    return etree.tostring(rpr, method=\\\"c14n2\\\").decode()'''\\nnew='''def _fingerprint(el):\\n    \\\"\\\"\\\"Order-sensitive structural signature of an element subtree.\\\"\\\"\\\"\\n    return (el.tag, tuple(sorted(el.attrib.items())), tuple(_fingerprint(c) for c in el))\\n\\n\\ndef rpr_key(run):\\n    \\\"\\\"\\\"Formatting fingerprint of a run: structure of its w:rPr, or '' if unformatted.\\\"\\\"\\\"\\n    rpr = run.find(f\\\"{{{W}}}rPr\\\")\\n    return \\\"\\\" if rpr is None else repr(_fingerprint(rpr))'''\\nassert old in s\\nopen(p,'w').write(s.replace(old,new))\\nprint(\\\"patched\\\")\\nEOF\\ncd ../.. \u0026\u0026 python3 handoff/tools/prep_docx.py report.docx handoff/source/report.docx\",\"description\":\"Patch fingerprint function and rerun prep\"}",
+          "output": "patched\nmerged 4 redundant run(s) -\u003e handoff/source/report.docx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'EOF'\\nimport zipfile\\nfrom lxml import etree\\nW=\\\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\\\"\\ndef paras(f):\\n    t=etree.fromstring(zipfile.ZipFile(f).read(\\\"word/document.xml\\\"))\\n    out=[]\\n    for p in t.iter(f\\\"{{{W}}}p\\\"):\\n        out.append(\\\"\\\".join(n.text or \\\"\\\" for n in p.iter(f\\\"{{{W}}}t\\\")))\\n    return out\\ndef runs(f):\\n    t=etree.fromstring(zipfile.ZipFile(f).read(\\\"word/document.xml\\\"))\\n    return sum(1 for _ in t.iter(f\\\"{{{W}}}r\\\"))\\na=paras(\\\"report.docx\\\"); b=paras(\\\"handoff/source/report.docx\\\")\\nprint(\\\"text identical:\\\", a==b)\\nprint(\\\"runs before/after:\\\", runs(\\\"report.docx\\\"), \\\"-\u003e\\\", runs(\\\"handoff/source/report.docx\\\"))\\nfor p in b: print(f\\\"  | {p}\\\")\\nEOF\\npython3 -c \\\"\\nimport docx\\nd=docx.Document('handoff/source/report.docx')\\nprint('python-docx opens cleaned file OK, paragraphs:',len(d.paragraphs))\\n\\\"\",\"description\":\"Verify text preserved and file still valid\"}",
+          "output": "text identical: True\nruns before/after: 19 -\u003e 15\n  | Partnership Proposal\n  | Prepared for: Meridian Retail Group\n  | Prepared by: the SalesPilot team\n  | Thank you for the opportunity to introduce SalesPilot to your team.\n  | What SalesPilot delivers\n  | A single pipeline view across every region.\n  | Automated follow-ups that keep deals moving.\n  | Forecasts your leadership can rely on.\n  | Next steps\n  | We will provision your SalesPilot workspace within two business days.\n  | Warm regards, the SalesPilot team.\npython-docx opens cleaned file OK, paragraphs: 11"
+        },
+        {
+          "kind": "text",
+          "text": "Text is identical and run count dropped 19 → 15. Now the XLIFF extractor with inline codes."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e handoff/tools/docx2xliff.py \u003c\u003c'PYEOF'\\n\\\"\\\"\\\"\\nExtract translatable text units from a prepared DOCX into XLIFF 1.2.\\n\\nEach paragraph becomes one trans-unit. Formatting inside a paragraph becomes an\\ninline \u003cg\u003e code whose id is the index of the source run it came from, so\\nxliff2docx.py can map translated content back onto the original run properties.\\nUnformatted text is emitted bare, keeping the tag count as low as the source allows.\\n\\\"\\\"\\\"\\nimport json\\nimport sys\\nimport zipfile\\nfrom pathlib import Path\\n\\nfrom lxml import etree\\n\\nW = \\\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\\\"\\nXLF = \\\"urn:oasis:names:tc:xliff:document:1.2\\\"\\nXML = \\\"http://www.w3.org/XML/1998/namespace\\\"\\n\\nCTYPES = [(\\\"b\\\", \\\"bold\\\"), (\\\"i\\\", \\\"italic\\\"), (\\\"u\\\", \\\"underline\\\"), (\\\"strike\\\", \\\"x-strike\\\")]\\n\\n\\ndef ctype_of(rpr):\\n    for tag, name in CTYPES:\\n        if rpr.find(f\\\"{{{W}}}{tag}\\\") is not None:\\n            return name\\n    return \\\"x-run\\\"\\n\\n\\ndef para_style(para):\\n    pstyle = para.find(f\\\"{{{W}}}pPr/{{{W}}}pStyle\\\")\\n    return pstyle.get(f\\\"{{{W}}}val\\\") if pstyle is not None else \\\"Normal\\\"\\n\\n\\ndef build_source(para, parent):\\n    \\\"\\\"\\\"Emit \n…truncated…",
+          "output": "11 trans-units, 62 source words -\u003e handoff/xliff/report.docx.xlf"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"head -40 handoff/xliff/report.docx.xlf\",\"description\":\"Inspect generated XLIFF\"}",
+          "output": "\u003c?xml version='1.0' encoding='UTF-8'?\u003e\n\u003cxliff xmlns=\"urn:oasis:names:tc:xliff:document:1.2\" version=\"1.2\"\u003e\n  \u003cfile original=\"report.docx\" source-language=\"en-US\" target-language=\"fr-FR\" datatype=\"x-undefined\"\u003e\n    \u003cheader\u003e\n      \u003cnote\u003eDo not translate the product name 'SalesPilot' or the client name 'Meridian Retail Group'. Preserve all inline \u0026lt;g\u0026gt; codes and their ids.\u003c/note\u003e\n    \u003c/header\u003e\n    \u003cbody\u003e\n      \u003ctrans-unit id=\"1\" resname=\"Heading1_0\"\u003e\n        \u003csource xml:lang=\"en-US\"\u003ePartnership Proposal\u003c/source\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"2\" resname=\"FirstParagraph_1\"\u003e\n        \u003csource xml:lang=\"en-US\"\u003e\u003cg id=\"1\" ctype=\"bold\"\u003ePrepared for:\u003c/g\u003e Meridian Retail Group\u003c/source\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"3\" resname=\"BodyText_2\"\u003e\n        \u003csource xml:lang=\"en-US\"\u003e\u003cg id=\"1\" ctype=\"bold\"\u003ePrepared by:\u003c/g\u003e the SalesPilot team\u003c/source\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"4\" resname=\"BodyText_3\"\u003e\n        \u003csource xml:lang=\"en-US\"\u003eThank you for the opportunity to introduce \u003cg id=\"2\" ctype=\"bold\"\u003eSalesPilot\u003c/g\u003e to your team.\u003c/source\u003e\n      \u003c/trans-unit\u003e\n      \u003ctrans-unit id=\"5\" resname=\"Heading2_4\"\u003e\n        \u003csource xml:lang=\"en-US\"\u003eWhat SalesPilot delivers\u003c/sour\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Clean extraction — only 3 units carry inline codes, exactly where bold is real. Now the merge-back script that closes the round trip."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e handoff/tools/xliff2docx.py \u003c\u003c'PYEOF'\\n\\\"\\\"\\\"\\nMerge a translated XLIFF 1.2 file back into the prepared DOCX.\\n\\nRebuilds each translated paragraph's runs from the \u003ctarget\u003e content. Inline \u003cg\u003e\\ncodes are resolved back to the run properties of the source run carrying the same\\nid, so bold/italic survive the round trip even if the translator moved the code.\\nAlso retargets the document language so Word proofs the result in French.\\n\\\"\\\"\\\"\\nimport json\\nimport sys\\nimport zipfile\\nfrom copy import deepcopy\\nfrom pathlib import Path\\n\\nfrom lxml import etree\\n\\nW = \\\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\\\"\\nXLF = \\\"urn:oasis:names:tc:xliff:document:1.2\\\"\\nXML = \\\"http://www.w3.org/XML/1998/namespace\\\"\\n\\n\\ndef flatten(node):\\n    \\\"\\\"\\\"Yield (rpr_id_or_None, text) pairs from XLIFF target content.\\\"\\\"\\\"\\n    if node.text:\\n        yield None, node.text\\n    for child in node:\\n        tag = etree.QName(child).localname\\n        if tag == \\\"g\\\":\\n            yield child.get(\\\"id\\\"), \\\"\\\".join(child.itertext())\\n        elif tag in (\\\"mrk\\\", \\\"sub\\\"):  # transparent wrappers: keep content, drop wrapper\\n            yield from flatten(child)\\n      \n…truncated…",
+          "output": "written"
+        },
+        {
+          "kind": "text",
+          "text": "Now validating the round trip with a pseudo-translation — standard pre-handoff QA to prove the pipeline survives accents and French text expansion."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e handoff/tools/pseudotranslate.py \u003c\u003c'PYEOF'\\n\\\"\\\"\\\"\\nFill an XLIFF's targets with pseudo-translated text.\\n\\nSubstitutes accented characters and pads length ~25% to approximate French\\nexpansion. Used to prove the extract/merge round trip and to surface layout\\nbreakage before the real translation arrives. Inline \u003cg\u003e codes are preserved.\\n\\\"\\\"\\\"\\nimport sys\\nfrom copy import deepcopy\\n\\nfrom lxml import etree\\n\\nXLF = \\\"urn:oasis:names:tc:xliff:document:1.2\\\"\\nXML = \\\"http://www.w3.org/XML/1998/namespace\\\"\\nACCENTS = str.maketrans(\\\"aeiouAEIOUcyn\\\", \\\"àéîöûÀÉÎÖÛçÿñ\\\")\\nKEEP = (\\\"SalesPilot\\\", \\\"Meridian Retail Group\\\")\\n\\n\\ndef pseudo(text):\\n    if not text:\\n        return text\\n    out = []\\n    for word in text.split(\\\" \\\"):\\n        if any(k in word for k in KEEP) or any(word in k.split() for k in KEEP):\\n            out.append(word)\\n        else:\\n            out.append(word.translate(ACCENTS))\\n    return \\\" \\\".join(out)\\n\\n\\ndef transform(node):\\n    node.text = pseudo(node.text)\\n    for child in node:\\n        transform(child)\\n        child.tail = pseudo(child.tail)\\n\\n\\ndef main(src, dst, pad=0.25):\\n    tree = etree.parse(src)\\n    for tu\n…truncated…",
+          "output": "pseudo-translated -\u003e \u003cpath\u003e\nmerged 11 paragraph(s) -\u003e \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'EOF'\\nimport zipfile, docx\\nfrom lxml import etree\\nW=\\\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\\\"\\nd=docx.Document('\u003cpath\u003e')\\nprint(\\\"=== pseudo-translated output (validates round trip) ===\\\")\\nfor p in d.paragraphs:\\n    bold=[r.text for r in p.runs if r.bold]\\n    print(f\\\"[{p.style.name:\u003e16}] {p.text}\\\")\\n    if bold: print(f\\\"{'':\u003e19}bold preserved: {bold}\\\")\\nprint(\\\"\\\\n=== language retarget check ===\\\")\\nz=zipfile.ZipFile('\u003cpath\u003e')\\nimport re\\nprint(\\\"styles lang:\\\", re.findall(rb'w:lang[^/\u003e]*', z.read('word/styles.xml'))[:1])\\nprint(\\\"themeFontLang:\\\", re.findall(rb'themeFontLang[^/\u003e]*', z.read('word/settings.xml')))\\nEOF\",\"description\":\"Verify pseudo-translated output, formatting and language\"}",
+          "output": "=== pseudo-translated output (validates round trip) ===\n[       Heading 1] Pàrtñérshîp Pröpösàl ééééé\n[ First Paragraph] Prépàréd för: Meridian Retail Group éééééééé\n                   bold preserved: ['Prépàréd för:']\n[       Body Text] Prépàréd bÿ: thé SalesPilot téàm éééééééé\n                   bold preserved: ['Prépàréd bÿ:']\n[       Body Text] Thàñk ÿöû för thé öppörtûñîtÿ tö îñtrödûçé SalesPilot tö ÿöûr téàm. éééééééééééééééé\n                   bold preserved: ['SalesPilot']\n[       Heading 2] Whàt SalesPilot délîvérs éééééé\n[         Compact] À sîñglé pîpélîñé vîéw àçröss évérÿ régîöñ. éééééééééé\n[         Compact] Àûtömàtéd föllöw-ûps thàt kéép déàls mövîñg. ééééééééééé\n[         Compact] Föréçàsts ÿöûr léàdérshîp çàñ rélÿ öñ. ééééééééé\n[       Heading 2] Néxt stéps éé\n[ First Paragraph] Wé wîll prövîsîöñ ÿöûr SalesPilot wörkspàçé wîthîñ twö bûsîñéss dàÿs. ééééééééééééééééé\n[       Body Text] Wàrm régàrds, thé SalesPilot téàm. éééééééé\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Round trip is clean — styles, bold placement, DNT terms, and accents all survive. Let me finalize the package."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p handoff/qa \u0026\u0026 cp \u003cpath\u003e handoff/qa/report_pseudo-fr.docx \u0026\u0026 cp \u003cpath\u003e handoff/qa/report_pseudo-fr.xlf \u0026\u0026 cat \u003e handoff/README.md \u003c\u003c'MDEOF'\\n# Translation handoff — report.docx (en-US → fr-FR)\\n\\nPrepared 2026-08-27. Source file is unmodified in content; only the internal\\nmarkup was cleaned. Nothing needs to be re-authored.\\n\\n## What the vendor receives\\n\\n| Path | Purpose |\\n|---|---|\\n| `source/report.docx` | Cleaned source document, en-US. Authoritative. |\\n| `xliff/report.docx.xlf` | XLIFF 1.2 bilingual file, `en-US` → `fr-FR`. Load this into the CAT tool. |\\n| `xliff/report.skeleton.json` | Maps trans-units back to paragraphs. Needed for merge-back — return it untouched. |\\n| `qa/report_pseudo-fr.docx` | Pseudo-translated build, for layout reference only. Not for translation. |\\n| `tools/` | Extract and merge-back scripts (Python 3 + lxml). |\\n\\n## Scope\\n\\n- **11 segments, 62 source words.** No repetitions, no fuzzy matches, no TM supplied.\\n- No images, tables, footnotes, headers/footers, hyperlinks, or embedded objects.\\n- No tracked changes and no comments in the source — nothing to resolve before starting.\\n\\n## Do not translate\\n\\n| Term |\n…truncated…",
+          "output": "handoff/qa/report_pseudo-fr.docx\nhandoff/qa/report_pseudo-fr.xlf\nhandoff/README.md\nhandoff/source/report.docx\nhandoff/tools/docx2xliff.py\nhandoff/tools/prep_docx.py\nhandoff/tools/pseudotranslate.py\nhandoff/tools/xliff2docx.py\nhandoff/xliff/report.docx.xlf\nhandoff/xliff/report.skeleton.json\n\n--- round trip re-verified from package paths ---\nmerged 11 paragraph(s) -\u003e \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd handoff \u0026\u0026 python3 tools/xliff2docx.py source/report.docx xliff/report.docx.xlf xliff/report.skeleton.json \u003cpath\u003e 2\u003e\u00261 | tail -3\",\"description\":\"Verify missing-target fallback warning\"}",
+          "output": "Exit code 1\n(eval):cd:1: no such file or directory: handoff",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 handoff/tools/xliff2docx.py handoff/source/report.docx handoff/xliff/report.docx.xlf handoff/xliff/report.skeleton.json \u003cpath\u003e 2\u003e\u00261 | tail -3\",\"description\":\"Verify missing-target fallback warning\"}",
+          "output": "~/.pyenv/versions/3.11.6/bin/python3: can't open file '\u003cpath\u003e': [Errno 2] No such file or directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"B=\u003cpath\u003e python3 $B/tools/xliff2docx.py $B/source/report.docx $B/xliff/report.docx.xlf $B/xliff/report.skeleton.json \u003cpath\u003e 2\u003e\u00261 | tail -3\",\"description\":\"Verify missing-target fallback warning with absolute paths\"}",
+          "output": "merged 11 paragraph(s) -\u003e \u003cpath\u003e\nWARNING: 11 unit(s) had no target, source copied: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
+        },
+        {
+          "kind": "text",
+          "text": "`report.docx` is packaged and ready. Everything is under `handoff/`.\n\n**What the source actually needed.** The document was already clean in the ways that usually cause trouble — no tracked changes, no comments, no footnotes, images, or hyperlinks. The one real problem was run fragmentation: Word had split sentences across 19 runs, 4 of which were redundant fragments with identical formatting. Left alone, `Prepared for: Meridian Retail Group` would have reached the vendor's CAT tool as three separately tagged chunks. I merged them (19 → 15 runs) and verified the extracted text is byte-identical to your original.\n\n**The package.**\n\n| Path | |\n|---|---|\n| `source/report.docx` | Cleaned source, en-US |\n| `xliff/report.docx.xlf` | XLIFF 1.2, `en-US` → `fr-FR` |\n| `xliff/report.skeleton.json` | Paragraph mapping for merge-back |\n| `tools/` | Extract + merge-back scripts |\n| `qa/` | Pseudo-translated build |\n| `README.md` | Vendor-facing handoff note |\n\nScope is **11 segments, 62 words**. Only 3 segments carry inline codes, all bold.\n\n**Round trip is verified, not assumed.** I pseudo-translated the XLIFF with accented text padded 25% to simulate French expansion, merged it back, and confirmed paragraph styles, bold placement, and the do-not-translate terms all survived, with the proofing language retargeted to fr-FR. The missing-target fallback also works — it copies source and warns rather than silently emptying paragraphs. `qa/report_pseudo-fr.docx` is that build if you want to eyeball expansion before committing.\n\n**Two judgment calls worth confirming:**\n\n- I left your original `report.docx` untouched and wrote the cleaned copy to `handoff/source/report.docx` under the same filename, rather than editing in place.\n- I flagged a real French typography interaction in the README: French needs a space before a colon, and the colon in \"Prepared for:\" sits *inside* the bold run. I instructed the vendor to keep it inside the `\u003cg\u003e` element so the bold run doesn't fracture. I also specified *jours ouvrés* over *ouvrables* for \"two business days,\" since that excludes weekends — correct me if the looser reading was intended.\n\nOne thing I could not do: the DNT list (`SalesPilot`, `Meridian Retail Group`) is my inference from reading the document, not a supplied termbase. If you have an approved glossary or existing French TM, sending it alongside would raise consistency and cut cost — worth asking before the vendor starts."
+        }
+      ]
+    }
+  ]
+}
