@@ -590,8 +590,87 @@ function Detail({ r }: { r: Result }): ReactElement {
           ))}
         </div>
       </div>
+
+      <UnaidedRuns r={r} />
     </div>
   );
+}
+
+// UnaidedRuns shows the control arm beside the kapi one.
+//
+// The summary at the top of the page gives the counts; this is where a reader
+// checks them. Three of the scenarios on the first fully gated sweep failed
+// with kapi and passed without it, and two of those turned out to be the gate
+// rather than the tool. Neither would have been visible from a count.
+function UnaidedRuns({ r }: { r: Result }): ReactElement | null {
+  const runs = r.unaided ?? [];
+  if (runs.length === 0) return null;
+  const withKapi = median((r.runs ?? []).map((x) => x.messages));
+  const unaided = median(runs.map((x) => x.messages));
+  return (
+    <div>
+      <div style={s.h}>
+        Without kapi{" "}
+        {r.contribution && (
+          <Pill
+            text={r.contribution}
+            t={
+              r.contribution === "enabled" || r.contribution === "eased"
+                ? "pass"
+                : r.contribution === "hindered"
+                  ? "fail"
+                  : "flat"
+            }
+          />
+        )}
+      </div>
+      <p style={{ ...s.sub, marginTop: 0 }}>
+        The same prompt and the same workspace, with no skill, no MCP server and no kapi on PATH.
+        Median messages: {withKapi} with kapi, {unaided} without.
+      </p>
+      <div style={{ display: "grid", gap: ".9rem" }}>
+        {runs.map((run, i) => (
+          <div
+            key={i}
+            style={{
+              borderLeft: `3px solid ${tone.flat.fg}`,
+              paddingLeft: ".8rem",
+              display: "grid",
+              gap: ".4rem",
+            }}
+          >
+            <div style={{ display: "flex", gap: ".6rem", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={s.sub}>
+                {run.messages} msg · {(run.durationMs / 1000).toFixed(1)}s
+              </span>
+              {run.gate && (
+                <Pill
+                  text={run.gate.exitCode === 0 ? "gate green" : "gate red"}
+                  t={run.gate.exitCode === 0 ? "pass" : "fail"}
+                />
+              )}
+            </div>
+            {(run.changed ?? []).length > 0 && (
+              <div style={{ display: "flex", gap: ".4rem", flexWrap: "wrap" }}>
+                {run.changed!.map((c) => (
+                  <code key={c.path} style={{ fontFamily: mono, fontSize: ".78rem" }}>
+                    {c.path}
+                  </code>
+                ))}
+              </div>
+            )}
+            {run.finalText && <pre style={s.pre}>{run.finalText}</pre>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
 }
 
 function ScenarioRow({ r }: { r: Result }): ReactElement {
@@ -611,6 +690,21 @@ function ScenarioRow({ r }: { r: Result }): ReactElement {
             {open ? "−" : "+"}
           </span>
           <Pill text={r.verdict} t={verdictTone[r.verdict]} />
+          {/* The control arm's answer belongs on the row rather than two clicks
+              in: it is the difference between "this passed" and "this passed
+              because of kapi". */}
+          {r.contribution && r.contribution !== "unknown" && (
+            <Pill
+              text={r.contribution}
+              t={
+                r.contribution === "enabled" || r.contribution === "eased"
+                  ? "pass"
+                  : r.contribution === "hindered"
+                    ? "fail"
+                    : "flat"
+              }
+            />
+          )}
         </span>
         <span>
           <div style={s.prompt}>{sc.prompt}</div>
