@@ -204,6 +204,16 @@ eval's first result was about kapi rather than about the thing it measured:
   `host/`. So two of the three authoring evals had no output to score, and
   `voice-infer-quality` is `blocked` rather than absent: its comparison is
   written and runs the moment there is a draft.
+- **`kapi apply` rejects every edit to a block with paired inline codes**, even
+  one whose codes are byte-identical to the source's
+  ([#2227](https://github.com/neokapi/neokapi/issues/2227)). The reader numbers
+  a close as its open's id plus one and the guard requires them to match, so
+  bold, italic and hyperlink spans in a .docx cannot be edited through the
+  `inspect | edit | apply` path the help advertises. 14 of 26 coded blocks
+  across the repo's own fixtures; `simple.docx` is entirely uneditable. It was
+  found because a scenario failed with kapi and passed without it, and the
+  transcript showed the agent producing a correct ten-block change-set and
+  then spending a 40-turn budget on the one rejection.
 - **A forbidden term matches no inflection**, so a profile forbidding `utilize`
   passes "the platform utilizes your data"
   ([#2226](https://github.com/neokapi/neokapi/issues/2226)). That is the single
@@ -216,9 +226,15 @@ eval's first result was about kapi rather than about the thing it measured:
   timings ([#2221](https://github.com/neokapi/neokapi/issues/2221), fixed in
   #2220).
 
-Three of the four are the same shape: a voice surface reporting silence as
-approval. An eval is the only thing that notices, because each failure is
-invisible from the outside. The command exits 0 and says nothing is wrong.
+Four of the five are the same shape: a surface reporting a refusal, or an empty
+result, so quietly that the caller reads it as success. An eval is the only
+thing that notices, because each failure is invisible from the outside.
+
+The fifth is worth its own note, because of how it was found. Nothing about
+`apply` looked wrong from the inside: it has a faithfulness guard, the guard
+fires, and it reports what it refused. What surfaced it was the control arm:
+the scenario failed with kapi and passed without it, and that comparison is the
+only signal that pointed at a tool doing its job correctly and uselessly.
 
 ## Comparing against other tools
 
