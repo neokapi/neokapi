@@ -1,0 +1,105 @@
+name: Inferred Voice
+description: Draft voice profile inferred from a content corpus. Review and adjust before adopting.
+tone:
+    personality:
+        - knowledgeable peer, not a vendor
+        - patient explainer who shows the reasoning, not just the answer
+        - candid about limits and unknowns
+        - 'pragmatic: gives the workaround even when the cause is unfixed'
+        - generous toward other tools and their users
+    formality: technical
+    emotion: calm and matter-of-fact; enthusiasm reserved for genuinely good news ("Yes!"), mild exasperation permitted at real problems ("Owch.")
+    humor: light
+    guidelines: Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
+style:
+    active_voice: true
+    sentence_length: varied
+    person_pov: second
+    contractions: always
+    prohibited_patterns:
+        - regex: —
+          description: Em dashes. The corpus contains none across ~25 entries; asides are carried by parentheses, semicolons, or a new sentence.
+          severity: minor
+        - regex: (?i)\b(blazing(ly)?[ -]fast|lightning[ -]fast|revolutionary|game[ -]?chang(er|ing)|seamless(ly)?|effortless(ly)?|best[ -]in[ -]class|supercharge[ds]?)\b
+          description: Marketing superlatives. Speed claims in the corpus are always concrete and measured (`real 0m1.783s` vs `real 0m2.458s`), never adjectival.
+          severity: major
+        - regex: (?i)\b(bloated|inferior|obsolete|crappy|garbage|clunky|no reason to use)\b
+          description: Disparaging other tools. grep, The Silver Searcher and PCRE2 are all discussed neutrally or accommodatingly.
+          severity: major
+        - regex: (?i)(scheduled for (Q[1-4]|\w+ \d{4})|will be released (on|in|by)|ETA\b|coming soon)
+          description: 'Release-date promises. The corpus states the opposite policy explicitly: "releases are made on a best effort basis and no dates will ever be given."'
+          severity: major
+        - regex: (?i)\b(it should be noted that|please be aware that|please note that)\b
+          description: 'Padded caveat openers. The corpus uses bare "Note that ..." or a parenthetical "(Note: ...)".'
+          severity: minor
+        - regex: (?i)\b(utilize|leverage|facilitate)\b
+          description: Latinate substitutes for plain verbs. The corpus uses "use", "uses", "lets you" without exception.
+          severity: minor
+        - regex: '[✅❌✨⚠\uD83C-\uDBFF]'
+          description: Emoji and decorative symbols. Absent from the entire corpus, including headings and warnings.
+          severity: minor
+vocabulary:
+    preferred_terms:
+        - term: ripgrep
+          replacement: ripgrep
+          note: 'Always lowercase, including at the start of a sentence: "ripgrep is a project whose contributors are volunteers."'
+        - term: rg
+          replacement: rg
+          note: The binary name in commands and transcripts; prose says "ripgrep", shell lines say `rg`.
+        - term: flag
+          replacement: flag
+          note: 'Dominant word for CLI arguments: "the -U/--multiline flag", "two flags related to colors". "options" appears only when referring to `rg --help` output.'
+        - term: -P/--pcre2
+          replacement: -P/--pcre2
+          note: 'Cite short and long forms together as a slash pair on first mention: -f/--file, -z/--search-zip, -U/--multiline.'
+        - term: Note that
+          replacement: Note that
+          note: 'Standard caveat opener, also used parenthetically as "(Note: ...)".'
+        - term: regex engine
+          replacement: regex engine
+          note: Used consistently for both the default and PCRE2; "default regex engine" contrasts with "PCRE2".
+        - term: true color
+          replacement: true color
+          note: 'Two words, lowercase, for RGB support: "true color support already works out of the box".'
+        - term: work around
+          replacement: work around
+          note: Verb is two words ("you can work around by simply increasing the limit"); noun is hyphenated ("The work-around above").
+    forbidden_terms:
+        - term: Ripgrep
+          replacement: ripgrep
+          note: Capitalized forms (Ripgrep, RipGrep, RIPGREP) never appear; the name is lowercase in every one of ~60 occurrences.
+        - term: blazing fast
+          replacement: a timed comparison, e.g. "real 0m1.783s" vs "real 0m2.458s"
+          note: Performance is always demonstrated with `time` output or `--trace` lines, never asserted.
+        - term: we guarantee / we promise
+          replacement: '"generally", "on a best effort basis", "no promises are made"'
+          note: 'The release-policy entry hedges deliberately: "However, no promises are made."'
+        - term: utilize
+          replacement: use
+          note: '"use" throughout: "ripgrep uses parallelism", "Use the --colors flag".'
+    competitor_terms:
+        - term: ag
+          replacement: The Silver Searcher
+          note: 'Referred to by full name with the article, and accommodated rather than attacked: an entire entry explains how to emulate its output style.'
+        - term: grep
+          replacement: grep
+          note: Named plainly and given its own entry ("Can ripgrep replace grep?"); no put-downs.
+        - term: PCRE2
+          replacement: PCRE2
+          note: 'A supported alternative engine. Tradeoffs are stated factually ("Both regex engines are quite fast") and unknowns are conceded: "Why doesn''t PCRE2 do the same? This author isn''t familiar with its internals."'
+        - term: cygwin
+          replacement: cygwin
+          note: Lowercase, described as a source of path-mangling behavior with three concrete fixes offered rather than a verdict.
+examples:
+    - before: RipGrep is a blazingly fast, next-generation search tool that leaves The Silver Searcher in the dust.
+      after: By default, ripgrep uses parallelism to execute its search because this makes the search much faster on most modern systems.
+      explanation: Lowercase product name, no superlatives, no competitor put-down, and the speed claim is tied to a stated mechanism (parallelism) rather than asserted as branding.
+    - before: The next release is currently scheduled for Q3, though this may slip.
+      after: ripgrep is a project whose contributors are volunteers. A release schedule adds undue stress to said volunteers. Therefore, releases are made on a best effort basis and no dates will ever be given.
+      explanation: States the policy and the reason behind it instead of a date. The corpus is explicit that no dates are given, and immediately follows with the honest exception for high-impact bugs.
+    - before: It should be noted that users may configure the man page location, and the documentation should then be accessible via standard mechanisms.
+      after: Note that the man page's documentation for options is equivalent to the output shown in rg --help. To see more condensed documentation (one line per flag), run rg -h.
+      explanation: Bare "Note that", concrete commands instead of abstract "standard mechanisms", and second person addressed through an imperative. Every how-to answer in the corpus lands on a runnable `$` line.
+    - before: Unfortunately, we are unable to provide details on PCRE2's internal behavior at this time.
+      after: Why doesn't PCRE2 do the same? This author isn't familiar with its internals, so we can't comment on it here.
+      explanation: Candid admission of a limit, in contractions, without corporate hedging or apology. The rhetorical question is the corpus's habitual device for advancing a technical explanation.

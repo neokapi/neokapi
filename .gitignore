@@ -228,6 +228,11 @@ web/static/video/
 # rather than into git. The per-scenario transcripts beside it ARE committed:
 # they are small, and a sweep's evidence is worth seeing in a diff.
 web/static/skill-eval/artifacts/
+
+# The subject repository the authoring lab reads, cloned at a pinned tag by
+# scripts/fetch-lab-repo.sh. Someone else's source tree; we pin it, we do not
+# vendor it.
+lab-repo/
 web/static/data/test-comparison.json
 bowrain/apps/bowrain/frontend/recordings-output/
 bowrain/web/docs/build/
