@@ -269,6 +269,20 @@ func discover(root string, limit int) ([]doc, int, error) {
 }
 
 // measure runs every converter over every document it claims.
+//
+// The loop is document-outer, converter-inner, and both halves of that matter.
+//
+// Memory: an earlier version read every document's ground truth up front and
+// held it for the whole run, so `large.xlsx` (400,000 cell references) sat in
+// memory beside 1,127 other documents and the process reached a gigabyte for
+// what is a text-extraction comparison. One document's truth is live at a time
+// now.
+//
+// Fairness: reading the truth once per document rather than once per converter
+// keeps the timing table about the converters instead of about the zip reader,
+// and running the converters back-to-back on the same document means they meet
+// the same machine state. Parallelism is across documents, which is where it
+// belongs.
 func measure(ctx context.Context, convs []Converter, docs []doc, jobs int, perFile time.Duration) []ConverterResult {
 	workdir, err := os.MkdirTemp("", "conveval-")
 	if err != nil {
@@ -276,54 +290,54 @@ func measure(ctx context.Context, convs []Converter, docs []doc, jobs int, perFi
 	}
 	defer func() { _ = os.RemoveAll(workdir) }()
 
-	// Ground truth once per document, shared across converters: it is the same
-	// answer for all of them, and reading it four times would make the timing
-	// table a measurement of the zip reader.
-	truth := make(map[string][]string, len(docs))
+	var (
+		mu   sync.Mutex
+		byID = make(map[string][]FileResult, len(convs))
+		wg   sync.WaitGroup
+		done int
+	)
+	sem := make(chan struct{}, max(1, jobs))
 	for _, d := range docs {
-		t, err := groundTruth(d.path, d.ext)
-		if err != nil {
-			continue
-		}
-		truth[d.path] = t
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(d doc) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			truth, err := groundTruth(d.path, d.ext)
+			if err != nil || len(truth) == 0 {
+				// No ground truth means nothing to score against. Skipped
+				// rather than counted, so a document this eval cannot read does
+				// not become every converter's failure.
+				return
+			}
+			var got []FileResult
+			for _, c := range convs {
+				if !c.handles(d.ext) {
+					continue
+				}
+				got = append(got, convertOne(ctx, c, d, truth, workdir, perFile))
+			}
+			mu.Lock()
+			for _, r := range got {
+				byID[r.Converter] = append(byID[r.Converter], r)
+			}
+			done++
+			if done%100 == 0 {
+				fmt.Fprintf(os.Stderr, "  %d/%d documents\n", done, len(docs))
+			}
+			mu.Unlock()
+		}(d)
 	}
+	wg.Wait()
 
 	out := make([]ConverterResult, len(convs))
 	for i, c := range convs {
-		fmt.Fprintf(os.Stderr, "  %s …", c.ID)
-		var (
-			mu   sync.Mutex
-			list []FileResult
-			wg   sync.WaitGroup
-		)
-		sem := make(chan struct{}, max(1, jobs))
-		for _, d := range docs {
-			if !c.handles(d.ext) {
-				continue
-			}
-			t, ok := truth[d.path]
-			if !ok || len(t) == 0 {
-				// No ground truth means nothing to score against. Skipped
-				// rather than counted, so a document whose text this eval
-				// cannot read does not become every converter's failure.
-				continue
-			}
-			wg.Add(1)
-			sem <- struct{}{}
-			go func(d doc, t []string) {
-				defer wg.Done()
-				defer func() { <-sem }()
-				r := convertOne(ctx, c, d, t, workdir, perFile)
-				mu.Lock()
-				list = append(list, r)
-				mu.Unlock()
-			}(d, t)
-		}
-		wg.Wait()
-		sort.Slice(list, func(i, j int) bool { return list[i].File < list[j].File })
+		list := byID[c.ID]
+		sort.Slice(list, func(a, b int) bool { return list[a].File < list[b].File })
 		out[i] = summarize(c, list)
-		fmt.Fprintf(os.Stderr, " %d files, %.1f%% of %d words, %d failed\n",
-			out[i].Files, 100*out[i].Recall, out[i].TruthWords, out[i].Failed)
+		fmt.Fprintf(os.Stderr, "  %s: %d files, %.1f%% of %d words, %d failed\n",
+			c.ID, out[i].Files, 100*out[i].Recall, out[i].TruthWords, out[i].Failed)
 	}
 	return out
 }
