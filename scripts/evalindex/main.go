@@ -213,7 +213,14 @@ func Build() (*Index, error) {
 	// dropped every blocked eval from the totals silently — the tally test
 	// noticed, the code did not. A status missing from AllStatuses now panics
 	// here instead.
+	// Seeded with every status at zero. A map built only from what was counted
+	// loses its keys as counts reach zero — `absent` vanished from the JSON the
+	// moment the last unbuilt eval was built — and a consumer typed against the
+	// full set stops matching. The shape should not depend on the numbers.
 	tally := map[Status]int{}
+	for _, st := range AllStatuses {
+		tally[st] = 0
+	}
 	for _, e := range dated {
 		if !slices.Contains(AllStatuses, e.Status) {
 			panic("evalindex: eval " + e.ID + " has status " + string(e.Status) + ", which is not in AllStatuses")

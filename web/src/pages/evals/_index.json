@@ -474,6 +474,7 @@
     "blocked": 1,
     "absent": 0,
     "byStatus": {
+      "absent": 0,
       "blocked": 1,
       "measured": 7,
       "partial": 8,

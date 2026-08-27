@@ -13,9 +13,9 @@ import {
   statusLabel,
   statusMeans,
   statusTone,
+  STATUSES,
   tone,
   type BandInfo,
-  type Eval,
 } from "./_shared";
 
 // The /evals cover page: a menu, not a catalogue.
@@ -58,8 +58,7 @@ function BandCard({ b }: { b: BandInfo }): ReactElement {
           {b.title}
         </span>
         <span style={s.pills}>
-          {(Object.keys(statusMeans) as Eval["status"][])
-            .map((k) => [k, counts[k]] as const)
+          {STATUSES.map((k) => [k, counts[k]] as const)
             .filter(([, n]) => n > 0)
             .map(([k, n]) => (
               <Pill key={k} text={`${n} ${statusLabel[k]}`} t={statusTone[k]} />
@@ -93,7 +92,8 @@ function BandCard({ b }: { b: BandInfo }): ReactElement {
 
 export default function Evals(): ReactElement {
   const c = data.coverage;
-  const total = c.measured + c.partial + c.unvalidated + c.absent;
+  const total = Object.values(c.byStatus).reduce((a, n) => a + n, 0);
+  const short = total - c.measured;
   const stale = staleCount(data.evals);
 
   return (
@@ -110,22 +110,12 @@ export default function Evals(): ReactElement {
         </p>
 
         <div style={s.strip}>
-          <div style={s.stat}>
-            <span style={{ ...s.statN, color: tone.ok.fg }}>{c.measured}</span>
-            <span style={s.statL}>measured</span>
-          </div>
-          <div style={s.stat}>
-            <span style={{ ...s.statN, color: tone.warn.fg }}>{c.partial}</span>
-            <span style={s.statL}>partial</span>
-          </div>
-          <div style={s.stat}>
-            <span style={{ ...s.statN, color: tone.warn.fg }}>{c.unvalidated}</span>
-            <span style={s.statL}>unvalidated</span>
-          </div>
-          <div style={s.stat}>
-            <span style={{ ...s.statN, color: tone.gap.fg }}>{c.absent}</span>
-            <span style={s.statL}>not measured</span>
-          </div>
+          {STATUSES.filter((k) => c.byStatus[k] > 0).map((k) => (
+            <div key={k} style={s.stat}>
+              <span style={{ ...s.statN, color: tone[statusTone[k]].fg }}>{c.byStatus[k]}</span>
+              <span style={s.statL}>{statusLabel[k]}</span>
+            </div>
+          ))}
           <div style={s.stat}>
             <span style={{ ...s.statN, color: stale + c.undated ? tone.gap.fg : undefined }}>
               {stale + c.undated}
@@ -148,7 +138,7 @@ export default function Evals(): ReactElement {
 
         <h2>What the statuses mean</h2>
         <div style={{ ...s.bandGrid, gridTemplateColumns: "7.5rem 1fr", maxWidth: "64rem" }}>
-          {(Object.keys(statusMeans) as Eval["status"][]).map((k) => (
+          {STATUSES.map((k) => (
             <Fragment key={k}>
               <span>
                 <Pill text={statusLabel[k]} t={statusTone[k]} />
@@ -159,10 +149,10 @@ export default function Evals(): ReactElement {
         </div>
 
         <p style={{ ...s.lede, fontSize: ".92rem", marginTop: "1.2rem" }}>
-          {c.absent} of {total} are not built. Those rows carry the same card as a built one, minus
-          the data: a gap a reader cannot see is a gap they will assume is covered. Each card's age
-          is read from its own dataset, not typed here, because a hand-written date is a date nobody
-          updates.
+          {short} of {total} fall short of measured, and each one says how. A card that is not built
+          carries the same fields as a built one minus the data, because a gap a reader cannot see
+          is a gap they will assume is covered. Each card's age is read from its own dataset, not
+          typed here, since a hand-written date is a date nobody updates.
         </p>
         <p style={{ ...s.lede, fontSize: ".92rem" }}>
           Every card states what it <strong>misses</strong> as well as what it covers, and gives the

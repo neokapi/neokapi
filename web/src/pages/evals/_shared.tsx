@@ -59,12 +59,29 @@ export interface Index {
     measured: number;
     partial: number;
     unvalidated: number;
+    blocked: number;
     absent: number;
+    // byStatus is the tally the named fields are derived from, and the one to
+    // read when summing. Adding them up by hand is how the Go side lost a
+    // status from its totals and how this page came to say "0 of 17 are not
+    // built" after the four unbuilt evals were built.
+    byStatus: Record<Eval["status"], number>;
     layersUnmeasured: number;
     perBand: Record<string, number>;
     undated: number;
   };
 }
+
+// STATUSES is the render order, and it is the list to iterate rather than
+// naming statuses inline. A mapped type elsewhere makes a new status a compile
+// error; a hand-written sum just quietly leaves it out.
+export const STATUSES: Eval["status"][] = [
+  "measured",
+  "partial",
+  "unvalidated",
+  "blocked",
+  "absent",
+];
 
 export const data = index as Index;
 export const evalByID = new Map(data.evals.map((e) => [e.id, e]));

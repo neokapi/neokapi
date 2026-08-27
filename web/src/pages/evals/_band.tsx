@@ -9,9 +9,8 @@ import {
   Pill,
   s,
   statusLabel,
-  statusMeans,
+  STATUSES,
   statusTone,
-  type Eval,
   type Layer,
 } from "./_shared";
 
@@ -51,8 +50,7 @@ export function BandPage({ id }: { id: string }): ReactElement {
         </div>
 
         <div style={{ ...s.pills, marginBottom: "1.8rem" }}>
-          {(Object.keys(statusMeans) as Eval["status"][])
-            .map((k) => [k, counts[k]] as const)
+          {STATUSES.map((k) => [k, counts[k]] as const)
             .filter(([, n]) => n > 0)
             .map(([k, n]) => (
               <Pill key={k} text={`${n} ${statusLabel[k]}`} t={statusTone[k]} />
