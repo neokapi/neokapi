@@ -364,6 +364,24 @@ function EvalRow({ e }: { e: Eval }): ReactElement {
   );
 }
 
+// A band's own tally, so the three can be weighed against each other rather
+// than only against the global strip at the top.
+function bandTally(b: BandInfo): Record<Eval["status"], number> {
+  const counts: Record<Eval["status"], number> = {
+    measured: 0,
+    partial: 0,
+    unvalidated: 0,
+    absent: 0,
+  };
+  for (const layerID of b.layers) {
+    for (const id of layerByID.get(layerID)?.evals ?? []) {
+      const e = evalByID.get(id);
+      if (e) counts[e.status]++;
+    }
+  }
+  return counts;
+}
+
 function LayerBlock({ l }: { l: Layer }): ReactElement {
   const list = l.evals.map((id) => evalByID.get(id)).filter((e): e is Eval => Boolean(e));
   const unmeasured = list.every((e) => e.status === "absent");
@@ -466,7 +484,19 @@ export default function Evals(): ReactElement {
         {data.bands.map((b) => (
           <section key={b.id} style={s.band}>
             <div style={s.bandHead}>
-              <h2 style={s.bandTitle}>{b.title}</h2>
+              <div
+                style={{ display: "flex", alignItems: "baseline", gap: ".8rem", flexWrap: "wrap" }}
+              >
+                <h2 style={s.bandTitle}>{b.title}</h2>
+                <span style={{ display: "flex", gap: ".3rem", flexWrap: "wrap" }}>
+                  {(Object.keys(statusMeans) as Eval["status"][])
+                    .map((k) => [k, bandTally(b)[k]] as const)
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => (
+                      <Pill key={k} text={`${n} ${statusLabel[k]}`} t={statusTone[k]} />
+                    ))}
+                </span>
+              </div>
               <div style={s.bandGrid}>
                 <span style={s.bandK}>Subject</span>
                 <span>{b.subject}</span>

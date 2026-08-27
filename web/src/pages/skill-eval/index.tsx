@@ -244,6 +244,11 @@ const verdictTone: Record<Result["verdict"], Tone> = {
 };
 
 /** A minimal line diff, enough to see what an agent changed and not more. */
+// A change is capped at 24KB by the harness, which is still around 500 lines.
+// Rendering all of them inline pushes everything below a single diff off the
+// screen, so the block scrolls in place.
+const DIFF_MAX_HEIGHT = "22rem";
+
 function Diff({ before, after }: { before: string; after: string }): ReactElement {
   const a = before.split("\n");
   const b = after.split("\n");
@@ -254,8 +259,15 @@ function Diff({ before, after }: { before: string; after: string }): ReactElemen
   for (const l of a) if (removed.has(l)) lines.push({ text: l, mark: "-" });
   for (const l of b) lines.push({ text: l, mark: added.has(l) ? "+" : " " });
 
+  const changed = lines.filter((l) => l.mark !== " ").length;
+
   return (
-    <pre style={s.pre}>
+    <pre style={{ ...s.pre, maxHeight: DIFF_MAX_HEIGHT, overflowY: "auto" }}>
+      {changed === 0 && (
+        <div style={{ color: "var(--ifm-color-emphasis-700)" }}>
+          (no line changed; the file was rewritten with the same content)
+        </div>
+      )}
       {lines.map((l, i) => (
         <div
           key={i}
