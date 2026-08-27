@@ -25,24 +25,24 @@
         ".xlsx"
       ],
       "note": "prints the content kapi read into its model; the read half of a round trip",
-      "files": 1089,
+      "files": 1090,
       "failed": 0,
-      "recall": 0.9994687415323662,
-      "truthWords": 3561355,
-      "matchedWords": 3559463,
-      "meanRecall": 0.962676122040742,
+      "recall": 0.9996052032422866,
+      "truthWords": 4805004,
+      "matchedWords": 4803107,
+      "meanRecall": 0.96071509228679,
       "medianRecall": 1,
-      "tiny": 748,
-      "perfect": 867,
-      "medianMs": 30,
-      "totalMs": 38988,
+      "tiny": 759,
+      "perfect": 863,
+      "medianMs": 29,
+      "totalMs": 39511,
       "worst": [
         {
           "converter": "kapi",
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 33,
+          "ms": 25,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -63,7 +63,7 @@
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 32,
+          "ms": 26,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -84,7 +84,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 30,
+          "ms": 26,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -105,7 +105,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 39,
+          "ms": 34,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -120,14 +120,25 @@
               "times": 1
             }
           ]
+        },
+        {
+          "converter": "kapi",
+          "file": "1433-text-for-masking.xlsx",
+          "ext": ".xlsx",
+          "bytes": 7515,
+          "ms": 27,
+          "truthWords": 0,
+          "outputWords": 14,
+          "matched": 0,
+          "recall": 0
         },
         {
           "converter": "kapi",
           "file": "859.xlsx",
           "ext": ".xlsx",
           "bytes": 8784,
-          "ms": 29,
-          "truthWords": 6,
+          "ms": 27,
+          "truthWords": 5,
           "outputWords": 1,
           "matched": 0,
           "recall": 0,
@@ -143,10 +154,6 @@
             {
               "word": "2b",
               "times": 1
-            },
-            {
-              "word": "3c",
-              "times": 1
             }
           ]
         },
@@ -155,7 +162,7 @@
           "file": "Document-with-tabs-2.docx",
           "ext": ".docx",
           "bytes": 10364,
-          "ms": 29,
+          "ms": 28,
           "truthWords": 2,
           "outputWords": 3,
           "matched": 0,
@@ -176,7 +183,7 @@
           "file": "Document-with-tabs.docx",
           "ext": ".docx",
           "bytes": 8837,
-          "ms": 29,
+          "ms": 35,
           "truthWords": 2,
           "outputWords": 3,
           "matched": 0,
@@ -191,23 +198,6 @@
               "times": 1
             }
           ]
-        },
-        {
-          "converter": "kapi",
-          "file": "N_001_Auswertung_Part3.docx",
-          "ext": ".docx",
-          "bytes": 10844,
-          "ms": 28,
-          "truthWords": 1,
-          "outputWords": 2,
-          "matched": 0,
-          "recall": 0,
-          "missing": [
-            {
-              "word": "datum",
-              "times": 1
-            }
-          ]
         }
       ],
       "byExt": {
@@ -219,7 +209,9 @@
           "matchedWords": 273785,
           "meanRecall": 0.9608027824627345,
           "medianRecall": 1,
-          "medianMs": 30
+          "medianMs": 29,
+          "topFile": "big.docx",
+          "topFileShare": 0.343033154365827
         },
         ".pptx": {
           "files": 242,
@@ -229,17 +221,21 @@
           "matchedWords": 10805,
           "meanRecall": 0.9460484505940382,
           "medianRecall": 1,
-          "medianMs": 32
+          "medianMs": 31,
+          "topFile": "PeeksampleMore.pptx",
+          "topFileShare": 0.10125431739683693
         },
         ".xlsx": {
-          "files": 248,
+          "files": 249,
           "failed": 0,
-          "recall": 0.9999966411024024,
-          "truthWords": 3274884,
-          "matchedWords": 3274873,
-          "meanRecall": 1,
+          "recall": 0.9999964590277419,
+          "truthWords": 4518533,
+          "matchedWords": 4518517,
+          "meanRecall": 0.9897828863346105,
           "medianRecall": 1,
-          "medianMs": 29
+          "medianMs": 28,
+          "topFile": "large.xlsx",
+          "topFileShare": 0.9993922806362153
         }
       }
     },
@@ -252,24 +248,24 @@
         ".xlsx"
       ],
       "note": "a full office suite rendering to text; its txt targets are Writer and Calc, and Impress has none",
-      "files": 847,
+      "files": 848,
       "failed": 0,
-      "recall": 0.9983010140118461,
-      "truthWords": 3550353,
-      "matchedWords": 3544321,
-      "meanRecall": 0.9212185047449178,
+      "recall": 0.9892872385117903,
+      "truthWords": 4794002,
+      "matchedWords": 4742645,
+      "meanRecall": 0.9154269557218364,
       "medianRecall": 1,
-      "tiny": 561,
-      "perfect": 623,
-      "medianMs": 3834,
-      "totalMs": 3258315,
+      "tiny": 572,
+      "perfect": 620,
+      "medianMs": 3791,
+      "totalMs": 3239452,
       "worst": [
         {
           "converter": "libreoffice",
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 3651,
+          "ms": 3655,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -290,7 +286,7 @@
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 3893,
+          "ms": 3692,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -311,7 +307,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 4142,
+          "ms": 4431,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -332,7 +328,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 4589,
+          "ms": 3478,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -347,13 +343,24 @@
               "times": 1
             }
           ]
+        },
+        {
+          "converter": "libreoffice",
+          "file": "1433-text-for-masking.xlsx",
+          "ext": ".xlsx",
+          "bytes": 7515,
+          "ms": 3417,
+          "truthWords": 0,
+          "outputWords": 6,
+          "matched": 0,
+          "recall": 0
         },
         {
           "converter": "libreoffice",
           "file": "AlternateContent.docx",
           "ext": ".docx",
           "bytes": 19615,
-          "ms": 3965,
+          "ms": 3513,
           "truthWords": 6,
           "outputWords": 0,
           "matched": 0,
@@ -378,7 +385,7 @@
           "file": "Out1200-4.docx",
           "ext": ".docx",
           "bytes": 9787,
-          "ms": 3629,
+          "ms": 3796,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -399,32 +406,11 @@
           "file": "Outneverendingloop.docx",
           "ext": ".docx",
           "bytes": 188064,
-          "ms": 3987,
+          "ms": 3859,
           "truthWords": 0,
           "outputWords": 0,
           "matched": 0,
           "recall": 0
-        },
-        {
-          "converter": "libreoffice",
-          "file": "TabAtEndAfterNewRun.docx",
-          "ext": ".docx",
-          "bytes": 10026,
-          "ms": 3848,
-          "truthWords": 2,
-          "outputWords": 1,
-          "matched": 0,
-          "recall": 0,
-          "missing": [
-            {
-              "word": "es",
-              "times": 1
-            },
-            {
-              "word": "usag",
-              "times": 1
-            }
-          ]
         }
       ],
       "byExt": {
@@ -436,17 +422,21 @@
           "matchedWords": 270012,
           "meanRecall": 0.9354057760614117,
           "medianRecall": 1,
-          "medianMs": 3845
+          "medianMs": 3797,
+          "topFile": "big.docx",
+          "topFileShare": 0.343033154365827
         },
         ".xlsx": {
-          "files": 248,
+          "files": 249,
           "failed": 0,
-          "recall": 0.9998244212619439,
-          "truthWords": 3274884,
-          "matchedWords": 3274309,
-          "meanRecall": 0.8257420031825677,
-          "medianRecall": 0.9998976214248103,
-          "medianMs": 3787
+          "recall": 0.989841835834772,
+          "truthWords": 4518533,
+          "matchedWords": 4472633,
+          "meanRecall": 0.7311778348124202,
+          "medianRecall": 0.6206896551724138,
+          "medianMs": 3779,
+          "topFile": "large.xlsx",
+          "topFileShare": 0.9993922806362153
         }
       }
     },
@@ -468,12 +458,75 @@
       "medianRecall": 1,
       "tiny": 537,
       "perfect": 661,
-      "medianMs": 38,
-      "totalMs": 42372,
+      "medianMs": 37,
+      "totalMs": 41249,
       "worst": [
         {
           "converter": "pandoc",
           "file": "1200-4.docx",
+          "ext": ".docx",
+          "bytes": 10393,
+          "ms": 37,
+          "truthWords": 2,
+          "outputWords": 1,
+          "matched": 0,
+          "recall": 0,
+          "missing": [
+            {
+              "word": "one",
+              "times": 1
+            },
+            {
+              "word": "واحد",
+              "times": 1
+            }
+          ]
+        },
+        {
+          "converter": "pandoc",
+          "file": "1200-4.docx",
+          "ext": ".docx",
+          "bytes": 10393,
+          "ms": 42,
+          "truthWords": 2,
+          "outputWords": 1,
+          "matched": 0,
+          "recall": 0,
+          "missing": [
+            {
+              "word": "one",
+              "times": 1
+            },
+            {
+              "word": "واحد",
+              "times": 1
+            }
+          ]
+        },
+        {
+          "converter": "pandoc",
+          "file": "1200-5.docx",
+          "ext": ".docx",
+          "bytes": 10393,
+          "ms": 37,
+          "truthWords": 2,
+          "outputWords": 1,
+          "matched": 0,
+          "recall": 0,
+          "missing": [
+            {
+              "word": "one",
+              "times": 1
+            },
+            {
+              "word": "واحد",
+              "times": 1
+            }
+          ]
+        },
+        {
+          "converter": "pandoc",
+          "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
           "ms": 38,
@@ -494,73 +547,10 @@
         },
         {
           "converter": "pandoc",
-          "file": "1200-4.docx",
-          "ext": ".docx",
-          "bytes": 10393,
-          "ms": 37,
-          "truthWords": 2,
-          "outputWords": 1,
-          "matched": 0,
-          "recall": 0,
-          "missing": [
-            {
-              "word": "one",
-              "times": 1
-            },
-            {
-              "word": "واحد",
-              "times": 1
-            }
-          ]
-        },
-        {
-          "converter": "pandoc",
-          "file": "1200-5.docx",
-          "ext": ".docx",
-          "bytes": 10393,
-          "ms": 37,
-          "truthWords": 2,
-          "outputWords": 1,
-          "matched": 0,
-          "recall": 0,
-          "missing": [
-            {
-              "word": "one",
-              "times": 1
-            },
-            {
-              "word": "واحد",
-              "times": 1
-            }
-          ]
-        },
-        {
-          "converter": "pandoc",
-          "file": "1200-5.docx",
-          "ext": ".docx",
-          "bytes": 10393,
-          "ms": 43,
-          "truthWords": 2,
-          "outputWords": 1,
-          "matched": 0,
-          "recall": 0,
-          "missing": [
-            {
-              "word": "one",
-              "times": 1
-            },
-            {
-              "word": "واحد",
-              "times": 1
-            }
-          ]
-        },
-        {
-          "converter": "pandoc",
           "file": "847-1.docx",
           "ext": ".docx",
           "bytes": 11175,
-          "ms": 37,
+          "ms": 34,
           "truthWords": 3,
           "outputWords": 0,
           "matched": 0,
@@ -585,7 +575,7 @@
           "file": "Endpara.pptx",
           "ext": ".pptx",
           "bytes": 143372,
-          "ms": 42,
+          "ms": 34,
           "truthWords": 8,
           "outputWords": 1,
           "matched": 0,
@@ -647,7 +637,7 @@
           "file": "Out1341-textbox-with-a-hyperlink.docx",
           "ext": ".docx",
           "bytes": 10370,
-          "ms": 37,
+          "ms": 38,
           "truthWords": 1,
           "outputWords": 0,
           "matched": 0,
@@ -669,7 +659,9 @@
           "matchedWords": 272552,
           "meanRecall": 0.9723609623287709,
           "medianRecall": 1,
-          "medianMs": 38
+          "medianMs": 37,
+          "topFile": "big.docx",
+          "topFileShare": 0.343033154365827
         },
         ".pptx": {
           "files": 242,
@@ -679,7 +671,9 @@
           "matchedWords": 10585,
           "meanRecall": 0.96321494197637,
           "medianRecall": 1,
-          "medianMs": 40
+          "medianMs": 36,
+          "topFile": "PeeksampleMore.pptx",
+          "topFileShare": 0.10125431739683693
         }
       }
     },
@@ -700,15 +694,15 @@
       "medianRecall": 1,
       "tiny": 350,
       "perfect": 461,
-      "medianMs": 184,
-      "totalMs": 110914,
+      "medianMs": 95,
+      "totalMs": 61144,
       "worst": [
         {
           "converter": "textutil",
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 168,
+          "ms": 77,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -729,7 +723,7 @@
           "file": "1200-4.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 209,
+          "ms": 116,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -750,7 +744,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 209,
+          "ms": 119,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -771,7 +765,7 @@
           "file": "1200-5.docx",
           "ext": ".docx",
           "bytes": 10393,
-          "ms": 213,
+          "ms": 79,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -792,7 +786,7 @@
           "file": "858.docx",
           "ext": ".docx",
           "bytes": 11393,
-          "ms": 175,
+          "ms": 198,
           "truthWords": 8,
           "outputWords": 0,
           "matched": 0,
@@ -837,7 +831,7 @@
           "file": "859.docx",
           "ext": ".docx",
           "bytes": 14567,
-          "ms": 175,
+          "ms": 189,
           "truthWords": 16,
           "outputWords": 0,
           "matched": 0,
@@ -898,7 +892,7 @@
           "file": "Out1200-4.docx",
           "ext": ".docx",
           "bytes": 9787,
-          "ms": 203,
+          "ms": 101,
           "truthWords": 2,
           "outputWords": 1,
           "matched": 0,
@@ -919,7 +913,7 @@
           "file": "Out858.docx",
           "ext": ".docx",
           "bytes": 9615,
-          "ms": 186,
+          "ms": 157,
           "truthWords": 8,
           "outputWords": 0,
           "matched": 0,
@@ -969,7 +963,9 @@
           "matchedWords": 273159,
           "meanRecall": 0.983286187584172,
           "medianRecall": 1,
-          "medianMs": 184
+          "medianMs": 95,
+          "topFile": "big.docx",
+          "topFileShare": 0.343033154365827
         }
       }
     }

@@ -454,6 +454,10 @@ var scenarios = []Scenario{
 		// kanji. Existence alone would pass on an empty file, and a text search
 		// alone would pass on a corrupt one.
 		CompletionGate: gateDocxContainsJapanese,
+		KnownLimit: "kapi cannot currently finish this. `apply` rejects every edit to a block with paired " +
+			"inline codes (#2227), and announcement.docx has one, so a faithful ten-block change-set lands " +
+			"nine and leaves the tenth. The agent spent its whole budget on the rejection and shipped an " +
+			"untranslated copy; the unaided control finished with textutil in 26 messages.",
 	},
 	{
 		ID:     "p07-translate-json-terms",
