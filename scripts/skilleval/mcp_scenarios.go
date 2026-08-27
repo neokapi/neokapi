@@ -29,16 +29,11 @@ var mcpToolCatalogue = []string{
 
 // A project with a voice profile, terms and content, so the context tools have
 // something real to answer from.
-const mcpRecipe = `version: 1
-name: northwind
-defaults:
-  source: en
-  targets: [nb]
-collections:
-  - name: app
-    include: ["src/locales/en.json"]
-    format: json
-`
+//
+// Uses the same recipe the skill scenarios do, because both were invented with
+// the same wrong keys and both silently loaded as a project with no source
+// language and no targets. See loopRecipe.
+const mcpRecipe = loopRecipe
 
 func init() {
 	scenarios = append(scenarios, mcpScenarios...)

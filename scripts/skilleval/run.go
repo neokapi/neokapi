@@ -84,6 +84,7 @@ type FileChange struct {
 // nothing but touch a plugins cache.
 var harnessOwned = map[string]bool{
 	".claude":      true,
+	harnessDir:     true,
 	"kapi-config":  true,
 	"kapi-plugins": true,
 	"xdg-data":     true,
@@ -109,6 +110,14 @@ var uninteresting = map[string]bool{
 	".venv":        true,
 	"__pycache__":  true,
 }
+
+// harnessDir holds what the harness writes into a workspace for a gate to
+// read. Skipped by the snapshot, so it never shows up as the agent's doing.
+const harnessDir = ".skilleval"
+
+// answerFile is the agent's closing message, so a gate can check an answer
+// rather than only an artefact.
+const answerFile = harnessDir + "/answer.txt"
 
 // maxShownBytes caps what a change carries into the dataset. Past this a diff
 // stops being readable and the dataset stops being reviewable in a browser.
@@ -413,6 +422,16 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 	_ = cmd.Wait()
 
 	r.DurationMS = time.Since(started).Milliseconds()
+
+	// The agent's closing message, written where a gate can read it.
+	//
+	// A gate is a shell command run in the workspace, so it sees files and
+	// nothing else. That works for a scenario whose deliverable is a file and
+	// not at all for one whose deliverable is an answer: "what does slide 3
+	// say" leaves no artefact, so it went ungated and verified nothing.
+	if err := os.MkdirAll(filepath.Join(dir, harnessDir), 0o755); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, answerFile), []byte(r.FinalText), 0o644)
+	}
 
 	after, err := snapshot(dir)
 	if err == nil {
