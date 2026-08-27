@@ -198,6 +198,38 @@ rather than rejected ([#2223](https://github.com/neokapi/neokapi/issues/2223)).
 Agents were handed a project kapi refuses to load, and the sweep said nothing.
 `TestEveryFixtureRecipeLoads` loads every fixture recipe through kapi.
 
+### The session is published, not summarised
+
+Each run's whole conversation is recorded: every assistant message, every tool
+call with its arguments, and every tool result, which is what the agent read
+before its next move. The dataset carries counts and a deduplicated tool list,
+which answer what the agent reached for and cannot answer why it did.
+
+Why is the question a surprising verdict raises, and the one this work kept
+needing. #2227 was found by reading a transcript that showed an agent produce a
+correct ten-block change-set and then spend a 40-turn budget on the single
+rejection. That reading happened on one laptop, from a run nobody else could
+see.
+
+Sessions are written per scenario to `web/static/skill-eval/transcripts/` and
+fetched when a reader opens the row, because the page imports the dataset into
+its bundle and a session is much larger than a summary. Three things about them:
+
+- **Everything is scrubbed on the way in.** `Run.record` is the only way an
+  event is built, so no caller can forget. A transcript otherwise carries the
+  temp workspace, the developer's home directory, and whatever the agent
+  printed of either, into a file `scripts/check-abs-paths.sh` sweeps.
+- **A session is capped**, at 400 events and 256KB, with each message clipped to
+  3,000 characters and each tool argument and result to 1,200. A capped session
+  says how many events it dropped rather than ending as though the agent
+  stopped.
+- **Pruning is per surface.** `-only mcp` replaces the MCP transcripts and
+  leaves the skill ones alone, for the same reason the dataset merges by
+  surface: that run measured nothing about the others and cannot replace them.
+
+A run written elsewhere with `-out` keeps its events inline instead, so one file
+is still one whole record; `-transcripts <dir>` puts them wherever you want.
+
 ## What the control arm found
 
 The first fully gated sweep with the unaided control, over 17 scenarios:
