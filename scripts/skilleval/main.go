@@ -118,17 +118,56 @@ func main() {
 	// Only when publishing into the docs site. A run written elsewhere with
 	// -out is for reading, and holding it to the site's constraint would be
 	// borrowing a rule from a place it is not going.
-	if strings.Contains(target, filepath.Join("web", "src")) {
-		withholdDownstream(report)
-		if err := stillMentionsDownstream(report); err != nil {
+	publish := strings.Contains(target, filepath.Join("web", "src"))
+	for _, part := range partitionBySurface(report) {
+		if publish {
+			withholdDownstream(part)
+			if err := stillMentionsDownstream(part); err != nil {
+				fail(err.Error())
+			}
+		}
+		if err := merge(target, part); err != nil {
 			fail(err.Error())
 		}
+		fmt.Printf("skilleval: %s: %s\n", part.Key(), part.Summary.Line())
 	}
-	if err := merge(target, report); err != nil {
-		fail(err.Error())
-	}
-	fmt.Printf("skilleval: %s\n", report.Summary.Line())
 	fmt.Printf("skilleval: → %s\n", target)
+}
+
+// partitionBySurface splits a run into one report per surface.
+//
+// `make skill-eval` runs `-mode trigger` with no surface filter, which selects
+// every scenario including the MCP ones. All 30 were then filed under
+// `skill:trigger`, because a report with no Surface defaults to the skill key,
+// so the skill card counted eight MCP scenarios as its own and the MCP card
+// showed a separate older run of the same eight. The documented command
+// mislabelled its own output and double-counted a third of it.
+//
+// A scenario knows its surface. The run files each result under the one it
+// belongs to, and the two cards stop overlapping.
+func partitionBySurface(r *Report) []*Report {
+	bySurface := map[string]*Report{}
+	order := []string{}
+	for _, res := range r.Results {
+		key := surfaceOf(res.Scenario)
+		part, ok := bySurface[key]
+		if !ok {
+			clone := *r
+			clone.Surface = key
+			clone.Results = nil
+			part = &clone
+			bySurface[key] = part
+			order = append(order, key)
+		}
+		part.Results = append(part.Results, res)
+	}
+	out := make([]*Report, 0, len(order))
+	for _, key := range order {
+		part := bySurface[key]
+		part.Summary = summarize(part.Results)
+		out = append(out, part)
+	}
+	return out
 }
 
 // selectScenarios narrows to what this mode can actually score. Completion runs
