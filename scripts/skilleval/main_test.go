@@ -171,12 +171,22 @@ func TestMentionsKapi(t *testing.T) {
 		"./bin/kapi check --ship",
 		"/opt/homebrew/bin/kgrep -r utilize docs/",
 		"cd docs && ksed 's/utilize/use/g' *.docx",
+		"KAPI_NO_PROJECT=1 kapi status",
+		"ls | kgrep -i sales",
+		"cat notes.md; kapi voice check",
 	}
 	no := []string{
 		"grep -r utilize docs/",
 		"echo 'this mentions kapifornia'",
 		"python3 kapi_helper_name_only.py",
 		"ls -la",
+		// The reason command position is what counts. Scanning every token
+		// scored a search FOR the word as the agent driving the tool, and on a
+		// negative scenario that is a false trigger, which is the finding this
+		// suite treats as most serious.
+		"grep kapi README.md",
+		"echo 'try kapi for this'",
+		"rg --files-with-matches kcat docs/",
 	}
 	for _, c := range yes {
 		assert.True(t, mentionsKapi(c), "should count as activation: %s", c)

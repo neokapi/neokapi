@@ -498,15 +498,76 @@ func parseStream(r io.Reader, out *Run) {
 // and scoring only the Skill tool would miss an agent that read SKILL.md once
 // and then worked from it.
 func mentionsKapi(cmd string) bool {
-	for tok := range strings.FieldsSeq(cmd) {
-		tok = strings.TrimPrefix(tok, "./")
-		if i := strings.LastIndex(tok, "/"); i >= 0 {
-			tok = tok[i+1:]
-		}
-		switch tok {
-		case "kapi", "kgrep", "ksed", "kcat", "kdiff", "kconv":
+	// Command position only. Scanning every token counted `grep kapi README.md`
+	// as the agent driving kapi, which is a false positive on the side that
+	// matters most: a negative scenario searching a file for the word would
+	// have scored as a false trigger, and a false trigger is the finding this
+	// suite treats as most serious.
+	//
+	// A command starts the string, or follows a separator. Environment
+	// assignments come before the command word, so they are stepped over.
+	for _, segment := range splitOnSeparators(cmd) {
+		if isKapiBinary(commandWord(segment)) {
 			return true
 		}
+	}
+	return false
+}
+
+// commandWord returns the word a segment invokes, stepping over any NAME=value
+// prefixes. Empty when the segment holds nothing but assignments.
+func commandWord(segment string) string {
+	for tok := range strings.FieldsSeq(segment) {
+		if isEnvAssignment(tok) {
+			continue
+		}
+		return tok
+	}
+	return ""
+}
+
+// splitOnSeparators breaks a shell line into the segments that can each start a
+// command: pipes, sequencing, boolean chains, and command substitution.
+func splitOnSeparators(cmd string) []string {
+	return strings.FieldsFunc(cmd, func(r rune) bool {
+		switch r {
+		case '|', ';', '&', '(', ')', '\n':
+			return true
+		}
+		return false
+	})
+}
+
+// isEnvAssignment reports whether a token is a NAME=value prefix rather than
+// the command itself.
+func isEnvAssignment(tok string) bool {
+	name, _, found := strings.Cut(tok, "=")
+	if !found || name == "" {
+		return false
+	}
+	for _, r := range name {
+		if r != '_' && !(r >= 'A' && r <= 'Z') && !(r >= 'a' && r <= 'z') &&
+			!(r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+// isKapiBinary reports whether a command word is kapi or one of the toolbox
+// names it installs.
+//
+// The toolbox counts: reaching for kgrep is activation even when the Skill tool
+// was never called, because the skill's own content is what taught the agent
+// that kgrep exists.
+func isKapiBinary(tok string) bool {
+	tok = strings.TrimLeft(tok, "\"'")
+	if i := strings.LastIndex(tok, "/"); i >= 0 {
+		tok = tok[i+1:]
+	}
+	switch tok {
+	case "kapi", "kgrep", "ksed", "kcat", "kdiff", "kconv":
+		return true
 	}
 	return false
 }
