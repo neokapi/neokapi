@@ -21,6 +21,11 @@ import (
 // from" (rather than a failure) match it with errors.Is.
 var ErrEmptyCorpus = errors.New("voice-infer: empty corpus")
 
+// DefaultMaxCorpusChars bounds how much corpus text one inference sends. Named
+// so a caller accumulating the corpus can stop at the same point rather than
+// hold text the inference will truncate.
+const DefaultMaxCorpusChars = 24000
+
 // InferOptions configures a voice-profile inference run.
 type InferOptions struct {
 	// ProfileName names the draft profile. Defaults to "Inferred Voice".
@@ -45,7 +50,7 @@ func (o InferOptions) withDefaults() InferOptions {
 		o.MaxExamples = 3
 	}
 	if o.MaxCorpusChars <= 0 {
-		o.MaxCorpusChars = 24000
+		o.MaxCorpusChars = DefaultMaxCorpusChars
 	}
 	return o
 }
@@ -494,6 +499,27 @@ func (t *VoiceInferTool) Process(ctx context.Context, in <-chan *model.Part, out
 	t.draft, t.evidence = draft, evidence
 	t.mu.Unlock()
 	return nil
+}
+
+// InferFrom drafts a profile from a corpus given whole, outside the streaming
+// pass.
+//
+// Process accumulates one file's blocks and infers from those, which is the
+// right shape for a flow step and the wrong one for a run over a directory: a
+// tool is built per file, so `kapi exec voice-infer docs/*.md` would infer once
+// per document and produce a stack of partial profiles rather than the profile
+// of the corpus. The exec path collects the text across every file and calls
+// this once. See host/voiceinfer.go.
+func (t *VoiceInferTool) InferFrom(ctx context.Context, corpus string) (*profile.VoiceProfile, *DraftEvidence, error) {
+	draft, evidence, usage, err := inferVoiceProfile(ctx, t.provider, corpus, t.opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	t.addUsage(usage)
+	t.mu.Lock()
+	t.draft, t.evidence = draft, evidence
+	t.mu.Unlock()
+	return draft, evidence, nil
 }
 
 // Draft returns the inferred draft profile and its evidence sidecar. Both are

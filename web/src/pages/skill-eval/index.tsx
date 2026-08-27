@@ -65,9 +65,6 @@ interface Result {
   gatePassed?: number;
   foundTool?: number;
   wrongTool?: string[];
-  // Why this result's transcripts are absent, when they are. The verdict and
-  // the counts are unaffected.
-  withheld?: string;
   // The control arm: the same prompt and workspace with no skill, no MCP
   // server, and no kapi anywhere on PATH.
   unaided?: Run[];
@@ -103,7 +100,6 @@ interface Report {
     wrongToolPicks?: number;
     ungated?: number;
     contributions?: Record<string, number>;
-    withheld?: number;
   };
   results: Result[];
 }
@@ -464,13 +460,6 @@ function Detail({ r }: { r: Result }): ReactElement {
         </div>
       )}
 
-      {r.withheld && (
-        <div>
-          <div style={s.h}>Transcript withheld</div>
-          <p style={{ margin: 0, fontSize: ".88rem", color: tone.flaky.fg }}>{r.withheld}</p>
-        </div>
-      )}
-
       {sc.knownLimit && (
         <div>
           <div style={s.h}>Known limit</div>
@@ -741,7 +730,6 @@ function ScenarioRow({ r }: { r: Result }): ReactElement {
           {/* The control arm's answer belongs on the row rather than two clicks
               in: it is the difference between "this passed" and "this passed
               because of kapi". */}
-          {r.withheld && <Pill text="transcript withheld" t="flaky" />}
           {r.contribution && r.contribution !== "unknown" && (
             <Pill
               text={r.contribution}

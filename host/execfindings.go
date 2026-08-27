@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -32,11 +33,18 @@ import (
 // the verb that exits 3 on an unmet bar), so reporting findings does not make an
 // exec run fail. The report's gate is therefore the open one.
 
-// findingsPorts are the produced ports that carry a check verdict. A tool that
-// declares one of these writes findings under check.AnnotationKey.
+// findingsPorts are the produced ports that carry a check verdict.
+//
+// The first two write findings under check.AnnotationKey. AnnoVoice does not:
+// the voice checks write a profile.VoiceAnnotation under their own key, which
+// is why they were absent from this map and why `kapi exec voice-check` wrote
+// zero bytes and exited 0 under every provider and profile tried (#2225). The
+// tool ran, annotated the blocks, and the run had nowhere to say so — exactly
+// the defect the comment above describes, in the one family it did not reach.
 var findingsPorts = map[string]bool{
 	string(model.OverlayQA):   true,
 	string(model.OverlayTerm): true,
+	model.AnnoVoice:           true,
 }
 
 // ProducesFindings reports whether a tool's schema declares a findings port.
@@ -89,15 +97,21 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 			continue
 		}
 		blocks++
+		loc := check.Location{File: file, Block: blockKey(b)}
 		// clear=false: the blocks may still be on their way to a writer, and a
 		// reporting read must not consume what the content carries.
-		ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
-		if !ok {
-			continue
+		if ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey); ok {
+			for _, f := range ann.Findings {
+				diags = append(diags, check.DiagnosticFrom(f, ann.Source, loc))
+			}
 		}
-		loc := check.Location{File: file, Block: blockKey(b)}
-		for _, f := range ann.Findings {
-			diags = append(diags, check.DiagnosticFrom(f, ann.Source, loc))
+		// The voice checks write their own annotation shape. `kapi check`
+		// already converts it (host/check.go, collectFileDiagnostics); an exec
+		// run needs the same conversion or the tool reports nothing.
+		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
+			for _, f := range ann.Findings {
+				diags = append(diags, check.DiagnosticFrom(f, model.AnnoVoice, loc))
+			}
 		}
 	}
 	c.mu.Lock()

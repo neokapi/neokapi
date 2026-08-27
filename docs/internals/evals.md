@@ -230,9 +230,9 @@ and it is not the cheaper route to the ones it can.
 
 `/evals` is the answer, and it is generated, so it does not go stale here.
 
-Building the last four evals turned up five bugs, and they are worth keeping
-here because in each case the eval's first result was about kapi rather than
-about the thing the eval set out to measure:
+Building the last four evals turned up five bugs, all since fixed, and they are
+worth keeping here because in each case the eval's first result was about kapi
+rather than about the thing the eval set out to measure:
 
 - **`kapi exec voice-check` and `voice-infer` write nothing and exit 0**, under
   every provider, profile and input tried, while sibling tools on the same file
@@ -253,8 +253,9 @@ about the thing the eval set out to measure:
   then spending a 40-turn budget on the one rejection.
 - **A forbidden term matches no inflection**, so a profile forbidding `utilize`
   passes "the platform utilizes your data"
-  ([#2226](https://github.com/neokapi/neokapi/issues/2226)). That is the single
-  term-mechanism miss in the authoring corpus.
+  ([#2226](https://github.com/neokapi/neokapi/issues/2226)). That was the single
+  term-mechanism miss in the authoring corpus, and the fix took two attempts;
+  see [below](#fixing-the-inflection-miss-took-two-attempts).
 - **An empty voice profile scores 100/100** and reports the text as on brand
   ([#2224](https://github.com/neokapi/neokapi/issues/2224)).
 - **The engine benchmark wrote 844 files where nobody looked for them.** A
@@ -267,11 +268,53 @@ Four of the five are the same shape: a surface reporting a refusal, or an empty
 result, so quietly that the caller reads it as success. An eval is the only
 thing that notices, because each failure is invisible from the outside.
 
-The fifth is worth its own note, because of how it was found. Nothing about
+The fifth had a different cause. Nothing about
 `apply` looked wrong from the inside: it has a faithfulness guard, the guard
 fires, and it reports what it refused. What surfaced it was the control arm:
 the scenario failed with kapi and passed without it, and that comparison is the
 only signal that pointed at a tool doing its job correctly and uselessly.
+
+## Fixing the inflection miss took two attempts
+
+The obvious fix for #2226 is to derive the forms from the term: add `s`, `d`,
+`ing`, handle a trailing `e`. That is what shipped first, and the corpus went
+from 12 of 13 terms to 13 of 13.
+
+Then the same check ran against nb, which this repo actually publishes in. It
+caught the bare stem and nothing else, missing utnytter, utnyttet, løsningen,
+løsninger and løsningene, while generating løsninges and utnytted, which are not
+words. It had also needed a floor on term length, because `Go` matched inside
+"going" and a test in `core/profile` says it must not. That floor took the forms
+away from `use`.
+
+The English suffix rules were not an approximation of morphology. They were
+morphology for one language, applied silently to every locale, in a gate.
+
+The tools that do this at scale split along one line, and it is not
+mechanical against AI:
+
+| | how a term is matched | what it costs |
+| --- | --- | --- |
+| Vale | declared strings, exact | nothing, and no morphology at all |
+| Lucene, Snowball | stemmed at index and query time | a stemmer per language, and conflations a search can absorb |
+| LanguageTool, Acrolinx | full morphology | a linguistic pack per language, which is the product |
+| Grammarly, MS Editor | a model reads the sentence | a model call per document, and a gate that varies run to run |
+
+Stemming is the tempting middle and it belongs to search: Snowball folds
+"universe" and "university" together, which costs a search engine a place in a
+ranking and costs a check an accusation against text that broke no rule.
+
+So the axis is *when* the language knowledge is applied. A model has the
+morphology for every language, and asking it once, at authoring time, puts the
+answer in the profile where a person reads it in a diff. `kapi voice expand`
+does that, and the check that consumes the result stays exact, free,
+deterministic and language-neutral. Norwegian goes from 0 of 5 to 5 of 5 and the
+English corpus holds at 13 of 13.
+
+The reason this is in the eval notes rather than in an architecture note: the
+first fix passed the corpus that found the bug. It had to be run against a
+second language before it was visibly wrong, and this repo had one to hand only
+because it publishes in it.
 
 ## The authoring evals
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T23:38:26Z",
+  "generatedAt": "2026-08-27T17:29:42Z",
   "commands": [
     {
       "id": "add",
@@ -7905,6 +7905,110 @@
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
           "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "built-in starter pack name",
+          "type": "string"
+        },
+        {
+          "name": "persona",
+          "usage": "apply an author persona's overrides (within the profile guardrails)",
+          "type": "string"
+        },
+        {
+          "name": "profile",
+          "usage": "voice profile name in the local store",
+          "type": "string"
+        },
+        {
+          "name": "profile-file",
+          "usage": "path to a standalone profile YAML",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (default: anthropic)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
+      "id": "voice.expand",
+      "path": [
+        "voice",
+        "expand"
+      ],
+      "use": "expand",
+      "short": "Fill in the surface forms a profile's terms take (writes the profile)",
+      "long": "Ask a model for the other shapes each vocabulary term takes (inflections,\ndeclensions, conjugations) and write them into the profile as `forms:`.\n\nThe check matches those forms exactly, so this is authoring-time work whose\nresult you review in a diff. Run it again after adding terms; rules that already\ncarry forms are left alone unless --overwrite is given.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "channel",
+          "usage": "apply channel-specific overrides",
+          "type": "string"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "dry-run",
+          "usage": "print what would be added and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "language",
+          "usage": "language the terms are in (defaults to the project's source language)",
+          "type": "string"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "usage": "apply locale-specific overrides",
+          "type": "string"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "overwrite",
+          "usage": "redo rules that already carry forms",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "pack",

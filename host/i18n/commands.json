@@ -516,6 +516,10 @@
           "check": {
             "short": "Score text against a voice profile"
           },
+          "expand": {
+            "long": "Ask a model for the other shapes each vocabulary term takes (inflections,\ndeclensions, conjugations) and write them into the profile as `forms:`.\n\nThe check matches those forms exactly, so this is authoring-time work whose\nresult you review in a diff. Run it again after adding terms; rules that already\ncarry forms are left alone unless --overwrite is given.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
+            "short": "Fill in the surface forms a profile's terms take (writes the profile)"
+          },
           "guide": {
             "short": "Print the voice guide (inject into your assistant's context)"
           },

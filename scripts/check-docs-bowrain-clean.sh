@@ -21,6 +21,16 @@
 # docs home page, which is also the product landing page) must not mention
 # bowrain outside a sanctioned callout.
 #
+# The measurement datasets under web/src/pages/*/_*.json are exempt, and they
+# are the only exemption by file rather than by tree. They are generated, not
+# authored: a scenario prompt, an agent transcript, a converter's name. The rule
+# above governs what kapi SAYS about itself, and a dataset says what was
+# measured. Suppressing a name there does not make the claim narrower, it makes
+# the evidence partial, and skilleval used to blank a whole result's transcripts
+# to satisfy this sweep. Whether a scenario should name the platform at all is a
+# question for the scenario, in scripts/skilleval/scenarios.go, where a person
+# writes it.
+#
 # See docs-intent-impl-audit.md (WS1) for the original rationale and R9 (the
 # 2026-07-18 positioning sweep) for the callout exception.
 set -euo pipefail
@@ -66,7 +76,7 @@ while IFS= read -r -d '' f; do
   if file_hits=$(mask_callouts "$f" | grep -inE 'bowrain'); then
     hits="${hits}${f}:"$'\n'"${file_hits}"$'\n'
   fi
-done < <(find "${user_facing[@]}" -type f -print0 2>/dev/null)
+done < <(find "${user_facing[@]}" -type f ! -name '_*.json' -print0 2>/dev/null)
 
 if [ -n "$hits" ]; then
   echo "✖ bowrain reference(s) found in user-facing neokapi docs outside a sanctioned 'Works with Bowrain' callout (must be zero):"

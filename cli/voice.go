@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -42,6 +43,7 @@ omitted or set to "-".`,
 		newVoiceCheckCmd(a),
 		newVoiceRewriteCmd(a),
 		newVoiceValidateCmd(a),
+		newVoiceExpandCmd(a),
 		newVoiceProfilesCmd(a),
 		newVoiceShowCmd(a),
 		newVoiceImportCmd(a),
@@ -78,6 +80,18 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
 				return err
+			}
+			// A profile this command cannot score against must not be scored
+			// against. Every field is optional, so an empty file and
+			// `hello: world` both load, contribute no rules, and came back
+			// 100/100 "on brand" — the most misleading answer this command can
+			// give, and reachable from a scaffold nobody filled in or a path
+			// typo that resolved to some other YAML. `kapi voice validate`
+			// already refuses both; check asks it the same question. See #2224.
+			if probs := coreprofile.ValidateProfile(profile); len(probs) > 0 {
+				return fmt.Errorf("%s is not a usable voice profile:%s\n"+
+					"run `kapi voice validate` for the full report",
+					VoiceProfileLabel(profile), problemLines(probs))
 			}
 			text, err := ReadSubjectText(cmd, args)
 			if err != nil {
@@ -145,6 +159,33 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd
+}
+
+// VoiceProfileLabel names a profile for an error message, falling back to a
+// description of what was resolved when it has no name — which is the case the
+// error is usually about.
+func VoiceProfileLabel(p *coreprofile.VoiceProfile) string {
+	if p == nil {
+		return "the profile"
+	}
+	if name := strings.TrimSpace(p.Name); name != "" {
+		return name
+	}
+	return "the resolved profile"
+}
+
+// problemLines renders validation problems one per line, indented.
+func problemLines(probs []coreprofile.ProfileProblem) string {
+	var b strings.Builder
+	for _, p := range probs {
+		b.WriteString("\n  ")
+		if p.Field != "" {
+			b.WriteString(p.Field)
+			b.WriteString(": ")
+		}
+		b.WriteString(p.Message)
+	}
+	return b.String()
 }
 
 func newVoiceRewriteCmd(a *App) *cobra.Command {

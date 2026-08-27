@@ -266,23 +266,48 @@ platform/docker/traefik/certs
 # exit unless it is run with -keep)
 .contention-harness/
 
-# Compiled Go tool binaries (built into their module dirs by `go build ./...`)
-/scripts/gen-refs/gen-refs
-/scripts/contract-audit/contract-audit
+# Compiled Go tool binaries. Every package under scripts/ is a main package, and
+# `go build` writes its output next to wherever it was invoked: ./scripts/<tool>/<tool>
+# from the module dir, ./<tool> from the repo root. Both names are listed for every
+# tool, because a partial list is how two 10MB binaries reached a pull request.
+# scripts/check-tracked-binaries.sh is the backstop.
+/scripts/authoringeval/authoringeval
+/scripts/batcheval/batcheval
 /scripts/checkeval/checkeval
-/scripts/contexteval/contexteval
 /scripts/contention-harness/contention-harness
+/scripts/contexteval/contexteval
+/scripts/contract-audit/contract-audit
+/scripts/conversioneval/conversioneval
 /scripts/coordinatereport/coordinatereport
-# Stray build outputs (use `make` targets, which place binaries under bin/ or
-# the wasm demo dir — these default `go build` outputs must never be committed).
-# `go build ./scripts/<tool>` from the REPO ROOT writes ./<tool>, not
-# ./scripts/<tool>/<tool>, so the root-level names need their own rules;
-# scripts/check-tracked-binaries.sh is the backstop for the ones not listed.
-/bowrain/bowrain
+/scripts/evalindex/evalindex
+/scripts/gen-contract-types/gen-contract-types
+/scripts/gen-refs/gen-refs
+/scripts/mkappcast/mkappcast
+/scripts/modelcheck/modelcheck
+/scripts/okapi-test-scan/okapi-test-scan
+/scripts/priorabeval/priorabeval
+/scripts/skilleval/skilleval
+/scripts/testcompare/testcompare
+
+# The same tools built from the repo root, plus the other stray `go build` outputs.
+/authoringeval
+/batcheval
 /checkeval
+/contention-harness
 /contexteval
+/contract-audit
+/conversioneval
 /coordinatereport
+/evalindex
+/gen-contract-types
 /gen-refs
+/mkappcast
+/modelcheck
+/okapi-test-scan
+/priorabeval
+/skilleval
+/testcompare
+/bowrain/bowrain
 /kapi-wasm
 /kapi/kapi-wasm-cli
 

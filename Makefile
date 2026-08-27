@@ -2114,15 +2114,20 @@ conversion-eval: build ## Compare converters on text-extraction completeness →
 AUTHORINGEVAL_PROVIDER ?= claude-code
 AUTHORINGEVAL_MODEL    ?= sonnet
 
-authoring-eval: build ## Score the voice checks and the voice guide → /authoring-eval (steering leg costs calls)
-	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
-	$(GO) run ./scripts/authoringeval -only infer -provider ollama -model ""
+# One provider across all three legs. Each leg writes its own section of the same
+# dataset, so mixing providers publishes a page whose rows were measured under
+# different conditions and says so nowhere.
+authoring-eval: build ## Score the voice checks and the voice guide → /authoring-eval (costs calls)
+	$(GO) run ./scripts/authoringeval -only checks \
+	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
+	$(GO) run ./scripts/authoringeval -only infer \
+	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
 	$(GO) run ./scripts/authoringeval -only steer \
 	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
 	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
 
-authoring-eval-checks: build ## Score the voice checks only (free, offline, no model)
-	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
+authoring-eval-checks: build ## Score the offline voice check only (free, no model)
+	$(GO) run ./scripts/authoringeval -only checks -provider none -model ""
 
 # ── Batch-size eval (issue #1227) ────────────────────────────────────────────
 # Measures what batching costs, by sweeping blocks-per-call and scoring each N on

@@ -73,7 +73,7 @@ func run() error {
 	var (
 		out      = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
 		only     = flag.String("only", "", "run one measurement: checks, infer, steer")
-		provider = flag.String("provider", "claude-code", "AI provider for the measurements that need one")
+		provider = flag.String("provider", "claude-code", "AI provider for the measurements that need one; `none` runs the offline arm alone")
 		model    = flag.String("model", "sonnet", "model for the measurements that need one")
 		date     = flag.String("date", "", "date to stamp (default: today)")
 		keep     = flag.Bool("keep", false, "keep the workspace and print its path")
@@ -135,13 +135,24 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		llm, err := runLLMCheck(ctx, bin, dir, *provider, *model)
-		if err != nil {
-			return err
-		}
-		rep.Checks = []CheckAccuracy{offline, llm}
+		rep.Checks = []CheckAccuracy{offline}
 		reportChecks(offline)
-		reportChecks(llm)
+		if *provider == "none" {
+			// The offline arm alone, which needs no model and costs nothing.
+			// The published LLM row stays as whichever run produced it, rather
+			// than being replaced by an absence.
+			if prev != nil && len(prev.Checks) > 1 {
+				rep.Checks = append(rep.Checks, prev.Checks[1:]...)
+				fmt.Fprintf(os.Stderr, "\n%s: kept from the previous run\n", prev.Checks[1].Check)
+			}
+		} else {
+			llm, err := runLLMCheck(ctx, bin, dir, *provider, *model)
+			if err != nil {
+				return err
+			}
+			rep.Checks = append(rep.Checks, llm)
+			reportChecks(llm)
+		}
 	}
 
 	if wants("infer") {

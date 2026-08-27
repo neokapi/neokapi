@@ -126,7 +126,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	p.path.ensurePart(partPath)
 	blockName := p.path.name(p.path.reserve("p"))
 	b := &runBuilder{}
-	spanCounter := 0
+	ids := &spanIDs{}
 
 	var activeProps *runProps
 
@@ -184,7 +184,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// context is its containing <w:r>; preserving the source
 			// envelope means the per-run rPr round-trips intact.
 			if run.srcRunStart && activeProps != nil && !activeProps.isEmpty() && !activeProps.equal(run.props) {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			// Embed the source <w:r>'s rPr into the Ph.Data so the writer
@@ -211,8 +211,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if rPr := serializeFullRPrXML(run.props); rPr != "" {
 				tabData = rPr + tabData
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeTab, SubTypeTab,
 				tabData, "\t", "",
 				false, false, false)
@@ -246,7 +245,6 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// `<m:oMath>` integral equation immediately follows the
 			// translatable "Here is a math equation:  " text body
 			// inside the same `<w:p>`).
-			spanCounter++
 			subType := SubTypeOMath
 			// The captured payload begins with the source element's
 			// start tag \u2014 `<m:oMath`, `<m:oMathPara`, or
@@ -267,7 +265,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if subType == SubTypeOMath && p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
 				equiv, disp = ommlToMathEquiv(run.data)
 			}
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeOpaqueParaChild, subType,
 				run.data, equiv, disp,
 				false, false, false)
@@ -293,7 +291,6 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>
 			// <w:drawing>` and the rPr must round-trip with the
 			// drawing on the wire.
-			spanCounter++
 			data := run.data
 			if data == "" {
 				data = "<w:drawing/>"
@@ -309,7 +306,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				// text/Markup chunk. See SubTypeImageInline doc.
 				subType = SubTypeImageInline
 			}
-			b.AddPhAttrs(fmt.Sprintf("c%d", spanCounter),
+			b.AddPhAttrs(ids.placeholder(),
 				TypeImage, subType,
 				data, "", "",
 				false, false, false,
@@ -410,8 +407,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 					rawXML = rPr + rawXML
 				}
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeRawRunMarkup, subType,
 				rawXML, "", "",
 				false, false, false)
@@ -438,12 +434,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				markerElem = "endnoteReference"
 			}
 			noteID := rest
-			spanCounter++
 			data := fmt.Sprintf(`<w:%s w:id="%s"/>`, markerElem, noteID)
 			if rPr := serializeRPrChildrenXML(run.props); rPr != "" {
 				data = rPr + data
 			}
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeFootnoteRef, SubTypeFootnoteRef,
 				data,
 				"",
@@ -454,8 +449,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		if after, ok := strings.CutPrefix(run.text, "\uE103:"); ok {
 			// Hyperlink open
 			data := after
-			spanCounter++
-			b.AddPcOpenAttrs(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcOpenAttrs(ids.openSpan(),
 				TypeHyperlink, SubTypeHyperlink,
 				data, "", "",
 				true, true, true,
@@ -466,11 +460,10 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// Hyperlink close
 			if activeProps != nil && !activeProps.isEmpty() {
 				// Close formatting before hyperlink close
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
-			spanCounter++
-			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcClose(ids.closeSpan(),
 				TypeHyperlink, SubTypeHyperlink,
 				"</w:hyperlink>", "")
 			continue
@@ -484,12 +477,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// smartTag start element doesn't sit inside an open
 			// <w:r>.
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			data := strings.TrimPrefix(run.text, "\uE109:")
-			spanCounter++
-			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcOpen(ids.openSpan(),
 				TypeSmartTag, SubTypeSmartTag,
 				data, "", "",
 				true, true, true)
@@ -501,12 +493,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// half so the end tag isn't trapped inside an open
 			// <w:r>.
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			data := strings.TrimPrefix(run.text, "\uE10A:")
-			spanCounter++
-			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcClose(ids.closeSpan(),
 				TypeSmartTag, SubTypeSmartTag,
 				data, "")
 			continue
@@ -528,7 +519,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// doesn't sit inside an open <w:r>. Sentinel payload format:
 			// "\uE10E:<localName>:<rawStartTagOrPrefix>".
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			rest := strings.TrimPrefix(run.text, "\uE10E:")
@@ -545,8 +536,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				pcType = TypeSDT
 				subType = SubTypeSDTNoContent
 			}
-			spanCounter++
-			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcOpen(ids.openSpan(),
 				pcType, subType,
 				data, "", "",
 				true, true, true)
@@ -557,7 +547,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// above for the full localName \u2192 Type/SubType mapping.
 			// Sentinel payload format: "\uE10F:<localName>:<rawEndTag>".
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			rest := strings.TrimPrefix(run.text, "\uE10F:")
@@ -574,8 +564,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				pcType = TypeSDT
 				subType = SubTypeSDTNoContent
 			}
-			spanCounter++
-			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcClose(ids.closeSpan(),
 				pcType, subType,
 				data, "")
 			continue
@@ -593,15 +582,14 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// doesn't sit between the open <w:r>...rPr and the
 			// next text run when re-rendered.
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			subType := SubTypeBookmarkStart
 			if strings.HasPrefix(run.text, "\uE107:") {
 				subType = SubTypeBookmarkEnd
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeBookmark, subType,
 				run.data, "", "",
 				false, false, false)
@@ -622,15 +610,14 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// doesn't sit between the open <w:r>...rPr and the
 			// next text run when re-rendered.
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			subType := SubTypeCommentRangeStart
 			if strings.HasPrefix(run.text, "\uE10C:") {
 				subType = SubTypeCommentRangeEnd
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeCommentRange, subType,
 				run.data, "", "",
 				false, false, false)
@@ -653,15 +640,14 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// payload already carries its own <w:r>...</w:r> (or
 			// <w:fldSimple>...</w:fldSimple>) wrapper.
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			subType := SubTypeFieldChar
 			if strings.HasPrefix(run.text, "\uE108:fldSimple") {
 				subType = SubTypeFieldSimple
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeField, subType,
 				run.data, "", "",
 				false, false, false)
@@ -695,7 +681,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// surrounding text's <w:r> envelope and should keep the
 			// active toggle context.
 			if run.srcRunStart && activeProps != nil && !activeProps.isEmpty() && !activeProps.equal(run.props) {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			subType := SubTypeBreak
@@ -729,8 +715,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if rPr := serializeFullRPrXML(run.props); rPr != "" {
 				brXML = rPr + brXML
 			}
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeBreak, subType,
 				brXML, "\n", "",
 				false, false, false)
@@ -785,7 +770,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		// regular translatable text (no Ph promotion).
 		if !p.cfg.TranslateHiddenText && p.isHiddenRun(run) {
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 				activeProps = nil
 			}
 			rPrXML := serializeFullRPrXML(run.props)
@@ -799,8 +784,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// emits xml:space="preserve" whenever the run text is not
 			// pure non-whitespace.
 			fullRunXML := "<w:r>" + rPrXML + `<w:t xml:space="preserve">` + xmlesc.Text(run.text) + "</w:t></w:r>"
-			spanCounter++
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(ids.placeholder(),
 				TypeHiddenRun, SubTypeHiddenRunVanish,
 				fullRunXML, run.text, "",
 				false, false, false)
@@ -837,12 +821,12 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// `runBuilder.isHidden() || otherRunBuilder.isHidden()`).
 			beforeClose := len(b.runs)
 			if activeProps != nil && !activeProps.isEmpty() {
-				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps.appendClosingRuns(b, ids)
 			}
 			emittedClose := len(b.runs) > beforeClose
 			beforeOpen := len(b.runs)
 			if !run.props.isEmpty() {
-				run.props.appendOpeningRuns(b, &spanCounter)
+				run.props.appendOpeningRuns(b, ids)
 			}
 			emittedOpen := len(b.runs) > beforeOpen
 			// When neither close nor open emitted any toggle codes the
@@ -917,7 +901,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 
 	// Close any remaining open formatting
 	if activeProps != nil && !activeProps.isEmpty() {
-		activeProps.appendClosingRuns(b, &spanCounter)
+		activeProps.appendClosingRuns(b, ids)
 	}
 
 	// Apply code finder before block construction so the placeholder
@@ -925,7 +909,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	// formatting runs.
 	blockRuns := b.Runs()
 	if p.codeFinder != nil {
-		blockRuns = p.codeFinder.applyToRuns(blockRuns, &spanCounter)
+		blockRuns = p.codeFinder.applyToRuns(blockRuns, ids)
 	}
 
 	block := &model.Block{

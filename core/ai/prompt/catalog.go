@@ -44,6 +44,48 @@ func (p VoiceCheck) Turns(text string) []Turn {
 	}
 }
 
+// TermForms asks for the surface shapes a term takes in one language.
+//
+// The alternative was generating them: English suffix rules over the term
+// string. That worked for English, produced non-words for Norwegian
+// ("løsninges" for "løsning"), reached none of the forms Norwegian actually
+// uses, and needed a minimum term length to stop `Go` matching inside "going".
+// Morphology is per-language knowledge, and the tools that do it properly carry
+// a linguistic pack per language.
+//
+// So the knowledge is the model's and the timing is authoring, not checking.
+// This runs once per rule, its answer is written into the profile where a
+// person reviews it in a diff, and the check that consumes it stays exact, free
+// and language-neutral. See issue #2226.
+type TermForms struct {
+	// Language is what the forms are wanted in, as a BCP-47 tag or a name.
+	// Without it the model answers in whichever language the term looks like,
+	// which for a borrowed word is a guess.
+	Language string
+	// MaxPerTerm caps the list. A long tail of rare forms costs precision at
+	// check time for a violation nobody writes.
+	MaxPerTerm int
+}
+
+func (p TermForms) Turns(terms string) []Turn {
+	var b strings.Builder
+	b.WriteString("You are a morphology assistant. For each term below, list the other surface forms it takes ")
+	fmt.Fprintf(&b, "in %s: inflections, declensions, conjugations, the shapes the same word appears as in running text.\n\n", p.Language)
+	b.WriteString("Rules:\n")
+	b.WriteString("- Only forms of the SAME word. Not synonyms, not derivations with a different meaning, not compounds that merely contain it.\n")
+	b.WriteString("- Only forms that occur in ordinary writing. Skip archaic and dialectal ones.\n")
+	b.WriteString("- Do not repeat the term itself.\n")
+	b.WriteString("- A term with no other forms gets an empty list. That is a normal answer, not a failure.\n")
+	fmt.Fprintf(&b, "- At most %d forms per term.\n", p.MaxPerTerm)
+	b.WriteString("\nThese forms are matched literally and whole-word against content, so a wrong one becomes a false ")
+	b.WriteString("accusation against text that broke no rule. Prefer omitting a doubtful form to including it.")
+
+	return []Turn{
+		System(Section{Kind: KindTask, Origin: "framework", Text: b.String()}),
+		User(Section{Kind: KindContent, Origin: "terms", Text: terms}),
+	}
+}
+
 // VoiceInfer drafts a voice profile from a corpus of existing content.
 type VoiceInfer struct {
 	// Domain is an optional subject-domain hint ("medical", "developer tools").
@@ -497,6 +539,12 @@ func Catalog() []CatalogEntry {
 			Tool:    "voice-infer",
 			Summary: "Draft a voice profile from a corpus of your existing content.",
 			Turns:   VoiceInfer{MaxExamples: 3}.Turns("<your content corpus>"),
+		},
+		{
+			ID:      IDTermForms,
+			Tool:    "voice-expand",
+			Summary: "List the other surface forms a term takes in one language, so the check can match them without guessing at morphology.",
+			Turns:   TermForms{Language: "nb", MaxPerTerm: 8}.Turns("løsning\nutnytte"),
 		},
 		{
 			ID:      IDAxisDiscover,

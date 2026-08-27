@@ -79,6 +79,11 @@ const referenceProfileID = "harbourlight"
 // referenceProfile is ground truth for voice-infer-quality: the profile a
 // person would write from the on-profile half of the corpus, because the
 // on-profile half was written from it.
+//
+// The vocabulary rules carry `forms:`, which is the state an authored profile
+// is in after `kapi voice expand` has filled them. A profile without them
+// catches only the bare stem, and the corpus plants `utilizes` precisely
+// because that is the case a rule about `utilize` used to miss.
 const referenceProfile = `name: Harbourlight
 description: Plain, direct voice for a port logistics tool
 tone:
@@ -106,12 +111,15 @@ vocabulary:
     forbidden_terms:
         - term: utilize
           severity: major
+          forms: [utilizes, utilized, utilizing]
         - term: leverage
           severity: major
+          forms: [leverages, leveraged, leveraging]
         - term: best-in-class
           severity: major
         - term: seamless
           severity: major
+          forms: [seamlessly]
         - term: revolutionary
           severity: major
         - term: game-changing

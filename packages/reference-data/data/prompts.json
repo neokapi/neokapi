@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-26T23:38:26Z",
+  "generatedAt": "2026-08-27T17:29:42Z",
   "version": "v3",
   "prompts": [
     {
@@ -136,6 +136,33 @@
               "kind": "content",
               "origin": "content corpus",
               "text": "Corpus:\n\u003cyour content corpus\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "term.forms",
+      "tool": "voice-expand",
+      "summary": "List the other surface forms a term takes in one language, so the check can match them without guessing at morphology.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a morphology assistant. For each term below, list the other surface forms it takes in nb: inflections, declensions, conjugations, the shapes the same word appears as in running text.\n\nRules:\n- Only forms of the SAME word. Not synonyms, not derivations with a different meaning, not compounds that merely contain it.\n- Only forms that occur in ordinary writing. Skip archaic and dialectal ones.\n- Do not repeat the term itself.\n- A term with no other forms gets an empty list. That is a normal answer, not a failure.\n- At most 8 forms per term.\n\nThese forms are matched literally and whole-word against content, so a wrong one becomes a false accusation against text that broke no rule. Prefer omitting a doubtful form to including it."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "terms",
+              "text": "løsning\nutnytte"
             }
           ]
         }

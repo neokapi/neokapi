@@ -233,6 +233,12 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			// memory, exited 0, and printed nothing (#1476). A bespoke entry in
 			// CollectorFactories still wins.
 			collector := NewFindingsCollectorFor(ToolSchema)
+			// voice-infer produces a profile rather than findings, and one for
+			// the whole corpus rather than one per file, so it collects its own
+			// way. See host/voiceinfer.go.
+			if vc := NewVoiceInferCollectorFor(toolName, newTool); vc != nil {
+				collector = vc
+			}
 			if cf, ok := CollectorFactories[toolName]; ok {
 				collector = cf
 			}

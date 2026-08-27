@@ -237,6 +237,7 @@ var (
 	WritePOExtract               = host.WritePOExtract
 	BespokeToolCommands          = host.BespokeToolCommands
 	CollectorFactories           = host.CollectorFactories
+	NewVoiceInferCollectorFor    = host.NewVoiceInferCollectorFor
 	ErrQualityGate               = host.ErrQualityGate
 	ErrSilentExit                = host.ErrSilentExit
 	ToolExamples                 = host.ToolExamples

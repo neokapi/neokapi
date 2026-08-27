@@ -921,6 +921,9 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	if err := proj.validate(opts); err != nil {
 		return nil, fmt.Errorf("invalid project file: %w", err)
 	}
+	// A key that is nearly a field is preserved like any other unknown one, so
+	// nothing above this line notices it. See keywarnings.go and #2223.
+	reportKeyWarnings(path, &proj)
 
 	return &proj, nil
 }

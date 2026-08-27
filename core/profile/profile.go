@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -82,9 +83,9 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	c.Tone.Personality = append([]string(nil), p.Tone.Personality...)
 	c.Style.ProhibitedPatterns = append([]Pattern(nil), p.Style.ProhibitedPatterns...)
 	c.Style.RequiredPatterns = append([]Pattern(nil), p.Style.RequiredPatterns...)
-	c.Vocabulary.PreferredTerms = append([]TermRule(nil), p.Vocabulary.PreferredTerms...)
-	c.Vocabulary.ForbiddenTerms = append([]TermRule(nil), p.Vocabulary.ForbiddenTerms...)
-	c.Vocabulary.CompetitorTerms = append([]TermRule(nil), p.Vocabulary.CompetitorTerms...)
+	c.Vocabulary.PreferredTerms = cloneRules(p.Vocabulary.PreferredTerms)
+	c.Vocabulary.ForbiddenTerms = cloneRules(p.Vocabulary.ForbiddenTerms)
+	c.Vocabulary.CompetitorTerms = cloneRules(p.Vocabulary.CompetitorTerms)
 	if p.Vocabulary.Abbreviations != nil {
 		c.Vocabulary.Abbreviations = make(map[string]string, len(p.Vocabulary.Abbreviations))
 		maps.Copy(c.Vocabulary.Abbreviations, p.Vocabulary.Abbreviations)
@@ -103,6 +104,36 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 		maps.Copy(c.Personas, p.Personas)
 	}
 	return &c
+}
+
+// AllForms is the term and every other shape the rule declares, with blanks and
+// duplicates removed. It is what the matcher scans for.
+func (r TermRule) AllForms() []string {
+	out := make([]string, 0, len(r.Forms)+1)
+	seen := map[string]bool{}
+	for _, f := range append([]string{r.Term}, r.Forms...) {
+		f = strings.TrimSpace(f)
+		if f == "" || seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	return out
+}
+
+// cloneRules copies a rule list and each rule's Forms, so a candidate profile
+// built for evaluation cannot write through to the baseline's slices.
+func cloneRules(in []TermRule) []TermRule {
+	if in == nil {
+		return nil
+	}
+	out := make([]TermRule, len(in))
+	copy(out, in)
+	for i := range out {
+		out[i].Forms = append([]string(nil), in[i].Forms...)
+	}
+	return out
 }
 
 // ProfileVersion is an immutable snapshot of a profile at a point in time.
@@ -175,6 +206,20 @@ type TermRule struct {
 	// ordinary rules would skip — "say this instead" needs a this — so the flag
 	// is what gives a bare term meaning: leave it exactly as it is.
 	DoNotTranslate bool `json:"do_not_translate,omitempty" yaml:"do_not_translate,omitempty"`
+	// Forms are the other surface shapes this term takes: inflections,
+	// declensions, whatever the language does to it. Matched alongside Term.
+	//
+	// Declared rather than derived. A rule about `utilize` means `utilizes`
+	// too, and matching the bare stem alone let "the platform utilizes your
+	// data" through at 100/100 (#2226) — but the shapes a word takes are
+	// per-language knowledge, and generating them from English suffix rules
+	// produced non-words for Norwegian and reached none of the forms it
+	// actually uses.
+	//
+	// `kapi voice expand` fills these in, asking a model once in the profile's
+	// own language and writing the result into a diff. The knowledge is the
+	// model's; the matching stays exact and language-neutral.
+	Forms []string `json:"forms,omitempty" yaml:"forms,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for voice profile.

@@ -314,13 +314,13 @@
       "id": "voice-infer-quality",
       "title": "Whether an inferred voice profile is usable",
       "method": "deterministic",
-      "status": "blocked",
+      "status": "partial",
       "spends": true,
-      "corpus": "Built and ready: the corpus's on-profile half was written from a reference profile, so recovery is checkable field by field rather than by asking a judge. The comparison runs the moment there is a draft.",
-      "covers": "Would measure how much of the reference profile a draft recovers — each tone and style field, and how many of the forbidden terms.",
-      "misses": "`kapi exec voice-infer` writes nothing to stdout and exits 0 (#2225), and it has no other surface: there is no `kapi voice infer` subcommand. There is no draft to compare.",
+      "corpus": "The corpus's on-profile half was written from a reference profile, so recovery is checkable field by field rather than by asking a judge: the reference is not an opinion about a good draft, it is the thing the material expresses.",
+      "covers": "How much of the reference profile a draft recovers, field by field. 5 of 9 on claude-code:sonnet from six documents: formality, humor, sentence length, person and active voice all correct; personality a third right.",
+      "misses": "One run on one model over six documents. Two of the four misses say something about the tool rather than the model: it recovered no forbidden terms at all, which a corpus written TO a profile cannot teach since it contains no violations, and it answered `emotion` with \"calm and reassuring\" where the schema takes an enum, so the draft did not validate. Inferring what to forbid needs a corpus that breaks the rules.",
       "reproduce": "make authoring-eval",
-      "settings": "Whatever provider the run names, at temperature 0. Nothing is recorded because the tool returns nothing; the field will carry the real settings with the first draft it produces.",
+      "settings": "claude-code:sonnet, one inference over the whole corpus rather than one per file. Six minutes is the budget: a local model could not finish inside kapi's own HTTP timeout to it.",
       "data": "web/src/pages/authoring-eval/_authoringeval.json",
       "page": "/authoring-eval",
       "fresh": {
@@ -398,8 +398,8 @@
       "status": "partial",
       "spends": false,
       "corpus": "Twelve synthesized documents about one product: six written to a voice profile, six written against it with 18 violations marked. The clean half is what makes false positives measurable.",
-      "covers": "Recall over the marked violations, split by how the profile expresses each rule. The offline check found 89% overall — every prohibited pattern, 12 of 13 forbidden terms, and none of the declared fields, which nothing offline evaluates. It also raised a finding on 3 of the 6 clean documents.",
-      "misses": "The LLM check cannot be scored: `kapi exec voice-check` returns nothing under every provider and profile tried (#2225). The one term miss is `utilizes` against a profile forbidding `utilize` (#2226). The corpus is synthesized, which is disclosed in the data itself.",
+      "covers": "Recall over the marked violations, split by how the profile expresses each rule, for the offline check and the LLM one side by side. Offline finds 94%: every prohibited pattern, every forbidden term, and none of the declared fields, which nothing offline evaluates. It raises a finding on 3 of the 6 clean documents, all from one over-broad passive regex.",
+      "misses": "The corpus is synthesized, which is disclosed in the data itself. The declared fields (active_voice, person_pov, sentence_length) have no offline implementation at all, so their row is a property of the design rather than a defect to fix. And a rule stated as a regex is only as good as the regex: every false positive here is one passive-voice pattern firing on a predicate adjective. The term row reads 13 of 13 because the reference profile declares each term's other forms, which is what `kapi voice expand` writes; a profile whose terms were typed by hand and never expanded matches the bare string only, and scores lower here than it would in a language with less inflection.",
       "reproduce": "make authoring-eval",
       "data": "web/src/pages/authoring-eval/_authoringeval.json",
       "page": "/authoring-eval",
@@ -407,7 +407,7 @@
         "date": "2026-08-27"
       },
       "headline": {
-        "value": "89%",
+        "value": "94%",
         "of": "of marked violations found",
         "tone": "warn"
       }
@@ -484,15 +484,15 @@
   ],
   "coverage": {
     "measured": 7,
-    "partial": 8,
+    "partial": 9,
     "unvalidated": 2,
-    "blocked": 1,
+    "blocked": 0,
     "absent": 0,
     "byStatus": {
       "absent": 0,
-      "blocked": 1,
+      "blocked": 0,
       "measured": 7,
-      "partial": 8,
+      "partial": 9,
       "unvalidated": 2
     },
     "layersUnmeasured": 0,

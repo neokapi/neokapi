@@ -157,10 +157,10 @@ func TestRunBuilderBreakBeforeFirstAddIsHarmless(t *testing.T) {
 
 func TestRunPropsOpeningClosingRuns(t *testing.T) {
 	props := runProps{bold: true, italic: true}
-	counter := 0
+	ids := &spanIDs{}
 
 	b := &runBuilder{}
-	props.appendOpeningRuns(b, &counter)
+	props.appendOpeningRuns(b, ids)
 	opening := b.Runs()
 	assert.Len(t, opening, 2)
 	assert.NotNil(t, opening[0].PcOpen)
@@ -169,7 +169,7 @@ func TestRunPropsOpeningClosingRuns(t *testing.T) {
 	assert.Equal(t, TypeItalic, opening[1].PcOpen.Type)
 
 	cb := &runBuilder{}
-	props.appendClosingRuns(cb, &counter)
+	props.appendClosingRuns(cb, ids)
 	closing := cb.Runs()
 	assert.Len(t, closing, 2)
 	assert.NotNil(t, closing[0].PcClose)
@@ -177,6 +177,32 @@ func TestRunPropsOpeningClosingRuns(t *testing.T) {
 	// Closing should be in reverse order
 	assert.Equal(t, TypeItalic, closing[0].PcClose.Type)
 	assert.Equal(t, TypeBold, closing[1].PcClose.Type)
+
+	// And each close carries the id of the open it belongs to, nested rather
+	// than sequential. Before #2227 this read c1 c2 / c3 c4, which pairs
+	// nothing: `kapi apply` refused every edit to a block with formatting
+	// because the result could never be balanced.
+	assert.Equal(t, "c1", opening[0].PcOpen.ID)
+	assert.Equal(t, "c2", opening[1].PcOpen.ID)
+	assert.Equal(t, "c2", closing[0].PcClose.ID, "italic closes the italic it opened")
+	assert.Equal(t, "c1", closing[1].PcClose.ID, "bold closes the bold it opened")
+}
+
+// TestSpanIDsPairAndNest covers the allocator directly: placeholders take their
+// own numbers, and a close returns the innermost open.
+func TestSpanIDsPairAndNest(t *testing.T) {
+	ids := &spanIDs{}
+	assert.Equal(t, "c1", ids.placeholder())
+	assert.Equal(t, "c2", ids.openSpan())
+	assert.Equal(t, "c3", ids.openSpan())
+	assert.Equal(t, "c3", ids.closeSpan(), "innermost first")
+	assert.Equal(t, "c4", ids.placeholder(), "a placeholder inside the outer span takes a fresh id")
+	assert.Equal(t, "c2", ids.closeSpan())
+
+	// A close with nothing open cannot be paired. It takes a fresh id, which
+	// leaves the block unbalanced so the fidelity guard refuses an edit to it,
+	// rather than closing a span that was never opened.
+	assert.Equal(t, "c5", ids.closeSpan())
 }
 
 func TestMergeRuns(t *testing.T) {
