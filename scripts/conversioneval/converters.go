@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -124,12 +126,7 @@ func available(ctx context.Context, kapiBin string) []Converter {
 
 // handles reports whether this converter is asked to read this extension.
 func (c Converter) handles(ext string) bool {
-	for _, e := range c.Exts {
-		if e == ext {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.Exts, ext)
 }
 
 // loFilters is the conversion target per source format.
@@ -187,7 +184,7 @@ func capture(ctx context.Context, bin string, args, env []string) (string, error
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
-			return "", fmt.Errorf("timed out")
+			return "", errors.New("timed out")
 		}
 		return "", fmt.Errorf("%w: %s", err, clip(strings.TrimSpace(stderr.String()), 200))
 	}

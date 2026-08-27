@@ -361,23 +361,3 @@ func plantsByMechanism() map[string]int {
 	}
 	return out
 }
-
-// allPlants is every plant with the document it sits in.
-func allPlants() []struct {
-	Doc string
-	Plant
-} {
-	var out []struct {
-		Doc string
-		Plant
-	}
-	for _, d := range corpus {
-		for _, p := range d.Plants {
-			out = append(out, struct {
-				Doc string
-				Plant
-			}{d.Name, p})
-		}
-	}
-	return out
-}

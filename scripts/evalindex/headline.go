@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // The one number each eval is for, read out of its own dataset.
@@ -389,7 +390,7 @@ func headlineBatching(doc any) *Headline {
 		return nil
 	}
 	return &Headline{
-		Value: fmt.Sprintf("%d", int(best)),
+		Value: strconv.Itoa(int(best)),
 		Of:    fmt.Sprintf("blocks per call still intact, of %d tried", int(tried)),
 		Tone:  band(best/tried, 1, 0.5),
 	}
@@ -403,7 +404,7 @@ func headlineReuseRules(doc any) *Headline {
 	}
 	chains, _ := dig(doc, "chains").([]any)
 	return &Headline{
-		Value: fmt.Sprintf("%d", len(points)),
+		Value: strconv.Itoa(len(points)),
 		Of:    fmt.Sprintf("governed points resolved, %d reuse chains traced", len(chains)),
 		Tone:  "ok",
 	}
@@ -423,7 +424,7 @@ func headlinePromptContents(doc any) *Headline {
 		return nil
 	}
 	return &Headline{
-		Value: fmt.Sprintf("%d", len(cases)),
+		Value: strconv.Itoa(len(cases)),
 		Of:    "prompts captured and inspected",
 		Tone:  "ok",
 	}

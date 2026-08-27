@@ -236,7 +236,7 @@ func discover(root string, limit int) ([]doc, int, error) {
 	total := 0
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
-			return nil //nolint:nilerr // an unreadable corner of the corpus is not a reason to stop
+			return nil //nolint:nilerr // an unreadable corner of the corpus is skipped, not fatal
 		}
 		ext := strings.ToLower(filepath.Ext(p))
 		if !readable(ext) {
@@ -244,7 +244,7 @@ func discover(root string, limit int) ([]doc, int, error) {
 		}
 		info, err := d.Info()
 		if err != nil {
-			return nil //nolint:nilerr
+			return nil //nolint:nilerr // a file whose stat fails is skipped, not fatal
 		}
 		total++
 		byExt[ext] = append(byExt[ext], doc{path: p, ext: ext, size: info.Size()})
@@ -524,7 +524,9 @@ func ids(cs []Converter) []string {
 }
 
 func repoRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return "", errors.New("not in a git checkout")
 	}

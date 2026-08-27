@@ -427,7 +427,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T10:20:14Z"
       },
       "headline": {
         "value": "22/22",
@@ -450,10 +450,10 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T10:20:14Z"
       },
       "headline": {
-        "value": "8/17",
+        "value": "13/17",
         "of": "scenarios reached a green gate",
         "tone": "gap"
       }
@@ -473,7 +473,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T10:20:14Z"
       },
       "headline": {
         "value": "8/8",

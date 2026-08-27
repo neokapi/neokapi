@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,10 +86,7 @@ func TestGroundTruthReadsTheDocument(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got, "no text nodes read from a document that has text")
 
-	joined := ""
-	for _, g := range got {
-		joined += g
-	}
+	joined := strings.Join(got, "")
 	assert.NotContains(t, joined, "&amp;", "entities are decoded by the XML reader, not left raw")
 	assert.NotContains(t, joined, "<w:t", "markup is not text")
 }

@@ -118,7 +118,7 @@ func TestTheContrastProfileDisagrees(t *testing.T) {
 }
 
 func valueOf(profile, field string) string {
-	for _, line := range strings.Split(profile, "\n") {
+	for line := range strings.SplitSeq(profile, "\n") {
 		k, v, ok := strings.Cut(strings.TrimSpace(line), ":")
 		if ok && k == field {
 			return strings.TrimSpace(v)

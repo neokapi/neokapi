@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -148,7 +149,7 @@ func compareToReference(res *InferResult, draft string) (*InferResult, error) {
 		scalar("style.sentence_length", want.Style.SentenceLength, got.Style.SentenceLength),
 		scalar("style.person_pov", want.Style.PersonPOV, got.Style.PersonPOV),
 		scalar("style.contractions", want.Style.Contractions, got.Style.Contractions),
-		scalar("style.active_voice", fmt.Sprint(want.Style.ActiveVoice), fmt.Sprint(got.Style.ActiveVoice)),
+		scalar("style.active_voice", strconv.FormatBool(want.Style.ActiveVoice), strconv.FormatBool(got.Style.ActiveVoice)),
 		setRecovery("tone.personality", want.Tone.Personality, got.Tone.Personality),
 		setRecovery("vocabulary.forbidden_terms", termList(want), termList(got)),
 	}
