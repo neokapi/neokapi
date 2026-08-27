@@ -358,6 +358,15 @@ func convertOne(ctx context.Context, c Converter, d doc, truth []string, workdir
 	return r
 }
 
+// dominationThreshold is the share of a format's ground truth one document may
+// carry before the report says so.
+//
+// A third is already enough that the word-weighted column is substantially
+// about that file. large.xlsx is 99.9% of the spreadsheets here and big.docx is
+// 34% of the Word documents; at a half only the first was reported, and the
+// second is worth knowing too.
+const dominationThreshold = 0.3
+
 // tinyFloor is the ground-truth word count below which a per-file recall is
 // noise. A document declaring three words can only score 0, 33, 67 or 100.
 const tinyFloor = 20
@@ -491,7 +500,7 @@ func report(rs []ConverterResult) {
 				100*e.MeanRecall, 100*e.MedianRecall, "-", e.Failed, e.MedianMs)
 		}
 		for _, r := range rs {
-			if e, ok := r.ByExt[ext]; ok && e.TopFileShare > 0.5 {
+			if e, ok := r.ByExt[ext]; ok && e.TopFileShare > dominationThreshold {
 				fmt.Printf("  note: %s carries %.0f%% of this format's ground truth, so the word-weighted column is mostly about that one document\n",
 					e.TopFile, 100*e.TopFileShare)
 				break

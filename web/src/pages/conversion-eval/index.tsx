@@ -128,6 +128,11 @@ function Pill({ text, t }: { text: string; t: keyof typeof tone }): ReactElement
   );
 }
 
+// Mirrors dominationThreshold in scripts/conversioneval. A third of a
+// format's words in one document is enough that the word-weighted column is
+// substantially about that file.
+const DOMINATION_THRESHOLD = 0.3;
+
 const pct = (v: number) => `${(100 * v).toFixed(1)}%`;
 const ms = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}s` : `${v}ms`);
 
@@ -190,7 +195,7 @@ function ExtTable({ ext }: { ext: string }): ReactElement {
           documents went badly wrong.
         </span>
       </div>
-      {top && top.share > 0.5 ? (
+      {top && top.share > DOMINATION_THRESHOLD ? (
         <div style={{ ...s.banner, marginTop: ".7rem" }}>
           <code style={s.code}>{top.file}</code> carries {Math.round(100 * top.share)}% of this
           format&rsquo;s ground truth, so the words-kept column is mostly a score about that one
