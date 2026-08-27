@@ -208,6 +208,29 @@ const pct = (v: number) => `${Math.round(100 * v)}%`;
 function countFindings(t: SteerResult, key: "bareFindings" | "steeredFindings"): number {
   return t.docs.reduce((n, d) => n + (d[key]?.length ?? 0), 0);
 }
+
+// findingKinds groups both arms' findings by what the check said, so the page
+// names the mechanism from the data rather than from a sentence.
+//
+// The sentence here used to read "every one of them is a passive construction:
+// neither arm produced a single forbidden-term finding". True of this run, and
+// exactly the kind of claim that survives the run it describes.
+function findingKinds(t: SteerResult): { kind: string; bare: number; steered: number }[] {
+  const rows = new Map<string, { kind: string; bare: number; steered: number }>();
+  const add = (arm: "bare" | "steered", key: "bareFindings" | "steeredFindings") => {
+    for (const d of t.docs) {
+      for (const f of d[key] ?? []) {
+        const kind = f.message.replace(/:.*$/, "").trim() || f.category;
+        const row = rows.get(kind) ?? { kind, bare: 0, steered: 0 };
+        row[arm] += 1;
+        rows.set(kind, row);
+      }
+    }
+  };
+  add("bare", "bareFindings");
+  add("steered", "steeredFindings");
+  return [...rows.values()].sort((a, b) => b.bare - a.bare);
+}
 const signed = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
 
 // A gain is good on the profile the guide came from and bad on the one it did
@@ -526,11 +549,19 @@ function SteerSection(): ReactElement | null {
               Counting the findings names the mechanism rather than leaving it to the reader.
               Against the reference profile the guided documents drew{" "}
               <strong>{countFindings(t, "steeredFindings")}</strong> findings where the bare ones
-              drew <strong>{countFindings(t, "bareFindings")}</strong>, and every one of them is a
-              passive construction: neither arm produced a single forbidden-term finding, so those
-              rules contributed nothing to the gain. The contrast profile can only move on its three
-              forbidden pronouns, so its loss is the shift to second person. Two mechanisms, not a
-              broad effect.
+              drew <strong>{countFindings(t, "bareFindings")}</strong>, and here is what they were:
+            </p>
+            <ul style={{ ...s.sub, marginTop: ".5rem", marginBottom: 0 }}>
+              {findingKinds(t).map((k) => (
+                <li key={k.kind}>
+                  <strong>{k.bare}</strong> → <strong>{k.steered}</strong> {k.kind}
+                </li>
+              ))}
+            </ul>
+            <p style={{ ...s.sub, marginTop: ".5rem", marginBottom: 0 }}>
+              A rule with no row produced no finding in either arm, so it contributed nothing to the
+              gain. The contrast profile can only move on its three forbidden pronouns, so its loss
+              is the shift to second person.
             </p>
           </div>
 
