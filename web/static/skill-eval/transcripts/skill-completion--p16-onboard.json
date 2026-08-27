@@ -1,0 +1,263 @@
+{
+  "key": "skill:completion",
+  "scenario": "p16-onboard",
+  "prompt": "Set up our content context from this repo: the voice we write in and the terms we use.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by invoking the kapi skill, which covers discovering and setting up a project's content context."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Set up our content context from this repo: the voice we write in and the terms we use.\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -20; echo \\\"---PWD---\\\"; pwd; echo \\\"---LS---\\\"; ls -la\",\"description\":\"Check kapi version and list repo root\"}",
+          "output": "kapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n---PWD---\n\u003cpath\u003e\n---LS---\ntotal 8\ndrwx------      7 asgeirf  staff     224 Aug 27 22:04 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:04 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:04 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:04 kapi-config\ndrwxr-xr-x      4 asgeirf  staff     128 Aug 27 22:04 marketing\n-rw-r--r--      1 asgeirf  staff     106 Aug 27 22:04 README.md\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 22:04 xdg-cache"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read context discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -type f -not -path './xdg-cache/*' | head -100; echo \\\"=== README ===\\\"; cat README.md\",\"description\":\"Find all files and show README\"}",
+          "output": "./README.md\n./marketing/launch.docx\n./marketing/tone.md\n./kapi-config/update-channel\n./.claude/skills/kapi/SKILL.md\n./.claude/skills/kapi/references/context-discovery.md\n./.claude/skills/kapi/references/i18n.md\n./.claude/skills/kapi/references/voice.md\n./.claude/skills/kapi/references/project.md\n./.claude/skills/kapi/references/toolbox.md\n./.claude/skills/kapi/references/create.md\n./.claude/skills/kapi/references/translate.md\n./.claude/skills/kapi/references/edit.md\n./.claude/skills/kapi/references/i18n/rails.md\n./.claude/skills/kapi/references/i18n/react-native.md\n./.claude/skills/kapi/references/i18n/svelte.md\n./.claude/skills/kapi/references/i18n/android.md\n./.claude/skills/kapi/references/i18n/vue.md\n./.claude/skills/kapi/references/i18n/frameworks.yaml\n./.claude/skills/kapi/references/i18n/backend.md\n./.claude/skills/kapi/references/i18n/angular.md\n./.claude/skills/kapi/references/i18n/flutter.md\n./.claude/skills/kapi/references/i18n/gettext.md\n./.claude/skills/kapi/references/i18n/docs-sites.md\n./.claude/skills/kapi/references/i18n/react.md\n./.claude/skills/kapi/references/i18n/ios.md\n=== README ===\n# Northwind\n\nNorthwind gives teams one workspace for their content.\nWe write \n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la marketing kapi-config .claude xdg-cache 2\u003e\u00261\",\"description\":\"List subdirectories\"}",
+          "output": ".claude:\ntotal 0\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 22:04 .\ndrwx------  7 asgeirf  staff  224 Aug 27 22:04 ..\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 22:04 skills\n\nkapi-config:\ntotal 8\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 22:04 .\ndrwx------  7 asgeirf  staff  224 Aug 27 22:04 ..\n-rw-r--r--  1 asgeirf  staff    5 Aug 27 22:04 update-channel\n\nmarketing:\ntotal 32\ndrwxr-xr-x  4 asgeirf  staff    128 Aug 27 22:04 .\ndrwx------  7 asgeirf  staff    224 Aug 27 22:04 ..\n-rw-r--r--  1 asgeirf  staff  11003 Aug 27 22:04 launch.docx\n-rw-r--r--  1 asgeirf  staff     83 Aug 27 22:04 tone.md\n\nxdg-cache:\ntotal 0\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 22:04 .\ndrwx------  7 asgeirf  staff  224 Aug 27 22:04 ..\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 22:04 kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== marketing/tone.md ===\\\"; cat marketing/tone.md; echo; echo \\\"=== kapi-config/update-channel ===\\\"; cat kapi-config/update-channel; echo; echo \\\"=== xdg-cache tree ===\\\"; find xdg-cache -type f | head -20\",\"description\":\"Read tone.md and update-channel\"}",
+          "output": "=== marketing/tone.md ===\nWe use plain words. We avoid marketing superlatives. We address the reader as you.\n\n=== kapi-config/update-channel ===\nbeta\n\n=== xdg-cache tree ===\nxdg-cache/kapi/plugins-cache.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kcat marketing/launch.docx 2\u003e\u00261 | head -60\",\"description\":\"Print prose of launch.docx\"}",
+          "output": "Partnership Proposal\nPrepared for: Meridian Retail Group\nPrepared by: the SalesPilot team\nThank you for the opportunity to introduce SalesPilot to your team.\nWhat SalesPilot delivers\nA single pipeline view across every region.\nAutomated follow-ups that keep deals moving.\nForecasts your leadership can rely on.\nNext steps\nWe will provision your SalesPilot workspace within two business days.\nWarm regards, the SalesPilot team."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/voice.md\",\"description\":\"Read voice reference\"}",
+          "output": "# Keep content in voice\n\nScore and fix content against a voice profile with the local `kapi` CLI —\noffline, no account. One loop: load the voice guide before writing, score a\ndraft, fix what drifts.\n\n## Profiles\n\nA profile comes from any of: a built-in pack (`--pack`), a git-shareable\nYAML (`--profile-file`), or the local store (`--profile`). List options with\n`kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,\n`technical-docs`, `marketing-blog`, `customer-support`.\n\n**Inside a project, the profile is part of the context — don't pass a flag.** When\nthe project binds a voice profile (a `defaults.voice` recipe entry, or a\n`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check\n\u003cfile\u003e` and `kapi voice guide` with **no**\n`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a\nflag only for a one-off outside a project, or to override the bound profile. See\n[project.md](project.md).\n\n## Create a profile\n\nIf the user has no profile yet, draft one for them — you (the assistant) do the\nanalysis; the CLI gives you the schema and stores the result.\n\n```bash\nkapi voice new -o voice.yaml                         # comme\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/project.md\",\"description\":\"Read project reference\"}",
+          "output": "# Use a kapi project for standing context\n\nA `.kapi` project binds the things that don't change between requests — source and\ntarget locales, which files are content, the voice profile, and the terms store — so\nthat ordinary requests need no flags. kapi finds the project by walking up from the\ncurrent directory, like git.\n\n## When to set one up\n\nSet up a project when the work is ongoing: many files or a whole app, the same\ntarget locales repeatedly, a voice profile or terminology to keep consistent, recurring\nruns (CI, re-translate on change), or content memory to reuse. For a true\none-off, skip it and run the command directly.\n\n## Create it\n\n```bash\nkapi init --name my-app --source-locale en --target-locale fr --target-locale de\n# --framework \u003cpreset\u003e  pre-fills content paths; kapi init --list-presets shows them all\n```\n\nThis writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is\ncommitted** — it is the project's context, not scratch space. Git it like source.\n\n- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,\n  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the\n  primary), `profiles/\u003cname\u003e/` (what a profile over\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -a; echo \\\"---\\\"; kapi init --help 2\u003e\u00261 | head -40\",\"description\":\"Check for existing project and init help\"}",
+          "output": ".\n..\n.claude\nkapi-config\nmarketing\nREADME.md\nxdg-cache\n---\nCreate a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice — a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nUsage:\n  kapi init [flags]\n\nFlags:\n      --dir string              Directory to scaffold in (default: current directory)\n      --framework string        Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project\n  -h, --help                    help for init\n      --list-presets          \n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice new -o \u003cpath\u003e 2\u003e\u00261 | head -20; echo \\\"=== TEMPLATE ===\\\"; cat \u003cpath\u003e\",\"description\":\"Generate voice profile template\"}",
+          "output": "Wrote \u003cpath\u003e — fill it in, then: kapi voice import \u003cpath\u003e\n=== TEMPLATE ===\n# Voice profile. Fill in the fields, then:\n#   kapi voice import voice.yaml                     # save to the local store\n#   kapi voice guide --profile-file voice.yaml       # render the guide\n#   echo \"draft\" | kapi voice check --profile-file voice.yaml --json\n# Only 'name' is required; every other field is optional. The English source\n# text always stays the key — do not invent message IDs.\n\nname: My Voice\ndescription: One line on who this voice is for and the impression it should leave.\n\ntone:\n  personality: [clear, confident, friendly]   # 2-4 adjectives\n  formality: neutral        # casual | neutral | formal | technical\n  emotion: warm             # warm | neutral | authoritative\n  humor: light              # none | light | frequent\n  guidelines: Address the reader as \"you\". Lead with the benefit.\n\nstyle:\n  active_voice: true\n  sentence_length: varied   # short | medium | varied\n  person_pov: second        # first_plural | second | third\n  contractions: always      # always | sometimes | never\n  prohibited_patterns:\n    - regex: \"\\\\b(synergy|leverage)\\\\b\"\n      description: Corporate jargon\n      s\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Repo is small, so the signal is thin but specific. Let me set up the project."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi init --name northwind 2\u003e\u00261 | tail -30; echo \\\"=== TREE ===\\\"; find .kapi kapi.yaml -type f 2\u003e/dev/null; echo \\\"=== RECIPE ===\\\"; cat kapi.yaml\",\"description\":\"Initialize kapi content project\"}",
+          "output": "Initialized kapi project \"northwind\"\n  recipe: \u003cpath\u003e\n  state:  \u003cpath\u003e\n=== TREE ===\nkapi.yaml\n.kapi/.gitignore\n.kapi/manifest.yaml\n=== RECIPE ===\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: []\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n      # - tool: voice-check"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e .kapi/voice.yaml \u003c\u003c'YAML'\\n# Northwind voice profile.\\n# Drafted from the repo's own words:\\n#   README.md      — \\\"We write plainly and we do not shout.\\\"\\n#   marketing/tone.md — \\\"We use plain words. We avoid marketing superlatives.\\n#                        We address the reader as you.\\\"\\n# Everything below traces back to one of those two lines. Items marked\\n# ASSUMED are inferences awaiting your sign-off.\\n\\nname: Northwind\\ndescription: \u003e-\\n  Northwind's writing voice: plain words, no shouting, no marketing\\n  superlatives. We talk to the reader directly and say what the product does.\\n\\ntone:\\n  personality: [plain, direct, calm]\\n  formality: neutral        # ASSUMED — README/tone.md say plain, not casual or formal\\n  emotion: neutral          # \\\"we do not shout\\\" — no hype, no urgency\\n  humor: none               # ASSUMED — nothing in the material is playful\\n  guidelines: \u003e-\\n    Address the reader as \\\"you\\\". Say what the product does, not how remarkable\\n    it is. If a sentence would survive without an intensifier, drop the\\n    intensifier. Never shout: no exclamation marks, no all-caps for emphasis.\\n\\nstyle:\\n  active_voice: true\\n  s\n…truncated…",
+          "output": "VALID  .kapi/voice.yaml (Northwind)\nEXIT=0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re\\np='kapi.yaml'\\ns=open(p).read()\\ns=s.replace(\\\"  voice:\\\\n    pack: professional-b2b\\\\n\\\",\\\"  voice:\\\\n    profile_file: .kapi/voice.yaml\\\\n  terms_source: .kapi/terms.json\\\\n\\\")\\nopen(p,'w').write(s)\\nPY\\nkapi add \\\"README.md\\\" --name northwind-docs 2\u003e\u00261 | tail -5\\nkapi add \\\"marketing/tone.md\\\" --name northwind-docs 2\u003e\u00261 | tail -5\\necho \\\"=== RECIPE ===\\\"; cat kapi.yaml\",\"description\":\"Bind voice profile and add content collections\"}",
+          "output": "Error: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n=== RECIPE ===\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\n  terms_source: .kapi/terms.json\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: []\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n      # - tool: voice-check"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi add \\\"README.md\\\" --name northwind-docs -p ./kapi.yaml 2\u003e\u00261 | tail -8; echo \\\"EXIT=$?\\\"; echo \\\"---status---\\\"; kapi status -p ./kapi.yaml 2\u003e\u00261 | tail -20\",\"description\":\"Retry kapi add with explicit project path\"}",
+          "output": "Added README.md (markdown) — 1 file(s)\nEXIT=0\n---status---\nsource      2 units · authored 100% · checked 100% · approved 0%\n\nMonolingual project: no target languages configured, so there is no per-language standing to report."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi add \\\"marketing/tone.md\\\" --name northwind-docs -p ./kapi.yaml 2\u003e\u00261 | tail -5\\ncat \u003e \u003cpath\u003e \u003c\u003c'JSONL'\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Northwind\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\",\\\"note\\\":\\\"Product and company name. Always capitalized.\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"workspace\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\",\\\"note\\\":\\\"What Northwind gives teams: one workspace for their content.\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"content\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\",\\\"note\\\":\\\"What lives in a workspace.\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"team\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\",\\\"note\\\":\\\"Northwind's unit of user. README: 'Northwind gives teams one workspace'.\\\"}\\nJSONL\\nkapi apply \u003cpath\u003e -p ./kapi.yaml 2\u003e\u00261 | tail -15\",\"description\":\"Add tone.md collection and apply terminology seed\"}",
+          "output": "Added marketing/tone.md (markdown) — 1 file(s)\nterm Northwind: applied (terms.json)\nterm workspace: applied (terms.json)\nterm content: applied (terms.json)\nterm team: applied (terms.json)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi up -p ./kapi.yaml 2\u003e\u00261 | tail -15; echo \\\"=== CHECK ===\\\"; kapi check --ship --json --no-fail -p ./kapi.yaml 2\u003e\u00261 | tail -40\",\"description\":\"Compile context and run ship gate\"}",
+          "output": "plan: no target languages — reconciling the source only\nSettled source: 0 block(s) checked, 0 held below the \"checked\" gate.\nExtracted 3 block(s) from 2 file(s) into the project store (nothing extracted yet).\nReconciled the source — no target languages configured, so the per-language flow \"default (built-in)\" did not run.\n\nExtracted 3 block(s) from 2 file(s) into the project store.\nUp to date: the committed context and the occurrence graph match the sources.\n=== CHECK ===\n{\n  \"pass\": true,\n  \"gates\": [\n    {\n      \"gate\": \"voice\",\n      \"pass\": true,\n      \"findings\": []\n    },\n    {\n      \"gate\": \"terminology\",\n      \"pass\": true,\n      \"findings\": []\n    },\n    {\n      \"gate\": \"qa\",\n      \"pass\": true,\n      \"findings\": []\n    }\n  ],\n  \"summary\": {\n    \"gates\": 3,\n    \"passed\": 3,\n    \"failed\": 0,\n    \"findings\": 0,\n    \"errors\": 0,\n    \"warnings\": 0\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== off-voice draft test ===\\\"\\necho \\\"Northwind is the world-class, best-in-class workspace that will supercharge your team TODAY! Users will love it.\\\" | kapi voice check --text - --json -p ./kapi.yaml 2\u003e\u00261 | tail -50\",\"description\":\"Test voice profile against an off-voice draft\"}",
+          "output": "=== off-voice draft test ===\n      },\n      \"original_text\": \"best-in-class\",\n      \"metadata\": {\n        \"replacement\": \"proven\"\n      }\n    },\n    {\n      \"category\": \"vocabulary\",\n      \"severity\": \"minor\",\n      \"message\": \"Forbidden term \\\"world-class\\\" found\",\n      \"suggestion\": \"Use \\\"reliable\\\" instead\",\n      \"position\": {\n        \"kind\": \"range\",\n        \"start\": {\n          \"run\": 0,\n          \"offset\": 17\n        },\n        \"end\": {\n          \"run\": 0,\n          \"offset\": 28\n        }\n      },\n      \"original_text\": \"world-class\",\n      \"metadata\": {\n        \"replacement\": \"reliable\"\n      }\n    },\n    {\n      \"category\": \"vocabulary\",\n      \"severity\": \"minor\",\n      \"message\": \"Forbidden term \\\"supercharge\\\" found\",\n      \"suggestion\": \"Use \\\"improve\\\" instead\",\n      \"position\": {\n        \"kind\": \"range\",\n        \"start\": {\n          \"run\": 0,\n          \"offset\": 64\n        },\n        \"end\": {\n          \"run\": 0,\n          \"offset\": 75\n        }\n      },\n      \"original_text\": \"supercharge\",\n      \"metadata\": {\n        \"replacement\": \"improve\"\n      }\n    }\n  ]\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== untracked ===\\\"; kapi ls --untracked -p ./kapi.yaml 2\u003e\u00261 | tail -20; echo; echo \\\"=== context README.md ===\\\"; kapi context README.md -p ./kapi.yaml 2\u003e\u00261 | head -40\",\"description\":\"List untracked files and retrieve context for README\"}",
+          "output": "=== untracked ===\n  PATH                               FORMAT\n  marketing/launch.docx              openxml\n  xdg-cache/kapi/plugins-cache.json  json\n\n2 file(s) tracked by no collection\n\n=== context README.md ===\n# Context at README.md\n\nThis location sits at the project's default point: no profile claims it.\nVoice `Northwind`, bound by `defaults.voice` (.kapi/voice.yaml).\nAnswered from this project alone: its terms, its content memory and its voice profile.\n\n## Voice Guide: Northwind\n\nNorthwind's writing voice: plain words, no shouting, no marketing superlatives. We talk to the reader directly and say what the product does.\n\n### Tone\n- Personality: plain, direct, calm\n- Formality: neutral\n- Emotion: neutral\n- Humor: none\n- Guidelines: Address the reader as \"you\". Say what the product does, not how remarkable it is. If a sentence would survive without an intensifier, drop the intensifier. Never shout: no exclamation marks, no all-caps for emphasis.\n\n### Style Rules\n- Use active voice\n- Sentence length: short\n- Point of view: second\n- Contractions: sometimes\n- Prohibited patterns:\n  - Exclamation marks — we do not shout (severity: minor)\n  - Two or more all-caps words in a row — w\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"Northwind is the world-class, best-in-class workspace that will supercharge your team TODAY! Users will love it.\\\" | kapi voice check --text - --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"\\nimport json,sys\\nd=json.load(sys.stdin)\\nprint('score:',d.get('score'))\\nfor f in d.get('findings',[]): print(' -',f['severity'],'|',f['category'],'|',f['message'])\\n\\\"\\necho; echo \\\"=== score on their own files ===\\\"\\nfor f in README.md marketing/tone.md; do\\n  printf '%-24s ' \\\"$f\\\"\\n  kapi voice check \\\"$f\\\" --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score', d.get('score'), '| findings', len(d.get('findings',[])))\\\"\\ndone\",\"description\":\"Score off-voice draft and the repo's own files\"}",
+          "output": "Exit code 1\nscore: 96\n - minor | style | Prohibited pattern: Exclamation marks — we do not shout\n - minor | vocabulary | Forbidden term \"best-in-class\" found\n - minor | vocabulary | Forbidden term \"world-class\" found\n - minor | vocabulary | Forbidden term \"supercharge\" found\n\n=== score on their own files ===\nREADME.md                Traceback (most recent call last):\n  File \"\u003cstring\u003e\", line 1, in \u003cmodule\u003e\nTypeError: object of type 'NoneType' has no len()\nmarketing/tone.md        Traceback (most recent call last):\n  File \"\u003cstring\u003e\", line 1, in \u003cmodule\u003e\nTypeError: object of type 'NoneType' has no len()",
+          "failed": true
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"for f in README.md marketing/tone.md; do\\n  printf '%-22s ' \\\"$f\\\"\\n  kapi voice check \\\"$f\\\" --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score', d.get('score'), '| findings', len(d.get('findings') or []))\\\"\\ndone\",\"description\":\"Score the repo's own files\"}",
+          "output": "README.md              score 100 | findings 0\nmarketing/tone.md      score 100 | findings 0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp .kapi/voice.yaml \u003cpath\u003e - \u003c\u003c'PY'\\np='.kapi/voice.yaml'\\ns=open(p).read()\\n# raise the superlative bans from minor to major so the gate actually bites\\nhead, sep, tail = s.partition('  forbidden_terms:')\\ntail2 = tail.split('  # Deliberately empty',1)\\ntail2[0] = tail2[0].replace('severity: minor','severity: major')\\ns = head + sep + '  # Deliberately empty'.join(tail2)\\nopen(p,'w').write(s)\\nPY\\nkapi voice validate .kapi/voice.yaml 2\u003e\u00261 | tail -3\\necho \\\"Northwind is the world-class, best-in-class workspace that will supercharge your team TODAY! Users will love it.\\\" | kapi voice check --text - --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"\\nimport json,sys; d=json.load(sys.stdin)\\nprint('off-voice draft score:',d.get('score'))\\nfor f in (d.get('findings') or []): print(' -',f['severity'],'|',f['message'])\\n\\\"\\nfor f in README.md marketing/tone.md; do printf '%-22s ' \\\"$f\\\"; kapi voice check \\\"$f\\\" --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('score', d.get('score'), '| findings', len(d.get('findings') or []))\\\"; done\",\"description\":\"Raise superlative severity to major and re-test\"}",
+          "output": "VALID  .kapi/voice.yaml (Northwind)\noff-voice draft score: 84\n - minor | Prohibited pattern: Exclamation marks — we do not shout\n - major | Forbidden term \"best-in-class\" found\n - major | Forbidden term \"world-class\" found\n - major | Forbidden term \"supercharge\" found\nREADME.md              score 100 | findings 0\nmarketing/tone.md      score 100 | findings 0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi check --help 2\u003e\u00261 | grep -iE 'min-score|ship|gate' | head -10\\necho \\\"--- ship gate at 90 over the project ---\\\"\\nkapi check --ship --min-score 90 --json --no-fail -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('pass:',d['pass'],'| summary:',d['summary'])\\\"\\necho \\\"--- voice.yaml forbidden block as written ---\\\"\\nsed -n '/forbidden_terms:/,/competitor_terms/p' .kapi/voice.yaml\",\"description\":\"Verify min-score flag and re-run ship gate at 90\"}",
+          "output": "Project gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\ngate just those.\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n      --gate strings          with --ship: run only the named project gates (voice, terminology, qa); repeatable\n      --lenient               report only: never fail the gate (still prints findings)\n      --locale string         with --ship: scope the target-side gates to a single target locale (e.g. fr)\n      --min-score int         fail if the roll-up score is below this (0 = no score gate); with --ship: the brand-gate compliance threshold (default 80)\n--- ship gate at 90 over the project ---\npass: True | summary: {'gates': 3, 'passed': 3, 'failed': 0, 'findings': 0, 'errors': 0, 'warnings': 0}\n--- voice.yaml forbidden block as written ---\n  forbidden_terms:\n    - term: best-in-class\n      replacement: proven\n      severity: major\n    - term: world-class\n      replacement: reliable\n      severity: major\n    - term\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\np='.kapi/voice.yaml'\\ns=open(p).read()\\ns=s.replace(\\n\\\"  # Marketing superlatives. tone.md bans the category; these are the specific\\\\n  # words drafted for it. Each needs your sign-off before it gates a build.\\\\n\\\",\\n\\\"  # Marketing superlatives. tone.md bans the category; these are the specific\\\\n  # words drafted for it. Each needs your sign-off before it gates a build.\\\\n  # Set to 'major' so the score actually moves: with these at 'minor' a draft\\\\n  # stuffed with three superlatives still scored 96, clearing the default 80\\\\n  # bar. At 'major' the same draft scores 84 — so run the gate at\\\\n  # --min-score 90 (both files in this repo score 100).\\\\n\\\")\\nopen(p,'w').write(s)\\nPY\\nkapi voice validate .kapi/voice.yaml 2\u003e\u00261 | tail -2\\necho \\\"=== final recipe ===\\\"; cat kapi.yaml\\necho \\\"=== .kapi tree ===\\\"; find .kapi -type f | sort\\necho \\\"=== .kapi/.gitignore ===\\\"; cat .kapi/.gitignore\\necho \\\"=== terms ===\\\"; kapi terms export --format json -p ./kapi.yaml 2\u003e\u00261 | head -30\",\"description\":\"Annotate severity choice and review final artifacts\"}",
+          "output": "VALID  .kapi/voice.yaml (Northwind)\n=== final recipe ===\nversion: v1\nname: northwind\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\n  terms_source: .kapi/terms.json\n\n# Content project: no target_languages. Point collections at the source files\n# to keep in voice, then run 'kapi check' to score them. Block state lives\n# in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/**/*.md\"\n#     format: markdown\n#\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\n# fill it in, 'kapi voice import voice.yaml', then set\n# defaults.voice.profile instead of pack.\ncollections: [{name: northwind-docs, content: [{path: README.md, format: {name: markdown}}, {path: marketing/tone.md, format: {name: markdown}}]}]\n\n# The check flow scores content against the voice vocabulary (deterministic,\n# offline). 'kapi check' reports the score and gates on it; 'kapi run check'\n# runs the same flow over every tracked file. Add the AI-driven 'voice-check'\n# step for tone and voice scoring (needs an AI provider).\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n    # - tool: voice-check\n=== .kapi tree ===\n.kapi/.gitignore\n.kapi\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\np='kapi.yaml'\\ns=open(p).read()\\ns=s.replace(\\\"\\\"\\\"#\\n# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',\\n# fill it in, 'kapi voice import voice.yaml', then set\\n# defaults.voice.profile instead of pack.\\ncollections: [{name: northwind-docs, content: [{path: README.md, format: {name: markdown}}, {path: marketing/tone.md, format: {name: markdown}}]}]\\n\\\"\\\"\\\",\\\"\\\"\\\"#\\n# marketing/launch.docx is deliberately NOT here — it is a SalesPilot proposal\\n# to Meridian Retail Group, not Northwind's own copy. Add it only once someone\\n# confirms what it is.\\ncollections:\\n  - name: northwind-docs\\n    content:\\n      - path: README.md\\n        format: {name: markdown}\\n      - path: marketing/tone.md\\n        format: {name: markdown}\\n\\\"\\\"\\\")\\nopen(p,'w').write(s)\\nPY\\nkapi up -p ./kapi.yaml 2\u003e\u00261 | tail -3\\necho \\\"=== SHIP GATE (bar 90) ===\\\"\\nkapi check --ship --min-score 90 --json -p ./kapi.yaml 2\u003e\u00261 | python3 -c \\\"import json,sys; d=json.load(sys.stdin); print('pass:',d['pass'],'|',d['summary'])\\\"; echo \\\"exit=$?\\\"\\necho \\\"=== untracked ===\\\"; kapi ls --untracked -p ./kapi.yaml 2\u003e\u00261 | tail -6\",\"description\":\"Tidy recipe, recompile, \n…truncated…",
+          "output": "The project store already matched the working tree.\nUp to date: the committed context and the occurrence graph match the sources.\n=== SHIP GATE (bar 90) ===\npass: True | {'gates': 3, 'passed': 3, 'failed': 0, 'findings': 0, 'errors': 0, 'warnings': 0}\nexit=0\n=== untracked ===\n  PATH                               FORMAT\n  marketing/launch.docx              openxml\n  xdg-cache/kapi/plugins-cache.json  json\n\n2 file(s) tracked by no collection"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi check --ship --min-score 90 2\u003e\u00261 | tail -5; echo \\\"exit=$?\\\"\",\"description\":\"Test project discovery from cwd without -p\"}",
+          "output": "Error: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\nexit=0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"PWD=$PWD\\\"; echo \\\"pwd -P: $(pwd -P)\\\"; ls -d .kapi kapi.yaml \u0026\u0026 kapi status 2\u003e\u00261 | tail -3\",\"description\":\"Diagnose project discovery failure\"}",
+          "output": "PWD=\u003cpath\u003e\npwd -P: \u003cpath\u003e\n.kapi\nkapi.yaml\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "text",
+          "text": "Context is set up and the gate is green. Here's what I did and the two things I need you to decide.\n\n## What exists now\n\n| File | What it holds |\n|---|---|\n| `kapi.yaml` | project `northwind`, binds the profile + terms, declares one collection |\n| `.kapi/voice.yaml` | the Northwind voice profile |\n| `.kapi/terms.json` | 4 preferred terms |\n\nGoverned content: `README.md`, `marketing/tone.md`. Both score **100**.\n\n```\nkapi check --ship --min-score 90   →  voice ✓  terminology ✓  qa ✓   (0 findings)\n```\n\n## The voice, and what it's actually built on\n\nThe repo gives two sentences of real signal, and I built only on those:\n\n- `README.md` — \"We write plainly and we do not shout.\"\n- `marketing/tone.md` — \"We use plain words. We avoid marketing superlatives. We address the reader as you.\"\n\nThat yields: plain/direct/calm, second person, active voice, no exclamation marks, no runs of all-caps. Four fields had **no** signal — formality, humor, sentence length, contractions — so I picked defaults and marked each `# ASSUMED` in the file rather than passing them off as discovered.\n\nTerms, all from the README's one product sentence: **Northwind**, **workspace**, **content**, **team**.\n\n## Two calls worth your attention\n\n**The superlative list needs your sign-off.** `tone.md` bans the *category*; the ten specific words (`world-class`, `supercharge`, `seamless`…) are mine, not yours. I set them to `major` after testing: at `minor`, a draft with three superlatives and an exclamation still scored 96 and sailed past the default 80 bar. At `major` it scores 84 — so run the gate at `--min-score 90`, which both your files clear at 100.\n\n**`competitor_terms` is empty on purpose.** Nothing in this repo names a competitor, and inventing one would gate your builds on a guess.\n\n## What I left out, and why\n\n**`marketing/launch.docx` is not Northwind's writing.** It's a partnership proposal *prepared by the SalesPilot team* for Meridian Retail Group — different product (sales pipelines, forecasts), different voice, different company. Mining it would have put \"SalesPilot\" into your terminology as if it were yours. I didn't govern it or take a single word from it. **Is SalesPilot your product, a competitor, or a file someone dropped in the wrong repo?** Each answer sends it somewhere different: a second profile, the competitor list, or the bin.\n\nAlso excluded: `kapi-config/update-channel` (contains `beta` — a config value, not prose) and `xdg-cache/` (a cache directory). `kapi ls --untracked` reports the docx and the cache file so the decision stays visible.\n\n## Running it\n\n```bash\nkapi check --ship --min-score 90 -p ./kapi.yaml\n```\n\nTwo notes: project auto-discovery from the working directory doesn't resolve in this sandbox even with `kapi.yaml` sitting right there, so I've been passing `-p ./kapi.yaml` throughout — it should work without the flag in a normal checkout. And this isn't a git repo yet; when you `git init`, commit all of `.kapi/` except `\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by exploring the repo to understand what content and style material exists."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -not -path '*/.git/*' -not -path '*/node_modules/*' | head -200\",\"description\":\"List repo contents and tree\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 22:08 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:08 ..\ndrwxr-xr-x      4 asgeirf  staff     128 Aug 27 22:08 marketing\n-rw-r--r--      1 asgeirf  staff     106 Aug 27 22:08 README.md\n---TREE---\n.\n./README.md\n./marketing\n./marketing/launch.docx\n./marketing/tone.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== marketing/tone.md ===\\\" \u0026\u0026 cat marketing/tone.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== launch.docx info ===\\\" \u0026\u0026 ls -la marketing/ \u0026\u0026 file marketing/launch.docx\",\"description\":\"Read README and tone.md, inspect docx\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind gives teams one workspace for their content.\nWe write plainly and we do not shout.\n\n=== marketing/tone.md ===\nWe use plain words. We avoid marketing superlatives. We address the reader as you.\n\n=== launch.docx info ===\ntotal 32\ndrwxr-xr-x  4 asgeirf  staff    128 Aug 27 22:08 .\ndrwx------  4 asgeirf  staff    128 Aug 27 22:08 ..\n-rw-r--r--  1 asgeirf  staff  11003 Aug 27 22:08 launch.docx\n-rw-r--r--  1 asgeirf  staff     83 Aug 27 22:08 tone.md\nmarketing/launch.docx: Microsoft Word 2007+"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"unzip -o -q marketing/launch.docx -d \u003cpath\u003e \u0026\u0026 find \u003cpath\u003e -type f | sort\",\"description\":\"Unzip docx to inspect parts\"}",
+          "output": "\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport re\\nd = open('word/document.xml', encoding='utf-8').read()\\nprint(\\\"LEN\\\", len(d))\\nfor tag in ['w:ins','w:del','w:delText','w:commentRangeStart','w:commentReference','w:hyperlink','w:footnoteReference']:\\n    print(tag, d.count('\u003c'+tag))\\nEOF\",\"description\":\"Check docx for tracked changes and comments\"}",
+          "output": "LEN 3290\nw:ins 0\nw:del 0\nw:delText 0\nw:commentRangeStart 0\nw:commentReference 0\nw:hyperlink 0\nw:footnoteReference 0\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport re, xml.etree.ElementTree as ET\\nNS={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}\\ndef para_text(p):\\n    return ''.join(t.text or '' for t in p.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'))\\nfor f in ['word/document.xml','word/comments.xml','word/footnotes.xml']:\\n    print('='*20, f)\\n    try:\\n        r=ET.parse(f).getroot()\\n    except Exception as e:\\n        print('ERR',e); continue\\n    for p in r.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):\\n        t=para_text(p)\\n        if t.strip(): print(repr(t))\\nEOF\",\"description\":\"Extract text from document, comments, footnotes\"}",
+          "output": "==================== word/document.xml\n'Partnership Proposal'\n'Prepared for: Meridian Retail Group'\n'Prepared by: the SalesPilot team'\n'Thank you for the opportunity to introduce SalesPilot to your team.'\n'What SalesPilot delivers'\n'A single pipeline view across every region.'\n'Automated follow-ups that keep deals moving.'\n'Forecasts your leadership can rely on.'\n'Next steps'\n'We will provision your SalesPilot workspace within two business days.'\n'Warm regards, the SalesPilot team.'\n==================== word/comments.xml\n==================== word/footnotes.xml\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 for f in docProps/core.xml docProps/app.xml docProps/custom.xml word/settings.xml; do echo \\\"===== $f\\\"; cat \\\"$f\\\"; echo; done\",\"description\":\"Dump docx metadata and settings\"}",
+          "output": "===== docProps/core.xml\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003ccp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\u003e\u003cdc:title\u003e\u003c/dc:title\u003e\u003cdc:creator\u003e\u003c/dc:creator\u003e\u003ccp:keywords\u003e\u003c/cp:keywords\u003e\u003cdcterms:created xsi:type=\"dcterms:W3CDTF\"\u003e2026-05-25T21:57:20Z\u003c/dcterms:created\u003e\u003cdcterms:modified xsi:type=\"dcterms:W3CDTF\"\u003e2026-05-25T21:57:20Z\u003c/dcterms:modified\u003e\u003c/cp:coreProperties\u003e\n===== docProps/app.xml\n\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\n\u003cProperties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"\u003e\n  \u003cWords\u003e83\u003c/Words\u003e\n  \u003cSharedDoc\u003efalse\u003c/SharedDoc\u003e\n  \u003cHyperlinksChanged\u003efalse\u003c/HyperlinksChanged\u003e\n  \u003cLines\u003e12\u003c/Lines\u003e\n  \u003cAppVersion\u003e12.0000\u003c/AppVersion\u003e\n  \u003cLinksUpToDate\u003efalse\u003c/LinksUpToDate\u003e\n  \u003cApplication\u003eMicrosoft Word 12.0.0\u003c/Application\u003e\n  \u003cCharactersWithSpaces\u003e583\u003c/CharactersWithSpaces\u003e\n  \u003cTemplate\u003eNormal.dotm\u003c/Template\u003e\n  \u003cDocSecurity\u003e0\u003c/DocSecur\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"MEM=\\\"~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p16-onboard-223095396/memory\\\"; ls -la \\\"$MEM\\\" 2\u003e\u00261; echo \\\"=== MEMORY.md ===\\\"; cat \\\"$MEM/MEMORY.md\\\" 2\u003e\u00261\",\"description\":\"Inspect existing memory directory\"}",
+          "output": "Exit code 1\ntotal 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 22:08 .\ndrwxr-xr-x  4 asgeirf  staff  128 Aug 27 22:08 ..\n=== MEMORY.md ===\ncat: ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p16-onboard-223095396/memory/MEMORY.md: No such file or directory",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "Now I have the full picture. Let me check one thing about the docx's voice against the stated tone before writing anything:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 grep -o 'Northwind' word/document.xml | wc -l; echo \\\"--- 'Northwind' mentions in docx: (above) ---\\\"; grep -rio 'salespilot\\\\|meridian' \u003cpath\u003e \u003cpath\u003e | wc -l; echo \\\"--- SalesPilot/Meridian mentions in repo md files: (above) ---\\\"\",\"description\":\"Cross-check product names across docx and repo docs\"}",
+          "output": "       0\n--- 'Northwind' mentions in docx: (above) ---\n       0\n--- SalesPilot/Meridian mentions in repo md files: (above) ---\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Confirmed zero overlap between the two vocabularies. Writing the memories now:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"MEM=\\\"~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p16-onboard-223095396/memory\\\"\\n\\ncat \u003e \\\"$MEM/northwind-writing-voice.md\\\" \u003c\u003c'EOF'\\n---\\nname: northwind-writing-voice\\ndescription: Northwind's writing voice — plain words, no superlatives, no shouting, address the reader as \\\"you\\\"\\nmetadata:\\n  type: project\\n---\\n\\nNorthwind content is written in a deliberately plain voice, defined in `README.md` and `marketing/tone.md`:\\n\\n- Plain words. No marketing superlatives (\\\"revolutionary\\\", \\\"best-in-class\\\", \\\"seamless\\\").\\n- \\\"We do not shout\\\" — no all-caps, no exclamation marks, no hype punctuation.\\n- Address the reader directly as **you**.\\n\\n**Why:** These are the only two voice sources in the repo and they agree with each other; the rule is stated as an identity (\\\"we write plainly\\\"), not a suggestion.\\n\\n**How to apply:** When drafting or editing any Northwind-facing copy, prefer the plainest accurate word, cut intensifiers, and write to \\\"you\\\" rather than \\\"users\\\" or \\\"customers\\\". See [[northwind-product-terms]] for vocabulary, and [[launch-docx-is-not-northwind-content]] for a file in this repo that does NOT mode\n…truncated…",
+          "output": "total 32\ndrwxr-xr-x  6 asgeirf  staff   192 Aug 27 22:09 .\ndrwxr-xr-x  4 asgeirf  staff   128 Aug 27 22:08 ..\n-rw-r--r--  1 asgeirf  staff  1328 Aug 27 22:09 launch-docx-is-not-northwind-content.md\n-rw-r--r--  1 asgeirf  staff   422 Aug 27 22:09 MEMORY.md\n-rw-r--r--  1 asgeirf  staff  1024 Aug 27 22:09 northwind-product-terms.md\n-rw-r--r--  1 asgeirf  staff   992 Aug 27 22:09 northwind-writing-voice.md"
+        },
+        {
+          "kind": "text",
+          "text": "Content context is set up. Three memories, indexed in `MEMORY.md`:\n\n**Voice** (`README.md` + `marketing/tone.md`, which agree):\n- Plain words, no marketing superlatives\n- \"We do not shout\" — no caps, no exclamation marks\n- Address the reader as **you**\n\n**Terms** (from `README.md`): Northwind (bare, no \"the\") gives **teams** one **workspace** for their **content**. Small vocabulary, and the singleness of \"one workspace\" is the pitch — so I noted not to swap in synonyms like \"platform\" or \"assets\".\n\n**One thing worth your attention:** `marketing/launch.docx` is not Northwind content. It's a \"Partnership Proposal\" prepared for Meridian Retail Group by *the SalesPilot team* — it never mentions Northwind, and its vocabulary (pipeline view, deals, follow-ups, forecasts) has zero word-overlap with the repo's own terms. Its voice also drifts from `tone.md`: \"Forecasts your leadership can rely on\", \"Warm regards\". Its docx metadata has no author or title, so I couldn't confirm where it came from.\n\nI recorded it as an explicit *don't-use* rather than folding its terms into ours — it's the biggest content file in the repo and the obvious place someone would look for house style, so the trap is easy to fall into. If it's actually meant to be a Northwind launch doc that was drafted from a competitor's template, tell me and I'll rewrite it in the Northwind voice; if it's just misfiled, it probably shouldn't live in `marketing/`."
+        }
+      ]
+    }
+  ]
+}

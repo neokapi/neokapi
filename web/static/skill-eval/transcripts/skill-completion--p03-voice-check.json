@@ -1,0 +1,165 @@
+{
+  "key": "skill:completion",
+  "scenario": "p03-voice-check",
+  "prompt": "Check README.md against our voice profile and fix what's off.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      5 asgeirf  staff     160 Aug 27 21:58 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 21:58 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:58 .claude\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 21:58 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 21:58 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== .claude tree ===\\\" \u0026\u0026 find .claude -type f | head -50\",\"description\":\"Read README, voice profile, and .claude contents\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major\n\n=== .claude tree ===\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/sk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is exactly what the `kapi` skill covers — voice profile checking. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"check README.md against voice profile and fix\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"--- project? ---\\\"; ls -a | grep -i kapi; kapi status 2\u003e\u00261 | head -20\",\"description\":\"Check kapi binary and project status\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n--- project? ---\nkapi-config\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd; ls -a; echo \\\"=== voice.md ===\\\"; cat .claude/skills/kapi/references/voice.md\",\"description\":\"Confirm cwd contents and read voice reference\"}",
+          "output": "\u003cpath\u003e\n.\n..\n.claude\nkapi-config\nREADME.md\nvoice.yaml\nxdg-cache\n=== voice.md ===\n# Keep content in voice\n\nScore and fix content against a voice profile with the local `kapi` CLI —\noffline, no account. One loop: load the voice guide before writing, score a\ndraft, fix what drifts.\n\n## Profiles\n\nA profile comes from any of: a built-in pack (`--pack`), a git-shareable\nYAML (`--profile-file`), or the local store (`--profile`). List options with\n`kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,\n`technical-docs`, `marketing-blog`, `customer-support`.\n\n**Inside a project, the profile is part of the context — don't pass a flag.** When\nthe project binds a voice profile (a `defaults.voice` recipe entry, or a\n`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check\n\u003cfile\u003e` and `kapi voice guide` with **no**\n`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a\nflag only for a one-off outside a project, or to override the bound profile. See\n[project.md](project.md).\n\n## Create a profile\n\nIf the user has no profile yet, draft one for them — you (the assistant) do the\nanalysis; the CLI gives you the schema and stores t\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "No `.kapi` project here — one file, one profile at the root, so this is an ad hoc run with `--profile-file`. Loading the guide and scoring the README:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice guide --profile-file voice.yaml 2\u003e\u00261\",\"description\":\"Load the voice guide\"}",
+          "output": "# Voice Guide: Northwind\n\nPlain, direct product voice\n\n## Tone\n- Personality: plain, direct\n- Formality: neutral\n- Emotion: neutral\n- Humor: none\n- Guidelines: Write plainly. Address the reader as you. No marketing superlatives.\n\n## Style Rules\n- Use active voice\n- Sentence length: short\n- Point of view: second\n- Contractions: sometimes\n\n## Vocabulary\n### Preferred Terms\n- **use**: Preferred over 'utilize' and 'leverage'\n\n### Forbidden Terms\n- ~~utilize~~\n- ~~leverage~~\n- ~~cutting-edge~~"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice check README.md --profile-file voice.yaml --json 2\u003e\u00261\",\"description\":\"Score README against voice profile\"}",
+          "output": "{\n  \"profile\": \"Northwind\",\n  \"score\": 85,\n  \"passed\": true,\n  \"ai_checked\": false,\n  \"dimensions\": [\n    {\n      \"dimension\": \"tone\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"style\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"vocabulary\",\n      \"score\": 85,\n      \"penalty\": 15,\n      \"issues\": 3\n    },\n    {\n      \"dimension\": \"clarity\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"compliance\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    }\n  ],\n  \"findings\": [\n    {\n      \"category\": \"vocabulary\",\n      \"severity\": \"major\",\n      \"message\": \"Forbidden term \\\"utilize\\\" found\",\n      \"position\": {\n        \"kind\": \"range\",\n        \"start\": {\n          \"run\": 0,\n          \"offset\": 66\n        },\n        \"end\": {\n          \"run\": 0,\n          \"offset\": 73\n        }\n      },\n      \"original_text\": \"utilize\"\n    },\n    {\n      \"category\": \"vocabulary\",\n      \"severity\": \"major\",\n      \"message\": \"Forbidden term \\\"leverage\\\" found\",\n      \"position\": {\n        \"kind\": \"range\",\n        \"start\": {\n          \"run\": 0,\n          \"off\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Score **85**, three major vocabulary findings. Now the edit loop — let me get the block structure and the `apply` entry shape."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi inspect README.md --jsonl 2\u003e\u00261\",\"description\":\"Inspect README blocks\"}",
+          "output": "{\"file\":\"README.md\",\"number\":1,\"id\":\"tu1\",\"content_hash\":\"f99297d29d2aabe6cfe7470884f1a38abb589a3047f21c1a67683bef77464035\",\"role\":\"heading\",\"level\":1,\"text\":\"Northwind\"}\n{\"file\":\"README.md\",\"number\":2,\"id\":\"tu2\",\"content_hash\":\"f58630bfe3822ecf7b260b7c4a13829d154f7200995fc53ec3482ebac262aa30\",\"text\":\"Northwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\"}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -n '1,120p' .claude/skills/kapi/references/edit.md\",\"description\":\"Read edit reference\"}",
+          "output": "# Edit content in any format\n\nEdit the text inside a file an editor can't open directly — a Word document, a\nPowerPoint deck, a JSON catalog, an XLIFF file, Markdown — and write it back in\nthe same format, byte-for-byte except for the text you changed. You do the\nediting; kapi parses the format, enforces a faithful round-trip, and is the\nchecker. No model provider is involved.\n\nThis is the **read → edit → write → verify** loop. It is the deliberate,\nreviewed counterpart to a `ksed` find-and-replace (see [toolbox.md](toolbox.md)):\nreach for this loop when you are rewriting block text by hand (an on-brand fix, a\nclarity pass, a terminology correction), and for `ksed` when a regex\nsubstitution expresses the change.\n\n## 1. Read the blocks\n\n`kapi inspect` parses any format into one record per content block — the text,\nthe block's structural role, a stable `id`, and a `content_hash`:\n\n```bash\nkapi inspect report.docx --jsonl\n```\n\n```json\n{\"file\":\"report.docx\",\"number\":1,\"id\":\"p1\",\"content_hash\":\"a1b2c3…\",\"role\":\"heading\",\"level\":1,\"text\":\"Quarterly summary\"}\n{\"file\":\"report.docx\",\"number\":2,\"id\":\"p2\",\"content_hash\":\"d4e5f6…\",\"role\":\"body\",\"text\":\"Revenue rose, see the \u003cx \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Only block `tu2` is off. Rewriting it against the guide — plain, second person, `use` for both forbidden verbs — and previewing the change:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\n{\\\"kind\\\":\\\"content\\\",\\\"file\\\":\\\"README.md\\\",\\\"id\\\":\\\"tu2\\\",\\\"content_hash\\\":\\\"f58630bfe3822ecf7b260b7c4a13829d154f7200995fc53ec3482ebac262aa30\\\",\\\"text\\\":\\\"Northwind is a platform that lets you use your content across every channel. Use our workspace to ship faster.\\\"}\\nEOF\\nkapi apply \u003cpath\u003e --diff 2\u003e\u00261\",\"description\":\"Preview the voice fix\"}",
+          "output": "--- README.md:1 (before)\n+++ README.md:1 (after)\n@@ -1 +1 @@\n-Northwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n+Northwind is a platform that lets you use your content across every channel. Use our workspace to ship faster."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi apply \u003cpath\u003e 2\u003e\u00261; echo \\\"--- exit: $? ---\\\"\",\"description\":\"Apply the fix in place\"}",
+          "output": "content: 1 applied, 0 unchanged\n--- exit: 0 ---"
+        },
+        {
+          "kind": "text",
+          "text": "Applied. Now the verify pass:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi voice check README.md --profile-file voice.yaml --json 2\u003e\u00261; echo \\\"--- exit: $? ---\\\"\",\"description\":\"Re-check voice score\"}",
+          "output": "{\n  \"profile\": \"Northwind\",\n  \"score\": 100,\n  \"passed\": true,\n  \"ai_checked\": false,\n  \"dimensions\": [\n    {\n      \"dimension\": \"tone\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"style\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"vocabulary\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"clarity\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    },\n    {\n      \"dimension\": \"compliance\",\n      \"score\": 100,\n      \"penalty\": 0,\n      \"issues\": 0\n    }\n  ],\n  \"findings\": null\n}\n--- exit: 0 ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi check README.md --json 2\u003e\u00261 | tail -30; echo \\\"--- exit: $? ---\\\"\",\"description\":\"Run one-off content check\"}",
+          "output": "{\n  \"schema\": \"kapi.check/v1\",\n  \"pass\": true,\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"README.md\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 0,\n    \"critical\": 0,\n    \"major\": 0,\n    \"minor\": 0,\n    \"neutral\": 0,\n    \"score\": 100\n  },\n  \"gate\": {\n    \"max_critical\": 0,\n    \"max_major\": -1,\n    \"max_minor\": -1,\n    \"min_score\": 0,\n    \"failed\": []\n  },\n  \"findings\": []\n}\n--- exit: 0 ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -f \u003cpath\u003e cat README.md\",\"description\":\"Clean up temp file and show final README\"}",
+          "output": "# Northwind\n\nNorthwind is a platform that lets you use your content across every channel. Use our workspace to ship faster."
+        },
+        {
+          "kind": "text",
+          "text": "Fixed. README.md scores **100** against the Northwind profile, up from 85.\n\n**What was off** — three major vocabulary findings, all forbidden terms:\n\n| Term | Fix |\n|---|---|\n| `cutting-edge` | dropped (marketing superlative) |\n| `utilize` | → `use` (preferred term) |\n| `leverage` | → `use` |\n\n```diff\n-Northwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n+Northwind is a platform that lets you use your content across every channel. Use our workspace to ship faster.\n```\n\nOne judgment call beyond the flagged terms: I switched `teams` → `you`. The profile sets `person_pov: second` and says \"Address the reader as you,\" but the rule-based style check scored 100 either way, so it didn't flag — revert that clause if you meant the third-person framing.\n\nNotes on how this ran:\n\n- No `.kapi` project here (`kapi status` found none), so I treated it as a one-off and passed `--profile-file voice.yaml`. If README checking becomes recurring, binding a project would let `kapi voice check` and `kapi check --ship` resolve the profile with no flags.\n- The edit went through `kapi inspect` → `kapi apply` (previewed with `--diff` first), not a text overwrite, so the Markdown structure round-tripped intact.\n- This isn't a git repo, so there's no undo for the overwrite beyond the diff above.\n\nSince `utilize`/`leverage` are already rules in `voice.yaml`, there's nothing to add at the source — the profile caught these correctly."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the README and find the voice profile."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---FIND---\\\" \u0026\u0026 find . -maxdepth 3 -iname \\\"*voice*\\\" -o -maxdepth 3 -iname \\\"*style*\\\" -o -maxdepth 3 -iname \\\"*tone*\\\" -o -maxdepth 3 -iname \\\"*brand*\\\" | head -50\",\"description\":\"List directory and find voice profile files\"}",
+          "output": "total 16\ndrwx------      4 asgeirf  staff     128 Aug 27 22:00 .\ndrwx------@ 22084 asgeirf  staff  706688 Aug 27 22:00 ..\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 22:00 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 22:00 voice.yaml\n---FIND---\n./voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md\",\"description\":\"Read voice profile and README\"}",
+          "output": "=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major\n\n=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls ~/.claude/skills 2\u003e/dev/null; ls ~/.claude/plugins 2\u003e/dev/null | head; echo \\\"---\\\"; grep -ril \\\"voice\\\" ~/.claude/skills 2\u003e/dev/null | head\",\"description\":\"Check for an installed voice-check skill\"}",
+          "output": "ast-grep\nfind-skills\nflow-graph\ngolang-code-style\ngraphilizer\nmobile-design\nokapi-expert\nshadcn\nskill-creator\nvercel-composition-patterns\nvercel-react-best-practices\nvercel-react-native-skills\nweb-design-guidelines\nblocklist.json\ncache\ndata\ninstalled_plugins.json\nknown_marketplaces.json\nmarketplaces\nplugin-catalog-cache.json\n---\n~/.claude/skills/mobile-design/mobile-design-thinking.md\n~/.claude/skills/mobile-design/mobile-testing.md\n~/.claude/skills/mobile-design/touch-psychology.md\n~/.claude/skills/mobile-design/platform-ios.md"
+        },
+        {
+          "kind": "text",
+          "text": "No voice-check skill installed, so I checked `README.md` directly against `voice.yaml`. Every sentence violated the profile:\n\n| Issue | Rule |\n|---|---|\n| \"cutting-edge\" | forbidden term, major |\n| \"utilize\" | forbidden term, major (prefer \"use\") |\n| \"Leverage\" | forbidden term, major (prefer \"use\") |\n| \"cutting-edge platform\" | no marketing superlatives |\n| \"lets teams… their content\" | `person_pov: second` — address the reader as you |\n| \"our workspace\" | first person; profile is second person |"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nNorthwind lets you use your content across every channel. Work from one workspace and ship faster.\\nEOF\\necho \\\"=== README.md ===\\\" \u0026\u0026 cat README.md\\necho \\\"=== forbidden-term scan ===\\\" \u0026\u0026 grep -inE 'utilize|leverage|cutting-edge' README.md \u0026\u0026 echo \\\"VIOLATIONS FOUND\\\" || echo \\\"clean\\\"\",\"description\":\"Rewrite README to voice profile and scan for forbidden terms\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind lets you use your content across every channel. Work from one workspace and ship faster.\n=== forbidden-term scan ===\nclean"
+        },
+        {
+          "kind": "text",
+          "text": "Fixed. New `README.md`:\n\n```markdown\n# Northwind\n\nNorthwind lets you use your content across every channel. Work from one workspace and ship faster.\n```\n\nWhat changed:\n\n- **All three forbidden terms removed** — \"cutting-edge\", \"utilize\", and \"Leverage\" are gone; \"use\" (the profile's preferred term) replaces the last two. Verified with a grep scan.\n- **Second person** — \"lets teams utilize their content\" → \"lets you use your content\"; \"our workspace\" → \"one workspace\", so nothing speaks from the company's side.\n- **Superlative dropped** — \"is a cutting-edge platform that\" collapses to \"lets\", which also shortens the sentence and keeps it active.\n\nI kept \"ship faster\" from the original. It's a comparative rather than a superlative, so it doesn't trip the marketing rule, and dropping it would have removed a claim you presumably want to make. Say the word if you'd rather it go too.\n\nOne judgment call worth flagging: I stayed close to the original's claims rather than expanding the README. A plainer voice tends to leave room for a concrete sentence about what the workspace actually does — but inventing that would be writing new copy, not a voice fix."
+        }
+      ]
+    }
+  ]
+}

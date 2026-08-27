@@ -1,0 +1,357 @@
+{
+  "key": "skill:completion",
+  "scenario": "p07-translate-json-terms",
+  "prompt": "Localize src/locales/en.json into fr and de using our glossary.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the project structure to find the source file and the glossary."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -maxdepth 3 -not -path '*/.git/*' -not -path '*/node_modules/*' | head -50\",\"description\":\"List project structure\"}",
+          "output": "total 8\ndrwx------      5 asgeirf  staff     160 Aug 27 21:48 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:48 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 .claude\n-rw-r--r--      1 asgeirf  staff     209 Aug 27 21:48 glossary.csv\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 src\n---TREE---\n.\n./glossary.csv\n./.claude\n./src\n./.claude/skills\n./src/locales\n./.claude/skills/kapi\n./src/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat glossary.csv \u0026\u0026 echo \\\"---EN---\\\" \u0026\u0026 cat src/locales/en.json \u0026\u0026 echo \\\"---SKILL---\\\" \u0026\u0026 ls -la .claude/skills/kapi/\",\"description\":\"Read glossary, source JSON, and skill dir\"}",
+          "output": "source,target_fr,target_de,note\nNorthwind,Northwind,Northwind,product name — never translated\nworkspace,espace de travail,Arbeitsbereich,\ndashboard,tableau de bord,Übersicht,\nsign in,se connecter,anmelden,\n---EN---\n{\n  \"greeting\": \"Welcome back to Northwind\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"nav.dashboard\": \"Dashboard\",\n  \"cta\": \"Sign in to Northwind\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\"\n}\n---SKILL---\ntotal 24\ndrwxr-xr-x   4 asgeirf  staff    128 Aug 27 21:48 .\ndrwxr-xr-x   3 asgeirf  staff     96 Aug 27 21:48 ..\ndrwxr-xr-x  11 asgeirf  staff    352 Aug 27 21:48 references\n-rw-r--r--   1 asgeirf  staff  12075 Aug 27 21:48 SKILL.md"
+        },
+        {
+          "kind": "text",
+          "text": "This is a localization task with a glossary — exactly what the `kapi` skill covers. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Localize src/locales/en.json into fr and de using glossary.csv\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi \u0026\u0026 kapi version; echo \\\"---\\\"; ls .claude/skills/kapi/references/\",\"description\":\"Check kapi binary and list references\"}",
+          "output": "~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)\n---\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .claude/skills/kapi/references/translate.md\",\"description\":\"Read translate reference\"}",
+          "output": "# Translate, enforce terminology, publish\n\nTranslate content, enforce terminology, and round-trip the result back into its\noriginal format with the local `kapi` CLI. For ongoing work, bind the locales,\nvoice profile, and terms in a project first — see [project.md](project.md).\n\n## First decide: one-off file, or a project?\n\n**A single file you just need translated** — a document, a deck, one catalog —\ntranslate it directly. There is nothing to set up, and **do not run `kapi extract`**\n(that reads a *project's* content config; on a loose file it fails with \"no .kapi\nproject found\"). Just round-trip it:\n\n```bash\nkapi pseudo-translate \u003cfile\u003e --target-lang qps        # quick readiness pre-flight\nkapi translate \u003cfile\u003e --target-lang \u003clang\u003e -o \u003cout\u003e  # reads the format, translates, writes it back\n```\n\nkapi preserves structure, tags, and placeholders (round-trip). Add `--credential\n\u003cname\u003e` when it needs a model provider. That's the whole task for a one-off file.\n\n**Ongoing work (a whole app, the same locales repeatedly), or translating it\nyourself under brand + terminology guardrails** — bind a project first\n(`kapi init`), then `kapi extract → fill the targets → kapi merge →\nk\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi status 2\u003e\u00261 | head -20; echo \\\"=== EXIT $? ===\\\"; echo \\\"---PROJECT.MD---\\\"; cat .claude/skills/kapi/references/project.md\",\"description\":\"Check for existing project and read project reference\"}",
+          "output": "Error: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n=== EXIT 0 ===\n---PROJECT.MD---\n# Use a kapi project for standing context\n\nA `.kapi` project binds the things that don't change between requests — source and\ntarget locales, which files are content, the voice profile, and the terms store — so\nthat ordinary requests need no flags. kapi finds the project by walking up from the\ncurrent directory, like git.\n\n## When to set one up\n\nSet up a project when the work is ongoing: many files or a whole app, the same\ntarget locales repeatedly, a voice profile or terminology to keep consistent, recurring\nruns (CI, re-translate on change), or content memory to reuse. For a true\none-off, skip it and run the command directly.\n\n## Create it\n\n```bash\nkapi init --name my-app --source-locale en --target-locale fr --target-locale de\n# --framework \u003cpreset\u003e  pre-fills content paths; kapi init --list-presets shows them all\n```\n\nThis writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is\ncommitted** — it is the project's context, not scratch space. Git it like source.\n\n- **`.kapi/`** — the context graph, all committed and flat: `\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Project-shaped work — two locales plus a glossary to enforce. Let me set up a kapi project."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi init --help 2\u003e\u00261 | head -40\",\"description\":\"Check kapi init flags\"}",
+          "output": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice — a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nUsage:\n  kapi init [flags]\n\nFlags:\n      --dir string              Directory to scaffold in (default: current directory)\n      --framework string        Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project\n  -h, --help                    help for init\n      --list-presets            List available presets (framework scaffolds and per-forma\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi init --name northwind --source-locale en --target-locale fr --target-locale de 2\u003e\u00261 | tail -30\",\"description\":\"Initialize kapi project with fr and de targets\"}",
+          "output": "Initialized kapi project \"northwind\"\n  recipe: \u003cpath\u003e\n  state:  \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat kapi.yaml\",\"description\":\"Read generated recipe\"}",
+          "output": "version: v1\nname: northwind\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\n    - de\n\n# Define collections and flows. Each bare collection entry maps a source glob to\n# a target; kapi tools read the source content and edit, check, or translate it.\n# The {lang} placeholder in a target fans output out per language. Runtime block\n# state lives in the project store, .kapi/work/store.db.\n#\n# collections:\n#   - path: \"src/locales/en/*.json\"\n#     format: json\n#     target: \"src/locales/{lang}/*.json\"\n#\n# A named collection binds the point in the context space its content sits at,\n# and its base: is the directory it lives in — every path and target below is\n# written relative to that base and joined onto it:\n#\n# profiles:\n#   acme:\n#     channels: [docs]\n#     voice: .kapi/profiles/acme/voice.yaml\n#\n# collections:\n#   - name: acme-docs\n#     channel: acme/docs\n#     base: web\n#     content:\n#       - path: \"docs/**/*.md\"          # web/docs/**/*.md\n#         format: markdown\n#         target: \"i18n/{lang}/{path}.md\"   # web/i18n/{lang}/{path}.md\n#\n# flows:\n#   # Monolingual: check source content against the voice profile and terminology.\n#   voice:\n#     steps:\n#       - to\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"\\\\\\nsed -i '' 's|^collections: \\\\[\\\\]$|collections:\\\\n  - path: src/locales/en.json\\\\n    format: json\\\\n    target: src/locales/{lang}.json|' kapi.yaml \u0026\u0026 \\\\\\ntail -8 kapi.yaml\",\"description\":\"Bind the locales collection in the recipe\"}",
+          "output": "#       - tool: translate\n#\n# Tip: 'kapi init --framework \u003cstack\u003e' pre-fills collections for a known stack.\ncollections:\n  - path: src/locales/en.json\n    format: json\n    target: src/locales/{lang}.json\nflows: {}"
+        },
+        {
+          "kind": "text",
+          "text": "Now let me import the glossary into the project terms store."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms import --help 2\u003e\u00261 | head -30\",\"description\":\"Check terms import flags\"}",
+          "output": "Import terms from CSV, JSON, TBX, or a native .terms.json bundle\n\nUsage:\n  kapi terms import [file] [flags]\n\nExamples:\n  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json\n\nFlags:\n      --delimiter string       CSV field delimiter (default: comma)\n      --domain string          domain to assign to imported concepts\n      --file string            explicit path to resource file\n      --format string          input format (auto, csv, tsv, json, tbx, bundle); auto selects by file extension (default \"auto\")\n      --header                 CSV has header row\n  -h, --help                   help for import\n      --local                  use resource in current directory\n      --monolingual            import a single-locale concept list (term[, definition]) with no translation pair\n      --name string            named resource in KAPI_HOME (e.g. --name project-terms)\n  -p, --project string         path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)\n  -s, --source-locale string   source locale for CSV import (default \"en\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"mkdir -p .kapi/work/tmp \u0026\u0026 \\\\\\nawk -F, 'NR==1{print \\\"source,target,note\\\"; next} {print $1\\\",\\\"$2\\\",\\\"$4}' glossary.csv \u003e .kapi/work\u003cpath\u003e \u0026\u0026 \\\\\\nawk -F, 'NR==1{print \\\"source,target,note\\\"; next} {print $1\\\",\\\"$3\\\",\\\"$4}' glossary.csv \u003e .kapi/work\u003cpath\u003e \u0026\u0026 \\\\\\necho \\\"--fr--\\\" \u0026\u0026 cat .kapi/work\u003cpath\u003e \u0026\u0026 echo \\\"--de--\\\" \u0026\u0026 cat .kapi/work\u003cpath\u003e\",\"description\":\"Split glossary into per-locale CSVs\"}",
+          "output": "--fr--\nsource,target,note\nNorthwind,Northwind,product name — never translated\nworkspace,espace de travail,\ndashboard,tableau de bord,\nsign in,se connecter,\n--de--\nsource,target,note\nNorthwind,Northwind,product name — never translated\nworkspace,Arbeitsbereich,\ndashboard,Übersicht,\nsign in,anmelden,"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms import .kapi/work\u003cpath\u003e --header -s en -t fr 2\u003e\u00261 | tail -5; echo \\\"=== de ===\\\"; kapi terms import .kapi/work\u003cpath\u003e --header -s en -t de 2\u003e\u00261 | tail -5\",\"description\":\"Import fr and de glossary terms\"}",
+          "output": "Imported 4 concepts into terms.db (total: 4)\n=== de ===\nImported 4 concepts into terms.db (total: 4)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms lookup \\\"dashboard\\\" -t fr 2\u003e\u00261 | head; echo \\\"===\\\"; kapi terms lookup \\\"Northwind\\\" -t de 2\u003e\u00261 | head; echo \\\"=== STATUS ===\\\"; kapi status 2\u003e\u00261 | head -20\",\"description\":\"Verify terms bound and check project status\"}",
+          "output": "  TERM       LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  dashboard  en      approved  exact  1.00   csv-3    —\n\nTotal: 1 match(es)\n===\n  TERM           LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  Northwind      en      approved  exact  1.00   csv-1    product name — never translated\n    → Northwind  de      approved\n\nTotal: 1 match(es)\n=== STATUS ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"pwd; ls -la; echo \\\"=== validate ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head -20\",\"description\":\"Check cwd and validate recipe explicitly\"}",
+          "output": "\u003cpath\u003e\ntotal 184\ndrwx------     10 asgeirf  staff     320 Aug 27 21:49 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:49 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 .claude\ndrwxr-xr-x      7 asgeirf  staff     224 Aug 27 21:49 .kapi\n-rw-r--r--      1 asgeirf  staff     209 Aug 27 21:48 glossary.csv\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 kapi-config\n-rw-r--r--      1 asgeirf  staff    1560 Aug 27 21:49 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 src\n-rw-r--r--      1 asgeirf  staff   86016 Aug 27 21:49 terms.db\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:48 xdg-cache\n=== validate ===\nsource      6 units · authored 100% · checked 100% · approved 0%\n\n  scope  units  draft  translated  reviewed  signed-off  pipeline  ship\n  de     6      0%     0%          0%        0%          —         —\n  fr     6      0%     0%          0%        0%          —         —"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"env | grep -i -E 'kapi|xdg' ; echo \\\"=== .kapi ===\\\"; ls -la .kapi/; echo \\\"=== kapi-config ===\\\"; find kapi-config -type f | head\",\"description\":\"Inspect kapi env vars and state dirs\"}",
+          "output": "ROOT_DIR=~/src/neokapi/neokapi/.claude/worktrees/memory-versions\nNEOKAPI_WORKSPACE_DIR=~/src/neokapi\nNEOKAPI_CHECKOUTS_DIR=~/src\nOKAPI_REPO=~/src/okapi/Okapi\nLDFLAGS=-ldflags \"-X github.com/neokapi/neokapi/core/version.Version=v1.2.0-rc29-3-g227b5ae49-dirty -X github.com/neokapi/neokapi/core/version.Commit=227b5ae49 -X github.com/neokapi/neokapi/core/version.BuildDate=2026-08-27T19:43:29Z\"\nTELEMETRY_PKG=github.com/neokapi/neokapi/host/telemetry\nNEOKAPI_DOCLANG_DIR=~/src/doclang-project/doclang\nVERSION_PKG=github.com/neokapi/neokapi/core/version\nNEOKAPI_OKAPI_DIR=~/src/okapi/Okapi\nKAPI_NO_PROJECT=1\nKAPI_CONFIG_DIR=\u003cpath\u003e\nXDG_DATA_HOME=\u003cpath\u003e\nXDG_CACHE_HOME=\u003cpath\u003e\nKAPI_PLUGINS_DIR_ONLY=1\nKAPI_PLUGINS_DIR=\u003cpath\u003e\nPATH=~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin:\u003cpath\u003e\n=== .kapi ===\ntotal 16\ndrwxr-xr-x   7 asgeirf  staff  224 Aug 27 21:49 .\ndrwx------  10 asgeirf  staff  320 Aug 27 21:49 ..\n-rw-r--r--   1 asgeirf  staff   25 Aug 27 21:49 .gitignore\n-rw-r--r--   1 asgeirf  staff  186 Aug 27 21:49 manifest.yaml\ndrwxr-xr-x   2 asgeirf  staff   64 Aug 27 21:49 memory\ndrwxr-xr-x   2 asgeirf  staff   64 Aug 27 21:49 state\ndrwxr-xr-x   5 asgeirf  staff  160 Aug 27 21:49 work\n==\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "`KAPI_NO_PROJECT=1` is set in this environment, so auto-discovery is off — every command needs `-p kapi.yaml`. That also means my glossary import went to a loose `./terms.db` instead of the project store. Let me redo it properly."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -f terms.db \u0026\u0026 \\\\\\nkapi terms import .kapi/work\u003cpath\u003e --header -s en -t fr -p kapi.yaml 2\u003e\u00261 | tail -3 \u0026\u0026 \\\\\\nkapi terms import .kapi/work\u003cpath\u003e --header -s en -t de -p kapi.yaml 2\u003e\u00261 | tail -3 \u0026\u0026 \\\\\\necho \\\"=== where ===\\\" \u0026\u0026 ls -la .kapi/ \u0026\u0026 find .kapi -name '*term*'\",\"description\":\"Re-import glossary into project terms store\"}",
+          "output": "Imported 4 concepts into \u003cpath\u003e (total: 4)\nImported 4 concepts into \u003cpath\u003e (total: 4)\n=== where ===\ntotal 16\ndrwxr-xr-x  7 asgeirf  staff  224 Aug 27 21:49 .\ndrwx------  9 asgeirf  staff  288 Aug 27 21:49 ..\n-rw-r--r--  1 asgeirf  staff   25 Aug 27 21:49 .gitignore\n-rw-r--r--  1 asgeirf  staff  186 Aug 27 21:49 manifest.yaml\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 21:49 memory\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 21:49 state\ndrwxr-xr-x  5 asgeirf  staff  160 Aug 27 21:49 work\n.kapi/work\u003cpath\u003e\n.kapi/work\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms --help 2\u003e\u00261 | sed -n '1,40p'\",\"description\":\"List terms subcommands\"}",
+          "output": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms — a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).\n\nUsage:\n  kapi terms [command]\n\nExamples:\n  kapi terms stats\n  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms import terms.csv -s en -t fr\n\nAvailable Commands:\n  export      Export terms to CSV, JSON, TBX, or a native .terms.json bundle\n  import      Import terms from CSV, JSON, TBX, or a native .terms.json bundle\n  list        List named terms stores in KAPI_HOME\n  lookup      Look up a term in the terms store\n  occurrences Show where a term is used in the project's content\n  search      Search concepts in \n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"for t in dashboard workspace \\\"sign in\\\" Northwind; do echo \\\"--- $t ---\\\"; kapi terms lookup \\\"$t\\\" -t fr -p kapi.yaml 2\u003e\u00261 | head -4; done\",\"description\":\"Verify fr terms resolve in project store\"}",
+          "output": "--- dashboard ---\n  TERM       LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  dashboard  en      approved  exact  1.00   csv-3    —\n\nTotal: 1 match(es)\n--- workspace ---\n  TERM       LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  workspace  en      approved  exact  1.00   csv-2    —\n\nTotal: 1 match(es)\n--- sign in ---\n  TERM     LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  sign in  en      approved  exact  1.00   csv-4    —\n\nTotal: 1 match(es)\n--- Northwind ---\n  TERM       LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  Northwind  en      approved  exact  1.00   csv-1    product name — never translated\n\nTotal: 1 match(es)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms lookup \\\"dashboard\\\" -t fr -p kapi.yaml --json 2\u003e\u00261 | head -40; echo \\\"=== stats ===\\\"; kapi terms stats -p kapi.yaml 2\u003e\u00261 | head -20\",\"description\":\"Inspect fr lookup JSON and terms stats\"}",
+          "output": "{\n  \"matches\": [\n    {\n      \"term\": \"dashboard\",\n      \"locale\": \"en\",\n      \"status\": \"approved\",\n      \"match_type\": \"exact\",\n      \"score\": 1,\n      \"concept_id\": \"csv-3\"\n    }\n  ],\n  \"total\": 1\n}\n=== stats ===\nTerms: \u003cpath\u003e\n\n  Concepts:  4\n  Terms:     8\n\nLocales:\n\n  LOCALE  TERMS\n  de      4\n  en      4\n\nDomains:\n\n  DOMAIN                           CONCEPTS\n  product name — never translated  1\n\nTerm statuses:\n\n  STATUS    TERMS\n  approved  8"
+        },
+        {
+          "kind": "text",
+          "text": "The de import overwrote the fr targets — both CSVs generate the same concept IDs (`csv-1`…`csv-4`). Let me check the native bundle format so I can import both locales as one concept set."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms export --help 2\u003e\u00261 | sed -n '1,25p'; echo \\\"=== EXPORT JSON ===\\\"; kapi terms export --format json -p kapi.yaml 2\u003e\u00261 | head -60\",\"description\":\"Inspect terms export format and current data\"}",
+          "output": "Export terms to CSV, JSON, TBX, or a native .terms.json bundle\n\nUsage:\n  kapi terms export [flags]\n\nFlags:\n      --export-name string     terms name for JSON export\n      --file string            explicit path to resource file\n      --format string          export format (csv, json, tbx, bundle); a .terms.json -o path is detected automatically (default \"json\")\n  -h, --help                   help for export\n      --local                  use resource in current directory\n      --name string            named resource in KAPI_HOME (e.g. --name project-terms)\n  -o, --output string          output file (default: stdout)\n  -p, --project string         path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)\n  -s, --source-locale string   source locale for CSV export (default \"en\")\n  -t, --target-locale string   target locale for CSV export\n\nGlobal Flags:\n      --color string                   colorize output: auto, always, never (default \"auto\")\n  -c, --config string                  config file path\n      --explain-prompts string[=\"-\"]   show the prompts sent to the LLM: bare flag prints to stderr, --explain-prompts=\u003cpath\u003e writes JSON\n      --jq string  \n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Now I'll author a single bundle carrying both locales per concept, stored as committed project context."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport csv, json\\n\\nconcepts = []\\nwith open('glossary.csv', encoding='utf-8') as f:\\n    for i, row in enumerate(csv.DictReader(f), start=1):\\n        terms = [{\\\"text\\\": row[\\\"source\\\"].strip(), \\\"locale\\\": \\\"en\\\", \\\"status\\\": \\\"approved\\\"}]\\n        for loc in (\\\"fr\\\", \\\"de\\\"):\\n            t = row[f\\\"target_{loc}\\\"].strip()\\n            if t:\\n                terms.append({\\\"text\\\": t, \\\"locale\\\": loc, \\\"status\\\": \\\"approved\\\"})\\n        c = {\\\"id\\\": f\\\"csv-{i}\\\", \\\"source\\\": \\\"terminology\\\", \\\"terms\\\": terms}\\n        note = row.get(\\\"note\\\", \\\"\\\").strip()\\n        if note:\\n            c[\\\"domain\\\"] = note\\n        concepts.append(c)\\n\\nbundle = {\\\"name\\\": \\\"northwind-glossary\\\", \\\"version\\\": \\\"1.0\\\", \\\"concepts\\\": concepts}\\nwith open('.kapi/terms.json', 'w', encoding='utf-8') as f:\\n    json.dump(bundle, f, ensure_ascii=False, indent=2)\\n    f.write('\\\\n')\\nprint(f\\\"wrote {len(concepts)} concepts\\\")\\nPY\\ncat .kapi/terms.json | head -30\",\"description\":\"Build bilingual terms bundle from glossary\"}",
+          "output": "wrote 4 concepts\n{\n  \"name\": \"northwind-glossary\",\n  \"version\": \"1.0\",\n  \"concepts\": [\n    {\n      \"id\": \"csv-1\",\n      \"source\": \"terminology\",\n      \"terms\": [\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"en\",\n          \"status\": \"approved\"\n        },\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"fr\",\n          \"status\": \"approved\"\n        },\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"de\",\n          \"status\": \"approved\"\n        }\n      ],\n      \"domain\": \"product name — never translated\"\n    },\n    {\n      \"id\": \"csv-2\",\n      \"source\": \"terminology\",\n      \"terms\": ["
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms import .kapi/terms.json -p kapi.yaml 2\u003e\u00261 | tail -3; echo \\\"=== stats ===\\\"; kapi terms stats -p kapi.yaml 2\u003e\u00261 | sed -n '1,18p'\",\"description\":\"Import bilingual bundle and verify locales\"}",
+          "output": "Error: read terms.json as bundle: parse ktb: ktb: missing kind (want \"kapi-terms\") — pass --format (bundle, csv, tsv, json, tbx) if that is the wrong reader\n=== stats ===\nTerms: \u003cpath\u003e\n\n  Concepts:  4\n  Terms:     8\n\nLocales:\n\n  LOCALE  TERMS\n  de      4\n  en      4\n\nDomains:\n\n  DOMAIN                           CONCEPTS\n  product name — never translated  1\n\nTerm statuses:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms import .kapi/terms.json --format json -p kapi.yaml 2\u003e\u00261 | tail -3; echo \\\"=== stats ===\\\"; kapi terms stats -p kapi.yaml 2\u003e\u00261 | sed -n '1,14p'\",\"description\":\"Import bundle with explicit json reader\"}",
+          "output": "Imported 4 concepts into \u003cpath\u003e (total: 4)\n=== stats ===\nTerms: \u003cpath\u003e\n\n  Concepts:  4\n  Terms:     12\n\nLocales:\n\n  LOCALE  TERMS\n  de      4\n  en      4\n  fr      4\n\nDomains:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re\\np = 'kapi.yaml'\\ns = open(p, encoding='utf-8').read()\\ns = s.replace(\\\"\\\"\\\"target_languages:\\n    - fr\\n    - de\\n\\\"\\\"\\\", \\\"\\\"\\\"target_languages:\\n    - fr\\n    - de\\n  terms_source: .kapi/terms.json\\n\\\"\\\"\\\")\\nopen(p, 'w', encoding='utf-8').write(s)\\nPY\\nsed -n '1,12p' kapi.yaml; echo \\\"=== reload check ===\\\"; kapi status -p kapi.yaml 2\u003e\u00261 | head\",\"description\":\"Bind terms_source in recipe and verify it loads\"}",
+          "output": "version: v1\nname: northwind\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\n    - de\n  terms_source: .kapi/terms.json\n\n# Define collections and flows. Each bare collection entry maps a source glob to\n# a target; kapi tools read the source content and edit, check, or translate it.\n# The {lang} placeholder in a target fans output out per language. Runtime block\n=== reload check ===\nsource      6 units · authored 100% · checked 100% · approved 0%\n\n  scope  units  draft  translated  reviewed  signed-off  pipeline  ship\n  de     6      0%     0%          0%        0%          —         —\n  fr     6      0%     0%          0%        0%          —         —"
+        },
+        {
+          "kind": "text",
+          "text": "Terms bound and the recipe loads. Let me pre-flight the source, then extract the bilingual files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi pseudo-translate src/locales/en.json --target-lang qps -p kapi.yaml 2\u003e\u00261 | head -20\",\"description\":\"Pre-flight readiness check on source\"}",
+          "output": "Warning: project bindings: decode terms source \"\u003cpath\u003e\": ktb: missing kind (want \"kapi-terms\")\nCommitted overlays for en.json to the project store — run `kapi merge` to write target files."
+        },
+        {
+          "kind": "text",
+          "text": "The recipe's terms source needs the native bundle shape, not the plain JSON export. Let me export it correctly from the store."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi terms export --format bundle -o .kapi/terms.json -p kapi.yaml 2\u003e\u00261 | tail -3; echo \\\"=== head ===\\\"; head -25 .kapi/terms.json\",\"description\":\"Export terms as native bundle to committed path\"}",
+          "output": "Exported 4 concepts to .kapi/terms.json\n=== head ===\n{\n  \"schemaVersion\": \"1.0\",\n  \"kind\": \"kapi-terms\",\n  \"concepts\": [\n    {\n      \"id\": \"csv-1\",\n      \"domain\": \"product name — never translated\",\n      \"source\": \"terminology\",\n      \"terms\": [\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"de\",\n          \"status\": \"approved\"\n        },\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"en\",\n          \"status\": \"approved\"\n        },\n        {\n          \"text\": \"Northwind\",\n          \"locale\": \"fr\",\n          \"status\": \"approved\"\n        }\n      ],"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi pseudo-translate src/locales/en.json --target-lang qps -p kapi.yaml 2\u003e\u00261 | head -20; echo \\\"=== fr lookup ===\\\"; kapi terms lookup \\\"dashboard\\\" -t fr -p kapi.yaml 2\u003e\u00261 | head -5\",\"description\":\"Re-run pre-flight with valid terms bundle\"}",
+          "output": "Committed overlays for en.json to the project store — run `kapi merge` to write target files.\n=== fr lookup ===\n  TERM                 LOCALE  STATUS    MATCH  SCORE  CONCEPT  DOMAIN\n  dashboard            en      approved  exact  1.00   csv-3    —\n    → tableau de bord  fr      approved\n\nTotal: 1 match(es)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi status -p kapi.yaml 2\u003e\u00261 | head -12; echo \\\"=== EXTRACT ===\\\"; kapi extract --target-lang fr -p kapi.yaml 2\u003e\u00261 | tail -5; kapi extract --target-lang de -p kapi.yaml 2\u003e\u00261 | tail -5; ls -la out/ 2\u003e/dev/null\",\"description\":\"Check status and extract bilingual files for fr and de\"}",
+          "output": "source      6 units · authored 100% · checked 100% · approved 0%\n\n  scope  units  draft  translated  reviewed  signed-off  pipeline  ship\n  de     6      0%     0%          0%        0%          —         —\n  fr     6      0%     0%          0%        0%          —         —\n=== EXTRACT ===\n  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n  fr      1      6       0      0      6\n\nBatch 45c92973-ab45-4179-b82c-fad0f1ac60f2 complete. Manifest: \u003cpath\u003e\nAggregate content-memory leverage: exact=0 fuzzy=0 new=6 (total=6)\n  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n  de      1      6       0      0      6\n\nBatch d683a3d0-aba9-4030-b341-c22f1d7cba68 complete. Manifest: \u003cpath\u003e\nAggregate content-memory leverage: exact=0 fuzzy=0 new=6 (total=6)\ntotal 16\ndrwxr-xr-x   4 asgeirf  staff   128 Aug 27 21:50 .\ndrwx------  10 asgeirf  staff   320 Aug 27 21:50 ..\n-rw-r--r--   1 asgeirf  staff  1153 Aug 27 21:50 src-locales-en.en-to-de.xliff\n-rw-r--r--   1 asgeirf  staff  1153 Aug 27 21:50 src-locales-en.en-to-fr.xliff"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat out/src-locales-en.en-to-fr.xliff\",\"description\":\"Read the fr bilingual file\"}",
+          "output": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003cxliff xmlns=\"urn:oasis:names:tc:xliff:document:2.2\" version=\"2.2\" srcLang=\"en\" trgLang=\"fr\"\u003e\n  \u003cfile id=\"src/locales/en.json\"\u003e\n    \u003cnotes\u003e\n      \u003cnote id=\"batch-id\" category=\"kapi\"\u003e45c92973-ab45-4179-b82c-fad0f1ac60f2\u003c/note\u003e\n      \u003cnote id=\"source-file\" category=\"kapi\"\u003esrc/locales/en.json\u003c/note\u003e\n      \u003cnote id=\"source-hash\" category=\"kapi\"\u003esha256:62d48e84ea5c87d436d47da173b0e42dab7941b66f917d002c4a4bfc56a0dc83\u003c/note\u003e\n    \u003c/notes\u003e\n    \u003cunit id=\"tu1\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eWelcome back to Northwind\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu2\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eThis is your dashboard. Everything you need is here.\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu3\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eDashboard\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu4\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eSign in to Northwind\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu5\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eSave\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu6\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eCancel\u003c/source\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n  \u003c/file\u003e\n\u003c/xliff\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls .kapi/*.yaml voice.yaml 2\u003e/dev/null; echo \\\"=== GUIDE ===\\\"; kapi voice guide -p kapi.yaml 2\u003e\u00261 | head -40\",\"description\":\"Check for a bound voice profile\"}",
+          "output": ".kapi/manifest.yaml\n=== GUIDE ===\nError: specify a profile with --profile, --profile-file, or --pack (or bind one in your kapi.yaml under defaults.voice)"
+        },
+        {
+          "kind": "text",
+          "text": "No voice profile is bound (only a glossary was provided), so terminology + QA are the gates. Now let me fill in the targets."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"python3 - \u003c\u003c'PY'\\nimport re\\n\\nTARGETS = {\\n    'fr': {\\n        'tu1': \\\"Bon retour sur Northwind\\\",\\n        'tu2': \\\"Voici votre tableau de bord. Tout ce dont vous avez besoin est ici.\\\",\\n        'tu3': \\\"Tableau de bord\\\",\\n        'tu4': \\\"Se connecter à Northwind\\\",\\n        'tu5': \\\"Enregistrer\\\",\\n        'tu6': \\\"Annuler\\\",\\n    },\\n    'de': {\\n        'tu1': \\\"Willkommen zurück bei Northwind\\\",\\n        'tu2': \\\"Dies ist Ihre Übersicht. Alles, was Sie brauchen, finden Sie hier.\\\",\\n        'tu3': \\\"Übersicht\\\",\\n        'tu4': \\\"Bei Northwind anmelden\\\",\\n        'tu5': \\\"Speichern\\\",\\n        'tu6': \\\"Abbrechen\\\",\\n    },\\n}\\n\\ndef esc(s):\\n    return s.replace('\u0026', '\u0026amp;').replace('\u003c', '\u0026lt;').replace('\u003e', '\u0026gt;')\\n\\nfor lang, m in TARGETS.items():\\n    path = f'out/src-locales-en.en-to-{lang}.xliff'\\n    s = open(path, encoding='utf-8').read()\\n\\n    def repl(match):\\n        uid, indent, src = match.group(1), match.group(3), match.group(4)\\n        tgt = m[uid]\\n        return f'{match.group(0)}\\\\n{indent}\u003ctarget\u003e{esc(tgt)}\u003c/target\u003e'\\n\\n    out, n = re.subn(\\n        r'\u003cunit id=\\\"(tu\\\\d+)\\\"\u003e\\\\s*\\\\n(\\\\s*)\u003csegment\u003e\\\\n(\\\\s*)\u003csource\u003e(.*?)\u003c/source\u003e',\\n  \n…truncated…",
+          "output": "fr: filled 6 targets\nde: filled 6 targets\n=== fr ===\n    \u003cunit id=\"tu1\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eWelcome back to Northwind\u003c/source\u003e\n        \u003ctarget\u003eBon retour sur Northwind\u003c/target\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu2\"\u003e\n      \u003csegment\u003e\n        \u003csource\u003eThis is your dashboard. Everything you need is here.\u003c/source\u003e\n        \u003ctarget\u003eVoici votre tableau de bord. Tout ce dont vous avez besoin est ici.\u003c/target\u003e\n      \u003c/segment\u003e\n    \u003c/unit\u003e\n    \u003cunit id=\"tu3\"\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "Now let me merge both back into the target catalogs."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi merge -i out/src-locales-en.en-to-fr.xliff -i out/src-locales-en.en-to-de.xliff -p kapi.yaml 2\u003e\u00261 | tail -10; echo \\\"=== FILES ===\\\"; ls -la src/locales/\",\"description\":\"Merge translations into target catalogs\"}",
+          "output": "Rebuilding search index...\nRebuilding fuzzy index...\n  FILE                               APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n  out/src-locales-en.en-to-fr.xliff  6        0      0        6                   0\n  out/src-locales-en.en-to-de.xliff  6        0      0        6                   0\n\nMerge complete. applied=12 stale=0 skipped=0 tm_new=12 tm_updated=0 (conflict_policy=translator-wins)\n=== FILES ===\ntotal 24\ndrwxr-xr-x  5 asgeirf  staff  160 Aug 27 21:51 .\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 21:48 ..\n-rw-r--r--  1 asgeirf  staff  251 Aug 27 21:51 de.json\n-rw-r--r--  1 asgeirf  staff  218 Aug 27 21:48 en.json\n-rw-r--r--  1 asgeirf  staff  251 Aug 27 21:51 fr.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== fr.json ===\\\"; cat src/locales/fr.json; echo \\\"=== de.json ===\\\"; cat src/locales/de.json\",\"description\":\"Read merged target catalogs\"}",
+          "output": "=== fr.json ===\n{\n  \"greeting\": \"Bon retour sur Northwind\",\n  \"intro\": \"Voici votre tableau de bord. Tout ce dont vous avez besoin est ici.\",\n  \"nav.dashboard\": \"Tableau de bord\",\n  \"cta\": \"Se connecter à Northwind\",\n  \"save\": \"Enregistrer\",\n  \"cancel\": \"Annuler\"\n}\n=== de.json ===\n{\n  \"greeting\": \"Willkommen zurück bei Northwind\",\n  \"intro\": \"Dies ist Ihre Übersicht. Alles, was Sie brauchen, finden Sie hier.\",\n  \"nav.dashboard\": \"Übersicht\",\n  \"cta\": \"Bei Northwind anmelden\",\n  \"save\": \"Speichern\",\n  \"cancel\": \"Abbrechen\"\n}"
+        },
+        {
+          "kind": "text",
+          "text": "Keys and structure round-tripped intact. Now the gate:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi check --ship --json --no-fail -p kapi.yaml 2\u003e\u00261 | tail -60\",\"description\":\"Run the ship gate\"}",
+          "output": "{\n  \"pass\": true,\n  \"gates\": [\n    {\n      \"gate\": \"terminology\",\n      \"pass\": true,\n      \"findings\": []\n    },\n    {\n      \"gate\": \"qa\",\n      \"pass\": true,\n      \"findings\": []\n    }\n  ],\n  \"summary\": {\n    \"gates\": 2,\n    \"passed\": 2,\n    \"failed\": 0,\n    \"findings\": 0,\n    \"errors\": 0,\n    \"warnings\": 0\n  }\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi status -p kapi.yaml 2\u003e\u00261 | head -12; echo \\\"=== KEY PARITY ===\\\"; python3 -c \\\"\\nimport json\\nen=json.load(open('src/locales/en.json'))\\nfor l in ('fr','de'):\\n    t=json.load(open(f'src/locales/{l}.json'))\\n    print(l, 'keys match:', list(en)==list(t), '| untranslated:', [k for k in en if en[k]==t[k]])\\n\\\"\",\"description\":\"Verify status and key parity\"}",
+          "output": "source      6 units · authored 100% · checked 100% · approved 0%\n\n  scope  units  draft  translated  reviewed  signed-off  pipeline  ship\n  de     6      100%   100%        0%        0%          —         —\n  fr     6      100%   100%        0%        0%          —         —\n=== KEY PARITY ===\nfr keys match: True | untranslated: []\nde keys match: True | untranslated: []"
+        },
+        {
+          "kind": "text",
+          "text": "Green across both locales. Let me confirm the terminology gate actually has teeth rather than passing vacuously."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e .kapi/work\u003cpath\u003e \u003c\u003c'EOF'\\n{\\n  \\\"greeting\\\": \\\"Bon retour sur Vent du Nord\\\",\\n  \\\"intro\\\": \\\"Voici votre panneau de contrôle.\\\",\\n  \\\"cta\\\": \\\"Ouvrir une session\\\"\\n}\\nEOF\\nkapi exec term-check .kapi/work\u003cpath\u003e --target-lang fr -p kapi.yaml 2\u003e\u00261 | tail -20\",\"description\":\"Sanity-test the terminology gate against deliberate violations\"}",
+          "output": "  No findings."
+        },
+        {
+          "kind": "text",
+          "text": "term-check on a standalone target reports nothing — it needs source↔target pairing. Let me verify the real gate catches a violation by temporarily corrupting a target."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp src/locales/fr.json .kapi/work\u003cpath\u003e \u0026\u0026 \\\\\\npython3 -c \\\"\\nimport json,io\\np='src/locales/fr.json'\\nd=json.load(open(p))\\nd['greeting']='Bon retour sur Vent du Nord'\\nd['nav.dashboard']='Panneau de contrôle'\\nd['cta']='Ouvrir une session sur Northwind'\\njson.dump(d,open(p,'w',encoding='utf-8'),ensure_ascii=False,indent=2)\\n\\\" \u0026\u0026 \\\\\\nkapi check --ship --json --no-fail -p kapi.yaml 2\u003e\u00261 | python3 -c \\\"\\nimport json,sys\\nd=json.load(sys.stdin)\\nprint('pass:', d['pass'])\\nfor g in d['gates']:\\n    print(g['gate'], g['pass'], len(g['findings']))\\n    for f in g['findings'][:8]: print('   ', json.dumps(f, ensure_ascii=False)[:200])\\n\\\"\",\"description\":\"Corrupt fr target and re-run ship gate\"}",
+          "output": "pass: False\nterminology False 3\n    {\"gate\": \"terminology\", \"file\": \"src/locales/fr.json\", \"locale\": \"fr\", \"severity\": \"error\", \"message\": \"term \\\"Northwind\\\" found in source but required translation \\\"Northwind\\\" missing in target\", \"s\n    {\"gate\": \"terminology\", \"file\": \"src/locales/fr.json\", \"locale\": \"fr\", \"severity\": \"error\", \"message\": \"term \\\"dashboard\\\" found in source but required translation \\\"tableau de bord\\\" missing in targe\n    {\"gate\": \"terminology\", \"file\": \"src/locales/fr.json\", \"locale\": \"fr\", \"severity\": \"error\", \"message\": \"term \\\"sign in\\\" found in source but required translation \\\"se connecter\\\" missing in target\", \"\nqa True 0"
+        },
+        {
+          "kind": "text",
+          "text": "The gate has real teeth — it caught all three violations at unit level. Restoring the correct translation:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cp .kapi/work\u003cpath\u003e src/locales/fr.json \u0026\u0026 rm -f .kapi/work\u003cpath\u003e .kapi/work\u003cpath\u003e .kapi/work\u003cpath\u003e .kapi/work\u003cpath\u003e \u0026\u0026 rmdir .kapi/work/tmp 2\u003e/dev/null; cat src/locales/fr.json; echo \\\"=== FINAL GATE ===\\\"; kapi check --ship -p kapi.yaml 2\u003e\u00261 | tail -15; echo \\\"exit=$?\\\"\",\"description\":\"Restore fr target, clean temps, run final gate\"}",
+          "output": "overwrite src/locales/fr.json? (y/n [n]) not overwritten\n{\n  \"greeting\": \"Bon retour sur Vent du Nord\",\n  \"intro\": \"Voici votre tableau de bord. Tout ce dont vous avez besoin est ici.\",\n  \"nav.dashboard\": \"Panneau de contrôle\",\n  \"cta\": \"Ouvrir une session sur Northwind\",\n  \"save\": \"Enregistrer\",\n  \"cancel\": \"Annuler\"\n}=== FINAL GATE ===\n  terminology  FAIL    3\n  qa           PASS    0\n\nterminology:\n\n  severity  location                  message\n  ERROR     src/locales/fr.json [fr]  term \"Northwind\" found in source but required translation \"Northwind\" missing in target\n                                      ↳ use the term rule's required translation\n  ERROR     src/locales/fr.json [fr]  term \"dashboard\" found in source but required translation \"tableau de bord\" missing in target\n                                      ↳ use the term rule's required translation\n  ERROR     src/locales/fr.json [fr]  term \"sign in\" found in source but required translation \"se connecter\" missing in target\n                                      ↳ use the term rule's required translation\n\nFAIL — 2 gate(s), 1 passed, 1 failed, 3 finding(s) (3 error, 0 warning)\nError: quality gate failed\nexit=0"
+        },
+        {
+          "kind": "text",
+          "text": "The backup restore hit an interactive `cp -i` alias and silently didn't overwrite. The XLIFF still holds the correct targets — re-merging from it is the right fix."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls out/ \u0026\u0026 kapi merge -i out/src-locales-en.en-to-fr.xliff -p kapi.yaml 2\u003e\u00261 | tail -5; echo \\\"=== fr.json ===\\\"; cat src/locales/fr.json\",\"description\":\"Re-merge fr from the bilingual file\"}",
+          "output": "src-locales-en.en-to-de.xliff\nsrc-locales-en.en-to-fr.xliff\nRebuilding fuzzy index...\n  FILE                               APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n  out/src-locales-en.en-to-fr.xliff  6        0      0        0                   6\n\nMerge complete. applied=6 stale=0 skipped=0 tm_new=0 tm_updated=6 (conflict_policy=translator-wins)\n=== fr.json ===\n{\n  \"greeting\": \"Bon retour sur Northwind\",\n  \"intro\": \"Voici votre tableau de bord. Tout ce dont vous avez besoin est ici.\",\n  \"nav.dashboard\": \"Tableau de bord\",\n  \"cta\": \"Se connecter à Northwind\",\n  \"save\": \"Enregistrer\",\n  \"cancel\": \"Annuler\"\n}"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at the source file and finding the glossary."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"---TREE---\\\" \u0026\u0026 find . -type f -not -path \\\"*/.git/*\\\" -not -path \\\"*/node_modules/*\\\" | head -50\",\"description\":\"List project files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 21:52 .\ndrwx------@ 22083 asgeirf  staff  706656 Aug 27 21:52 ..\n-rw-r--r--      1 asgeirf  staff     209 Aug 27 21:52 glossary.csv\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:52 src\n---TREE---\n./glossary.csv\n./src/locales/en.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== glossary.csv ===\\\" \u0026\u0026 cat glossary.csv \u0026\u0026 echo \u0026\u0026 echo \\\"=== en.json ===\\\" \u0026\u0026 cat src/locales/en.json \u0026\u0026 echo \u0026\u0026 echo \\\"=== locales dir ===\\\" \u0026\u0026 ls -la src/locales/\",\"description\":\"Show glossary and source strings\"}",
+          "output": "=== glossary.csv ===\nsource,target_fr,target_de,note\nNorthwind,Northwind,Northwind,product name — never translated\nworkspace,espace de travail,Arbeitsbereich,\ndashboard,tableau de bord,Übersicht,\nsign in,se connecter,anmelden,\n\n=== en.json ===\n{\n  \"greeting\": \"Welcome back to Northwind\",\n  \"intro\": \"This is your dashboard. Everything you need is here.\",\n  \"nav.dashboard\": \"Dashboard\",\n  \"cta\": \"Sign in to Northwind\",\n  \"save\": \"Save\",\n  \"cancel\": \"Cancel\"\n}\n\n=== locales dir ===\ntotal 8\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 21:52 .\ndrwxr-xr-x  3 asgeirf  staff   96 Aug 27 21:52 ..\n-rw-r--r--  1 asgeirf  staff  218 Aug 27 21:52 en.json"
+        },
+        {
+          "kind": "text",
+          "text": "Glossary and source are both small and clear. Writing the two locale files now."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e src/locales/fr.json \u003c\u003c'EOF'\\n{\\n  \\\"greeting\\\": \\\"Bon retour sur Northwind\\\",\\n  \\\"intro\\\": \\\"Voici votre tableau de bord. Tout ce dont vous avez besoin s'y trouve.\\\",\\n  \\\"nav.dashboard\\\": \\\"Tableau de bord\\\",\\n  \\\"cta\\\": \\\"Se connecter à Northwind\\\",\\n  \\\"save\\\": \\\"Enregistrer\\\",\\n  \\\"cancel\\\": \\\"Annuler\\\"\\n}\\nEOF\\ncat \u003e src/locales/de.json \u003c\u003c'EOF'\\n{\\n  \\\"greeting\\\": \\\"Willkommen zurück bei Northwind\\\",\\n  \\\"intro\\\": \\\"Dies ist Ihre Übersicht. Alles, was Sie brauchen, finden Sie hier.\\\",\\n  \\\"nav.dashboard\\\": \\\"Übersicht\\\",\\n  \\\"cta\\\": \\\"Bei Northwind anmelden\\\",\\n  \\\"save\\\": \\\"Speichern\\\",\\n  \\\"cancel\\\": \\\"Abbrechen\\\"\\n}\\nEOF\\necho \\\"written\\\"\",\"description\":\"Write fr.json and de.json\"}",
+          "output": "written"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd src/locales\\nfor f in fr de; do python3 -c \\\"import json;json.load(open('$f.json'))\\\" \u0026\u0026 echo \\\"$f.json: valid JSON\\\"; done\\necho \\\"--- key parity vs en.json ---\\\"\\npython3 - \u003c\u003c'EOF'\\nimport json\\nen = json.load(open('en.json'))\\nfor loc in ('fr','de'):\\n    d = json.load(open(f'{loc}.json'))\\n    missing = [k for k in en if k not in d]\\n    extra   = [k for k in d if k not in en]\\n    order   = list(en) == list(d)\\n    print(f\\\"{loc}: {len(d)}/{len(en)} keys, missing={missing}, extra={extra}, same_order={order}\\\")\\nEOF\\necho \\\"--- glossary term check ---\\\"\\ngrep -c \\\"Northwind\\\" fr.json de.json\\ngrep -o \\\"tableau de bord\\\\|Tableau de bord\\\\|Se connecter\\\" fr.json\\ngrep -o \\\"Übersicht\\\\|anmelden\\\" de.json\",\"description\":\"Validate JSON, key parity, and glossary terms\"}",
+          "output": "fr.json: valid JSON\nde.json: valid JSON\n--- key parity vs en.json ---\nfr: 6/6 keys, missing=[], extra=[], same_order=True\nde: 6/6 keys, missing=[], extra=[], same_order=True\n--- glossary term check ---\nde.json:2\nfr.json:2\ntableau de bord\nTableau de bord\nSe connecter\nÜbersicht\nÜbersicht\nanmelden"
+        },
+        {
+          "kind": "text",
+          "text": "Created `src/locales/fr.json` and `src/locales/de.json` — all 6 keys, same order as `en.json`, valid JSON.\n\n| Key | fr | de |\n|---|---|---|\n| greeting | Bon retour sur Northwind | Willkommen zurück bei Northwind |\n| intro | Voici votre tableau de bord. Tout ce dont vous avez besoin s'y trouve. | Dies ist Ihre Übersicht. Alles, was Sie brauchen, finden Sie hier. |\n| nav.dashboard | Tableau de bord | Übersicht |\n| cta | Se connecter à Northwind | Bei Northwind anmelden |\n| save | Enregistrer | Speichern |\n| cancel | Annuler | Abbrechen |\n\nGlossary applied:\n- **Northwind** kept verbatim in both locales (2 occurrences each).\n- **dashboard** → *tableau de bord* / *Übersicht*, including the `nav.dashboard` label, so the nav item and the body copy stay consistent.\n- **sign in** → *se connecter* / *anmelden*, inflected to fit each sentence (`Se connecter à…`, `Bei … anmelden`).\n- **workspace** appears in the glossary but not in `en.json`, so it went unused.\n\nTwo judgment calls worth confirming:\n- **Formal register** — French *vous*, German *Sie*. If your product uses *tu*/*du*, say so and I'll re-cut both files.\n- **`nav.dashboard` in German** is *Übersicht* per the glossary, not the common UI loanword *Dashboard*. It's noticeably shorter than the English, so it should fit existing nav widths, but it's the one term where a German user might expect the English word."
+        }
+      ]
+    }
+  ]
+}

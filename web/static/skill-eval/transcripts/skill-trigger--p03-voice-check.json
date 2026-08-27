@@ -1,0 +1,153 @@
+{
+  "key": "skill:trigger",
+  "scenario": "p03-voice-check",
+  "prompt": "Check README.md against our voice profile and fix what's off.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      5 asgeirf  staff     160 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 20:27 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:27 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== .claude tree ===\\\" \u0026\u0026 find .claude -type f | head -50\",\"description\":\"Show README, voice.yaml, and .claude contents\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major\n\n=== .claude tree ===\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/sk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is exactly what the `kapi` skill covers — voice profile checking. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"check README.md against voice profile and fix\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== kapi version ===\\\" \u0026\u0026 kapi version 2\u003e\u00261 | head -5; echo \\\"=== .kapi project? ===\\\" ; ls -la .kapi 2\u003e\u00261 | head; echo \\\"=== walk up ===\\\"; d=$(pwd); while [ \\\"$d\\\" != \\\"/\\\" ]; do [ -d \\\"$d/.kapi\\\" ] \u0026\u0026 echo \\\"found: $d/.kapi\\\"; d=$(dirname \\\"$d\\\"); done; echo \\\"(done)\\\"\",\"description\":\"Check kapi binary and project presence\"}",
+          "output": "=== kapi version ===\nkapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n=== .kapi project? ===\nls: .kapi: No such file or directory\n=== walk up ===\n(done)"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      5 asgeirf  staff     160 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 20:27 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:27 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== .claude tree ===\\\" \u0026\u0026 find .claude -type f | head -50\",\"description\":\"Show README, voice profile, and .claude contents\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major\n\n=== .claude tree ===\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/sk\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is exactly what the kapi skill covers — voice profiles and in-voice content checks. Let me load it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"check README.md against the voice profile in voice.yaml and fix what's off\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -5; echo \\\"---project---\\\"; ls -d .kapi 2\u003e\u00261; kapi status 2\u003e\u00261 | head -20\",\"description\":\"Check kapi binary and project status\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n---project---\nls: .kapi: No such file or directory\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      5 asgeirf  staff     160 Aug 27 20:27 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:27 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:27 .claude\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 20:27 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:27 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== .claude ===\\\" \u0026\u0026 find .claude -type f | head -50\",\"description\":\"Show README, voice profile, and .claude contents\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major\n\n=== .claude ===\n.claude/skills/kapi/SKILL.md\n.claude/skills/kapi/references/context-discovery.md\n.claude/skills/kapi/references/i18n.md\n.claude/skills/kapi/references/voice.md\n.claude/skills/kapi/references/project.md\n.claude/skills/kapi/references/toolbox.md\n.claude/skills/kapi/references/create.md\n.claude/skills/kapi/references/translate.md\n.claude/skills/\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is exactly what the `kapi` skill covers — checking content against a voice profile. Let me invoke it."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"Check README.md against the voice profile in voice.yaml and fix what's off\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -5; echo \\\"--- project? ---\\\"; ls -d .kapi 2\u003e\u00261; kapi status 2\u003e\u00261 | head -20\",\"description\":\"Check kapi binary and project status\"}",
+          "output": "kapi v1.2.0-rc29-2-gf3f0c2eff (beta, commit: f3f0c2eff, built: 2026-08-27T18:25:41Z)\n--- project? ---\nls: .kapi: No such file or directory\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's in the working directory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 16\ndrwx------      4 asgeirf  staff     128 Aug 27 20:28 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:28 ..\n-rw-r--r--      1 asgeirf  staff     149 Aug 27 20:28 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:28 voice.yaml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"\\\" \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"Show README and voice profile\"}",
+          "output": "=== README.md ===\n# Northwind\n\nNorthwind is a cutting-edge platform that lets teams utilize their content across every channel. Leverage our workspace to ship faster.\n\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "text",
+          "text": "Both files are short. Here's the mismatch list:\n\n| Line | Issue | Profile rule |\n|---|---|---|\n| \"cutting-edge\" | forbidden term | `forbidden_terms`, major |\n| \"utilize\" | forbidden term | `forbidden_terms`, major → prefer `use` |\n| \"Leverage\" | forbidden term | `forbidden_terms`, major → prefer `use` |\n| \"lets teams … their content\" | third person | `person_pov: second` — \"Address the reader as you\" |\n| \"cutting-edge platform\" | marketing superlative | `guidelines` |\n\nApplying the fixes:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nNorthwind is a platform that lets you use your content across every channel. Our workspace helps you ship faster.\\nEOF\\necho \\\"=== after ===\\\" \u0026\u0026 cat README.md\",\"description\":\"Rewrite README to match voice profile\"}",
+          "output": "=== after ===\n# Northwind\n\nNorthwind is a platform that lets you use your content across every channel. Our workspace helps you ship faster."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 grep -inE 'utilize|leverage|cutting-edge' README.md \u0026\u0026 echo \\\"FORBIDDEN TERMS FOUND\\\" || echo \\\"clean: no forbidden terms\\\"\",\"description\":\"Verify forbidden terms are gone\"}",
+          "output": "clean: no forbidden terms"
+        }
+      ]
+    }
+  ]
+}

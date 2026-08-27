@@ -1,0 +1,125 @@
+{
+  "key": "mcp:trigger",
+  "scenario": "m08-no-tool-needed",
+  "prompt": "Rename the variable `x` to `total` in sum.go.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find and edit the file."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -name sum.go -not -path '*/node_modules/*' 2\u003e/dev/null\",\"description\":\"Find sum.go\"}",
+          "output": "./sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n ./sum.go\",\"description\":\"Show sum.go contents\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tx := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\tx += v\n     7\t\t}\n     8\t\treturn x\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd . \u0026\u0026 sed -i '' -e 's/^\\tx := 0$/\\ttotal := 0/' -e 's/^\\t\\tx += v$/\\t\\ttotal += v/' -e 's/^\\treturn x$/\\treturn total/' ./sum.go \u0026\u0026 cat -n ./sum.go \u0026\u0026 gofmt -l ./sum.go\",\"description\":\"Rename x to total in sum.go\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\ttotal := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\ttotal += v\n     7\t\t}\n     8\t\treturn total\n     9\t}"
+        },
+        {
+          "kind": "text",
+          "text": "Renamed all three occurrences of `x` in `sum.go:4,6,8` to `total`; the `xs` parameter and `v` loop variable are untouched, and `gofmt` reports no formatting issues."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -name \\\"sum.go\\\" -not -path \\\"*/node_modules/*\\\" 2\u003e/dev/null\",\"description\":\"Find sum.go\"}",
+          "output": "./sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n ./sum.go\",\"description\":\"Show sum.go contents\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tx := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\tx += v\n     7\t\t}\n     8\t\treturn x\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -i '' 's/[[:\u003c:]]x[[:\u003e:]]/total/g' ./sum.go \u0026\u0026 cat -n ./sum.go \u0026\u0026 gofmt -l ./sum.go; go vet ./sum.go 2\u003e\u00261 | head -20\",\"description\":\"Rename x to total and verify\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\ttotal := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\ttotal += v\n     7\t\t}\n     8\t\treturn total\n     9\t}"
+        },
+        {
+          "kind": "text",
+          "text": "Renamed in `sum.go:4,6,8` — the `xs` parameter was left untouched (word-boundary match). `gofmt` reports no formatting issues."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n sum.go 2\u003e/dev/null || find . -name \\\"sum.go\\\" -not -path \\\"*/node_modules/*\\\" 2\u003e/dev/null\",\"description\":\"Show sum.go contents or locate it\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tx := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\tx += v\n     7\t\t}\n     8\t\treturn x\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"perl -pi -e 's/\\\\bx\\\\b/total/g' sum.go \u0026\u0026 cat -n sum.go \u0026\u0026 gofmt -l sum.go; go build ./... 2\u003e\u00261 | head -20\",\"description\":\"Rename x to total and verify\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\ttotal := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\ttotal += v\n     7\t\t}\n     8\t\treturn total\n     9\t}\npattern ./...: directory prefix . does not contain main module or its selected dependencies"
+        },
+        {
+          "kind": "text",
+          "text": "Renamed. All three occurrences of `x` in `sum.go` are now `total`; the `xs` parameter was left untouched, and `gofmt` reports no formatting issues.\n\n```go\nfunc Sum(xs []int) int {\n\ttotal := 0\n\tfor _, v := range xs {\n\t\ttotal += v\n\t}\n\treturn total\n}\n```\n\n(`go build` couldn't run — the directory isn't inside a Go module, no `go.mod` — but the change is a straightforward local rename.)"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find . -name \\\"sum.go\\\" -not -path \\\"*/node_modules/*\\\" 2\u003e/dev/null\",\"description\":\"Find sum.go\"}",
+          "output": "./sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n ./sum.go\",\"description\":\"Show sum.go contents\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tx := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\tx += v\n     7\t\t}\n     8\t\treturn x\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -i '' 's/\\\\bx\\\\b/total/g' ./sum.go \u0026\u0026 cat -n ./sum.go\",\"description\":\"Rename x to total in sum.go\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tx := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\tx += v\n     7\t\t}\n     8\t\treturn x\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"perl -pi -e 's/\\\\bx\\\\b/total/g' ./sum.go \u0026\u0026 cat -n ./sum.go\",\"description\":\"Rename x to total using perl\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\ttotal := 0\n     5\t\tfor _, v := range xs {\n     6\t\t\ttotal += v\n     7\t\t}\n     8\t\treturn total\n     9\t}"
+        },
+        {
+          "kind": "text",
+          "text": "Renamed. All three occurrences of `x` in `sum.go:4-8` are now `total`; the `xs` parameter was left untouched."
+        }
+      ]
+    }
+  ]
+}

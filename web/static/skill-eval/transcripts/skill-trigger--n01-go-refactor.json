@@ -1,0 +1,153 @@
+{
+  "key": "skill:trigger",
+  "scenario": "n01-go-refactor",
+  "prompt": "Refactor this Go function for readability.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the Go code in the working directory first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find \u003cpath\u003e -type f | head -100\",\"description\":\"List files in working directory\"}",
+          "output": "\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e\n\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n \u003cpath\u003e\",\"description\":\"Read sum.go\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tt := 0\n     5\t\tfor i := 0; i \u003c len(xs); i++ {\n     6\t\t\tt = t + xs[i]\n     7\t\t}\n     8\t\treturn t\n     9\t}"
+        },
+        {
+          "kind": "text",
+          "text": "This is a Go style/readability task — let me load the Go code style skill."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"golang-code-style\"}",
+          "output": "Launching skill: golang-code-style"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\npackage main\\n\\n// Sum returns the total of the values in nums.\\n// It returns 0 for an empty or nil slice.\\nfunc Sum(nums []int) int {\\n\\tvar total int\\n\\tfor _, n := range nums {\\n\\t\\ttotal += n\\n\\t}\\n\\n\\treturn total\\n}\\nEOF\\ngofmt -l \u003cpath\u003e \u0026\u0026 go vet \u003cpath\u003e 2\u003e\u00261 | head -20; cat -n \u003cpath\u003e\",\"description\":\"Rewrite sum.go and verify with gofmt/vet\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\t// Sum returns the total of the values in nums.\n     4\t// It returns 0 for an empty or nil slice.\n     5\tfunc Sum(nums []int) int {\n     6\t\tvar total int\n     7\t\tfor _, n := range nums {\n     8\t\t\ttotal += n\n     9\t\t}\n    10\t\n    11\t\treturn total\n    12\t}"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the Go function to refactor."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name '*.go' -not -path './vendor/*' | head -50\",\"description\":\"List repo files and find Go sources\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:33 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:33 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:33 .claude\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:33 sum.go\n./sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -A sum.go | head -20; echo \\\"---\\\"; cat sum.go\",\"description\":\"Read sum.go contents\"}",
+          "output": "cat: illegal option -- A\nusage: cat [-belnstuv] [file ...]\n---\npackage main\n\nfunc Sum(xs []int) int {\n\tt := 0\n\tfor i := 0; i \u003c len(xs); i++ {\n\t\tt = t + xs[i]\n\t}\n\treturn t\n}"
+        },
+        {
+          "kind": "text",
+          "text": "The whole repo is one file — a 7-line `Sum`. Here's the refactor:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e sum.go \u003c\u003c'EOF'\\npackage main\\n\\n// Sum returns the sum of the numbers in xs. It returns 0 for an empty slice.\\nfunc Sum(xs []int) int {\\n\\ttotal := 0\\n\\tfor _, x := range xs {\\n\\t\\ttotal += x\\n\\t}\\n\\treturn total\\n}\\nEOF\\ngofmt -l . \u0026\u0026 go vet ./... 2\u003e\u00261 | head -20; echo \\\"exit: $?\\\"; cat sum.go\",\"description\":\"Rewrite sum.go and verify with gofmt/vet\"}",
+          "output": "pattern ./...: directory prefix . does not contain main module or its selected dependencies\nexit: 0\npackage main\n\n// Sum returns the sum of the numbers in xs. It returns 0 for an empty slice.\nfunc Sum(xs []int) int {\n\ttotal := 0\n\tfor _, x := range xs {\n\t\ttotal += x\n\t}\n\treturn total\n}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"go vet sum.go; echo \\\"vet exit: $?\\\"\",\"description\":\"Vet the single file\"}",
+          "output": "vet exit: 0"
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the Go code first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 find . -name '*.go' -not -path './vendor/*' | head -50\",\"description\":\"List files and find Go sources\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 20:34 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:34 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:34 .claude\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:34 sum.go\n./sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n sum.go; echo \\\"---\\\"; ls -R .claude\",\"description\":\"Show sum.go and .claude contents\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tt := 0\n     5\t\tfor i := 0; i \u003c len(xs); i++ {\n     6\t\t\tt = t + xs[i]\n     7\t\t}\n     8\t\treturn t\n     9\t}\n---\nskills\n\n.claude/skills:\nkapi\n\n.claude/skills/kapi:\nreferences\nSKILL.md\n\n.claude/skills/kapi/references:\ncontext-discovery.md\ncreate.md\nedit.md\ni18n\ni18n.md\nproject.md\ntoolbox.md\ntranslate.md\nvoice.md\n\n.claude/skills/kapi/references/i18n:\nandroid.md\nangular.md\nbackend.md\ndocs-sites.md\nflutter.md\nframeworks.yaml\ngettext.md\nios.md\nrails.md\nreact-native.md\nreact.md\nsvelte.md\nvue.md"
+        },
+        {
+          "kind": "text",
+          "text": "This is a Go style task — let me load the project's Go style guidance first."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"golang-code-style\"}",
+          "output": "Launching skill: golang-code-style"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e sum.go \u003c\u003c'EOF'\\npackage main\\n\\n// Sum returns the total of all numbers. It returns 0 for an empty slice.\\nfunc Sum(numbers []int) int {\\n\\tvar total int\\n\\tfor _, n := range numbers {\\n\\t\\ttotal += n\\n\\t}\\n\\n\\treturn total\\n}\\nEOF\\ngofmt -l . \u0026\u0026 go vet ./... 2\u003e\u00261 | head; cat -n sum.go\",\"description\":\"Rewrite sum.go and verify with gofmt/go vet\"}",
+          "output": "pattern ./...: directory prefix . does not contain main module or its selected dependencies\n     1\tpackage main\n     2\t\n     3\t// Sum returns the total of all numbers. It returns 0 for an empty slice.\n     4\tfunc Sum(numbers []int) int {\n     5\t\tvar total int\n     6\t\tfor _, n := range numbers {\n     7\t\t\ttotal += n\n     8\t\t}\n     9\t\n    10\t\treturn total\n    11\t}"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the Go file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"find \u003cpath\u003e -type f -name \\\"*.go\\\" | head -50; echo \\\"---\\\"; ls -la \u003cpath\u003e\",\"description\":\"Find Go files in working directory\"}",
+          "output": "\u003cpath\u003e\n---\ntotal 8\ndrwx------      3 asgeirf  staff      96 Aug 27 20:34 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:34 ..\n-rw-r--r--      1 asgeirf  staff     110 Aug 27 20:34 sum.go"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat -n \u003cpath\u003e\",\"description\":\"Read sum.go\"}",
+          "output": "     1\tpackage main\n     2\t\n     3\tfunc Sum(xs []int) int {\n     4\t\tt := 0\n     5\t\tfor i := 0; i \u003c len(xs); i++ {\n     6\t\t\tt = t + xs[i]\n     7\t\t}\n     8\t\treturn t\n     9\t}"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"golang-code-style\",\"args\":\"Refactor Sum(xs []int) int in sum.go for readability\"}",
+          "output": "Launching skill: golang-code-style"
+        },
+        {
+          "kind": "text",
+          "text": "Applying the skill's rules: `range` over index loops, `var` for zero-value init, descriptive names, and a doc comment on the exported function."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e sum.go \u003c\u003c'EOF'\\npackage main\\n\\n// Sum returns the total of all values in numbers. It returns 0 for an empty\\n// or nil slice.\\nfunc Sum(numbers []int) int {\\n\\tvar total int\\n\\tfor _, n := range numbers {\\n\\t\\ttotal += n\\n\\t}\\n\\n\\treturn total\\n}\\nEOF\\ngofmt -l . \u0026\u0026 go vet ./... 2\u003e\u00261 | head -20; echo \\\"exit: $?\\\"; cat -n sum.go\",\"description\":\"Rewrite sum.go and verify with gofmt/vet\"}",
+          "output": "pattern ./...: directory prefix . does not contain main module or its selected dependencies\nexit: 0\n     1\tpackage main\n     2\t\n     3\t// Sum returns the total of all values in numbers. It returns 0 for an empty\n     4\t// or nil slice.\n     5\tfunc Sum(numbers []int) int {\n     6\t\tvar total int\n     7\t\tfor _, n := range numbers {\n     8\t\t\ttotal += n\n     9\t\t}\n    10\t\n    11\t\treturn total\n    12\t}"
+        }
+      ]
+    }
+  ]
+}

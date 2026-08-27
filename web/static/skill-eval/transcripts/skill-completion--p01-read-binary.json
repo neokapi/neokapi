@@ -1,0 +1,93 @@
+{
+  "key": "skill:completion",
+  "scenario": "p01-read-binary",
+  "prompt": "What does slide 3 of pitch.pptx say?",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll find the file first, then read the slide."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e 2\u003e/dev/null; echo \\\"---\\\"; find \u003cpath\u003e -iname \\\"*.pptx\\\" 2\u003e/dev/null\",\"description\":\"List working directory and find pptx files\"}",
+          "output": "total 8\ndrwx------      4 asgeirf  staff     128 Aug 27 21:47 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:47 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:47 .claude\n-rw-r--r--      1 asgeirf  staff    3441 Aug 27 21:47 pitch.pptx\n---\n\u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"read slide 3 of pitch.pptx\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi version 2\u003e\u00261 | head -5\",\"description\":\"Check kapi binary version\"}",
+          "output": "kapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi kcat pitch.pptx 2\u003e\u00261 | head -60\",\"description\":\"Print prose content of pitch.pptx\"}",
+          "output": "Welcome to KapiMart\nPartner Onboarding Guide\nGetting Started\nCreate your Seller Account in the KapiMart Partner Portal\nComplete your business profile and verify your identity\nConfigure your shipping preferences and return policies\nUpload your product catalog using our bulk import tool\nSet up payment methods and tax information\nNext Steps\nReview the Partner Quick Start Guide in your dashboard\nJoin the KapiMart Seller Community forum\nSchedule a session with your dedicated onboarding specialist\nExplore the API documentation for advanced integrations\nContact Partner Support at partners@kapimart.example.com"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi inspect pitch.pptx --jsonl 2\u003e\u00261 | head -40\",\"description\":\"Inspect pptx blocks with metadata\"}",
+          "output": "{\"file\":\"pitch.pptx\",\"number\":1,\"id\":\"tu1\",\"content_hash\":\"4c581334eb0196c31c5358dd8c8dec0329c1635995f2576dd9ffadfd8e743475\",\"role\":\"heading\",\"level\":1,\"text\":\"Welcome to KapiMart\"}\n{\"file\":\"pitch.pptx\",\"number\":2,\"id\":\"tu2\",\"content_hash\":\"63674edf02ed6c9df554d480a5a2f0ad75414a1b19825f9d67bfe6f65e6b3d2c\",\"role\":\"heading\",\"level\":2,\"text\":\"Partner Onboarding Guide\"}\n{\"file\":\"pitch.pptx\",\"number\":3,\"id\":\"tu3\",\"content_hash\":\"d00eca1bae6742803906ab42a831e8b5396d15b6573ea13c139ec31631208ec1\",\"role\":\"heading\",\"level\":2,\"text\":\"Getting Started\"}\n{\"file\":\"pitch.pptx\",\"number\":4,\"id\":\"tu4\",\"content_hash\":\"fde1d37dc4f1a961d99490d182d28e83b2393b077f39673da947227ddf1e8307\",\"text\":\"Create your Seller Account in the KapiMart Partner Portal\"}\n{\"file\":\"pitch.pptx\",\"number\":5,\"id\":\"tu5\",\"content_hash\":\"9bc7915aa451ab240c5975d8ac4923b3cc32841e7a9be596f6e8790cac73bbe5\",\"text\":\"Complete your business profile and verify your identity\"}\n{\"file\":\"pitch.pptx\",\"number\":6,\"id\":\"tu6\",\"content_hash\":\"3c0dbce6a6933aa4b10e5b8398f8f7e78120d61e6745a5e2cbdff3be98958177\",\"text\":\"Configure your shipping preferences and return policies\"}\n{\"file\":\"pitch.pptx\",\"number\":7,\"id\":\"tu7\",\"content_hash\":\"05d444af66e02641300\n…truncated…"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"unzip -l pitch.pptx | grep -i \\\"slides/slide\\\"\",\"description\":\"List slide parts in the pptx package\"}",
+          "output": "     1201  00-00-1980 00:00   ppt/slides/slide1.xml\n     1716  00-00-1980 00:00   ppt/slides/slide2.xml\n     1713  00-00-1980 00:00   ppt/slides/slide3.xml"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"unzip -p pitch.pptx ppt/slides/slide3.xml | grep -o '\u003ca:t\u003e[^\u003c]*\u003c/a:t\u003e' | sed 's/\u003c[^\u003e]*\u003e//g'\",\"description\":\"Extract text runs from slide 3 XML\"}",
+          "output": "Next Steps\nReview the Partner Quick Start Guide in your dashboard\nJoin the KapiMart Seller Community forum\nSchedule a session with your dedicated onboarding specialist\nExplore the API documentation for advanced integrations\nContact Partner Support at partners@kapimart.example.com"
+        },
+        {
+          "kind": "text",
+          "text": "Slide 3 (the last of three slides) is titled **\"Next Steps\"**, with five bullets:\n\n- Review the Partner Quick Start Guide in your dashboard\n- Join the KapiMart Seller Community forum\n- Schedule a session with your dedicated onboarding specialist\n- Explore the API documentation for advanced integrations\n- Contact Partner Support at partners@kapimart.example.com\n\nFor context, the deck is a 3-slide \"Welcome to KapiMart / Partner Onboarding Guide\" set: slide 1 is the title, slide 2 is \"Getting Started\" (account creation, business profile, shipping/returns, catalog upload, payment \u0026 tax), and slide 3 is the wrap-up above."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the file first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u003cpath\u003e\",\"description\":\"List working directory contents\"}",
+          "output": "total 8\ndrwx------      3 asgeirf  staff      96 Aug 27 21:48 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:48 ..\n-rw-r--r--      1 asgeirf  staff    3441 Aug 27 21:48 pitch.pptx"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 unzip -l pitch.pptx\",\"description\":\"List pptx zip contents\"}",
+          "output": "Archive:  pitch.pptx\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      844  00-00-1980 00:00   [Content_Types].xml\n      305  00-00-1980 00:00   _rels/.rels\n      484  00-00-1980 00:00   ppt/presentation.xml\n      565  00-00-1980 00:00   ppt/_rels/presentation.xml.rels\n     1201  00-00-1980 00:00   ppt/slides/slide1.xml\n     1716  00-00-1980 00:00   ppt/slides/slide2.xml\n     1713  00-00-1980 00:00   ppt/slides/slide3.xml\n---------                     -------\n     6828                     7 files"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 unzip -p pitch.pptx ppt/slides/slide3.xml | python3 -c \\\"\\nimport sys,re\\nx=sys.stdin.read()\\nprint(x)\\n\\\"\",\"description\":\"Extract slide3 XML\"}",
+          "output": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?\u003e\n\u003cp:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"\n  xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"\n  xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"\u003e\n  \u003cp:cSld\u003e\n    \u003cp:spTree\u003e\n      \u003cp:nvGrpSpPr\u003e\u003cp:cNvPr id=\"1\" name=\"\"/\u003e\u003cp:cNvGrpSpPr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvGrpSpPr\u003e\n      \u003cp:grpSpPr/\u003e\n      \u003cp:sp\u003e\n        \u003cp:nvSpPr\u003e\u003cp:cNvPr id=\"2\" name=\"Title 1\"/\u003e\u003cp:cNvSpPr\u003e\u003ca:spLocks noGrp=\"1\"/\u003e\u003c/p:cNvSpPr\u003e\u003cp:nvPr\u003e\u003cp:ph type=\"title\"/\u003e\u003c/p:nvPr\u003e\u003c/p:nvSpPr\u003e\n        \u003cp:spPr/\u003e\n        \u003cp:txBody\u003e\n          \u003ca:bodyPr/\u003e\n          \u003ca:lstStyle/\u003e\n          \u003ca:p\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\" dirty=\"0\"/\u003e\u003ca:t\u003eNext Steps\u003c/a:t\u003e\u003c/a:r\u003e\u003c/a:p\u003e\n        \u003c/p:txBody\u003e\n      \u003c/p:sp\u003e\n      \u003cp:sp\u003e\n        \u003cp:nvSpPr\u003e\u003cp:cNvPr id=\"3\" name=\"Content 2\"/\u003e\u003cp:cNvSpPr\u003e\u003ca:spLocks noGrp=\"1\"/\u003e\u003c/p:cNvSpPr\u003e\u003cp:nvPr\u003e\u003cp:ph idx=\"1\"/\u003e\u003c/p:nvPr\u003e\u003c/p:nvSpPr\u003e\n        \u003cp:spPr/\u003e\n        \u003cp:txBody\u003e\n          \u003ca:bodyPr/\u003e\n          \u003ca:lstStyle/\u003e\n          \u003ca:p\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\" dirty=\"0\"/\u003e\u003ca:t\u003eReview the Partner Quick Start Guide in your dashboard\u003c/a:t\u003e\u003c/a:r\u003e\u003c/a:p\u003e\n          \u003ca:p\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\" dirty=\"0\"/\u003e\u003ca:t\u003eJoin the Kap\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "Slide 3 is titled **\"Next Steps\"** with five bullets:\n\n- Review the Partner Quick Start Guide in your dashboard\n- Join the KapiMart Seller Community forum\n- Schedule a session with your dedicated onboarding specialist\n- Explore the API documentation for advanced integrations\n- Contact Partner Support at partners@kapimart.example.com"
+        }
+      ]
+    }
+  ]
+}

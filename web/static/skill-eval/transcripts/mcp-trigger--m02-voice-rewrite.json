@@ -1,0 +1,216 @@
+{
+  "key": "mcp:trigger",
+  "scenario": "m02-voice-rewrite",
+  "prompt": "Rewrite the text in README.md so it complies with voice.yaml.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll look at the two files first."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and show README and voice.yaml\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:42 .\ndrwx------@ 22072 asgeirf  staff  706304 Aug 27 20:42 ..\n-rw-r--r--      1 asgeirf  staff     788 Aug 27 20:42 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:42 kapi-config\n-rw-r--r--      1 asgeirf  staff      50 Aug 27 20:42 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:42 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:42 xdg-cache\n=== README.md ===\n# Northwind\n\nLeverage our cutting-edge workspace.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .mcp.json \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config xdg-cache -type f | head -50\",\"description\":\"Inspect MCP config and kapi-config directory\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}=== kapi-config ===\nkapi-config/update-channel\nxdg-cache/kapi/plugins-cache.json"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_rewrite,mcp__kapi__voice_check\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_rewrite",
+          "input": "{\"text\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"original\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile\":\"Northwind\",\"rewritten\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\"}"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"leverage\\\" found\",\"original_text\":\"Leverage\",\"position\":{\"end\":{\"offset\":21,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":13,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":38,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":26,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "text",
+          "text": "The deterministic rewriter left both terms in place, so I'll rewrite the line myself against the profile."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nUse the Northwind workspace to do your work.\\nEOF\\ncat README.md\",\"description\":\"Rewrite README.md body line\"}",
+          "output": "# Northwind\n\nUse the Northwind workspace to do your work."
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nUse the Northwind workspace to do your work.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":null,\"profile\":\"Northwind\",\"score\":100}"
+        },
+        {
+          "kind": "text",
+          "text": "`README.md` now scores 100 against the Northwind profile (was 90, with two major vocabulary findings).\n\n```markdown\n# Northwind\n\nUse the Northwind workspace to do your work.\n```\n\nWhat changed and why:\n- **\"Leverage\" → \"Use\"** — forbidden term (major); `use` is the profile's preferred replacement, and the imperative keeps it active voice and second person.\n- **\"cutting-edge\" dropped** — forbidden term (major), and the guidelines rule out marketing superlatives.\n- **\"our\" → \"the Northwind\"** — the profile sets POV to second person, so the sentence stays on the reader rather than the vendor.\n\nNote: `voice_rewrite` returned the text unchanged — its deterministic substitution had no mapping for either term, so the fix is a manual rewrite verified with `voice_check`."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by reading both files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and read README and voice.yaml\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:42 .\ndrwx------@ 22071 asgeirf  staff  706272 Aug 27 20:42 ..\n-rw-r--r--      1 asgeirf  staff     788 Aug 27 20:42 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:42 kapi-config\n-rw-r--r--      1 asgeirf  staff      50 Aug 27 20:42 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:42 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:42 xdg-cache\n=== README.md ===\n# Northwind\n\nLeverage our cutting-edge workspace.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .mcp.json \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config xdg-cache -type f | head -50\",\"description\":\"Inspect MCP config and kapi-config contents\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}=== kapi-config ===\nkapi-config/update-channel\nxdg-cache/kapi/plugins-cache.json"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_rewrite,mcp__kapi__voice_check\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"« Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"leverage\\\" found\",\"original_text\":\"Leverage\",\"position\":{\"end\":{\"offset\":21,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":13,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":38,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":26,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_rewrite",
+          "input": "{\"text\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"original\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\",\"profile\":\"Northwind\",\"rewritten\":\"# Northwind\\n\\nLeverage our cutting-edge workspace.\"}"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nNorthwind is a workspace. Use it to do your work.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":null,\"profile\":\"Northwind\",\"score\":100}"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"# Northwind\\n\\nNorthwind is a workspace. Use it to get your work done.\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":null,\"profile\":\"Northwind\",\"score\":100}"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nNorthwind is a workspace. Use it to get your work done.\\nEOF\\ncat README.md\",\"description\":\"Write rewritten README.md\"}",
+          "output": "# Northwind\n\nNorthwind is a workspace. Use it to get your work done."
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__check_file",
+          "input": "{\"path\":\"\u003cpath\u003e\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "validating \"arguments\": validating root: unexpected additional properties [\"path\"]",
+          "failed": true
+        },
+        {
+          "kind": "text",
+          "text": "README.md rewritten:\n\n```markdown\n# Northwind\n\nNorthwind is a workspace. Use it to get your work done.\n```\n\nWhat changed and why:\n- **\"Leverage\"** and **\"cutting-edge\"** — both forbidden terms (severity: major) in `voice.yaml`. Replaced with \"use\", the profile's preferred term.\n- **\"our\"** → second-person framing, per `person_pov: second`.\n- Marketing superlative dropped, per the tone guideline; sentences kept short and active.\n\nVerified with the kapi `voice_check` tool against `voice.yaml`: **score 100**, no findings across tone, style, vocabulary, clarity, and compliance (the original scored 90 with two major vocabulary violations).\n\nOne note: the deterministic `voice_rewrite` tool returned the text unchanged — it had no substitution mapping for either forbidden term — so I wrote the replacement copy myself and validated it with `voice_check`."
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by reading both files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and read README and voice.yaml\"}",
+          "output": "total 24\ndrwx------      7 asgeirf  staff     224 Aug 27 20:43 .\ndrwx------@ 22069 asgeirf  staff  706208 Aug 27 20:43 ..\n-rw-r--r--      1 asgeirf  staff     788 Aug 27 20:43 .mcp.json\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:43 kapi-config\n-rw-r--r--      1 asgeirf  staff      50 Aug 27 20:43 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:43 voice.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 20:43 xdg-cache\n=== README.md ===\n# Northwind\n\nLeverage our cutting-edge workspace.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat .mcp.json \u0026\u0026 echo \\\"=== kapi-config ===\\\" \u0026\u0026 find kapi-config -type f | head -50\",\"description\":\"Inspect MCP config and kapi-config\"}",
+          "output": "{\n  \"mcpServers\": {\n    \"kapi\": {\n      \"args\": [\n        \"mcp\"\n      ],\n      \"command\": \"~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\",\n      \"env\": {\n        \"KAPI_CONFIG_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_NO_PROJECT\": \"1\",\n        \"KAPI_PLUGINS_DIR\": \"\u003cpath\u003e\",\n        \"KAPI_PLUGINS_DIR_ONLY\": \"1\",\n        \"XDG_CACHE_HOME\": \"\u003cpath\u003e\",\n        \"XDG_DATA_HOME\": \"\u003cpath\u003e\"\n      }\n    }\n  }\n}=== kapi-config ===\nkapi-config/update-channel"
+        },
+        {
+          "kind": "tool",
+          "name": "ToolSearch",
+          "input": "{\"query\":\"select:mcp__kapi__voice_rewrite,mcp__kapi__voice_check\",\"max_results\":5}",
+          "output": "[tool_reference]\n[tool_reference]"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"\\n# Northwind\\n\\nLeverage our cutting-edge workspace.\\n\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":2,\"penalty\":10,\"score\":90},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":[{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"leverage\\\" found\",\"original_text\":\"Leverage\",\"position\":{\"end\":{\"offset\":22,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":14,\"run\":0}},\"severity\":\"major\"},{\"category\":\"vocabulary\",\"message\":\"Forbidden term \\\"cutting-edge\\\" found\",\"original_text\":\"cutting-edge\",\"position\":{\"end\":{\"offset\":39,\"run\":0},\"kind\":\"range\",\"start\":{\"offset\":27,\"run\":0}},\"severity\":\"major\"}],\"profile\":\"Northwind\",\"score\":90}"
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_rewrite",
+          "input": "{\"text\":\"\\n# Northwind\\n\\nLeverage our cutting-edge workspace.\\n\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"original\":\"\\n# Northwind\\n\\nLeverage our cutting-edge workspace.\\n\",\"profile\":\"Northwind\",\"rewritten\":\"\\n# Northwind\\n\\nLeverage our cutting-edge workspace.\\n\"}"
+        },
+        {
+          "kind": "text",
+          "text": "The deterministic rewriter left the text unchanged (no substitution mapping fires), so I'll rewrite it against the profile rules and re-check."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nUse the Northwind workspace to organize your work.\\nEOF\\ncat README.md\",\"description\":\"Rewrite README.md\"}",
+          "output": "# Northwind\n\nUse the Northwind workspace to organize your work."
+        },
+        {
+          "kind": "tool",
+          "name": "mcp__kapi__voice_check",
+          "input": "{\"text\":\"\\n# Northwind\\n\\nUse the Northwind workspace to organize your work.\\n\",\"profile_file\":\"\u003cpath\u003e\"}",
+          "output": "{\"dimensions\":[{\"dimension\":\"tone\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"style\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"vocabulary\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"clarity\",\"issues\":0,\"penalty\":0,\"score\":100},{\"dimension\":\"compliance\",\"issues\":0,\"penalty\":0,\"score\":100}],\"findings\":null,\"profile\":\"Northwind\",\"score\":100}"
+        },
+        {
+          "kind": "text",
+          "text": "`README.md` now scores 100/100 against the Northwind profile (was 90, two major vocabulary findings).\n\n```markdown\n# Northwind\n\nUse the Northwind workspace to organize your work.\n```\n\nWhat changed and why:\n\n- **\"Leverage\" → \"Use\"** — forbidden term (major); `use` is the profile's preferred replacement.\n- **Dropped \"cutting-edge\"** — forbidden term (major), and a marketing superlative the tone guidelines rule out.\n- **\"our workspace\" → \"the Northwind workspace ... your work\"** — the guidelines say address the reader as *you*; the imperative plus \"your\" puts it in second person instead of company-first framing.\n\nSentence stays short and active, matching the style block. One note: `voice_rewrite` returned the text unchanged — it only does deterministic term substitution and had no mapping for these terms, so the rewrite is mine, verified with `voice_check`."
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by reading both files."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"=== README.md ===\\\" \u0026\u0026 cat README.md \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml\",\"description\":\"List files and read README.md and voice.yaml\"}",
+          "output": "total 16\ndrwx------      4 asgeirf  staff     128 Aug 27 20:43 .\ndrwx------@ 22069 asgeirf  staff  706208 Aug 27 20:43 ..\n-rw-r--r--      1 asgeirf  staff      50 Aug 27 20:43 README.md\n-rw-r--r--      1 asgeirf  staff     652 Aug 27 20:43 voice.yaml\n=== README.md ===\n# Northwind\n\nLeverage our cutting-edge workspace.\n=== voice.yaml ===\nname: Northwind\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you. No marketing superlatives.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n    contractions: sometimes\nvocabulary:\n    preferred_terms:\n        - term: use\n          note: Preferred over 'utilize' and 'leverage'\n    forbidden_terms:\n        - term: utilize\n          severity: major\n        - term: leverage\n          severity: major\n        - term: cutting-edge\n          severity: major"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e README.md \u003c\u003c'EOF'\\n# Northwind\\n\\nUse the Northwind workspace.\\nEOF\\ncat README.md\",\"description\":\"Rewrite README.md body to comply with voice.yaml\"}",
+          "output": "# Northwind\n\nUse the Northwind workspace."
+        },
+        {
+          "kind": "text",
+          "text": "Rewritten. The one body line had three violations:\n\n| Original | Issue | Fix |\n|---|---|---|\n| \"Leverage\" | forbidden term (major) | \"Use\" — the preferred term |\n| \"cutting-edge\" | forbidden term (major) | dropped; it's a marketing superlative with no factual content |\n| \"our workspace\" | `person_pov: second` — voice addresses the reader, not the vendor | imperative \"Use the Northwind workspace\" (implicit *you*) |\n\nResult: `Use the Northwind workspace.` — plain, direct, active voice, short, neutral tone.\n\nOne thing worth flagging: the source line carried no actual information about what Northwind does, so a faithful rewrite is necessarily thin. I didn't invent capabilities to pad it. If you can tell me what the workspace is for, I can write a compliant sentence that says something."
+        }
+      ]
+    }
+  ]
+}

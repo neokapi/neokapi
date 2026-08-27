@@ -1,0 +1,233 @@
+{
+  "key": "skill:completion",
+  "scenario": "p17-refresh",
+  "prompt": "We renamed Tidewatch to Tideguard and launched a support site, refresh our context.",
+  "runs": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by loading the kapi skill, which handles project context refreshes like this."
+        },
+        {
+          "kind": "tool",
+          "name": "Skill",
+          "input": "{\"skill\":\"kapi\",\"args\":\"refresh context: renamed Tidewatch to Tideguard, launched a support site\"}",
+          "output": "Launching skill: kapi"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la \u0026\u0026 echo \\\"--- kapi ---\\\" \u0026\u0026 which kapi \u0026\u0026 kapi version\",\"description\":\"List project dir and check kapi\"}",
+          "output": "total 16\ndrwx------      7 asgeirf  staff     224 Aug 27 21:43 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:43 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:43 .claude\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:43 docs\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 21:43 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:43 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 21:43 voice.yaml\n--- kapi ---\n~/src/neokapi/neokapi/.claude/worktrees/memory-versions/bin/kapi\nkapi v1.2.0-rc29-3-g227b5ae49-dirty (beta, commit: 227b5ae49, built: 2026-08-27T19:43:29Z)"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003cpath\u003e\",\"description\":\"Read context-discovery reference\"}",
+          "output": "# Context discovery: from existing material to a governed project\n\nAn empty context is worth nothing, and nobody will write one from a blank page.\nSo the first act is **discovery**: turn the user's repo, site, and materials into\na working content context — a voice profile, a terminology seed, and the checks\nthat enforce both — and bind it to the content it governs.\n\nThat is a complete journey in one language. Governing the source the user\nalready has needs no second language, no server, and no provider credential.\nTarget languages are one more axis on the same context, and connecting the\nproject to a Bowrain server is a later step for teams who want review and\napproval off the machine — both are the last sections of this file, and neither\nis a prerequisite for any of the ones before it.\n\nThe user corrects a first draft instead of authoring one. **You** do the reading\nand the drafting; kapi is the schema, the validator, and the gate.\n\nThis is the same correction loop that keeps the context current afterwards, not\na separate onboarding mode — so the second half of this file is the **refresh**\nflow: diffing new material against a context that already exists.\n\n## 1. Gather\n\nCol\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "This is a refresh of an existing context. Step one is read-only — establish the baseline before proposing anything."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== kapi.yaml ===\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice.yaml ===\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \u0026\u0026 echo \\\"=== tree ===\\\" \u0026\u0026 find . -not -path '*/.claude/*' -not -path './.kapi/work/*' -type f | sort\",\"description\":\"Read recipe, voice profile, file tree\"}",
+          "output": "=== kapi.yaml ===\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n\n=== voice.yaml ===\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n\n=== tree ===\n./docs/intro.md\n./kapi-config/update-channel\n./kapi.yaml\n./support/faq.md\n./voice.yaml\n./xdg-cache/kapi/plugins-cache.json"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== status ===\\\" \u0026\u0026 kapi status 2\u003e\u00261 | head -40 \u0026\u0026 echo \u0026\u0026 echo \\\"=== untracked ===\\\" \u0026\u0026 kapi ls --untracked 2\u003e\u00261 | head -40\",\"description\":\"Check kapi status and untracked surfaces\"}",
+          "output": "=== status ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory\n\n=== untracked ===\nError: no kapi project found — pass -p \u003cpath to kapi.yaml\u003e or run from inside a kapi project directory"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== status -p ===\\\" \u0026\u0026 kapi status -p kapi.yaml 2\u003e\u00261 | head -40 \u0026\u0026 echo \u0026\u0026 echo \\\"=== untracked -p ===\\\" \u0026\u0026 kapi ls --untracked -p kapi.yaml 2\u003e\u00261 | head -40\",\"description\":\"Retry status/ls with explicit project path\"}",
+          "output": "=== status -p ===\nsource      2 units · authored 100% · checked 100% · approved 0%\n\nMonolingual project: no target languages configured, so there is no per-language standing to report.\n\n=== untracked -p ===\n  PATH                               FORMAT\n  support/faq.md                     markdown\n  xdg-cache/kapi/plugins-cache.json  json\n\n2 file(s) tracked by no collection"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== docs/intro.md ===\\\" \u0026\u0026 cat docs/intro.md \u0026\u0026 echo \u0026\u0026 echo \\\"=== support/faq.md ===\\\" \u0026\u0026 cat support/faq.md\",\"description\":\"Read content files\"}",
+          "output": "=== docs/intro.md ===\n# Tidewatch\n\nTidewatch keeps an eye on your tides.\n\n=== support/faq.md ===\n# Tideguard support\n\nTideguard is the new name for Tidewatch."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== ctx search Tidewatch ===\\\" \u0026\u0026 kapi context search \\\"Tidewatch\\\" -p kapi.yaml 2\u003e\u00261 | head -30 \u0026\u0026 echo \u0026\u0026 echo \\\"=== ctx search Tideguard ===\\\" \u0026\u0026 kapi context search \\\"Tideguard\\\" -p kapi.yaml 2\u003e\u00261 | head -30\",\"description\":\"Search context for both names\"}",
+          "output": "=== ctx search Tidewatch ===\nNothing in this project's context matches \"Tidewatch\".\n\n  note: project scope: concept relations, revisions and market scoping live in a connected workspace\n\n=== ctx search Tideguard ===\nNothing in this project's context matches \"Tideguard\".\n\n  note: project scope: concept relations, revisions and market scoping live in a connected workspace"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== terms export ===\\\" \u0026\u0026 kapi terms export --format json -p kapi.yaml 2\u003e\u00261 | head -30 \u0026\u0026 echo \u0026\u0026 echo \\\"=== context docs/intro.md ===\\\" \u0026\u0026 kapi context docs/intro.md -p kapi.yaml 2\u003e\u00261 | head -40\",\"description\":\"Export terms and read context for docs\"}",
+          "output": "=== terms export ===\n{\n  \"name\": \"\u003cpath\u003e\",\n  \"version\": \"1.0\",\n  \"concepts\": null\n}\n\n=== context docs/intro.md ===\n# Context at docs/intro.md\n\nThis location sits at the project's default point: no profile claims it.\nVoice `Tidewatch`, bound by `defaults.voice` (voice.yaml).\nAnswered from this project alone: its terms, its content memory and its voice profile.\n\n## Voice Guide: Tidewatch\n\nPlain, direct product voice\n\n### Tone\n- Personality: plain, direct\n- Formality: neutral\n- Emotion: neutral\n- Humor: none\n- Guidelines: Write plainly. Address the reader as you.\n\n### Style Rules\n- Use active voice\n- Sentence length: short\n- Point of view: second\n- Contractions: \n\n### Vocabulary\n#### Forbidden Terms\n- ~~Tideguard~~\n\n## Notes\n- no terms are bound at this point, so terminology was not consulted\n- project scope: concept relations, revisions and market scoping live in a connected workspace"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== check --ship (baseline) ===\\\" \u0026\u0026 kapi check --ship -p kapi.yaml 2\u003e\u00261 | head -40 \u0026\u0026 echo \\\"exit=$?\\\"\",\"description\":\"Baseline ship gate\"}",
+          "output": "=== check --ship (baseline) ===\n  gate   result  findings\n  voice  PASS    0\n  qa     PASS    0\n\nPASS — 2 gate(s), 2 passed, 0 failed, 0 finding(s) (0 error, 0 warning)\nexit=0"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== voice check support/faq.md ===\\\" \u0026\u0026 kapi voice check support/faq.md -p kapi.yaml 2\u003e\u00261 | head -30 \u0026\u0026 echo \u0026\u0026 echo \\\"=== voice check docs/intro.md ===\\\" \u0026\u0026 kapi voice check docs/intro.md -p kapi.yaml 2\u003e\u00261 | head -30\",\"description\":\"Voice check both files\"}",
+          "output": "=== voice check support/faq.md ===\nVoice profile score: 90/100  [PASS]  (profile: Tidewatch)\n  DIMENSION   SCORE  ISSUES\n  vocabulary  90     2\n\n2 finding(s):\n  [major/vocabulary] Forbidden term \"Tideguard\" found\n  [major/vocabulary] Forbidden term \"Tideguard\" found\n\n=== voice check docs/intro.md ===\nVoice profile score: 100/100  [PASS]  (profile: Tidewatch)\n  No findings — on brand."
+        },
+        {
+          "kind": "text",
+          "text": "The baseline is clear, and it contains a live hazard. Let me confirm the exact change-set routes before drafting."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 grep -n -i -A14 'kind\\\":\\\"voice\\\\|kind.*voice.*op\\\\|remove-rule\\\\|add-rule' references/voice.md references/edit.md | head -80\",\"description\":\"Find voice apply entry ops\"}",
+          "output": "references/voice.md:119:{\"kind\":\"voice\",\"op\":\"add-rule\",\"list\":\"forbidden\",\"term\":\"utilize\",\"replacement\":\"use\",\"severity\":\"minor\"}\nreferences/voice.md-120-```\nreferences/voice.md-121-\nreferences/voice.md-122-```bash\nreferences/voice.md-123-kapi apply changeset.jsonl\nreferences/voice.md-124-```\nreferences/voice.md-125-\nreferences/voice.md-126-The `voice` entry is written into the project's committed voice profile\nreferences/voice.md-127-YAML (the `defaults.voice.profile_file` the recipe binds), and the existing\nreferences/voice.md-128-import compiles it into the local voice store. `git diff` shows the one new rule;\nreferences/voice.md-129-the next `kapi voice check` / `kapi check --ship` enforces it. `list` is `forbidden`,\nreferences/voice.md-130-`competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an\nreferences/voice.md-131-approved term instead with a `term` entry — see [create.md](create.md).)\nreferences/voice.md-132-\nreferences/voice.md-133-### Offline term substitution"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"kapi apply --help 2\u003e\u00261 | head -50; echo \\\"=== add help ===\\\"; kapi add --help 2\u003e\u00261 | head -30\",\"description\":\"Check apply and add CLI help\"}",
+          "output": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Conte\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "The forbidden-rule removal needs a verified route. Let me check the op vocabulary and rehearse the whole change-set on a throwaway copy, so nothing touches the real governance files before you approve."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"grep -rn 'op\\\":\\\"' references/ | grep -o '\\\"kind\\\":\\\"[a-z]*\\\",\\\"op\\\":\\\"[a-z-]*\\\"' | sort -u\",\"description\":\"Enumerate documented apply entry ops\"}",
+          "output": "\"kind\":\"term\",\"op\":\"upsert\"\n\"kind\":\"voice\",\"op\":\"add-rule\""
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"rm -rf \u003cpath\u003e \u0026\u0026 cp -R \u003cpath\u003e \u003cpath\u003e 2\u003e/dev/null; ls \u003cpath\u003e \u0026\u0026 echo \\\"--- copy ok ---\\\"\",\"description\":\"Copy project to scratch for rehearsal\"}",
+          "output": "docs\nkapi-config\nkapi.yaml\nsupport\nvoice.yaml\nxdg-cache\n--- copy ok ---"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\n{\\\"kind\\\":\\\"voice\\\",\\\"op\\\":\\\"remove-rule\\\",\\\"list\\\":\\\"forbidden\\\",\\\"term\\\":\\\"Tideguard\\\"}\\nEOF\\nkapi apply \u003cpath\u003e -p kapi.yaml 2\u003e\u00261 | head -20; echo \\\"exit=$?\\\"\",\"description\":\"Rehearse voice remove-rule op\"}",
+          "output": "voice Tideguard: error (brand: unsupported op \"remove-rule\" (want \"add-rule\"))\nexit=0\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 cat \u003e \u003cpath\u003e \u003c\u003c'EOF'\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Tideguard\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"preferred\\\"}\\n{\\\"kind\\\":\\\"term\\\",\\\"op\\\":\\\"upsert\\\",\\\"term\\\":\\\"Tidewatch\\\",\\\"locale\\\":\\\"en\\\",\\\"status\\\":\\\"deprecated\\\",\\\"replacement\\\":\\\"Tideguard\\\"}\\nEOF\\nkapi apply \u003cpath\u003e -p kapi.yaml 2\u003e\u00261 | head -20; echo \\\"exit=$?\\\"; echo \\\"--- recipe after ---\\\"; cat kapi.yaml; echo \\\"--- terms source? ---\\\"; ls -la .kapi/ 2\u003e/dev/null\",\"description\":\"Rehearse term upserts without bound terms_source\"}",
+          "output": "term Tideguard: applied (terms.json)\nterm Tidewatch: applied (terms.json)\nexit=0\n--- recipe after ---\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\n  terms_source: .kapi/terms.json\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n--- terms source? ---\ntotal 8\ndrwxr-xr-x   4 asgeirf  wheel  128 Aug 27 21:45 .\ndrwx------  10 asgeirf  wheel  320 Aug 27 21:45 ..\n-rw-r--r--   1 asgeirf  wheel  533 Aug 27 21:45 terms.json\ndrwxr-xr-x   4 asgeirf  wheel  128 Aug 27 21:45 work\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "text",
+          "text": "`remove-rule` doesn't exist — only `add-rule` — so the forbidden-term removal has to be a reviewed edit to `voice.yaml`. Let me rehearse the complete change-set end to end and see what the gates say afterward."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport re\\np='voice.yaml'\\ns=open(p).read()\\ns=s.replace('name: Tidewatch','name: Tideguard',1)\\ns=re.sub(r'vocabulary:\\\\n    forbidden_terms:\\\\n        - term: Tideguard\\\\n          severity: major\\\\n','',s)\\nopen(p,'w').write(s)\\nEOF\\necho \\\"--- voice.yaml after ---\\\"; cat voice.yaml; echo \\\"--- validate ---\\\"; kapi voice validate voice.yaml\",\"description\":\"Rehearse voice.yaml edit and validate\"}",
+          "output": "--- voice.yaml after ---\nname: Tideguard\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\n--- validate ---\nVALID  voice.yaml (Tideguard)\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 kapi add \\\"support/**/*.md\\\" --name support -p kapi.yaml 2\u003e\u00261 | head -10; echo \\\"--- recipe ---\\\"; cat kapi.yaml; echo \\\"--- up ---\\\"; kapi up -p kapi.yaml 2\u003e\u00261 | tail -15\",\"description\":\"Rehearse adding support collection and converge\"}",
+          "output": "Added support/**/*.md (markdown) — 1 file(s)\n--- recipe ---\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\n  terms_source: .kapi/terms.json\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n  - name: support\n    content:\n      - path: support/**/*.md\n        format:\n          name: markdown\n--- up ---\nplan: no target languages — reconciling the source only\nSettled source: 0 block(s) checked, 0 held below the \"checked\" gate.\nExtracted 4 block(s) from 2 file(s) into the project store (nothing extracted yet).\nReconciled the source — no target languages configured, so the per-language flow \"default (built-in)\" did not run.\n\nExtracted 4 block(s) from 2 file(s) into the project store.\nUp to date: the committed context and the occurrence graph match the sources.\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== check --ship ===\\\" \u0026\u0026 kapi check --ship -p kapi.yaml 2\u003e\u00261 | head -30; echo; echo \\\"=== voice check support ===\\\"; kapi voice check support/faq.md -p kapi.yaml 2\u003e\u00261|head -12; echo; echo \\\"=== voice check docs ===\\\"; kapi voice check docs/intro.md -p kapi.yaml 2\u003e\u00261|head -12\",\"description\":\"Rehearse ship gate and per-file voice checks\"}",
+          "output": "=== check --ship ===\n  gate         result  findings\n  voice        PASS    3\n  terminology  PASS    0\n  qa           PASS    0\n\nvoice:\n\n  severity  location                            message\n  WARNING   docs/intro.md:h                     Retired term \"Tidewatch\" found in terms\n                                                ↳ Use \"Tideguard\" instead\n  WARNING   docs/intro.md:tidewatch/p           Retired term \"Tidewatch\" found in terms\n                                                ↳ Use \"Tideguard\" instead\n  WARNING   support/faq.md:tideguard-support/p  Retired term \"Tidewatch\" found in terms\n                                                ↳ Use \"Tideguard\" instead\n\nPASS — 3 gate(s), 3 passed, 0 failed, 3 finding(s) (0 error, 3 warning)\n\n=== voice check support ===\nVoice profile score: 100/100  [PASS]  (profile: Tideguard)\n  No findings — on brand.\n\n=== voice check docs ===\nVoice profile score: 100/100  [PASS]  (profile: Tideguard)\n  No findings — on brand.\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== occurrences Tidewatch ===\\\" \u0026\u0026 kapi terms occurrences \\\"Tidewatch\\\" -p kapi.yaml 2\u003e\u00261 | head -20; echo; echo \\\"=== kgrep sweep ===\\\"; kgrep -ri \\\"tidewatch\\\" . --exclude-dir=.kapi --exclude-dir=.claude 2\u003e\u00261 | head -20 || grep -rin \\\"tidewatch\\\" docs support 2\u003e/dev/null\",\"description\":\"Blast radius of the deprecated old name\"}",
+          "output": "=== occurrences Tidewatch ===\n  DOCUMENT        BLOCK  LOCALE  TERM       TEXT\n  docs/intro.md   tu1    source  Tidewatch  Tidewatch\n  docs/intro.md   tu2    source  Tidewatch  Tidewatch keeps an eye on your tides.\n  support/faq.md  tu2    source  Tidewatch  Tideguard is the new name for Tidewatch.\n\n3 use(s) in 3 block(s)\n\n=== kgrep sweep ===\nError: unknown flag: --exclude-dir\nShell cwd was reset to \u003cpath\u003e"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"echo \\\"=== real project still pristine? ===\\\" \u0026\u0026 cat kapi.yaml \u0026\u0026 echo \\\"--- voice.yaml ---\\\" \u0026\u0026 grep -n -A3 vocabulary voice.yaml \u0026\u0026 echo \\\"--- .kapi dir: ---\\\" \u0026\u0026 ls .kapi 2\u003e\u00261\",\"description\":\"Confirm real project untouched\"}",
+          "output": "=== real project still pristine? ===\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n--- voice.yaml ---\n15:vocabulary:\n16-    forbidden_terms:\n17-        - term: Tideguard\n18-          severity: major\n--- .kapi dir: ---\nwork"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cd \u003cpath\u003e \u0026\u0026 echo \\\"=== proposed voice.yaml diff ===\\\" \u0026\u0026 diff -u \u003cpath\u003e voice.yaml; echo \\\"=== proposed kapi.yaml diff ===\\\"; diff -u \u003cpath\u003e kapi.yaml; echo \\\"=== terms.json ===\\\"; cat .kapi/terms.json\",\"description\":\"Produce reviewable diffs from rehearsal\"}",
+          "output": "=== proposed voice.yaml diff ===\n--- \u003cpath\u003e\t2026-08-27 21:43:38\n+++ voice.yaml\t2026-08-27 21:45:24\n@@ -1,4 +1,4 @@\n-name: Tidewatch\n+name: Tideguard\n description: Plain, direct product voice\n tone:\n     personality:\n@@ -12,7 +12,3 @@\n     active_voice: true\n     sentence_length: short\n     person_pov: second\n-vocabulary:\n-    forbidden_terms:\n-        - term: Tideguard\n-          severity: major\n=== proposed kapi.yaml diff ===\n--- \u003cpath\u003e\t2026-08-27 21:43:38\n+++ kapi.yaml\t2026-08-27 21:45:28\n@@ -3,7 +3,13 @@\n defaults:\n   source_language: en\n   voice: voice.yaml\n+  terms_source: .kapi/terms.json\n collections:\n   - name: docs\n     content:\n       - path: \"docs/**/*.md\"\n+  - name: support\n+    content:\n+      - path: support/**/*.md\n+        format:\n+          name: markdown\n=== terms.json ===\n{\n  \"schemaVersion\": \"1.0\",\n  \"kind\": \"kapi-terms\",\n  \"concepts\": [\n    {\n      \"id\": \"term:en:tideguard\",\n      \"source\": \"terminology\",\n      \"terms\": [\n        {\n          \"text\": \"Tideguard\",\n          \"locale\": \"en\",\n          \"status\": \"preferred\"\n        },\n        {\n          \"text\": \"Tidewatch\",\n          \"locale\": \"en\",\n          \"status\": \"deprecated\",\n          \"note\": \"use: Tideguar\n…truncated…"
+        },
+        {
+          "kind": "text",
+          "text": "The real project is untouched — I rehearsed everything on a throwaway copy so you could see the delta before anything binds. Here's what I found and what I propose.\n\n## The baseline hazard\n\n**Your voice profile bans your own new product name.** `voice.yaml` carries `Tideguard` as a `forbidden_term` with severity `major` — written when Tideguard was presumably a competitor or a rejected candidate. `kapi voice check support/faq.md` scores it 90/100 with two major findings, both \"Forbidden term Tideguard found.\"\n\nThis is currently invisible: `kapi check --ship` passes green, because `support/` is tracked by no collection. The only file that uses the new name is the one file the gates don't watch. Declare the support site without fixing the profile first, and every mention of your own product flags as a major violation.\n\nNothing in the record mentions either name as terminology — `kapi context search \"Tidewatch\"` returns nothing. There's no `terms_source` bound at all.\n\n## Proposed change-set\n\n**1. Retire the ban, rename the profile** — `remove-rule` isn't a supported op (only `add-rule`), so this is a direct `voice.yaml` edit. Validates clean:\n\n```diff\n-name: Tidewatch\n+name: Tideguard\n-vocabulary:\n-    forbidden_terms:\n-        - term: Tideguard\n-          severity: major\n```\n\n**2. Record the rename as terminology** — via `kapi apply`, which also self-binds `terms_source`:\n\n```jsonl\n{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"Tideguard\",\"locale\":\"en\",\"status\":\"preferred\"}\n{\"kind\":\"term\",\"op\":\"upsert\",\"term\":\"Tidewatch\",\"locale\":\"en\",\"status\":\"deprecated\",\"replacement\":\"Tideguard\"}\n```\n\nI chose a **`deprecated` term over a voice `forbidden` rule** deliberately: deprecated is advisory, so old-name usage warns without failing builds. Say the word if you'd rather it hard-block.\n\n**3. Declare the support site** — `kapi add \"support/**/*.md\" --name support`. I did *not* invent a `--channel`; the support copy scores 100/100 under the default point, so it needs no separate register. If support should read differently from product docs, that's a new channel on the profile and a separate decision.\n\n## Blast radius of the retirement\n\nThree occurrences, all warnings, gate stays green:\n\n| Location | Text | Verdict |\n|---|---|---|\n| `docs/intro.md` heading | `Tidewatch` | rewrite |\n| `docs/intro.md` body | `Tidewatch keeps an eye on your tides.` | rewrite |\n| `support/faq.md` | `Tideguard is the new name for Tidewatch.` | **leave alone** |\n\nThat third one is a legitimate hit — it's the sentence explaining the rename. Rewriting it yields \"Tideguard is the new name for Tideguard.\" I'd leave it and let it warn.\n\n**Declined, for the record:** `xdg-cache/kapi/plugins-cache.json` also shows as untracked — that's kapi's own cache, not content. Not proposing to govern it.\n\n## Approve?\n\nSay go and I'll apply the change-set, run `kapi up`, sweep the two `docs/intro.md` hits through `kapi apply`, and verify with `kapi check --ship`. Two open questions, neither blo\n…truncated…"
+        }
+      ]
+    }
+  ],
+  "unaided": [
+    {
+      "events": [
+        {
+          "kind": "text",
+          "text": "I'll start by looking at what's currently in memory."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la ~/.claude/projects/-private-var-folders-vp-7xmhs25j0d7bhvwzk7y9mbxh0000gp-T-skilleval-p17-refresh-1743483624/memory/ 2\u003e\u00261\",\"description\":\"List memory directory\"}",
+          "output": "total 0\ndrwxr-xr-x  2 asgeirf  staff   64 Aug 27 21:46 .\ndrwxr-xr-x  4 asgeirf  staff  128 Aug 27 21:46 .."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"ls -la 2\u003e\u00261 \u0026\u0026 echo \\\"---GREP---\\\" \u0026\u0026 grep -ril \\\"tidewatch\\\\|tideguard\\\" . 2\u003e/dev/null | head -20\",\"description\":\"Inspect working directory and search for project name\"}",
+          "output": "total 16\ndrwx------      6 asgeirf  staff     192 Aug 27 21:46 .\ndrwx------@ 22079 asgeirf  staff  706528 Aug 27 21:46 ..\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:46 docs\n-rw-r--r--      1 asgeirf  staff     150 Aug 27 21:46 kapi.yaml\ndrwxr-xr-x      3 asgeirf  staff      96 Aug 27 21:46 support\n-rw-r--r--      1 asgeirf  staff     396 Aug 27 21:46 voice.yaml\n---GREP---\nkapi.yaml\ndocs/intro.md\nvoice.yaml\nsupport/faq.md"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"for f in kapi.yaml voice.yaml docs/intro.md support/faq.md; do echo \\\"===== $f =====\\\"; cat \\\"$f\\\"; echo; done\",\"description\":\"Read all project files\"}",
+          "output": "===== kapi.yaml =====\nversion: v1\nname: tidewatch\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n\n===== voice.yaml =====\nname: Tidewatch\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n\n===== docs/intro.md =====\n# Tidewatch\n\nTidewatch keeps an eye on your tides.\n\n===== support/faq.md =====\n# Tideguard support\n\nTideguard is the new name for Tidewatch."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"which kapi; kapi --help 2\u003e\u00261 | head -40\",\"description\":\"Check for kapi CLI\"}",
+          "output": "kapi not found\n(eval):1: command not found: kapi"
+        },
+        {
+          "kind": "text",
+          "text": "No `kapi` CLI available, so I'll edit the files directly. Three things are stale:"
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"cat \u003e kapi.yaml \u003c\u003c'EOF'\\nversion: v1\\nname: tideguard\\ndefaults:\\n  source_language: en\\n  voice: voice.yaml\\ncollections:\\n  - name: docs\\n    content:\\n      - path: \\\"docs/**/*.md\\\"\\n  - name: support\\n    content:\\n      - path: \\\"support/**/*.md\\\"\\nEOF\\ncat kapi.yaml\",\"description\":\"Update kapi.yaml name and add support collection\"}",
+          "output": "version: v1\nname: tideguard\ndefaults:\n  source_language: en\n  voice: voice.yaml\ncollections:\n  - name: docs\n    content:\n      - path: \"docs/**/*.md\"\n  - name: support\n    content:\n      - path: \"support/**/*.md\""
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -i '' 's/^name: Tidewatch$/name: Tideguard/; s/^          term: Tideguard$/          term: Tidewatch/' voice.yaml \u0026\u0026 sed -i '' 's/Tidewatch/Tideguard/g' docs/intro.md \u0026\u0026 echo \\\"===== voice.yaml =====\\\" \u0026\u0026 cat voice.yaml \u0026\u0026 echo \\\"===== docs/intro.md =====\\\" \u0026\u0026 cat docs/intro.md\",\"description\":\"Update voice.yaml name and forbidden term, and docs content\"}",
+          "output": "===== voice.yaml =====\nname: Tideguard\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tideguard\n          severity: major\n===== docs/intro.md =====\n# Tideguard\n\nTideguard keeps an eye on your tides."
+        },
+        {
+          "kind": "tool",
+          "name": "Bash",
+          "input": "{\"command\":\"sed -i '' 's/- term: Tideguard/- term: Tidewatch/' voice.yaml \u0026\u0026 cat voice.yaml \u0026\u0026 echo \\\"---VERIFY---\\\" \u0026\u0026 grep -rn \\\"Tidewatch\\\" . 2\u003e/dev/null\",\"description\":\"Fix forbidden term and verify remaining occurrences\"}",
+          "output": "name: Tideguard\ndescription: Plain, direct product voice\ntone:\n    personality:\n        - plain\n        - direct\n    formality: neutral\n    emotion: neutral\n    humor: none\n    guidelines: Write plainly. Address the reader as you.\nstyle:\n    active_voice: true\n    sentence_length: short\n    person_pov: second\nvocabulary:\n    forbidden_terms:\n        - term: Tidewatch\n          severity: major\n---VERIFY---\nvoice.yaml:17:        - term: Tidewatch\nsupport/faq.md:3:Tideguard is the new name for Tidewatch."
+        },
+        {
+          "kind": "text",
+          "text": "Context refreshed. Changes:\n\n**`kapi.yaml`**\n- `name: tidewatch` → `tideguard`\n- Added a `support` collection for `support/**/*.md` — the new support site had files on disk but wasn't in any collection, so nothing there was being picked up.\n\n**`voice.yaml`**\n- `name: Tidewatch` → `Tideguard`\n- Inverted the forbidden term: it was blocking **Tideguard** at `major` severity. Left as-is, the rename would have flagged the new product name everywhere. It now blocks `Tidewatch` instead.\n\n**`docs/intro.md`**\n- Updated both mentions to Tideguard. Not strictly \"context,\" but leaving it would have put the docs in direct violation of the forbidden-term rule I just flipped.\n\nOne thing I did **not** touch, because it's your call:\n\n`support/faq.md:3` reads *\"Tideguard is the new name for Tidewatch.\"* That's a deliberate, useful mention of the old name — people will search for it — but it now trips the `major` forbidden-term rule. Options: leave it and accept one known violation, add an allowlist/exception if the voice schema supports one, or reword it. I'd keep the sentence; a rename FAQ that can't say the old name isn't much of a rename FAQ.\n\nI didn't write anything to memory — after these edits the config files themselves record the name and the support collection, so there's no non-obvious fact left to store."
+        }
+      ]
+    }
+  ]
+}
