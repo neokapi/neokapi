@@ -68,15 +68,14 @@ jobs:
           # from a pin and from nowhere else. The CLI and the plugin are cut at
           # one version, so this pair is the pair that was released together.
           #
-          # rc26 is the first release whose transfer hash covers what a block is
-          # STORED as rather than its source text alone, so this run delivers
-          # `properties.hash` to content pushed before the JSX reader recorded
-          # it — the key the reviewer joins a string to the component that ships
-          # it. Once it has pushed, this stream's content model is generation 1
-          # and rc25 is refused rather than allowed to flatten it: the pin is
-          # not optional from here.
-          version: 1.2.0-rc26
-          plugins: bowrain@1.2.0-rc26
+          # The plugin is the client of the push protocol, so the version here
+          # decides which endpoints the run calls. The deployed server routes
+          # `/push/init`, `/push/commit` and `GET /tree`; a plugin cut before
+          # those routes existed posts to `/push/diff` and receives a 404 for
+          # every file it sends. Bump both lines together whenever the push
+          # protocol changes.
+          version: 1.2.0-rc29
+          plugins: bowrain@1.2.0-rc29
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
