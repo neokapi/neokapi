@@ -1,0 +1,2020 @@
+{
+  "items": [
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Öffnen Sie das Dashboard, um den heutigen Verkehr zu überprüfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "Zwei neue Warnmeldungen erfordern Ihre Aufmerksamkeit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Die letzte Synchronisierung ist fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Bericht für den ausgewählten Zeitraum generieren."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Weisen Sie jedem Schiff einen Liegeplatz zu, bevor es eintrifft."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Halten Sie großen Abstand von der flachen Bank."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "account.link.label",
+      "source": "Enter your user ID to link the mobile app.",
+      "translation": "Geben Sie Ihre Benutzer-ID ein, um die mobile App zu verknüpfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass zeigt alle Schiffe in einer einzigen Übersicht."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch warnt Sie, bevor sich die Bedingungen ändern."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrieren Sie den Schiffs-Kompass vor der Abfahrt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Führen Sie `tidectl sync` aus, um die neuesten Daten abzurufen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Führen Sie `tidectl report --daily` aus, bevor Sie exportieren."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Alles erledigt! Laden Sie Ihre Dateien jederzeit herunter."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Teilen Sie Ihre Dateien mit Ihrer Besatzung – diese sehen die Aktualisierungen in Echtzeit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "apps.mobile.promo",
+      "source": "Download the app to get alerts on your phone.",
+      "translation": "Laden Sie die App herunter, um Warnmeldungen auf Ihrem Telefon zu erhalten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klicken Sie einfach auf die Karte, um Ihre erste Markierung zu setzen!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "users.alerts.perms",
+      "source": "Every user can adjust their alert thresholds.",
+      "translation": "Jeder Benutzer kann seine Warnungsschwellen einstellen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Willkommen an Bord! Ihr Konto ist bereit!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Sie haben drei neue Warnmeldungen in Ihrem Postfach."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Der Einstieg dauert etwa fünf Minuten. Melden Sie sich an, öffnen Sie das Dashboard, und Compass wird jedes Schiff kartografieren, das es sehen kann. Wenn etwas nicht stimmt, können Sie uns jederzeit erreichen – warten Sie einfach nicht auf die nächste Flut!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Öffnen Sie den Leitstand, um den heutigen Verkehr zu überprüfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "Zwei neue Warnmeldungen benötigen Ihre Aufmerksamkeit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Der letzte Datenabgleich ist fehlgeschlagen. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Erstellen Sie einen Report für den ausgewählten Zeitraum."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Weisen Sie jedem Wasserfahrzeug einen Anlegeplatz zu, bevor es ankommt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Halten Sie einen großen Abstand zur flachen Bank ein."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "account.link.label",
+      "source": "Enter your user ID to link the mobile app.",
+      "translation": "Geben Sie Ihre Nutzer-ID ein, um die mobile Anwendung zu verbinden."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass zeigt jedes Wasserfahrzeug in einer einzigen Ansicht."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch warnt Sie, bevor sich die Bedingungen ändern."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrieren Sie den Kompass des Schiffes vor der Abreise."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Führen Sie `tidectl sync` aus, um die neuesten Daten abzurufen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Führen Sie `tidectl report --daily` aus, bevor Sie exportieren."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Sie sind bereit. Holen Sie sich Ihre Dateien wann immer Sie möchten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Teilen Sie Ihre Dateien mit Ihrer Crew – sie sehen Aktualisierungen, während Sie diese vornehmen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "apps.mobile.promo",
+      "source": "Download the app to get alerts on your phone.",
+      "translation": "Laden Sie die Anwendung herunter, um Warnmeldungen auf Ihrem Telefon zu erhalten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klicken Sie auf die Karte, um Ihren ersten Marker hinzuzufügen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "users.alerts.perms",
+      "source": "Every user can adjust their alert thresholds.",
+      "translation": "Jeder Benutzer kann seine Schwellwerte für Warnmeldungen anpassen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Willkommen an Bord. Ihr Konto ist betriebsbereit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Sie haben 3 neue Warnmeldungen in Ihrem Posteingang."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Der Einstieg dauert etwa 5 Minuten. Melden Sie sich an, öffnen Sie den Leitstand, und Compass wird jedes Wasserfahrzeug kartografieren, das es sehen kann. Wenn etwas nicht stimmt, können Sie uns jederzeit erreichen – warten Sie nicht auf die nächste Flut."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Ouvrez le tableau de bord pour examiner le trafic d'aujourd'hui."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "Deux nouvelles alertes requièrent votre attention."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "La dernière synchronisation a échoué. Vérifiez votre connexion et réessayez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Générez un rapport pour la période sélectionnée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Attribuez chaque navire à un poste d'amarrage avant son arrivée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Gardez vos distances avec le haut-fond."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "workboats.map.legend",
+      "source": "Each workboat appears in amber on the map.",
+      "translation": "Chaque bateau de travail s'affiche en orange sur la carte."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass affiche chaque navire dans une seule vue."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch vous alerte avant que les conditions ne changent."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Étalonnez la boussole du navire avant le départ."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Exécutez `tidectl sync` pour récupérer les données les plus récentes."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Exécutez `tidectl report --daily` avant d'exporter."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Vous y êtes ! Récupérez vos fichiers quand vous voulez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Partagez vos fichiers avec votre équipage — ils verront les mises à jour au fur et à mesure que vous les effectuez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Cliquez simplement sur la carte pour ajouter votre premier marqueur !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Suivez chaque bateau dans le port."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Bienvenue à bord ! Votre compte est prêt à être utilisé !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Vous avez trois nouvelles alertes dans votre boîte de réception."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Pour débuter, il vous faudra environ cinq minutes. Connectez-vous, ouvrez le tableau de bord, et Compass cartographiera chaque navire qu'il peut voir. Si quelque chose vous semble suspect, contactez-nous à tout moment — ne attendez simplement pas la prochaine marée !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Ouvrez le poste de pilotage pour examiner le trafic d'aujourd'hui."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "2 nouveaux avis de vigilance demandent votre attention."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Le dernier rapprochement des données a échoué. Vérifiez votre connexion et réessayez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Générez un compte rendu pour la période sélectionnée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Assignez à chaque bâtiment un appontement avant son arrivée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Tenez-vous à grande distance du banc peu profond."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "workboats.map.legend",
+      "source": "Each workboat appears in amber on the map.",
+      "translation": "Chaque bateau de service apparaît en ambre sur la carte."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass affiche chaque bâtiment dans une vue unique."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch vous alerte avant que les conditions ne changent."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Calibrez la boussole du navire avant le départ."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Exécutez `tidectl sync` pour récupérer les données les plus récentes."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Exécutez `tidectl report --daily` avant d'exporter."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Tout est prêt. Récupérez vos fichiers quand vous le souhaitez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Partagez vos fichiers avec votre équipage. Ils verront les mises à jour au fur et à mesure que vous les effectuez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Cliquez directement sur la carte pour ajouter votre premier marqueur."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Suivez chaque navire dans le port."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Bienvenue à bord. Votre compte est prêt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Vous avez 3 nouveaux avis de vigilance dans votre boîte de réception."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Commencer prend environ 5 minutes. Connectez-vous, ouvrez le poste de pilotage, et Compass cartographiera chaque bâtiment qu'il peut voir. Si quelque chose semble anormal, vous pouvez nous contacter à tout moment, sans attendre la prochaine marée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne instrumentbordet for å se dagens trafikk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "To nye varsler venter på deg."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste synkroniseringen mislyktes. Kontroller tilkoblingen og prøv igjen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Generer en rapport for valgt periode."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Tildel hver båt en liggeplaats før den ankommer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Hold deg unna de grunnslåtte områdene."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Kompass viser hver båt i en enkelt oversikt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch varsler deg før forholdene endres."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets kompass før avreise."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Kjør `tidectl sync` for å hente de siste dataene."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Kjør `tidectl report --daily` før du eksporterer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klikk på kartet for å legge til din første markør!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Spor hver båt i havnen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "marketing.api.blurb",
+      "source": "Leverage our API for a seamless view of your fleet.",
+      "translation": "Bruk API-et vårt for en sømløs oversikt over flåten din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Velkommen om bord! Kontoen din er klar!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Du har tre nye varsler i innboksen din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Det tar cirka fem minutter å komme i gang. Logg inn, åpne instrumentbordet, og Kompass vil kartlegge hver båt den ser. Hvis noe virker merkelig, kan du kontakte oss når som helst — bare ikke vent på neste tidevann!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne styringspanelet for å gjennomgå dagens trafikk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "2 nye alarmmeldinger krever din oppmerksomhet."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste samstillingen mislyktes. Kontroller din forbindelse og forsøk igjen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Generer en driftsrapport for den valgte perioden."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Tildel hver farkost en fortøyningsplass før den ankommer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Holde stor avstand til den grunne banken."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass viser hver farkost i en enkelt visning."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch varsler deg før forholdene endres."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrere skipets kompass før avreise."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Kjør `tidectl sync` for å hente de nyeste dataene."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Kjør `tidectl report --daily` før du eksporterer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klikk bare på kartet for å legge til din første markør."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Spor hver farkost i havnen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "marketing.api.blurb",
+      "source": "Leverage our API for a seamless view of your fleet.",
+      "translation": "Benytt vårt API for en helhetlig visning av din flåte."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Velkommen ombord. Din konto er klar til bruk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Du har 3 nye alarmmeldinger i innboksen din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Å komme i gang tar rundt 5 minutter. Logg inn, åpne styringspanelet, og Compass viser hver farkost som den kan se. Hvis noe virker galt, kan du kontakte oss til enhver tid — vent bare ikke på neste tidevann."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Öffnen Sie das Dashboard, um den heutigen Schiffsverkehr zu überprüfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "Zwei neue Warnungen erfordern Ihre Aufmerksamkeit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Die letzte Synchronisierung ist fehlgeschlagen. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Erstellen Sie einen Bericht für den ausgewählten Zeitraum."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Weisen Sie jedem Schiff einen Liegeplatz zu, bevor es ankommt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Halten Sie großen Abstand von der Untiefe."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "account.link.label",
+      "source": "Enter your user ID to link the mobile app.",
+      "translation": "Geben Sie Ihre Benutzer-ID ein, um die mobile App zu verknüpfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass zeigt jedes Schiff in einer einzigen Ansicht."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch warnt Sie, bevor sich die Bedingungen ändern."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrieren Sie den Schiffskompass vor der Abfahrt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Führen Sie `tidectl sync` aus, um die neuesten Daten abzurufen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Führen Sie `tidectl report --daily` aus, bevor Sie exportieren."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Alles bereit! Rufen Sie Ihre Dateien ab, wann immer Sie möchten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Teilen Sie Ihre Dateien mit Ihrer Crew – sie sehen Aktualisierungen, sobald Sie diese vornehmen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "apps.mobile.promo",
+      "source": "Download the app to get alerts on your phone.",
+      "translation": "Laden Sie die App herunter, um Warnungen auf Ihrem Smartphone zu erhalten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klicken Sie einfach auf die Karte, um Ihre erste Markierung hinzuzufügen!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "users.alerts.perms",
+      "source": "Every user can adjust their alert thresholds.",
+      "translation": "Jeder Benutzer kann seine Warnschwellen anpassen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Willkommen an Bord! Ihr Konto ist startklar!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Sie haben drei neue Warnungen in Ihrem Posteingang."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Der Einstieg dauert etwa fünf Minuten. Melden Sie sich an, öffnen Sie das Dashboard, und Compass trägt jedes Schiff, das es erfassen kann, in die Karte ein. Sollte etwas nicht stimmen, erreichen Sie uns jederzeit – warten Sie einfach nicht auf die nächste Gezeit!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Öffnen Sie den Leitstand, um den heutigen Verkehr zu überprüfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "2 neue Warnmeldungen erfordern Ihre Aufmerksamkeit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Der letzte Datenabgleich ist fehlgeschlagen. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Erstellen Sie einen Report für den ausgewählten Zeitraum."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Weisen Sie jedem Wasserfahrzeug vor dessen Ankunft einen Anlegeplatz zu."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Halten Sie großen Abstand von der Untiefe."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "account.link.label",
+      "source": "Enter your user ID to link the mobile app.",
+      "translation": "Geben Sie Ihre Nutzer-ID ein, um die mobile Anwendung zu verknüpfen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass zeigt jedes Wasserfahrzeug in einer einzigen Ansicht."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch warnt Sie, bevor sich die Bedingungen ändern."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrieren Sie den Kompass des Schiffes vor der Abfahrt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Führen Sie `tidectl sync` aus, um die neuesten Daten abzurufen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Führen Sie `tidectl report --daily` aus, bevor Sie exportieren."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Alles ist bereit. Rufen Sie Ihre Dateien ab, wann immer Sie möchten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Teilen Sie Ihre Dateien mit Ihrer Crew: Sie sehen die Aktualisierungen, sobald Sie sie vornehmen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "apps.mobile.promo",
+      "source": "Download the app to get alerts on your phone.",
+      "translation": "Laden Sie die Anwendung herunter, um Warnmeldungen auf Ihrem Telefon zu erhalten."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klicken Sie direkt auf die Karte, um Ihre erste Markierung hinzuzufügen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "users.alerts.perms",
+      "source": "Every user can adjust their alert thresholds.",
+      "translation": "Jeder Benutzer kann die eigenen Schwellenwerte für Warnmeldungen anpassen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Willkommen an Bord. Ihr Konto ist einsatzbereit."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Sie haben 3 neue Warnmeldungen in Ihrem Posteingang."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Der Einstieg dauert etwa 5 Minuten. Melden Sie sich an, öffnen Sie den Leitstand, und Compass erfasst jedes Wasserfahrzeug, das es sehen kann. Falls etwas nicht stimmt, erreichen Sie uns jederzeit: Warten Sie nicht erst auf die nächste Tide."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Ouvrez le tableau de bord pour consulter le trafic du jour."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "Deux nouvelles alertes nécessitent votre attention."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "La dernière synchronisation a échoué. Vérifiez votre connexion et réessayez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Générez un rapport pour la période sélectionnée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Attribuez un poste à quai à chaque navire avant son arrivée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Restez bien à l'écart du haut-fond."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "workboats.map.legend",
+      "source": "Each workboat appears in amber on the map.",
+      "translation": "Chaque bateau de travail apparaît en ambre sur la carte."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass affiche tous les navires en un seul coup d'œil."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch vous alerte avant que les conditions ne changent."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Calibrez le compas du navire avant le départ."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Exécutez `tidectl sync` pour récupérer les dernières données."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Exécutez `tidectl report --daily` avant d'exporter."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Voilà, tout est prêt. Récupérez vos fichiers quand vous voulez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Partagez vos fichiers avec votre équipage — ils verront les mises à jour au fur et à mesure que vous les effectuez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Il vous suffit de cliquer sur la carte pour ajouter votre premier repère !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Suivez chaque bateau dans le port."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Bienvenue à bord ! Votre compte est prêt !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Vous avez trois nouvelles alertes dans votre boîte de réception."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "La prise en main ne prend qu'environ cinq minutes. Connectez-vous, ouvrez le tableau de bord, et Compass cartographiera chaque navire qu'il détecte. Si quelque chose semble anormal, contactez-nous à tout moment — n'attendez pas la prochaine marée !"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Ouvrez le poste de pilotage pour consulter le trafic du jour."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "2 avis de vigilance requièrent votre attention."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Le dernier rapprochement des données a échoué. Vérifiez votre connexion et réessayez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Générez un compte rendu pour la période sélectionnée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Attribuez un appontement à chaque bâtiment avant son arrivée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Tenez-vous à bonne distance du haut-fond."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "workboats.map.legend",
+      "source": "Each workboat appears in amber on the map.",
+      "translation": "Chaque bateau de service apparaît en ambre sur la carte."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass affiche chaque bâtiment dans une vue unique."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch vous envoie un avis de vigilance avant que les conditions ne changent."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Étalonnez la boussole du navire avant le départ."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Exécutez `tidectl sync` pour récupérer les dernières données."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Exécutez `tidectl report --daily` avant d'exporter."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "onboarding.done.note",
+      "source": "Hey, you're all set. Grab your files whenever you want.",
+      "translation": "Tout est prêt. Récupérez vos fichiers quand vous le souhaitez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "files.share.hint",
+      "source": "Share your files with your crew — they'll see updates as you make them.",
+      "translation": "Partagez vos fichiers avec votre équipage : celui-ci verra les mises à jour à mesure que vous les effectuez."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Cliquez directement sur la carte pour ajouter votre premier repère."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Suivez chaque navire dans le port."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Bienvenue à bord. Votre compte est prêt à l'emploi."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Vous avez 3 nouveaux avis de vigilance dans votre boîte de réception."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "La mise en route prend environ 5 minutes. Connectez-vous, ouvrez le poste de pilotage, et Compass cartographiera chaque bâtiment qu'il peut détecter. Si quelque chose semble anormal, vous pouvez nous contacter à tout moment : n'attendez pas la prochaine marée."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne dashbordet for å se dagens trafikk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "To nye varsler krever din oppmerksomhet."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Siste synkronisering mislyktes. Sjekk tilkoblingen og prøv igjen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Generer en rapport for valgt periode."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Tildel hvert fartøy en kaiplass før det ankommer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Hold god avstand til den grunne banken."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass viser alle fartøy i én samlet oversikt."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch varsler deg før forholdene endrer seg."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets kompass før avgang."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Kjør `tidectl sync` for å hente de nyeste dataene."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Kjør `tidectl report --daily` før du eksporterer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Bare klikk på kartet for å legge til din første markør!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Følg med på hver båt i havnen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "marketing.api.blurb",
+      "source": "Leverage our API for a seamless view of your fleet.",
+      "translation": "Bruk vårt API for en sømløs oversikt over flåten din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Velkommen om bord! Kontoen din er klar til bruk!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Du har tre nye varsler i innboksen din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "bare",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Det tar omtrent fem minutter å komme i gang. Logg inn, åpne dashbordet, så vil Compass kartlegge alle fartøy den kan se. Hvis noe ser feil ut, kan du nå oss når som helst — bare ikke vent til neste tidevann!"
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "nav.overview.title",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne styringspanelet for å gå gjennom dagens trafikk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "alerts.badge.tooltip",
+      "source": "Two new alerts need your attention.",
+      "translation": "To nye alarmmeldinger krever din oppmerksomhet."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "sync.status.failed",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste samstillingen mislyktes. Kontroller tilkoblingen din, og prøv igjen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "reports.menu.label",
+      "source": "Generate a report for the selected period.",
+      "translation": "Generer en driftsrapport for den valgte perioden."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "berths.assign.action",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Tildel hver farkost en fortøyningsplass før den ankommer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "safety.notice.shallow",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Hold god avstand til den grunne banken."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "compass.overview.tagline",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass viser hver farkost i én samlet visning."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "tidewatch.intro.body",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch varsler deg før forholdene endres."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "nav.instrument.calibrate",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets kompass før avgang."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "cli.sync.hint",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Kjør `tidectl sync` for å hente de nyeste dataene."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "cli.report.hint",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Kjør `tidectl report --daily` før du eksporterer."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "map.marker.add",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klikk på kartet for å legge til din første markør."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "harbor.traffic.title",
+      "source": "Track every boat in the harbor.",
+      "translation": "Spor hver farkost i havnen."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "marketing.api.blurb",
+      "source": "Leverage our API for a seamless view of your fleet.",
+      "translation": "Bruk vårt API for en helhetlig oversikt over flåten din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "welcome.aboard.title",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Velkommen om bord. Kontoen din er klar til bruk."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "alerts.count.new",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Du har tre nye alarmmeldinger i innboksen din."
+    },
+    {
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "nb",
+      "variant": "steered",
+      "fixture": "docs.getting_started.body",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Det tar omtrent 5 minutter å komme i gang. Logg inn, åpne styringspanelet, så vil Compass kartlegge hver farkost det kan se. Hvis noe virker feil, kan du kontakte oss når som helst, du trenger ikke vente til neste tidevann."
+    }
+  ]
+}
