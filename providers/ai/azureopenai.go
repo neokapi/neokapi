@@ -84,8 +84,9 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	}
 
 	body := openaiRequest{
-		Model:    p.deployment,
-		Messages: apiMessages,
+		Temperature: p.config.Temperature,
+		Model:       p.deployment,
+		Messages:    apiMessages,
 	}
 	if n := p.maxTokens(ctx); n > 0 {
 		body.MaxTokens = &n
@@ -158,8 +159,9 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 	}
 
 	body := openaiRequest{
-		Model:    p.deployment,
-		Messages: apiMessages,
+		Temperature: p.config.Temperature,
+		Model:       p.deployment,
+		Messages:    apiMessages,
 		ResponseFormat: &openaiResponseFormat{
 			Type: "json_schema",
 			JSONSchema: &openaiJSONSchemaRef{

@@ -84,8 +84,17 @@ func run() error {
 		saveOutputs = flag.String("save-outputs", "", "also write every (fixture, variant, translation) to this JSON file — inspection, and the raw material for judge-validation labels")
 		judgeSpec   = flag.String("judge", "", "provider:model to judge the subjective voice criteria (must be a different model family than the model under test)")
 		validate    = flag.String("judge-validate", "", "labels JSON of human verdicts; measures judge–human agreement with -judge and records it via -append, then exits")
+		label       = flag.String("label", "", "label saved outputs interactively for judge validation; takes the -save-outputs file and writes verdicts to -labels")
+		labelsOut   = flag.String("labels", "scripts/contexteval/labels.json", "where -label reads and writes the human verdicts")
+		labelTarget = flag.Int("label-target", TargetJudgeItems, "how many labelled items -label aims for")
 	)
 	flag.Parse()
+
+	if *label != "" {
+		// No provider is constructed: labelling is a person and a file, and
+		// asking for credentials to do it would be a reason not to.
+		return runLabelling(*label, *labelsOut, *labelTarget)
+	}
 	dumpFailures = *dump
 
 	if *recost != "" {
@@ -199,8 +208,9 @@ func (m modelTarget) String() string {
 // not the other.
 func (m modelTarget) newLLM() (aiprovider.LLMProvider, error) {
 	return aiprovider.NewProvider(aiprovider.ProviderID(m.provider), aiprovider.Config{
-		APIKey: os.Getenv(apiKeyEnv(m.provider)),
-		Model:  m.model,
+		APIKey:      os.Getenv(apiKeyEnv(m.provider)),
+		Model:       m.model,
+		Temperature: evalTemperature,
 	})
 }
 
@@ -222,6 +232,7 @@ func measure(ctx context.Context, provider aiprovider.LLMProvider, mt modelTarge
 		Target:         corpus.Target,
 		Repeat:         opts.repeat,
 		Concurrency:    opts.concurrency,
+		Temperature:    evalTemperature,
 		Corpus:         corpus.Describe(),
 		CorpusFixtures: len(corpus.Fixtures),
 		CorpusChecks:   corpus.Checks(),
@@ -683,3 +694,16 @@ func orDefault(s, d string) string {
 	}
 	return s
 }
+
+// evalTemperature is what every eval in this repo samples at.
+//
+// Zero, because an eval that cannot be re-run to the same numbers is a
+// description of a method rather than a measurement. Until recently this was
+// not expressible: Config.Temperature was a float64 with `omitempty`, so 0 and
+// "unset" were the same value, and four of six providers dropped the field on
+// the floor regardless. Every number this harness has published so far was
+// sampled at whatever the API defaults to, which for Anthropic is 1.0.
+//
+// It is a variable rather than a constant so a sweep can deliberately raise it
+// to measure variance, which is a different question and should say so.
+var evalTemperature = new(0.0)

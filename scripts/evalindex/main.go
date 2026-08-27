@@ -23,12 +23,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
 
 // DefaultOut is the committed data the cover page reads.
 const DefaultOut = "web/src/pages/evals/_index.json"
+
+// Total is every eval, counted once. Summing the named fields by hand was how
+// the first version drifted: a status added to the registry has to be added to
+// the sum too, and nothing said so.
+func (c Coverage) Total() int {
+	n := 0
+	for _, v := range c.ByStatus {
+		n += v
+	}
+	return n
+}
 
 func main() {
 	out := flag.String("out", DefaultOut, "where to write the index")
@@ -54,9 +66,15 @@ func main() {
 	}
 
 	c := index.Coverage
-	fmt.Printf("evalindex: %d bands, %d layers, %d evals (%d measured, %d partial, %d unvalidated, %d absent) → %s\n",
+	parts := make([]string, 0, len(AllStatuses))
+	for _, st := range AllStatuses {
+		if n := c.ByStatus[st]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, st))
+		}
+	}
+	fmt.Printf("evalindex: %d bands, %d layers, %d evals (%s) → %s\n",
 		len(index.Bands), len(index.Layers), len(index.Evals),
-		c.Measured, c.Partial, c.Unvalidated, c.Absent, *out)
+		strings.Join(parts, ", "), *out)
 	if c.Undated > 0 {
 		fmt.Printf("evalindex: %d dataset(s) carry no date, so their age cannot be shown\n", c.Undated)
 	}
@@ -77,7 +95,12 @@ type Coverage struct {
 	Measured    int `json:"measured"`
 	Partial     int `json:"partial"`
 	Unvalidated int `json:"unvalidated"`
+	Blocked     int `json:"blocked"`
 	Absent      int `json:"absent"`
+	// ByStatus is the tally the named fields above are read from, and the one
+	// thing that counts. The named fields exist because the page reads them by
+	// name; they are derived here so the two can never disagree.
+	ByStatus map[Status]int `json:"byStatus"`
 	// LayersUnmeasured counts layers where no eval is measured or partial. It
 	// is the number worth putting at the top of the page, because a layer with
 	// nothing behind it is a hole in the architecture rather than a missing row.
@@ -178,24 +201,38 @@ func Build() (*Index, error) {
 		if dated[i].Data == "" {
 			continue
 		}
-		dated[i].Fresh = readFreshness(root, dated[i].Data)
+		dated[i].Fresh = readFreshness(root, dated[i].Data, dated[i].FreshAt)
+		dated[i].Headline = readHeadline(root, dated[i].Data, dated[i].ID)
 		byID[dated[i].ID] = dated[i]
 	}
 
 	index := &Index{Note: indexNote, Bands: bands, Layers: layers, Evals: dated}
 	index.Coverage.PerBand = map[string]int{}
-	for _, e := range dated {
-		switch e.Status {
-		case StatusMeasured:
-			index.Coverage.Measured++
-		case StatusPartial:
-			index.Coverage.Partial++
-		case StatusUnvalidated:
-			index.Coverage.Unvalidated++
-		case StatusAbsent:
-			index.Coverage.Absent++
-		}
+	// Counted through a map over AllStatuses rather than a switch. The switch
+	// was the first version and it had no default, so adding StatusBlocked
+	// dropped every blocked eval from the totals silently — the tally test
+	// noticed, the code did not. A status missing from AllStatuses now panics
+	// here instead.
+	// Seeded with every status at zero. A map built only from what was counted
+	// loses its keys as counts reach zero — `absent` vanished from the JSON the
+	// moment the last unbuilt eval was built — and a consumer typed against the
+	// full set stops matching. The shape should not depend on the numbers.
+	tally := map[Status]int{}
+	for _, st := range AllStatuses {
+		tally[st] = 0
 	}
+	for _, e := range dated {
+		if !slices.Contains(AllStatuses, e.Status) {
+			panic("evalindex: eval " + e.ID + " has status " + string(e.Status) + ", which is not in AllStatuses")
+		}
+		tally[e.Status]++
+	}
+	index.Coverage.ByStatus = tally
+	index.Coverage.Measured = tally[StatusMeasured]
+	index.Coverage.Partial = tally[StatusPartial]
+	index.Coverage.Unvalidated = tally[StatusUnvalidated]
+	index.Coverage.Blocked = tally[StatusBlocked]
+	index.Coverage.Absent = tally[StatusAbsent]
 	for _, e := range dated {
 		if e.Fresh.Undated && e.Data != "" {
 			index.Coverage.Undated++

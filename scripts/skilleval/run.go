@@ -84,6 +84,7 @@ type FileChange struct {
 // nothing but touch a plugins cache.
 var harnessOwned = map[string]bool{
 	".claude":      true,
+	harnessDir:     true,
 	"kapi-config":  true,
 	"kapi-plugins": true,
 	"xdg-data":     true,
@@ -110,13 +111,21 @@ var uninteresting = map[string]bool{
 	"__pycache__":  true,
 }
 
+// harnessDir holds what the harness writes into a workspace for a gate to
+// read. Skipped by the snapshot, so it never shows up as the agent's doing.
+const harnessDir = ".skilleval"
+
+// answerFile is the agent's closing message, so a gate can check an answer
+// rather than only an artefact.
+const answerFile = harnessDir + "/answer.txt"
+
 // maxShownBytes caps what a change carries into the dataset. Past this a diff
 // stops being readable and the dataset stops being reviewable in a browser.
 const maxShownBytes = 24 * 1024
 
 // buildWorkspace materializes a scenario's fixture in dir and installs the
 // skill where an agent will find it.
-func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin string) error {
+func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin, arm string) error {
 	for i := range sc.Fixture {
 		f := &sc.Fixture[i]
 		dst := filepath.Join(dir, f.As)
@@ -140,6 +149,11 @@ func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin string) error {
 		f.Bytes = len(body)
 	}
 
+	if arm == armUnaided {
+		// The control gets the workspace and nothing else: no skill, no MCP
+		// server. Whatever it manages, it manages without kapi.
+		return nil
+	}
 	if surfaceOf(*sc) == surfaceMCP {
 		return writeMCPConfig(dir, kapiBin)
 	}
@@ -314,7 +328,7 @@ func isolationEnv(home string) []string {
 }
 
 // runScenario drives the agent once and reads the result out of the stream.
-func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
+func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Run {
 	started := time.Now()
 	r := Run{}
 
@@ -329,7 +343,7 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 		defer os.RemoveAll(dir)
 	}
 
-	if err := buildWorkspace(dir, sc, opts.RepoRoot, opts.KapiBin); err != nil {
+	if err := buildWorkspace(dir, sc, opts.RepoRoot, opts.KapiBin, arm); err != nil {
 		r.Err = scrubPaths(err.Error())
 		return r
 	}
@@ -372,16 +386,23 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 	if opts.Model != "" {
 		args = append(args, "--model", opts.Model)
 	}
-	if surfaceOf(*sc) == surfaceMCP {
+	if surfaceOf(*sc) == surfaceMCP && arm != armUnaided {
 		// --strict-mcp-config is what makes this an eval of kapi's server
 		// rather than of whatever the developer happens to have configured.
+		// The control gets neither.
 		args = append(args, "--mcp-config", mcpConfigName, "--strict-mcp-config")
 	}
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), isolationEnv(dir)...)
-	if opts.KapiBin != "" {
+	switch {
+	case arm == armUnaided:
+		// Every directory holding a kapi or toolbox binary is removed. A
+		// developer's PATH has one, and leaving it would make this a control
+		// that had kapi and merely lacked the skill.
+		cmd.Env = append(cmd.Env, "PATH="+stripKapiFromPath(os.Getenv("PATH")))
+	case opts.KapiBin != "":
 		cmd.Env = append(cmd.Env, "PATH="+filepath.Dir(opts.KapiBin)+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
 
@@ -402,12 +423,26 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options) Run {
 
 	r.DurationMS = time.Since(started).Milliseconds()
 
+	// The agent's closing message, written where a gate can read it.
+	//
+	// A gate is a shell command run in the workspace, so it sees files and
+	// nothing else. That works for a scenario whose deliverable is a file and
+	// not at all for one whose deliverable is an answer: "what does slide 3
+	// say" leaves no artefact, so it went ungated and verified nothing.
+	if err := os.MkdirAll(filepath.Join(dir, harnessDir), 0o755); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, answerFile), []byte(r.FinalText), 0o644)
+	}
+
 	after, err := snapshot(dir)
 	if err == nil {
 		r.Changed = diffWorkspace(before, after)
 	}
 
 	if opts.Mode == modeCompletion && sc.CompletionGate != "" {
+		// The gate always runs WITH kapi, in both arms. It is the measuring
+		// instrument, not part of what is being measured: asking "is every
+		// SalesPilot gone" needs a format-aware reader whether or not the
+		// agent had one.
 		r.Gate = runGate(ctx, dir, sc.CompletionGate, opts)
 	}
 	return r

@@ -35,6 +35,12 @@ type Run struct {
 	// at one, and two models swept at different concurrencies cannot be raced
 	// against each other on speed.
 	Concurrency int `json:"concurrency,omitempty"`
+	// Temperature is what the sweep sampled at. Recorded for the same reason as
+	// concurrency: a command alone does not reproduce a sampled number, and
+	// until this was pinned the honest answer was "whatever the API defaults
+	// to", which nobody wrote down. A pointer so an older entry, made before
+	// the field existed, reads as unknown rather than as zero.
+	Temperature *float64 `json:"temperature,omitempty"`
 
 	// Price is what the tokens were charged at, pinned at measurement time. Looking
 	// the rate up at render time would re-price history whenever a vendor changed

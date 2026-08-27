@@ -29,16 +29,11 @@ var mcpToolCatalogue = []string{
 
 // A project with a voice profile, terms and content, so the context tools have
 // something real to answer from.
-const mcpRecipe = `version: 1
-name: northwind
-defaults:
-  source: en
-  targets: [nb]
-collections:
-  - name: app
-    include: ["src/locales/en.json"]
-    format: json
-`
+//
+// Uses the same recipe the skill scenarios do, because both were invented with
+// the same wrong keys and both silently loaded as a project with no source
+// language and no targets. See loopRecipe.
+const mcpRecipe = loopRecipe
 
 func init() {
 	scenarios = append(scenarios, mcpScenarios...)
@@ -100,8 +95,9 @@ var mcpScenarios = []Scenario{
 		ExpectTool: "detect_format",
 		Prompt:     "What format is mystery.dat, and can kapi read it?",
 		Path:       "mcp (formats)",
-		Why: "A file with a meaningless extension and JSON inside. The shell answer is `file`, which says " +
-			"'ASCII text'; the tool answer says which reader would handle it.",
+		Why: "A file with a meaningless extension and JSON inside. `file` answers 'ASCII text', which is true " +
+			"and useless; the tool answers which reader would handle it. An agent could also just open it and " +
+			"see, so this scores tool choice rather than capability.",
 		Fixture: []FixtureFile{
 			{As: "mystery.dat", Body: "{\n  \"greeting\": \"Sign in to your workspace\",\n  \"cta\": \"Get started\"\n}\n",
 				Note: "JSON wearing the wrong extension"},
@@ -115,7 +111,8 @@ var mcpScenarios = []Scenario{
 		ExpectTool: "extract_content",
 		Prompt:     "Pull the readable text out of proposal.docx so I can look at it.",
 		Path:       "mcp (read)",
-		Why:        "A binary the agent cannot read any other way, so a shell fallback here is a visible failure rather than a silent one.",
+		Why: "A binary, and one the agent can in fact read another way: unzipping a .docx and pulling the XML " +
+			"works. What is scored is whether it reaches the tool that does it in one step.",
 		Fixture: []FixtureFile{
 			{As: "proposal.docx", From: fxDocx},
 		},

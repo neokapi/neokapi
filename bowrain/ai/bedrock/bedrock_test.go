@@ -133,7 +133,7 @@ func TestToTokenUsage(t *testing.T) {
 }
 
 func TestConverseInputLiftsSystemAndSetsInference(t *testing.T) {
-	p := New(aiprovider.Config{Model: "eu.anthropic.claude-sonnet-4-6", MaxTokens: 1024, Temperature: 0.3})
+	p := New(aiprovider.Config{Model: "eu.anthropic.claude-sonnet-4-6", MaxTokens: 1024, Temperature: new(0.3)})
 	in, err := p.converseInput([]aiprovider.Message{
 		aiprovider.TextMessage(aiprovider.RoleSystem, "be terse"),
 		aiprovider.TextMessage(aiprovider.RoleUser, "hi"),

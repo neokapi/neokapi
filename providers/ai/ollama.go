@@ -27,7 +27,7 @@ const ollamaKeepAlive = "10m"
 const DefaultOllamaModel = "llama3.2:3b"
 
 // ollamaTranslateTemperature is the default sampling temperature for Ollama when
-// the caller leaves Config.Temperature unset (0). kapi's local-model use is
+// the caller leaves Config.Temperature unset. kapi's local-model use is
 // overwhelmingly translation and QA, where deterministic, terminology-faithful
 // output matters far more than creative variety — Ollama's own default (0.8) is
 // too loose and degrades terminology obedience.
@@ -215,9 +215,11 @@ func (p *OllamaProvider) do(ctx context.Context, req *ollamaChatRequest) (*http.
 // applied when the caller leaves it unset (see ollamaTranslateTemperature), and
 // MaxTokens maps to Ollama's num_predict.
 func (p *OllamaProvider) options() *ollamaOptions {
-	temp := p.config.Temperature
-	if temp == 0 {
-		temp = ollamaTranslateTemperature
+	temp := ollamaTranslateTemperature
+	if p.config.Temperature != nil {
+		// Including an explicit 0, which is a request for greedy decoding
+		// rather than an absent setting.
+		temp = *p.config.Temperature
 	}
 	o := &ollamaOptions{Temperature: &temp}
 	if p.config.MaxTokens > 0 {

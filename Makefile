@@ -2080,6 +2080,47 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 	$(GO) run ./scripts/checkeval
 	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
+# ── Conversion eval ──────────────────────────────────────────────────────────
+# Compares document converters on how much of a document's text each one keeps.
+#
+# Ground truth comes from the documents rather than from any converter: OOXML
+# designates which elements carry text, so each file states its own contents.
+# The corpus is the okapi-testdata tree the parity harness already downloads —
+# real documents collected by another project for another purpose.
+#
+# Free and offline. It needs whichever converters are installed; each one that
+# is absent is left out of the report rather than scored zero.
+CONVERSIONEVAL_LIMIT ?= 0
+
+conversion-eval: build ## Compare converters on text-extraction completeness → /conversion-eval
+	$(GO) run ./scripts/conversioneval -limit $(CONVERSIONEVAL_LIMIT) -jobs 6
+	@echo "Published conversion-eval report → web/src/pages/conversion-eval/_conversioneval.json"
+
+# ── Authoring eval ───────────────────────────────────────────────────────────
+# Measures the authoring side: the voice checks, voice-infer, and whether
+# `kapi voice guide` steers writing toward its profile rather than just
+# improving it.
+#
+# The corpus is synthesized and says so in the data. Two of the three questions
+# need ground truth no repository carries — a profile a person wrote from a
+# known corpus, and prose whose every violation is marked — and labelling real
+# material to that standard is the eval rather than preparation for it.
+#
+# The checks leg is free and offline. The steering leg writes six documents
+# twice with a real model, so it costs calls.
+AUTHORINGEVAL_PROVIDER ?= claude-code
+AUTHORINGEVAL_MODEL    ?= sonnet
+
+authoring-eval: build ## Score the voice checks and the voice guide → /authoring-eval (steering leg costs calls)
+	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
+	$(GO) run ./scripts/authoringeval -only infer -provider ollama -model ""
+	$(GO) run ./scripts/authoringeval -only steer \
+	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
+	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
+
+authoring-eval-checks: build ## Score the voice checks only (free, offline, no model)
+	$(GO) run ./scripts/authoringeval -only checks -provider ollama -model ""
+
 # ── Batch-size eval (issue #1227) ────────────────────────────────────────────
 # Measures what batching costs, by sweeping blocks-per-call and scoring each N on
 # structural integrity: does every segment come back, under the id it was sent,
@@ -2256,6 +2297,38 @@ CONTEXTEVAL_CLAUDE  ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
 CONTEXTEVAL_BEDROCK ?= bedrock:eu.anthropic.claude-sonnet-4-6
 CONTEXTEVAL_JUDGE_FOR_CLAUDE ?= gemini:gemini-3.5-flash
 CONTEXTEVAL_JUDGE_FOR_GEMINI ?= claude-code:sonnet
+
+# ── Judge validation ─────────────────────────────────────────────────────────
+# A judged score cannot be trusted above the judge's measured agreement with a
+# person, and until that measurement exists the dashboard withholds the judged
+# dimension. The plumbing to USE labels has been here since the judge was
+# written; what was missing is the part a person can do, because nobody
+# hand-writes 150 items of JSON.
+#
+# Three steps, and the middle one is yours:
+#
+#   make judge-candidates   sweep and save every scored translation (costs calls)
+#   make judge-label        answer y/n per criterion, resumable, ~20 min
+#   make judge-validate     measure kappa and record it in the history
+#
+# The loop is blind on purpose: it never shows the judge's verdict, the model,
+# or whether the translation came from the steered or the bare pass. Seeing any
+# of them turns this into a measurement of agreement with a hint.
+CONTEXTEVAL_CANDIDATES ?= scripts/contexteval/candidates.json
+CONTEXTEVAL_LABELS     ?= scripts/contexteval/labels.json
+
+judge-candidates: ## Sweep and save translations to label (costs calls)
+	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) \
+	    -targets $(CONTEXTEVAL_TARGETS) -repeat 1 -concurrency 3 \
+	    -save-outputs $(CONTEXTEVAL_CANDIDATES)
+	@echo "Candidates → $(CONTEXTEVAL_CANDIDATES). Now: make judge-label"
+
+judge-label: ## Label saved translations for judge validation (interactive, free)
+	@$(GO) run ./scripts/contexteval -label $(CONTEXTEVAL_CANDIDATES) -labels $(CONTEXTEVAL_LABELS)
+
+judge-validate: ## Measure judge–human agreement over the labels and record it
+	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
+	    -judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA)
 
 context-eval-publish: ## Sweep real models for context adherence → /context-eval dashboard data (costs calls)
 	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_GEMINI) -targets $(CONTEXTEVAL_TARGETS) \

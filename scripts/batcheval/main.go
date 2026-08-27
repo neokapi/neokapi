@@ -164,8 +164,9 @@ type sweepOpts struct {
 // sweep runs the corpus through one model at every N.
 func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opts sweepOpts) (Run, error) {
 	provider, err := aiprovider.NewProvider(aiprovider.ProviderID(mt.provider), aiprovider.Config{
-		APIKey: os.Getenv(apiKeyEnv(mt.provider)),
-		Model:  mt.model,
+		APIKey:      os.Getenv(apiKeyEnv(mt.provider)),
+		Model:       mt.model,
+		Temperature: evalTemperature,
 	})
 	if err != nil {
 		return Run{}, err
@@ -179,6 +180,7 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 		Target:       string(opts.target),
 		Repeat:       opts.repeat,
 		Concurrency:  opts.concurrency,
+		Temperature:  evalTemperature,
 		Corpus:       corpus.Describe(),
 		CorpusWords:  corpus.Words(),
 		CorpusBlocks: len(corpus.Cases),
@@ -595,3 +597,16 @@ func orDefault(s, d string) string {
 	}
 	return s
 }
+
+// evalTemperature is what every eval in this repo samples at.
+//
+// Zero, because an eval that cannot be re-run to the same numbers is a
+// description of a method rather than a measurement. Until recently this was
+// not expressible: Config.Temperature was a float64 with `omitempty`, so 0 and
+// "unset" were the same value, and four of six providers dropped the field on
+// the floor regardless. Every number this harness has published so far was
+// sampled at whatever the API defaults to, which for Anthropic is 1.0.
+//
+// It is a variable rather than a constant so a sweep can deliberately raise it
+// to measure variance, which is a different question and should say so.
+var evalTemperature = new(0.0)

@@ -52,8 +52,9 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}
 
 	body := openaiRequest{
-		Model:    p.config.Model,
-		Messages: apiMessages,
+		Model:       p.config.Model,
+		Temperature: p.config.Temperature,
+		Messages:    apiMessages,
 	}
 	if n := p.maxTokens(ctx); n > 0 {
 		body.MaxTokens = &n
@@ -111,8 +112,9 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	}
 
 	body := openaiRequest{
-		Model:    p.config.Model,
-		Messages: apiMessages,
+		Model:       p.config.Model,
+		Temperature: p.config.Temperature,
+		Messages:    apiMessages,
 		ResponseFormat: &openaiResponseFormat{
 			Type: "json_schema",
 			JSONSchema: &openaiJSONSchemaRef{
@@ -245,9 +247,11 @@ func toOpenAIMessages(messages []Message) ([]openaiReqMessage, error) {
 }
 
 type openaiRequest struct {
-	Model          string                `json:"model"`
-	Messages       []openaiReqMessage    `json:"messages"`
-	MaxTokens      *int                  `json:"max_tokens,omitempty"`
+	Model     string             `json:"model"`
+	Messages  []openaiReqMessage `json:"messages"`
+	MaxTokens *int               `json:"max_tokens,omitempty"`
+	// Shared with the Azure provider, which builds the same body.
+	Temperature    *float64              `json:"temperature,omitempty"`
 	ResponseFormat *openaiResponseFormat `json:"response_format,omitempty"`
 }
 

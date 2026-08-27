@@ -538,11 +538,28 @@ func ProviderNames() []string {
 
 // Config holds common provider configuration.
 type Config struct {
-	APIKey      string  `json:"api_key"`
-	BaseURL     string  `json:"base_url,omitempty"`
-	Model       string  `json:"model"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	APIKey    string `json:"api_key"`
+	BaseURL   string `json:"base_url,omitempty"`
+	Model     string `json:"model"`
+	MaxTokens int    `json:"max_tokens,omitempty"`
+
+	// Temperature is the sampling temperature, or nil to leave the provider's
+	// own default alone.
+	//
+	// A pointer because 0 is a meaningful value: it asks for greedy decoding,
+	// which is exactly what an eval that wants to be reproducible should set.
+	// As a bare float64 with `omitempty`, 0 and "unset" were the same thing and
+	// greedy was unreachable — Bedrock still spells that mistake as
+	// `if cfg.Temperature > 0`.
+	//
+	// Whether it reaches the wire is a per-provider question, and the answer
+	// used to be no for four of six: Anthropic, OpenAI, Azure and Gemini
+	// accepted the field and never sent it, so a caller asking for determinism
+	// silently got whatever the API defaults to. TestEveryProviderSendsTemperature
+	// exists to keep that from coming back.
+	//
+	// Set it with new(expr): new(0.0) for greedy, new(0.7) for sampled.
+	Temperature *float64 `json:"temperature,omitempty"`
 }
 
 // Validate checks that the config has required fields.

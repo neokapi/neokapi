@@ -50,6 +50,8 @@ type Options struct {
 	Repeat         int
 	Concurrency    int
 	TriggerTurnCap int
+	// Control runs the unaided arm alongside each scenario.
+	Control bool
 	// CompletionTurnFloor is the least room a completion run gets, whatever the
 	// scenario's own cap says. Triggering and finishing are different budgets.
 	CompletionTurnFloor int
@@ -68,6 +70,7 @@ func main() {
 		turnCap     = flag.Int("trigger-turns", 4, "hard turn cap in trigger mode")
 		compTurns   = flag.Int("completion-turns", 40, "minimum turns a completion run gets")
 		keep        = flag.Bool("keep", false, "keep the scenario workspaces for inspection")
+		control     = flag.Bool("control", false, "also run each scenario with no skill and no kapi on PATH, to measure what kapi adds")
 		timeout     = flag.Duration("timeout", 30*time.Minute, "whole-run deadline")
 	)
 	flag.Parse()
@@ -88,7 +91,7 @@ func main() {
 		Mode: *mode, Surface: *surface, RepoRoot: root, ClaudeBin: claudeBin,
 		KapiBin: findKapi(root), Model: *model, Repeat: *repeat,
 		Concurrency: *concurrency, TriggerTurnCap: *turnCap,
-		CompletionTurnFloor: *compTurns, Keep: *keep,
+		CompletionTurnFloor: *compTurns, Keep: *keep, Control: *control,
 	}
 	if opts.Mode == modeCompletion && opts.KapiBin == "" {
 		fail("completion mode needs a built kapi: run `make build` first")
@@ -112,14 +115,59 @@ func main() {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		fail(err.Error())
 	}
-	if err := checkDownstreamClean(report); err != nil {
-		fail(err.Error())
+	// Only when publishing into the docs site. A run written elsewhere with
+	// -out is for reading, and holding it to the site's constraint would be
+	// borrowing a rule from a place it is not going.
+	publish := strings.Contains(target, filepath.Join("web", "src"))
+	for _, part := range partitionBySurface(report) {
+		if publish {
+			withholdDownstream(part)
+			if err := stillMentionsDownstream(part); err != nil {
+				fail(err.Error())
+			}
+		}
+		if err := merge(target, part); err != nil {
+			fail(err.Error())
+		}
+		fmt.Printf("skilleval: %s: %s\n", part.Key(), part.Summary.Line())
 	}
-	if err := merge(target, report); err != nil {
-		fail(err.Error())
-	}
-	fmt.Printf("skilleval: %s\n", report.Summary.Line())
 	fmt.Printf("skilleval: → %s\n", target)
+}
+
+// partitionBySurface splits a run into one report per surface.
+//
+// `make skill-eval` runs `-mode trigger` with no surface filter, which selects
+// every scenario including the MCP ones. All 30 were then filed under
+// `skill:trigger`, because a report with no Surface defaults to the skill key,
+// so the skill card counted eight MCP scenarios as its own and the MCP card
+// showed a separate older run of the same eight. The documented command
+// mislabelled its own output and double-counted a third of it.
+//
+// A scenario knows its surface. The run files each result under the one it
+// belongs to, and the two cards stop overlapping.
+func partitionBySurface(r *Report) []*Report {
+	bySurface := map[string]*Report{}
+	order := []string{}
+	for _, res := range r.Results {
+		key := surfaceOf(res.Scenario)
+		part, ok := bySurface[key]
+		if !ok {
+			clone := *r
+			clone.Surface = key
+			clone.Results = nil
+			part = &clone
+			bySurface[key] = part
+			order = append(order, key)
+		}
+		part.Results = append(part.Results, res)
+	}
+	out := make([]*Report, 0, len(order))
+	for _, key := range order {
+		part := bySurface[key]
+		part.Summary = summarize(part.Results)
+		out = append(out, part)
+	}
+	return out
 }
 
 // selectScenarios narrows to what this mode can actually score. Completion runs
@@ -170,7 +218,15 @@ func execute(ctx context.Context, set []Scenario, opts Options) *Report {
 				if ctx.Err() != nil {
 					break
 				}
-				res.Runs = append(res.Runs, runScenario(ctx, &sc, opts))
+				res.Runs = append(res.Runs, runScenario(ctx, &sc, opts, armSkill))
+			}
+			if opts.Control {
+				// One control pass rather than Repeat: the question it answers
+				// is "could this be done without kapi at all", which does not
+				// need the same statistical weight as "does the skill fire".
+				if ctx.Err() == nil {
+					res.Unaided = append(res.Unaided, runScenario(ctx, &sc, opts, armUnaided))
+				}
 			}
 			res.Scenario = sc // fixture sizes were filled in during the run
 			res.score(opts.Mode)
@@ -255,6 +311,25 @@ type Result struct {
 	Verdict string `json:"verdict"`
 	// GatePassed counts passes whose completion gate went green.
 	GatePassed int `json:"gatePassed,omitempty"`
+
+	// Unaided is the control arm: the same prompt and workspace with no skill,
+	// no MCP server, and no kapi anywhere on PATH.
+	//
+	// It exists because a scenario note claimed of a .pptx that "the agent has
+	// no other way to read it", and an unaided agent answered correctly in
+	// three calls with unzip. A .pptx is a zip of XML. The suite was full of
+	// assertions like that, and the only thing that settles them is the run.
+	Unaided []Run `json:"unaided,omitempty"`
+	// UnaidedGatePassed counts control passes whose gate went green.
+	UnaidedGatePassed int `json:"unaidedGatePassed,omitempty"`
+	// Contribution is what kapi added here, measured: enabled, eased, neither,
+	// or unknown when there is no gate to compare outcomes on.
+	Contribution Contribution `json:"contribution,omitempty"`
+
+	// Withheld says why this result's transcripts are not published, when they
+	// are not. The verdict and the counts are unaffected; what is missing is
+	// the prose. See withholdDownstream.
+	Withheld string `json:"withheld,omitempty"`
 }
 
 func (r *Result) score(mode string) {
@@ -277,6 +352,16 @@ func (r *Result) score(mode string) {
 		}
 	}
 	sortStrings(r.WrongTool)
+
+	r.UnaidedGatePassed = 0
+	for _, run := range r.Unaided {
+		if run.Gate != nil && run.Gate.ExitCode == 0 {
+			r.UnaidedGatePassed++
+		}
+	}
+	if len(r.Unaided) > 0 {
+		r.Contribution = contribution(r.Runs, r.Unaided, r.Scenario.CompletionGate != "")
+	}
 
 	n := len(r.Runs)
 
@@ -351,6 +436,16 @@ type Summary struct {
 	// carry no definition of done. It belongs beside the pass count, not
 	// hidden behind it.
 	Ungated int `json:"ungated,omitempty"`
+
+	// Contributions counts what kapi added across the suite, when the control
+	// arm ran. "neither" is the number worth reading first: it says how much
+	// of this suite is not evidence for kapi.
+	Contributions map[string]int `json:"contributions,omitempty"`
+
+	// Withheld counts results whose transcripts were removed before publishing.
+	// On the report rather than only per result, because a reader should not
+	// have to open seventeen rows to learn that one of them is incomplete.
+	Withheld int `json:"withheld,omitempty"`
 }
 
 func (s Summary) Line() string {
@@ -358,6 +453,15 @@ func (s Summary) Line() string {
 		s.Scenarios, s.Pass, s.Flaky, s.Fail, s.FalseTriggers)
 	if s.Ungated > 0 {
 		line += fmt.Sprintf(", %d with no gate to check", s.Ungated)
+	}
+	if n := s.Contributions; len(n) > 0 {
+		// Iterated rather than named: the first version spelled out four
+		// outcomes, and when a fifth was added the line kept printing four.
+		parts := make([]string, 0, len(AllContributions))
+		for _, c := range AllContributions {
+			parts = append(parts, fmt.Sprintf("%s %d", c, n[string(c)]))
+		}
+		line += "; kapi " + strings.Join(parts, ", ")
 	}
 	return line
 }
@@ -374,6 +478,12 @@ func summarize(rs []Result) Summary {
 			if r.Fired > 0 {
 				s.FalseTriggers++
 			}
+		}
+		if r.Contribution != "" {
+			if s.Contributions == nil {
+				s.Contributions = map[string]int{}
+			}
+			s.Contributions[string(r.Contribution)]++
 		}
 		if surfaceOf(r.Scenario) == surfaceMCP && len(r.WrongTool) > 0 {
 			s.WrongToolPicks++
@@ -517,20 +627,69 @@ func settingsLine(opts Options) string {
 // docs. See scripts/check-docs-bowrain-clean.sh for the contract.
 const downstreamName = "bowrain"
 
-// checkDownstreamClean refuses to publish a dataset that would fail the
-// docs guard.
+// withholdDownstream removes the free text that would fail the docs guard, and
+// records that it did.
 //
 // The dataset lands in web/src, which the neokapi docs site serves and which is
 // held to zero mentions of the downstream platform. Scenario text is under this
 // file's control and a companion test keeps it clean, but a TRANSCRIPT is not:
 // the shipped skill's own description names the platform, so an agent can
-// repeat it in a closing message on any scenario at all. That is how this
-// landed a red build once already.
+// repeat it in a closing message on any scenario at all.
 //
-// Failing here, naming the scenario, is the useful behaviour. Editing the
-// transcript would be the alternative, and quietly rewriting recorded evidence
-// to get past a lint is not something an evidence page should do.
-func checkDownstreamClean(r *Report) error {
+// The first version refused the whole run. That is the wrong trade for a sweep
+// that costs half an hour and real money: one agent echoing one word threw away
+// seventeen scenarios' results, which is what happened on the run that led to
+// this comment. Refusing also does not make the dataset more honest, because
+// the alternative on offer was rewording the scenario until the agent stopped
+// saying it, which is worse than an omission.
+//
+// So the numbers survive and the prose does not. A result whose transcript
+// names the platform keeps its verdict, its gate, its message counts and its
+// file changes, and loses the text: the closing message and the command list.
+// Withheld is recorded per result and counted on the report, so the page can
+// say what is missing and why. An omission a reader can see is not the same as
+// a quiet rewrite.
+func withholdDownstream(r *Report) {
+	for i := range r.Results {
+		res := &r.Results[i]
+		if !mentionsDownstream(res) {
+			continue
+		}
+		res.Withheld = "the transcript names the downstream platform, which the docs site this dataset " +
+			"is published into must not mention. Verdict, gate and counts are unchanged; the closing " +
+			"messages and command lists are removed."
+		r.Summary.Withheld++
+		for _, runs := range [][]Run{res.Runs, res.Unaided} {
+			for j := range runs {
+				runs[j].FinalText = ""
+				runs[j].KapiCommands = nil
+				runs[j].Tools = nil
+				if runs[j].Gate != nil {
+					runs[j].Gate.Output = ""
+				}
+				for k := range runs[j].Changed {
+					runs[j].Changed[k].Before = ""
+					runs[j].Changed[k].After = ""
+				}
+			}
+		}
+	}
+}
+
+// mentionsDownstream reports whether a result's recorded text names the
+// platform.
+func mentionsDownstream(res *Result) bool {
+	body, err := json.Marshal(res)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(string(body)), downstreamName)
+}
+
+// stillMentionsDownstream is the check after withholding. If a mention survives
+// it is somewhere this function does not know to clear, and publishing anyway
+// would break the docs build for a reason nobody would trace back to here.
+func stillMentionsDownstream(r *Report) error {
 	body, err := json.Marshal(r)
 	if err != nil {
 		return err
@@ -538,20 +697,9 @@ func checkDownstreamClean(r *Report) error {
 	if !strings.Contains(strings.ToLower(string(body)), downstreamName) {
 		return nil
 	}
-
-	var offenders []string
-	for _, res := range r.Results {
-		one, err := json.Marshal(res)
-		if err != nil {
-			continue
-		}
-		if strings.Contains(strings.ToLower(string(one)), downstreamName) {
-			offenders = append(offenders, res.Scenario.ID)
-		}
-	}
 	return fmt.Errorf(
-		"this run mentions %q and the dataset is published into the docs site, which must not: %s.\n"+
-			"Reword the scenario so the agent is not led there, or drop it from the set published here.\n"+
+		"this run still mentions %q after withholding the transcripts that did, so it names the "+
+			"platform somewhere withholding does not reach. Publishing it would break the docs build.\n"+
 			"See scripts/check-docs-bowrain-clean.sh",
-		downstreamName, strings.Join(offenders, ", "))
+		downstreamName)
 }

@@ -158,6 +158,11 @@
       "page": "/format-maturity",
       "fresh": {
         "date": "2026-07-25"
+      },
+      "headline": {
+        "value": "0/36",
+        "of": "formats at L4",
+        "tone": "gap"
       }
     },
     {
@@ -174,6 +179,11 @@
       "page": "/pseudobench",
       "fresh": {
         "date": "2026-08-27T01:07:42Z"
+      },
+      "headline": {
+        "value": "23.7×",
+        "of": "faster on the 697 files both engines read",
+        "tone": "ok"
       }
     },
     {
@@ -194,14 +204,24 @@
     },
     {
       "id": "conversion-comparison",
-      "title": "kapi against other converters",
+      "title": "How much of a document each converter keeps",
       "method": "comparative",
-      "status": "absent",
+      "status": "partial",
       "spends": false,
-      "corpus": "Needs a document corpus and independent ground truth, meaning rendered pages rather than another tool's output.",
-      "covers": "Would measure conversion speed and fidelity against markitdown, pandoc, docling, unstructured and LibreOffice.",
-      "misses": "Not built here. A harness of this shape exists in the anydoc repository and already includes kapi in its speed tables; neokapi publishes nothing of its own.",
-      "reproduce": ""
+      "corpus": "The Okapi Framework's own integration-test resources — real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
+      "covers": "Text-extraction completeness against ground truth read from each document's own XML parts, so no converter's output stands in for the answer, plus how long each conversion took. Compared per format, because the tools accept different ones and a single column would rank them by what they declined.",
+      "misses": "Text only. Structure and ordering are not compared, so a converter that flattens every heading scores the same as one that keeps the outline. Headers, footnotes, comments and speaker notes are excluded because converters disagree about whether they belong in the output. Only the converters installed on the machine that ran it appear.",
+      "reproduce": "make conversion-eval",
+      "data": "web/src/pages/conversion-eval/_conversioneval.json",
+      "page": "/conversion-eval",
+      "fresh": {
+        "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "98.2%",
+        "of": "of text kept, in its weakest format (.pptx)",
+        "tone": "warn"
+      }
     },
     {
       "id": "reuse-rules",
@@ -217,6 +237,11 @@
       "page": "/coordinate",
       "fresh": {
         "date": "2026-08-26T22:55:36Z"
+      },
+      "headline": {
+        "value": "4",
+        "of": "governed points resolved, 5 reuse chains traced",
+        "tone": "ok"
       }
     },
     {
@@ -229,11 +254,16 @@
       "covers": "Whether showing the model a block's previously approved translation keeps the approved wording, and what it costs in calls and tokens.",
       "misses": "One model, one language pair, one direction. The judged half has no measured agreement with a person; only the deterministic consistency half should be relied on.",
       "reproduce": "make prior-ab-eval",
-      "settings": "Not recorded, and not pinned. Anthropic's default sampling applies, so a re-run samples afresh.",
+      "settings": "Temperature 0, pinned in the harness and recorded in the dataset. Max tokens follow the model's ceiling. No seed: the API exposes none.",
       "data": "web/src/pages/coordinate/_abeval.json",
       "page": "/coordinate",
       "fresh": {
-        "date": "2026-08-26T20:30:24Z"
+        "date": "2026-08-27T05:24:05Z"
+      },
+      "headline": {
+        "value": "0/6",
+        "of": "judged better with context, n=6, judge unvalidated",
+        "tone": "gap"
       }
     },
     {
@@ -246,34 +276,56 @@
       "covers": "Whether a model given voice guidance and terminology produces output that needs less correction than one that is not.",
       "misses": "Judge-to-human agreement is gated at 30 labelled items; the literature puts the useful floor at 100 to 200, and no sweep has cleared even the lower bar.",
       "reproduce": "make context-eval",
-      "settings": "Not recorded, and not pinned. Each swept model runs at its own API default.",
+      "settings": "Temperature 0 on every swept model, pinned in the harness. The committed sweep predates the field that records it, so the dataset carries no temperature of its own until the next one. Max tokens follow each model's ceiling. No seed: the APIs expose none.",
       "data": "web/src/pages/context-eval/_contexteval.json",
       "page": "/context-eval",
       "fresh": {
-        "date": "2026-07-17"
+        "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "+54pp",
+        "of": "adherence, context against none",
+        "tone": "ok"
       }
     },
     {
       "id": "authoring-effect",
-      "title": "Whether governed authoring changes the output",
-      "method": "judged",
-      "status": "absent",
+      "title": "Whether the voice guide steers writing or just improves it",
+      "method": "benchmark",
+      "status": "partial",
       "spends": true,
-      "corpus": "Needs source content and a voice profile with something to say about it.",
-      "covers": "Would be the authoring counterpart of reuse-effect: whether content written or rewritten under a voice profile differs, and differs in the direction the profile asks for.",
-      "misses": "Not built. kapi's authoring-side claim currently rests on no measurement.",
-      "reproduce": ""
+      "corpus": "Six briefs about a synthesized product, each written twice by one model: once bare, once with `kapi voice guide` as the system turn. Both versions scored against the profile the guide came from and against a contrast profile that wants the opposite.",
+      "covers": "Whether the guide moves writing toward its own profile specifically. Any competent writing guidance raises any reasonable score, so the reference gain alone proves nothing; the measurement is the difference between the two gains. Guided writing gained 5.8 points against the reference profile and lost 6.7 against the contrast, an effect of 12.5. The mechanism is visible in the findings: passive constructions fell from 11 to 4 across the six documents, and the writing moved to second person.",
+      "misses": "Six documents on one model, and each arm turns on a single rule. Every point the reference arm gained is passive-voice reduction: the model never reached for a forbidden term in either condition, so those rules contributed nothing. Every point the contrast arm lost is the pronoun shift, since that profile declares three forbidden terms and no patterns. The two arms moving in opposite directions is real, and it is two mechanisms rather than a broad effect. The declared fields (person, sentence length) are in the guide the model read and not in the score, because nothing offline evaluates them.",
+      "reproduce": "make authoring-eval",
+      "settings": "Temperature 0, and the user turn is byte-identical across arms. The bare arm has no system turn at all rather than a placebo one.",
+      "data": "web/src/pages/authoring-eval/_authoringeval.json",
+      "page": "/authoring-eval",
+      "fresh": {
+        "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "+12.5",
+        "of": "points of profile-specific steering",
+        "tone": "ok"
+      }
     },
     {
       "id": "voice-infer-quality",
       "title": "Whether an inferred voice profile is usable",
-      "method": "judged",
-      "status": "absent",
+      "method": "deterministic",
+      "status": "blocked",
       "spends": true,
-      "corpus": "Needs corpora with hand-authored reference profiles to compare a draft against.",
-      "covers": "Would measure whether voice-infer's draft resembles what a person would have written from the same corpus.",
-      "misses": "Not built, and the hardest of the three: it needs reference profiles that do not exist yet.",
-      "reproduce": ""
+      "corpus": "Built and ready: the corpus's on-profile half was written from a reference profile, so recovery is checkable field by field rather than by asking a judge. The comparison runs the moment there is a draft.",
+      "covers": "Would measure how much of the reference profile a draft recovers — each tone and style field, and how many of the forbidden terms.",
+      "misses": "`kapi exec voice-infer` writes nothing to stdout and exits 0 (#2225), and it has no other surface: there is no `kapi voice infer` subcommand. There is no draft to compare.",
+      "reproduce": "make authoring-eval",
+      "settings": "Whatever provider the run names, at temperature 0. Nothing is recorded because the tool returns nothing; the field will carry the real settings with the first draft it produces.",
+      "data": "web/src/pages/authoring-eval/_authoringeval.json",
+      "page": "/authoring-eval",
+      "fresh": {
+        "date": "2026-08-27"
+      }
     },
     {
       "id": "prompt-contents",
@@ -288,7 +340,12 @@
       "data": "web/src/pages/coordinate/_abeval.json",
       "page": "/coordinate",
       "fresh": {
-        "date": "2026-08-26T20:30:24Z"
+        "date": "2026-08-27T05:24:05Z"
+      },
+      "headline": {
+        "value": "6",
+        "of": "prompts captured and inspected",
+        "tone": "ok"
       }
     },
     {
@@ -301,11 +358,16 @@
       "covers": "Throughput and structural integrity as blocks per call rises, priced per model. Both models hold every block to 128 per call and neither can answer at 600.",
       "misses": "Concurrency is recorded because throughput depends on it, so two models swept at different concurrencies cannot be raced on speed. Segmentation (M-02) is not measured at all, and it decides what a block is before any of this runs.",
       "reproduce": "make batch-eval",
-      "settings": "Not recorded, and not pinned. Concurrency is recorded; the sampling settings are not.",
+      "settings": "Temperature 0, pinned in the harness. The committed sweep predates the field that records it, so the dataset carries concurrency but not temperature until the next one. No seed: the APIs expose none.",
       "data": "web/src/pages/batch-eval/_batcheval.json",
       "page": "/batch-eval",
       "fresh": {
         "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "128",
+        "of": "blocks per call still intact, of 600 tried",
+        "tone": "gap"
       }
     },
     {
@@ -316,24 +378,39 @@
       "spends": false,
       "corpus": "10 hand-labelled cases.",
       "covers": "do-not-translate and placeholder checks.",
-      "misses": "Three of the five checks are not measured at all: term-check, voice-check and voice-vocab-check. Ten cases is too few to separate a real precision difference from noise.",
+      "misses": "Ten cases is too few to separate a real precision difference from noise. The voice checks are measured separately by authoring-checks; term-check is not measured by either, and belongs to neither — its examples are XLIFF with a target, so it scores translations against approved terms rather than source prose.",
       "reproduce": "make check-eval",
       "data": "web/src/pages/check-eval/_eval.json",
       "page": "/check-eval",
       "fresh": {
         "date": "2026-08-26T22:55:38Z"
+      },
+      "headline": {
+        "value": "1.00",
+        "of": "F1 over 10 labelled cases",
+        "tone": "ok"
       }
     },
     {
       "id": "authoring-checks",
-      "title": "Whether source checks find real violations",
+      "title": "Whether the voice checks find real violations",
       "method": "labelled",
-      "status": "absent",
+      "status": "partial",
       "spends": false,
-      "corpus": "Needs a labelled corpus of source content carrying known voice and terminology violations.",
-      "covers": "Would measure term-check, voice-check and voice-vocab-check the way check-accuracy measures the other two.",
-      "misses": "Not built. These three checks ship and nothing measures whether they are right.",
-      "reproduce": ""
+      "corpus": "Twelve synthesized documents about one product: six written to a voice profile, six written against it with 18 violations marked. The clean half is what makes false positives measurable.",
+      "covers": "Recall over the marked violations, split by how the profile expresses each rule. The offline check found 89% overall — every prohibited pattern, 12 of 13 forbidden terms, and none of the declared fields, which nothing offline evaluates. It also raised a finding on 3 of the 6 clean documents.",
+      "misses": "The LLM check cannot be scored: `kapi exec voice-check` returns nothing under every provider and profile tried (#2225). The one term miss is `utilizes` against a profile forbidding `utilize` (#2226). The corpus is synthesized, which is disclosed in the data itself.",
+      "reproduce": "make authoring-eval",
+      "data": "web/src/pages/authoring-eval/_authoringeval.json",
+      "page": "/authoring-eval",
+      "fresh": {
+        "date": "2026-08-27"
+      },
+      "headline": {
+        "value": "89%",
+        "of": "of marked violations found",
+        "tone": "warn"
+      }
     },
     {
       "id": "skill-triggering",
@@ -350,7 +427,12 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T12:33:21Z"
+      },
+      "headline": {
+        "value": "22/22",
+        "of": "scenarios fired correctly",
+        "tone": "ok"
       }
     },
     {
@@ -368,7 +450,12 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T12:23:22Z"
+      },
+      "headline": {
+        "value": "12/17",
+        "of": "scenarios reached a green gate",
+        "tone": "gap"
       }
     },
     {
@@ -386,15 +473,28 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T00:40:30Z"
+        "date": "2026-08-27T12:33:21Z"
+      },
+      "headline": {
+        "value": "8/8",
+        "of": "MCP scenarios picked the right tool",
+        "tone": "ok"
       }
     }
   ],
   "coverage": {
     "measured": 7,
-    "partial": 5,
+    "partial": 8,
     "unvalidated": 2,
-    "absent": 4,
+    "blocked": 1,
+    "absent": 0,
+    "byStatus": {
+      "absent": 0,
+      "blocked": 1,
+      "measured": 7,
+      "partial": 8,
+      "unvalidated": 2
+    },
     "layersUnmeasured": 0,
     "perBand": {
       "ai": 9,

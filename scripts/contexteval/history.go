@@ -38,6 +38,10 @@ type Run struct {
 	// Concurrency is recorded because throughput depends on it; adherence does
 	// not, but the run should be reproducible as swept.
 	Concurrency int `json:"concurrency,omitempty"`
+	// Temperature is what the sweep sampled at. A pointer so an entry made
+	// before the field existed reads as unknown rather than as zero, which
+	// would be a claim about a run nobody recorded.
+	Temperature *float64 `json:"temperature,omitempty"`
 
 	// Price is what the tokens were charged at, pinned at measurement time —
 	// re-pricing history at today's rates would silently rewrite what a past

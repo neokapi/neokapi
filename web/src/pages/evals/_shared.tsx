@@ -1,0 +1,471 @@
+import { useState } from "react";
+import type { CSSProperties, ReactElement } from "react";
+import Link from "@docusaurus/Link";
+import index from "./_index.json";
+
+// Shared between the cover page and the three band pages.
+//
+// The cover was one page carrying every band, every layer and eighteen cards,
+// and it was too much to take in. It is now a menu: what the three bands are,
+// how much of each is measured, and a way in. The detail lives on a page per
+// band, which is also the unit a reader actually cares about — someone asking
+// "how fast is the engine" is not also asking about judge validation.
+
+export interface BandInfo {
+  id: string;
+  title: string;
+  subject: string;
+  evidence: string;
+  gates: string;
+  layers: string[];
+}
+export interface Layer {
+  id: string;
+  band: string;
+  series: string;
+  title: string;
+  scope: string;
+  rests?: string;
+  ad: string;
+  evals: string[];
+}
+export interface Eval {
+  id: string;
+  title: string;
+  method: "deterministic" | "labelled" | "judged" | "benchmark" | "comparative" | "scenario";
+  status: "measured" | "partial" | "unvalidated" | "blocked" | "absent";
+  spends?: boolean;
+  local?: boolean;
+  corpus: string;
+  covers: string;
+  misses?: string;
+  reproduce?: string;
+  settings?: string;
+  data?: string;
+  page?: string;
+  validation?: string;
+  fresh?: { date?: string; undated?: boolean };
+  // The one number this eval is for, extracted from its dataset by
+  // scripts/evalindex/headline.go. Absent where an eval does not reduce to one
+  // number, or where nothing has been measured yet.
+  headline?: { value: string; of: string; tone: "ok" | "warn" | "gap" };
+}
+export interface Index {
+  _note: string;
+  bands: BandInfo[];
+  layers: Layer[];
+  evals: Eval[];
+  coverage: {
+    measured: number;
+    partial: number;
+    unvalidated: number;
+    blocked: number;
+    absent: number;
+    // byStatus is the tally the named fields are derived from, and the one to
+    // read when summing. Adding them up by hand is how the Go side lost a
+    // status from its totals and how this page came to say "0 of 17 are not
+    // built" after the four unbuilt evals were built.
+    byStatus: Record<Eval["status"], number>;
+    layersUnmeasured: number;
+    perBand: Record<string, number>;
+    undated: number;
+  };
+}
+
+// STATUSES is the render order, and it is the list to iterate rather than
+// naming statuses inline. A mapped type elsewhere makes a new status a compile
+// error; a hand-written sum just quietly leaves it out.
+export const STATUSES: Eval["status"][] = [
+  "measured",
+  "partial",
+  "unvalidated",
+  "blocked",
+  "absent",
+];
+
+export const data = index as Index;
+export const evalByID = new Map(data.evals.map((e) => [e.id, e]));
+export const layerByID = new Map(data.layers.map((l) => [l.id, l]));
+export const bandByID = new Map(data.bands.map((b) => [b.id, b]));
+
+/** Where each band's own page lives. */
+export const bandPath = (id: string) => `/evals/${id}`;
+
+export const mono = "var(--ifm-font-family-monospace)";
+
+// Infima's `-contrast-foreground` tokens invert with the theme; `-darker` does
+// not, and mixing them puts mid-red on dark red for anyone in dark mode.
+export const tone = {
+  ok: {
+    fg: "var(--ifm-color-success-contrast-foreground)",
+    bg: "var(--ifm-color-success-contrast-background)",
+  },
+  warn: {
+    fg: "var(--ifm-color-warning-contrast-foreground)",
+    bg: "var(--ifm-color-warning-contrast-background)",
+  },
+  gap: {
+    fg: "var(--ifm-color-danger-contrast-foreground)",
+    bg: "var(--ifm-color-danger-contrast-background)",
+  },
+  flat: { fg: "var(--ifm-color-emphasis-800)", bg: "var(--ifm-color-emphasis-200)" },
+} as const;
+export type Tone = keyof typeof tone;
+
+// Record<Eval["status"], …> is a mapped type over the union, so adding a status
+// to the union fails to compile here until each of these maps answers for it.
+// That is deliberate: the Go side lost a status from a switch that had no
+// default, and the same shape on this side would have dropped it from the page.
+export const statusTone: Record<Eval["status"], Tone> = {
+  measured: "ok",
+  partial: "warn",
+  unvalidated: "warn",
+  blocked: "gap",
+  absent: "gap",
+};
+
+// The status id is "absent", which is right for a registry and wrong for a
+// reader: it invites "absent from what?". One map keeps every surface saying
+// "not measured" instead.
+export const statusLabel: Record<Eval["status"], string> = {
+  measured: "measured",
+  partial: "partial",
+  unvalidated: "unvalidated",
+  blocked: "blocked",
+  absent: "not measured",
+};
+
+export const statusMeans: Record<Eval["status"], string> = {
+  measured: "runs, data committed, numbers can be read as they stand",
+  partial: "runs, and covers less than the layer needs",
+  unvalidated: "produces numbers that should not yet be relied on",
+  blocked: "the harness runs; the surface it measures returns nothing",
+  absent: "nothing measures this",
+};
+
+// Mirrors StaleAfterDays in scripts/evalindex. Six weeks is roughly how long it
+// takes this repo to move enough that a number is worth re-earning.
+export const STALE_AFTER_DAYS = 42;
+
+// Age is computed here rather than stored, so it is right every morning. The
+// generator records only the date; a baked-in age would be a committed file
+// that goes wrong overnight.
+export function ageDays(f?: { date?: string }): number | undefined {
+  if (!f?.date) return undefined;
+  const t = Date.parse(f.date);
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
+}
+
+export const s: Record<string, CSSProperties> = {
+  lede: { fontSize: "1.05rem", lineHeight: 1.6, maxWidth: "68ch" },
+  strip: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1.6rem",
+    padding: "1.1rem 1.3rem",
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    borderRadius: 8,
+    background: "var(--ifm-background-surface-color)",
+    margin: "1.5rem 0",
+  },
+  stat: { display: "flex", flexDirection: "column", gap: ".15rem" },
+  statN: { fontSize: "1.6rem", fontWeight: 650, lineHeight: 1, fontVariantNumeric: "tabular-nums" },
+  statL: {
+    fontSize: ".7rem",
+    letterSpacing: ".1em",
+    textTransform: "uppercase",
+    color: "var(--ifm-color-emphasis-700)",
+  },
+  bandGrid: {
+    display: "grid",
+    gridTemplateColumns: "6rem 1fr",
+    gap: ".3rem 1rem",
+    fontSize: ".88rem",
+    lineHeight: 1.5,
+    maxWidth: "76ch",
+  },
+  bandK: {
+    color: "var(--ifm-color-emphasis-700)",
+    fontSize: ".7rem",
+    letterSpacing: ".08em",
+    textTransform: "uppercase",
+    paddingTop: ".18rem",
+  },
+  layer: { marginTop: "1.8rem" },
+  layerHead: { display: "flex", alignItems: "baseline", gap: ".6rem", flexWrap: "wrap" },
+  series: {
+    fontFamily: mono,
+    fontSize: ".78rem",
+    fontWeight: 700,
+    padding: ".1rem .4rem",
+    borderRadius: 3,
+    background: "var(--ifm-color-emphasis-200)",
+    color: "var(--ifm-color-emphasis-800)",
+  },
+  layerTitle: { fontSize: "1.1rem", fontWeight: 640, margin: 0 },
+  scope: {
+    color: "var(--ifm-color-emphasis-800)",
+    fontSize: ".9rem",
+    lineHeight: 1.5,
+    maxWidth: "72ch",
+    margin: ".35rem 0 .8rem",
+  },
+  rests: { fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)", fontStyle: "italic" },
+  cards: { display: "grid", gap: ".55rem" },
+  row: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: ".8rem",
+    alignItems: "center",
+    width: "100%",
+    textAlign: "left",
+    padding: ".65rem .85rem",
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    background: "var(--ifm-background-surface-color)",
+    cursor: "pointer",
+    font: "inherit",
+    color: "inherit",
+  },
+  rowAbsent: { borderStyle: "dashed", background: "transparent" },
+  pills: { display: "flex", gap: ".35rem", flexWrap: "wrap" },
+  headline: { display: "inline-flex", alignItems: "baseline", gap: ".35rem", marginLeft: ".2rem" },
+  headlineValue: { fontFamily: mono, fontWeight: 700, fontVariantNumeric: "tabular-nums" },
+  headlineOf: { fontSize: ".78rem", color: "var(--ifm-color-emphasis-600)" },
+  pill: {
+    fontFamily: mono,
+    fontSize: ".65rem",
+    letterSpacing: ".07em",
+    textTransform: "uppercase",
+    padding: ".16rem .45rem",
+    borderRadius: 4,
+    whiteSpace: "nowrap",
+  },
+  detail: {
+    border: "1px solid var(--ifm-color-emphasis-300)",
+    borderTop: "none",
+    borderRadius: "0 0 6px 6px",
+    padding: ".9rem 1rem",
+    display: "grid",
+    gridTemplateColumns: "6rem 1fr",
+    gap: ".4rem 1rem",
+    fontSize: ".88rem",
+    lineHeight: 1.5,
+  },
+  k: {
+    color: "var(--ifm-color-emphasis-700)",
+    fontSize: ".7rem",
+    letterSpacing: ".08em",
+    textTransform: "uppercase",
+    paddingTop: ".15rem",
+  },
+  cmd: { fontFamily: mono, fontSize: ".8rem", wordBreak: "break-all" },
+};
+
+export function Pill({ text, t }: { text: string; t: Tone }): ReactElement {
+  return <span style={{ ...s.pill, color: tone[t].fg, background: tone[t].bg }}>{text}</span>;
+}
+
+export function freshnessBadge(e: Eval): ReactElement | null {
+  if (!e.data) return null;
+  if (e.fresh?.undated) return <Pill text="undated" t="gap" />;
+  const age = ageDays(e.fresh);
+  if (age === undefined) return null;
+  return (
+    <Pill
+      text={`${age}d old`}
+      t={age > STALE_AFTER_DAYS ? "gap" : age > STALE_AFTER_DAYS / 2 ? "warn" : "ok"}
+    />
+  );
+}
+
+/** A band's own tally, so the three can be weighed against each other. */
+export function bandTally(b: BandInfo): Record<Eval["status"], number> {
+  const counts: Record<Eval["status"], number> = {
+    measured: 0,
+    partial: 0,
+    unvalidated: 0,
+    blocked: 0,
+    absent: 0,
+  };
+  for (const layerID of b.layers) {
+    for (const id of layerByID.get(layerID)?.evals ?? []) {
+      const e = evalByID.get(id);
+      if (e) counts[e.status]++;
+    }
+  }
+  return counts;
+}
+
+/** How many published datasets have gone stale as of right now. */
+export function staleCount(evals: Eval[]): number {
+  return evals.filter((e) => {
+    const age = ageDays(e.fresh);
+    return e.data && age !== undefined && age > STALE_AFTER_DAYS;
+  }).length;
+}
+
+export function EvalRow({ e }: { e: Eval }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const absent = e.status === "absent";
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{ ...s.row, ...(absent ? s.rowAbsent : {}), borderRadius: open ? "6px 6px 0 0" : 6 }}
+      >
+        <span style={{ display: "flex", alignItems: "baseline", gap: ".45rem" }}>
+          <span aria-hidden style={{ fontFamily: mono, opacity: 0.45 }}>
+            {open ? "−" : "+"}
+          </span>
+          <span style={{ fontWeight: 600 }}>{e.title}</span>
+          {e.headline && (
+            <span style={s.headline}>
+              <span style={{ ...s.headlineValue, color: tone[e.headline.tone].fg }}>
+                {e.headline.value}
+              </span>
+              <span style={s.headlineOf}>{e.headline.of}</span>
+            </span>
+          )}
+        </span>
+        <span style={s.pills}>
+          <Pill text={e.method} t="flat" />
+          {e.local && <Pill text="local only" t="flat" />}
+          {e.spends && <Pill text="spends" t="flat" />}
+          {freshnessBadge(e)}
+          <Pill text={statusLabel[e.status]} t={statusTone[e.status]} />
+        </span>
+      </button>
+      {open && (
+        <div style={{ ...s.detail, borderStyle: absent ? "dashed" : "solid", borderTop: "none" }}>
+          <span style={s.k}>Covers</span>
+          <span>{e.covers}</span>
+          {e.misses && (
+            <>
+              <span style={s.k}>Misses</span>
+              <span style={{ color: tone.gap.fg }}>{e.misses}</span>
+            </>
+          )}
+          <span style={s.k}>Corpus</span>
+          <span>{e.corpus}</span>
+          {e.settings && (
+            <>
+              <span style={s.k}>Settings</span>
+              <span
+                style={e.settings.startsWith("Not recorded") ? { color: tone.gap.fg } : undefined}
+              >
+                {e.settings}
+              </span>
+            </>
+          )}
+          {e.validation && (
+            <>
+              <span style={s.k}>Validation</span>
+              <span>{e.validation}</span>
+            </>
+          )}
+          {e.reproduce && (
+            <>
+              <span style={s.k}>Reproduce</span>
+              <code style={s.cmd}>{e.reproduce}</code>
+            </>
+          )}
+          {e.fresh?.date && (
+            <>
+              <span style={s.k}>Measured</span>
+              <span
+                style={
+                  (ageDays(e.fresh) ?? 0) > STALE_AFTER_DAYS ? { color: tone.gap.fg } : undefined
+                }
+              >
+                {e.fresh.date.slice(0, 10)} · {ageDays(e.fresh)} days ago
+              </span>
+            </>
+          )}
+          {e.fresh?.undated && (
+            <>
+              <span style={s.k}>Measured</span>
+              <span style={{ color: tone.gap.fg }}>
+                The dataset records no date, so its age cannot be shown.
+              </span>
+            </>
+          )}
+          {e.page && (
+            <>
+              <span style={s.k}>Results</span>
+              <Link to={e.page}>{e.page}</Link>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function LayerBlock({ l }: { l: Layer }): ReactElement {
+  const list = l.evals.map((id) => evalByID.get(id)).filter((e): e is Eval => Boolean(e));
+  const unmeasured = list.every((e) => e.status === "absent");
+  return (
+    <section style={s.layer}>
+      <div style={s.layerHead}>
+        <span style={s.series}>{l.series}</span>
+        <h2 style={s.layerTitle}>{l.title}</h2>
+        <Link to={l.ad} style={{ fontSize: ".78rem" }}>
+          architecture
+        </Link>
+        {unmeasured && <Pill text="nothing measured" t="gap" />}
+      </div>
+      <p style={s.scope}>
+        {l.scope}
+        {l.rests && <span style={s.rests}> Rests on {l.rests}.</span>}
+      </p>
+      <div style={s.cards}>
+        {list.map((e) => (
+          <EvalRow key={e.id} e={e} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** The band nav, repeated on each band page so the three are one step apart. */
+export function BandNav({ current }: { current?: string }): ReactElement {
+  return (
+    <nav
+      style={{
+        display: "flex",
+        gap: ".4rem",
+        flexWrap: "wrap",
+        margin: "0 0 1.6rem",
+        paddingBottom: "1rem",
+        borderBottom: "1px solid var(--ifm-color-emphasis-300)",
+      }}
+    >
+      <Link
+        to="/evals"
+        style={{
+          ...s.pill,
+          border: "1px solid var(--ifm-color-emphasis-300)",
+          background: current ? "transparent" : "var(--ifm-color-emphasis-200)",
+        }}
+      >
+        All evals
+      </Link>
+      {data.bands.map((b) => (
+        <Link
+          key={b.id}
+          to={bandPath(b.id)}
+          style={{
+            ...s.pill,
+            border: "1px solid var(--ifm-color-emphasis-300)",
+            background: current === b.id ? "var(--ifm-color-emphasis-200)" : "transparent",
+          }}
+        >
+          {b.title}
+        </Link>
+      ))}
+    </nav>
+  );
+}

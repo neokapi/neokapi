@@ -128,10 +128,23 @@ const (
 	// relied on, such as a judged eval whose agreement with a person is
 	// unmeasured, or a scenario suite whose last run has gone stale.
 	StatusUnvalidated Status = "unvalidated"
+	// StatusBlocked: the harness is written and runs, and the surface it
+	// measures returns nothing to measure. Distinct from absent, because the
+	// work left is a fix rather than a build, and the card can name the issue
+	// number and link to a page that shows what is ready to run.
+	StatusBlocked Status = "blocked"
 	// StatusAbsent: nothing measures this. Listed because a gap a reader cannot
 	// see is a gap they will assume is covered.
 	StatusAbsent Status = "absent"
 )
+
+// AllStatuses is every status, and the totals are computed from it rather than
+// from a switch. A switch over these silently ignored the one that was added
+// last, so every eval carrying it vanished from the coverage line while each
+// row still rendered.
+var AllStatuses = []Status{
+	StatusMeasured, StatusPartial, StatusUnvalidated, StatusBlocked, StatusAbsent,
+}
 
 // Eval is one measurement and everything needed to judge or repeat it.
 type Eval struct {
@@ -168,12 +181,14 @@ type Eval struct {
 	// seed. Required of any eval that spends, because a command alone does not
 	// reproduce a number that was sampled.
 	//
-	// "not recorded" is a valid answer and is currently the true one for every
-	// eval here. providers/ai carries a Config.Temperature that Ollama honours,
-	// Bedrock honours unless it is zero, and Anthropic, OpenAI, Azure and Gemini
-	// drop on the floor, so a cloud eval runs at whatever the API defaults to
-	// and no harness writes down what that was. The field exists to make the
-	// omission visible rather than to let it stay implied.
+	// "not recorded" is a valid answer, and it was the true one for every eval
+	// here until providers/ai learned to send the field: Config.Temperature was
+	// honoured by Ollama, honoured-except-zero by Bedrock, and dropped on the
+	// floor by Anthropic, OpenAI, Azure and Gemini. Every cloud eval ran at
+	// whatever the API defaulted to, and none of them wrote it down.
+	//
+	// The field existed to make that visible rather than let it stay implied.
+	// It now carries the pinned value instead.
 	Settings string `json:"settings,omitempty"`
 
 	// Data is the committed result this eval publishes, relative to the repo
@@ -183,11 +198,22 @@ type Eval struct {
 	// Page is where its results are rendered. Empty for an absent eval.
 	Page string `json:"page,omitempty"`
 
+	// FreshAt is the key inside Data holding this card's own numbers, for the
+	// datasets that carry several cards' results in one file. Empty means the
+	// whole file is this card's.
+	FreshAt string `json:"-"`
+
 	// Fresh is how old the committed numbers are, read out of the dataset
 	// rather than typed here. A hand-written date is a date nobody updates;
 	// /pseudobench spent three months showing results measured on 2026-05-20
 	// with nothing on the page saying so.
 	Fresh Freshness `json:"fresh,omitzero"`
+
+	// Headline is the one number this eval is for, extracted from its dataset
+	// rather than typed here. See headline.go: a status is not a result, and a
+	// number written beside the prose goes wrong the way a hand-written date
+	// does.
+	Headline *Headline `json:"headline,omitempty"`
 
 	// Validation is required when Method is judged: what agreement with a human
 	// has been measured, and whether it clears the bar. Empty means unmeasured,

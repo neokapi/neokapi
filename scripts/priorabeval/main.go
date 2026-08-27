@@ -158,7 +158,11 @@ type Report struct {
 	Judge       string `json:"judge"`
 	ModelFamily string `json:"modelFamily"`
 	JudgeFamily string `json:"judgeFamily"`
-	Repeat      int    `json:"repeat"`
+	// Temperature is what this run sampled at. Recorded because a command
+	// alone does not reproduce a sampled number, and until this was pinned the
+	// answer was "whatever the API defaults to", which nobody wrote down.
+	Temperature float64 `json:"temperature"`
+	Repeat      int     `json:"repeat"`
 	// Samples is the total across every case and repeat.
 	Samples     int `json:"samples"`
 	KeptWith    int `json:"keptWith"`
@@ -290,6 +294,7 @@ func Run(ctx context.Context, opts RunOpts) (*Report, error) {
 	}
 
 	report.RanAt = time.Now().UTC().Format(time.RFC3339)
+	report.Temperature = *evalTemperature
 	return report, nil
 }
 
@@ -347,8 +352,9 @@ func containsAny(haystack string, needles []string) bool {
 // test and the judge are reached the same way.
 func newProvider(t target) (aiprovider.LLMProvider, error) {
 	return aiprovider.NewProvider(aiprovider.ProviderID(t.provider), aiprovider.Config{
-		APIKey: os.Getenv(apiKeyEnv(t.provider)),
-		Model:  t.model,
+		APIKey:      os.Getenv(apiKeyEnv(t.provider)),
+		Model:       t.model,
+		Temperature: evalTemperature,
 	})
 }
 
@@ -394,3 +400,16 @@ func modelFamily(t target) string {
 	}
 	return ""
 }
+
+// evalTemperature is what every eval in this repo samples at.
+//
+// Zero, because an eval that cannot be re-run to the same numbers is a
+// description of a method rather than a measurement. Until recently this was
+// not expressible: Config.Temperature was a float64 with `omitempty`, so 0 and
+// "unset" were the same value, and four of six providers dropped the field on
+// the floor regardless. Every number this harness has published so far was
+// sampled at whatever the API defaults to, which for Anthropic is 1.0.
+//
+// It is a variable rather than a constant so a sweep can deliberately raise it
+// to measure variance, which is a different question and should say so.
+var evalTemperature = new(0.0)

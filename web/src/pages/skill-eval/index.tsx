@@ -65,6 +65,14 @@ interface Result {
   gatePassed?: number;
   foundTool?: number;
   wrongTool?: string[];
+  // Why this result's transcripts are absent, when they are. The verdict and
+  // the counts are unaffected.
+  withheld?: string;
+  // The control arm: the same prompt and workspace with no skill, no MCP
+  // server, and no kapi anywhere on PATH.
+  unaided?: Run[];
+  unaidedGatePassed?: number;
+  contribution?: "enabled" | "eased" | "hindered" | "neither" | "unknown";
 }
 interface Runner {
   claudeVersion: string;
@@ -93,11 +101,114 @@ interface Report {
     gatesRun?: number;
     gatesPassed?: number;
     wrongToolPicks?: number;
+    ungated?: number;
+    contributions?: Record<string, number>;
+    withheld?: number;
   };
   results: Result[];
 }
 
 const reports = data as Record<string, Report>;
+
+// ControlArm reports what kapi added, measured rather than asserted.
+//
+// Every scenario runs a second time with no skill, no MCP server, and no kapi
+// anywhere on PATH. The comparison exists because a scenario note claimed of a
+// .pptx that "the agent has no other way to read it", and an unaided agent
+// answered correctly in three calls with unzip. A .pptx is a zip of XML. The
+// suite was full of assertions like that, and only the run settles them.
+function ControlArm({
+  sum,
+  results,
+}: {
+  sum: Report["summary"];
+  results: Result[];
+}): ReactElement | null {
+  const n = sum.contributions;
+  if (!n) return null;
+  const total = CONTRIBUTIONS.reduce((a, c) => a + (n[c.key] ?? 0), 0);
+  if (total === 0) return null;
+  return (
+    <section
+      style={{
+        border: "1px solid var(--ifm-color-emphasis-300)",
+        borderRadius: 8,
+        padding: "1.1rem 1.3rem",
+        margin: "1.4rem 0",
+        background: "var(--ifm-background-surface-color)",
+      }}
+    >
+      <h2 style={{ marginTop: 0, fontSize: "1.2rem" }}>What kapi added</h2>
+      <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
+        Each scenario ran a second time with no skill, no MCP server, and no kapi on PATH. The
+        comparison is deliberately conservative: kapi failing is never counted as a win, the message
+        counts are medians, and a scenario with no gate is unknown rather than assumed.
+      </p>
+      <MessageCost results={results} />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1.4rem", marginTop: ".8rem" }}>
+        {CONTRIBUTIONS.map((c) => (
+          <div key={c.key} style={{ minWidth: "13rem" }}>
+            <div
+              style={{
+                fontFamily: "var(--ifm-font-family-monospace)",
+                fontSize: "1.7rem",
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: tone[c.t].fg,
+                lineHeight: 1.1,
+              }}
+            >
+              {n[c.key] ?? 0}
+            </div>
+            <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{c.label}</div>
+            <div style={{ fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)" }}>
+              {c.means}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// What the control arm answers, in the order a reader should take it.
+//
+// "neither" first would be defensive and "enabled" first would be a pitch, so
+// the order is the strength of the claim, and the neither count is given the
+// same weight as the rest rather than tucked at the end. It is the number that
+// says how much of this suite is not evidence for kapi.
+const CONTRIBUTIONS: { key: string; label: string; means: string; t: keyof typeof tone }[] = [
+  {
+    key: "enabled",
+    label: "enabled",
+    means: "the unaided agent could not finish and the one with kapi did",
+    t: "pass",
+  },
+  {
+    key: "eased",
+    label: "eased",
+    means: "both finished, and kapi took materially fewer messages",
+    t: "pass",
+  },
+  {
+    key: "hindered",
+    label: "hindered",
+    means: "the unaided agent finished and the one with kapi did not",
+    t: "fail",
+  },
+  {
+    key: "neither",
+    label: "neither",
+    means: "both finished, and kapi saved nothing measurable",
+    t: "flat",
+  },
+  {
+    key: "unknown",
+    label: "unknown",
+    means: "no gate, so there is no outcome to compare",
+    t: "flat",
+  },
+];
 
 // The dataset holds one report per surface and mode. The keys are exact and
 // unlovely, so the tabs get names a reader can act on.
@@ -353,6 +464,13 @@ function Detail({ r }: { r: Result }): ReactElement {
         </div>
       )}
 
+      {r.withheld && (
+        <div>
+          <div style={s.h}>Transcript withheld</div>
+          <p style={{ margin: 0, fontSize: ".88rem", color: tone.flaky.fg }}>{r.withheld}</p>
+        </div>
+      )}
+
       {sc.knownLimit && (
         <div>
           <div style={s.h}>Known limit</div>
@@ -490,8 +608,117 @@ function Detail({ r }: { r: Result }): ReactElement {
           ))}
         </div>
       </div>
+
+      <UnaidedRuns r={r} />
     </div>
   );
+}
+
+// UnaidedRuns shows the control arm beside the kapi one.
+//
+// The summary at the top of the page gives the counts; this is where a reader
+// checks them. Three of the scenarios on the first fully gated sweep failed
+// with kapi and passed without it, and two of those turned out to be the gate
+// rather than the tool. Neither would have been visible from a count.
+function UnaidedRuns({ r }: { r: Result }): ReactElement | null {
+  const runs = r.unaided ?? [];
+  if (runs.length === 0) return null;
+  const withKapi = median((r.runs ?? []).map((x) => x.messages));
+  const unaided = median(runs.map((x) => x.messages));
+  return (
+    <div>
+      <div style={s.h}>
+        Without kapi{" "}
+        {r.contribution && (
+          <Pill
+            text={r.contribution}
+            t={
+              r.contribution === "enabled" || r.contribution === "eased"
+                ? "pass"
+                : r.contribution === "hindered"
+                  ? "fail"
+                  : "flat"
+            }
+          />
+        )}
+      </div>
+      <p style={{ ...s.sub, marginTop: 0 }}>
+        The same prompt and the same workspace, with no skill, no MCP server and no kapi on PATH.
+        Median messages: {withKapi} with kapi, {unaided} without.
+      </p>
+      <div style={{ display: "grid", gap: ".9rem" }}>
+        {runs.map((run, i) => (
+          <div
+            key={i}
+            style={{
+              borderLeft: `3px solid ${tone.flat.fg}`,
+              paddingLeft: ".8rem",
+              display: "grid",
+              gap: ".4rem",
+            }}
+          >
+            <div style={{ display: "flex", gap: ".6rem", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={s.sub}>
+                {run.messages} msg · {(run.durationMs / 1000).toFixed(1)}s
+              </span>
+              {run.gate && (
+                <Pill
+                  text={run.gate.exitCode === 0 ? "gate green" : "gate red"}
+                  t={run.gate.exitCode === 0 ? "pass" : "fail"}
+                />
+              )}
+            </div>
+            {(run.changed ?? []).length > 0 && (
+              <div style={{ display: "flex", gap: ".4rem", flexWrap: "wrap" }}>
+                {run.changed!.map((c) => (
+                  <code key={c.path} style={{ fontFamily: mono, fontSize: ".78rem" }}>
+                    {c.path}
+                  </code>
+                ))}
+              </div>
+            )}
+            {run.finalText && <pre style={s.pre}>{run.finalText}</pre>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// MessageCost is the other half of the control, and the counts say it plainly:
+// on this suite the kapi route is not cheaper. "eased 0" on its own reads like
+// an absence of evidence; it is not. The unaided arm took fewer messages on
+// most scenarios, often several times fewer, and a page reporting what kapi
+// added has to report that too.
+function MessageCost({ results }: { results: Result[] }): ReactElement | null {
+  const pairs = results
+    .filter((r) => (r.unaided?.length ?? 0) > 0 && (r.runs?.length ?? 0) > 0)
+    .map((r) => ({
+      id: r.scenario.id,
+      withKapi: median((r.runs ?? []).map((x) => x.messages)),
+      unaided: median((r.unaided ?? []).map((x) => x.messages)),
+    }))
+    .filter((p) => p.withKapi > 0 && p.unaided > 0);
+  if (pairs.length === 0) return null;
+
+  const cheaper = pairs.filter((p) => p.unaided < p.withKapi).length;
+  const totalWith = pairs.reduce((n, p) => n + p.withKapi, 0);
+  const totalWithout = pairs.reduce((n, p) => n + p.unaided, 0);
+  return (
+    <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
+      <strong>What it cost.</strong> Across {pairs.length} scenarios the agent sent{" "}
+      <strong>{totalWith}</strong> messages with kapi and <strong>{totalWithout}</strong> without,
+      and the unaided arm was shorter on {cheaper} of them. That is the honest counterweight to the
+      counts below: on this suite kapi reaches answers the unaided agent cannot, and it is not the
+      cheaper route to the ones it can.
+    </p>
+  );
+}
+
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
 }
 
 function ScenarioRow({ r }: { r: Result }): ReactElement {
@@ -511,6 +738,22 @@ function ScenarioRow({ r }: { r: Result }): ReactElement {
             {open ? "−" : "+"}
           </span>
           <Pill text={r.verdict} t={verdictTone[r.verdict]} />
+          {/* The control arm's answer belongs on the row rather than two clicks
+              in: it is the difference between "this passed" and "this passed
+              because of kapi". */}
+          {r.withheld && <Pill text="transcript withheld" t="flaky" />}
+          {r.contribution && r.contribution !== "unknown" && (
+            <Pill
+              text={r.contribution}
+              t={
+                r.contribution === "enabled" || r.contribution === "eased"
+                  ? "pass"
+                  : r.contribution === "hindered"
+                    ? "fail"
+                    : "flat"
+              }
+            />
+          )}
         </span>
         <span>
           <div style={s.prompt}>{sc.prompt}</div>
@@ -671,6 +914,8 @@ export default function SkillEval(): ReactElement {
         <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
           {surfaceNote[surface]}
         </p>
+
+        <ControlArm sum={sum} results={report.results} />
 
         <h2>
           {surface === "mcp" ? "Must pick the right tool" : "Must fire"} ({positives.length})
