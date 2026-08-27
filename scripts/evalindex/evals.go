@@ -53,18 +53,13 @@ var evals = []Eval{
 		Page:      "/format-maturity",
 	},
 	{
-		ID:     "engine-speed",
-		Title:  "Engine throughput",
-		Method: MethodBenchmark,
-		// Not "measured". The committed dataset records one engine over 85
-		// files, of which zero succeeded, so the published millisecond figure
-		// is how long it takes to process nothing. See #2221.
-		Status: StatusUnvalidated,
-		Corpus: "85 fixtures on the pseudo-translation path, which exercises read and write without a model.",
-		Covers: "How fast the engine moves content when no provider is in the way, per format and per engine.",
-		Misses: "The number on the page should not be read. Its dataset records 0 of 85 files succeeding, so it times a run that produced no output, and the harness published it as a result rather than failing. " +
-			"kapi pseudo-translates the same corpus correctly by hand, so this is the harness rather than the engine. " +
-			"Three of the four engines it is meant to compare did not run at all.",
+		ID:        "engine-speed",
+		Title:     "Engine throughput",
+		Method:    MethodBenchmark,
+		Status:    StatusPartial,
+		Corpus:    "844 fixtures on the pseudo-translation path, which exercises read and write without a model.",
+		Covers:    "How fast the engine moves content when no provider is in the way, per format and per engine.",
+		Misses:    "One engine. The dataset compares nothing, because the three it is meant to be measured against did not run. Isolating the engine is deliberate, so it also says nothing about a run that calls a model.",
 		Reproduce: "make bench-stress",
 		Data:      "web/static/data/pseudobench.json",
 		Page:      "/pseudobench",

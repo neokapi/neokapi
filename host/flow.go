@@ -626,6 +626,10 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	// silent skip is how a batch comes to look complete while a format nobody
 	// registered went by untouched.
 	var skipped []string
+	// Files that failed for a real reason. Collected rather than returned, so
+	// one bad file does not take the readable ones down with it, and so the
+	// report names every failure instead of whichever lost the race.
+	var failures []error
 
 	if tracePath != "" {
 		batchStart = time.Now()
@@ -709,7 +713,15 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 				return nil
 			}
 			if err != nil {
-				return fmt.Errorf("%s: %w", inputPath, err)
+				// Recorded, not returned. Returning here cancelled the group's
+				// context, and with it every sibling still in flight: the same
+				// 25 files produced 0 outputs with the unreadable one first and
+				// 20 with it last. A batch's result must not depend on the
+				// order the files were listed in.
+				mu.Lock()
+				failures = append(failures, fmt.Errorf("%s: %w", inputPath, err))
+				mu.Unlock()
+				return nil
 			}
 			mu.Lock()
 			processed++
@@ -721,6 +733,13 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 	if err := g.Wait(); err != nil {
 		return fmt.Errorf("flow execution error: %w", err)
+	}
+	// Deliberately after the per-file work and before the outputs are reported:
+	// the files that did succeed have been written, and the caller learns about
+	// every file that did not rather than about one of them.
+	if len(failures) > 0 {
+		return fmt.Errorf("flow execution error: %d of %d file(s) failed:\n  %w",
+			len(failures), len(inputPaths), errors.Join(failures...))
 	}
 
 	// Write batch trace JSON if --trace was set.
