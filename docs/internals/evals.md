@@ -236,7 +236,40 @@ fires, and it reports what it refused. What surfaced it was the control arm:
 the scenario failed with kapi and passed without it, and that comparison is the
 only signal that pointed at a tool doing its job correctly and uselessly.
 
+## The authoring evals
+
+```bash
+make authoring-eval          # all three: checks, infer, the voice guide
+make authoring-eval-checks   # the checks alone, free and offline
+```
+
+The corpus is synthesized and says so in the data rather than only in the prose
+around it. Two of the three questions need ground truth no repository carries,
+a profile a person wrote from a known corpus and prose whose every violation is
+marked, and labelling real material to that standard is the eval rather than
+preparation for it.
+
+Recall is measured over the documents written against the profile, where every
+violation is marked, and false positives over the documents written to it, where
+the right answer is silence. Neither half substitutes for the other. An
+off-profile document contains violations beyond the marked ones, so counting
+unmarked findings there measures how complete the marking is rather than how
+good the check is; the first version pooled them into one precision figure and
+reported 61%, none of which was about kapi.
+
+Split recall by which of the three mechanisms a profile states a rule through,
+because the answer differs completely between them: terms and patterns are
+matched offline, and `active_voice`, `person_pov` and the rest of the enum
+fields are not evaluated by anything offline at all. They reach the guide and
+the LLM check. A profile saying `active_voice: true` scores dense passive prose
+100/100 offline, and a reader who does not know which mechanism a rule uses
+cannot tell a clean document from an unchecked one.
+
 ## Comparing against other tools
+
+```bash
+make conversion-eval   # every converter installed, over the parity corpus
+```
 
 `scripts/conversioneval` compares document converters, and the hard part is
 ground truth. Scoring against pandoc's output would measure agreement with
