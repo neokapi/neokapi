@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -283,6 +283,9 @@ check-archive-licenses: ## Guard: every release archive ships the license text o
 
 check-plugin-licenses: ## Guard: every plugin tarball ships the license text of the work inside it
 	@./scripts/check-plugin-licenses.sh
+
+check-plugin-release-latest: ## Guard: no plugin release claims the repo's "latest"
+	@./scripts/check-plugin-release-latest.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
 	@./scripts/check-tracked-binaries.sh
