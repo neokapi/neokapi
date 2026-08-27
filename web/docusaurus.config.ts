@@ -1028,17 +1028,9 @@ const config: Config = {
             // Reader-facing reference only. The individual dashboards (parity,
             // benchmarks, per-eval results) stay out of this dropdown: one of
             // them is a slice of telemetry, not something a reader arrives
-            // looking for.
-            //
-            // /evals is the exception, and the reason is that it is not a
-            // dashboard. It is the cover page over all of them, and the only
-            // surface that can say what is NOT measured, which is the half a
-            // reader cannot reconstruct by browsing the others.
+            // looking for. What kapi is measured against is its own navbar
+            // item, below.
             { label: "Reference Overview", to: "/reference" },
-            { label: "Tests and Evals", to: "/evals" },
-            { label: "· Engine and formats", to: "/evals/engine" },
-            { label: "· AI and context", to: "/evals/ai" },
-            { label: "· Agent skills", to: "/evals/skills" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
@@ -1080,6 +1072,24 @@ const config: Config = {
           sidebarId: "frameworkSidebar",
           label: "Framework",
           position: "left",
+        },
+        {
+          // What kapi is measured against, at the top level rather than inside
+          // Reference. A reader deciding whether to trust the thing does not
+          // look under a reference dropdown for the evidence, and the pages
+          // most worth finding were the ones hardest to reach. The band pages
+          // are the three kinds of claim: deterministic assertions about the
+          // engine, sampled estimates about AI, and scenario scores for an
+          // agent driving kapi.
+          type: "dropdown",
+          label: "Tests & Evals",
+          position: "left",
+          items: [
+            { label: "Overview", to: "/evals" },
+            { label: "Engine and formats", to: "/evals/engine" },
+            { label: "AI and context", to: "/evals/ai" },
+            { label: "Agent skills", to: "/evals/skills" },
+          ],
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for
@@ -1141,6 +1151,10 @@ const config: Config = {
             {
               label: "Format Reference",
               to: "/formats",
+            },
+            {
+              label: "Tests & Evals",
+              to: "/evals",
             },
           ],
         },

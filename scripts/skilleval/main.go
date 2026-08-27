@@ -115,17 +115,7 @@ func main() {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		fail(err.Error())
 	}
-	// Only when publishing into the docs site. A run written elsewhere with
-	// -out is for reading, and holding it to the site's constraint would be
-	// borrowing a rule from a place it is not going.
-	publish := strings.Contains(target, filepath.Join("web", "src"))
 	for _, part := range partitionBySurface(report) {
-		if publish {
-			withholdDownstream(part)
-			if err := stillMentionsDownstream(part); err != nil {
-				fail(err.Error())
-			}
-		}
 		if err := merge(target, part); err != nil {
 			fail(err.Error())
 		}
@@ -325,11 +315,6 @@ type Result struct {
 	// Contribution is what kapi added here, measured: enabled, eased, neither,
 	// or unknown when there is no gate to compare outcomes on.
 	Contribution Contribution `json:"contribution,omitempty"`
-
-	// Withheld says why this result's transcripts are not published, when they
-	// are not. The verdict and the counts are unaffected; what is missing is
-	// the prose. See withholdDownstream.
-	Withheld string `json:"withheld,omitempty"`
 }
 
 func (r *Result) score(mode string) {
@@ -441,11 +426,6 @@ type Summary struct {
 	// arm ran. "neither" is the number worth reading first: it says how much
 	// of this suite is not evidence for kapi.
 	Contributions map[string]int `json:"contributions,omitempty"`
-
-	// Withheld counts results whose transcripts were removed before publishing.
-	// On the report rather than only per result, because a reader should not
-	// have to open seventeen rows to learn that one of them is incomplete.
-	Withheld int `json:"withheld,omitempty"`
 }
 
 func (s Summary) Line() string {
@@ -621,85 +601,4 @@ func settingsLine(opts Options) string {
 	return fmt.Sprintf("claude -p, bypassPermissions, %d repeat(s), trigger cap %d turns "+
 		"(MCP scenarios use their own, since picking a tool can take a step or two). "+
 		"Sampling follows the CLI's defaults and is not pinned.", opts.Repeat, opts.TriggerTurnCap)
-}
-
-// downstreamName is the platform this framework must not mention in its own
-// docs. See scripts/check-docs-bowrain-clean.sh for the contract.
-const downstreamName = "bowrain"
-
-// withholdDownstream removes the free text that would fail the docs guard, and
-// records that it did.
-//
-// The dataset lands in web/src, which the neokapi docs site serves and which is
-// held to zero mentions of the downstream platform. Scenario text is under this
-// file's control and a companion test keeps it clean, but a TRANSCRIPT is not:
-// the shipped skill's own description names the platform, so an agent can
-// repeat it in a closing message on any scenario at all.
-//
-// The first version refused the whole run. That is the wrong trade for a sweep
-// that costs half an hour and real money: one agent echoing one word threw away
-// seventeen scenarios' results, which is what happened on the run that led to
-// this comment. Refusing also does not make the dataset more honest, because
-// the alternative on offer was rewording the scenario until the agent stopped
-// saying it, which is worse than an omission.
-//
-// So the numbers survive and the prose does not. A result whose transcript
-// names the platform keeps its verdict, its gate, its message counts and its
-// file changes, and loses the text: the closing message and the command list.
-// Withheld is recorded per result and counted on the report, so the page can
-// say what is missing and why. An omission a reader can see is not the same as
-// a quiet rewrite.
-func withholdDownstream(r *Report) {
-	for i := range r.Results {
-		res := &r.Results[i]
-		if !mentionsDownstream(res) {
-			continue
-		}
-		res.Withheld = "the transcript names the downstream platform, which the docs site this dataset " +
-			"is published into must not mention. Verdict, gate and counts are unchanged; the closing " +
-			"messages and command lists are removed."
-		r.Summary.Withheld++
-		for _, runs := range [][]Run{res.Runs, res.Unaided} {
-			for j := range runs {
-				runs[j].FinalText = ""
-				runs[j].KapiCommands = nil
-				runs[j].Tools = nil
-				if runs[j].Gate != nil {
-					runs[j].Gate.Output = ""
-				}
-				for k := range runs[j].Changed {
-					runs[j].Changed[k].Before = ""
-					runs[j].Changed[k].After = ""
-				}
-			}
-		}
-	}
-}
-
-// mentionsDownstream reports whether a result's recorded text names the
-// platform.
-func mentionsDownstream(res *Result) bool {
-	body, err := json.Marshal(res)
-	if err != nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(string(body)), downstreamName)
-}
-
-// stillMentionsDownstream is the check after withholding. If a mention survives
-// it is somewhere this function does not know to clear, and publishing anyway
-// would break the docs build for a reason nobody would trace back to here.
-func stillMentionsDownstream(r *Report) error {
-	body, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(strings.ToLower(string(body)), downstreamName) {
-		return nil
-	}
-	return fmt.Errorf(
-		"this run still mentions %q after withholding the transcripts that did, so it names the "+
-			"platform somewhere withholding does not reach. Publishing it would break the docs build.\n"+
-			"See scripts/check-docs-bowrain-clean.sh",
-		downstreamName)
 }
