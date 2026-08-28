@@ -160,3 +160,35 @@ func TestValidateProfile_MinScoreRange(t *testing.T) {
 	assert.Empty(t, ValidateProfile(&VoiceProfile{Name: "P", MinScore: 100}))
 	assert.Empty(t, ValidateProfile(&VoiceProfile{Name: "P"}), "unset min_score is valid")
 }
+
+// TestUnfamiliarToneIsKeptNotRefused is issue #2242.
+//
+// kapi inferred this register from ripgrep's own documentation, and the profile
+// would not load until it was squashed to `neutral` — discarding exactly what
+// distinguished the voice. Moved into free-text guidelines it worked, which
+// shows the enum carried nothing the prose could not.
+func TestUnfamiliarToneIsKeptNotRefused(t *testing.T) {
+	p := &VoiceProfile{
+		Name: "ripgrep",
+		Tone: ToneProfile{Emotion: "calm and matter-of-fact; enthusiasm reserved for good news"},
+	}
+	probs := ValidateProfile(p)
+
+	assert.Empty(t, Blocking(probs), "an unfamiliar register never makes a profile unusable")
+	var noted bool
+	for _, pr := range probs {
+		if pr.Field == "tone.emotion" {
+			noted = true
+			assert.True(t, pr.Warning, "it is mentioned as advice, not as a failure")
+		}
+	}
+	assert.True(t, noted, "and it IS mentioned, rather than passing silently")
+}
+
+// TestStyleEnumsStayClosed: unlike tone, these are read by code — active_voice
+// and person_pov are what the offline check evaluates — so an unrecognised
+// value is a rule that silently does nothing.
+func TestStyleEnumsStayClosed(t *testing.T) {
+	p := &VoiceProfile{Name: "x", Style: StyleRules{PersonPOV: "fourth"}}
+	assert.NotEmpty(t, Blocking(ValidateProfile(p)))
+}

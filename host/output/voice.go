@@ -150,23 +150,45 @@ func (o VoiceValidateOutput) FormatText(w io.Writer) error {
 	if src == "" {
 		src = "profile"
 	}
-	if o.Valid {
-		if o.Profile != "" {
-			fmt.Fprintf(w, "VALID  %s (%s)\n", src, o.Profile)
-		} else {
-			fmt.Fprintf(w, "VALID  %s\n", src)
-		}
-		return nil
-	}
-	fmt.Fprintf(w, "INVALID  %s — %d problem(s):\n", src, len(o.Errors))
+	var blocking, advisory []profile.ProfileProblem
 	for _, p := range o.Errors {
-		if p.Field != "" {
-			fmt.Fprintf(w, "  %s: %s\n", p.Field, p.Message)
-		} else {
-			fmt.Fprintf(w, "  %s\n", p.Message)
+		if p.Warning {
+			advisory = append(advisory, p)
+			continue
+		}
+		blocking = append(blocking, p)
+	}
+
+	switch {
+	case len(blocking) > 0:
+		fmt.Fprintf(w, "INVALID  %s — %d problem(s):\n", src, len(blocking))
+		for _, p := range blocking {
+			writeProblem(w, p)
+		}
+	case o.Profile != "":
+		fmt.Fprintf(w, "VALID  %s (%s)\n", src, o.Profile)
+	default:
+		fmt.Fprintf(w, "VALID  %s\n", src)
+	}
+
+	// Advisories after the verdict, never instead of it. A profile with a tone
+	// this does not recognise is usable, and saying so is the whole point of
+	// the distinction.
+	if len(advisory) > 0 {
+		fmt.Fprintf(w, "\n%d note(s):\n", len(advisory))
+		for _, p := range advisory {
+			writeProblem(w, p)
 		}
 	}
 	return nil
+}
+
+func writeProblem(w io.Writer, p profile.ProfileProblem) {
+	if p.Field != "" {
+		fmt.Fprintf(w, "  %s: %s\n", p.Field, p.Message)
+		return
+	}
+	fmt.Fprintf(w, "  %s\n", p.Message)
 }
 
 // VoiceImportOutput is the result of `kapi voice import` / `kapi voice pack`.

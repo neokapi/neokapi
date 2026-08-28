@@ -245,6 +245,15 @@ func FindTerm(text, term string) [][2]int {
 	return NewTermMatcher(term).Find(text)
 }
 
+// FindTermCased is FindTerm, requiring the term's own casing.
+//
+// For a rule whose whole content is capitalisation — a product name written one
+// way and one way only — where folding case makes the rule fire on every
+// correct use.
+func FindTermCased(text, term string) [][2]int {
+	return NewCaseSensitiveTermMatcher(term).Find(text)
+}
+
 // ContainsTerm reports whether term occurs in text (see FindTerm).
 func ContainsTerm(text, term string) bool {
 	return len(FindTerm(text, term)) > 0

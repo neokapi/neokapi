@@ -226,3 +226,68 @@ func TestCompactGuideDropsTheNoOpSwapToo(t *testing.T) {
 	assert.NotContains(t, got, `"grep" → "grep"`)
 	assert.Contains(t, got, `"ag" → "The Silver Searcher"`)
 }
+
+// TestPatternReachesTheModelWithItsWords is issue #2240.
+//
+// The description said WHY a pattern is banned and the regex says WHAT is
+// banned, and the description won. A rule with a careful description reached
+// the model naming none of the words it forbids, so the document written under
+// it used them — each one a violation the check would then flag. A user who
+// documented their rule made the guide less actionable than one who did not.
+func TestPatternReachesTheModelWithItsWords(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{
+			Regex:       `(?i)\b(?:endpoint|payload|webhook|HMAC|API)\b`,
+			Description: "implementation vocabulary, which this reader does not have",
+		}}},
+	}
+	got := RenderVoiceGuideCompact(p)
+
+	assert.Contains(t, got, "implementation vocabulary", "the reason survives")
+	for _, w := range []string{"endpoint", "payload", "webhook"} {
+		assert.Contains(t, got, w, "the model is told which word to avoid: %s", w)
+	}
+}
+
+// TestPatternWithoutWordsKeepsItsDescription: a pattern built from character
+// classes has no words to extract, and inventing some would be worse than the
+// description alone.
+func TestPatternWithoutWordsKeepsItsDescription(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{
+			Regex:       `\s+\w+(?:ed|en)\b`,
+			Description: "passive construction",
+		}}},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.Contains(t, got, "passive construction")
+	assert.NotContains(t, got, "such as", "nothing extractable, so nothing claimed")
+}
+
+// TestDuplicatePatternHintsAreDropped: two patterns sharing a description
+// rendered the same sentence twice and spent context on nothing.
+func TestDuplicatePatternHintsAreDropped(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{
+			{Regex: `\x{2014}`, Description: "em dashes"},
+			{Regex: `\x{2013}`, Description: "em dashes"},
+		}},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.Equal(t, 1, strings.Count(got, "em dashes"))
+}
+
+// TestCompactGuideCarriesTheExamples.
+//
+// A before/after pair is the strongest steering a profile has — describing a
+// register has been measured not to move a model, and showing one has. The
+// compact form dropped them entirely, and it is what the translation path uses:
+// the one place kapi writes prose on a user's behalf at scale.
+func TestCompactGuideCarriesTheExamples(t *testing.T) {
+	p := &VoiceProfile{Examples: []VoiceExample{
+		{Before: "RipGrep is blazingly fast", After: "ripgrep uses parallelism to search"},
+	}}
+	got := RenderVoiceGuideCompact(p)
+	assert.Contains(t, got, "RipGrep is blazingly fast")
+	assert.Contains(t, got, "ripgrep uses parallelism to search")
+}

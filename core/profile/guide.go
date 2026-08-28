@@ -47,16 +47,20 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 	fmt.Fprintf(&b, "- Sentence length: %s\n", p.Style.SentenceLength)
 	fmt.Fprintf(&b, "- Point of view: %s\n", p.Style.PersonPOV)
 	fmt.Fprintf(&b, "- Contractions: %s\n", p.Style.Contractions)
+	// Both renderers name the words a pattern bans (#2240). The full guide is
+	// what `kapi voice guide` prints and what an assistant is handed, so
+	// fixing only the compact one would have left the surface most people see
+	// still saying "avoid implementation vocabulary" and naming none of it.
 	if len(p.Style.ProhibitedPatterns) > 0 {
 		b.WriteString("- Prohibited patterns:\n")
 		for _, pat := range p.Style.ProhibitedPatterns {
-			fmt.Fprintf(&b, "  - %s (severity: %s)\n", pat.Description, pat.Severity)
+			fmt.Fprintf(&b, "  - %s (severity: %s)\n", patternHint(pat), pat.Severity)
 		}
 	}
 	if len(p.Style.RequiredPatterns) > 0 {
 		b.WriteString("- Required in the document:\n")
 		for _, pat := range p.Style.RequiredPatterns {
-			fmt.Fprintf(&b, "  - %s (severity: %s)\n", pat.Description, pat.Severity)
+			fmt.Fprintf(&b, "  - %s (severity: %s)\n", patternHint(pat), pat.Severity)
 		}
 	}
 	b.WriteString("\n")
@@ -116,6 +120,11 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 // field is silently dead context at generation time. Only the illustrative
 // material (preferred terms, examples) is left to the full guide; preferred
 // term renderings travel as term rules instead. Output is deterministic.
+// maxCompactExamples is how many before/after pairs the compact form carries.
+// Three is what vendor guidance suggests is enough to steer, and this form
+// exists to be short.
+const maxCompactExamples = 3
+
 func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	if p == nil {
 		return ""
@@ -182,6 +191,30 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 		b.WriteString(strings.Join(bans, "; "))
 		b.WriteString(".")
 	}
+
+	// The examples, which this used to drop entirely.
+	//
+	// A before/after pair is the strongest steering a profile carries: describing
+	// a register has been measured not to move a model's output, and showing one
+	// has. Dropping them left the translation path — the one place kapi writes
+	// prose on a user's behalf at scale — with only the description.
+	//
+	// Capped, because this form exists to be short. The full guide has them all.
+	if len(p.Examples) > 0 {
+		b.WriteString(" Rewrite in this direction: ")
+		var pairs []string
+		for i, ex := range p.Examples {
+			if i >= maxCompactExamples {
+				break
+			}
+			if ex.Before == "" || ex.After == "" {
+				continue
+			}
+			pairs = append(pairs, fmt.Sprintf("%q becomes %q", ex.Before, ex.After))
+		}
+		b.WriteString(strings.Join(pairs, "; "))
+		b.WriteString(".")
+	}
 	return strings.TrimSpace(b.String())
 }
 
@@ -217,22 +250,175 @@ func termLine(t TermRule) string {
 	return b.String()
 }
 
-// patternHints returns a pattern list's prompt-facing hints in its declared
-// order: the human description where present, else the raw regex — a pattern
-// must not vanish from the prompt just because nobody described it.
+// patternHints returns a pattern list's prompt-facing hints, in declared order.
+//
+// Both halves, and this is the fix for issue #2240. The description said WHY a
+// pattern is banned and the regex says WHAT is banned, and the description won:
+// a rule carrying
+//
+//	regex:       (?i)\b(?:endpoint|payload|webhook|HTTP POST|JSON|HMAC|API)\b
+//	description: implementation vocabulary, which this reader does not have
+//
+// reached the model as "avoid these patterns: implementation vocabulary, which
+// this reader does not have", naming none of the seven words. The document it
+// then wrote used five of them, each a violation the check would flag. A user
+// who wrote a careful description made the guide LESS actionable than one who
+// wrote none.
+//
+// Duplicates are dropped: two patterns sharing a description rendered the same
+// sentence twice and spent context on nothing.
 func patternHints(pats []Pattern) []string {
 	var hints []string
+	seen := map[string]bool{}
 	for _, pat := range pats {
-		hint := strings.TrimSpace(pat.Description)
-		if hint == "" {
-			hint = pat.Regex
+		hint := patternHint(pat)
+		if hint == "" || seen[hint] {
+			continue
 		}
-		if hint != "" {
-			hints = append(hints, hint)
-		}
+		seen[hint] = true
+		hints = append(hints, hint)
 	}
 	return hints
 }
+
+// patternHint renders one pattern as something a model can act on.
+func patternHint(pat Pattern) string {
+	desc := strings.TrimSpace(pat.Description)
+	words := patternWords(pat.Regex)
+	switch {
+	case desc != "" && words != "":
+		return desc + " (" + words + ")"
+	case desc != "":
+		// Nothing extractable — an anchor, a character class, a backreference.
+		// The description alone is what there is.
+		return desc
+	default:
+		return strings.TrimSpace(pat.Regex)
+	}
+}
+
+// patternWords pulls the literal words out of a regex, for the common shape a
+// vocabulary rule takes: an alternation of plain words.
+//
+// A regex is poor prompt material and a word list is good prompt material, so
+// this renders the list where the pattern is one and says nothing where it is
+// not. Only literals survive: a piece carrying any regex syntax is dropped
+// rather than shown to a model as though it were a word.
+//
+// It splits rather than matches. Matching each alternative with its delimiters
+// cannot see consecutive ones — in `(a|b|c)` the match for `b` consumes both
+// pipes, so `c` has no opening delimiter left and vanishes. That silently
+// dropped every other word in a list.
+func patternWords(regex string) string {
+	if regex == "" {
+		return ""
+	}
+	var words []string
+	seen := map[string]bool{}
+	for _, piece := range splitTopLevel(regex) {
+		w := literalWord(piece)
+		if w == "" || seen[strings.ToLower(w)] {
+			continue
+		}
+		seen[strings.ToLower(w)] = true
+		words = append(words, w)
+	}
+	if len(words) == 0 {
+		return ""
+	}
+	if len(words) > maxPatternWords {
+		words = append(words[:maxPatternWords:maxPatternWords], "…")
+	}
+	return "such as " + strings.Join(words, ", ")
+}
+
+// splitTopLevel splits a regex on the alternation pipes at its shallowest
+// depth, leaving nested ones alone.
+//
+// Splitting on every pipe reaches inside nested groups: `chang(er|ing)` yielded
+// the piece `ing)`, which trimmed to `ing` and was published to a model as a
+// word to avoid. A fragment of a word is worse than no word, because a reader
+// of the guide cannot tell it is one.
+func splitTopLevel(regex string) []string {
+	depth, min := 0, -1
+	for _, r := range regex {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case '|':
+			if min < 0 || depth < min {
+				min = depth
+			}
+		}
+	}
+	if min < 0 {
+		return []string{regex}
+	}
+	var out []string
+	depth, start := 0, 0
+	for i, r := range regex {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case '|':
+			if depth == min {
+				out = append(out, regex[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(out, regex[start:])
+}
+
+// literalWord strips the syntax around one alternative and returns what is left
+// when that is a plain word or phrase, else "".
+func literalWord(piece string) string {
+	// Until nothing more comes off: the syntax nests, so `(?i)\b(?:endpoint`
+	// needs three passes and one pass each dropped the first and last word of
+	// every list.
+	for changed := true; changed; {
+		changed = false
+		for _, prefix := range []string{"(?i)", "(?s)", "(?m)", "(?:", "(", `\b`, "^"} {
+			if t := strings.TrimPrefix(strings.TrimSpace(piece), prefix); t != piece {
+				piece, changed = t, true
+			}
+		}
+		for _, suffix := range []string{")", `\b`, "$"} {
+			if t := strings.TrimSuffix(strings.TrimSpace(piece), suffix); t != piece {
+				piece, changed = t, true
+			}
+		}
+	}
+	piece = strings.TrimSpace(piece)
+	if len(piece) < 3 {
+		return ""
+	}
+	// Anything still carrying syntax is not a word. Checked after trimming, so
+	// a genuine word that merely sat inside a group is kept.
+	if strings.ContainsAny(piece, `\[](){}*+?.^$|`) {
+		return ""
+	}
+	for i, r := range piece {
+		ok := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == ' ' || r == '-'
+		if !ok || (i == 0 && !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z'))) {
+			return ""
+		}
+	}
+	return piece
+}
+
+// maxPatternWords caps the list. A rule banning fifty words does not need all
+// fifty in the prompt to be followed, and the check still holds every one.
+const maxPatternWords = 12
 
 // termSwaps returns deterministic "term → replacement" hints derived from
 // forbidden and competitor terms that declare a replacement.
