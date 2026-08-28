@@ -427,12 +427,12 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T18:39:38Z"
+        "date": "2026-08-27T22:34:43Z"
       },
       "headline": {
-        "value": "22/22",
+        "value": "21/22",
         "of": "scenarios fired correctly",
-        "tone": "ok"
+        "tone": "warn"
       }
     },
     {
@@ -450,10 +450,10 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T20:17:57Z"
+        "date": "2026-08-27T23:38:20Z"
       },
       "headline": {
-        "value": "14/17",
+        "value": "13/17",
         "of": "scenarios reached a green gate",
         "tone": "gap"
       }
@@ -473,7 +473,7 @@
       "data": "web/src/pages/skill-eval/_skilleval.json",
       "page": "/skill-eval",
       "fresh": {
-        "date": "2026-08-27T18:44:20Z"
+        "date": "2026-08-27T22:38:25Z"
       },
       "headline": {
         "value": "8/8",

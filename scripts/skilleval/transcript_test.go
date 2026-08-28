@@ -13,7 +13,8 @@ import (
 
 // The transcript is published, so these tests are about what reaches the file
 // rather than about what the parser can hold: a session carries the workspace
-// path and whatever the agent printed of it, and the dataset is tracked in git.
+// path and whatever the agent printed of it, and it is served from the CDN
+// where anyone can read it.
 
 // stream builds a stream-json body from its lines, which is what the agent
 // writes on stdout under --output-format stream-json.
@@ -97,38 +98,30 @@ func TestRecordScrubsEveryString(t *testing.T) {
 	assert.NotContains(t, string(body2), "/private/var")
 }
 
-// TestCapsBoundOneSession: a session is bounded so one pathological run cannot
-// publish a file nobody can open, and it says how much it dropped rather than
-// ending as if the agent had stopped.
-func TestCapsBoundOneSession(t *testing.T) {
+// TestSessionIsWhole.
+//
+// The caps that used to be here — 400 events, 256KB, 1,200 characters per tool
+// result — cut exactly the part a reader opens a transcript for: the file the
+// agent read, the error it got. Uncapped transcripts are too large for git and
+// go to the CDN with the artefacts, which is what makes this affordable.
+func TestSessionIsWhole(t *testing.T) {
 	var r Run
-	for i := range maxSessionEvents + 25 {
-		r.record(Event{Kind: "text", Text: strings.Repeat("x", 10) + string(rune('a'+i%26))})
+	big := strings.Repeat("y", 40_000)
+	for range 600 {
+		r.record(Event{Kind: "tool", Name: "Read", Output: big})
 	}
-	assert.Len(t, r.Events, maxSessionEvents)
-	assert.Equal(t, 25, r.EventsDropped)
+	assert.Len(t, r.Events, 600, "no event is dropped")
+	assert.Len(t, r.Events[0].Output, 40_000, "and none is truncated")
 }
 
-func TestCapsBoundOneSessionByBytes(t *testing.T) {
+// TestScrubbingSurvivesTheUncapping: dropping the caps must not drop the one
+// transformation that is not optional. These files carry a temp workspace and a
+// developer's home, and check-abs-paths.sh sweeps every tracked file.
+func TestScrubbingSurvivesTheUncapping(t *testing.T) {
 	var r Run
-	big := strings.Repeat("y", maxEventText)
-	for range 200 {
-		r.record(Event{Kind: "text", Text: big})
-	}
-	assert.Less(t, len(r.Events), 200)
-	assert.Positive(t, r.EventsDropped)
-	assert.LessOrEqual(t, r.eventBytes, maxSessionBytes+maxEventText)
-}
-
-// TestClipCutsOnARuneBoundary: cutting mid-rune fills a Norwegian transcript
-// with replacement characters, and nb is a language this repo publishes in.
-func TestClipCutsOnARuneBoundary(t *testing.T) {
-	got := clip(strings.Repeat("ø", 20), 15)
-	assert.True(t, strings.HasPrefix(got, strings.Repeat("ø", 7)))
-	assert.Contains(t, got, "truncated")
-	for _, r := range got {
-		assert.NotEqual(t, '�', r, "no replacement character survives")
-	}
+	r.record(Event{Kind: "tool", Name: "Bash", Output: strings.Repeat("x", 5000) + " /Users/me/src/out.docx"})
+	assert.NotContains(t, r.Events[0].Output, "/Users/me")
+	assert.Contains(t, r.Events[0].Output, "<path>")
 }
 
 // TestSplitSessionsMovesEventsOutOfTheDataset: the page imports the dataset, so

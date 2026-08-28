@@ -2,69 +2,69 @@ import { useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import data from "./_authoringlab.json";
 
 // The authoring lab: what a coordinate does to a document, shown rather than
 // scored.
 //
-// Same product, same feature, same brand voice, same facts. Two coordinates
-// differing only in what the reader is assumed to know, each written twice —
-// once from the task alone, once with the governance bound at that point — on
-// four models.
+// An agent reads a real repository — ripgrep, pinned — and documents one part of
+// it, twice: once from the task alone, once with the governance bound at a
+// coordinate. Four models, two coordinates.
 //
-// Nothing here is a score. Nobody has yet written down what a good user guide
-// is, and a rubric invented for this page would be measuring the rubric. What
-// the page does instead is put the four documents where a reader can compare
-// them, and mark the words each coordinate bans so the difference is visible
-// without counting anything.
+// Nothing here is a score. Nobody has written down what a good user guide is,
+// and a rubric invented for this page would be measuring the rubric. What the
+// page does instead is show three things a reader needs to judge for themselves:
+// the documents, rendered as Markdown rather than shown as source; the exact
+// context each arm was given; and which files the agent opened, which is most of
+// the difference between a document grounded in the source and one recalled.
 //
-// Regenerate with `make authoring-lab`.
+// Regenerate with `./scripts/fetch-lab-repo.sh` then `make authoring-lab`.
 
+interface AgentRun {
+  text: string;
+  filesRead?: string[];
+  searches?: string[];
+  messages: number;
+  durationMs: number;
+  toolCalls?: Record<string, number>;
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
+  model?: string;
+  error?: string;
+}
 interface Doc {
   model: string;
-  resolved?: string;
   audience: string;
-  bare: string;
-  governed: string;
+  bare: AgentRun;
+  governed: AgentRun;
   bareFile: string;
   governedFile: string;
-  error?: string;
 }
 interface Report {
   generated: string;
-  brief: string;
+  repo: string;
   guides: Record<string, string>;
   tasks: Record<string, string>;
   labels: Record<string, string>;
+  profile: string;
   runner: string;
   docs: Doc[];
 }
 
 const report = data as Report;
-
-// The words each coordinate bans, marked in the prose so a reader sees them
-// appear and disappear rather than being told a count.
-//
-// Kept beside the corpus that declares them (scripts/authoringlab/corpus.go)
-// rather than derived from it: this page highlights, it does not check, and a
-// highlighter that silently drifted from the profile would be worse than one
-// that is obviously a reading aid.
-const banned: Record<string, RegExp> = {
-  "end-user":
-    /\b(endpoints?|payloads?|webhooks?|HTTP POST|JSON|HMAC(?:-SHA256)?|API|X-Harbourlight-Signature|exponential backoff|utilizes?|configur\w+)\b/gi,
-  developer: /\b(simply|just|easy|easily|straightforward|utilizes?|seamless(?:ly)?)\b/gi,
-};
-
 const mono = "var(--ifm-font-family-monospace)";
 
 const s: Record<string, CSSProperties> = {
-  lede: { maxWidth: "60ch", color: "var(--ifm-color-emphasis-800)" },
+  lede: { maxWidth: "62ch", color: "var(--ifm-color-emphasis-800)" },
   h: {
     fontSize: ".7rem",
     textTransform: "uppercase",
     letterSpacing: ".08em",
     color: "var(--ifm-color-emphasis-700)",
-    marginBottom: ".3rem",
+    marginBottom: ".35rem",
   },
   sub: { fontSize: ".8rem", color: "var(--ifm-color-emphasis-700)" },
   tab: {
@@ -90,59 +90,111 @@ const s: Record<string, CSSProperties> = {
     minWidth: 0,
   },
   doc: {
-    fontSize: ".85rem",
+    fontSize: ".88rem",
     lineHeight: 1.6,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    maxHeight: "34rem",
+    maxHeight: "40rem",
     overflow: "auto",
-    margin: 0,
-    fontFamily: "var(--ifm-font-family-base)",
     minWidth: 0,
-  },
-  mark: {
-    background: "var(--ifm-color-warning-contrast-background)",
-    color: "var(--ifm-color-warning-contrast-foreground)",
-    borderRadius: 3,
-    padding: "0 .15em",
-    fontWeight: 600,
+    // Rendered Markdown, so the document reads as a document. Headings inside
+    // it are content, not page structure, so they are scaled down to sit under
+    // the panel's own heading.
+    ["--ifm-h1-font-size" as string]: "1.25rem",
+    ["--ifm-h2-font-size" as string]: "1.1rem",
+    ["--ifm-h3-font-size" as string]: "1rem",
   },
   pre: {
     fontFamily: mono,
-    fontSize: ".78rem",
+    fontSize: ".76rem",
     lineHeight: 1.5,
     margin: 0,
     padding: ".6rem .75rem",
     background: "var(--ifm-color-emphasis-100)",
     borderRadius: 5,
-    overflowX: "auto",
+    maxHeight: "22rem",
+    overflow: "auto",
     whiteSpace: "pre-wrap",
     minWidth: 0,
   },
+  file: {
+    fontFamily: mono,
+    fontSize: ".74rem",
+    background: "var(--ifm-color-emphasis-100)",
+    borderRadius: 4,
+    padding: ".1rem .4rem",
+  },
 };
 
-// Marked splits prose on the banned words and highlights them.
-function Marked({ text, pattern }: { text: string; pattern: RegExp }): ReactElement {
-  const re = new RegExp(pattern.source, pattern.flags);
-  const out: (string | ReactElement)[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    out.push(
-      <mark key={`${m.index}`} style={s.mark}>
-        {m[0]}
-      </mark>,
-    );
-    last = m.index + m[0].length;
-    if (m[0].length === 0) re.lastIndex++;
-  }
-  out.push(text.slice(last));
-  return <>{out}</>;
+function fmtTokens(n?: number): string {
+  if (!n) return "—";
+  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
 }
 
-function count(text: string, pattern: RegExp): number {
-  return (text.match(new RegExp(pattern.source, pattern.flags)) ?? []).length;
+// Reading shows what the agent opened before it wrote. A document from a model
+// that read nothing is a document about what it already believed.
+function Reading({ run }: { run: AgentRun }): ReactElement {
+  const files = run.filesRead ?? [];
+  const tools = Object.entries(run.toolCalls ?? {}).sort((a, b) => b[1] - a[1]);
+  return (
+    <div style={{ marginBottom: ".7rem" }}>
+      <div style={s.sub}>
+        {files.length} file{files.length === 1 ? "" : "s"} read · {fmtTokens(run.inputTokens)}{" "}
+        context · {run.messages} messages · {(run.durationMs / 1000).toFixed(0)}s
+        {run.costUsd ? ` · $${run.costUsd.toFixed(2)}` : ""}
+      </div>
+      {/* How it read matters as much as how much. Models do not agree: some
+          call the Read tool, opus-5 opens a source tree with `ls` and `cat`.
+          Counting one and not the other reported zero files for a run that
+          spent 1.7M tokens on the repository. */}
+      {tools.length > 0 && (
+        <div style={{ ...s.sub, marginTop: ".2rem" }}>
+          {tools.map(([name, n]) => `${name}×${n}`).join(" · ")}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: ".3rem", marginTop: ".3rem" }}>
+          {files.map((f) => (
+            <span key={f} style={s.file}>
+              {f}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Arm({ label, run, file }: { label: string; run: AgentRun; file: string }): ReactElement {
+  const base = useBaseUrl("/authoring-lab/");
+  return (
+    <div style={s.panel}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: ".6rem",
+          marginBottom: ".5rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <strong>{label}</strong>
+        {file && (
+          <a href={base + file} download style={{ ...s.sub, marginLeft: "auto" }}>
+            open the file
+          </a>
+        )}
+      </div>
+      <Reading run={run} />
+      {run.error ? (
+        <p style={{ color: "var(--ifm-color-danger)", fontSize: ".85rem", margin: 0 }}>
+          {run.error}
+        </p>
+      ) : (
+        <div style={s.doc}>
+          <Markdown remarkPlugins={[remarkGfm]}>{run.text}</Markdown>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AuthoringLab(): ReactElement {
@@ -153,27 +205,27 @@ export default function AuthoringLab(): ReactElement {
   const audiences = [...new Set(report.docs.map((d) => d.audience))];
   const [model, setModel] = useState(models[0] ?? "");
   const [audience, setAudience] = useState(audiences[0] ?? "");
-
   const doc = report.docs.find((d) => d.model === model && d.audience === audience);
-  const pattern = banned[audience] ?? /$^/g;
-  const docBase = useBaseUrl("/authoring-lab/");
 
   return (
     <Layout
       title="Authoring lab"
-      description="The same document written at two coordinates, with and without the governance bound there, across four models."
+      description="An agent reads ripgrep and documents it, with and without the governance bound at a coordinate, across four models."
     >
-      <main className="container margin-vert--lg" style={{ maxWidth: "80rem" }}>
+      <main className="container margin-vert--lg" style={{ maxWidth: "84rem" }}>
         <h1>What a coordinate does to a document</h1>
         <p style={s.lede}>
-          One product, one feature, one brand voice, one set of facts. Two coordinates that differ
-          only in what the reader is assumed to know. Each written twice: from the task alone, and
-          with the voice profile bound at that point. Four models.
+          An agent is given a real repository — <code>{report.repo}</code>, pinned — and asked to
+          document one part of it. It reads whatever it needs. The same task runs twice: once from
+          the task alone, once with the voice profile resolved at a coordinate appended to its
+          system prompt. Two coordinates, four models.
         </p>
         <p style={s.lede}>
           Nothing here is scored. What a good user guide contains is not written down anywhere, and
-          a rubric invented for this page would be measuring the rubric. The documents are the
-          result; the highlighting marks the words each coordinate bans so you can see them go.
+          a rubric invented for this page would be measuring the rubric. What is shown instead is
+          the document, the exact context that produced it, and which files the agent opened before
+          writing — a document from a run that read nothing is a document about what the model
+          already believed.
         </p>
         <p style={s.sub}>
           {report.runner} Generated {report.generated}.
@@ -199,66 +251,43 @@ export default function AuthoringLab(): ReactElement {
               onClick={() => setAudience(a)}
               style={{ ...s.tab, ...(a === audience ? s.tabOn : {}) }}
             >
-              {report.labels[a]}
+              {report.labels[a] ?? a}
             </button>
           ))}
         </div>
 
         <div style={{ ...s.panel, marginBottom: "1.2rem" }}>
           <div style={s.h}>The task, given to both arms</div>
-          <p style={{ margin: "0 0 .8rem", fontSize: ".88rem" }}>{report.tasks[audience]}</p>
+          <p style={{ margin: "0 0 .9rem", fontSize: ".88rem", lineHeight: 1.55 }}>
+            {report.tasks[audience]}
+          </p>
           <div style={s.h}>What the governed arm additionally received</div>
           <pre style={s.pre}>{report.guides[audience]}</pre>
+          <p style={{ ...s.sub, margin: ".5rem 0 0" }}>
+            Rendered by <code>kapi voice guide</code> from ripgrep&apos;s own voice profile,
+            resolved at this coordinate. The profile itself is at the bottom of the page.
+          </p>
         </div>
 
         {!doc && <p>No document for this cell.</p>}
-        {doc?.error && <p style={{ color: "var(--ifm-color-danger)" }}>{doc.error}</p>}
-        {doc && !doc.error && (
+        {doc && (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(24rem, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(26rem, 1fr))",
               gap: "1rem",
             }}
           >
-            {(
-              [
-                ["Bare", doc.bare, doc.bareFile],
-                ["Governed by the coordinate", doc.governed, doc.governedFile],
-              ] as const
-            ).map(([label, body, file]) => (
-              <div key={label} style={s.panel}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: ".6rem",
-                    marginBottom: ".5rem",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <strong>{label}</strong>
-                  <span style={s.sub}>
-                    {count(body, pattern)} banned term{count(body, pattern) === 1 ? "" : "s"} ·{" "}
-                    {body.split(/\s+/).length} words
-                  </span>
-                  <a href={docBase + file} style={{ ...s.sub, marginLeft: "auto" }} download>
-                    open the file
-                  </a>
-                </div>
-                <div style={s.doc}>
-                  <Marked text={body} pattern={pattern} />
-                </div>
-              </div>
-            ))}
+            <Arm label="Bare" run={doc.bare} file={doc.bareFile} />
+            <Arm label="Governed by the coordinate" run={doc.governed} file={doc.governedFile} />
           </div>
         )}
 
         <details style={{ marginTop: "1.6rem" }}>
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-            The brief, identical in every cell
+            ripgrep&apos;s voice profile, inferred by kapi from its own docs and corrected by hand
           </summary>
-          <pre style={{ ...s.pre, marginTop: ".6rem" }}>{report.brief}</pre>
+          <pre style={{ ...s.pre, marginTop: ".6rem", maxHeight: "34rem" }}>{report.profile}</pre>
         </details>
       </main>
     </Layout>

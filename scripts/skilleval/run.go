@@ -50,18 +50,17 @@ type Run struct {
 	Gate *GateResult `json:"gate,omitempty"`
 	// Changed is the workspace diff: which files the agent created or edited.
 	Changed []FileChange `json:"changed,omitempty"`
+	// Sandboxed says whether Claude Code's sandbox confined this run. Recorded
+	// rather than assumed, so a reader can tell a confined transcript from one
+	// produced before this existed.
+	Sandboxed bool `json:"sandboxed,omitempty"`
 	// Err is set when the agent could not be run at all.
 	Err string `json:"error,omitempty"`
 
 	// Events is the session: every assistant message and every tool call with
-	// the result it returned. Published to its own file rather than inline —
-	// see splitSessions.
+	// the result it returned, whole. Published to its own file rather than
+	// inline — see splitSessions.
 	Events []Event `json:"events,omitempty"`
-	// EventsDropped counts events past the per-session cap, so a truncated
-	// transcript says it is one.
-	EventsDropped int `json:"eventsDropped,omitempty"`
-	// eventBytes tracks what has been kept, against maxSessionBytes.
-	eventBytes int
 }
 
 // GateResult is whether the scenario's own completion command passed.
@@ -340,6 +339,34 @@ func sortChanges(c []FileChange) {
 // inside the tree, so an unisolated run would bind to it and act on it. The
 // workspace here is under os.TempDir() rather than the repo, but the contract
 // is cheap to honour and the failure it prevents is silent.
+// agentEnv is the environment a driven agent gets: an allow-list, not the
+// developer's.
+//
+// The agent runs with bypassPermissions and its transcript is published. Those
+// two facts together are why this is not optional: a transcript now carries
+// every tool result whole, so an agent that runs `env` — or any command that
+// echoes one — writes whatever it was given into a file served from a public
+// CDN. scrubPaths removes paths; it knows nothing about credentials.
+//
+// What a run needs: PATH to find its tools, HOME because the CLI authenticates
+// from ~/.claude, and enough locale and terminal state to run. ANTHROPIC_API_KEY,
+// GITHUB_TOKEN, AWS_* and the rest are not passed.
+//
+// This closes the easy path and not the whole one: the agent still has HOME and
+// a shell, so it could read a credential file if it went looking. That is what
+// the pre-publish scan in scripts/publish-cdn-assets.sh is for, and what
+// issue #2243 is about.
+func agentEnv() []string {
+	const allowed = "PATH HOME LANG LC_ALL LC_CTYPE TERM TMPDIR SHELL USER LOGNAME"
+	var out []string
+	for name := range strings.SplitSeq(allowed, " ") {
+		if v, ok := os.LookupEnv(name); ok {
+			out = append(out, name+"="+v)
+		}
+	}
+	return out
+}
+
 func isolationEnv(home string) []string {
 	return []string{
 		"KAPI_NO_PROJECT=1",
@@ -417,9 +444,16 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 		args = append(args, "--mcp-config", mcpConfigName, "--strict-mcp-config")
 	}
 
+	// Confined by Claude Code's own sandbox. bypassPermissions keeps a headless
+	// run from hanging on a prompt; the sandbox decides what it can reach. The
+	// two are layered, not traded off. See sandbox.go.
+	sandbox, confined := sandboxArgs(dir)
+	args = append(args, sandbox...)
+	r.Sandboxed = confined
+
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), isolationEnv(dir)...)
+	cmd.Env = append(agentEnv(), isolationEnv(dir)...)
 	switch {
 	case arm == armUnaided:
 		// Every directory holding a kapi or toolbox binary is removed. A
@@ -484,7 +518,7 @@ func runGate(ctx context.Context, dir, gate string, opts Options) *GateResult {
 	}
 	cmd := exec.CommandContext(ctx, "sh", "-c", gate)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), isolationEnv(dir)...)
+	cmd.Env = append(agentEnv(), isolationEnv(dir)...)
 	if opts.KapiBin != "" {
 		// The gate calls `kapi` and the toolbox names by bare word, so this
 		// checkout's build has to win over anything installed on the machine.
