@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import data from "./_skilleval.json";
@@ -926,13 +928,7 @@ function SessionView({ sess, prompt }: { sess: Session; prompt?: string }): Reac
 }
 
 // Turn is one side of the conversation, labelled the way a session labels it.
-function Turn({
-  role,
-  children,
-}: {
-  role: "user" | "assistant";
-  children: React.ReactNode;
-}): ReactElement {
+function Turn({ role, children }: { role: "user" | "assistant"; children: string }): ReactElement {
   const isUser = role === "user";
   return (
     <div style={{ margin: "0 0 1rem", minWidth: 0 }}>
@@ -945,19 +941,26 @@ function Turn({
       >
         {isUser ? "User" : "Claude"}
       </div>
+      {/* Claude writes Markdown, so a turn that shows it raw shows `**bold**`
+          and `- item` as literal characters. The prompt is rendered as written
+          because it IS the plain text that was sent. */}
       <div
         style={{
           fontSize: ".9rem",
           lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
+          whiteSpace: isUser ? "pre-wrap" : "normal",
           wordBreak: "break-word",
           padding: isUser ? ".65rem .8rem" : 0,
           background: isUser ? "var(--ifm-color-emphasis-100)" : "transparent",
           borderRadius: isUser ? 6 : 0,
           minWidth: 0,
+          ["--ifm-h1-font-size" as string]: "1.15rem",
+          ["--ifm-h2-font-size" as string]: "1.05rem",
+          ["--ifm-h3-font-size" as string]: "1rem",
+          ["--ifm-paragraph-margin-bottom" as string]: ".6rem",
         }}
       >
-        {children}
+        {isUser ? children : <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>}
       </div>
     </div>
   );
@@ -968,7 +971,7 @@ function EventView({ e }: { e: SessionEvent }): ReactElement {
   const [open, setOpen] = useState(false);
 
   if (e.kind === "text") {
-    return <Turn role="assistant">{e.text}</Turn>;
+    return <Turn role="assistant">{e.text ?? ""}</Turn>;
   }
 
   const out = e.output ?? "";

@@ -3,8 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,4 +77,54 @@ func TestFilesFromShellHandlesAbsolutePaths(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, abs, got[0])
 	assert.Equal(t, "README.md", relToRepo(got[0], dir), "and it is named relative to the tree")
+}
+
+// TestTheLabLoadsAProfileCarryingOnlyNotes.
+//
+// loadProfile treated every validation problem as fatal, so the moment tone
+// stopped being an enum the lab refused to start — on the very register kapi
+// had inferred from ripgrep's own documentation. A note is not a failure, and
+// the distinction only helps if every gate reads it the same way.
+func TestTheLabLoadsAProfileCarryingOnlyNotes(t *testing.T) {
+	p, err := loadProfile()
+	require.NoError(t, err, "the embedded profile loads")
+	require.NotNil(t, p)
+
+	probs := coreprofile.ValidateProfile(p)
+	assert.NotEmpty(t, probs, "it does carry a note, so this test is not vacuous")
+	assert.Empty(t, coreprofile.Blocking(probs), "and no note blocks it")
+}
+
+// TestBothCoordinatesRenderAGuide: a persona that resolves to nothing would
+// make the governed arm identical to the bare one and the whole comparison
+// silently meaningless.
+func TestBothCoordinatesRenderAGuide(t *testing.T) {
+	base, err := loadProfile()
+	require.NoError(t, err)
+	for _, pt := range points {
+		guide, err := guideFor(base, pt)
+		require.NoError(t, err, pt.Audience)
+		assert.NotEmpty(t, guide, pt.Audience)
+	}
+}
+
+// TestTaskPromptsPrescribeNoStyle.
+//
+// The end-user brief said the reader has "no interest in how the tool is
+// built", which instructs the BARE arm to avoid implementation detail — the
+// exact thing the coordinate exists to do. Both arms were steered and only one
+// was credited, so the measured contrast understated itself. A task names the
+// reader and the deliverable; anything about the prose belongs in the profile.
+func TestTaskPromptsPrescribeNoStyle(t *testing.T) {
+	banned := []string{
+		"not a programmer", "no interest in how", "avoid", "do not use",
+		"plain language", "jargon", "keep it simple", "technical detail",
+	}
+	for _, pt := range points {
+		low := strings.ToLower(pt.Task)
+		for _, b := range banned {
+			assert.NotContains(t, low, b,
+				"%s: the task prescribes prose, which belongs in the profile", pt.Audience)
+		}
+	}
 }

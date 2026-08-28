@@ -1,6 +1,5 @@
 name: ripgrep
-description: The voice of ripgrep's own documentation, inferred by kapi from README.md,
-    GUIDE.md and FAQ.md at 14.1.1, then corrected by hand.
+description: The voice of ripgrep's own documentation, inferred by kapi from README.md, GUIDE.md and FAQ.md at 14.1.1, then corrected by hand.
 tone:
     personality:
         - knowledgeable peer, not a vendor
@@ -11,8 +10,7 @@ tone:
     formality: technical
     emotion: calm and matter-of-fact; enthusiasm reserved for genuinely good news ("Yes!"), mild exasperation permitted at real problems ("Owch.")
     humor: light
-    guidelines: Calm and matter-of-fact. Enthusiasm is reserved for genuinely good news
-        ("Yes!") and mild exasperation is permitted at real problems ("Owch."). Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
+    guidelines: Calm and matter-of-fact. Enthusiasm is reserved for genuinely good news ("Yes!") and mild exasperation is permitted at real problems ("Owch."). Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
 style:
     active_voice: true
     sentence_length: varied
@@ -51,6 +49,10 @@ vocabulary:
         - term: flag
           replacement: flag
           note: 'Dominant word for CLI arguments: "the -U/--multiline flag", "two flags related to colors". "options" appears only when referring to `rg --help` output.'
+          forms:
+            - flags
+            - flagged
+            - flagging
         - term: -P/--pcre2
           replacement: -P/--pcre2
           note: 'Cite short and long forms together as a slash pair on first mention: -f/--file, -z/--search-zip, -U/--multiline.'
@@ -60,12 +62,20 @@ vocabulary:
         - term: regex engine
           replacement: regex engine
           note: Used consistently for both the default and PCRE2; "default regex engine" contrasts with "PCRE2".
+          forms:
+            - regex engines
         - term: true color
           replacement: true color
           note: 'Two words, lowercase, for RGB support: "true color support already works out of the box".'
+          forms:
+            - true-color
         - term: work around
           replacement: work around
           note: Verb is two words ("you can work around by simply increasing the limit"); noun is hyphenated ("The work-around above").
+          forms:
+            - works around
+            - worked around
+            - working around
     forbidden_terms:
         - term: Ripgrep
           replacement: ripgrep
@@ -77,9 +87,16 @@ vocabulary:
         - term: we guarantee / we promise
           replacement: '"generally", "on a best effort basis", "no promises are made"'
           note: 'The release-policy entry hedges deliberately: "However, no promises are made."'
+          forms:
+            - we guaranteed
+            - we promised
         - term: utilize
           replacement: use
           note: '"use" throughout: "ripgrep uses parallelism", "Use the --colors flag".'
+          forms:
+            - utilizes
+            - utilized
+            - utilizing
     competitor_terms:
         - term: ag
           replacement: The Silver Searcher
