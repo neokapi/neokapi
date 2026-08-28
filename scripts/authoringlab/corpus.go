@@ -3,8 +3,6 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"gopkg.in/yaml.v3"
@@ -127,13 +125,4 @@ func guideFor(base *coreprofile.VoiceProfile, p Point) (string, error) {
 			"would be identical to the bare one", p.Audience)
 	}
 	return guide, nil
-}
-
-// repoDir is the cloned tree, and says how to get it when it is missing.
-func repoDir(root string) (string, error) {
-	dir := filepath.Join(root, LabRepo)
-	if _, err := os.Stat(dir); err != nil {
-		return "", fmt.Errorf("%s is not there: run `./scripts/fetch-lab-repo.sh` first", LabRepo)
-	}
-	return dir, nil
 }

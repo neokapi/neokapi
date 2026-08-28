@@ -31,7 +31,10 @@ REPO_TAG="${LAB_REPO_TAG:-14.1.1}"
 
 dest="lab-repo/${REPO_NAME}-${REPO_TAG}"
 
-if [ -d "$dest" ] && [ -z "${FORCE_FETCH:-}" ]; then
+# The archive counts as much as the directory: a tree cloned before the archive
+# existed leaves runs with nothing pristine to extract, and the lab refuses to
+# start rather than falling back to the working copy.
+if [ -d "$dest" ] && [ -f "${dest}.tar" ] && [ -z "${FORCE_FETCH:-}" ]; then
   echo "✓ $dest already present (FORCE_FETCH=1 to re-clone)"
   exit 0
 fi
@@ -46,6 +49,16 @@ git clone --depth 1 --branch "$REPO_TAG" --quiet "$REPO_URL" "$dest"
 # agent is given a source tree, not a history.
 rm -rf "$dest/.git"
 
+# An archive of the tree as cloned, which is what every run is extracted from.
+#
+# The arms used to share this one directory, and an agent with a shell mutates
+# what it is reading: one run left 402MB of cargo output in it, which every
+# later run then saw. Two runs of the same eval read different repositories, and
+# the difference would have been published as a difference between models. The
+# archive is written once, here, before any agent has seen the tree.
+tar -cf "${dest}.tar" -C "$(dirname "$dest")" "$(basename "$dest")"
+
 files=$(find "$dest" -type f | wc -l | tr -d ' ')
 bytes=$(du -sh "$dest" | cut -f1)
-echo "✓ $REPO_NAME $REPO_TAG → $dest ($files files, $bytes)"
+archive=$(du -sh "${dest}.tar" | cut -f1)
+echo "✓ $REPO_NAME $REPO_TAG → $dest ($files files, $bytes; archive $archive)"

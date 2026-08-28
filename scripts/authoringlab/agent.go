@@ -54,6 +54,12 @@ type AgentRun struct {
 	// Searches is every grep or glob pattern it ran, which shows what it went
 	// looking for before it found anything.
 	Searches []string `json:"searches,omitempty"`
+	// KapiCommands is every kapi invocation, in order. The pulled arm's whole
+	// result: it was given the skill and a project that binds a voice, and this
+	// says whether it went and asked. Empty here is a finding, not a gap in the
+	// recording — an arm that never ran the command wrote its document from the
+	// repository alone, whatever the workspace offered it.
+	KapiCommands []string `json:"kapiCommands,omitempty"`
 	// ToolCalls counts every tool by name. Unlike FilesRead this needs no
 	// interpretation, so it is the number to check when FilesRead looks wrong.
 	ToolCalls map[string]int `json:"toolCalls,omitempty"`
@@ -96,6 +102,14 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 	}
 	defer os.RemoveAll(home)
 
+	// A pristine tree per run, and for the pulled arm a project and a skill on
+	// top of it. See pull.go for why this is not the shared checkout.
+	tree, err := prepareWorkspace(ctx, opts.Root, home, opts.Arm)
+	if err != nil {
+		r.Err = err.Error()
+		return r
+	}
+
 	out := filepath.Join(home, "DOCUMENT.md")
 	prompt := opts.Prompt + "\n\nWrite the finished document to " + out +
 		" and nothing else to disk. Read whatever you need from the source tree first."
@@ -107,6 +121,19 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 		"--output-format", "stream-json",
 		"--verbose",
 		"--model", opts.Model,
+		// The workspace's settings and skills, and not the developer's.
+		//
+		// A run inherits HOME, because the CLI authenticates from ~/.claude, and
+		// with it every plugin and skill installed on this machine. A probe found
+		// 76 of them in a lab run: Go style guides, a design-guidelines skill, a
+		// code reviewer. The lab publishes what four models wrote given one
+		// context, and none of that is part of it — nobody re-running this would
+		// have the same set, and a writing-related skill steers the very thing
+		// being compared.
+		//
+		// `project` keeps the workspace's own .claude, which is where the pulled
+		// arm's skill is installed and how that arm differs from the others.
+		"--setting-sources", "project",
 	}
 	if opts.SystemPrompt != "" {
 		args = append(args, "--append-system-prompt", opts.SystemPrompt)
@@ -120,8 +147,17 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 	r.Sandboxed = confined
 
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
-	cmd.Dir = opts.RepoDir
-	cmd.Env = append(agentEnv(), isolationEnv(home)...)
+	cmd.Dir = tree
+	if opts.Arm.pull {
+		bin, err := kapiOnlyBin(home, opts.KapiBin)
+		if err != nil {
+			r.Err = err.Error()
+			return r
+		}
+		cmd.Env = withKapiOnPath(append(agentEnv(), pullEnv(home, tree)...), bin)
+	} else {
+		cmd.Env = append(agentEnv(), isolationEnv(home)...)
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		r.Err = err.Error()
@@ -132,7 +168,7 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 		r.Err = err.Error()
 		return r
 	}
-	parseAgentStream(stdout, &r, opts.RepoDir)
+	parseAgentStream(stdout, &r, tree)
 	_ = cmd.Wait()
 	r.DurationMS = time.Since(started).Milliseconds()
 
@@ -152,13 +188,22 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 // AgentOpts is one run's inputs.
 type AgentOpts struct {
 	ClaudeBin string
-	RepoDir   string
-	Model     string
-	Prompt    string
-	// SystemPrompt is the governance, appended to the agent's own system
-	// prompt exactly as `kapi voice guide` output would be pasted into one.
-	// Empty in the bare arm.
+	// Root is this repository, which is where the pristine subject archive and
+	// the shipped skill are found. The tree the agent works in is extracted per
+	// run and is not this.
+	Root   string
+	Model  string
+	Prompt string
+	// SystemPrompt is the governance, appended to the agent's own system prompt
+	// exactly as `kapi voice guide` output would be pasted into one. Set in the
+	// pushed arm and in neither of the others: the pulled arm has to go and get
+	// the same text itself.
 	SystemPrompt string
+	// Arm says what the workspace carries. See pull.go.
+	Arm armSetup
+	// KapiBin is put on PATH for the pulled arm, so the command its skill tells
+	// it to run is one it can actually run.
+	KapiBin string
 }
 
 // parseAgentStream reads the tool calls to learn what the agent looked at.
@@ -267,6 +312,18 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 				if json.Unmarshal(c.Input, &in) == nil && in.FilePath != "" {
 					addFile(in.FilePath)
 				}
+			case "Skill":
+				// Loading the skill is reaching for kapi even when no command
+				// follows, and counting only shell invocations would report an
+				// agent that read the guidance and chose not to act as one that
+				// never looked — the same under-measurement that recorded zero
+				// files for an agent reading with `cat`.
+				var in struct {
+					Skill string `json:"skill"`
+				}
+				if json.Unmarshal(c.Input, &in) == nil && strings.HasSuffix(in.Skill, "kapi") {
+					out.KapiCommands = append(out.KapiCommands, "Skill("+in.Skill+")")
+				}
 			case "Grep", "Glob":
 				var in struct {
 					Pattern string `json:"pattern"`
@@ -284,6 +341,7 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 				for _, f := range filesFromShell(in.Command, repoDir) {
 					addFile(f)
 				}
+				out.KapiCommands = append(out.KapiCommands, kapiCalls(in.Command)...)
 			}
 		}
 	}
@@ -393,6 +451,63 @@ func filesFromShell(command, repoDir string) []string {
 		}
 	}
 	return found
+}
+
+// kapiCalls picks the kapi invocations out of a shell command.
+//
+// Split on the same separators filesFromShell uses, and a segment counts when
+// its first word is the binary — so `cd crates && kapi voice guide` is found and
+// `rg kapi` is not. Recorded verbatim, because which subcommand the agent
+// reached for is the interesting part: `kapi voice guide` is the assistant
+// taking the skill's advice, and `kapi context <path>` is it asking what applies
+// where the file will sit.
+func kapiCalls(command string) []string {
+	var found []string
+	for _, segment := range strings.FieldsFunc(command, func(r rune) bool {
+		return r == '|' || r == ';' || r == '\n' || r == '&'
+	}) {
+		fields := strings.Fields(segment)
+		if len(fields) == 0 || path.Base(fields[0]) != "kapi" {
+			continue
+		}
+		// `&` separates segments AND appears inside `2>&1`, so splitting leaves a
+		// dangling redirect on the end of the command. The command is shown to a
+		// reader, and `kapi voice guide 2>` is not a command anyone ran.
+		for len(fields) > 0 && danglingRedirect.MatchString(fields[len(fields)-1]) {
+			fields = fields[:len(fields)-1]
+		}
+		if len(fields) == 0 {
+			continue
+		}
+		found = append(found, strings.Join(fields, " "))
+	}
+	return found
+}
+
+var danglingRedirect = regexp.MustCompile(`^\d?[<>]+$`)
+
+// withKapiOnPath puts the CLI's directory first, replacing the PATH the
+// allow-list carried rather than appending a second one, which the child would
+// ignore.
+func withKapiOnPath(env []string, kapiBin string) []string {
+	if kapiBin == "" {
+		return env
+	}
+	prefix := filepath.Dir(kapiBin)
+	out := make([]string, 0, len(env)+1)
+	replaced := false
+	for _, kv := range env {
+		if rest, ok := strings.CutPrefix(kv, "PATH="); ok {
+			out = append(out, "PATH="+prefix+string(os.PathListSeparator)+rest)
+			replaced = true
+			continue
+		}
+		out = append(out, kv)
+	}
+	if !replaced {
+		out = append(out, "PATH="+prefix)
+	}
+	return out
 }
 
 // relToRepo names a path the way a reader of the repository would.

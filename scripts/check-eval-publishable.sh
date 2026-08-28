@@ -5,10 +5,12 @@
 # Usage:
 #   ./scripts/check-eval-publishable.sh [dir]     # default: web/static/skill-eval
 #
-# The skill eval's transcripts are published to a public CDN and are no longer
-# capped: every tool result is recorded whole. The agent that produced them ran
-# with bypassPermissions, a shell, and $HOME — so it *could* read a credential
-# file and print it, and the result would be served to anyone.
+# Eval transcripts are no longer capped: every tool result is recorded whole. The
+# agents that produce them run with bypassPermissions, a shell, and $HOME — so
+# one *could* read a credential file and print it, and the result would reach
+# whoever reads the eval. The skill eval's go to a public CDN; the authoring
+# lab's are committed to this repository, which is a shorter path to the same
+# place, so both are checked.
 #
 # The environment allow-list in scripts/skilleval/run.go removes the easy path
 # (no key is in the process to begin with). This is the check on what is about
@@ -39,30 +41,33 @@ readonly ASSIGN_RE='(ANTHROPIC_API_KEY|OPENAI_API_KEY|GEMINI_API_KEY|GITHUB_TOKE
 fail=0
 
 if hits=$(grep -rIlE "$SECRET_RE" "$dir" 2>/dev/null); then
-  echo "✖ credential-shaped strings in files about to be published:"
+  echo "✖ credential-shaped strings:"
   printf '  %s\n' $hits
   fail=1
 fi
 
 if hits=$(grep -rIlE "$ASSIGN_RE" "$dir" 2>/dev/null); then
-  echo "✖ what looks like an exported credential in files about to be published:"
+  echo "✖ what looks like an exported credential:"
   printf '  %s\n' $hits
   fail=1
 fi
 
-# Absolute home paths. scripts/check-abs-paths.sh sweeps tracked files and these
-# are deliberately untracked, so nothing else would look.
+# Absolute home paths. The skill eval's artefacts are untracked, so
+# check-abs-paths.sh never sees them; the authoring lab's are tracked and it
+# does. Checked here for both, so one caller does not depend on the other.
 if hits=$(grep -rIlE '/(Users|home)/[a-z][a-z0-9_-]*/' "$dir" 2>/dev/null); then
-  echo "✖ absolute home paths in files about to be published:"
+  echo "✖ absolute home paths:"
   printf '  %s\n' $hits
-  echo "  scrubPaths in scripts/skilleval/transcript.go should have removed these."
+  echo "  scrubPaths (scripts/skilleval/transcript.go, scripts/authoringlab/agent.go)"
+  echo "  should have removed these."
   fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then
   echo
-  echo "Nothing was uploaded. These files go to a public CDN; fix the run that"
-  echo "produced them rather than editing the artefacts."
+  echo "Stopped. These files reach the public — a CDN for the skill eval's, this"
+  echo "repository for the lab's. Fix the run that produced them rather than"
+  echo "editing the artefacts."
   exit 1
 fi
 

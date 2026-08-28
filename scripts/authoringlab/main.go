@@ -1,6 +1,11 @@
-// Command authoringlab has an agent read a real repository and document it,
-// once with the governance bound at a coordinate and once without, across
-// several models — and publishes the prose rather than a score.
+// Command authoringlab has an agent read a real repository and document it three
+// ways across several models, and publishes the prose rather than a score.
+//
+// The three differ only in how the governance arrives. Bare gets none. Pushed
+// gets the guide in its system prompt. Pulled gets the kapi skill and a project
+// that binds the voice, nothing in its prompt, and has to go and ask — which is
+// the arm that says whether the loop closes rather than whether the context
+// helps, and they are not the same question. See pull.go.
 //
 // This is the read-it-yourself half of the authoring evals. `voice-guide-steering`
 // answers whether a guide moves a number, over six 120-word briefs on one model.
@@ -35,13 +40,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // DefaultOut is where the dataset lands, relative to the repo root.
 const DefaultOut = "web/src/pages/authoring-lab/_authoringlab.json"
 
-// DocDir is where the prose lands. Markdown, committed: sixteen documents of
-// about 600 words is some 60KB, and the point of the exercise is that a person
+// DocDir is where the prose lands. Markdown, committed: two dozen documents of
+// about 600 words is under 100KB, and the point of the exercise is that a person
 // can read the diff.
 const DocDir = "web/static/authoring-lab"
 
@@ -50,22 +57,47 @@ const DocDir = "web/static/authoring-lab"
 const SessionDir = "web/static/authoring-lab/transcripts"
 
 // Doc is one cell of the matrix: one task, at one coordinate, on one model,
-// written twice.
+// written once per arm.
 type Doc struct {
 	Model    string `json:"model"`
 	Audience string `json:"audience"`
 	// Bare is the run given the repository and the task.
 	Bare AgentRun `json:"bare"`
-	// Governed is the same, plus the guide the profile renders at this point.
+	// Governed is the same, plus the guide the profile renders at this point,
+	// pushed into the system prompt before the agent starts.
 	Governed AgentRun `json:"governed"`
+	// Pulled is the same task in a workspace that HOLDS the governance — the
+	// kapi skill and a project binding the voice — with nothing in the prompt.
+	// It has to ask. See pull.go.
+	Pulled AgentRun `json:"pulled,omitzero"`
 	// BareAgain is a second sample of the bare arm, run only when the panel is.
 	// It is what a null pair is made of: two documents that differ in nothing
 	// the panel is being asked about.
 	BareAgain AgentRun `json:"bareAgain,omitzero"`
-	// Files are where the two documents landed, relative to DocDir, for a
-	// reader who would rather open them than scroll.
+	// Files are where the documents landed, relative to DocDir, for a reader who
+	// would rather open them than scroll.
 	BareFile     string `json:"bareFile"`
 	GovernedFile string `json:"governedFile"`
+	PulledFile   string `json:"pulledFile,omitempty"`
+}
+
+// armCell is one arm of one document: what it is called, what it produced, and
+// where the prose went.
+type armCell struct {
+	name string
+	run  *AgentRun
+	file *string
+}
+
+// arms lists them in the order the page reads them. One list, so a fourth arm is
+// added in one place rather than in each of the writer, the session publisher
+// and the cleanup that runs before both.
+func (d *Doc) arms() []armCell {
+	return []armCell{
+		{"bare", &d.Bare, &d.BareFile},
+		{"governed", &d.Governed, &d.GovernedFile},
+		{"pulled", &d.Pulled, &d.PulledFile},
+	}
 }
 
 // Report is the dataset the page reads.
@@ -121,11 +153,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	subject, err := repoDir(root)
-	if err != nil {
+	if _, err := pristineTar(root); err != nil {
 		return err
 	}
 	claudeBin, err := findClaude()
+	if err != nil {
+		return err
+	}
+	kapiBin, err := findKapi(root)
 	if err != nil {
 		return err
 	}
@@ -165,13 +200,26 @@ func run() error {
 		return err
 	}
 	guides := map[string]string{}
+	resolved := map[string]*coreprofile.VoiceProfile{}
 	for _, p := range pts {
 		g, err := guideFor(base, p)
 		if err != nil {
 			return err
 		}
 		guides[p.Audience] = g
+		resolved[p.Audience] = coreprofile.ResolveProfile(base, "", "", p.Persona)
 	}
+
+	// Before spending: does the pulled arm's workspace actually hand back the
+	// guide the pushed arm is given? A binding that silently fails leaves an arm
+	// that fetched nothing, wrote the bare document, and reads on the page as a
+	// model that ignored its context.
+	for _, p := range pts {
+		if err := checkPull(ctx, root, kapiBin, resolved[p.Audience], guides[p.Audience]); err != nil {
+			return fmt.Errorf("%s: %w", p.Audience, err)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "authoring-lab: the pulled workspace serves the guide at %d coordinate(s)\n", len(pts))
 
 	rep := &Report{
 		Generated: stamp,
@@ -180,8 +228,9 @@ func run() error {
 		Tasks:     map[string]string{},
 		Labels:    map[string]string{},
 		Profile:   string(ripgrepProfileYAML),
-		Runner: fmt.Sprintf("claude -p in the cloned tree, %d turns maximum per document, "+
-			"tools on, isolation contract applied. Documents are the output; nothing is scored.",
+		Runner: fmt.Sprintf("claude -p in a pristine copy of the tree per run, %d turns maximum "+
+			"per document, tools on, sandboxed, isolation contract applied, and only the "+
+			"workspace's own skills. Documents are the output; nothing is scored.",
 			maxAgentTurns),
 	}
 	for _, p := range pts {
@@ -233,7 +282,7 @@ func run() error {
 					sem <- struct{}{}
 					defer func() { <-sem }()
 					docs[i].BareAgain = runAgent(ctx, AgentOpts{
-						ClaudeBin: claudeBin, RepoDir: subject,
+						ClaudeBin: claudeBin, Root: root,
 						Model: docs[i].Model, Prompt: prior.Tasks[docs[i].Audience],
 					})
 					fmt.Fprintf(os.Stderr, "  null  %-18s %-10s %s\n",
@@ -266,7 +315,7 @@ func run() error {
 	}
 
 	fmt.Fprintf(os.Stderr, "authoring-lab: %d document(s) across %d model(s) and %d coordinate(s), reading %s\n",
-		len(cells)*2, len(wanted), len(pts), LabRepo)
+		len(cells)*3, len(wanted), len(pts), LabRepo)
 
 	docs := make([]Doc, len(cells))
 	sem := make(chan struct{}, max(1, *workers))
@@ -276,12 +325,20 @@ func run() error {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			d := Doc{Model: c.model, Audience: c.point.Audience}
-			base := AgentOpts{ClaudeBin: claudeBin, RepoDir: subject, Model: c.model, Prompt: c.point.Task}
+			base := AgentOpts{ClaudeBin: claudeBin, Root: root, Model: c.model, Prompt: c.point.Task}
 			d.Bare = runAgent(ctx, base)
 
 			governed := base
 			governed.SystemPrompt = guides[c.point.Audience]
 			d.Governed = runAgent(ctx, governed)
+
+			// Same task, same tree, no guide in the prompt: the workspace holds
+			// the skill and a project that binds the voice, and the agent has to
+			// go and get it.
+			pulled := base
+			pulled.KapiBin = kapiBin
+			pulled.Arm = armSetup{pull: true, profile: resolved[c.point.Audience]}
+			d.Pulled = runAgent(ctx, pulled)
 
 			// A second bare sample, so the panel can be shown a pair where the
 			// right answer is a coin flip. Without it, a judge with a standing
@@ -292,8 +349,9 @@ func run() error {
 			}
 
 			docs[i] = d
-			fmt.Fprintf(os.Stderr, "  %-18s %-10s bare:%s governed:%s\n",
-				c.model, c.point.Audience, armStatus(d.Bare), armStatus(d.Governed))
+			fmt.Fprintf(os.Stderr, "  %-18s %-10s bare:%s governed:%s pulled:%s %s\n",
+				c.model, c.point.Audience, armStatus(d.Bare), armStatus(d.Governed),
+				armStatus(d.Pulled), pullStatus(d.Pulled))
 		})
 	}
 	wg.Wait()
@@ -359,6 +417,14 @@ func armStatus(a AgentRun) string {
 	return fmt.Sprintf("%d files/%dk ctx/%ds", len(a.FilesRead), a.InputTokens/1000, a.DurationMS/1000)
 }
 
+// pullStatus says whether the arm that had to ask, asked.
+func pullStatus(a AgentRun) string {
+	if len(a.KapiCommands) == 0 {
+		return "[never asked]"
+	}
+	return fmt.Sprintf("[asked %dx]", len(a.KapiCommands))
+}
+
 // writeDocs puts the prose on disk, one file per arm, so it can be opened and
 // diffed outside a browser.
 func writeDocs(root string, docs []Doc) error {
@@ -376,28 +442,21 @@ func writeDocs(root string, docs []Doc) error {
 	}
 	for i := range docs {
 		d := &docs[i]
-		for _, f := range []struct {
-			arm string
-			run AgentRun
-			out *string
-		}{
-			{"bare", d.Bare, &d.BareFile},
-			{"governed", d.Governed, &d.GovernedFile},
-		} {
+		for _, f := range d.arms() {
 			if f.run.Err != "" || f.run.Text == "" {
 				continue
 			}
-			rel := filepath.Join(d.Model, d.Audience, f.arm+".md")
+			rel := filepath.Join(d.Model, d.Audience, f.name+".md")
 			path := filepath.Join(dir, rel)
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
 			header := fmt.Sprintf("<!-- %s · %s · %s arm · read %d file(s) of %s · generated by `make authoring-lab` -->\n\n",
-				d.Model, d.Audience, f.arm, len(f.run.FilesRead), LabRepo)
+				d.Model, d.Audience, f.name, len(f.run.FilesRead), LabRepo)
 			if err := os.WriteFile(path, []byte(header+f.run.Text+"\n"), 0o644); err != nil {
 				return err
 			}
-			*f.out = filepath.ToSlash(rel)
+			*f.file = filepath.ToSlash(rel)
 		}
 	}
 	return nil
@@ -425,8 +484,8 @@ func writeSessions(root string, docs []Doc) error {
 		if docs[i].Model == "" {
 			continue
 		}
-		for _, arm := range []string{"bare", "governed"} {
-			_ = os.Remove(filepath.Join(dir, sessionName(docs[i].Model, docs[i].Audience, arm)))
+		for _, arm := range docs[i].arms() {
+			_ = os.Remove(filepath.Join(dir, sessionName(docs[i].Model, docs[i].Audience, arm.name)))
 		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -434,16 +493,13 @@ func writeSessions(root string, docs []Doc) error {
 	}
 	for i := range docs {
 		d := &docs[i]
-		for _, f := range []struct {
-			arm string
-			run *AgentRun
-		}{{"bare", &d.Bare}, {"governed", &d.Governed}} {
+		for _, f := range d.arms() {
 			if len(f.run.Events) == 0 {
 				continue
 			}
-			name := sessionName(d.Model, d.Audience, f.arm)
+			name := sessionName(d.Model, d.Audience, f.name)
 			body, err := json.MarshalIndent(LabSession{
-				Model: d.Model, Audience: d.Audience, Arm: f.arm,
+				Model: d.Model, Audience: d.Audience, Arm: f.name,
 				Prompt: taskFor(d.Audience), Events: f.run.Events,
 			}, "", "  ")
 			if err != nil {
