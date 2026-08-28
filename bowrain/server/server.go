@@ -1325,6 +1325,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatSyncGroup.POST("/push/uploads", s.HandleSyncPushUploads)
 			flatSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
+			// Retired with the protocol it belonged to, and still routed so an
+			// old plugin is told to upgrade instead of reading a bare 404.
+			flatSyncGroup.POST("/push/diff", s.HandleSyncPushDiffRetired)
 
 			// Flat project-scoped convergence + settings for unclaimed projects:
 			// /api/v1/projects/:id/convergence/... and /projects/:id/settings.
@@ -1915,6 +1918,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/sync/:ref/push/uploads", s.HandleSyncPushUploads)
 	g.POST("/:id/sync/:ref/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
+	g.POST("/:id/sync/:ref/push/diff", s.HandleSyncPushDiffRetired)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
 
 	// PostHog locale-demand connector — /:ws/:id/connectors/posthog

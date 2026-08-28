@@ -40,9 +40,15 @@ edited in that script's plugin table, never in the tap. `kapi-sat` and
 
 > The two tracks share the framework + `cli` modules, so the `kapi-bowrain`
 > plugin must stay protocol-compatible with the kapi CLI users have installed.
-> There is no CI-enforced compatibility gate yet, so cut a `bowrain-v*` release
-> from a commit whose plugin matches a released kapi — they need not be the same
-> commit, but keep them close.
+> Cut a `bowrain-v*` release from a commit whose plugin matches a released kapi:
+> they need not be the same commit, but keep them close.
+>
+> One half of that is enforced. `TestShippedClientEndpointsAreRegistered`
+> (`bowrain/server/protocol_surface.go`) holds the server to answering every
+> stream endpoint any released plugin calls, so deleting a route with the client
+> change that stopped using it fails in CI rather than in someone's nightly.
+> Nothing yet checks the other direction, where a new plugin needs a server the
+> deployment has not got.
 
 ### Coordinated (simultaneous) release
 
