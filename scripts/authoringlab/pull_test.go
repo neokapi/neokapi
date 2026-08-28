@@ -181,9 +181,12 @@ func TestWithKapiOnPath(t *testing.T) {
 // cannot use it — discovery is the thing being measured — so it meets the same
 // contract by naming the project, which is consulted before the upward walk.
 func TestPullEnvNamesTheProjectInsteadOfDisablingDiscovery(t *testing.T) {
-	env := pullEnv("/tmp/home", "/tmp/home/workspace/ripgrep")
+	// Not a path under /home or /Users, even a made-up one: check-abs-paths.sh
+	// sweeps every tracked file for that shape and cannot tell a fixture from a
+	// developer's real directory.
+	env := pullEnv("/scratch/run", "/scratch/run/workspace/ripgrep")
 
-	assert.Contains(t, env, "KAPI_PROJECT=/tmp/home/workspace/ripgrep/kapi.yaml")
+	assert.Contains(t, env, "KAPI_PROJECT=/scratch/run/workspace/ripgrep/kapi.yaml")
 	for _, kv := range env {
 		assert.False(t, strings.HasPrefix(kv, "KAPI_NO_PROJECT="),
 			"KAPI_NO_PROJECT would opt out of the discovery this arm exists to measure")
