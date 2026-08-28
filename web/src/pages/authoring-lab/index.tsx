@@ -100,10 +100,13 @@ const s: Record<string, CSSProperties> = {
     color: "var(--ifm-color-primary)",
     fontWeight: 600,
   },
+  // The panel is chrome: what the run cost, what it read, which arm this is.
+  // Dimmer than the document deliberately — the two used to sit on the same
+  // ground with only a rule between them, and read as one block.
   panel: {
     border: "1px solid var(--ifm-color-emphasis-300)",
     borderRadius: 8,
-    background: "var(--ifm-background-surface-color)",
+    background: "var(--ifm-color-emphasis-100)",
     padding: "1rem 1.1rem",
     minWidth: 0,
   },
@@ -113,6 +116,13 @@ const s: Record<string, CSSProperties> = {
     maxHeight: "40rem",
     overflow: "auto",
     minWidth: 0,
+    // A page laid on the panel. --ifm-background-surface-color rather than
+    // --ifm-background-color, which is `transparent` in Infima and would put
+    // the document back on the same ground as the chrome around it.
+    background: "var(--ifm-background-surface-color)",
+    border: "1px solid var(--ifm-color-emphasis-200)",
+    borderRadius: 6,
+    padding: ".9rem 1.1rem",
     // Rendered Markdown, so the document reads as a document. Headings inside
     // it are content, not page structure, so they are scaled down to sit under
     // the panel's own heading.
@@ -146,7 +156,7 @@ const s: Record<string, CSSProperties> = {
   file: {
     fontFamily: mono,
     fontSize: ".74rem",
-    background: "var(--ifm-color-emphasis-100)",
+    background: "var(--ifm-background-surface-color)",
     borderRadius: 4,
     padding: ".1rem .4rem",
   },
@@ -225,14 +235,7 @@ function Arm({
       {/* What went in. Boxed and labelled, because it used to run straight into
           the document below it and a reader could not tell where the inputs
           ended and the model's writing began. */}
-      <div
-        style={{
-          background: "var(--ifm-color-emphasis-100)",
-          borderRadius: 6,
-          padding: ".6rem .75rem",
-          marginBottom: ".9rem",
-        }}
-      >
+      <div style={{ marginBottom: ".9rem" }}>
         <div style={s.h}>What it read</div>
         <Reading run={run} />
         {run.transcript && (
@@ -525,13 +528,7 @@ function SessionModal({ file, onClose }: { file: string; onClose: () => void }):
 }
 
 // Turn is one side of the conversation, labelled the way a session labels it.
-function Turn({
-  role,
-  children,
-}: {
-  role: "user" | "assistant";
-  children: React.ReactNode;
-}): ReactElement {
+function Turn({ role, children }: { role: "user" | "assistant"; children: string }): ReactElement {
   const isUser = role === "user";
   return (
     <div style={{ margin: "0 0 1rem", minWidth: 0 }}>
@@ -544,19 +541,26 @@ function Turn({
       >
         {isUser ? "User" : "Claude"}
       </div>
+      {/* Claude writes Markdown, so a turn that shows it raw shows `**bold**`
+          and `- item` as literal characters. The prompt is rendered as written
+          because it IS the plain text that was sent. */}
       <div
         style={{
           fontSize: ".9rem",
           lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
+          whiteSpace: isUser ? "pre-wrap" : "normal",
           wordBreak: "break-word",
           padding: isUser ? ".65rem .8rem" : 0,
           background: isUser ? "var(--ifm-color-emphasis-100)" : "transparent",
           borderRadius: isUser ? 6 : 0,
           minWidth: 0,
+          ["--ifm-h1-font-size" as string]: "1.15rem",
+          ["--ifm-h2-font-size" as string]: "1.05rem",
+          ["--ifm-h3-font-size" as string]: "1rem",
+          ["--ifm-paragraph-margin-bottom" as string]: ".6rem",
         }}
       >
-        {children}
+        {isUser ? children : <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>}
       </div>
     </div>
   );
@@ -565,7 +569,7 @@ function Turn({
 // EventView is one step: a message Claude wrote, or a tool it called.
 function EventView({ e }: { e: SessionEvent }): ReactElement {
   const [open, setOpen] = useState(false);
-  if (e.kind === "text") return <Turn role="assistant">{e.text}</Turn>;
+  if (e.kind === "text") return <Turn role="assistant">{e.text ?? ""}</Turn>;
 
   const out = e.output ?? "";
   const lines = out ? out.split("\n") : [];

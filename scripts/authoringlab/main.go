@@ -58,6 +58,10 @@ type Doc struct {
 	Bare AgentRun `json:"bare"`
 	// Governed is the same, plus the guide the profile renders at this point.
 	Governed AgentRun `json:"governed"`
+	// BareAgain is a second sample of the bare arm, run only when the panel is.
+	// It is what a null pair is made of: two documents that differ in nothing
+	// the panel is being asked about.
+	BareAgain AgentRun `json:"bareAgain,omitzero"`
 	// Files are where the two documents landed, relative to DocDir, for a
 	// reader who would rather open them than scroll.
 	BareFile     string `json:"bareFile"`
@@ -80,6 +84,15 @@ type Report struct {
 	Profile string `json:"profile"`
 	Runner  string `json:"runner"`
 	Docs    []Doc  `json:"docs"`
+	// Panel is the judged pass, when one was run. Lenses says what each judge
+	// was asked and what it catches; Verdicts is every judgement including the
+	// controls; Summary is what the controls support saying.
+	Lenses   []Lens        `json:"lenses,omitempty"`
+	Verdicts []Verdict     `json:"verdicts,omitempty"`
+	Panel    *JudgeSummary `json:"panel,omitempty"`
+	// JudgeModel records who judged, because four Claude models are independent
+	// runs rather than independent minds and a reader should know which.
+	JudgeModel string `json:"judgeModel,omitempty"`
 }
 
 func main() {
@@ -91,11 +104,15 @@ func main() {
 
 func run() error {
 	var (
-		out     = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
-		models  = flag.String("models", "", "comma-separated model ids (default: the catalogued set)")
-		only    = flag.String("only", "", "one audience: end-user or developer")
-		date    = flag.String("date", "", "date to stamp (default: today)")
-		workers = flag.Int("concurrency", 2, "documents in flight")
+		out        = flag.String("out", "", "dataset path (default: "+DefaultOut+" under the repo root)")
+		models     = flag.String("models", "", "comma-separated model ids (default: the catalogued set)")
+		only       = flag.String("only", "", "one audience: end-user or developer")
+		date       = flag.String("date", "", "date to stamp (default: today)")
+		workers    = flag.Int("concurrency", 2, "documents in flight")
+		judge      = flag.Bool("judge", false, "run the judge panel over the documents this run produced")
+		judgeOnly  = flag.Bool("judge-existing", false, "judge the documents already in the dataset, generating only the extra bare samples the null pairs need")
+		judgeModel = flag.String("judge-model", "claude-opus-5", "model the panel runs on")
+		nulls      = flag.Int("null-samples", 1, "extra bare samples per cell, for the null pairs the panel is checked with")
 	)
 	flag.Parse()
 
@@ -183,6 +200,71 @@ func run() error {
 		}
 	}
 
+	// Judging what is already published, rather than regenerating it.
+	//
+	// The documents cost far more than the judging, and a panel run should not
+	// re-measure the thing it is judging: a re-run produces different documents,
+	// so the verdicts would not be about the ones on the page. Only the extra
+	// bare samples the null pairs need are generated.
+	if *judgeOnly {
+		prior, err := readReport(target)
+		if err != nil {
+			return err
+		}
+		docs := prior.Docs
+		fmt.Fprintf(os.Stderr, "authoring-lab: judging %d cell(s) already in %s\n", len(docs), target)
+
+		missing := 0
+		for i := range docs {
+			if docs[i].Bare.Text == "" || docs[i].BareAgain.Text != "" {
+				continue
+			}
+			missing++
+		}
+		if missing > 0 {
+			fmt.Fprintf(os.Stderr, "authoring-lab: %d null sample(s) to generate\n", missing)
+			sem := make(chan struct{}, max(1, *workers))
+			var wg sync.WaitGroup
+			for i := range docs {
+				if docs[i].Bare.Text == "" || docs[i].BareAgain.Text != "" {
+					continue
+				}
+				wg.Go(func() {
+					sem <- struct{}{}
+					defer func() { <-sem }()
+					docs[i].BareAgain = runAgent(ctx, AgentOpts{
+						ClaudeBin: claudeBin, RepoDir: subject,
+						Model: docs[i].Model, Prompt: prior.Tasks[docs[i].Audience],
+					})
+					fmt.Fprintf(os.Stderr, "  null  %-18s %-10s %s\n",
+						docs[i].Model, docs[i].Audience, armStatus(docs[i].BareAgain))
+				})
+			}
+			wg.Wait()
+		}
+
+		verdicts, err := runPanel(ctx, docs, prior.Tasks, *judgeModel)
+		if err != nil {
+			return err
+		}
+		sortVerdicts(verdicts)
+		summary := summarise(verdicts)
+		prior.Lenses, prior.Verdicts, prior.Panel = lenses, verdicts, &summary
+		prior.JudgeModel = *judgeModel
+		prior.Docs = docs
+		reportPanel(summary)
+
+		body, err := json.MarshalIndent(prior, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, append(body, '\n'), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "authoring-lab: wrote %s\n", target)
+		return nil
+	}
+
 	fmt.Fprintf(os.Stderr, "authoring-lab: %d document(s) across %d model(s) and %d coordinate(s), reading %s\n",
 		len(cells)*2, len(wanted), len(pts), LabRepo)
 
@@ -200,6 +282,14 @@ func run() error {
 			governed := base
 			governed.SystemPrompt = guides[c.point.Audience]
 			d.Governed = runAgent(ctx, governed)
+
+			// A second bare sample, so the panel can be shown a pair where the
+			// right answer is a coin flip. Without it, a judge with a standing
+			// preference is indistinguishable from a real effect, and nothing
+			// else in the run would reveal the difference.
+			if *judge && *nulls > 0 {
+				d.BareAgain = runAgent(ctx, base)
+			}
 
 			docs[i] = d
 			fmt.Fprintf(os.Stderr, "  %-18s %-10s bare:%s governed:%s\n",
@@ -219,6 +309,18 @@ func run() error {
 	}
 	rep.Docs = docs
 
+	if *judge {
+		verdicts, err := runPanel(ctx, docs, rep.Tasks, *judgeModel)
+		if err != nil {
+			return err
+		}
+		sortVerdicts(verdicts)
+		summary := summarise(verdicts)
+		rep.Lenses, rep.Verdicts, rep.Panel = lenses, verdicts, &summary
+		rep.JudgeModel = *judgeModel
+		reportPanel(summary)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
@@ -231,6 +333,22 @@ func run() error {
 	}
 	fmt.Fprintf(os.Stderr, "authoring-lab: wrote %s and %s/\n", target, DocDir)
 	return nil
+}
+
+// readReport loads the dataset a previous run published.
+func readReport(target string) (*Report, error) {
+	body, err := os.ReadFile(target)
+	if err != nil {
+		return nil, fmt.Errorf("no dataset at %s to judge: run the lab first", target)
+	}
+	var rep Report
+	if err := json.Unmarshal(body, &rep); err != nil {
+		return nil, fmt.Errorf("%s: %w", target, err)
+	}
+	if len(rep.Docs) == 0 {
+		return nil, fmt.Errorf("%s holds no documents", target)
+	}
+	return &rep, nil
 }
 
 // armStatus is one arm's one-line result: what it read, and what it cost.

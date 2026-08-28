@@ -100,7 +100,10 @@ func loadProfile() (*coreprofile.VoiceProfile, error) {
 	if err := yaml.Unmarshal(ripgrepProfileYAML, &p); err != nil {
 		return nil, fmt.Errorf("ripgrep profile: %w", err)
 	}
-	if probs := coreprofile.ValidateProfile(&p); len(probs) > 0 {
+	// Blocking, not every problem: a tone this does not recognise is a note
+	// rather than a failure, and treating notes as fatal stopped the lab
+	// loading the very register kapi inferred from ripgrep's own docs.
+	if probs := coreprofile.Blocking(coreprofile.ValidateProfile(&p)); len(probs) > 0 {
 		return nil, fmt.Errorf("ripgrep profile is not usable: %v", probs)
 	}
 	return &p, nil
