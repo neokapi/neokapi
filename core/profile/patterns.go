@@ -64,6 +64,20 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 	if p == nil || text == "" {
 		return nil
 	}
+	// Where code sits, computed once: a scoped rule needs it and an unscoped
+	// one does not pay for it.
+	var spans []span
+	scoped := false
+	for _, pat := range p.Style.ProhibitedPatterns {
+		if pat.Scope != "" {
+			scoped = true
+			break
+		}
+	}
+	if scoped {
+		spans = codeSpans(text)
+	}
+
 	var hits []PatternHit
 	for _, pat := range p.Style.ProhibitedPatterns {
 		src := strings.TrimSpace(pat.Regex)
@@ -75,13 +89,18 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 			continue
 		}
 		sev := severityForRule(pat.Severity, SeverityMajor)
+
+		var found []PatternHit
 		for _, m := range re.FindAllStringIndex(text, -1) {
 			// A zero-width match marks no text, so it can neither be shown to a
 			// reader nor anchored to a run.
 			if m[0] == m[1] {
 				continue
 			}
-			hits = append(hits, PatternHit{
+			if !inScope(pat.Scope, text, spans, m[0]) {
+				continue
+			}
+			found = append(found, PatternHit{
 				Category:    DimensionStyle,
 				Severity:    sev,
 				Regex:       pat.Regex,
@@ -90,6 +109,14 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 				End:         m[1],
 			})
 		}
+
+		// A rate permits some of what it matches. Under the ceiling nothing is
+		// reported, because the rule says so; over it every match is, because
+		// which occurrence is the excess is not a question the text answers.
+		if pat.Rate != nil && len(found) <= pat.Rate.Allowance(countWords(text)) {
+			continue
+		}
+		hits = append(hits, found...)
 	}
 	return hits
 }
@@ -230,3 +257,77 @@ func PatternRuleCount(p *VoiceProfile) int {
 	}
 	return len(p.Style.ProhibitedPatterns) + len(p.Style.RequiredPatterns)
 }
+
+// span is a half-open byte range of the text.
+type span struct{ start, end int }
+
+// codeSpans finds fenced blocks, indented blocks and inline code spans.
+//
+// Byte ranges rather than a parse: this runs over whatever text a caller has,
+// which may be a Markdown document, a paragraph out of one, or a block's runs
+// joined together. A tolerant scan gets the common shapes right and never
+// refuses to answer.
+func codeSpans(text string) []span {
+	var out []span
+
+	// Fenced blocks, ``` or ~~~, to the matching fence or the end of the text.
+	for _, m := range fencePattern.FindAllStringSubmatchIndex(text, -1) {
+		out = append(out, span{m[0], m[1]})
+	}
+	// Inline spans, `like this`, outside any fence already found.
+	for _, m := range inlineCodePattern.FindAllStringIndex(text, -1) {
+		if !within(out, m[0]) {
+			out = append(out, span{m[0], m[1]})
+		}
+	}
+	return out
+}
+
+// fencePattern matches a fenced block including its fences. Non-greedy to the
+// next fence, and tolerant of a block nobody closed.
+var fencePattern = regexp.MustCompile("(?s)(?:^|\n)(?:```|~~~).*?(?:\n(?:```|~~~)|$)")
+
+// inlineCodePattern matches a single-backtick span on one line.
+var inlineCodePattern = regexp.MustCompile("`[^`\n]+`")
+
+// headingLine reports whether the line containing pos is a Markdown heading.
+func headingLine(text string, pos int) bool {
+	start := strings.LastIndexByte(text[:pos], '\n') + 1
+	line := text[start:]
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	return strings.HasPrefix(strings.TrimSpace(line), "#")
+}
+
+func within(spans []span, pos int) bool {
+	for _, s := range spans {
+		if pos >= s.start && pos < s.end {
+			return true
+		}
+	}
+	return false
+}
+
+// inScope reports whether a match at pos counts for a rule with this scope.
+func inScope(scope, text string, spans []span, pos int) bool {
+	switch scope {
+	case "":
+		return true
+	case ScopeProse:
+		return !within(spans, pos)
+	case ScopeCode:
+		return within(spans, pos)
+	case ScopeHeading:
+		return headingLine(text, pos)
+	default:
+		// An unrecognised scope is a rule nobody can read. Validation reports
+		// it; matching treats it as unscoped rather than silently disabling it,
+		// because a rule that quietly stops firing is the worse failure.
+		return true
+	}
+}
+
+// countWords counts whitespace-separated words, which is the unit a rate is
+// stated in.
+func countWords(text string) int { return len(strings.Fields(text)) }

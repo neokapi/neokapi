@@ -20,21 +20,26 @@ style:
         - regex: '\x{2014}'
           description: Em dashes. The corpus contains none across ~25 entries; asides are carried by parentheses, semicolons, or a new sentence.
           severity: minor
+          scope: prose
         - regex: (?i)\b(blazing(ly)?[ -]fast|lightning[ -]fast|revolutionary|game[ -]?chang(er|ing)|seamless(ly)?|effortless(ly)?|best[ -]in[ -]class|supercharge[ds]?)\b
           description: Marketing superlatives. Speed claims in the corpus are always concrete and measured (`real 0m1.783s` vs `real 0m2.458s`), never adjectival.
           severity: major
+          scope: prose
         - regex: (?i)\b(bloated|inferior|obsolete|crappy|garbage|clunky|no reason to use)\b
           description: Disparaging other tools. grep, The Silver Searcher and PCRE2 are all discussed neutrally or accommodatingly.
           severity: major
+          scope: prose
         - regex: (?i)(scheduled for (Q[1-4]|\w+ \d{4})|will be released (on|in|by)|ETA\b|coming soon)
           description: 'Release-date promises. The corpus states the opposite policy explicitly: "releases are made on a best effort basis and no dates will ever be given."'
           severity: major
         - regex: (?i)\b(it should be noted that|please be aware that|please note that)\b
           description: 'Padded caveat openers. The corpus uses bare "Note that ..." or a parenthetical "(Note: ...)".'
           severity: minor
+          scope: prose
         - regex: (?i)\b(utilize|leverage|facilitate)\b
           description: Latinate substitutes for plain verbs. The corpus uses "use", "uses", "lets you" without exception.
           severity: minor
+          scope: prose
         - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}]'
           description: Emoji and decorative symbols. Absent from the entire corpus, including headings and warnings.
           severity: minor
@@ -82,6 +87,7 @@ vocabulary:
           case_sensitive: true
           note: Capitalized forms (Ripgrep, RipGrep, RIPGREP) never appear; the name is lowercase in every one of ~60 occurrences.
         - term: blazing fast
+          scope: prose
           replacement: a timed comparison, e.g. "real 0m1.783s" vs "real 0m2.458s"
           note: Performance is always demonstrated with `time` output or `--trace` lines, never asserted.
         - term: we guarantee / we promise
@@ -91,6 +97,7 @@ vocabulary:
             - we guaranteed
             - we promised
         - term: utilize
+          scope: prose
           replacement: use
           note: '"use" throughout: "ripgrep uses parallelism", "Use the --colors flag".'
           forms:
@@ -174,15 +181,19 @@ personas:
             sentence_length: varied
         avoided_terms:
             - term: simply
+              scope: prose
               severity: major
             - term: just
+              scope: prose
               replacement: say what it takes instead
               severity: major
             - term: easy
+              scope: prose
               replacement: say what it takes instead
               severity: major
               forms: [easily]
             - term: straightforward
+              scope: prose
               severity: major
             - term: under the hood
               replacement: name the module

@@ -64,6 +64,22 @@ type TermRuleSet struct {
 // [MatchVocabulary], and the term-locating pass through this entry point
 // directly, so a word is a hit for the whole gate or for none of it.
 func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
+	// Where code sits, computed once and only when a rule asks: an unscoped
+	// vocabulary — which is every profile written before scopes existed — pays
+	// nothing for this.
+	var codeAreas []span
+	for _, set := range sets {
+		for _, rule := range set.Rules {
+			if rule.Scope != "" {
+				codeAreas = codeSpans(text)
+				break
+			}
+		}
+		if codeAreas != nil {
+			break
+		}
+	}
+
 	var hits []VocabHit
 	for _, set := range sets {
 		category := set.Category
@@ -86,6 +102,9 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				find = check.FindTermFormsCased
 			}
 			for _, h := range find(text, rule.AllForms()) {
+				if !inScope(rule.Scope, text, codeAreas, h[0]) {
+					continue
+				}
 				hits = append(hits, VocabHit{
 					Kind:        set.Kind,
 					Category:    category,

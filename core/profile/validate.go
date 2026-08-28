@@ -186,6 +186,26 @@ func noteEnum(add func(field, msg string, warning bool), field, value string, va
 
 // validatePatterns checks a list of regex-based style patterns: the regex must
 // be non-empty and compilable, and any severity must be a known level.
+// validatePatternRule checks what a rate and a scope have to mean to be worth
+// writing down.
+func validatePatternRule(add func(field, msg string), base string, pat Pattern) {
+	if r := pat.Rate; r != nil {
+		if r.Max <= 0 {
+			add(base+".rate.max", "a rate of zero is the same as having no rate: "+
+				"leave `rate` out to forbid the pattern outright")
+		}
+		if r.Per < 0 {
+			add(base+".rate.per_words", "per_words cannot be negative")
+		}
+	}
+	switch pat.Scope {
+	case "", ScopeProse, ScopeCode, ScopeHeading:
+	default:
+		add(base+".scope", fmt.Sprintf("unknown scope %q (expected one of: %s, %s, %s, "+
+			"or omit it to match everywhere)", pat.Scope, ScopeProse, ScopeCode, ScopeHeading))
+	}
+}
+
 func validatePatterns(add func(field, msg string), base string, patterns []Pattern) {
 	for i, pat := range patterns {
 		f := fmt.Sprintf("%s[%d]", base, i)
@@ -198,6 +218,7 @@ func validatePatterns(add func(field, msg string), base string, patterns []Patte
 			}
 		}
 		checkEnum(add, f+".severity", pat.Severity, validSeverity)
+		validatePatternRule(add, f, pat)
 	}
 }
 
