@@ -48,6 +48,15 @@ const (
 	// to fetch what moved and decide what to do about it — which is why it is a
 	// 409 with its own code rather than a generic rejection.
 	CodeGovernanceMoved = "governance_moved"
+
+	// CodeClientTooOld is a request to an endpoint this server retired with the
+	// protocol it belonged to. Detail fields: "minimum_version", "install".
+	// The route stays registered for exactly this answer: an unrouted path
+	// returns the router's bare 404, which tells the operator of an old client
+	// nothing about why a push that worked last week stopped. The endpoint a
+	// caller reaches for identifies the protocol it speaks, so the server can
+	// name the version that fixes it without the client sending one.
+	CodeClientTooOld = "client_too_old"
 )
 
 // RequestID returns the per-request correlation ID set by
@@ -168,6 +177,12 @@ func MessageFor(code string, details map[string]any) string {
 			return fmt.Sprintf("The %v service is temporarily unavailable. This work is queued and will be retried automatically.", d)
 		}
 		return "An external service is temporarily unavailable. This work is queued and will be retried automatically."
+	case CodeClientTooOld:
+		if v, ok := details["minimum_version"]; ok {
+			return fmt.Sprintf("This server needs kapi-bowrain %v or newer; the plugin sending this request is older. Install it with: %v",
+				v, detailOr(details, "install", "kapi plugins install --channel beta bowrain"))
+		}
+		return "This server needs a newer kapi-bowrain plugin than the one sending this request."
 	case CodeGovernanceMoved:
 		if component, ok := details["component"]; ok {
 			return fmt.Sprintf("The project's %v moved on the server since this client last looked. Pull first, then send this again.", component)
