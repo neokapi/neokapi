@@ -285,6 +285,38 @@ func patternHints(pats []Pattern) []string {
 func patternHint(pat Pattern) string {
 	desc := strings.TrimSpace(pat.Description)
 	words := patternWords(pat.Regex)
+
+	// A rate and a scope change what the rule asks for, so a guide that omitted
+	// them would state a stricter or wider rule than the check enforces — the
+	// same defect as a pattern arriving without its words (#2240), one field
+	// along.
+	var qualifiers []string
+	if r := pat.Rate; r != nil && r.Max > 0 {
+		per := r.Per
+		if per <= 0 {
+			per = DefaultRateWindow
+		}
+		qualifiers = append(qualifiers, fmt.Sprintf("at most %d per %d words", r.Max, per))
+	}
+	switch pat.Scope {
+	case ScopeProse:
+		qualifiers = append(qualifiers, "in prose, not in code")
+	case ScopeCode:
+		qualifiers = append(qualifiers, "in code samples only")
+	case ScopeHeading:
+		qualifiers = append(qualifiers, "in headings only")
+	}
+	if len(qualifiers) > 0 {
+		suffix := " — " + strings.Join(qualifiers, ", ")
+		if desc != "" && words != "" {
+			return desc + " (" + words + ")" + suffix
+		}
+		if desc != "" {
+			return desc + suffix
+		}
+		return strings.TrimSpace(pat.Regex) + suffix
+	}
+
 	switch {
 	case desc != "" && words != "":
 		return desc + " (" + words + ")"

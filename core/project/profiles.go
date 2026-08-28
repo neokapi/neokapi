@@ -56,6 +56,35 @@ const (
 	// is bound at the point rather than being part of it. Named here so the
 	// spelling is one thing rather than each recipe's own.
 	BrandAxis = "brand"
+
+	// ModeAxis carries what KIND of document sits at a point, in the sense
+	// Diátaxis means: tutorial, how-to, reference, explanation.
+	//
+	// Declared rather than structural, like brand, and named here for the same
+	// reason: the spelling should be one thing. What makes it worth naming is
+	// that correct style is a function of mode. Hedging is wrong in a tutorial
+	// and right in an explanation; a list is right in reference and wrong in
+	// explanation. One profile applied flatly across a tutorial, a reference
+	// page and an architecture note is wrong for at least one of them, and no
+	// amount of tone or vocabulary fixes that — it is a different axis.
+	//
+	// The values below are conventions rather than an enum, because the
+	// coordinate map is open and a project that splits its documentation some
+	// other way is not wrong.
+	ModeAxis = "mode"
+)
+
+// The Diátaxis modes, as ModeAxis conventionally spells them.
+//
+// The classification test is two questions: is the reader ACTING or
+// UNDERSTANDING, and are they ACQUIRING skill or APPLYING it. Tutorial is
+// acting while acquiring, how-to is acting while applying, explanation is
+// understanding while acquiring, reference is understanding while applying.
+const (
+	ModeTutorial    = "tutorial"
+	ModeHowTo       = "how-to"
+	ModeReference   = "reference"
+	ModeExplanation = "explanation"
 )
 
 // slugRule describes the shape of a profile name and of a channel, for the

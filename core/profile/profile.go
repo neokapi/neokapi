@@ -180,7 +180,78 @@ type Pattern struct {
 	Regex       string `json:"regex" yaml:"regex"`
 	Description string `json:"description" yaml:"description"`
 	Severity    string `json:"severity" yaml:"severity"` // "minor", "major", "critical"
+
+	// Rate turns a prohibition into a ceiling: not "never" but "not this
+	// often".
+	//
+	// Most of what is actually measured about writing is a density over a
+	// window, and a regex matches without counting. This repository's own
+	// CLAUDE.md states a rule in exactly that shape — "one per 1,000 words is
+	// the ceiling" — which a profile could not express. Vale needed
+	// `occurrence` as a first-class check for the same reason. See #2242.
+	//
+	// Nil means every match is a violation, which is what every existing rule
+	// says and keeps saying.
+	Rate *PatternRate `json:"rate,omitempty" yaml:"rate,omitempty"`
+
+	// Scope limits where the pattern applies. Empty means everywhere, which is
+	// what existing rules do.
+	//
+	// `prose` is what most vocabulary rules want and cannot currently say: a
+	// ban on implementation words should not fire inside a code sample that
+	// necessarily contains them. Vale skips code by default; this asks, because
+	// changing what an existing rule matches is not a thing to do silently.
+	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"` // "", "prose", "code", "heading"
 }
+
+// PatternRate is a density ceiling: at most Max matches per Per words.
+//
+// Reporting is all-or-nothing on purpose. Under the ceiling nothing is
+// reported, because the rule permits it. Over the ceiling every match is
+// reported rather than an arbitrary "excess" subset, because which occurrence
+// is the excess one is not a question the text can answer, and a writer fixing
+// the document wants to see all of them.
+type PatternRate struct {
+	// Max is how many matches are allowed in each Per words. Zero means none,
+	// which is the same as having no rate at all and is rejected in validation
+	// rather than silently meaning something.
+	Max int `json:"max" yaml:"max"`
+	// Per is the window in words. Zero defaults to DefaultRateWindow.
+	Per int `json:"per_words,omitempty" yaml:"per_words,omitempty"`
+}
+
+// DefaultRateWindow is the window a rate uses when it names none. A thousand
+// words is the unit the style guides that state rates state them in.
+const DefaultRateWindow = 1000
+
+// Allowance is how many matches this rate permits in a text of n words.
+//
+// Rounded up, and never below Max: a 300-word document under a
+// "one per 1000 words" rule allows one, not zero. A ceiling that tightens as
+// the text gets shorter would fail a paragraph for what it permits in a page.
+func (r PatternRate) Allowance(words int) int {
+	per := r.Per
+	if per <= 0 {
+		per = DefaultRateWindow
+	}
+	allowed := r.Max * words / per
+	if r.Max*words%per != 0 {
+		allowed++
+	}
+	return max(allowed, r.Max)
+}
+
+// Pattern scopes.
+const (
+	// ScopeProse excludes fenced blocks and inline code spans. What a rule
+	// about wording almost always means.
+	ScopeProse = "prose"
+	// ScopeCode is only inside them, for a rule about samples.
+	ScopeCode = "code"
+	// ScopeHeading is only headings, where a house style often differs from
+	// the body's.
+	ScopeHeading = "heading"
+)
 
 // VocabularyRules defines term usage constraints.
 type VocabularyRules struct {
@@ -229,6 +300,18 @@ type TermRule struct {
 	// which is the right rule and, folded, fires on every correct lowercase
 	// use. See issue #2241.
 	CaseSensitive bool `json:"case_sensitive,omitempty" yaml:"case_sensitive,omitempty"`
+
+	// Scope limits where the rule applies, with the same values a Pattern uses.
+	// Empty means everywhere, which is what every existing rule does.
+	//
+	// A term needs this at least as much as a pattern does, and for a reason
+	// this repository created: fixing #2240 pushed word lists OUT of
+	// prohibited_patterns and INTO forbidden_terms, because a term renders to
+	// the model as the word itself while a pattern rendered as its description.
+	// A "no implementation vocabulary" rule written the recommended way could
+	// then not say "in prose", and fired inside the code sample the document
+	// exists to explain.
+	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for voice profile.
