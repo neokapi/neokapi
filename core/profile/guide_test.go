@@ -3,6 +3,8 @@ package profile
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func sampleProfile() *VoiceProfile {
@@ -44,7 +46,7 @@ func TestRenderVoiceGuideDeterministic(t *testing.T) {
 		"- Personality: friendly, direct",
 		"- Use active voice",
 		"~~utilize~~ → use **use**",
-		"### Competitor Terms (avoid)",
+		"### Competitor Terms",
 	} {
 		if !strings.Contains(first, want) {
 			t.Errorf("guide missing %q\n---\n%s", want, first)
@@ -171,4 +173,56 @@ func TestLoadProfileYAMLInvalid(t *testing.T) {
 	if _, err := LoadProfileYAML(strings.NewReader("\tnot: [valid")); err == nil {
 		t.Error("expected error for invalid YAML")
 	}
+}
+
+// TestGuideDoesNotBanAWordInFavourOfItself.
+//
+// A rule whose replacement IS its term states a convention — use this word, and
+// here is how — not a ban. Rendered as a swap it produced, from a profile kapi
+// inferred from ripgrep's own documentation:
+//
+//   - ~~grep~~ → use **grep**
+//
+// which tells a model to avoid a word in favour of that word. The note carried
+// the real rule and was rendered for preferred terms only, so the section where
+// it was the entire meaning was the one that dropped it.
+func TestGuideDoesNotBanAWordInFavourOfItself(t *testing.T) {
+	p := &VoiceProfile{
+		Name: "ripgrep",
+		Vocabulary: VocabularyRules{
+			CompetitorTerms: []TermRule{
+				{Term: "grep", Replacement: "grep", Note: "Named plainly; no put-downs."},
+				{Term: "ag", Replacement: "The Silver Searcher"},
+			},
+			ForbiddenTerms: []TermRule{
+				{Term: "Ripgrep", Replacement: "ripgrep", Note: "Lowercase in every occurrence."},
+			},
+		},
+	}
+	got := RenderVoiceGuide(p)
+
+	assert.NotContains(t, got, "~~grep~~ → use **grep**", "a word is never banned in favour of itself")
+	assert.Contains(t, got, "- **grep**: Named plainly; no put-downs.",
+		"and the note says what the rule actually is")
+	assert.Contains(t, got, "- ~~ag~~ → use **The Silver Searcher**", "a real swap still renders")
+
+	// A replacement differing only in case is a real rule about capitalisation,
+	// so the comparison must be exact rather than case-folded.
+	assert.Contains(t, got, "- ~~Ripgrep~~ → use **ripgrep**: Lowercase in every occurrence.")
+}
+
+// TestCompactGuideDropsTheNoOpSwapToo: the translation path renders its own
+// term list, and had the same defect.
+func TestCompactGuideDropsTheNoOpSwapToo(t *testing.T) {
+	p := &VoiceProfile{
+		Vocabulary: VocabularyRules{
+			CompetitorTerms: []TermRule{
+				{Term: "grep", Replacement: "grep"},
+				{Term: "ag", Replacement: "The Silver Searcher"},
+			},
+		},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.NotContains(t, got, `"grep" → "grep"`)
+	assert.Contains(t, got, `"ag" → "The Silver Searcher"`)
 }

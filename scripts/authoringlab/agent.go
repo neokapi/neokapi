@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +57,13 @@ type AgentRun struct {
 	// ToolCalls counts every tool by name. Unlike FilesRead this needs no
 	// interpretation, so it is the number to check when FilesRead looks wrong.
 	ToolCalls map[string]int `json:"toolCalls,omitempty"`
+	// Events is the session: every message the agent wrote and every tool call
+	// with the result it returned. A file count says the agent read six files;
+	// only the session says which six and what it made of them. Published to
+	// its own file rather than inline, because the page imports the dataset.
+	Events []Event `json:"events,omitempty"`
+	// Transcript names the published file, when there is one.
+	Transcript string `json:"transcript,omitempty"`
 	// Messages, Turns and DurationMS say what the reading cost.
 	Messages   int   `json:"messages"`
 	DurationMS int64 `json:"durationMs"`
@@ -159,15 +167,21 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 	sc.Buffer(make([]byte, 0, 1<<20), 8<<20)
 
 	seenFile := map[string]bool{}
+	awaiting := map[string]int{}
 	for sc.Scan() {
 		var ev struct {
 			Type    string `json:"type"`
 			Message struct {
 				Model   string `json:"model"`
 				Content []struct {
-					Type  string          `json:"type"`
-					Name  string          `json:"name"`
-					Input json.RawMessage `json:"input"`
+					Type      string          `json:"type"`
+					Text      string          `json:"text"`
+					Name      string          `json:"name"`
+					ID        string          `json:"id"`
+					Input     json.RawMessage `json:"input"`
+					ToolUseID string          `json:"tool_use_id"`
+					Content   json.RawMessage `json:"content"`
+					IsError   bool            `json:"is_error"`
 				} `json:"content"`
 			} `json:"message"`
 			// The run's totals arrive on the final `result` event. A per-message
@@ -190,6 +204,21 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 			out.CostUSD = ev.TotalCostUSD
 			continue
 		}
+		if ev.Type == "user" {
+			// Where tool results arrive, joined to their call by the id the
+			// stream carries on both.
+			for _, c := range ev.Message.Content {
+				if c.Type != "tool_result" {
+					continue
+				}
+				if idx, ok := awaiting[c.ToolUseID]; ok {
+					delete(awaiting, c.ToolUseID)
+					out.Events[idx].Output = scrubPaths(resultText(c.Content))
+					out.Events[idx].Failed = c.IsError
+				}
+			}
+			continue
+		}
 		if ev.Type != "assistant" {
 			continue
 		}
@@ -199,8 +228,20 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 		}
 
 		for _, c := range ev.Message.Content {
+			if c.Type == "text" {
+				if t := strings.TrimSpace(c.Text); t != "" {
+					out.Events = append(out.Events, Event{Kind: "text", Text: scrubPaths(t)})
+				}
+				continue
+			}
 			if c.Type != "tool_use" {
 				continue
+			}
+			out.Events = append(out.Events, Event{
+				Kind: "tool", Name: c.Name, Input: scrubPaths(string(c.Input)),
+			})
+			if c.ID != "" {
+				awaiting[c.ID] = len(out.Events) - 1
 			}
 			if out.ToolCalls == nil {
 				out.ToolCalls = map[string]int{}
@@ -247,6 +288,61 @@ func parseAgentStream(rd io.Reader, out *AgentRun, repoDir string) {
 		}
 	}
 }
+
+// Event is one step of a session, in the order it happened. Same shape the
+// skill eval publishes, so one reader renders both.
+type Event struct {
+	Kind   string `json:"kind"`
+	Name   string `json:"name,omitempty"`
+	Text   string `json:"text,omitempty"`
+	Input  string `json:"input,omitempty"`
+	Output string `json:"output,omitempty"`
+	Failed bool   `json:"failed,omitempty"`
+}
+
+// resultText renders a tool result, which the stream sends either as a string
+// or as the content blocks a tool returned.
+func resultText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var blocks []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &blocks) != nil {
+		return string(raw)
+	}
+	var parts []string
+	for _, b := range blocks {
+		switch {
+		case b.Text != "":
+			parts = append(parts, b.Text)
+		case b.Type != "":
+			parts = append(parts, "["+b.Type+"]")
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+// scrubPaths removes what is true of one machine only.
+//
+// Mandatory rather than tidy: a transcript carries the temp workspace, the
+// developer's home and whatever the agent printed of both, and these files are
+// published. The character class excludes a backslash so a path inside an
+// escaped quote does not lose the escape and corrupt the surrounding JSON.
+func scrubPaths(msg string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		msg = strings.ReplaceAll(msg, home, "~")
+	}
+	return absPathPattern.ReplaceAllString(msg, "<path>")
+}
+
+var absPathPattern = regexp.MustCompile(`/(?:Users|home|private|var|tmp|opt)/[^\s"'\\]*`)
 
 // readCommands are the shell commands that open a file to look at it.
 //

@@ -66,33 +66,21 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 	if len(p.Vocabulary.PreferredTerms) > 0 {
 		b.WriteString("### Preferred Terms\n")
 		for _, t := range p.Vocabulary.PreferredTerms {
-			if t.Note != "" {
-				fmt.Fprintf(&b, "- **%s**: %s\n", t.Term, t.Note)
-			} else {
-				fmt.Fprintf(&b, "- **%s**\n", t.Term)
-			}
+			b.WriteString(termLine(t) + "\n")
 		}
 		b.WriteString("\n")
 	}
 	if len(p.Vocabulary.ForbiddenTerms) > 0 {
 		b.WriteString("### Forbidden Terms\n")
 		for _, t := range p.Vocabulary.ForbiddenTerms {
-			line := fmt.Sprintf("- ~~%s~~", t.Term)
-			if t.Replacement != "" {
-				line += fmt.Sprintf(" → use **%s**", t.Replacement)
-			}
-			b.WriteString(line + "\n")
+			b.WriteString(termLine(t) + "\n")
 		}
 		b.WriteString("\n")
 	}
 	if len(p.Vocabulary.CompetitorTerms) > 0 {
-		b.WriteString("### Competitor Terms (avoid)\n")
+		b.WriteString("### Competitor Terms\n")
 		for _, t := range p.Vocabulary.CompetitorTerms {
-			line := fmt.Sprintf("- ~~%s~~", t.Term)
-			if t.Replacement != "" {
-				line += fmt.Sprintf(" → use **%s**", t.Replacement)
-			}
-			b.WriteString(line + "\n")
+			b.WriteString(termLine(t) + "\n")
 		}
 		b.WriteString("\n")
 	}
@@ -197,6 +185,38 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	return strings.TrimSpace(b.String())
 }
 
+// termLine renders one rule the way it is meant to be obeyed.
+//
+// Three shapes, and the middle one is why this exists. A rule whose replacement
+// IS its term says "use this word, and here is how" — a convention, not a ban.
+// Rendering it as a swap produced, from a profile kapi inferred itself:
+//
+//   - ~~grep~~ → use **grep**
+//   - ~~PCRE2~~ → use **PCRE2**
+//
+// which instructs a model to avoid a word in favour of that word. The note said
+// what the rule actually was ("named plainly and given its own entry; no
+// put-downs") and was rendered for preferred terms only, so the one section
+// where it carried the whole meaning was the one that dropped it.
+//
+// The comparison is exact rather than case-folded: `Ripgrep` → `ripgrep` is a
+// real rule about capitalisation, and folding would silence it.
+func termLine(t TermRule) string {
+	var b strings.Builder
+	switch {
+	case t.Replacement != "" && t.Replacement != t.Term:
+		fmt.Fprintf(&b, "- ~~%s~~ → use **%s**", t.Term, t.Replacement)
+	default:
+		// Either no replacement, or one identical to the term. Neither is a
+		// swap, so neither is struck through.
+		fmt.Fprintf(&b, "- **%s**", t.Term)
+	}
+	if t.Note != "" {
+		fmt.Fprintf(&b, ": %s", t.Note)
+	}
+	return b.String()
+}
+
 // patternHints returns a pattern list's prompt-facing hints in its declared
 // order: the human description where present, else the raw regex — a pattern
 // must not vanish from the prompt just because nobody described it.
@@ -223,7 +243,10 @@ func termSwaps(p *VoiceProfile) []string {
 	var swaps []string
 	add := func(rules []TermRule) {
 		for _, t := range rules {
-			if t.Replacement != "" {
+			// A replacement identical to its term is a convention, not a swap;
+			// rendering it as one tells a model to avoid a word in favour of
+			// itself. See termLine.
+			if t.Replacement != "" && t.Replacement != t.Term {
 				swaps = append(swaps, fmt.Sprintf("%q → %q", t.Term, t.Replacement))
 			}
 		}
