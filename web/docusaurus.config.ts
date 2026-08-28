@@ -96,6 +96,17 @@ const cdnModelsVersion = (() => {
 // every link-integrity setting below, so one policy governs them all.
 const linkIntegrity = (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn";
 
+// Whether the eval dashboards appear in the navbar.
+//
+// Off keeps every page reachable by URL and out of the top-level menu, which is
+// what a visitor sees first. The dashboards publish measurements taken against
+// real models, and several carry datasets that are older than the code they
+// describe; a menu entry invites a reader to treat all of them as current.
+//
+// A boolean rather than deleting the entry: the grouping below is the thing
+// that was hard to get right, and it stays type-checked while hidden.
+const showEvalDashboards = false;
+
 // The tagline lives in brand.json rather than here, so kapi governs it. This
 // file is TypeScript and kapi has no reader for it; brand.json is content in a
 // format it reads, declared as a collection and checked on every PR. Reading a
@@ -1073,50 +1084,57 @@ const config: Config = {
           label: "Framework",
           position: "left",
         },
-        {
-          // What kapi is measured against, at the top level rather than inside
-          // Reference. A reader deciding whether to trust the thing does not
-          // look under a reference dropdown for the evidence, and the pages
-          // most worth finding were the ones hardest to reach. The band pages
-          // are the three kinds of claim: deterministic assertions about the
-          // engine, sampled estimates about AI, and scenario scores for an
-          // agent driving kapi.
-          type: "dropdown",
-          label: "Tests & Evals",
-          position: "left",
-          items: [
-            // The whole set, grouped by the band each measurement belongs to,
-            // because the bands are three kinds of claim rather than three
-            // topics: deterministic assertions about the engine, sampled
-            // estimates about AI, scenario scores for an agent driving kapi.
-            //
-            // The list used to live in the Reference sidebar and on the
-            // Reference overview page, in two copies that had already drifted
-            // to twelve entries and six against a real eleven. Both now point
-            // here, and /evals is the one index: it is generated from
-            // scripts/evalindex, so a new eval appears in it without anybody
-            // remembering to add a link.
-            { label: "Overview", to: "/evals" },
+        ...(showEvalDashboards
+          ? [
+              {
+                // What kapi is measured against, at the top level rather than inside
+                // Reference. A reader deciding whether to trust the thing does not
+                // look under a reference dropdown for the evidence, and the pages
+                // most worth finding were the ones hardest to reach. The band pages
+                // are the three kinds of claim: deterministic assertions about the
+                // engine, sampled estimates about AI, and scenario scores for an
+                // agent driving kapi.
+                // `as const` on both: inside a conditional branch there is no
+                // contextual type to narrow against, so these widen to `string`
+                // and stop matching NavbarItem.
+                type: "dropdown" as const,
+                label: "Tests & Evals",
+                position: "left" as const,
+                items: [
+                  // The whole set, grouped by the band each measurement belongs to,
+                  // because the bands are three kinds of claim rather than three
+                  // topics: deterministic assertions about the engine, sampled
+                  // estimates about AI, scenario scores for an agent driving kapi.
+                  //
+                  // The list used to live in the Reference sidebar and on the
+                  // Reference overview page, in two copies that had already drifted
+                  // to twelve entries and six against a real eleven. Both now point
+                  // here, and /evals is the one index: it is generated from
+                  // scripts/evalindex, so a new eval appears in it without anybody
+                  // remembering to add a link.
+                  { label: "Overview", to: "/evals" },
 
-            { label: "Engine and formats", to: "/evals/engine" },
-            { label: "· Format maturity", to: "/format-maturity" },
-            { label: "· Document conversion", to: "/conversion-eval" },
-            { label: "· Engine throughput", to: "/pseudobench" },
-            { label: "· Local ML models", to: "/ml-benchmark" },
-            { label: "· Bundle conformance", to: "/kbf-tests" },
+                  { label: "Engine and formats", to: "/evals/engine" },
+                  { label: "· Format maturity", to: "/format-maturity" },
+                  { label: "· Document conversion", to: "/conversion-eval" },
+                  { label: "· Engine throughput", to: "/pseudobench" },
+                  { label: "· Local ML models", to: "/ml-benchmark" },
+                  { label: "· Bundle conformance", to: "/kbf-tests" },
 
-            { label: "AI and context", to: "/evals/ai" },
-            { label: "· Content checks", to: "/check-eval" },
-            { label: "· Context injection", to: "/context-eval" },
-            { label: "· Voice and authoring", to: "/authoring-eval" },
-            { label: "· Batching", to: "/batch-eval" },
-            { label: "· Reuse and governance", to: "/coordinate" },
+                  { label: "AI and context", to: "/evals/ai" },
+                  { label: "· Content checks", to: "/check-eval" },
+                  { label: "· Context injection", to: "/context-eval" },
+                  { label: "· Voice and authoring", to: "/authoring-eval" },
+                  { label: "· Batching", to: "/batch-eval" },
+                  { label: "· Reuse and governance", to: "/coordinate" },
 
-            { label: "Agent skills", to: "/evals/skills" },
-            { label: "· Skill and MCP", to: "/skill-eval" },
-            { label: "· Authoring lab", to: "/authoring-lab" },
-          ],
-        },
+                  { label: "Agent skills", to: "/evals/skills" },
+                  { label: "· Skill and MCP", to: "/skill-eval" },
+                  { label: "· Authoring lab", to: "/authoring-lab" },
+                ],
+              },
+            ]
+          : []),
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for
           // this browser tab, with explicit per-plugin Download (custom type
