@@ -83,3 +83,23 @@ func TestNoAbsolutePathReachesTheReport(t *testing.T) {
 			"a serialized report still carries %q, which the tracked-file guard rejects", root)
 	}
 }
+
+// TestScrubKeepsAnEscapedQuoteIntact is issue #2244.
+//
+// The character class stopped at a quote but not at a backslash, so a path
+// inside an escaped quote swallowed the escape:
+//
+//	cat \"/Users/me/x.md\"   →   cat \"<path>"
+//
+// The closing quote lost its backslash and the surrounding JSON — a tool call's
+// arguments, which the page parses to show the command — was no longer valid.
+// Visible on the published page as a card showing raw JSON.
+func TestScrubKeepsAnEscapedQuoteIntact(t *testing.T) {
+	in := `{"command":"cat \"/Users/me/src/x.md\"","description":"Read it"}`
+	got := scrubPaths(in)
+
+	assert.NotContains(t, got, "/Users/me", "the path is still removed")
+	var parsed map[string]string
+	require.NoError(t, json.Unmarshal([]byte(got), &parsed), "and the JSON still parses: %s", got)
+	assert.Equal(t, `cat "<path>"`, parsed["command"])
+}

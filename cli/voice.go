@@ -88,7 +88,7 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 			// give, and reachable from a scaffold nobody filled in or a path
 			// typo that resolved to some other YAML. `kapi voice validate`
 			// already refuses both; check asks it the same question. See #2224.
-			if probs := coreprofile.ValidateProfile(profile); len(probs) > 0 {
+			if probs := coreprofile.Blocking(coreprofile.ValidateProfile(profile)); len(probs) > 0 {
 				return fmt.Errorf("%s is not a usable voice profile:%s\n"+
 					"run `kapi voice validate` for the full report",
 					VoiceProfileLabel(profile), problemLines(probs))

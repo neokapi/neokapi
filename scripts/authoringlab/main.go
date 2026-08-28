@@ -45,6 +45,10 @@ const DefaultOut = "web/src/pages/authoring-lab/_authoringlab.json"
 // can read the diff.
 const DocDir = "web/static/authoring-lab"
 
+// SessionDir is where the sessions land, beside the documents. Same tree, so
+// one publish target carries both.
+const SessionDir = "web/static/authoring-lab/transcripts"
+
 // Doc is one cell of the matrix: one task, at one coordinate, on one model,
 // written twice.
 type Doc struct {
@@ -207,6 +211,12 @@ func run() error {
 	if err := writeDocs(root, docs); err != nil {
 		return err
 	}
+	// Sessions out of the dataset and into their own files: the page imports the
+	// dataset, and a sixty-turn session per cell would be paid for by every
+	// reader of the summary.
+	if err := writeSessions(root, docs); err != nil {
+		return err
+	}
 	rep.Docs = docs
 
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
@@ -273,6 +283,79 @@ func writeDocs(root string, docs []Doc) error {
 		}
 	}
 	return nil
+}
+
+// LabSession is one arm's recorded session, as published.
+type LabSession struct {
+	Model    string  `json:"model"`
+	Audience string  `json:"audience"`
+	Arm      string  `json:"arm"`
+	Prompt   string  `json:"prompt"`
+	Events   []Event `json:"events"`
+}
+
+// writeSessions publishes each arm's session and points the dataset at it.
+//
+// A file count says the agent read six files. Only the session says which six,
+// what it made of them, and where it went wrong — which is the question a
+// reader has when a document surprises them.
+func writeSessions(root string, docs []Doc) error {
+	dir := filepath.Join(root, SessionDir)
+	// Only the cells this run produced, for the same reason writeDocs clears
+	// only those: a partial run must not delete what it cannot reproduce.
+	for i := range docs {
+		if docs[i].Model == "" {
+			continue
+		}
+		for _, arm := range []string{"bare", "governed"} {
+			_ = os.Remove(filepath.Join(dir, sessionName(docs[i].Model, docs[i].Audience, arm)))
+		}
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for i := range docs {
+		d := &docs[i]
+		for _, f := range []struct {
+			arm string
+			run *AgentRun
+		}{{"bare", &d.Bare}, {"governed", &d.Governed}} {
+			if len(f.run.Events) == 0 {
+				continue
+			}
+			name := sessionName(d.Model, d.Audience, f.arm)
+			body, err := json.MarshalIndent(LabSession{
+				Model: d.Model, Audience: d.Audience, Arm: f.arm,
+				Prompt: taskFor(d.Audience), Events: f.run.Events,
+			}, "", "  ")
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), append(body, '\n'), 0o644); err != nil {
+				return err
+			}
+			f.run.Transcript = name
+			// Out of the dataset now that it is on disk.
+			f.run.Events = nil
+		}
+	}
+	return nil
+}
+
+// sessionName is stable across runs, so a re-run overwrites rather than
+// accumulating, and safe as a path and a URL.
+func sessionName(model, audience, arm string) string {
+	return fmt.Sprintf("%s--%s--%s.json", model, audience, arm)
+}
+
+// taskFor is the prompt a coordinate's runs opened on.
+func taskFor(audience string) string {
+	for _, p := range points {
+		if p.Audience == audience {
+			return p.Task
+		}
+	}
+	return ""
 }
 
 func repoRoot(ctx context.Context) (string, error) {

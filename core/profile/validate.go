@@ -19,6 +19,25 @@ import (
 type ProfileProblem struct {
 	Field   string `json:"field,omitempty"`
 	Message string `json:"message"`
+	// Warning marks a problem that does not make the profile unusable.
+	//
+	// Everything here used to be fatal, which forced a choice between refusing
+	// a profile and saying nothing about it. Tone needs the third answer: an
+	// unfamiliar register is a description the guide passes through, worth
+	// mentioning and never worth refusing over.
+	Warning bool `json:"warning,omitempty"`
+}
+
+// Blocking returns the problems that make a profile unusable, dropping the
+// advisory ones. A gate calls this; a report shows everything.
+func Blocking(probs []ProfileProblem) []ProfileProblem {
+	out := make([]ProfileProblem, 0, len(probs))
+	for _, p := range probs {
+		if !p.Warning {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // DecodeProfileStrict decodes a VoiceProfile from a YAML stream and rejects
@@ -71,9 +90,10 @@ var (
 // profile.yaml files, the embedded starter packs, and store-backed profiles.
 func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	var probs []ProfileProblem
-	add := func(field, msg string) {
-		probs = append(probs, ProfileProblem{Field: field, Message: msg})
+	note := func(field, msg string, warning bool) {
+		probs = append(probs, ProfileProblem{Field: field, Message: msg, Warning: warning})
 	}
+	add := func(field, msg string) { note(field, msg, false) }
 
 	if p == nil {
 		add("", "profile is empty")
@@ -90,11 +110,27 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	}
 
 	// Tone enums (each optional; a non-empty value must be in range).
-	checkEnum(add, "tone.formality", p.Tone.Formality, validFormality)
-	checkEnum(add, "tone.emotion", p.Tone.Emotion, validEmotion)
-	checkEnum(add, "tone.humor", p.Tone.Humor, validHumor)
+	// Tone is described, not enumerated.
+	//
+	// These were closed sets, and a profile naming a register outside them was
+	// REFUSED. kapi inferred "calm and matter-of-fact; enthusiasm reserved for
+	// genuinely good news" from ripgrep's own documentation, and the profile
+	// would not load until that was squashed to `neutral` — discarding exactly
+	// what distinguished the voice. Moved into free-text guidelines it worked,
+	// which shows the enum carried nothing the prose could not.
+	//
+	// The research agrees from the other side: Wikipedia lists formality among
+	// the INEFFECTIVE indicators of machine writing, and register instruction
+	// has been measured not to move a model's output. A longer list of labels
+	// makes the description longer without making it a demonstration. See #2242.
+	noteEnum(note, "tone.formality", p.Tone.Formality, validFormality)
+	noteEnum(note, "tone.emotion", p.Tone.Emotion, validEmotion)
+	noteEnum(note, "tone.humor", p.Tone.Humor, validHumor)
 
-	// Style enums.
+	// Style enums stay closed. Unlike tone these are read by code — active_voice
+	// and person_pov are what the offline check evaluates — so an unrecognised
+	// value is a rule that silently does nothing rather than a description that
+	// reaches the model.
 	checkEnum(add, "style.sentence_length", p.Style.SentenceLength, validSentenceLength)
 	checkEnum(add, "style.person_pov", p.Style.PersonPOV, validPersonPOV)
 	checkEnum(add, "style.contractions", p.Style.Contractions, validContractions)
@@ -134,6 +170,18 @@ func checkEnum(add func(field, msg string), field, value string, allowed []strin
 		return
 	}
 	add(field, fmt.Sprintf("unknown value %q (expected one of: %s)", value, strings.Join(allowed, ", ")))
+}
+
+// noteEnum mentions a value outside the known set without refusing it.
+//
+// The known values still mean what they meant, and anything else is prose the
+// guide renders as written.
+func noteEnum(add func(field, msg string, warning bool), field, value string, valid []string) {
+	if value == "" || slices.Contains(valid, value) {
+		return
+	}
+	add(field, fmt.Sprintf("%q is not one of the usual values (%s). It is kept and rendered "+
+		"into the voice guide as written.", value, strings.Join(valid, ", ")), true)
 }
 
 // validatePatterns checks a list of regex-based style patterns: the regex must

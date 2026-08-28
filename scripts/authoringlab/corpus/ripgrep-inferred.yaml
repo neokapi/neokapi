@@ -9,7 +9,7 @@ tone:
         - 'pragmatic: gives the workaround even when the cause is unfixed'
         - generous toward other tools and their users
     formality: technical
-    emotion: neutral
+    emotion: calm and matter-of-fact; enthusiasm reserved for genuinely good news ("Yes!"), mild exasperation permitted at real problems ("Owch.")
     humor: light
     guidelines: Calm and matter-of-fact. Enthusiasm is reserved for genuinely good news
         ("Yes!") and mild exasperation is permitted at real problems ("Owch."). Answer the literal question first, in one word or one sentence when possible ("Yes. See the guide's section on configuration files."), then expand. Explain mechanism when it changes what the reader should do. Say plainly what you do not know rather than bluffing. Never promise dates or outcomes you cannot keep; state the policy and the reason instead. Treat other tools as legitimate choices; explain ripgrep's design on its own rationale. Humor is dry, rare, and arises from the situation, never from a joke inserted for effect.
@@ -69,6 +69,7 @@ vocabulary:
     forbidden_terms:
         - term: Ripgrep
           replacement: ripgrep
+          case_sensitive: true
           note: Capitalized forms (Ripgrep, RipGrep, RIPGREP) never appear; the name is lowercase in every one of ~60 occurrences.
         - term: blazing fast
           replacement: a timed comparison, e.g. "real 0m1.783s" vs "real 0m2.458s"

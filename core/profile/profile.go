@@ -220,6 +220,15 @@ type TermRule struct {
 	// own language and writing the result into a diff. The knowledge is the
 	// model's; the matching stays exact and language-neutral.
 	Forms []string `json:"forms,omitempty" yaml:"forms,omitempty"`
+
+	// CaseSensitive matches the term and its forms in their own casing.
+	//
+	// Off by default, so every profile written before this keeps behaving as it
+	// did. On for the rules whose whole content is capitalisation: inference
+	// read ripgrep's docs and wrote `term: Ripgrep, replacement: ripgrep`,
+	// which is the right rule and, folded, fires on every correct lowercase
+	// use. See issue #2241.
+	CaseSensitive bool `json:"case_sensitive,omitempty" yaml:"case_sensitive,omitempty"`
 }
 
 // VoiceExample shows a before/after transformation for voice profile.

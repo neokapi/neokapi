@@ -27,12 +27,31 @@ import "sort"
 // and "utilizes" reports "utilizes" once as the eight-character hit rather than
 // twice.
 func FindTermForms(text string, forms []string) [][2]int {
+	return findForms(text, forms, false)
+}
+
+// FindTermFormsCased is the same, matching each form in its own casing.
+//
+// For a rule about a name: ripgrep is lowercase in every one of its ~60
+// occurrences, so `Ripgrep` is the violation and `ripgrep` is correct. Folding
+// case makes that rule fire on every correct use, which is worse than not
+// having it. core/check has had NewCaseSensitiveTermMatcher all along; nothing
+// above it could ask for it.
+func FindTermFormsCased(text string, forms []string) [][2]int {
+	return findForms(text, forms, true)
+}
+
+func findForms(text string, forms []string, cased bool) [][2]int {
+	find := FindTerm
+	if cased {
+		find = FindTermCased
+	}
 	if len(forms) == 1 {
-		return FindTerm(text, forms[0])
+		return find(text, forms[0])
 	}
 	var all [][2]int
 	for _, f := range forms {
-		all = append(all, FindTerm(text, f)...)
+		all = append(all, find(text, f)...)
 	}
 	return longestNonOverlapping(all)
 }

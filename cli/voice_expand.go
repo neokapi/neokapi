@@ -47,7 +47,7 @@ carry forms are left alone unless --overwrite is given.
 				return err
 			}
 			// The profile has to be one kapi can read before it is rewritten.
-			if probs := coreprofile.ValidateProfile(profile); len(probs) > 0 {
+			if probs := coreprofile.Blocking(coreprofile.ValidateProfile(profile)); len(probs) > 0 {
 				return fmt.Errorf("%s is not a usable voice profile:%s",
 					VoiceProfileLabel(profile), problemLines(probs))
 			}

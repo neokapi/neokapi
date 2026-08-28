@@ -42,9 +42,20 @@ type Point struct {
 	// Persona vocabulary can only tighten, so neither point can re-allow what
 	// ripgrep's voice forbids.
 	Persona string
-	// Task is the deliverable, stated in BOTH arms. The bare arm has to know it
-	// is writing for a non-programmer, or the comparison measures whether the
-	// model was told who the reader is rather than what the governance did.
+	// Task is the deliverable, stated in BOTH arms.
+	//
+	// It names the reader and what to produce, and says NOTHING about how to
+	// write it. The bare arm has to know who it is writing for, or the
+	// comparison measures whether the model was told the audience rather than
+	// what the governance did. But the first version went further — "not a
+	// programmer: they have a terminal open and no interest in how the tool is
+	// built" — which instructs the bare arm to avoid implementation detail, the
+	// exact thing the coordinate exists to do. Both arms were steered and only
+	// one was credited, so the effect measured itself smaller than it is.
+	//
+	// The test for whether a line belongs here: does it describe the
+	// DELIVERABLE or the READER? Anything describing the PROSE belongs in the
+	// profile.
 	Task string
 }
 
@@ -55,9 +66,8 @@ var points = []Point{
 		Persona:  "end-user",
 		Task: "Read this repository and write a user guide, in Markdown, of roughly 800 words, " +
 			"for ripgrep's file-type filtering: what `--type`, `--type-not`, `--type-add` and " +
-			"`--type-list` do and how someone uses them. The reader searches text for a living " +
-			"and is not a programmer: they have a terminal open and no interest in how the tool " +
-			"is built. Ground every claim in what the source and the existing docs actually say.",
+			"`--type-list` do and how someone uses them. The reader searches text for a living. " +
+			"Ground every claim in what the source and the existing docs actually say.",
 	},
 	{
 		Audience: "developer",
@@ -67,7 +77,7 @@ var points = []Point{
 			"800 words, for ripgrep's file-type filtering: how type definitions are represented, " +
 			"how a matcher is built from them, and what a contributor changing this area needs to " +
 			"know. The reader is a Rust programmer reading the crates. Ground every claim in what " +
-			"the source actually does, and name the modules and types you are describing.",
+			"the source actually does.",
 	},
 }
 

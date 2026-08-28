@@ -169,13 +169,21 @@ func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin, arm string) err
 		f.Bytes = len(body)
 	}
 
+	// Every workspace gets an MCP config, because every run is given
+	// --strict-mcp-config and that needs one to be strict about. Which config
+	// depends on what the scenario is measuring; the isolation does not.
 	if arm == armUnaided {
-		// The control gets the workspace and nothing else: no skill, no MCP
-		// server. Whatever it manages, it manages without kapi.
-		return nil
+		// The control gets the workspace and nothing else: no skill, no kapi
+		// server. Whatever it manages, it manages without kapi — and without
+		// the developer's other servers either, which is what makes it a
+		// control rather than a differently-equipped arm (#2237).
+		return writeEmptyMCPConfig(dir)
 	}
 	if surfaceOf(*sc) == surfaceMCP {
 		return writeMCPConfig(dir, kapiBin)
+	}
+	if err := writeEmptyMCPConfig(dir); err != nil {
+		return err
 	}
 
 	// The skill goes where a headless agent discovers it without a plugin
@@ -190,6 +198,22 @@ func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin, arm string) err
 // mcpConfigName is the file handed to --strict-mcp-config, which is what keeps
 // the run from inheriting whatever MCP servers the developer has configured.
 const mcpConfigName = ".mcp.json"
+
+// emptyMCPConfig is the same isolation for a scenario that is NOT about the MCP
+// server: a config naming no servers at all.
+//
+// --strict-mcp-config needs a config to be strict about, so "no servers" has to
+// be written down rather than left unsaid.
+const emptyMCPConfig = ".mcp-none.json"
+
+// writeEmptyMCPConfig writes a config declaring no servers.
+func writeEmptyMCPConfig(dir string) error {
+	body, err := json.MarshalIndent(map[string]any{"mcpServers": map[string]any{}}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, emptyMCPConfig), append(body, '\n'), 0o644)
+}
 
 // writeMCPConfig points the agent at this checkout's kapi as an MCP server,
 // carrying the isolation environment with it: the server is a kapi process, so
@@ -437,12 +461,25 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 	if opts.Model != "" {
 		args = append(args, "--model", opts.Model)
 	}
+	// --strict-mcp-config on EVERY run, which is what makes this an eval of
+	// kapi rather than of whatever the developer happens to have configured.
+	//
+	// It used to be applied to MCP scenarios only, so skill scenarios inherited
+	// the driving machine's servers. Four transcripts from the 2026-08-27 sweep
+	// show it happening: in p12 the agent resolved `next-intl` through a
+	// documentation server and queried it before writing the advice it was
+	// scored on. That result is not reproducible anywhere else, and the control
+	// arm was not a control — it strips kapi from PATH and left every foreign
+	// server in both arms, so a scenario the developer's tooling could solve
+	// was solved in both and scored "no difference". See issue #2237.
+	//
+	// The kapi server is configured only where the scenario is about it; every
+	// other run gets a strict config naming nothing.
+	config := emptyMCPConfig
 	if surfaceOf(*sc) == surfaceMCP && arm != armUnaided {
-		// --strict-mcp-config is what makes this an eval of kapi's server
-		// rather than of whatever the developer happens to have configured.
-		// The control gets neither.
-		args = append(args, "--mcp-config", mcpConfigName, "--strict-mcp-config")
+		config = mcpConfigName
 	}
+	args = append(args, "--mcp-config", config, "--strict-mcp-config")
 
 	// Confined by Claude Code's own sandbox. bypassPermissions keeps a headless
 	// run from hanging on a prompt; the sandbox decides what it can reach. The
@@ -770,7 +807,11 @@ func scrubPaths(msg string) string {
 
 // absPathPattern matches the absolute paths that survive the home-directory
 // substitution: a scenario's temp workspace, a system root, another checkout.
-var absPathPattern = regexp.MustCompile(`/(?:Users|home|private|var|tmp|opt)/[^\s"']*`)
+// The character class excludes a backslash so a path inside an escaped quote
+// does not swallow the escape. `cat \"/Users/me/x.md\"` scrubbed to
+// `cat \"<path>"`, and the surrounding JSON — a tool call's arguments, which
+// the page parses — was no longer valid. See issue #2244.
+var absPathPattern = regexp.MustCompile(`/(?:Users|home|private|var|tmp|opt)/[^\s"'\\]*`)
 
 func truncate(s string, n int) string {
 	if len(s) <= n {

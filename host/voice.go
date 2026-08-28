@@ -68,7 +68,11 @@ func AddVoiceAIFlags(cmd Command) {
 // profile to a non-zero (silent) exit so CI fails on a misconfigured profile
 // while the structured output stays the result channel.
 func EmitValidate(cmd Command, out output.VoiceValidateOutput) error {
-	out.Valid = len(out.Errors) == 0
+	// Valid means usable, not unremarked. A profile carrying only advisories —
+	// a tone this does not recognise, which the guide renders as written — is
+	// a working profile, and reporting it INVALID is what made kapi refuse the
+	// register it had inferred from a project's own documentation.
+	out.Valid = len(coreprofile.Blocking(out.Errors)) == 0
 	if err := output.Print(cmd, out); err != nil {
 		return err
 	}

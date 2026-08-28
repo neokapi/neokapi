@@ -3,6 +3,8 @@ package profile
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func sampleProfile() *VoiceProfile {
@@ -44,7 +46,7 @@ func TestRenderVoiceGuideDeterministic(t *testing.T) {
 		"- Personality: friendly, direct",
 		"- Use active voice",
 		"~~utilize~~ → use **use**",
-		"### Competitor Terms (avoid)",
+		"### Competitor Terms",
 	} {
 		if !strings.Contains(first, want) {
 			t.Errorf("guide missing %q\n---\n%s", want, first)
@@ -171,4 +173,121 @@ func TestLoadProfileYAMLInvalid(t *testing.T) {
 	if _, err := LoadProfileYAML(strings.NewReader("\tnot: [valid")); err == nil {
 		t.Error("expected error for invalid YAML")
 	}
+}
+
+// TestGuideDoesNotBanAWordInFavourOfItself.
+//
+// A rule whose replacement IS its term states a convention — use this word, and
+// here is how — not a ban. Rendered as a swap it produced, from a profile kapi
+// inferred from ripgrep's own documentation:
+//
+//   - ~~grep~~ → use **grep**
+//
+// which tells a model to avoid a word in favour of that word. The note carried
+// the real rule and was rendered for preferred terms only, so the section where
+// it was the entire meaning was the one that dropped it.
+func TestGuideDoesNotBanAWordInFavourOfItself(t *testing.T) {
+	p := &VoiceProfile{
+		Name: "ripgrep",
+		Vocabulary: VocabularyRules{
+			CompetitorTerms: []TermRule{
+				{Term: "grep", Replacement: "grep", Note: "Named plainly; no put-downs."},
+				{Term: "ag", Replacement: "The Silver Searcher"},
+			},
+			ForbiddenTerms: []TermRule{
+				{Term: "Ripgrep", Replacement: "ripgrep", Note: "Lowercase in every occurrence."},
+			},
+		},
+	}
+	got := RenderVoiceGuide(p)
+
+	assert.NotContains(t, got, "~~grep~~ → use **grep**", "a word is never banned in favour of itself")
+	assert.Contains(t, got, "- **grep**: Named plainly; no put-downs.",
+		"and the note says what the rule actually is")
+	assert.Contains(t, got, "- ~~ag~~ → use **The Silver Searcher**", "a real swap still renders")
+
+	// A replacement differing only in case is a real rule about capitalisation,
+	// so the comparison must be exact rather than case-folded.
+	assert.Contains(t, got, "- ~~Ripgrep~~ → use **ripgrep**: Lowercase in every occurrence.")
+}
+
+// TestCompactGuideDropsTheNoOpSwapToo: the translation path renders its own
+// term list, and had the same defect.
+func TestCompactGuideDropsTheNoOpSwapToo(t *testing.T) {
+	p := &VoiceProfile{
+		Vocabulary: VocabularyRules{
+			CompetitorTerms: []TermRule{
+				{Term: "grep", Replacement: "grep"},
+				{Term: "ag", Replacement: "The Silver Searcher"},
+			},
+		},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.NotContains(t, got, `"grep" → "grep"`)
+	assert.Contains(t, got, `"ag" → "The Silver Searcher"`)
+}
+
+// TestPatternReachesTheModelWithItsWords is issue #2240.
+//
+// The description said WHY a pattern is banned and the regex says WHAT is
+// banned, and the description won. A rule with a careful description reached
+// the model naming none of the words it forbids, so the document written under
+// it used them — each one a violation the check would then flag. A user who
+// documented their rule made the guide less actionable than one who did not.
+func TestPatternReachesTheModelWithItsWords(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{
+			Regex:       `(?i)\b(?:endpoint|payload|webhook|HMAC|API)\b`,
+			Description: "implementation vocabulary, which this reader does not have",
+		}}},
+	}
+	got := RenderVoiceGuideCompact(p)
+
+	assert.Contains(t, got, "implementation vocabulary", "the reason survives")
+	for _, w := range []string{"endpoint", "payload", "webhook"} {
+		assert.Contains(t, got, w, "the model is told which word to avoid: %s", w)
+	}
+}
+
+// TestPatternWithoutWordsKeepsItsDescription: a pattern built from character
+// classes has no words to extract, and inventing some would be worse than the
+// description alone.
+func TestPatternWithoutWordsKeepsItsDescription(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{
+			Regex:       `\s+\w+(?:ed|en)\b`,
+			Description: "passive construction",
+		}}},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.Contains(t, got, "passive construction")
+	assert.NotContains(t, got, "such as", "nothing extractable, so nothing claimed")
+}
+
+// TestDuplicatePatternHintsAreDropped: two patterns sharing a description
+// rendered the same sentence twice and spent context on nothing.
+func TestDuplicatePatternHintsAreDropped(t *testing.T) {
+	p := &VoiceProfile{
+		Style: StyleRules{ProhibitedPatterns: []Pattern{
+			{Regex: `\x{2014}`, Description: "em dashes"},
+			{Regex: `\x{2013}`, Description: "em dashes"},
+		}},
+	}
+	got := RenderVoiceGuideCompact(p)
+	assert.Equal(t, 1, strings.Count(got, "em dashes"))
+}
+
+// TestCompactGuideCarriesTheExamples.
+//
+// A before/after pair is the strongest steering a profile has — describing a
+// register has been measured not to move a model, and showing one has. The
+// compact form dropped them entirely, and it is what the translation path uses:
+// the one place kapi writes prose on a user's behalf at scale.
+func TestCompactGuideCarriesTheExamples(t *testing.T) {
+	p := &VoiceProfile{Examples: []VoiceExample{
+		{Before: "RipGrep is blazingly fast", After: "ripgrep uses parallelism to search"},
+	}}
+	got := RenderVoiceGuideCompact(p)
+	assert.Contains(t, got, "RipGrep is blazingly fast")
+	assert.Contains(t, got, "ripgrep uses parallelism to search")
 }
