@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import CodeBlock from "@theme/CodeBlock";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import data from "./_authoringlab.json";
@@ -36,6 +37,10 @@ interface AgentRun {
   sandboxed?: boolean;
   transcript?: string;
   error?: string;
+  // Every way this run reached for kapi: a shell invocation verbatim, or
+  // Skill(kapi) where it loaded the guidance without running anything. Only the
+  // pulled arm can have any, and empty there is the arm's result.
+  kapiCommands?: string[];
 }
 // One step of a recorded session, the same shape the skill eval publishes.
 interface SessionEvent {
@@ -58,8 +63,10 @@ interface Doc {
   audience: string;
   bare: AgentRun;
   governed: AgentRun;
+  pulled?: AgentRun;
   bareFile: string;
   governedFile: string;
+  pulledFile?: string;
 }
 interface Report {
   generated: string;
@@ -72,7 +79,12 @@ interface Report {
   docs: Doc[];
 }
 
-const report = data as Report;
+// Through `unknown`, which is what TypeScript asks for here. It infers a literal
+// type per document, and with three arms the union is wide enough that it stops
+// comparing and reports the two types as non-overlapping (TS2352). The shape is
+// checked where it is generated: scripts/authoringlab writes this file from Go
+// structs whose json tags are these field names.
+const report = data as unknown as Report;
 const mono = "var(--ifm-font-family-monospace)";
 
 const s: Record<string, CSSProperties> = {
@@ -116,11 +128,21 @@ const s: Record<string, CSSProperties> = {
     maxHeight: "40rem",
     overflow: "auto",
     minWidth: 0,
-    // A page laid on the panel. --ifm-background-surface-color rather than
-    // --ifm-background-color, which is `transparent` in Infima and would put
-    // the document back on the same ground as the chrome around it.
-    background: "var(--ifm-background-surface-color)",
+    // The model's writing, on its own warm ground.
+    //
+    // Everything else on this page is chrome the harness produced: the task, the
+    // guide, the file counts, the cost. This is the one block a model wrote, and
+    // a reader scrolling three columns should be able to find it without reading
+    // a heading. Infima's warning pair, because it is the one tinted surface
+    // that ships with a matching foreground for both themes — cream on dark ink
+    // in light, deep amber under cream in dark — so the tint never costs
+    // legibility. The colour carries no severity here; it is a highlighter.
+    background: "var(--ifm-color-warning-contrast-background)",
+    color: "var(--ifm-color-warning-contrast-foreground)",
     border: "1px solid var(--ifm-color-emphasis-200)",
+    // Warm to match, where the browser can mix it; the grey above is the
+    // fallback where it cannot.
+    borderColor: "color-mix(in srgb, var(--ifm-color-warning) 35%, transparent)",
     borderRadius: 6,
     padding: ".9rem 1.1rem",
     // Rendered Markdown, so the document reads as a document. Headings inside
@@ -129,6 +151,28 @@ const s: Record<string, CSSProperties> = {
     ["--ifm-h1-font-size" as string]: "1.25rem",
     ["--ifm-h2-font-size" as string]: "1.1rem",
     ["--ifm-h3-font-size" as string]: "1rem",
+    // Headings and links inside the document take the document's colour rather
+    // than the page's, or they land as the one unreadable element on the tint.
+    ["--ifm-heading-color" as string]: "var(--ifm-color-warning-contrast-foreground)",
+    // Code spans tinted from the document's own ink instead of the page's grey,
+    // which on the amber ground of the dark theme reads as a smudge.
+    ["--ifm-code-background" as string]:
+      "color-mix(in srgb, var(--ifm-color-warning-contrast-foreground) 12%, transparent)",
+  },
+  guide: {
+    fontSize: ".85rem",
+    lineHeight: 1.55,
+    maxHeight: "22rem",
+    overflow: "auto",
+    minWidth: 0,
+    background: "var(--ifm-background-surface-color)",
+    border: "1px solid var(--ifm-color-emphasis-200)",
+    borderRadius: 6,
+    padding: ".8rem 1rem",
+    ["--ifm-h1-font-size" as string]: "1.1rem",
+    ["--ifm-h2-font-size" as string]: "1rem",
+    ["--ifm-h3-font-size" as string]: ".95rem",
+    ["--ifm-paragraph-margin-bottom" as string]: ".5rem",
   },
   pre: {
     fontFamily: mono,
@@ -201,13 +245,143 @@ function Reading({ run }: { run: AgentRun }): ReactElement {
   );
 }
 
+// pullTally counts the arm's result across the whole sweep.
+//
+// Computed here rather than stored in the dataset: it is a count of a field the
+// page already has, and a stored copy is a second answer that can disagree with
+// the documents beside it.
+function pullTally(): { runs: number; asked: number; commands: string[] } {
+  const commands = new Set<string>();
+  let runs = 0;
+  let asked = 0;
+  for (const d of report.docs) {
+    if (!d.pulled || (!d.pulled.text && !d.pulled.error)) continue;
+    runs += 1;
+    const calls = d.pulled.kapiCommands ?? [];
+    if (calls.length > 0) asked += 1;
+    for (const c of calls) commands.add(c);
+  }
+  return { runs, asked, commands: [...commands].sort() };
+}
+
+// PullResult states the third arm's result once, at the top.
+//
+// A reader should not have to open eight cells to find out whether the loop
+// closed. Stated as a count with the commands beside it, so "it asked" cannot be
+// read as "it asked the right thing".
+function PullResult(): ReactElement | null {
+  const { runs, asked, commands } = pullTally();
+  if (runs === 0) return null;
+  const none = asked === 0;
+  return (
+    <div
+      style={{
+        ...s.panel,
+        margin: "1rem 0 0",
+        // Emphasis rather than the warning ramp: the tint is spoken for. A
+        // document on this page is yellow because a model wrote it, and a second
+        // yellow meaning "look here" would make the first one ambiguous.
+        borderColor: none ? "var(--ifm-color-emphasis-500)" : "var(--ifm-color-emphasis-300)",
+      }}
+    >
+      <div style={s.h}>The pulled arm</div>
+      {none ? (
+        <p style={{ margin: 0, fontSize: ".9rem", lineHeight: 1.55 }}>
+          <strong>None of the {runs} runs asked for the context they were standing in.</strong>{" "}
+          Every one had the kapi skill installed and a project at the root binding a voice profile,
+          and every one read the source and wrote the document without loading either. The pulled
+          documents are therefore the bare arm&apos;s, with an unopened workspace beside them. This
+          arm asks whether an assistant reaches for the guidance on its own, given a task that says
+          only what to write. On these runs, it did not.
+        </p>
+      ) : (
+        <p style={{ margin: 0, fontSize: ".9rem", lineHeight: 1.55 }}>
+          <strong>
+            {asked} of {runs} runs fetched their own context.
+          </strong>{" "}
+          What they ran is below, per cell. A run that reached for kapi and one that reached for the
+          right part of it are different results, so the commands are shown rather than counted.
+        </p>
+      )}
+      {commands.length > 0 && (
+        <ul
+          style={{
+            margin: ".6rem 0 0",
+            paddingLeft: "1.1rem",
+            fontFamily: mono,
+            fontSize: ".78rem",
+          }}
+        >
+          {commands.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+      )}
+      {none && (
+        <p style={{ ...s.sub, margin: ".7rem 0 0", lineHeight: 1.55 }}>
+          A follow-up says what was missing. Adding a three-sentence <code>CLAUDE.md</code> — the
+          project&apos;s voice is held by kapi, retrieve it before writing — flipped both models it
+          was tried on. Claude Sonnet 5 then ran the whole loop unprompted: loaded the skill, asked{" "}
+          <code>kapi context GUIDE.md</code> what applied, fetched the guide, wrote, and checked its
+          own draft with <code>kapi voice check</code>. Two runs is enough to say the signpost was
+          missing and not enough to say how often, so it is{" "}
+          <a href="https://github.com/neokapi/neokapi/issues/2250">an issue</a> rather than a fourth
+          column.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Asked reports whether the arm that had to fetch its own context fetched it.
+//
+// The result of this arm is not the prose alone. A document no better than the
+// bare one means one of two things — the guide did not help, or the agent never
+// got it — and they have opposite fixes. This says which happened before a
+// reader starts comparing paragraphs.
+function Asked({ run }: { run: AgentRun }): ReactElement {
+  const calls = run.kapiCommands ?? [];
+  if (calls.length === 0) {
+    return (
+      <p style={{ ...s.sub, margin: ".5rem 0 0" }}>
+        {/* Uncoloured on purpose. The warning ramp's darker end is a fixed
+            value, so it would be a legible amber on the light theme and a
+            near-black smudge on the dark one — and the tint is already spoken
+            for by the document below. */}
+        <strong>It never asked.</strong> The skill was installed and the project bound a voice; the
+        agent wrote the document without loading either, so its prose is the bare arm&apos;s with a
+        workspace it did not use.
+      </p>
+    );
+  }
+  return (
+    <div style={{ marginTop: ".5rem" }}>
+      <div style={s.h}>What it asked kapi</div>
+      <ul style={{ margin: 0, paddingLeft: "1.1rem", fontFamily: mono, fontSize: ".78rem" }}>
+        {calls.map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Arm({
   label,
+  how,
+  mustAsk,
   run,
   file,
   onOpenSession,
 }: {
   label: string;
+  // How the governance reached this run. The arms differ in nothing else, so a
+  // reader who cannot see this cannot read the comparison.
+  how: string;
+  // mustAsk marks the arm that was given the skill and a project instead of a
+  // prompt. Only there is "it ran no kapi command" a result rather than the
+  // ordinary state of every other arm.
+  mustAsk?: boolean;
   run: AgentRun;
   file: string;
   onOpenSession: () => void;
@@ -220,7 +394,7 @@ function Arm({
           display: "flex",
           alignItems: "baseline",
           gap: ".6rem",
-          marginBottom: ".6rem",
+          marginBottom: ".25rem",
           flexWrap: "wrap",
         }}
       >
@@ -231,6 +405,7 @@ function Arm({
           </span>
         )}
       </div>
+      <p style={{ ...s.sub, margin: "0 0 .7rem" }}>{how}</p>
 
       {/* What went in. Boxed and labelled, because it used to run straight into
           the document below it and a reader could not tell where the inputs
@@ -238,6 +413,7 @@ function Arm({
       <div style={{ marginBottom: ".9rem" }}>
         <div style={s.h}>What it read</div>
         <Reading run={run} />
+        {mustAsk && <Asked run={run} />}
         {run.transcript && (
           <button
             type="button"
@@ -310,9 +486,18 @@ export default function AuthoringLab(): ReactElement {
         <h1>What a coordinate does to a document</h1>
         <p style={s.lede}>
           An agent is given a real repository — <code>{report.repo}</code>, pinned — and asked to
-          document one part of it. It reads whatever it needs. The same task runs twice: once from
-          the task alone, once with the voice profile resolved at a coordinate appended to its
-          system prompt. Two coordinates, four models.
+          document one part of it. It reads whatever it needs. The same task runs three ways, and
+          the three differ only in how the governance arrives: not at all, pushed into the system
+          prompt, or waiting in the workspace for an agent that has to ask for it. Two coordinates,
+          four models.
+        </p>
+        <p style={s.lede}>
+          The third arm is there because the first two cannot answer the question the product asks.
+          Pushing the guide in measures whether that context changes the writing. It says nothing
+          about whether an assistant plugged into kapi ends up holding the context at all, and a
+          document that comes back no better than bare has two explanations with opposite fixes. The
+          pulled arm gets the kapi skill and a project that binds the voice, and each run records
+          what it asked kapi for — or that it never did.
         </p>
         <p style={s.lede}>
           Nothing here is scored. What a good user guide contains is not written down anywhere, and
@@ -324,6 +509,8 @@ export default function AuthoringLab(): ReactElement {
         <p style={s.sub}>
           {report.runner} Generated {report.generated}.
         </p>
+
+        <PullResult />
 
         <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", margin: "1.4rem 0 .6rem" }}>
           {models.map((m) => (
@@ -351,15 +538,25 @@ export default function AuthoringLab(): ReactElement {
         </div>
 
         <div style={{ ...s.panel, marginBottom: "1.2rem" }}>
-          <div style={s.h}>The task, given to both arms</div>
-          <p style={{ margin: "0 0 .9rem", fontSize: ".88rem", lineHeight: 1.55 }}>
-            {report.tasks[audience]}
-          </p>
-          <div style={s.h}>What the governed arm additionally received</div>
-          <pre style={s.pre}>{report.guides[audience]}</pre>
+          <div style={s.h}>The task, given to every arm</div>
+          {/* The task names four flags in backticks, so it is Markdown too, and
+              showing it as plain text put the backticks on the page. */}
+          <div style={{ margin: "0 0 .9rem", fontSize: ".88rem", lineHeight: 1.55 }}>
+            <Markdown remarkPlugins={[remarkGfm]}>{report.tasks[audience]}</Markdown>
+          </div>
+          <div style={s.h}>The guide the two governed arms are held to</div>
+          {/* The guide is Markdown that `kapi voice guide` renders, so showing
+              it as monospace source shows the reader something the model never
+              saw as source either. */}
+          <div style={s.guide}>
+            <Markdown remarkPlugins={[remarkGfm]}>{report.guides[audience]}</Markdown>
+          </div>
           <p style={{ ...s.sub, margin: ".5rem 0 0" }}>
             Rendered by <code>kapi voice guide</code> from ripgrep&apos;s own voice profile,
-            resolved at this coordinate. The profile itself is at the bottom of the page.
+            resolved at this coordinate. The pushed arm is handed this text; the pulled arm&apos;s
+            workspace answers with it, checked byte for byte before the sweep runs so the two arms
+            differ in delivery and not in what they were governed by. The profile itself is at the
+            bottom of the page.
           </p>
         </div>
 
@@ -368,22 +565,34 @@ export default function AuthoringLab(): ReactElement {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(26rem, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(24rem, 1fr))",
               gap: "1rem",
             }}
           >
             <Arm
               label="Bare"
+              how="The repository and the task. No governance of any kind."
               run={doc.bare}
               file={doc.bareFile}
               onOpenSession={() => setSession(doc.bare.transcript ?? null)}
             />
             <Arm
-              label="Governed by the coordinate"
+              label="Pushed"
+              how="The same, plus the guide appended to its system prompt before it started."
               run={doc.governed}
               file={doc.governedFile}
               onOpenSession={() => setSession(doc.governed.transcript ?? null)}
             />
+            {doc.pulled && (
+              <Arm
+                label="Pulled"
+                how="The same, plus the kapi skill and a project that binds the voice. Nothing in its prompt: it has to go and get the guide itself."
+                mustAsk
+                run={doc.pulled}
+                file={doc.pulledFile ?? ""}
+                onOpenSession={() => setSession(doc.pulled?.transcript ?? null)}
+              />
+            )}
           </div>
         )}
 
@@ -393,7 +602,9 @@ export default function AuthoringLab(): ReactElement {
           <summary style={{ cursor: "pointer", fontWeight: 600 }}>
             ripgrep&apos;s voice profile, inferred by kapi from its own docs and corrected by hand
           </summary>
-          <pre style={{ ...s.pre, marginTop: ".6rem", maxHeight: "34rem" }}>{report.profile}</pre>
+          <div style={{ marginTop: ".6rem", maxHeight: "34rem", overflow: "auto" }}>
+            <CodeBlock language="yaml">{report.profile}</CodeBlock>
+          </div>
         </details>
       </main>
     </Layout>

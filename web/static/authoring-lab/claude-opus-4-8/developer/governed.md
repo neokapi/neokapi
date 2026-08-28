@@ -2,92 +2,98 @@
 
 # File-type filtering in the `ignore` crate
 
-File-type filtering is what lets you write `rg -trust` to search only Rust
-files, or `rg -Tjs` to skip JavaScript. It lives entirely in
-`crates/ignore/src/types.rs`, with the shipped definitions in
-`default_types.rs`. If you're reading the crates, everything below is in those
-two files plus the walk in `dir.rs`.
+ripgrep's `-t/--type`, `-T/--type-not`, and `--type-add` flags all resolve to
+one piece of machinery: the type matcher in `crates/ignore/src/types.rs`, seeded
+from the table in `crates/ignore/src/default_types.rs`. This note describes how
+that data is shaped, how `TypesBuilder::build` turns it into a `Types` matcher,
+and what you need to watch for if you change this area. The reader is assumed to
+be comfortable reading Rust.
 
-## How a definition is represented
+## How a type definition is represented
 
-A file type is a `FileTypeDef`: a `name: String` and a `globs: Vec<String>`.
-Nothing more. The name is an identifier like `rust` or `c`, and the globs are
-plain glob strings that recognize the type by file name. The globs are not
-restricted to `*.ext`. A definition can list a literal file name
-(`CMakeLists.txt`, `BUILD`, `alire.toml`) or a bracket class (`*.[chH]`), and a
-type usually carries several.
+A single type is a `FileTypeDef { name: String, globs: Vec<String> }`. That's
+the whole model: a name and a list of glob *strings* (not compiled globs). One
+type can carry many globs, and several names can point at the same set of globs.
 
-The shipped set is `DEFAULT_TYPES`, a `&[(&[&str], &[&str])]` in
-`default_types.rs`. Each entry is a tuple of names and globs, for example
-`(&["bat", "batch"], &["*.bat"])`. The first slice holds aliases: every name in
-it becomes its own `FileTypeDef` sharing the same globs, so `bat` and `batch`
-are two definitions that happen to match the same paths. Note that this list
-must stay sorted lexicographically by the first alias, and a test
-(`default_types_are_sorted`) fails the build if it isn't. The file also asks you
-to wrap to 79 columns.
+The defaults live in `DEFAULT_TYPES`, typed as
+`&[(&[&str], &[&str])]` — a slice of `(names, extensions)` pairs. The `names`
+slice holds aliases; for example `(&["bat", "batch"], &["*.bat"])` defines two
+names sharing one glob. `add_defaults` walks this table and calls
+`add(name, ext)` for every name/extension combination, so aliases become
+independent `FileTypeDef` entries that happen to hold identical globs.
 
-## Building a matcher
+Note that the "globs" are ordinary globset patterns, not just extensions:
+`*.[chH]` (character classes), `*.{c,h}pp` (alternation), and bare filenames
+like `CMakeLists.txt`, `BUILD`, or `alire.toml` all appear in the table.
 
-You don't construct `Types` directly. You feed a `TypesBuilder`, which holds a
-`HashMap<String, FileTypeDef>` of known definitions and a `Vec<Selection<()>>`
-of the choices you've made.
+## Building the matcher
 
-- `add_defaults()` loads `DEFAULT_TYPES`, calling `add(name, glob)` once per
-  name and glob.
-- `add(name, glob)` appends a glob to a definition. The name must be
-  alphanumeric and can't be `all`, or you get `Error::InvalidDefinition`.
-- `add_def(def)` takes the string form an end user types. `{name}:{glob}` adds a
-  root definition. `{name}:include:{a,b,c}` copies the globs of already-defined
-  types `a`, `b`, `c` into a new one. Include checks every referenced type
-  exists before it changes anything, so a bad reference fails fast and leaves
-  the builder untouched.
-- `select(name)` and `negate(name)` record a `Selection::Select` or
-  `Selection::Negate`. The special name `all` expands to every currently defined
-  type.
+`TypesBuilder` holds `types: HashMap<String, FileTypeDef>` and
+`selections: Vec<Selection<()>>`. You populate types with `add`, `add_def`,
+`clear`, and `add_defaults`, and record what the user asked for with `select`
+and `negate`.
 
-`build()` turns this into a `Types`. It walks the selections in order, looks
-each one up (an unknown name is `Error::UnrecognizedFileType`, raised here
-rather than at selection time), and adds every glob to a `GlobSetBuilder` with
-`literal_separator(true)`. Alongside the set it records `glob_to_selection: Vec<(usize, usize)>`,
-mapping each glob's index in the compiled `GlobSet` back to the selection it
-came from and its position within that definition. It also sets `has_selected`
-if any selection is a `Select` rather than a `Negate`. That flag is the whole
-game for the "only these types" behavior.
+`add(name, glob)` validates the name — it must be non-`all` and every character
+must satisfy `char::is_alphanumeric`, otherwise you get
+`Error::InvalidDefinition` — then appends the glob to that name's entry. Calling
+it repeatedly accumulates globs on one type.
 
-## How matching works
+`add_def(def)` parses the string forms the CLI exposes. Split on `:`, then:
 
-`Types::matched(path, is_dir)` returns a `Match<Glob>`. File types don't apply
-to directories, so a directory or an empty set returns `Match::None` at once.
-Otherwise it extracts the file name (matching is on the basename, never the full
-path) and runs it through `GlobSet::matches_into`, which fills a pooled
-`Vec<usize>` of matching glob indices. The pool (`Arc<Pool<Vec<usize>>>`) is
-reused scratch space, which keeps `matched` on `&self` and cheap to call across
-threads.
+- two parts (`name:glob`) delegates to `add`;
+- three parts (`name:include:a,b,c`) requires `parts[1] == "include"` and copies
+  the globs of each named, *already-defined* type into the new one.
 
-The highest-precedent match is the last index in that vector. ripgrep maps it
-back through `glob_to_selection` to the selection: a negated selection yields
-`Match::Ignore`, a positive one `Match::Whitelist`. Because the last match wins,
-selection order decides conflicts, which is how `--type rust --type-not foo`
-resolves a path both would claim.
+The include form is resolved eagerly and by value: it clones the referenced
+globs at definition time. So referenced types must exist first (there are no
+forward references), and later edits to a source type don't propagate to an
+`include` that already copied it. `add_def` also fails fast — it checks that
+every referenced type exists before adding anything, so a bad include leaves the
+builder unchanged (see `test_invalid_defs`).
 
-If nothing matched, `has_selected` breaks the tie. With at least one positive
-selection, an unmatched path is `Match::Ignore(Glob::unmatched())`, so selecting
-`rust` excludes everything that isn't Rust. With only negations, an unmatched
-path is `Match::None` and stays a candidate.
+`select`/`negate` only push a `Selection::Select`/`Negate(name, ())` — they
+store a *name*, not a resolved definition, and they don't check that the name
+exists. The special name `all` expands to a selection for every type currently
+defined.
 
-In the walk (`dir.rs`), types sit below overrides and gitignore rules. A type
-`Ignore` excludes the path, but a type `Whitelist` is only recorded, so a
-gitignored file a type whitelists still stays ignored.
+Resolution happens in `build`. For each selection it looks the name up in the
+`types` map; a miss is `Error::UnrecognizedFileType`. This is the key timing
+point: an unknown `-t foo` surfaces at `build`, not at `select`. For each glob
+in the resolved def, `build` compiles a `globset::Glob` with
+`literal_separator(true)` and adds it to a `GlobSetBuilder`, while pushing
+`(selection_index, glob_index)` onto `glob_to_selection`. That vector is the
+bridge from "which glob in the combined set matched" back to "which selection
+owns it." The `Selection<()>` is mapped to `Selection<FileTypeDef>` so the
+matcher carries the definitions it needs.
 
-## For a contributor changing this area
+## Matching
 
-- Adding a default type means editing `DEFAULT_TYPES`. Keep it sorted by the
-  first alias and wrapped to 79 columns, or the sort test or a reviewer will
-  catch it.
-- Names are alphanumeric and `all` is reserved.
-- `include` copies globs at definition time. It's a snapshot, so editing the
-  source type afterward doesn't propagate.
-- The CLI wiring is in `crates/core/flags/hiargs.rs::types`, which calls
-  `add_defaults` then replays `--type-clear`, `--type-add`, `-t/--type` and
-  `-T/--type-not` in order. Order matters, so preserve it if you touch that
-  loop.
+`Types::matched(path, is_dir)` returns `Match<Glob>`. Directories and an empty
+glob set short-circuit to `Match::None` — file types don't apply to directories.
+Otherwise it extracts the file name (basename only; directory components never
+participate) and runs `set.matches_into` to collect every matching glob index
+into a per-thread scratch `Vec` borrowed from an `Arc<Pool<Vec<usize>>>`, which
+keeps the hot path allocation-free and the matcher `Send + Sync`.
+
+Precedence is "last selection wins": glob indices are appended in selection
+order, `matches_into` yields them ascending, and `matched` takes `matches.last()`.
+A negated selection produces `Match::Ignore`, a positive one
+`Match::Whitelist`. If nothing matched but at least one positive selection
+exists (`has_selected`), the path becomes `Match::Ignore` — that's what makes
+`-t rust` exclude everything that isn't Rust. With no positive selection, a
+non-match is `Match::None`. The `dir.rs` walker consults types after ignore
+rules, returning early on `Ignore` and otherwise recording a `Whitelist`.
+
+## What a contributor should know
+
+- To add a default, edit `DEFAULT_TYPES`. Keep it sorted lexicographically by
+  the first alias — `default_types_are_sorted` enforces this — and wrap to 79
+  columns. The block is `#[rustfmt::skip]`, so format it by hand.
+- Names are alphanumeric-only, and `all` is reserved.
+- Definition errors (bad name, malformed `add_def`) surface at add time;
+  unknown *selections* surface at `build`. Keep that split in mind when you
+  change error reporting.
+- Ordering of selections is semantically meaningful — think about precedence
+  before you reorder how the CLI feeds `select`/`negate`.
+- Globs use globset syntax with `literal_separator(true)`; matching is against
+  the basename only.

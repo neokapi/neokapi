@@ -2,75 +2,61 @@
 
 # File-type filtering in ripgrep
 
-ripgrep's `-t/--type`, `-T/--type-not`, `--type-add`, `--type-clear` and
-`--type-list` flags are all backed by a single small subsystem in the
-`ignore` crate: `crates/ignore/src/types.rs`. This document walks through how
-a type definition is represented, how `TypesBuilder` turns a set of
-definitions and selections into a matcher, and where the CLI plugs into it.
+This covers `crates/ignore/src/types.rs` (and its data file
+`default_types.rs`), which implements `-t/--type`, `-T/--type-not`,
+`--type-add`, `--type-clear`, and `--type-list`, plus the glue in
+`crates/core/flags/hiargs.rs` and `crates/core/main.rs` that connects CLI
+flags to it.
 
-## Representing a type definition
+## Representation: `FileTypeDef` and `TypesBuilder`
 
-A file type is nothing more than a name plus a list of globs:
-
-```rust
-pub struct FileTypeDef {
-    name: String,
-    globs: Vec<String>,
-}
-```
-
-The full set of built-in types lives in `crates/ignore/src/default_types.rs`
-as a hand-maintained, lexicographically sorted, `#[rustfmt::skip]` constant:
+A file type is a name paired with glob strings:
 
 ```rust
-pub(crate) const DEFAULT_TYPES: &[(&[&str], &[&str])] = &[
-    (&["ada"], &["*.adb", "*.ads"]),
-    ...
-    (&["bat", "batch"], &["*.bat"]),
-    ...
-];
+pub struct FileTypeDef { name: String, globs: Vec<String> }
 ```
 
-Each entry pairs one or more *names* (aliases such as `bat`/`batch`) with the
-globs that define the type. `TypesBuilder::add_defaults` walks this table and
-calls `add(name, glob)` once per name/glob pair, so aliases end up as fully
-independent `FileTypeDef` entries in the builder's map rather than references
-to a shared definition.
-
-`TypesBuilder` itself holds the definitions in a `HashMap<String,
-FileTypeDef>`, keyed by name, plus a separate `Vec<Selection<()>>` recording
-what the user asked for:
+`TypesBuilder` holds mutable state while definitions are assembled:
 
 ```rust
 pub struct TypesBuilder {
     types: HashMap<String, FileTypeDef>,
     selections: Vec<Selection<()>>,
 }
-
-enum Selection<T> {
-    Select(String, T),
-    Negate(String, T),
-}
 ```
 
-`add(name, glob)` appends a glob to (or creates) the named definition, and
-rejects a `name` that isn't purely alphanumeric or that equals `"all"`
-(`"all"` is reserved as the wildcard selector). `add_def` is the string form
-used by `--type-add`, supporting two grammars: `name:glob` and
-`name:include:other,names` — the latter copies every glob from each named
-type into the new one at add time (not lazily), and fails fast if any
-referenced type doesn't already exist. `select`/`negate` push a
-`Selection::Select`/`Selection::Negate` onto `selections`; both special-case
-the name `"all"` by expanding it to one selection per currently-defined type.
+`types` maps a name (`"rust"`) to its `FileTypeDef`. `selections` is the
+ordered list of select/negate requests, recorded independently of whether
+the name currently exists in `types`.
 
-Note what `TypesBuilder` does *not* do: it never validates that a selected
-name actually exists in `types` until `build()` runs. `select("rust")`
-succeeds unconditionally even if `rust` was never defined.
+`add_defaults()` populates `types` from `DEFAULT_TYPES` in
+`default_types.rs` — a `const` slice of `(&[&str] names, &[&str] globs)`
+pairs, which a comment asks contributors to keep lexicographically sorted
+and wrapped to 79 columns. One entry can register several names for the
+same globs (e.g. `(&["bat", "batch"], &["*.bat"])`).
 
-## Building a matcher
+`add(name, glob)` requires `name` to be non-empty, Unicode
+letters/numbers only, and not `"all"` (reserved, see below); it appends
+`glob` to that name's `FileTypeDef`, creating it via `HashMap::entry` if
+needed. `add_def(spec)` parses the `--type-add` string form, split on `:`:
 
-`TypesBuilder::build()` compiles the map of definitions plus the list of
-selections into an immutable `Types`:
+- `name:glob` — a plain association (`"foo:*.foo"`).
+- `name:include:other1,other2` — copies every glob currently registered
+  under each listed name into `name`. The referenced names are validated
+  up front (`types.contains_key`) so a bad reference fails before anything
+  is mutated; `test_invalid_defs` asserts a rejected `add_def` leaves
+  `definitions()` unchanged.
+
+`select`/`negate` push `Selection::Select`/`Selection::Negate`. Both
+special-case `name == "all"` by pushing one selection per key currently in
+`types` — so `--type all` snapshots whatever names exist *at the time it
+runs*, meaning it must come after the `--type-add`s that should count.
+`clear(name)` only removes the entry from `types`; it does not touch
+`selections`.
+
+## Building a matcher: `Types`
+
+`TypesBuilder::build()` produces an immutable `Types`:
 
 ```rust
 pub struct Types {
@@ -83,104 +69,91 @@ pub struct Types {
 }
 ```
 
-The build walks `self.selections` in the order they were pushed (i.e., the
-order flags appeared on the command line). For each one it looks up the
-`FileTypeDef` by name — an unknown name is where `Error::UnrecognizedFileType`
-is actually raised — then adds every glob in that definition to a single
-shared `GlobSetBuilder`, using `.literal_separator(true)` (so `*` won't cross
-a `/`). `glob_to_selection` is a parallel vector recording, for every glob
-inserted into the set, which selection and which glob-within-that-definition
-it came from. `has_selected` is true iff at least one selection is a
-`Select` (as opposed to only `Negate`s) — this drives whitelist-vs-blacklist
-behavior at match time.
+It walks `self.selections` **in recorded order**, resolving each name
+against `self.types` (`Error::UnrecognizedFileType` if missing — this is
+where selecting a since-`clear`ed name surfaces). Every glob in the
+resolved `FileTypeDef` is compiled with `GlobBuilder::literal_separator(true)`
+(so `*` never crosses `/`) and added to one shared `GlobSetBuilder`. Each
+compiled glob's position is recorded in `glob_to_selection` as
+`(selection_index, glob_index)`, the join table used at match time.
+`has_selected` precomputes whether any selection is a `Select` (not just
+`Negate`s), which drives whitelist-mode semantics.
 
-Everything is compiled into one `GlobSet` regardless of how many types are
-selected; there's no per-type matcher. Precedence between overlapping globs
-falls entirely out of insertion order: `GlobSet::matches_into` returns the
-indices of every glob that matched, and `Types::matched` takes `matches.last()`
-as authoritative — "the highest precedent match is the last one" (the
-in-source comment). Since selections were inserted in command-line order,
-*later flags win* when two selected/negated types both match the same file.
+### Matching: `Types::matched`
 
-`matches: Arc<Pool<Vec<usize>>>` is a `regex-automata` object pool that hands
-out reusable `Vec<usize>` scratch buffers for `matches_into`, avoiding an
-allocation per `matched()` call under concurrent walking (`Types` is cloned
-into every worker thread via `Arc`, see `ignore::WalkBuilder`/`WalkParallel`).
+```rust
+pub fn matched<'a, P: AsRef<Path>>(&'a self, path: P, is_dir: bool) -> Match<Glob<'a>>
+```
 
-## Matching a path
+- Directories always return `Match::None`, as does an empty `GlobSet` —
+  type filtering only applies to files.
+- Matching uses the **file name only** (`pathutil::file_name`), never the
+  full path. No extractable name yields `Match::Ignore` if any selection
+  exists, else `Match::None`.
+- `GlobSet::matches_into` fills a pooled `Vec<usize>` with indices of every
+  matching glob, in ascending order of when each glob was added to the
+  set. `matches.last()` is taken as the winner — so when two selections
+  both match, whichever `select`/`negate`/`add_def` call happened **later**
+  during builder construction wins, including globs pulled in via
+  `include:`.
+- The winning glob's selection determines the verdict: negated →
+  `Match::Ignore`, otherwise `Match::Whitelist`. The result wraps a `Glob`
+  referencing the matched `FileTypeDef` (via `Glob::file_type_def()`).
+- If nothing matched: `Match::Ignore` when `has_selected` (some positive
+  `--type` was requested and this file isn't one of them), otherwise
+  `Match::None` (only negations, or no filtering, requested).
 
-`Types::matched(path, is_dir)` returns `Match<Glob<'_>>`, ripgrep's
-three-valued `None`/`Ignore(_)`/`Whitelist(_)` result used throughout the
-`ignore` crate. The logic:
+`matches: Arc<Pool<Vec<usize>>>` exists only to avoid allocating a
+`Vec<usize>` on every call — `Types` is cloned per walker thread and
+`matched` runs once per candidate file.
 
-1. Directories and an empty glob set never match (`Match::None`) — type
-   filtering only ever applies to files.
-2. Only the *file name* (`pathutil::file_name`) is matched, not the full
-   path — a type glob like `*.rs` never sees the directory component. A path
-   with no file name component is `Ignore` if any type is selected, else
-   `None`.
-3. If any glob in the set matches, the *last* matching index wins; its
-   selection determines `Ignore` (negated) or `Whitelist` (selected).
-4. If nothing matched but `has_selected` is true, the result is
-   `Match::Ignore(Glob::unmatched())` — this is the whitelist behavior: once
-   you've selected at least one type, anything that doesn't match any
-   selected type is implicitly excluded, even if it isn't explicitly
-   negated.
-5. If nothing matched and nothing was selected (only negations, or no
-   selections at all), the result is `Match::None` — negation alone doesn't
-   turn on whitelist mode.
+## Where this plugs into the walker
 
-`Types` is consulted from `ignore::dir::Ignore::matched` (`crates/ignore/src/dir.rs`),
-*after* override globs (`-g/--glob`) and ignore-file rules have both had a
-chance to produce a definitive `Ignore`/`Whitelist`, but not overriding a
-whitelist those layers produced — types are lowest precedence among the
-three. `-g/--glob` still wins over `-t/--type` even when the flags target the
-same file, which is documented directly on the `Type` flag.
+`Types` is never consulted alone. `Ignore::matched` in
+`crates/ignore/src/dir.rs` composes it with `-g/--glob` overrides and
+gitignore-style rules, highest precedence first:
 
-## Where the CLI plugs in
+1. `overrides` (`-g`/`--iglob`) — any non-`None` result returns immediately.
+2. gitignore-style rules — an `Ignore` result returns immediately; a
+   `Whitelist` is remembered but doesn't short-circuit.
+3. `types` — same short-circuit-on-`Ignore`, remember-on-`Whitelist` logic.
 
-The flag layer never touches `TypesBuilder` directly. `-t`, `-T`,
-`--type-add` and `--type-clear` each just push a `TypeChange` variant
-(`Select`, `Negate`, `Add`, `Clear`) onto `LowArgs::type_changes`
-(`crates/core/flags/lowargs.rs`), preserving command-line order. `--type-list`
-instead sets `args.mode = Mode::Types`, short-circuiting search entirely.
+The final verdict is whichever whitelist survived if nothing later
+overrode it with `Ignore`. This matches the `-t/--type` flag's documented
+behavior in `crates/core/flags/defs.rs`: "this flag has lower precedence
+than both the `--glob` flag and any rules found in ignore files."
 
-`crates/core/flags/hiargs.rs::types()` is the one place all of this is
-assembled: it creates a `TypesBuilder`, calls `add_defaults()`, then replays
-`type_changes` in order — `Clear`/`Add`/`Select`/`Negate` map straight onto
-the builder's like-named methods — and calls `build()`. The resulting `Types`
-is cached on `HiArgs` and handed to `WalkBuilder::types` (`crates/ignore/src/walk.rs`),
-which stores it on the shared `ignore::dir::IgnoreBuilder` state that every
-directory-walk thread clones from.
+## CLI wiring
+
+`crates/core/flags/lowargs.rs` defines `TypeChange` (`Clear`, `Add`,
+`Select`, `Negate`); the `Type`, `TypeAdd`, `TypeClear`, `TypeNot` flag
+structs in `defs.rs` each push the matching variant onto
+`LowArgs::type_changes`, preserving CLI order. `hiargs.rs::types()` replays
+that list against a fresh `TypesBuilder` — `add_defaults()` first, then
+each `TypeChange` in order — before calling `build()`. `--type-list`
+(`Mode::Types` in `main.rs`) calls `args.types().definitions()` and prints
+`name: glob, glob, ...`; both `Types::definitions()` and
+`TypesBuilder::definitions()` sort output by name (and sort each
+definition's globs) purely for display — this sorting is unrelated to, and
+doesn't affect, the insertion-order precedence `matched()` uses.
 
 ## What a contributor needs to know
 
-- **Adding a built-in type** means editing `default_types.rs` directly and
-  keeping the list lexicographically sorted and 79-columns-wrapped per its
-  header comment — there's no code generator.
-- **Order is meaningful and is preserved end-to-end**: CLI argument order →
-  `type_changes` → `selections` → `glob_to_selection` → last-match-wins. A
-  test worth reading before changing this path is
-  `defs.rs::test_type_not`, which asserts `-Trust -ttoml -Tjson` preserves
-  interleaved order in `type_changes`.
-- **`clear` only removes a definition, not a selection.** `TypesBuilder::clear`
-  removes an entry from `self.types`; if a prior `select`/`negate` already
-  named it, `build()` will fail with `Error::UnrecognizedFileType` when it
-  looks the name up. `--type-clear` is meant to precede `--type-add` for the
-  same name, not to retroactively cancel a `-t`.
-- **`include` definitions copy, they don't reference.** `add_def("src:include:cpp,py,md")`
-  clones the current globs of `cpp`, `py`, and `md` into `src` at that point
-  in argument processing. A later `--type-add` to `cpp` will not retroactively
-  extend `src`.
-- **Type names are validated, glob syntax is not, until `build()`.** `add`
-  rejects non-alphanumeric names immediately, but a malformed glob only
-  surfaces as `Error::Glob` inside `build()`, since compiling globs is
-  deferred to `GlobSetBuilder::build()`.
-- **Matching is filename-only.** Anyone tempted to write a type whose glob
-  assumes a path segment (e.g. `src/*.rs`) needs to know `literal_separator(true)`
-  is set and only the final component is even passed to the matcher.
-- Behavioral changes here are exercised by the table-driven tests at the
-  bottom of `types.rs` (the `matched!` macro) and by the flag-level tests
-  colocated with each flag in `crates/core/flags/defs.rs` — both are cheap
-  places to add a regression case before touching `Types::matched` or
-  `TypesBuilder::build`.
+- **Adding a default type**: edit `DEFAULT_TYPES`, keep it sorted and
+  wrapped, and favor reasonably popular open formats per its doc comment.
+- **Precedence is insertion order, not specificity.** Changing where a
+  `select`/`negate`/`add_def` call happens in the chain (CLI parsing,
+  defaults, includes) changes which glob wins on overlap — decided solely
+  by `matches_into` + `.last()`.
+- **`clear` doesn't retroactively remove selections.** Clearing a type
+  that was already selected/negated defers to a build-time
+  `Error::UnrecognizedFileType`, not a silent no-op.
+- **`include:` copies globs by value at `add_def` time.** Later `add_def`
+  calls extending the source type are not reflected in types that already
+  included it.
+- **Names are restricted** to Unicode letters/numbers and can't be `"all"`,
+  since `"all"` is special-cased by `select`/`negate` to expand to every
+  currently-known name.
+- Keep the module doctests and the `matched!`-macro unit tests at the
+  bottom of `types.rs` in sync with behavioral changes — they're the
+  executable spec for whitelist/negate/include interaction.

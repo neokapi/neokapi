@@ -244,12 +244,19 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
 	@./scripts/check-abs-paths.sh
+
+# The lab's transcripts are COMMITTED, so they never pass through the publish
+# script that checks the skill eval's. Same shape of risk and a shorter path to a
+# public repository: an agent with bypassPermissions, a shell and $HOME recorded
+# whole. Checked here, where every commit sees it.
+check-eval-publishable: ## Guard: no credential shape in a committed eval transcript
+	@./scripts/check-eval-publishable.sh web/static/authoring-lab
 
 check-local-actions: ## Guard: a workflow's local `uses: ./…` resolves where that job checked the repo out
 	@./scripts/check-local-actions.sh
@@ -2126,15 +2133,21 @@ authoring-eval: build ## Score the voice checks and the voice guide → /authori
 	    -provider $(AUTHORINGEVAL_PROVIDER) -model $(AUTHORINGEVAL_MODEL)
 	@echo "Published authoring-eval report → web/src/pages/authoring-eval/_authoringeval.json"
 
-# The read-it-yourself half. Writes the same document at two coordinates, with
-# and without the governance bound there, across four models, and publishes the
-# prose rather than a score: sixteen Markdown documents under
-# web/static/authoring-lab and a page that puts bare and governed side by side.
+# The read-it-yourself half. Writes the same document three ways at two
+# coordinates, across four models, and publishes the prose rather than a score:
+# 24 Markdown documents under web/static/authoring-lab and a page that puts the
+# arms side by side.
+#
+# The three arms differ only in how the governance arrives. Bare has none.
+# Pushed has the guide in its system prompt. Pulled has the kapi skill and a
+# project that binds the voice, nothing in its prompt, and has to go and ask —
+# which is the arm that says whether the loop closes, and needs bin/kapi, hence
+# the build prerequisite.
 #
 # It scores nothing on purpose. Nobody has yet said what a good user guide is,
 # and a rubric invented here would be measuring the rubric.
 AUTHORINGLAB_ARGS ?=
-authoring-lab: ## Write the same document at two coordinates, with and without governance (spends)
+authoring-lab: build ## Write the same document three ways at two coordinates, across four models (spends)
 	$(GO) run ./scripts/authoringlab $(AUTHORINGLAB_ARGS)
 
 authoring-eval-checks: build ## Score the offline voice check only (free, no model)

@@ -457,6 +457,19 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 		"--permission-mode", "bypassPermissions",
 		"--output-format", "stream-json",
 		"--verbose",
+		// The workspace's skills, and not the developer's — the same defect as
+		// the MCP leak below, one mechanism along.
+		//
+		// A run inherits HOME, because the CLI authenticates from ~/.claude, and
+		// that is also where a developer's own skills and plugins live. Five
+		// transcripts from the 2026-08-27 sweep list them: a Go style pack, a
+		// React pack, a design-guidelines skill, an Okapi expert. This eval asks
+		// whether the kapi skill fires, and it was asking it in a room with
+		// seventy-five other skills that nobody re-running this would have.
+		//
+		// `project` keeps the workspace's own .claude, which is where each
+		// scenario installs the skill under test.
+		"--setting-sources", "project",
 	}
 	if opts.Model != "" {
 		args = append(args, "--model", opts.Model)

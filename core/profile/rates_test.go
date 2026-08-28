@@ -201,7 +201,7 @@ func TestARateWithoutAWindowStatesTheDefault(t *testing.T) {
 // implementation vocabulary" rule written the recommended way could then not
 // say "in prose", and fired inside the code sample the document exists to
 // explain — the exact case scopes were added for, reachable only through the
-// mechanism we now recommend.
+// mechanism this repository recommends.
 func TestTermRulesTakeAScopeToo(t *testing.T) {
 	sets := []TermRuleSet{{
 		Category: DimensionVocabulary,
