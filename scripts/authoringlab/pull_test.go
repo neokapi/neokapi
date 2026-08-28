@@ -95,7 +95,7 @@ func TestPulledWorkspaceCarriesTheSkillAndNothingElseDoes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home := t.TempDir()
-			tree, err := prepareWorkspace(root, home, tc.arm)
+			tree, err := prepareWorkspace(t.Context(), root, home, tc.arm)
 			require.NoError(t, err)
 
 			// The source tree itself, in both.
@@ -125,11 +125,11 @@ func TestEachRunGetsItsOwnTree(t *testing.T) {
 	if _, err := pristineTar(root); err != nil {
 		t.Skip("no subject archive: ./scripts/fetch-lab-repo.sh")
 	}
-	first, err := prepareWorkspace(root, t.TempDir(), armSetup{})
+	first, err := prepareWorkspace(t.Context(), root, t.TempDir(), armSetup{})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(first, "LEFTOVER"), []byte("x"), 0o644))
 
-	second, err := prepareWorkspace(root, t.TempDir(), armSetup{})
+	second, err := prepareWorkspace(t.Context(), root, t.TempDir(), armSetup{})
 	require.NoError(t, err)
 	assert.NotEqual(t, first, second)
 	assert.NoFileExists(t, filepath.Join(second, "LEFTOVER"),
@@ -208,7 +208,7 @@ func hasEnv(env []string, name string) bool {
 
 func testRepoRoot(t *testing.T) string {
 	t.Helper()
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	out, err := exec.CommandContext(t.Context(), "git", "rev-parse", "--show-toplevel").Output()
 	require.NoError(t, err)
 	return strings.TrimSpace(string(out))
 }

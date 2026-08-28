@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -59,7 +60,7 @@ collections:
 // build` and left 402MB of target/ in the tree every later run then read, so no
 // two runs saw the same repository and the difference would have been published
 // as a difference between models.
-func prepareWorkspace(root, home string, arm armSetup) (string, error) {
+func prepareWorkspace(ctx context.Context, root, home string, arm armSetup) (string, error) {
 	tar, err := pristineTar(root)
 	if err != nil {
 		return "", err
@@ -68,7 +69,7 @@ func prepareWorkspace(root, home string, arm armSetup) (string, error) {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return "", err
 	}
-	if out, err := exec.Command("tar", "-xf", tar, "-C", dest).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "tar", "-xf", tar, "-C", dest).CombinedOutput(); err != nil {
 		return "", fmt.Errorf("extracting %s: %w: %s", tar, err, out)
 	}
 	tree := filepath.Join(dest, filepath.Base(LabRepo))
@@ -119,7 +120,7 @@ written here. Retrieve what is in force before writing, with ` + "`kapi voice gu
 // writePulledProject binds the voice to the workspace the way a project does.
 func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 	if profile == nil {
-		return fmt.Errorf("the pulled arm needs a profile to bind")
+		return errors.New("the pulled arm needs a profile to bind")
 	}
 	body, err := yaml.Marshal(profile)
 	if err != nil {
@@ -171,7 +172,7 @@ func checkPull(ctx context.Context, root, kapiBin string, profile *coreprofile.V
 		return err
 	}
 	defer os.RemoveAll(home)
-	tree, err := prepareWorkspace(root, home, armSetup{pull: true, profile: profile})
+	tree, err := prepareWorkspace(ctx, root, home, armSetup{pull: true, profile: profile})
 	if err != nil {
 		return err
 	}

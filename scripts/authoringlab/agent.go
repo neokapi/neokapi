@@ -104,7 +104,7 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 
 	// A pristine tree per run, and for the pulled arm a project and a skill on
 	// top of it. See pull.go for why this is not the shared checkout.
-	tree, err := prepareWorkspace(opts.Root, home, opts.Arm)
+	tree, err := prepareWorkspace(ctx, opts.Root, home, opts.Arm)
 	if err != nil {
 		r.Err = err.Error()
 		return r
