@@ -2679,6 +2679,8 @@ export class FileMatch {
         }
         if (!("pattern" in $$source)) {
             /**
+             * Pattern is the EFFECTIVE glob, with any collection `base:` folded in, so
+             * it does not equal the path the recipe declares.
              * @member
              * @type {string}
              */
@@ -2690,6 +2692,24 @@ export class FileMatch {
              * @type {string | undefined}
              */
             this["collection"] = undefined;
+        }
+        if (!("collection_index" in $$source)) {
+            /**
+             * CollectionIndex and ItemIndex address the recipe entry this file came
+             * from. A surface joining files back to the rows a person edits uses these:
+             * matching the declared path against Pattern silently finds nothing for any
+             * collection that declares a base.
+             * @member
+             * @type {number}
+             */
+            this["collection_index"] = 0;
+        }
+        if (!("item_index" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["item_index"] = 0;
         }
 
         Object.assign(this, $$source);

@@ -359,8 +359,12 @@ export const api = {
         path: string;
         format: string;
         relative: string;
+        /** The effective glob, with a collection `base:` already folded in. */
         pattern: string;
         collection: string;
+        /** The recipe entry this file came from — the join a surface uses. */
+        collection_index: number;
+        item_index: number;
       }>
     >("MatchContent", tabID),
   getBasePath: (tabID: string) => call<string>("GetBasePath", tabID),

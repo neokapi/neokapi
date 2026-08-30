@@ -115,6 +115,8 @@ describe("content explorer tree", () => {
         format: "text",
         pattern: "src/en-US/*.txt",
         collection: "Website",
+        collection_index: 0,
+        item_index: 0,
       },
     ]);
     listOutputsMock.mockResolvedValue({

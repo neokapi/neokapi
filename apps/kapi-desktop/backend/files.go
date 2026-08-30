@@ -13,11 +13,19 @@ import (
 
 // FileMatch represents a file matched by content patterns.
 type FileMatch struct {
-	Path       string `json:"path"`
-	Format     string `json:"format,omitempty"`
-	Relative   string `json:"relative"`
+	Path     string `json:"path"`
+	Format   string `json:"format,omitempty"`
+	Relative string `json:"relative"`
+	// Pattern is the EFFECTIVE glob, with any collection `base:` folded in, so
+	// it does not equal the path the recipe declares.
 	Pattern    string `json:"pattern"`
 	Collection string `json:"collection,omitempty"`
+	// CollectionIndex and ItemIndex address the recipe entry this file came
+	// from. A surface joining files back to the rows a person edits uses these:
+	// matching the declared path against Pattern silently finds nothing for any
+	// collection that declares a base.
+	CollectionIndex int `json:"collection_index"`
+	ItemIndex       int `json:"item_index"`
 }
 
 // GetBasePath returns the project root: the .kapi file's parent directory.
@@ -53,11 +61,13 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	matches := make([]FileMatch, len(resolved))
 	for i, rf := range resolved {
 		matches[i] = FileMatch{
-			Path:       rf.Path,
-			Format:     rf.Format,
-			Relative:   rf.Relative,
-			Pattern:    rf.Pattern,
-			Collection: rf.Collection,
+			Path:            rf.Path,
+			Format:          rf.Format,
+			Relative:        rf.Relative,
+			Pattern:         rf.Pattern,
+			Collection:      rf.Collection,
+			CollectionIndex: rf.CollectionIndex,
+			ItemIndex:       rf.ItemIndex,
 		}
 	}
 	return matches, nil

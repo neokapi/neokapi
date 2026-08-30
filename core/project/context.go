@@ -124,6 +124,17 @@ type ResolvedFile struct {
 	Collection string       // parent collection name
 	Pattern    string       // the content pattern that matched
 	Item       *ContentItem // the content item definition
+	// CollectionIndex and ItemIndex address the recipe entry this file came
+	// from: the collection's position in Collections, and the item's position
+	// in its Content (0 for a bare entry).
+	//
+	// Pattern is the EFFECTIVE pattern, with any collection `base:` folded in
+	// by EffectiveItems, so it does not equal what the recipe declares. A
+	// caller that needs to join files back to the recipe row a person edits
+	// must use these rather than string-matching the two spellings, which is a
+	// second implementation of JoinBase and drifts from the first.
+	CollectionIndex int
+	ItemIndex       int
 }
 
 // ResolveContent matches project content patterns against the filesystem and
@@ -144,9 +155,12 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 	ig := ignore.ForProjectDir(ctx.ProjectDir)
 
 	var files []ResolvedFile
-	for _, coll := range ctx.Project.Collections {
+	for ci, coll := range ctx.Project.Collections {
 		collName := coll.Name
-		for _, item := range coll.EffectiveItems() {
+		// EffectiveItems preserves the recipe's own order, so the index here
+		// addresses the item a person edits even though its path has the
+		// collection's base folded in.
+		for ii, item := range coll.EffectiveItems() {
 			if item.Path == "" {
 				continue
 			}
@@ -236,12 +250,14 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 
 				itemCopy := item
 				files = append(files, ResolvedFile{
-					Path:       absFile,
-					Relative:   rel,
-					Format:     fmtName,
-					Collection: collName,
-					Pattern:    item.Path,
-					Item:       &itemCopy,
+					Path:            absFile,
+					Relative:        rel,
+					Format:          fmtName,
+					Collection:      collName,
+					Pattern:         item.Path,
+					Item:            &itemCopy,
+					CollectionIndex: ci,
+					ItemIndex:       ii,
 				})
 			}
 		}
