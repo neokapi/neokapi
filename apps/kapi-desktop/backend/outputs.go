@@ -149,11 +149,18 @@ func discoverOutputLangs(basePath string, item project.ContentItem, sourceRel st
 			continue
 		}
 		m := re.FindStringSubmatch(filepath.ToSlash(rel))
-		if m == nil || seen[m[1]] {
+		if m == nil {
 			continue
 		}
-		seen[m[1]] = true
-		langs = append(langs, m[1])
+		// The segment was written in the project's declared style; the app
+		// reports locales in BCP-47, so a posix project's nb_NO file is listed
+		// as the nb-NO its recipe declares rather than as a second language.
+		lang := string(project.LocaleFromPath(m[1]))
+		if seen[lang] {
+			continue
+		}
+		seen[lang] = true
+		langs = append(langs, lang)
 	}
 	sort.Strings(langs)
 	return langs

@@ -78,6 +78,42 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	}
 }
 
+// PathLocale renders a locale the way this project writes it into a file path.
+//
+// Inside kapi the locale is canonical BCP-47; on disk it is whatever
+// `defaults.locale_format` declared. Callers building a target path from a
+// project go through here so the projection is made once, in one place, rather
+// than by each surface deciding for itself.
+func (ctx *ProjectContext) PathLocale(id model.LocaleID) string {
+	if ctx == nil {
+		return string(id)
+	}
+	return locale.FormatCode(string(id), ctx.LocaleFormat)
+}
+
+// TargetPath expands a content item's target template for one source file and
+// locale, rendering the locale in the project's declared style.
+func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id model.LocaleID) string {
+	format := ""
+	if ctx != nil {
+		format = ctx.LocaleFormat
+	}
+	return ResolveTargetPathIn(item.Path, item.Base, item.Target, sourceRel, string(id), format)
+}
+
+// LocaleFromPath canonicalizes a locale read back off disk.
+//
+// A path is written in the project's declared style, so a locale recovered from
+// one arrives in that style and has to come back to BCP-47 before it is
+// compared with anything. Without this, a project writing `app/nb_NO.json`
+// lists a target language its own recipe does not contain.
+func LocaleFromPath(s string) model.LocaleID {
+	if id, err := locale.Canonical(s); err == nil {
+		return id
+	}
+	return model.LocaleID(s)
+}
+
 // --- Format detection ---
 
 // DetectFormat detects the format for a file path, scoped to the project's

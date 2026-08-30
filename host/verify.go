@@ -899,7 +899,7 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 			if localeFilter != "" && string(loc) != localeFilter {
 				continue
 			}
-			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
+			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
 			rel, relErr := filepath.Rel(root, targetPath)
 			if relErr != nil {
 				rel = targetPath
@@ -1031,7 +1031,7 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 			continue
 		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
-			candidate := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
+			candidate := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
 			candAbs, _ := filepath.Abs(candidate)
 			if candAbs == targetAbs {
 				return rf, string(loc), true
@@ -1049,8 +1049,8 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 // the full token set ({lang}, {path}, {relpath}, {dir}, {name}, {ext}, "*", and
 // directory-mirror targets). Resolving only {lang} here (the old behavior) made
 // every {path}-templated target look "missing", falsely reporting untranslated.
-func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root string) string {
-	out := project.ResolveTargetPath(itemPath, base, tmpl, sourceRel, locale)
+func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeFormat string) string {
+	out := project.ResolveTargetPathIn(itemPath, base, tmpl, sourceRel, locale, localeFormat)
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}

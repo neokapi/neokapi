@@ -5,11 +5,34 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/locale"
 )
 
-// ResolvePathPattern expands the `{lang}` placeholder in a path pattern.
+// Rendering a locale into a path is the one place a style other than BCP-47
+// belongs.
+//
+// Inside kapi a locale is canonical BCP-47. On disk it is whatever the project
+// declared: a repository whose tooling expects `messages_nb_NO.json` says
+// `locale_format: posix` and gets those filenames, while its recipe, its
+// stores, its status output and its checks all keep saying `nb-NO`. The
+// projection happens here, at the boundary, and nowhere else.
+//
+// The `In` variants take the declared format; the bare forms render the locale
+// as written. Two callers pass a sentinel rather than a locale — the catalog
+// scanner and the desktop's output lister both substitute a marker they later
+// match on — and a sentinel is not a locale to be projected.
+
+// ResolvePathPattern expands the `{lang}` placeholder in a path pattern,
+// rendering the locale exactly as given.
 func ResolvePathPattern(pattern, lang string) string {
 	return strings.ReplaceAll(pattern, "{lang}", lang)
+}
+
+// ResolvePathPatternIn expands `{lang}`, rendering the locale in the project's
+// declared style. An empty format means BCP-47, which is the default and leaves
+// the locale untouched.
+func ResolvePathPatternIn(pattern, lang, localeFormat string) string {
+	return ResolvePathPattern(pattern, locale.FormatCode(lang, localeFormat))
 }
 
 // ResolveFormat returns the format ID, treating "$auto" and the empty
@@ -64,6 +87,14 @@ func GlobFixedPrefix(pattern string) string {
 // the source's {relpath} is appended. So `output/{lang}/` (or `output/{lang}`)
 // mirrors the source tree under that root, the intuitive zero-token form.
 func ResolveTargetPath(itemPath, base, target, source, lang string) string {
+	return ResolveTargetPathIn(itemPath, base, target, source, lang, "")
+}
+
+// ResolveTargetPathIn is ResolveTargetPath rendering the locale in the
+// project's declared style (see the note above ResolvePathPattern). An empty
+// format means BCP-47.
+func ResolveTargetPathIn(itemPath, base, target, source, lang, localeFormat string) string {
+	lang = locale.FormatCode(lang, localeFormat)
 	source = filepath.ToSlash(source)
 	if base == "" {
 		base = GlobFixedPrefix(itemPath)
