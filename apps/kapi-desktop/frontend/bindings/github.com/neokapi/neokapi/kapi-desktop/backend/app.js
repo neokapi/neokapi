@@ -1332,8 +1332,8 @@ export function InspectFile(tabID, filePath) {
  *     (LookupAll over each block's source text), carrying the matched surface
  *     form, its preferred target translation and domain;
  *   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
- *     from the project's resolved voice profile (resolveProjectVoiceProfile via
- *     coreprofile.MatchVocabulary);
+ *     from the voice profile governing the point this file sits at
+ *     (voiceResolver via coreprofile.MatchVocabulary);
  *   - rule-based QA overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 

@@ -178,6 +178,17 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 				f.Message = fmt.Sprintf("Forbidden term %q found: %s", hit.Term, hit.Note)
 			}
 		}
+		// Name the rule that fired. A host reporting "which rule was this" has
+		// only OriginalText otherwise, which is the matched spelling rather than
+		// the rule: a hit on "Utilise" or on a declared form like "utilising"
+		// both come from the rule for "utilise", and only the rule is a thing a
+		// reader can go and change.
+		if hit.Term != "" {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["term"] = hit.Term
+		}
 		if hit.Replacement != "" {
 			f.Suggestion = fmt.Sprintf("Use %q instead", hit.Replacement)
 			// Carry the preferred term as a structured replacement so a host (the
