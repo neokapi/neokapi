@@ -7,7 +7,7 @@
  * a `ToolConfig` / `ConfigEditor`, and a side-by-side compare panel.
  */
 import { useState } from "react";
-import { SchemaForm, Button } from "@neokapi/ui-primitives";
+import { SchemaForm, Button, type ComponentSchema } from "@neokapi/ui-primitives";
 
 import { formatSchemas, toolSchemas, type SchemaEntry } from "./reference-data";
 
@@ -73,6 +73,62 @@ function SchemaPanel({ schema, showDescription = false }: SchemaPanelProps) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+interface FormatSchemaPreviewProps {
+  schema: ComponentSchema;
+  values: Record<string, unknown>;
+  onChange: (values: Record<string, unknown>) => void;
+  /** Heading above the form; falls back to the schema's own title. */
+  title?: string;
+}
+
+/**
+ * A format schema drawn with its `formatMeta` header: title, description, and
+ * one badge per declared extension and MIME type, above the schema-driven form.
+ *
+ * Storybook scaffolding for the schema-language and format-browser references.
+ * The app's own format configuration surfaces (`FormatsPage`,
+ * `FormatConfigDialog`) compose `SchemaForm` with their own chrome.
+ */
+export function FormatSchemaPreview({ schema, values, onChange, title }: FormatSchemaPreviewProps) {
+  const meta = schema.formatMeta;
+  const extensions = meta?.extensions || [];
+  const mimeTypes = meta?.mimeTypes || [];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="border-b border-border pb-3">
+        <h3 className="text-sm font-semibold text-foreground">{title || schema.title}</h3>
+        {schema.description && (
+          <p className="mt-1 text-xs text-muted-foreground">{schema.description}</p>
+        )}
+
+        {(extensions.length > 0 || mimeTypes.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {extensions.map((ext) => (
+              <span
+                key={ext}
+                className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+              >
+                {ext}
+              </span>
+            ))}
+            {mimeTypes.slice(0, 2).map((mt) => (
+              <span
+                key={mt}
+                className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
+              >
+                {mt}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <SchemaForm schema={schema} values={values} onChange={onChange} />
     </div>
   );
 }

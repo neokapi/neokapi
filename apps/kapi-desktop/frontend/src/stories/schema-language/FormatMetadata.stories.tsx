@@ -2,13 +2,13 @@
  * Schema Language: Format Metadata
  *
  * Demonstrates formatMeta, presets, and how format-specific metadata
- * translates to UI elements in the FormatConfigEditor.
+ * translates to UI elements above a schema-driven form.
  */
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import { formatSchemas } from "../_lib/reference-data";
+import { FormatSchemaPreview } from "../_lib/schema-story";
 
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -16,7 +16,7 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
-        <FormatConfigEditor
+        <FormatSchemaPreview
           schema={schema}
           values={values}
           onChange={setValues}
@@ -54,7 +54,7 @@ export const FormatIdentification: Story = {
   name: "formatMeta — Format ID, Extensions, MIME Types",
   args: {
     description:
-      "The `formatMeta` block identifies a format: its ID, supported file extensions, and MIME types. The FormatConfigEditor renders these as badges in the header.",
+      "The `formatMeta` block identifies a format: its ID, supported file extensions, and MIME types. A format configuration surface renders these as badges above the form.",
     schema: {
       title: "JSON Format",
       description: "Configuration for the JSON file format reader/writer",
