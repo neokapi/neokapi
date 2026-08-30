@@ -12,16 +12,7 @@
  * mode with `?theme=dark`.
  */
 import { useMemo, useState } from "react";
-import {
-  BookOpen,
-  Database,
-  Plus,
-  FolderOpen,
-  X,
-  Upload,
-  Download,
-  ArrowRight,
-} from "lucide-react";
+import { BookOpen, Database, Plus, FolderOpen, X, ArrowRight } from "lucide-react";
 import {
   Button,
   PageHeader,
@@ -513,11 +504,6 @@ function TermsView() {
               </Button>
             </SimpleTooltip>
           }
-          actions={
-            <Button variant="outline" size="sm">
-              <Upload size={12} /> Import CSV
-            </Button>
-          }
         />
         <TermsBrowser adapter={adapter} locales={LOCALES} />
       </div>
@@ -576,16 +562,6 @@ function MemoriesView() {
                 <X size={16} />
               </Button>
             </SimpleTooltip>
-          }
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Upload size={12} /> Import TMX
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download size={12} /> Export TMX
-              </Button>
-            </div>
           }
         />
         <MemoryBrowser

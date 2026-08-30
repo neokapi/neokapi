@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
-import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
+import { Database, Plus, FolderOpen, X, AlertTriangle } from "lucide-react";
 import {
   Button,
   Card,
@@ -24,12 +24,7 @@ import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useMemoryAdapter } from "../hooks/useMemoryAdapter";
 import { useLocales } from "../hooks/useLocales";
-import {
-  MemoryBrowser,
-  ResourceCard,
-  ImportProgress,
-  type ResourceInfo,
-} from "@neokapi/ui-primitives";
+import { MemoryBrowser, ResourceCard, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export interface MemoriesPageProps {
   /** Project tab ID — when set, shows the project-scoped Memory. */
@@ -58,7 +53,6 @@ export function MemoriesPage({
   const [handle, setHandle] = useState<string | null>(null);
   const [memoryName, setTmName] = useState("");
   const [memoryPath, setTmPath] = useState("");
-  const [importing, setImporting] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newName, setNewName] = useState("");
   const [corruptPath, setCorruptPath] = useState<string | null>(null);
@@ -201,27 +195,6 @@ export function MemoriesPage({
     }
   }, [handle, refreshResources]);
 
-  const handleImport = useCallback(async () => {
-    if (!activeHandle) return;
-    setImporting(true);
-    try {
-      await api.importTMXDialog(activeHandle);
-    } catch (err) {
-      showError("Failed to import TMX", err);
-    } finally {
-      setImporting(false);
-    }
-  }, [activeHandle, showError]);
-
-  const handleExport = useCallback(async () => {
-    if (!activeHandle) return;
-    try {
-      await api.exportTMXDialog(activeHandle, []);
-    } catch (err) {
-      showError("Failed to export TMX", err);
-    }
-  }, [activeHandle, showError]);
-
   // Open content memory view — identical dashboard (stats + activity chart + browser) whether
   // the content memory is project-scoped or a named/ad-hoc one. Only the header differs.
   if (activeHandle && adapter) {
@@ -248,18 +221,6 @@ export function MemoriesPage({
                 </Button>
               </SimpleTooltip>
             )
-          }
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleImport}>
-                <Upload size={12} />
-                Import TMX
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download size={12} />
-                Export TMX
-              </Button>
-            </div>
           }
         />
 
@@ -305,7 +266,6 @@ export function MemoriesPage({
           targetLocales={filterLangs.length ? filterLangs : undefined}
           onError={showError}
         />
-        <ImportProgress active={importing} />
       </div>
     );
   }

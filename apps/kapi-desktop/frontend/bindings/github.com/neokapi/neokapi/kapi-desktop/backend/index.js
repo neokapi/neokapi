@@ -57,7 +57,6 @@ export {
     FormatPartInfo,
     FormatPresetInfo,
     IOPort,
-    ImportResult,
     ImportSessionDTO,
     ImportSessionFacetDTO,
     LocaleFacetDTO,

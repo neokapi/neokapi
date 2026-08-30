@@ -7,6 +7,11 @@ describe("useApi", () => {
     expect(result).toBeNull();
   });
 
+  it("binds no store interchange dialog", () => {
+    const interchange = Object.keys(api).filter((name) => /^(import|export)(TMX|Terms)/.test(name));
+    expect(interchange).toEqual([]);
+  });
+
   it("exposes all project methods", () => {
     expect(api.newProject).toBeDefined();
     expect(api.openProject).toBeDefined();

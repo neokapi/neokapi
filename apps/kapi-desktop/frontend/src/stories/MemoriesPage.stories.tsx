@@ -205,14 +205,6 @@ function SimulatedMemoriesPage() {
             </button>
             <h1 className="text-lg font-semibold">my-project</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Upload size={12} /> Import TMX
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download size={12} /> Export TMX
-            </Button>
-          </div>
         </div>
         <MemoryBrowser adapter={adapter} />
       </div>

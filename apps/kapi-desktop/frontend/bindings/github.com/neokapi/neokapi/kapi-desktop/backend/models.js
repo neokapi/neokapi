@@ -3055,44 +3055,6 @@ export class IOPort {
 }
 
 /**
- * ImportResult reports the outcome of an import operation.
- */
-export class ImportResult {
-    /**
-     * Creates a new ImportResult instance.
-     * @param {Partial<ImportResult>} [$$source = {}] - The source object to create the ImportResult.
-     */
-    constructor($$source = {}) {
-        if (!("session_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["session_id"] = "";
-        }
-        if (!("count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["count"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ImportResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ImportResult}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ImportResult(/** @type {Partial<ImportResult>} */($$parsedSource));
-    }
-}
-
-/**
  * ImportSessionDTO is the full import-session record for the sessions panel.
  */
 export class ImportSessionDTO {

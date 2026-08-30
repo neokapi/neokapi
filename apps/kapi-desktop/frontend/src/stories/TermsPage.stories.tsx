@@ -137,11 +137,6 @@ function SimulatedTermsPage() {
             </button>
             <h1 className="text-lg font-semibold">my-terms</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Upload size={12} /> Import CSV
-            </Button>
-          </div>
         </div>
         <TermsBrowser adapter={adapter} />
       </div>

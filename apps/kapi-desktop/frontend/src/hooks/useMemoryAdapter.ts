@@ -10,7 +10,6 @@ import type {
   AnnotateEntitiesRequest,
   AnnotateResult,
   LookupMemoryRequest,
-  ImportResult,
   MemoryStats,
   MemoryFacets,
   ImportSessionDTO,
@@ -68,12 +67,6 @@ function createWailsMemoryAdapter(handle: string): MemoryAdapter {
     async lookup(req: LookupMemoryRequest) {
       const result = await api.lookupMemory(handle, req);
       return (result as MemoryMatchDTO[]) ?? [];
-    },
-    async importTMX() {
-      return (await api.importTMXDialog(handle)) as ImportResult | null;
-    },
-    async exportTMX(locales: string[]) {
-      await api.exportTMXDialog(handle, locales);
     },
     async getStats() {
       const result = await api.getMemoryStats(handle);

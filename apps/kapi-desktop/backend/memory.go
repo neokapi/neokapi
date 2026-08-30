@@ -2,10 +2,8 @@ package backend
 
 import (
 	"cmp"
-	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -152,12 +150,6 @@ type UpdateMemoryEntryRequest struct {
 	ProjectID   string                     `json:"project_id"`
 	Note        string                     `json:"note,omitempty"`
 	Origins     []OriginDTO                `json:"origins,omitempty"`
-}
-
-// ImportResult reports the outcome of an import operation.
-type ImportResult struct {
-	SessionID string `json:"session_id"`
-	Count     int    `json:"count"`
 }
 
 // AnnotateEntitiesRequest is the request to batch-annotate entities on content-memory entries.
@@ -833,99 +825,6 @@ func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.
 		appendText(string(runes[pos:]))
 	}
 	return runs
-}
-
-// --- Import / Export ---
-
-// ImportTMXDialog shows a file dialog and imports a TMX file into the content memory.
-// The importer creates one multilingual entry per TU with all TUVs as
-// variants. A new ImportSession row is created for each invocation.
-func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
-	if a.app == nil {
-		return nil, nil
-	}
-	tm, ok := a.memoryHandles.Get(handle)
-	if !ok {
-		return nil, fmt.Errorf("content-memory handle %q not found", handle)
-	}
-
-	path, err := a.app.Dialog.OpenFile().
-		AddFilter("TMX Files", "*.tmx;*.tmx.gz").
-		AddFilter("All Files", "*").
-		PromptForSingleSelection()
-	if err != nil {
-		return nil, err
-	}
-	if path == "" {
-		return nil, nil
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open TMX: %w", err)
-	}
-	defer f.Close()
-
-	// Match the CLI importer: a gzipped .tmx.gz is transparently decompressed.
-	var reader io.Reader = f
-	if strings.HasSuffix(strings.ToLower(path), ".gz") {
-		gz, err := gzip.NewReader(f)
-		if err != nil {
-			return nil, fmt.Errorf("gunzip TMX: %w", err)
-		}
-		defer gz.Close()
-		reader = gz
-	}
-
-	// ImportTMXSession rebuilds the search + fuzzy side-tables after the bulk
-	// load, so the imported entries are immediately visible to search and
-	// fuzzy lookup — the desktop no longer has to remember to do it.
-	sid, count, err := memory.ImportTMXSession(context.Background(), tm, reader, memory.ImportTMXOptions{
-		OriginKey:     filepath.Base(path),
-		OriginAddedBy: "tmx-import",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("import TMX: %w", err)
-	}
-	return &ImportResult{SessionID: sid, Count: count}, nil
-}
-
-// ExportTMXDialog shows a save dialog and exports the content memory as TMX. When
-// locales is empty, every variant present on each entry is emitted.
-func (a *App) ExportTMXDialog(handle string, locales []string) error {
-	if a.app == nil {
-		return nil
-	}
-	tm, ok := a.memoryHandles.Get(handle)
-	if !ok {
-		return fmt.Errorf("content-memory handle %q not found", handle)
-	}
-
-	path, err := a.app.Dialog.SaveFile().
-		AddFilter("TMX Files", "*.tmx").
-		SetFilename("export.tmx").
-		PromptForSingleSelection()
-	if err != nil {
-		return err
-	}
-	if path == "" {
-		return nil
-	}
-	if !strings.HasSuffix(strings.ToLower(path), ".tmx") {
-		path += ".tmx"
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("create TMX: %w", err)
-	}
-	defer f.Close()
-
-	localeIDs := make([]model.LocaleID, 0, len(locales))
-	for _, l := range locales {
-		localeIDs = append(localeIDs, model.LocaleID(l))
-	}
-	return memory.ExportTMX(context.Background(), tm, f, localeIDs)
 }
 
 // --- Facets ---
