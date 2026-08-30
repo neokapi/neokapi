@@ -71,7 +71,7 @@ function renderPage(props?: { tools?: ToolInfo[]; docs?: PluginDocs | null }) {
 describe("ToolRunnerPage", () => {
   it("renders empty state when no tool selected", () => {
     renderPage({ tools: sampleTools });
-    expect(screen.getByText("Select a tool to view details and run it")).toBeInTheDocument();
+    expect(screen.getByText("Select a tool to see what it does")).toBeInTheDocument();
   });
 
   it("shows tool count in empty state", () => {
@@ -129,40 +129,36 @@ describe("ToolRunnerPage", () => {
     expect(screen.getByText("credentials")).toBeInTheDocument();
   });
 
-  it("shows Run tab by default in detail", async () => {
-    renderPage({ tools: sampleTools });
-    await userEvent.click(screen.getByText("translate"));
-    expect(screen.getByText("Select files...")).toBeInTheDocument();
-    expect(screen.getByText("Target Language")).toBeInTheDocument();
-  });
-
-  it("renders runner controls in a disabled coming-soon state", async () => {
+  it("gives the CLI invocation that runs the tool", async () => {
     renderPage({ tools: sampleTools });
     await userEvent.click(screen.getByText("word-count"));
 
-    // The "coming soon" affordance is shown so the controls don't read as live.
-    expect(screen.getByText("Running tools here is coming soon")).toBeInTheDocument();
-
-    // The "Select files..." button is disabled (no live file picker yet).
-    const selectFiles = screen.getByText("Select files...").closest("button");
-    expect(selectFiles).toBeDisabled();
-
-    // The Run button is disabled and never invokes a backend call.
-    const runButton = screen.getByText("Run word-count").closest("button");
-    expect(runButton).toBeDisabled();
+    expect(screen.getByText("kapi exec word-count <files...>")).toBeInTheDocument();
+    expect(screen.getByText("kapi tools schema word-count")).toBeInTheDocument();
   });
 
-  it("keeps the Run button disabled even when a target language is provided", async () => {
+  it("offers no in-app run controls", async () => {
     renderPage({ tools: sampleTools });
     await userEvent.click(screen.getByText("translate"));
 
-    // The target-language field is itself disabled, and the Run button stays
-    // disabled — there is no working execution path to enable.
-    const targetLang = screen.getByPlaceholderText("e.g. fr");
-    expect(targetLang).toBeDisabled();
+    // The page describes the tool and hands over the command; it never presents
+    // itself as a runner, so there is no disabled form standing in for one.
+    expect(screen.queryByText("Select files...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Target Language")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("e.g. fr")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Run translate/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+  });
 
-    const runButton = screen.getByText(/Run translate/).closest("button");
-    expect(runButton).toBeDisabled();
+  it("offers Translation last among the category chips", () => {
+    renderPage({ tools: sampleTools });
+    const chips = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "")
+      .filter((label) => /\(\d+\)$/.test(label));
+
+    expect(chips[0]).toMatch(/^All/);
+    expect(chips.at(-1)).toMatch(/^Translation/);
   });
 
   it("shows no tools message when search has no results", async () => {

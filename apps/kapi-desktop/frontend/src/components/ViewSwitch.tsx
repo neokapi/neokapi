@@ -280,6 +280,7 @@ export function ViewSwitch({
               <FlowsPage
                 tabID={tabID}
                 projectFlows={history.project.flows}
+                onRunFlow={handleRunFlow}
                 onFlowChange={(name, spec) => {
                   updateProject({
                     ...history.project,
