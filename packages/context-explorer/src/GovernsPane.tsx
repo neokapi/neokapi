@@ -116,15 +116,27 @@ export function GovernsPane({ limit, className }: GovernsPaneProps) {
               {t("Voice")}
             </h4>
             {data.voice ? (
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="font-medium">{data.voice.name}</span>
-                {data.voice.field && (
-                  <code className="font-mono text-[11px] text-muted-foreground">
-                    {data.voice.field}
-                  </code>
-                )}
-                {data.voice.source && (
-                  <span className="text-xs text-muted-foreground">{data.voice.source}</span>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="font-medium">{data.voice.name}</span>
+                  {data.voice.field && (
+                    <code className="font-mono text-[11px] text-muted-foreground">
+                      {data.voice.field}
+                    </code>
+                  )}
+                  {data.voice.source && (
+                    <span className="text-xs text-muted-foreground">{data.voice.source}</span>
+                  )}
+                </div>
+                {data.voice.guide && (
+                  <details className="group" data-testid="governs-voice-guide">
+                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                      {t("The guide a tool reads")}
+                    </summary>
+                    <pre className="mt-1.5 max-h-64 overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">
+                      {data.voice.guide}
+                    </pre>
+                  </details>
                 )}
               </div>
             ) : (

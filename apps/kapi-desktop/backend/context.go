@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextgraph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/occurrence"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 )
@@ -281,7 +282,10 @@ func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*Con
 			Name:   profile.Name,
 			Source: source,
 			Field:  rc.VoiceField,
-			Guide:  profile.Description,
+			// The rendered guide, the same text the retrieval surface serves
+			// (host.ContextVoice) and an AI proposal is steered by. The
+			// description alone names the profile without saying how it sounds.
+			Guide: coreprofile.RenderVoiceGuide(profile),
 		}
 	} else if verr != nil {
 		out.Notes = append(out.Notes, fmt.Sprintf("voice profile: %v", verr))
