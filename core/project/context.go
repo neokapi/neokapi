@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/ignore"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -46,8 +47,10 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 		sources = append(sources, name)
 	}
 
-	// Resolve locale defaults.
-	targetLocales := proj.Defaults.TargetLanguages
+	// Resolve locale defaults. The recipe keeps whatever style it was written
+	// in; everything downstream of here is canonical BCP-47, so a project
+	// declaring nb_NO and one declaring nb-NO are the same project to a run.
+	targetLocales := normalizeLocales(proj.Defaults.TargetLanguages)
 
 	// Resolve encoding (default UTF-8).
 	encoding := proj.Defaults.Encoding
@@ -64,7 +67,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	return &ProjectContext{
 		Project:        proj,
 		ProjectDir:     dir,
-		SourceLocale:   proj.Defaults.SourceLanguage,
+		SourceLocale:   locale.Normalize(proj.Defaults.SourceLanguage),
 		TargetLocales:  targetLocales,
 		AllowedSources: sources,
 		Encoding:       encoding,

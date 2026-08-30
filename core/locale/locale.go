@@ -4,6 +4,7 @@ package locale
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -27,12 +28,116 @@ type LocaleInfo struct {
 
 // Parse validates and normalizes a BCP-47 locale string.
 // It returns the canonical shortest form (e.g., "en" not "en-Latn-US").
+//
+// Parse is strict about CLDR membership: a well-formed tag naming a subtag CLDR
+// does not know ("qps-Ploc", the Microsoft pseudo-locale) is an error here. Use
+// Canonical at an ingress boundary, which accepts those and keeps them whole.
 func Parse(s string) (model.LocaleID, error) {
 	tag, err := language.Parse(s)
 	if err != nil {
 		return "", fmt.Errorf("invalid locale %q: %w", s, err)
 	}
 	return model.LocaleID(tag.String()), nil
+}
+
+// Canonical is the one normalization every locale crosses on its way into
+// neokapi: it takes a locale written in any accepted style and returns the
+// canonical BCP-47 form the rest of the system holds.
+//
+// It accepts what people and file formats actually write — POSIX separators
+// ("nb_NO"), a codeset or modifier suffix ("en_US.UTF-8", "nb@bokmal"), and any
+// case ("NB-no") — and answers "nb-NO", "en-US", "nb". Everything downstream of
+// an ingress boundary can then compare and key locales as plain strings, which
+// is what it already does; the styles exist only at the boundary.
+//
+// It errors on a locale that is not a locale. That is the point: without a gate,
+// a typo becomes an identity nothing rejects, and a target language nobody can
+// spell is indistinguishable from one nobody has translated yet.
+//
+// A well-formed tag whose subtags CLDR does not know is NOT an error, and is
+// returned with those subtags intact. Two different things are being asked, and
+// only the first is a defect:
+//
+//   - "qps-Ploc" names a real pseudo-locale on a known primary subtag. x/text
+//     canonicalizes it to "qps", silently dropping the very subtag that says
+//     which pseudo-locale it is, so Canonical keeps the tag's own shape instead.
+//   - "xx-YY" names no language at all. Its PRIMARY subtag is unknown, so it is
+//     rejected — this is the typo case the gate exists for.
+func Canonical(s string) (model.LocaleID, error) {
+	cleaned := cleanLocaleInput(s)
+	if cleaned == "" {
+		return "", fmt.Errorf("invalid locale %q: empty", s)
+	}
+
+	tag, err := language.Parse(cleaned)
+	if err == nil {
+		return model.LocaleID(tag.String()), nil
+	}
+
+	// A subtag CLDR has never heard of is still a subtag. Keep the tag whole
+	// unless the unknown part is the language itself.
+	var ve language.ValueError
+	if errors.As(err, &ve) {
+		if strings.EqualFold(ve.Subtag(), primarySubtag(cleaned)) {
+			return "", fmt.Errorf("invalid locale %q: %w", s, err)
+		}
+		return model.LocaleID(canonicalShape(cleaned)), nil
+	}
+	return "", fmt.Errorf("invalid locale %q: %w", s, err)
+}
+
+// CanonicalAll canonicalizes a list, reporting the first locale that is not one.
+func CanonicalAll(in []model.LocaleID) ([]model.LocaleID, error) {
+	if len(in) == 0 {
+		return in, nil
+	}
+	out := make([]model.LocaleID, len(in))
+	for i, id := range in {
+		c, err := Canonical(string(id))
+		if err != nil {
+			return nil, err
+		}
+		out[i] = c
+	}
+	return out, nil
+}
+
+// cleanLocaleInput strips the parts of a POSIX locale that name an encoding or
+// a variant selection rather than a language, and squares the separator.
+//
+// "en_US.UTF-8" and "nb@bokmal" are locales as an operating system writes them;
+// neither is well-formed BCP-47, and x/text rejects both outright rather than
+// reporting which part it disliked.
+func cleanLocaleInput(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexAny(s, ".@"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.ReplaceAll(s, "_", "-")
+}
+
+// primarySubtag returns the language subtag of a cleaned tag.
+func primarySubtag(cleaned string) string {
+	base, _, _ := strings.Cut(cleaned, "-")
+	return base
+}
+
+// canonicalShape applies BCP-47's own casing convention to a tag x/text declined
+// to canonicalize: lowercase language, Titlecase script, uppercase region, and
+// everything after left as written.
+func canonicalShape(cleaned string) string {
+	parts := strings.Split(cleaned, "-")
+	for i, p := range parts {
+		switch {
+		case i == 0:
+			parts[i] = strings.ToLower(p)
+		case len(p) == 4:
+			parts[i] = strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+		case len(p) == 2:
+			parts[i] = strings.ToUpper(p)
+		}
+	}
+	return strings.Join(parts, "-")
 }
 
 // MustParse is like Parse but panics on invalid input.

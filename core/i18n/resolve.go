@@ -68,20 +68,38 @@ func Resolve(opts ResolveOptions) Translator {
 // "en-US") and normalize POSIX "_" separators to BCP-47 "-".
 func resolveLocale(opts ResolveOptions) model.LocaleID {
 	if opts.Flag != "" {
-		return model.LocaleID(opts.Flag)
+		return canonicalOrRaw(opts.Flag)
 	}
 	if env := os.Getenv("KAPI_LANG"); env != "" {
-		return model.LocaleID(env)
+		return canonicalOrRaw(env)
 	}
 	if opts.ConfigLanguage != "" {
-		return model.LocaleID(opts.ConfigLanguage)
+		return canonicalOrRaw(opts.ConfigLanguage)
 	}
 	for _, env := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
 		if v := os.Getenv(env); v != "" {
-			return model.LocaleID(normalizePOSIXLocale(v))
+			return canonicalOrRaw(v)
 		}
 	}
 	return "en"
+}
+
+// canonicalOrRaw canonicalizes a requested UI locale, keeping the request as
+// written when it names no locale.
+//
+// Every source is treated the same. `--lang nb_NO`, KAPI_LANG and a config
+// `language:` used to skip the POSIX conversion that only the LC_ALL/LANG
+// branch performed, so the same locale asked for two ways resolved two ways.
+//
+// Asking for a catalog is not the place to refuse a bad locale: "C", "POSIX"
+// and a typo all mean the same thing here, which is that no catalog matches and
+// the caller falls back to the source text. Canonical's error is the gate for a
+// recipe, not for a UI preference.
+func canonicalOrRaw(v string) model.LocaleID {
+	if id, err := loc.Canonical(v); err == nil {
+		return id
+	}
+	return model.LocaleID(normalizePOSIXLocale(v))
 }
 
 // normalizePOSIXLocale turns POSIX-style locale IDs ("en_US.UTF-8",

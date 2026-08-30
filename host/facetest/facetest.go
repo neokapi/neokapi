@@ -180,6 +180,66 @@ vocabulary:
 	return p
 }
 
+// WritePosix builds a project declaring its locales in POSIX style and returns
+// it, for the faces to be asked the same questions about.
+//
+// The recipe is the one place a locale is written by hand, so it is the one
+// place a style other than BCP-47 legitimately appears. What the faces answer
+// about it must not depend on how it was spelled: a project declaring en_US and
+// nb_NO is the same project as one declaring en-US and nb-NO, and every face
+// says so.
+func WritePosix(t *testing.T) Project {
+	t.Helper()
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_NO_PROJECT", "")
+
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
+	}
+
+	write("kapi.yaml", `version: v1
+name: Posixline
+defaults:
+  source_language: en_US
+  target_languages: [nb_NO]
+  source_gate: none
+collections:
+  - name: App
+    content:
+      - path: app/en.json
+        target: app/{lang}.json
+`)
+	write("app/en.json", `{"berth":"Berth","depart":"Departing","arrive":"Arriving"}`)
+	// The target sits at the canonical path, because {lang} renders the locale
+	// the recipe declared and the recipe declares no locale_format.
+	write("app/nb_NO.json", `{"berth":"Kai"}`)
+
+	p := Project{
+		Root:         root,
+		Recipe:       filepath.Join(root, "kapi.yaml"),
+		ContextPath:  "app/en.json",
+		ContextLimit: 10,
+		SearchLimit:  10,
+	}
+	t.Chdir(root)
+	return p
+}
+
+// PosixSourceLocale and PosixTargetLocale are what every face must answer about
+// the WritePosix project, whatever it was asked.
+const (
+	PosixSourceLocale = model.LocaleID("en-US")
+	PosixTargetLocale = model.LocaleID("nb-NO")
+)
+
 // seedTerms writes the fixture's concepts into the project's own terms store.
 //
 // The two halves of retrieval read different sources: by-location resolves the

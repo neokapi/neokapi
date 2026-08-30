@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -77,14 +78,18 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	collTargets := make(map[string][]string)
 	collOrder := make([]string, 0, len(op.Project.Collections))
 	for _, coll := range op.Project.Collections {
+		// Canonical BCP-47, whatever style the recipe declared: these strings
+		// are the locale keys the panel renders, the coverage map is keyed by,
+		// and the CLI prints, so a project written nb_NO must read nb-NO here
+		// exactly as it does at the verb.
 		targets := make([]string, 0, len(coll.TargetLanguages))
 		for _, loc := range coll.TargetLanguages {
-			targets = append(targets, string(loc))
+			targets = append(targets, string(locale.Normalize(loc)))
 		}
 		// Fall back to project defaults when the collection declares none.
 		if len(targets) == 0 {
 			for _, loc := range op.Project.Defaults.TargetLanguages {
-				targets = append(targets, string(loc))
+				targets = append(targets, string(locale.Normalize(loc)))
 			}
 		}
 		if _, seen := collTargets[coll.Name]; !seen {
