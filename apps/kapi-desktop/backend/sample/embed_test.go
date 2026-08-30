@@ -3,11 +3,14 @@ package sample
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,6 +74,52 @@ func TestScaffoldKapiMart(t *testing.T) {
 	tbCount, err := db.Terms().Count(t.Context())
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, tbCount, 100, "terms should have at least 100 concepts")
+
+	// Seeded entries carry every declared target as a peer variant.
+	entries, err := db.Memory().Entries(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, entries)
+	var multilingual int
+	for _, e := range entries {
+		if _, ok := e.Variants["en"]; !ok {
+			continue
+		}
+		full := true
+		for _, tgt := range v2Targets {
+			if _, ok := e.Variants[tgt]; !ok {
+				full = false
+				break
+			}
+		}
+		if full {
+			multilingual++
+		}
+	}
+	assert.GreaterOrEqual(t, multilingual, 200,
+		"seeded entries should carry en plus every target variant")
+
+	// The bulk load leaves the FTS5 side-tables empty until they are rebuilt, and
+	// a store that skipped the rebuild still counts its entries and still answers
+	// exact lookup. Searching is what tells the two apart — and it has to reach a
+	// bundle entry: the enriched entries go in one row at a time, which keeps the
+	// index live, so a search that any of them satisfies proves nothing.
+	hits, _, err := db.Memory().SearchEntries(t.Context(), memory.SearchParams{
+		Query: "shipping", Limit: 50,
+	})
+	require.NoError(t, err)
+	var fromBundle int
+	for _, h := range hits {
+		if strings.HasPrefix(h.ID, "memory-seed"+kmb.Ext+":") {
+			fromBundle++
+		}
+	}
+	assert.Positive(t, fromBundle, "bundle-seeded entries must be searchable")
+
+	// The seed's provenance names the bundle it came from.
+	sessions, err := db.Memory().ListImportSessions(t.Context())
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.Equal(t, "memory-seed"+kmb.Ext, sessions[0].FileKey)
 }
 
 func TestScaffoldUnknown(t *testing.T) {

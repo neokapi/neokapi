@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -108,25 +109,46 @@ func seedStore(targetDir string) error {
 	return nil
 }
 
+// memorySeedName is the sample's committed content-memory bundle, the native
+// form the seed ships in.
+const memorySeedName = "kapimart/memory-seed" + kmb.Ext
+
 func seedTMv2(tm *memory.SQLiteStore) error {
-	tmxData, err := assetsFS.ReadFile("kapimart/memory-seed.tmx")
+	ctx := context.Background()
+
+	data, err := assetsFS.ReadFile(memorySeedName)
 	if err != nil {
-		return fmt.Errorf("read TMX: %w", err)
+		return fmt.Errorf("read content-memory bundle: %w", err)
+	}
+	file, err := kmb.Unmarshal(data)
+	if err != nil {
+		return fmt.Errorf("parse content-memory bundle: %w", err)
 	}
 
-	// The TMX already has all target locales on each TU; a single import
-	// creates one multilingual entry per TU with every variant populated.
-	if _, _, err := memory.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
-		memory.ImportTMXOptions{
-			OriginKey:     "memory-seed.tmx",
-			OriginAddedBy: "kapi-sample",
-		}); err != nil {
-		return fmt.Errorf("import TMX: %w", err)
+	// Each bundle entry is one multilingual entry carrying every target variant,
+	// under the identity it was serialized with.
+	if err := tm.BulkAddWithStream(ctx, file.ModelEntries(), ""); err != nil {
+		return fmt.Errorf("add content-memory entries: %w", err)
+	}
+	for _, s := range file.ModelImportSessions() {
+		if err := tm.CreateImportSession(ctx, s); err != nil {
+			return fmt.Errorf("create import session %s: %w", s.ID, err)
+		}
 	}
 
 	// Add enriched entries with structural inline codes and entity annotations.
 	if err := seedEnrichedEntries(tm); err != nil {
 		return fmt.Errorf("seed enriched entries: %w", err)
+	}
+
+	// The bulk path skips the per-row FTS5 inserts, leaving the search and fuzzy
+	// side-tables empty until they are rebuilt set-wise. Exact lookup works
+	// without this; search and fuzzy lookup return nothing and report no error.
+	if err := tm.RebuildSearchIndex(ctx); err != nil {
+		return fmt.Errorf("rebuild content-memory search index: %w", err)
+	}
+	if err := tm.RebuildFuzzyIndex(ctx); err != nil {
+		return fmt.Errorf("rebuild content-memory fuzzy index: %w", err)
 	}
 
 	// Spread timestamps over 90 days for a realistic activity chart.
