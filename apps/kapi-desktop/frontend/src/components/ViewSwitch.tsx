@@ -11,7 +11,7 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
-import { ContextHub } from "./ContextHub";
+import { ContextHub, type ContextPin } from "./ContextHub";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
@@ -121,6 +121,20 @@ export function ViewSwitch({
       reviewEntry.current += 1;
       setReviewScope(scope ?? null);
       navigate("review");
+    },
+    [navigate],
+  );
+
+  // Context-surface entry pin: a check finding names the rule that fired and
+  // the point it is scoped to, and opens the explorer standing there. A counter
+  // keys the hub so re-entering with a new pin resets it.
+  const [contextPin, setContextPin] = useState<ContextPin | null>(null);
+  const contextEntry = useRef(0);
+  const handleOpenContext = useCallback(
+    (pin?: ContextPin) => {
+      contextEntry.current += 1;
+      setContextPin(pin ?? null);
+      navigate("context");
     },
     [navigate],
   );
@@ -323,10 +337,17 @@ export function ViewSwitch({
         return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
 
       case "context":
-        return <ContextHub tabID={tabID} projectName={history.project.name} />;
+        return (
+          <ContextHub
+            key={contextEntry.current}
+            tabID={tabID}
+            projectName={history.project.name}
+            pin={contextPin ?? undefined}
+          />
+        );
 
       case "checks":
-        return <ChecksPanel tabID={tabID} />;
+        return <ChecksPanel tabID={tabID} onOpenContext={handleOpenContext} />;
 
       case "review":
         return (

@@ -148,6 +148,40 @@ describe("GovernsPane", () => {
     expect(screen.getByTestId("context-notes")).toHaveTextContent("terms moved");
   });
 
+  // An empty section suggests a broken app; an absent one suggests nothing.
+  it("leaves out the rules and clearance sections until a source fills them", async () => {
+    mountPinned(<GovernsPane />, makePinnedSource({ bareGovernance: true }));
+    await waitFor(() => expect(screen.getByTestId("governs-voice")).toBeInTheDocument());
+    expect(screen.queryByTestId("governs-rules")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("governs-clearance")).not.toBeInTheDocument();
+  });
+
+  it("renders them once a source does", async () => {
+    mountPinned(
+      <GovernsPane />,
+      makePinnedSource({
+        governance: {
+          clearance: "internal",
+          rules: [{ id: "r1", label: "No unhedged claims", gate: "voice", state: "active" }],
+        },
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("governs-rules")).toBeInTheDocument());
+    expect(screen.getByTestId("governs-rules")).toHaveTextContent("No unhedged claims");
+    expect(screen.getByTestId("governs-clearance")).toHaveTextContent("internal");
+  });
+
+  it("renders the voice guide the source carries", async () => {
+    mountPinned(
+      <GovernsPane />,
+      makePinnedSource({
+        governance: { voice: { name: "Support", guide: "Write plainly. Lead with the fix." } },
+      }),
+    );
+    await waitFor(() => expect(screen.getByTestId("governs-voice-guide")).toBeInTheDocument());
+    expect(screen.getByTestId("governs-voice-guide")).toHaveTextContent("Lead with the fix.");
+  });
+
   it("shows a failed read as a failure, never as an empty answer", async () => {
     mountPinned(<GovernsPane />, makePinnedSource({ failing: true }));
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());

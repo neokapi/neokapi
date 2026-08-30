@@ -7,6 +7,7 @@ import {
   Wand2,
   FileText,
   CheckCircle2,
+  Compass,
 } from "lucide-react";
 import { Button, Badge, Card, CardContent, PageHeader, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
@@ -26,6 +27,16 @@ export interface ChecksPanelProps {
    * the finding; returns once the fix is applied. Defaults to api.applyCheckFix.
    */
   onApplyFix?: (filePath: string, finding: DesktopFinding) => Promise<void>;
+  /**
+   * Open the Context explorer standing at a finding's point, with the rule that
+   * fired named. Absent renders the findings without the click-through.
+   */
+  onOpenContext?: (pin: {
+    coordinate?: string;
+    collection?: string;
+    path?: string;
+    rule?: string;
+  }) => void;
 }
 
 /** Map a finding severity to a Badge variant + supplementary class. */
@@ -64,6 +75,7 @@ export function ChecksPanel({
   result: propResult,
   forceLoading = false,
   onApplyFix,
+  onOpenContext,
 }: ChecksPanelProps) {
   const { showError } = useError();
   const { active: activeFilter } = useActiveFilter();
@@ -257,6 +269,38 @@ export function ChecksPanel({
                                 >
                                   {finding.category}
                                 </Badge>
+                                {/* The rule that fired and the point it is
+                                    scoped to. A finding a reader cannot trace
+                                    to a decision is a complaint with nowhere
+                                    to go. */}
+                                {finding.rule && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="font-mono text-[10px] font-normal"
+                                    translate="no"
+                                    data-testid="finding-rule"
+                                  >
+                                    {finding.rule}
+                                  </Badge>
+                                )}
+                                {onOpenContext && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onOpenContext({
+                                        coordinate: finding.point || undefined,
+                                        collection: finding.collection || undefined,
+                                        path: file.path,
+                                        rule: finding.rule,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                                    data-testid="finding-point"
+                                  >
+                                    <Compass size={11} />
+                                    {finding.point || "project default"}
+                                  </button>
+                                )}
                               </div>
                               <p className="text-sm">{finding.message}</p>
                               {finding.original_text && (

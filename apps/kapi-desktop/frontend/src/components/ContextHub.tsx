@@ -14,12 +14,23 @@ import { VoicePage } from "./VoicePage";
 /** The surfaces filed under Context. */
 export type ContextSection = "explorer" | "voice";
 
+/** A point to open the explorer standing at, and what sent it there. */
+export interface ContextPin {
+  coordinate?: string;
+  collection?: string;
+  path?: string;
+  /** The rule that fired, when a check finding opened this. */
+  rule?: string;
+}
+
 export interface ContextHubProps {
   tabID: string;
   /** The open project's name — the ladder's project rung. */
   projectName: string;
   /** The section to open on. */
   section?: ContextSection;
+  /** Open the explorer pinned at a point, e.g. from a check finding. */
+  pin?: ContextPin;
 }
 
 const SECTIONS: Array<{ id: ContextSection; label: string; icon: React.ReactNode }> = [
@@ -27,7 +38,7 @@ const SECTIONS: Array<{ id: ContextSection; label: string; icon: React.ReactNode
   { id: "voice", label: "Voice", icon: <MessageSquareQuote size={14} /> },
 ];
 
-export function ContextHub({ tabID, projectName, section }: ContextHubProps) {
+export function ContextHub({ tabID, projectName, section, pin }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? "explorer");
 
   return (
@@ -56,7 +67,7 @@ export function ContextHub({ tabID, projectName, section }: ContextHubProps) {
       </nav>
       <div className="min-h-0 flex-1">
         {active === "explorer" ? (
-          <ContextExplorerView tabID={tabID} projectName={projectName} />
+          <ContextExplorerView tabID={tabID} projectName={projectName} pin={pin} />
         ) : (
           <VoicePage tabID={tabID} />
         )}

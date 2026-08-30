@@ -201,6 +201,15 @@ export interface FixtureOptions {
   workspaceReach?: boolean;
   /** Fail every read, so the panes must show a load failure, not an empty set. */
   failing?: boolean;
+  /**
+   * Answer governance without the sections a source may not populate — rules,
+   * clearance and the voice guide. kapi's local source carries none of the
+   * first two, and a pane that drew an empty section for them would read as
+   * broken rather than as silent.
+   */
+  bareGovernance?: boolean;
+  /** Overrides merged onto the governance answer. */
+  governance?: Partial<GovernanceAnswer>;
 }
 
 /** A source with the dimensions pinned — kapi's local project. */
@@ -231,7 +240,15 @@ function makeSource(opts: FixtureOptions & { free: Dimension[] }): ContextDataSo
       content: !opts.withoutContent,
       search: true,
     },
-    governs: () => (opts.failing ? fail<GovernanceAnswer>() : { ...governanceAtPoint, notes }),
+    governs: () => {
+      if (opts.failing) return fail<GovernanceAnswer>();
+      const answer: GovernanceAnswer = { ...governanceAtPoint, notes };
+      if (opts.bareGovernance) {
+        delete answer.rules;
+        delete answer.clearance;
+      }
+      return { ...answer, ...opts.governance };
+    },
     search: () => (opts.failing ? fail<SearchAnswer>() : { ...searchAnswer, notes }),
     options: (_scope, dimension) =>
       dimension === "project"

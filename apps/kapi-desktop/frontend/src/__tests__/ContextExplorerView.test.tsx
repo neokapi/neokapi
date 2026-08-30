@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "./testUtils";
 import { cleanup } from "@testing-library/react";
 import { ContextExplorerView } from "../components/ContextExplorerView";
 import { createLocalContextSource, type ContextBackend } from "../lib/localContextSource";
@@ -86,5 +86,46 @@ describe("ContextExplorerView", () => {
     expect(screen.getByTestId("governs-profile")).toHaveTextContent("support");
     await waitFor(() => expect(screen.getByTestId("lives-coverage")).toHaveTextContent("50%"));
     expect(screen.getByTestId("relates-pane")).toHaveAttribute("data-reach", "project");
+  });
+
+  it("stands on the stream the project names, not a literal", () => {
+    render(
+      <ContextExplorerView
+        tabID="tab-1"
+        projectName="Northsea"
+        stream="release-2"
+        source={createLocalContextSource("tab-1", backend())}
+      />,
+    );
+    const bar = screen.getByTestId("scope-filter-bar");
+    expect(within(bar).getByText("release-2")).toBeInTheDocument();
+    expect(within(bar).queryByText("main")).not.toBeInTheDocument();
+  });
+
+  it("says which finding pinned it, and stands at that point", () => {
+    render(
+      <ContextExplorerView
+        tabID="tab-1"
+        projectName="Northsea"
+        stream="main"
+        pin={{ coordinate: "support/docs", collection: "Docs", rule: "log in" }}
+        source={createLocalContextSource("tab-1", backend())}
+      />,
+    );
+    const strip = screen.getByTestId("explorer-pin");
+    expect(strip).toHaveTextContent("log in");
+    expect(strip).toHaveTextContent("support/docs");
+  });
+
+  it("shows no pin strip when the reader arrived on their own", () => {
+    render(
+      <ContextExplorerView
+        tabID="tab-1"
+        projectName="Northsea"
+        stream="main"
+        source={createLocalContextSource("tab-1", backend())}
+      />,
+    );
+    expect(screen.queryByTestId("explorer-pin")).not.toBeInTheDocument();
   });
 });

@@ -2112,6 +2112,32 @@ export class DesktopFinding {
              */
             this["fixable"] = false;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rule names what fired, so a finding can be traced to the decision that
+             * produced it rather than only to the text it objects to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["rule"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Point is the coordinate the checked file sits at, written the way the
+             * explorer addresses it. Empty is the project's own point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["point"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Collection is the one the checked file belongs to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4685,6 +4711,15 @@ export class ProjectServer {
              * @type {string | undefined}
              */
             this["serverURL"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Stream the project reads and writes on. A recipe that names one in its
+             * venue block gets that; everything else is the framework's default.
+             * @member
+             * @type {string | undefined}
+             */
+            this["stream"] = undefined;
         }
 
         Object.assign(this, $$source);
