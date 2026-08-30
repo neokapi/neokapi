@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/convergence"
@@ -44,11 +45,12 @@ func newStreamingServerUpStub(t *testing.T) *serverUpStub {
 		`{"type":"done","state":"converged"}`,
 		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materializedFiles":3}`,
 	}
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n"
+	var script strings.Builder
+	script.WriteString("#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n")
 	for _, l := range lines {
-		script += "echo '" + l + "'\n"
+		script.WriteString("echo '" + l + "'\n")
 	}
-	require.NoError(t, os.WriteFile(binPath, []byte(script), 0o755))
+	require.NoError(t, os.WriteFile(binPath, []byte(script.String()), 0o755))
 
 	m := &manifest.Manifest{
 		ManifestVersion: manifest.CurrentVersion,

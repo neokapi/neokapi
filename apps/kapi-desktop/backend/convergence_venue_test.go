@@ -11,8 +11,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/project/projecttest"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,11 +48,12 @@ func venueStubPlugin(t *testing.T) string {
 		`{"type":"done","state":"converged"}`,
 		`{"type":"result","flow":"server-venue","passes":1,"converged":true,"materializedFiles":1}`,
 	}
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n"
+	var script strings.Builder
+	script.WriteString("#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argsFile + "\n")
 	for _, l := range lines {
-		script += "echo '" + l + "'\n"
+		script.WriteString("echo '" + l + "'\n")
 	}
-	require.NoError(t, os.WriteFile(binPath, []byte(script), 0o755))
+	require.NoError(t, os.WriteFile(binPath, []byte(script.String()), 0o755))
 
 	manifestBody := `{
 		"manifest_version": "1",
@@ -93,22 +94,20 @@ func dispatchedVenueArgs(t *testing.T, argsFile string) []string {
 	return args
 }
 
-// newVenueProject writes a recipe binding a convergence venue and opens it. The
-// venue is registered as an extension, exactly as a platform plugin registers
-// it, so the fixture exercises the registered venue rather than a key name the
-// framework would have to know.
+// newVenueProject writes a recipe binding a convergence venue and opens it.
+//
+// The venue key is the one the desktop's own binary registers (host/venue/
+// schema, at init), so the fixture exercises the registered venue rather than a
+// key name the framework would have to know. Re-registering it here would mean
+// resetting the extension registry, and that registry is process-wide: a reset
+// takes the venue key away from every other test in the package, which run in
+// a shuffled order.
 //
 // The flow is the deterministic pseudo-translate one, so a local fallback (the
 // failure this test exists to catch) costs no key, no network and no spend, and
 // leaves a target file behind as its evidence.
 func newVenueProject(t *testing.T, app *App, connected bool) (*TabInfo, string) {
 	t.Helper()
-	projecttest.ResetExtensions()
-	t.Cleanup(projecttest.ResetExtensions)
-	project.RegisterExtensionGroup("platform", []project.Extension{
-		{Name: "bowrain", Scope: project.ScopeProject, Venue: true},
-	})
-
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales"), 0o755))
 	require.NoError(t, os.WriteFile(
@@ -132,7 +131,7 @@ flows:
       - tool: pseudo-translate
 `
 	if connected {
-		body += `bowrain:
+		body += schema.VenueKey + `:
   url: https://bowrain.example/ws/desktop-venue
   converge: manual
 `
