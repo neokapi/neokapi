@@ -4663,6 +4663,190 @@ export class ProjectHandles {
 }
 
 /**
+ * ProjectPointDTO is one point, and what governs content sitting there.
+ */
+export class ProjectPointDTO {
+    /**
+     * Creates a new ProjectPointDTO instance.
+     * @param {Partial<ProjectPointDTO>} [$$source = {}] - The source object to create the ProjectPointDTO.
+     */
+    constructor($$source = {}) {
+        if (!("ref" in $$source)) {
+            /**
+             * Ref addresses the point the way a collection names it: `profile/channel`,
+             * a bare profile, or empty for the project's own point.
+             * @member
+             * @type {string}
+             */
+            this["ref"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label names it for a reader.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (!("default" in $$source)) {
+            /**
+             * Default is true for the project's own point.
+             * @member
+             * @type {boolean}
+             */
+            this["default"] = false;
+        }
+        if (!("collections" in $$source)) {
+            /**
+             * Collections sitting exactly here.
+             * @member
+             * @type {string[]}
+             */
+            this["collections"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Voice is the profile in force, by name.
+             * @member
+             * @type {string | undefined}
+             */
+            this["voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * VoiceField is the recipe key that bound it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["voice_field"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["termstore"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {VoiceValidityDTO | null | undefined}
+             */
+            this["validity"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {VoiceFallbackDTO | null | undefined}
+             */
+            this["fallback"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectPointDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectPointDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType9;
+        const $$createField6_0 = $$createType2;
+        const $$createField10_0 = $$createType80;
+        const $$createField11_0 = $$createType82;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField4_0($$parsedSource["coordinates"]);
+        }
+        if ("collections" in $$parsedSource) {
+            $$parsedSource["collections"] = $$createField6_0($$parsedSource["collections"]);
+        }
+        if ("validity" in $$parsedSource) {
+            $$parsedSource["validity"] = $$createField10_0($$parsedSource["validity"]);
+        }
+        if ("fallback" in $$parsedSource) {
+            $$parsedSource["fallback"] = $$createField11_0($$parsedSource["fallback"]);
+        }
+        return new ProjectPointDTO(/** @type {Partial<ProjectPointDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ProjectPointsResult is the point map.
+ */
+export class ProjectPointsResult {
+    /**
+     * Creates a new ProjectPointsResult instance.
+     * @param {Partial<ProjectPointsResult>} [$$source = {}] - The source object to create the ProjectPointsResult.
+     */
+    constructor($$source = {}) {
+        if (!("at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["at"] = "";
+        }
+        if (!("points" in $$source)) {
+            /**
+             * @member
+             * @type {ProjectPointDTO[]}
+             */
+            this["points"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectPointsResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectPointsResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType84;
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("points" in $$parsedSource) {
+            $$parsedSource["points"] = $$createField1_0($$parsedSource["points"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField2_0($$parsedSource["notes"]);
+        }
+        return new ProjectPointsResult(/** @type {Partial<ProjectPointsResult>} */($$parsedSource));
+    }
+}
+
+/**
  * ProjectServer describes where a project's `kapi up` runs. A project whose
  * recipe declares a `bowrain:` block is Bowrain-connected: the canonical run
  * executes on the server. The desktop still runs the local engine for "Bring
@@ -4802,7 +4986,7 @@ export class ProjectStatus {
      * @returns {ProjectStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType80;
+        const $$createField4_0 = $$createType86;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("collections" in $$parsedSource) {
             $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
@@ -4852,7 +5036,7 @@ export class ProjectVoiceResult {
      * @returns {ProjectVoiceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType82;
+        const $$createField1_0 = $$createType88;
         const $$createField2_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("points" in $$parsedSource) {
@@ -5239,7 +5423,7 @@ export class RecipeGovernanceDTO {
      * @returns {RecipeGovernanceDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType84;
+        const $$createField0_0 = $$createType90;
         const $$createField1_0 = $$createType2;
         const $$createField2_0 = $$createType2;
         const $$createField3_0 = $$createType2;
@@ -5326,7 +5510,7 @@ export class RelationDTO {
      * @returns {RelationDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType86;
+        const $$createField5_0 = $$createType92;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField5_0($$parsedSource["validity"]);
@@ -5583,7 +5767,7 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType88;
+        const $$createField10_0 = $$createType94;
         const $$createField12_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
@@ -5684,7 +5868,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType90;
+        const $$createField3_0 = $$createType96;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -5960,11 +6144,11 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType92;
-        const $$createField7_0 = $$createType93;
-        const $$createField8_0 = $$createType95;
-        const $$createField11_0 = $$createType97;
-        const $$createField12_0 = $$createType99;
+        const $$createField3_0 = $$createType98;
+        const $$createField7_0 = $$createType99;
+        const $$createField8_0 = $$createType101;
+        const $$createField11_0 = $$createType103;
+        const $$createField12_0 = $$createType105;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField3_0($$parsedSource["error"]);
@@ -6099,7 +6283,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType101;
+        const $$createField3_0 = $$createType107;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -6361,7 +6545,7 @@ export class TermDTO {
      * @returns {TermDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType86;
+        const $$createField7_0 = $$createType92;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField7_0($$parsedSource["validity"]);
@@ -6587,8 +6771,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType2;
         const $$createField7_0 = $$createType2;
-        const $$createField10_0 = $$createType103;
-        const $$createField11_0 = $$createType103;
+        const $$createField10_0 = $$createType109;
+        const $$createField11_0 = $$createType109;
         const $$createField12_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -6802,7 +6986,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType101;
+        const $$createField4_0 = $$createType107;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -6970,7 +7154,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType104;
+        const $$createField2_0 = $$createType110;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -7014,7 +7198,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType104;
+        const $$createField1_0 = $$createType110;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -7377,12 +7561,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType9;
         const $$createField3_0 = $$createType2;
         const $$createField4_0 = $$createType2;
-        const $$createField7_0 = $$createType106;
-        const $$createField9_0 = $$createType108;
-        const $$createField11_0 = $$createType110;
-        const $$createField12_0 = $$createType112;
+        const $$createField7_0 = $$createType112;
+        const $$createField9_0 = $$createType114;
+        const $$createField11_0 = $$createType80;
+        const $$createField12_0 = $$createType82;
         const $$createField13_0 = $$createType2;
-        const $$createField14_0 = $$createType113;
+        const $$createField14_0 = $$createType115;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -7477,7 +7661,7 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType115;
+        const $$createField3_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -7613,40 +7797,42 @@ const $$createType75 = $Create.Nullable($$createType74);
 const $$createType76 = $Create.Map($Create.Any, $$createType75);
 const $$createType77 = ProjectFilter.createFrom;
 const $$createType78 = $Create.Array($$createType77);
-const $$createType79 = CollectionStatus.createFrom;
-const $$createType80 = $Create.Array($$createType79);
-const $$createType81 = VoicePointDTO.createFrom;
-const $$createType82 = $Create.Array($$createType81);
-const $$createType83 = RecipeAxisDTO.createFrom;
+const $$createType79 = VoiceValidityDTO.createFrom;
+const $$createType80 = $Create.Nullable($$createType79);
+const $$createType81 = VoiceFallbackDTO.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = ProjectPointDTO.createFrom;
 const $$createType84 = $Create.Array($$createType83);
-const $$createType85 = ValidityDTO.createFrom;
-const $$createType86 = $Create.Nullable($$createType85);
-const $$createType87 = model$0.Origin.createFrom;
-const $$createType88 = $Create.Nullable($$createType87);
-const $$createType89 = RunErrorAction.createFrom;
+const $$createType85 = CollectionStatus.createFrom;
+const $$createType86 = $Create.Array($$createType85);
+const $$createType87 = VoicePointDTO.createFrom;
+const $$createType88 = $Create.Array($$createType87);
+const $$createType89 = RecipeAxisDTO.createFrom;
 const $$createType90 = $Create.Array($$createType89);
-const $$createType91 = RunError.createFrom;
+const $$createType91 = ValidityDTO.createFrom;
 const $$createType92 = $Create.Nullable($$createType91);
-const $$createType93 = $Create.Nullable($$createType72);
-const $$createType94 = flow$0.StepSnapshot.createFrom;
-const $$createType95 = $Create.Array($$createType94);
-const $$createType96 = convergence$0.Event.createFrom;
-const $$createType97 = $Create.Nullable($$createType96);
-const $$createType98 = host$0.ConvergeOutput.createFrom;
-const $$createType99 = $Create.Nullable($$createType98);
-const $$createType100 = flow$0.FlowStep.createFrom;
+const $$createType93 = model$0.Origin.createFrom;
+const $$createType94 = $Create.Nullable($$createType93);
+const $$createType95 = RunErrorAction.createFrom;
+const $$createType96 = $Create.Array($$createType95);
+const $$createType97 = RunError.createFrom;
+const $$createType98 = $Create.Nullable($$createType97);
+const $$createType99 = $Create.Nullable($$createType72);
+const $$createType100 = flow$0.StepSnapshot.createFrom;
 const $$createType101 = $Create.Array($$createType100);
-const $$createType102 = IOPort.createFrom;
-const $$createType103 = $Create.Array($$createType102);
-const $$createType104 = $Create.Array($Create.Any);
-const $$createType105 = VoiceBindingDTO.createFrom;
-const $$createType106 = $Create.Nullable($$createType105);
-const $$createType107 = profile$0.VoiceProfile.createFrom;
-const $$createType108 = $Create.Nullable($$createType107);
-const $$createType109 = VoiceValidityDTO.createFrom;
-const $$createType110 = $Create.Nullable($$createType109);
-const $$createType111 = VoiceFallbackDTO.createFrom;
+const $$createType102 = convergence$0.Event.createFrom;
+const $$createType103 = $Create.Nullable($$createType102);
+const $$createType104 = host$0.ConvergeOutput.createFrom;
+const $$createType105 = $Create.Nullable($$createType104);
+const $$createType106 = flow$0.FlowStep.createFrom;
+const $$createType107 = $Create.Array($$createType106);
+const $$createType108 = IOPort.createFrom;
+const $$createType109 = $Create.Array($$createType108);
+const $$createType110 = $Create.Array($Create.Any);
+const $$createType111 = VoiceBindingDTO.createFrom;
 const $$createType112 = $Create.Nullable($$createType111);
-const $$createType113 = VoiceEditTargetDTO.createFrom;
-const $$createType114 = profile$0.ProfileProblem.createFrom;
-const $$createType115 = $Create.Array($$createType114);
+const $$createType113 = profile$0.VoiceProfile.createFrom;
+const $$createType114 = $Create.Nullable($$createType113);
+const $$createType115 = VoiceEditTargetDTO.createFrom;
+const $$createType116 = profile$0.ProfileProblem.createFrom;
+const $$createType117 = $Create.Array($$createType116);

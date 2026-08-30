@@ -1,18 +1,25 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, one model: the explorer answers a question at a point, and Voice
-// reads the profile governing each point whole. Both resolve through the same
-// host layer a run and a `kapi check` go through.
+// One rail, one model: the explorer answers a question at a point, Voice reads
+// the profile governing each point whole, and the two stores hold what that
+// governance is made of. Filing the stores here says what they are — the terms
+// a project has agreed and the wording it has already approved are OF its
+// context, not separate cabinets beside it.
+//
+// Memory stays behind the gate the sidebar applies: a project with no target
+// languages is not shown a surface it has nothing to put in.
 
 import { useState } from "react";
-import { Compass, MessageSquareQuote } from "lucide-react";
+import { BookOpen, Compass, Database, MessageSquareQuote } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { VoicePage } from "./VoicePage";
+import { TermsPage } from "./TermsPage";
+import { MemoriesPage } from "./MemoriesPage";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "explorer" | "voice";
+export type ContextSection = "explorer" | "voice" | "terms" | "memory";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -31,15 +38,33 @@ export interface ContextHubProps {
   section?: ContextSection;
   /** Open the explorer pinned at a point, e.g. from a check finding. */
   pin?: ContextPin;
+  /** Whether the project declares targets. Memory appears when it does. */
+  hasTargetLanguages?: boolean;
 }
 
-const SECTIONS: Array<{ id: ContextSection; label: string; icon: React.ReactNode }> = [
+const SECTIONS: Array<{
+  id: ContextSection;
+  label: string;
+  icon: React.ReactNode;
+  localeGated?: boolean;
+}> = [
   { id: "explorer", label: "Explorer", icon: <Compass size={14} /> },
   { id: "voice", label: "Voice", icon: <MessageSquareQuote size={14} /> },
+  { id: "terms", label: "Terms", icon: <BookOpen size={14} /> },
+  { id: "memory", label: "Content Memory", icon: <Database size={14} />, localeGated: true },
 ];
 
-export function ContextHub({ tabID, projectName, section, pin }: ContextHubProps) {
+export function ContextHub({
+  tabID,
+  projectName,
+  section,
+  pin,
+  hasTargetLanguages,
+}: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? "explorer");
+  const sections = SECTIONS.filter((s) => !s.localeGated || hasTargetLanguages);
+  // A section the project's languages gated away must not stay selected.
+  const current = sections.some((s) => s.id === active) ? active : "explorer";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -47,15 +72,15 @@ export function ContextHub({ tabID, projectName, section, pin }: ContextHubProps
         aria-label={t("Context sections")}
         className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
       >
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => setActive(s.id)}
-            aria-current={active === s.id ? "page" : undefined}
+            aria-current={current === s.id ? "page" : undefined}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-              active === s.id
+              current === s.id
                 ? "bg-accent font-medium text-foreground"
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
             )}
@@ -66,11 +91,12 @@ export function ContextHub({ tabID, projectName, section, pin }: ContextHubProps
         ))}
       </nav>
       <div className="min-h-0 flex-1">
-        {active === "explorer" ? (
+        {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={pin} />
-        ) : (
-          <VoicePage tabID={tabID} />
         )}
+        {current === "voice" && <VoicePage tabID={tabID} />}
+        {current === "terms" && <TermsPage tabID={tabID} />}
+        {current === "memory" && <MemoriesPage tabID={tabID} />}
       </div>
     </div>
   );

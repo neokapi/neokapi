@@ -277,6 +277,7 @@ export function ViewSwitch({
             pluginsResolved={activeTab.pluginsResolved}
             pluginIssues={activeTab.pluginIssues}
             onResetSample={() => onResetSample(tabID)}
+            onOpenPoint={handleOpenContext}
           />
         );
 
@@ -337,12 +338,24 @@ export function ViewSwitch({
         return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
 
       case "context":
+      // The stores are sections of the hub. Their view ids stay routable, so a
+      // persisted view still lands where it used to.
+      case "termbases":
+      case "memories":
         return (
           <ContextHub
             key={contextEntry.current}
             tabID={tabID}
             projectName={history.project.name}
+            section={
+              effectiveView === "termbases"
+                ? "terms"
+                : effectiveView === "memories"
+                  ? "memory"
+                  : undefined
+            }
             pin={contextPin ?? undefined}
+            hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
           />
         );
 
@@ -353,12 +366,6 @@ export function ViewSwitch({
         return (
           <ReviewPage key={reviewEntry.current} tabID={tabID} scope={reviewScope ?? undefined} />
         );
-
-      case "termbases":
-        return <TermsPage tabID={tabID} />;
-
-      case "memories":
-        return <MemoriesPage tabID={tabID} />;
 
       case "project-settings":
         return (

@@ -82,6 +82,8 @@ export {
     ProjectFilter,
     ProjectFilters,
     ProjectHandles,
+    ProjectPointDTO,
+    ProjectPointsResult,
     ProjectServer,
     ProjectStatus,
     ProjectVoiceResult,
