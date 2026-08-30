@@ -36,6 +36,7 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
+import type { RunFlowHandler } from "./CollectionsPanel";
 import type { FlowSpec } from "../types/api";
 
 export interface FlowsPageProps {
@@ -47,6 +48,12 @@ export interface FlowsPageProps {
   onFlowChange?: (name: string, spec: FlowSpec) => void;
   /** Called when a flow is deleted from the project. */
   onFlowDelete?: (name: string) => void;
+  /**
+   * Runs a flow, taking the caller to the runner. Absent in ad-hoc mode, where
+   * there is no project for a run to act on; the editor's Run action appears
+   * only when this is wired.
+   */
+  onRunFlow?: RunFlowHandler;
   /** Pre-loaded flow list for Storybook — skips api.listUserFlows()/api.listFlows(). */
   flows?: FlowListItem[];
   /**
@@ -72,6 +79,7 @@ export function FlowsPage({
   projectFlows: _projectFlows,
   onFlowChange,
   onFlowDelete,
+  onRunFlow,
   flows: propFlows,
   adoptTabID,
   adoptProjectName,
@@ -437,7 +445,7 @@ export function FlowsPage({
             flowName={selectedId}
             flow={selectedSpec}
             onChange={isReadOnly ? () => {} : handleFlowChange}
-            onRun={undefined}
+            onRun={onRunFlow}
             readOnly={isReadOnly}
             tabID={tabID}
           />

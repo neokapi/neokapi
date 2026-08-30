@@ -58,7 +58,13 @@ describe("AppHome", () => {
     expect(screen.getByText("New Project")).toBeInTheDocument();
     expect(screen.getByText("Open a Project")).toBeInTheDocument();
     expect(screen.getByText("Design a Flow")).toBeInTheDocument();
-    expect(screen.getByText("Run a Tool")).toBeInTheDocument();
+  });
+
+  it("offers no quick-tool run door", () => {
+    render(<AppHome {...defaultProps} />);
+    // Tools are a reference, not a runner, so the home page does not send
+    // anyone to the toolbox expecting to execute something there.
+    expect(screen.queryByText("Run a Tool")).not.toBeInTheDocument();
   });
 
   it("leads with a project-first Projects section", () => {
@@ -88,13 +94,11 @@ describe("AppHome", () => {
     expect(onNewProject).toHaveBeenCalled();
   });
 
-  it("navigates to flows/tools from quick tools", async () => {
+  it("navigates to flows from quick tools", async () => {
     const onNavigate = vi.fn();
     render(<AppHome {...defaultProps} onNavigate={onNavigate} />);
     await userEvent.click(screen.getByText("Design a Flow"));
     expect(onNavigate).toHaveBeenCalledWith("flows");
-    await userEvent.click(screen.getByText("Run a Tool"));
-    expect(onNavigate).toHaveBeenCalledWith("tools");
   });
 
   it("renders recent projects when present", () => {

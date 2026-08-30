@@ -15,7 +15,9 @@ import {
   Settings2,
   Tag,
   Lock,
-  Clock,
+  Terminal,
+  Copy,
+  Check,
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
@@ -25,12 +27,9 @@ import {
   SchemaForm,
   Card,
   CardContent,
-  Label,
-  Input,
   Markdown,
   ScrollArea,
   LoadingSpinner,
-  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useQuery } from "@tanstack/react-query";
@@ -74,6 +73,24 @@ function categoryLabel(cat: string): string {
 function categoryMeta(cat: string) {
   const visual = categoryIcons[cat] ?? categoryIcons.utility;
   return { ...visual, label: categoryLabel(cat) };
+}
+
+// The order the category chips are offered in. Translation sits last: it is one
+// thing the tools do, and leading with it teaches the toolbox as a translation
+// kit. A category absent from this list sorts after the ones named here.
+const categoryOrder = [
+  "validate",
+  "transform",
+  "convert",
+  "enrich",
+  "pipeline",
+  "utility",
+  "translate",
+];
+
+function categoryRank(cat: string): number {
+  const i = categoryOrder.indexOf(cat);
+  return i === -1 ? categoryOrder.length : i;
 }
 
 export interface ToolRunnerPageProps {
@@ -131,7 +148,7 @@ export function ToolRunnerPage({
       if (!cats.has(cat)) cats.set(cat, []);
       cats.get(cat)!.push(tool);
     }
-    return cats;
+    return new Map([...cats].sort(([a], [b]) => categoryRank(a) - categoryRank(b)));
   }, [tools]);
 
   // Filter tools
@@ -307,7 +324,7 @@ export function ToolRunnerPage({
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <div className="text-center">
               <Wrench size={32} className="mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Select a tool to view details and run it</p>
+              <p className="text-sm">Select a tool to see what it does</p>
               <p className="text-xs mt-1 opacity-60">
                 {tools.length} tools available across {categories.size} categories
               </p>
@@ -323,9 +340,6 @@ export function ToolRunnerPage({
 
 function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null }) {
   const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [targetLang, setTargetLang] = useState("");
-
-  const { showError: _showError } = useError();
 
   // Schema (always attempted — may come from plugin schemas) and step doc
   // (pre-loaded via docs, else fetched) as react-query reads keyed by tool name.
@@ -356,12 +370,6 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
   // Native file/folder dialogs + credential vault for schema-form path /
   // credential widgets.
   const schemaHost = useSchemaFormHost();
-
-  // Ad-hoc tool execution from the desktop runner is not wired up yet: it
-  // needs a dedicated RunTool(toolName, inputPaths, targetLang, config)
-  // backend method (RunFlow requires a project tab and isn't a fit). Until
-  // that API exists the runner controls render in a clearly disabled
-  // "coming soon" state rather than as live controls that always error.
 
   return (
     <div className="p-6">
@@ -416,7 +424,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
         </div>
       </div>
 
-      {/* Configuration form + run controls */}
+      {/* What the tool takes, what it is configured with, how to run it */}
       <div className="space-y-4">
         {/* Step metadata (I/O types, pipeline params) */}
         {!loadingSchema && schema && <ToolMetadataPanel schema={schema} />}
@@ -440,77 +448,61 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           </Card>
         )}
 
-        {/* Runner controls — execution is not yet available from the desktop
-            app (see note above), so every control here is rendered disabled
-            with an explanatory banner instead of as a live-but-broken control. */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div
-              className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300"
-              role="status"
-            >
-              <Clock size={14} className="mt-0.5 shrink-0" />
-              <div className="text-xs">
-                <p className="font-medium">{t("Running tools here is coming soon")}</p>
-                <p className="mt-0.5 opacity-80">
-                  {t(
-                    "Run this tool from the kapi CLI for now. In-app execution is still being wired up.",
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <fieldset disabled className="space-y-3 opacity-60">
-              <div>
-                <Label htmlFor="tool-files" className="mb-1 block">
-                  Input Files
-                </Label>
-                <SimpleTooltip content={t("In-app execution is coming soon")}>
-                  <span className="flex w-full">
-                    <Button
-                      id="tool-files"
-                      type="button"
-                      variant="outline"
-                      disabled
-                      className="flex items-center gap-2 border-dashed text-muted-foreground w-full"
-                    >
-                      <FileInput size={14} />
-                      Select files...
-                    </Button>
-                  </span>
-                </SimpleTooltip>
-              </div>
-
-              {tool.requires?.includes("target-language") && (
-                <div>
-                  <Label htmlFor="tool-target-lang" className="mb-1 block">
-                    Target Language
-                  </Label>
-                  <Input
-                    id="tool-target-lang"
-                    type="text"
-                    value={targetLang}
-                    onChange={(e) => setTargetLang(e.target.value)}
-                    placeholder="e.g. fr"
-                    disabled
-                    className="w-48"
-                  />
-                </div>
-              )}
-
-              <SimpleTooltip content={t("In-app execution is coming soon")}>
-                <span className="inline-flex">
-                  <Button type="button" disabled>
-                    <Play size={14} />
-                    {t("Run {name}", { name: tool.display_name || tool.name })}
-                  </Button>
-                </span>
-              </SimpleTooltip>
-            </fieldset>
-          </CardContent>
-        </Card>
+        <ToolInvocation tool={tool} />
       </div>
     </div>
+  );
+}
+
+// --- CLI invocation ---
+
+/**
+ * The command line that runs this tool. Tools execute through the CLI and
+ * through flows; the toolbox describes what each one does and hands over the
+ * invocation rather than offering a third execution path of its own.
+ */
+function ToolInvocation({ tool }: { tool: ToolInfo }) {
+  const [copied, setCopied] = useState(false);
+  const command = `kapi exec ${tool.name} <files...>`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // A denied clipboard leaves the command on screen to copy by hand.
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-2 p-4">
+        <div className="flex items-center gap-1.5 text-xs font-medium">
+          <Terminal size={13} className="text-muted-foreground" />
+          Run this tool
+        </div>
+        <div className="flex items-center gap-2">
+          <code
+            className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 font-mono text-[11px]"
+            translate="no"
+          >
+            {command}
+          </code>
+          <Button variant="outline" size="xs" onClick={() => void copy()}>
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+            {copied ? t("Copied") : t("Copy")}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {t("List this tool's options with")}{" "}
+          <code className="rounded bg-muted px-1 py-px font-mono text-[10px]" translate="no">
+            kapi tools schema {tool.name}
+          </code>
+          . {t("To run it as one step among several, put it in a flow and run that.")}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

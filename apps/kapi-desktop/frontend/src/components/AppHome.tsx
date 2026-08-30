@@ -1,4 +1,4 @@
-import { FolderKanban, FolderOpen, Sparkles, Workflow, Wrench, X } from "lucide-react";
+import { FolderKanban, FolderOpen, Sparkles, Workflow, X } from "lucide-react";
 import { Button, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ConnectAICard } from "./ConnectAICard";
@@ -159,19 +159,6 @@ export function AppHome({
             <div>
               <div className="text-sm font-medium">Design a Flow</div>
               <div className="text-xs text-muted-foreground font-normal">Build tool pipelines</div>
-            </div>
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => onNavigate("tools")}
-            className="h-auto whitespace-normal rounded-lg border border-border/60 p-3 text-left flex-row items-center gap-3 hover:bg-accent/30"
-          >
-            <Wrench size={16} className="shrink-0 text-muted-foreground" />
-            <div>
-              <div className="text-sm font-medium">Run a Tool</div>
-              <div className="text-xs text-muted-foreground font-normal">
-                Execute a tool on files
-              </div>
             </div>
           </Button>
         </div>

@@ -5,9 +5,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the Wails-bridge API so adoption resolves deterministically without a
 // Wails runtime. Must be declared before importing the component under test.
 const adoptMock = vi.fn();
+const getFlowMock = vi.fn();
 vi.mock("../hooks/useApi", () => ({
   api: {
     adoptUserFlowIntoProject: (...args: unknown[]) => adoptMock(...args),
+    getFlow: (...args: unknown[]) => getFlowMock(...args),
+    listTools: () => Promise.resolve([]),
+    listProjectTools: () => Promise.resolve([]),
+    saveFlow: () => Promise.resolve(),
   },
 }));
 
@@ -57,5 +62,43 @@ describe("FlowsPage adopt-into-project", () => {
 
     await userEvent.click(screen.getByLabelText("Add to project"));
     await waitFor(() => expect(screen.getByText(/renamed to avoid a clash/)).toBeInTheDocument());
+  });
+});
+
+describe("FlowsPage running a flow", () => {
+  const projectFlows: FlowListItem[] = [
+    { id: "convert", name: "convert", description: "", source: "project", stepCount: 1 },
+  ];
+
+  beforeEach(() => {
+    getFlowMock.mockReset();
+    getFlowMock.mockResolvedValue({ steps: [{ tool: "word-count" }] });
+  });
+
+  function renderProject(onRunFlow?: React.ComponentProps<typeof FlowsPage>["onRunFlow"]) {
+    return render(
+      <ErrorProvider>
+        <FlowsPage tabID="tab-1" flows={projectFlows} onRunFlow={onRunFlow} />
+      </ErrorProvider>,
+    );
+  }
+
+  it("runs the open flow through the runner", async () => {
+    const onRunFlow = vi.fn();
+    renderProject(onRunFlow);
+
+    await userEvent.click(screen.getByText("convert"));
+    const run = await screen.findByLabelText("Run flow");
+    await userEvent.click(run);
+
+    expect(onRunFlow).toHaveBeenCalledWith("convert", { steps: [{ tool: "word-count" }] });
+  });
+
+  it("offers no run action where nothing can run the flow", async () => {
+    renderProject(undefined);
+
+    await userEvent.click(screen.getByText("convert"));
+    await waitFor(() => expect(screen.getByLabelText("Back to flow list")).toBeInTheDocument());
+    expect(screen.queryByLabelText("Run flow")).not.toBeInTheDocument();
   });
 });
