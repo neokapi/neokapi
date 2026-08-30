@@ -113,7 +113,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	// does in the verb: a term retired in the project's terms is a finding, and
 	// resolving the profile without it left an assistant reading a quieter
 	// report than the same file gets in CI.
-	if tb, terr := a.ProjectTermsForFile(NewEnvCommand(ctx, "check_file"), in.File); terr == nil {
+	if tb, terr := a.ProjectTermsForFile(ctx, NewEnvCommand(ctx, "check_file"), in.File); terr == nil {
 		opts.terms = tb
 	}
 	target := check.Target{Kind: "file", File: in.File}

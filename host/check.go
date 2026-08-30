@@ -831,12 +831,12 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 // passed no terminology reported only what a voice profile forbids and stayed
 // silent about every term the project itself retired, which is a different
 // answer about the same file.
-func (a *App) ProjectTermsForFile(cmd Command, file string) (terms.Terminology, error) {
+func (a *App) ProjectTermsForFile(ctx context.Context, cmd Command, file string) (terms.Terminology, error) {
 	resolver, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return resolver.forFile(cmd.Context(), file)
+	return resolver.forFile(ctx, file)
 }
 
 // forFile returns the vocabulary governing one file, or nil when nothing binds
