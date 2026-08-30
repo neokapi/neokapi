@@ -22,8 +22,6 @@ type SidebarItem =
       icon: React.ReactNode;
       label: string;
       alwaysEnabled?: boolean;
-      /** When true, this item is disabled when project plugins are unresolved. */
-      pluginGated?: boolean;
       /** When true, this item appears only once the project has target
        *  languages (e.g. Content Memory). Hidden, not disabled, when it
        *  doesn't — a project simply shows the surfaces its languages call for. */
@@ -39,8 +37,6 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
-  /** When true, any plugin-gated items are disabled until requirements resolve. */
-  pluginsUnresolved?: boolean;
   /** Whether the open project has target languages. Locale-gated items appear
    *  only when it does — the source-first, "languages stay quiet" model. */
   hasTargetLanguages?: boolean;
@@ -148,7 +144,6 @@ export function IconSidebar({
   active,
   onChange,
   projectDisabled,
-  pluginsUnresolved,
   hasTargetLanguages,
 }: IconSidebarProps) {
   const items = mode === "adhoc" ? adhocItems : projectItems;
@@ -165,15 +160,9 @@ export function IconSidebar({
           if (item.localeGated && !hasTargetLanguages) {
             return null;
           }
-          const noProject = mode === "projects" && projectDisabled && !item.alwaysEnabled;
-          const pluginBlocked = !!(pluginsUnresolved && item.pluginGated);
-          const disabled = noProject || pluginBlocked;
+          const disabled = mode === "projects" && projectDisabled && !item.alwaysEnabled;
           const isActive = active === item.view || (item.activeViews?.includes(active) ?? false);
-          const title = noProject
-            ? `${item.label} (open a project first)`
-            : pluginBlocked
-              ? `${item.label} (resolve plugin requirements in Settings)`
-              : item.label;
+          const title = disabled ? `${item.label} (open a project first)` : item.label;
           return (
             <SimpleTooltip key={item.view} content={title} side="right">
               <span className="inline-flex">

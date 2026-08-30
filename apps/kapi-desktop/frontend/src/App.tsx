@@ -218,7 +218,6 @@ function AppInner() {
                 active={tm.effectiveView}
                 onChange={tm.navigate}
                 projectDisabled={tm.mode === "projects" && !tm.activeTab}
-                pluginsUnresolved={tm.activeTab?.pluginsResolved === false}
                 hasTargetLanguages={
                   (tm.activeTab?.project.defaults?.target_languages?.length ?? 0) > 0
                 }

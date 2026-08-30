@@ -132,6 +132,11 @@ function rungFor(lc?: LocaleCoverage): Rung {
   return { key: "draft", label: "Draft", short: "Draft", color: "var(--primary)", pct: translated };
 }
 
+// Coverage standing is keyed by (collection, locale). The separator is a
+// printable sentinel no collection name or locale contains, so the composite
+// key stays unambiguous and the file stays text.
+const COV_KEY_SEP = "::";
+
 // Above this many target languages the per-language bar columns get cramped, so
 // the coverage layout switches to the compact heatmap (issue #1068 review).
 const HEATMAP_LANG_THRESHOLD = 5;
@@ -790,23 +795,40 @@ export function CollectionsPanel({
     if (added && added.length > 0) void rescanFiles();
   };
 
+  const copyDroppedPaths = useCallback(
+    async (paths: string[]) => {
+      if (!tabID || paths.length === 0) return;
+      for (const path of paths) {
+        await api.copyFileToProject(tabID, path, "");
+      }
+      void rescanFiles();
+    },
+    [tabID, rescanFiles],
+  );
+
   const handleDrop = useCallback(
     async (e: DragEvent) => {
       e.preventDefault();
       setDragging(false);
       const items = e.dataTransfer?.files;
       if (!items || items.length === 0) return;
+      const paths: string[] = [];
       for (let i = 0; i < items.length; i++) {
-        const file = items[i];
-        const path = (file as unknown as { path?: string }).path;
-        if (path) {
-          await api.copyFileToProject(tabID, path, "");
-        }
+        const path = (items[i] as unknown as { path?: string }).path;
+        if (path) paths.push(path);
       }
-      void rescanFiles();
+      await copyDroppedPaths(paths);
     },
-    [tabID, rescanFiles],
+    [copyDroppedPaths],
   );
+
+  // The webview's own drop event carries no filesystem path, so the window
+  // reports the drop natively and this is where the paths arrive.
+  useWailsEvent("files-dropped", (data) => {
+    const paths = Array.isArray(data) ? data.filter((p): p is string => typeof p === "string") : [];
+    setDragging(false);
+    void copyDroppedPaths(paths);
+  });
 
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -1520,14 +1542,14 @@ export function CollectionsPanel({
   const covScope = useMemo(() => {
     const m = new Map<string, LocaleCoverage>();
     for (const lc of convergence?.locales ?? []) {
-      m.set(`${lc.collection ?? ""} ${lc.locale}`, lc);
+      m.set(`${lc.collection ?? ""}${COV_KEY_SEP}${lc.locale}`, lc);
     }
     return m;
   }, [convergence]);
   const hasGates = covScope.size > 0;
   const scopeCov = (coll: Collection, lang: string): LocaleCoverage | undefined => {
     const name = isBareEntry(coll) ? "" : (coll.name ?? "");
-    return covScope.get(`${name} ${lang}`) ?? covScope.get(` ${lang}`);
+    return covScope.get(`${name}${COV_KEY_SEP}${lang}`) ?? covScope.get(`${COV_KEY_SEP}${lang}`);
   };
   // Coverage columns render once there's either extracted data or gate standing.
   const showCoverageCols = (hasData || hasGates) && columnLangs.length > 0;
