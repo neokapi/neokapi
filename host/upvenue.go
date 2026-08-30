@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/pluginhost"
 )
@@ -159,11 +161,15 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 		args = append(args, "--local=true")
 	}
 
-	raw, err := route.CaptureStdout(ctx, args...)
-	if err != nil {
+	// Streamed, not captured: the plumbing writes one event per line as the run
+	// makes progress, and a caller with an OnEvent renders those lines live. A
+	// buffered read would hand it the same events after the run finished, which
+	// is a transcript rather than progress.
+	fold := newUpResultFold(opts.OnEvent)
+	if err := route.StreamStdout(ctx, fold.line, args...); err != nil {
 		return nil, err
 	}
-	out, err := parseUpResultStream(raw)
+	out, err := fold.result()
 	if err != nil {
 		return nil, fmt.Errorf("server venue: %w", err)
 	}
@@ -184,43 +190,83 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 // built from either) reporting a converged run and never mentioning that a
 // governed edit is sitting on a reviewer.
 func parseUpResultStream(raw []byte) (*ConvergeOutput, error) {
-	var found *ConvergeOutput
-	var proposed struct {
+	fold := newUpResultFold(nil)
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		fold.line([]byte(line))
+	}
+	return fold.result()
+}
+
+// upResultFold reads an NDJSON `up` document one line at a time, forwarding the
+// run's progress events and keeping the records that make up its result. The
+// same fold serves a buffered document and a streamed one, so a venue run is
+// read identically whether or not the caller wanted live progress.
+type upResultFold struct {
+	onEvent   func(convergence.Event)
+	found     *ConvergeOutput
+	decodeErr error
+	proposed  struct {
 		ConceptsProposed int    `json:"concepts_proposed"`
 		ChangesetID      string `json:"changeset_id"`
 		ChangesetURL     string `json:"changeset_url"`
 	}
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var kind struct {
-			Type string `json:"type"`
-		}
-		if err := json.Unmarshal([]byte(line), &kind); err != nil {
-			continue // a plugin line that is not part of the document
-		}
-		switch kind.Type {
-		case "changeset":
-			// Best-effort: a malformed proposal record must not fail a run whose
-			// content half succeeded.
-			_ = json.Unmarshal([]byte(line), &proposed)
-		case "result":
-			var out ConvergeOutput
-			if err := json.Unmarshal([]byte(line), &out); err != nil {
-				return nil, fmt.Errorf("decode the run's result record: %w", err)
-			}
-			found = &out
-		}
+}
+
+func newUpResultFold(onEvent func(convergence.Event)) *upResultFold {
+	return &upResultFold{onEvent: onEvent}
+}
+
+// line folds one NDJSON line. Records are discriminated by their type, which
+// the run's progress events share with the framing records: an event's own
+// EventType occupies the same `type` key.
+func (f *upResultFold) line(raw []byte) {
+	line := bytes.TrimSpace(raw)
+	if len(line) == 0 {
+		return
 	}
-	if found == nil {
+	var kind struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(line, &kind); err != nil {
+		return // a plugin line that is not part of the document
+	}
+	switch kind.Type {
+	case "changeset":
+		// Best-effort: a malformed proposal record must not fail a run whose
+		// content half succeeded.
+		_ = json.Unmarshal(line, &f.proposed)
+	case "result":
+		var out ConvergeOutput
+		if err := json.Unmarshal(line, &out); err != nil {
+			f.decodeErr = fmt.Errorf("decode the run's result record: %w", err)
+			return
+		}
+		f.found = &out
+	default:
+		if f.onEvent == nil || !convergence.KnownEventType(convergence.EventType(kind.Type)) {
+			return
+		}
+		var ev convergence.Event
+		if err := json.Unmarshal(line, &ev); err != nil {
+			// A malformed event costs a progress line, never the run.
+			return
+		}
+		f.onEvent(ev)
+	}
+}
+
+// result reports what the document said the run produced.
+func (f *upResultFold) result() (*ConvergeOutput, error) {
+	if f.decodeErr != nil {
+		return nil, f.decodeErr
+	}
+	if f.found == nil {
 		return nil, errors.New("the run produced no result record")
 	}
-	if proposed.ConceptsProposed > 0 {
-		found.ConceptsProposed = proposed.ConceptsProposed
-		found.ChangesetID = proposed.ChangesetID
-		found.ChangesetURL = proposed.ChangesetURL
+	if f.proposed.ConceptsProposed > 0 {
+		f.found.ConceptsProposed = f.proposed.ConceptsProposed
+		f.found.ChangesetID = f.proposed.ChangesetID
+		f.found.ChangesetURL = f.proposed.ChangesetURL
 	}
-	return found, nil
+	return f.found, nil
 }

@@ -127,15 +127,20 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	return out, nil
 }
 
-// BringUpToDate reconciles the project toward its ship gates with the same
-// engine as the CLI's `kapi up` (host.App.RunUp → runDefaultFlowConverge):
-// loop-to-gate over the project's default flow, auto-extract on block-store
-// drift before each pass, bound checks in the loop, and the recipe's
-// materialize policy. It returns once the run is launched; per-pass progress
-// streams through the run-event channel as typed "converge_event" events and
-// the final structured result rides the "complete" event, so the runner renders
-// passes and locale rows rather than raw flow logs. Whatever the loop can't carry to the ship
-// gate parks for review (never an error).
+// BringUpToDate reconciles the project toward its ship gates through the same
+// dispatch as the CLI's `kapi up` and the MCP `up` tool (host.App.RunUpDispatch
+// → host.App.ResolveUpVenue): a project whose recipe binds a convergence venue
+// runs on the server — pushed, converged on the org's keys against the shared
+// content memory and terminology, streamed back, pulled — and every other
+// project runs the loop here, loop-to-gate over the project's default flow,
+// auto-extract on block-store drift before each pass, bound checks in the loop,
+// and the recipe's materialize policy.
+//
+// It returns once the run is launched; per-pass progress streams through the
+// run-event channel as typed "converge_event" events and the final structured
+// result rides the "complete" event, so the runner renders passes and locale
+// rows rather than raw flow logs, at either venue. Whatever the loop can't carry
+// to the ship gate parks for review (never an error).
 func (a *App) BringUpToDate(tabID string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -178,7 +183,7 @@ func (a *App) BringUpToDate(tabID string) error {
 	return nil
 }
 
-// executeConvergeRun drives the shared up engine on a run-scoped host.App and
+// executeConvergeRun drives the shared up dispatch on a run-scoped host.App and
 // translates its progress into run events.
 //
 // The App is its own so the per-run state is: TargetLang, the tool slots each
@@ -188,9 +193,15 @@ func (a *App) BringUpToDate(tabID string) error {
 // loop all write through one pool and the in-process write gate can order them.
 // Two pools on `.kapi/work/store.db` would leave the gate with nothing to gate, and a
 // review decision recorded while a pass was learning wording would go back to
-// losing on SQLite's busy backoff.
+// losing on SQLite's busy backoff. It borrows the engine's plugin host too, so
+// the venue route it resolves is the one the tab surfaces see.
 //
 // Borrowed, therefore never Shut down: the stores belong to the engine.
+//
+// OnEvent carries a server run's events as well as a local one's: the venue
+// plumbing writes the same typed events to its stdout as NDJSON, and the
+// dispatch decodes them line by line into this callback. The run view renders
+// one stream and never asks which venue produced it.
 func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowName, sourceLang string) {
 	defer func() {
 		a.runState.mu.Lock()
@@ -211,7 +222,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	// so a converge run resolves provider/model/credentials identically to a
 	// plain flow run and to the CLI.
 	capp.ToolReg.SetConfigPreprocessor(a.aiConfigPreprocessor())
-	out, err := capp.RunUp(ctx, projectPath, sourceLang, host.UpOptions{
+	out, err := capp.RunUpDispatch(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
 		// OnEvent is the stream the live run view renders from: one typed event
 		// per pass/locale transition. Log events degrade to the existing

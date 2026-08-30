@@ -222,15 +222,20 @@ export function ApproveReviewItem(tabID, locale, file, key) {
 }
 
 /**
- * BringUpToDate reconciles the project toward its ship gates with the same
- * engine as the CLI's `kapi up` (host.App.RunUp → runDefaultFlowConverge):
- * loop-to-gate over the project's default flow, auto-extract on block-store
- * drift before each pass, bound checks in the loop, and the recipe's
- * materialize policy. It returns once the run is launched; per-pass progress
- * streams through the run-event channel as typed "converge_event" events and
- * the final structured result rides the "complete" event, so the runner renders
- * passes and locale rows rather than raw flow logs. Whatever the loop can't carry to the ship
- * gate parks for review (never an error).
+ * BringUpToDate reconciles the project toward its ship gates through the same
+ * dispatch as the CLI's `kapi up` and the MCP `up` tool (host.App.RunUpDispatch
+ * → host.App.ResolveUpVenue): a project whose recipe binds a convergence venue
+ * runs on the server — pushed, converged on the org's keys against the shared
+ * content memory and terminology, streamed back, pulled — and every other
+ * project runs the loop here, loop-to-gate over the project's default flow,
+ * auto-extract on block-store drift before each pass, bound checks in the loop,
+ * and the recipe's materialize policy.
+ * 
+ * It returns once the run is launched; per-pass progress streams through the
+ * run-event channel as typed "converge_event" events and the final structured
+ * result rides the "complete" event, so the runner renders passes and locale
+ * rows rather than raw flow logs, at either venue. Whatever the loop can't carry
+ * to the ship gate parks for review (never an error).
  * @param {string} tabID
  * @returns {$CancellablePromise<void>}
  */

@@ -34,26 +34,36 @@ import (
 
 // hostEngine returns the desktop's shared host.App, building it on first use so
 // its format and tool registries register once rather than per request. It is
-// the owner of every project store this process holds.
+// the owner of every project store this process holds, and of the discovered
+// plugins.
 func (a *App) hostEngine() *host.App {
 	a.engineMu.Lock()
 	defer a.engineMu.Unlock()
 	if a.engine == nil {
 		e := &host.App{}
 		e.InitRegistries()
+		// Discovery is what lets a plugin contribute a command the desktop
+		// dispatches — the venue plumbing behind "Bring up to date" in a
+		// connected project, the same route `kapi up` takes. Once, on the
+		// owner: a rescan per run would pay the discovery cost every time and
+		// could hand two runs different plugin sets.
+		e.InitPluginHost()
 		a.engine = e
 	}
 	return a.engine
 }
 
 // borrowEngine binds a run-scoped host.App to the engine's project stores and
-// returns it, so a run reads and writes the same handles the tab surfaces do
-// rather than opening a second pool on the project's store file.
+// discovered plugins, and returns it, so a run reads and writes the same
+// handles the tab surfaces do rather than opening a second pool on the
+// project's store file, and resolves a command route from the same plugins.
 //
 // The caller keeps ownership of everything else on the App it passed —
 // registries, credentials, the config preprocessor — and must not Shut it down.
 func (a *App) borrowEngine(run *host.App) *host.App {
-	a.hostEngine().ShareProjectStores(run)
+	owner := a.hostEngine()
+	owner.ShareProjectStores(run)
+	run.PluginHost = owner.PluginHost
 	return run
 }
 
