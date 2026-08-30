@@ -20,6 +20,9 @@ import * as model$0 from "../../core/model/models.js";
 import * as occurrence$0 from "../../core/occurrence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as profile$0 from "../../core/profile/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as host$0 from "../../host/models.js";
 
 /**
@@ -4774,6 +4777,60 @@ export class ProjectStatus {
 }
 
 /**
+ * ProjectVoiceResult is every point the recipe declares, with its voice.
+ */
+export class ProjectVoiceResult {
+    /**
+     * Creates a new ProjectVoiceResult instance.
+     * @param {Partial<ProjectVoiceResult>} [$$source = {}] - The source object to create the ProjectVoiceResult.
+     */
+    constructor($$source = {}) {
+        if (!("at" in $$source)) {
+            /**
+             * At is the instant governance was resolved at, RFC3339.
+             * @member
+             * @type {string}
+             */
+            this["at"] = "";
+        }
+        if (!("points" in $$source)) {
+            /**
+             * @member
+             * @type {VoicePointDTO[]}
+             */
+            this["points"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectVoiceResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectVoiceResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType82;
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("points" in $$parsedSource) {
+            $$parsedSource["points"] = $$createField1_0($$parsedSource["points"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField2_0($$parsedSource["notes"]);
+        }
+        return new ProjectVoiceResult(/** @type {Partial<ProjectVoiceResult>} */($$parsedSource));
+    }
+}
+
+/**
  * ProviderInfo is the frontend-facing provider summary (no API key).
  */
 export class ProviderInfo {
@@ -5079,7 +5136,7 @@ export class RelationDTO {
      * @returns {RelationDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType82;
+        const $$createField5_0 = $$createType84;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField5_0($$parsedSource["validity"]);
@@ -5336,7 +5393,7 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType84;
+        const $$createField10_0 = $$createType86;
         const $$createField12_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
@@ -5437,7 +5494,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType86;
+        const $$createField3_0 = $$createType88;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -5713,11 +5770,11 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType88;
-        const $$createField7_0 = $$createType89;
-        const $$createField8_0 = $$createType91;
-        const $$createField11_0 = $$createType93;
-        const $$createField12_0 = $$createType95;
+        const $$createField3_0 = $$createType90;
+        const $$createField7_0 = $$createType91;
+        const $$createField8_0 = $$createType93;
+        const $$createField11_0 = $$createType95;
+        const $$createField12_0 = $$createType97;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField3_0($$parsedSource["error"]);
@@ -5852,7 +5909,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType97;
+        const $$createField3_0 = $$createType99;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -6114,7 +6171,7 @@ export class TermDTO {
      * @returns {TermDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField7_0 = $$createType82;
+        const $$createField7_0 = $$createType84;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField7_0($$parsedSource["validity"]);
@@ -6340,8 +6397,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType2;
         const $$createField7_0 = $$createType2;
-        const $$createField10_0 = $$createType99;
-        const $$createField11_0 = $$createType99;
+        const $$createField10_0 = $$createType101;
+        const $$createField11_0 = $$createType101;
         const $$createField12_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -6555,7 +6612,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType97;
+        const $$createField4_0 = $$createType99;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -6723,7 +6780,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType100;
+        const $$createField2_0 = $$createType102;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -6767,7 +6824,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType100;
+        const $$createField1_0 = $$createType102;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -6819,6 +6876,323 @@ export class VersionInfo {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new VersionInfo(/** @type {Partial<VersionInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceBindingDTO is the recipe binding that selected a profile.
+ */
+export class VoiceBindingDTO {
+    /**
+     * Creates a new VoiceBindingDTO instance.
+     * @param {Partial<VoiceBindingDTO>} [$$source = {}] - The source object to create the VoiceBindingDTO.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is "profile_file", "pack" or "profile" — the three forms a
+             * `voice:` binding takes.
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("value" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceBindingDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceBindingDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceBindingDTO(/** @type {Partial<VoiceBindingDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceFallbackDTO records a binding the instant excluded, and what governs in
+ * its place.
+ */
+export class VoiceFallbackDTO {
+    /**
+     * Creates a new VoiceFallbackDTO instance.
+     * @param {Partial<VoiceFallbackDTO>} [$$source = {}] - The source object to create the VoiceFallbackDTO.
+     */
+    constructor($$source = {}) {
+        if (!("profile" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["profile"] = "";
+        }
+        if (!("expired" in $$source)) {
+            /**
+             * Expired is true when the window closed; false when it has not opened.
+             * @member
+             * @type {boolean}
+             */
+            this["expired"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["boundary"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Governing is the profile that governs instead, empty for the project's
+             * default point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["governing"] = undefined;
+        }
+        if (!("message" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceFallbackDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceFallbackDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceFallbackDTO(/** @type {Partial<VoiceFallbackDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoicePointDTO is one point and the voice in force there.
+ */
+export class VoicePointDTO {
+    /**
+     * Creates a new VoicePointDTO instance.
+     * @param {Partial<VoicePointDTO>} [$$source = {}] - The source object to create the VoicePointDTO.
+     */
+    constructor($$source = {}) {
+        if (!("point" in $$source)) {
+            /**
+             * @member
+             * @type {ContextPointDTO}
+             */
+            this["point"] = (new ContextPointDTO());
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label names the point for a reader: a profile name, or the project's
+             * default point.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Channels the profile declares. The default point declares none.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["channels"] = undefined;
+        }
+        if (!("collections" in $$source)) {
+            /**
+             * Collections resolving to this point at the governance instant.
+             * @member
+             * @type {string[]}
+             */
+            this["collections"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Field is the recipe key the governing binding was declared on.
+             * @member
+             * @type {string | undefined}
+             */
+            this["field"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Source is where the profile was loaded from: a path, `pack:<name>` or
+             * `store:<name>`.
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {VoiceBindingDTO | null | undefined}
+             */
+            this["binding"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["termstore"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile is the voice as authored, with the overrides unapplied so each
+             * locale, channel and persona can be read as itself.
+             * @member
+             * @type {profile$0.VoiceProfile | null | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["guide"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {VoiceValidityDTO | null | undefined}
+             */
+            this["validity"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {VoiceFallbackDTO | null | undefined}
+             */
+            this["fallback"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoicePointDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoicePointDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType21;
+        const $$createField2_0 = $$createType9;
+        const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
+        const $$createField7_0 = $$createType104;
+        const $$createField9_0 = $$createType106;
+        const $$createField11_0 = $$createType108;
+        const $$createField12_0 = $$createType110;
+        const $$createField13_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("point" in $$parsedSource) {
+            $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
+        }
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField2_0($$parsedSource["coordinates"]);
+        }
+        if ("channels" in $$parsedSource) {
+            $$parsedSource["channels"] = $$createField3_0($$parsedSource["channels"]);
+        }
+        if ("collections" in $$parsedSource) {
+            $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
+        }
+        if ("binding" in $$parsedSource) {
+            $$parsedSource["binding"] = $$createField7_0($$parsedSource["binding"]);
+        }
+        if ("profile" in $$parsedSource) {
+            $$parsedSource["profile"] = $$createField9_0($$parsedSource["profile"]);
+        }
+        if ("validity" in $$parsedSource) {
+            $$parsedSource["validity"] = $$createField11_0($$parsedSource["validity"]);
+        }
+        if ("fallback" in $$parsedSource) {
+            $$parsedSource["fallback"] = $$createField12_0($$parsedSource["fallback"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField13_0($$parsedSource["notes"]);
+        }
+        return new VoicePointDTO(/** @type {Partial<VoicePointDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceValidityDTO is a declared validity window and where it stands at the
+ * resolution instant.
+ */
+export class VoiceValidityDTO {
+    /**
+     * Creates a new VoiceValidityDTO instance.
+     * @param {Partial<VoiceValidityDTO>} [$$source = {}] - The source object to create the VoiceValidityDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["to"] = undefined;
+        }
+        if (!("state" in $$source)) {
+            /**
+             * State is "active", "upcoming" or "expired" at the resolution instant.
+             * @member
+             * @type {string}
+             */
+            this["state"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceValidityDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceValidityDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceValidityDTO(/** @type {Partial<VoiceValidityDTO>} */($$parsedSource));
     }
 }
 
@@ -6904,23 +7278,33 @@ const $$createType77 = ProjectFilter.createFrom;
 const $$createType78 = $Create.Array($$createType77);
 const $$createType79 = CollectionStatus.createFrom;
 const $$createType80 = $Create.Array($$createType79);
-const $$createType81 = ValidityDTO.createFrom;
-const $$createType82 = $Create.Nullable($$createType81);
-const $$createType83 = model$0.Origin.createFrom;
+const $$createType81 = VoicePointDTO.createFrom;
+const $$createType82 = $Create.Array($$createType81);
+const $$createType83 = ValidityDTO.createFrom;
 const $$createType84 = $Create.Nullable($$createType83);
-const $$createType85 = RunErrorAction.createFrom;
-const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = RunError.createFrom;
-const $$createType88 = $Create.Nullable($$createType87);
-const $$createType89 = $Create.Nullable($$createType72);
-const $$createType90 = flow$0.StepSnapshot.createFrom;
-const $$createType91 = $Create.Array($$createType90);
-const $$createType92 = convergence$0.Event.createFrom;
-const $$createType93 = $Create.Nullable($$createType92);
-const $$createType94 = host$0.ConvergeOutput.createFrom;
+const $$createType85 = model$0.Origin.createFrom;
+const $$createType86 = $Create.Nullable($$createType85);
+const $$createType87 = RunErrorAction.createFrom;
+const $$createType88 = $Create.Array($$createType87);
+const $$createType89 = RunError.createFrom;
+const $$createType90 = $Create.Nullable($$createType89);
+const $$createType91 = $Create.Nullable($$createType72);
+const $$createType92 = flow$0.StepSnapshot.createFrom;
+const $$createType93 = $Create.Array($$createType92);
+const $$createType94 = convergence$0.Event.createFrom;
 const $$createType95 = $Create.Nullable($$createType94);
-const $$createType96 = flow$0.FlowStep.createFrom;
-const $$createType97 = $Create.Array($$createType96);
-const $$createType98 = IOPort.createFrom;
+const $$createType96 = host$0.ConvergeOutput.createFrom;
+const $$createType97 = $Create.Nullable($$createType96);
+const $$createType98 = flow$0.FlowStep.createFrom;
 const $$createType99 = $Create.Array($$createType98);
-const $$createType100 = $Create.Array($Create.Any);
+const $$createType100 = IOPort.createFrom;
+const $$createType101 = $Create.Array($$createType100);
+const $$createType102 = $Create.Array($Create.Any);
+const $$createType103 = VoiceBindingDTO.createFrom;
+const $$createType104 = $Create.Nullable($$createType103);
+const $$createType105 = profile$0.VoiceProfile.createFrom;
+const $$createType106 = $Create.Nullable($$createType105);
+const $$createType107 = VoiceValidityDTO.createFrom;
+const $$createType108 = $Create.Nullable($$createType107);
+const $$createType109 = VoiceFallbackDTO.createFrom;
+const $$createType110 = $Create.Nullable($$createType109);

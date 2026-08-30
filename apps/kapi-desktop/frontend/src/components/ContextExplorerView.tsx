@@ -33,7 +33,7 @@ export function ContextExplorerView({ tabID, projectName, source }: ContextExplo
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
       <PageHeader
-        title="Context"
+        title="Explorer"
         subtitle="What governs a point in this project, what lives there, and how it relates."
       />
       <ScopeProvider source={client} pinned={PINNED} scope={scope}>

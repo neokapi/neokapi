@@ -14,10 +14,82 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newContextProject scaffolds a project with a real context space on disk: two
-// collections at two points, one profile whose window has closed, and a source
-// file per collection. Everything the explorer answers comes from this recipe
-// and the project's own store — no fake sources anywhere.
+// projectVoiceYAML is the voice at the project's own default point.
+const projectVoiceYAML = `name: Northsea
+description: How Northsea writes to everyone.
+tone:
+  personality: [clear, calm]
+  formality: neutral
+  emotion: measured
+  humor: none
+  guidelines: Say the useful thing first.
+style:
+  active_voice: true
+  sentence_length: medium
+  person_pov: second
+  contractions: allowed
+  prohibited_patterns:
+    - regex: '\bsynergy\b'
+      description: Corporate filler.
+      severity: minor
+vocabulary:
+  preferred_terms:
+    - term: log in
+      replacement: sign in
+      severity: major
+      note: One spelling across the product.
+  forbidden_terms:
+    - term: bulletproof
+      replacement: reliable
+      severity: critical
+examples:
+  - before: Utilize the portal.
+    after: Use the portal.
+    explanation: Plain words carry further.
+    category: word choice
+locales:
+  nb-NO:
+    formality: informal
+    cultural_notes: Norwegian readers expect direct address.
+channels:
+  docs:
+    tone:
+      formality: formal
+personas:
+  support-agent:
+    tone:
+      emotion: warm
+`
+
+// supportVoiceYAML sits at the support profile's conventional location, which
+// is how a profile that binds no voice of its own still has one.
+const supportVoiceYAML = `name: Northsea Support
+description: How the support surfaces sound.
+tone:
+  personality: [patient]
+  formality: informal
+vocabulary:
+  preferred_terms:
+    - term: ticket
+      replacement: request
+      severity: minor
+`
+
+// campaignVoiceYAML belongs to a profile whose window has closed, so nothing
+// resolves to it at the governance instant.
+const campaignVoiceYAML = `name: Northsea Campaign
+description: The seasonal campaign voice.
+tone:
+  personality: [energetic]
+  formality: informal
+`
+
+// newContextProject scaffolds a project with a real context space on disk:
+// three collections across three points, a declared brand axis, a profile whose
+// window has closed, a voice profile at the project default and at a profile's
+// conventional location, and a source file per collection. Everything the
+// explorer answers comes from this recipe and the project's own store — no fake
+// sources anywhere.
 func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 	t.Helper()
 	root := t.TempDir()
@@ -34,6 +106,18 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 		[]byte(`{"login":"Sign in"}`),
 		0o644,
 	))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "promo"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "promo", "spring.json"),
+		[]byte(`{"headline":"Spring offer"}`),
+		0o644,
+	))
+
+	writeVoice(t, filepath.Join(root, project.RelStatePath("voice.yaml")), projectVoiceYAML)
+	writeVoice(t, filepath.Join(root,
+		project.RelStatePath(project.ProfilesDirName, "support", "voice.yaml")), supportVoiceYAML)
+	writeVoice(t, filepath.Join(root,
+		project.RelStatePath(project.ProfilesDirName, "campaign", "voice.yaml")), campaignVoiceYAML)
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
@@ -41,6 +125,10 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"nb-NO"},
+			// A declared axis every collection inherits, beside the structural
+			// axes a collection's channel derives.
+			Coordinates: map[string]string{project.BrandAxis: "northsea"},
+			Voice:       &project.VoiceBinding{ProfileFile: project.RelStatePath("voice.yaml")},
 		},
 		Profiles: map[string]project.Profile{
 			"support": {Channels: []project.Channel{{ID: "docs"}}},
@@ -65,6 +153,13 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 					{Path: "app/en.json", Target: "app/{lang}.json"},
 				},
 			},
+			{
+				Name:    "Promo",
+				Channel: "campaign/promo",
+				Content: []project.ContentItem{
+					{Path: "promo/spring.json", Target: "promo/spring.{lang}.json"},
+				},
+			},
 		},
 	}
 	path := filepath.Join(root, "kapi.yaml")
@@ -74,6 +169,14 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	return tab, root
+}
+
+// writeVoice puts a voice profile on disk at a location the resolution ladder
+// consults, creating its directory.
+func writeVoice(t *testing.T, path, body string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 }
 
 // seedConcept writes one concept into the project's own terms store — the same
@@ -273,7 +376,7 @@ func TestContextOptionsOffersOnlyTheFreeDimensions(t *testing.T) {
 	for _, o := range collections {
 		values = append(values, o.Value)
 	}
-	assert.ElementsMatch(t, []string{"Docs", "App"}, values)
+	assert.ElementsMatch(t, []string{"Docs", "App", "Promo"}, values)
 
 	locales, err := app.ContextOptions(tab.ID, "locale")
 	require.NoError(t, err)

@@ -84,6 +84,7 @@ export {
     ProjectHandles,
     ProjectServer,
     ProjectStatus,
+    ProjectVoiceResult,
     ProviderInfo,
     ProviderSaveRequest,
     ProviderTypeInfo,
@@ -113,5 +114,9 @@ export {
     ValidityDTO,
     VariantDTO,
     VariantInputDTO,
-    VersionInfo
+    VersionInfo,
+    VoiceBindingDTO,
+    VoiceFallbackDTO,
+    VoicePointDTO,
+    VoiceValidityDTO
 } from "./models.js";

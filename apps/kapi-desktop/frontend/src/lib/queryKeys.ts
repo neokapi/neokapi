@@ -76,6 +76,9 @@ export const qk = {
   version: () => ["version"] as const,
   homeDir: () => ["home-dir"] as const,
 
+  // Voice — the profile resolved at every point the recipe declares
+  projectVoice: (tabID: string) => ["project-voice", tabID] as const,
+
   // Project model / handles
   project: (tabID: string) => ["project", tabID] as const,
   projectHandles: (tabID: string) => ["project-handles", tabID] as const,
