@@ -284,7 +284,11 @@ func discoverLocales(root, prefix, suffix string) ([]model.LocaleID, error) {
 		if tag == "" || strings.ContainsAny(tag, `/\`) {
 			continue
 		}
-		locales = append(locales, model.LocaleID(tag))
+		// The filename was written in the project's declared style, so the tag
+		// read back out of it arrives in that style. Canonicalizing here is what
+		// lets a posix project's nb_NO catalog answer to the nb-NO its recipe
+		// declares; the caller compares these against the declared list.
+		locales = append(locales, project.LocaleFromPath(tag))
 	}
 	slices.Sort(locales)
 	return locales, nil

@@ -1003,7 +1003,7 @@ func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *p
 			return nil, perr
 		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
-			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
+			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
 			if blockedTargetPath(targetPath) != nil {
 				continue // an obstructed destination holds no translation
 			}
