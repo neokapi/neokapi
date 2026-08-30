@@ -66,6 +66,8 @@ describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
         format: "markdown",
         pattern: "docs/**/*.md",
         collection: "Website",
+        collection_index: 0,
+        item_index: 0,
       },
     ]);
   });

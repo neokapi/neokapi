@@ -181,7 +181,9 @@ export function ProjectSettingsPage({
                 </div>
               </div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Locale Format</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">
+                  Locale codes on disk
+                </Label>
                 <Select
                   value={defaults.locale_format || "__bcp47__"}
                   onValueChange={(v) =>
@@ -201,7 +203,8 @@ export function ProjectSettingsPage({
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Determines locale code style in file paths and tool output.
+                  How locale codes are spelled in file and directory names. The project reads and
+                  stores them as BCP-47 either way.
                 </p>
               </div>
             </CardContent>

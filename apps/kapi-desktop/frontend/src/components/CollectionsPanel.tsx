@@ -159,8 +159,14 @@ interface FileMatch {
   path: string;
   format: string;
   relative: string;
+  /** The EFFECTIVE glob, with any collection `base:` already folded in. */
   pattern: string;
   collection: string;
+  /** The recipe entry this file came from: the collection's index, and the
+   *  item's index within its content. The join to a collection row uses these,
+   *  because `pattern` is not the path the recipe declares. */
+  collection_index: number;
+  item_index: number;
 }
 
 interface ProjectFile {
@@ -1089,12 +1095,16 @@ export function CollectionsPanel({
   const openCard = (ci: number) => setExpanded((prev) => new Set(prev).add(ci));
 
   // The glob patterns a content entry declares, and the matched files for them.
-  const patternsOf = (coll: Collection) =>
-    isBareEntry(coll) ? [coll.path ?? ""] : (coll.content ?? []).map((i) => i.path);
-  const filesForEntry = (coll: Collection) => {
-    const pats = new Set(patternsOf(coll).filter(Boolean));
-    return matches.filter((m) => pats.has(m.pattern));
-  };
+  //
+  // Files join to a collection by the recipe index the resolver carries, never
+  // by comparing a declared path against a match's pattern: a collection with
+  // `base:` has its base folded into the effective pattern, so the two
+  // spellings differ and a string join finds nothing. That is what showed 699
+  // extracted blocks beside "No files matched this collection's patterns".
+  const filesForEntry = (ci: number) => matches.filter((m) => m.collection_index === ci);
+  /** How many files one pattern row of a collection matched. */
+  const matchCountForItem = (ci: number, ii: number) =>
+    matches.reduce((n, m) => (m.collection_index === ci && m.item_index === ii ? n + 1 : n), 0);
 
   // The editor body for a collection card (name, language overrides, patterns).
   const collectionEditor = (coll: Collection, ci: number) => {
@@ -1173,6 +1183,12 @@ export function CollectionsPanel({
           <div className="space-y-2">
             {(coll.content ?? []).map((item, ii) => (
               <div key={ii} className="group/item relative rounded-md border border-border p-3">
+                <span
+                  className="absolute right-10 top-3 text-[10px] text-muted-foreground"
+                  data-testid="pattern-match-count"
+                >
+                  {t("{count} file(s)", { count: matchCountForItem(ci, ii) })}
+                </span>
                 <div className="absolute right-2 top-2 opacity-0 group-hover/item:opacity-100">
                   <ConfirmDeleteButton
                     onDelete={() => {
@@ -1506,7 +1522,7 @@ export function CollectionsPanel({
     new Set(
       visibleCollections
         .filter((v) => selected.has(v.ci))
-        .flatMap(({ coll }) => filesForEntry(coll).map((m) => m.path)),
+        .flatMap(({ ci }) => filesForEntry(ci).map((m) => m.path)),
     ),
   );
   const toggleSelect = (ci: number) => toggle(setSelected, ci);
@@ -2058,7 +2074,7 @@ export function CollectionsPanel({
             {visibleCollections.map(({ coll, ci }, idx) => {
               const isEditing = editing.has(ci);
               const isOpen = expanded.has(ci);
-              const files = filesForEntry(coll);
+              const files = filesForEntry(ci);
               const bare = isBareEntry(coll);
               const title = bare ? coll.path || t("Files") : coll.name || t("Untitled collection");
               const cs = statusByLabel.get(statusLabelOf(coll));
@@ -2100,7 +2116,10 @@ export function CollectionsPanel({
                       </SimpleTooltip>
                       <CollectionPointBadge coll={coll} defaults={project.defaults?.coordinates} />
                     </button>
-                    <span className="text-right text-xs tabular-nums text-muted-foreground">
+                    <span
+                      className="text-right text-xs tabular-nums text-muted-foreground"
+                      data-testid="collection-file-count"
+                    >
                       {files.length}
                     </span>
                     <span className="text-right text-xs tabular-nums">
