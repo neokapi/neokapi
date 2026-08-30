@@ -6920,6 +6920,73 @@ export class VoiceBindingDTO {
 }
 
 /**
+ * VoiceEditTargetDTO is where a save at a point writes, and whether it may.
+ */
+export class VoiceEditTargetDTO {
+    /**
+     * Creates a new VoiceEditTargetDTO instance.
+     * @param {Partial<VoiceEditTargetDTO>} [$$source = {}] - The source object to create the VoiceEditTargetDTO.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Target is the project-relative file a save writes to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["target"] = undefined;
+        }
+        if (!("writable" in $$source)) {
+            /**
+             * Writable is false when the binding names something no file edit can
+             * reach: a starter pack, or a profile held in the voice store.
+             * @member
+             * @type {boolean}
+             */
+            this["writable"] = false;
+        }
+        if (!("exists" in $$source)) {
+            /**
+             * Exists is false when a save would create the file.
+             * @member
+             * @type {boolean}
+             */
+            this["exists"] = false;
+        }
+        if (!("inherited" in $$source)) {
+            /**
+             * Inherited is true when the point has no voice of its own and reads the
+             * one bound coarser. Saving here gives the point its own profile rather
+             * than editing what it inherits.
+             * @member
+             * @type {boolean}
+             */
+            this["inherited"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reason states why a save cannot land, when Writable is false.
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceEditTargetDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceEditTargetDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceEditTargetDTO(/** @type {Partial<VoiceEditTargetDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * VoiceFallbackDTO records a binding the instant excluded, and what governs in
  * its place.
  */
@@ -7098,6 +7165,14 @@ export class VoicePointDTO {
              */
             this["notes"] = undefined;
         }
+        if (!("edit" in $$source)) {
+            /**
+             * Edit says where a save at this point lands, and whether one can.
+             * @member
+             * @type {VoiceEditTargetDTO}
+             */
+            this["edit"] = (new VoiceEditTargetDTO());
+        }
 
         Object.assign(this, $$source);
     }
@@ -7117,6 +7192,7 @@ export class VoicePointDTO {
         const $$createField11_0 = $$createType108;
         const $$createField12_0 = $$createType110;
         const $$createField13_0 = $$createType2;
+        const $$createField14_0 = $$createType111;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -7145,7 +7221,78 @@ export class VoicePointDTO {
         if ("notes" in $$parsedSource) {
             $$parsedSource["notes"] = $$createField13_0($$parsedSource["notes"]);
         }
+        if ("edit" in $$parsedSource) {
+            $$parsedSource["edit"] = $$createField14_0($$parsedSource["edit"]);
+        }
         return new VoicePointDTO(/** @type {Partial<VoicePointDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VoiceSaveResult reports a save, or why it did not happen.
+ */
+export class VoiceSaveResult {
+    /**
+     * Creates a new VoiceSaveResult instance.
+     * @param {Partial<VoiceSaveResult>} [$$source = {}] - The source object to create the VoiceSaveResult.
+     */
+    constructor($$source = {}) {
+        if (!("saved" in $$source)) {
+            /**
+             * Saved is false when validation refused the profile.
+             * @member
+             * @type {boolean}
+             */
+            this["saved"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Target is the project-relative file written.
+             * @member
+             * @type {string | undefined}
+             */
+            this["target"] = undefined;
+        }
+        if (!("changed" in $$source)) {
+            /**
+             * Changed is false when the file on disk already said this.
+             * @member
+             * @type {boolean}
+             */
+            this["changed"] = false;
+        }
+        if (!("problems" in $$source)) {
+            /**
+             * @member
+             * @type {profile$0.ProfileProblem[]}
+             */
+            this["problems"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Guide is the profile as a tool would read it, rendered from what was
+             * saved.
+             * @member
+             * @type {string | undefined}
+             */
+            this["guide"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceSaveResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceSaveResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType113;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("problems" in $$parsedSource) {
+            $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
+        }
+        return new VoiceSaveResult(/** @type {Partial<VoiceSaveResult>} */($$parsedSource));
     }
 }
 
@@ -7308,3 +7455,6 @@ const $$createType107 = VoiceValidityDTO.createFrom;
 const $$createType108 = $Create.Nullable($$createType107);
 const $$createType109 = VoiceFallbackDTO.createFrom;
 const $$createType110 = $Create.Nullable($$createType109);
+const $$createType111 = VoiceEditTargetDTO.createFrom;
+const $$createType112 = profile$0.ProfileProblem.createFrom;
+const $$createType113 = $Create.Array($$createType112);

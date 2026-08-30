@@ -78,6 +78,9 @@ export const qk = {
 
   // Voice — the profile resolved at every point the recipe declares
   projectVoice: (tabID: string) => ["project-voice", tabID] as const,
+  /** The values each constrained profile field accepts. */
+  voiceFieldValues: () => ["voice", "field-values"] as const,
+  voiceStarterPacks: () => ["voice", "starter-packs"] as const,
 
   // Project model / handles
   project: (tabID: string) => ["project", tabID] as const,

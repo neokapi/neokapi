@@ -1,16 +1,22 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/neokapi/neokapi/core/graph"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -84,6 +90,39 @@ type VoicePointDTO struct {
 	Validity *VoiceValidityDTO         `json:"validity,omitempty"`
 	Fallback *VoiceFallbackDTO         `json:"fallback,omitempty"`
 	Notes    []string                  `json:"notes,omitempty"`
+	// Edit says where a save at this point lands, and whether one can.
+	Edit VoiceEditTargetDTO `json:"edit"`
+}
+
+// VoiceEditTargetDTO is where a save at a point writes, and whether it may.
+type VoiceEditTargetDTO struct {
+	// Target is the project-relative file a save writes to.
+	Target string `json:"target,omitempty"`
+	// Writable is false when the binding names something no file edit can
+	// reach: a starter pack, or a profile held in the voice store.
+	Writable bool `json:"writable"`
+	// Exists is false when a save would create the file.
+	Exists bool `json:"exists"`
+	// Inherited is true when the point has no voice of its own and reads the
+	// one bound coarser. Saving here gives the point its own profile rather
+	// than editing what it inherits.
+	Inherited bool `json:"inherited"`
+	// Reason states why a save cannot land, when Writable is false.
+	Reason string `json:"reason,omitempty"`
+}
+
+// VoiceSaveResult reports a save, or why it did not happen.
+type VoiceSaveResult struct {
+	// Saved is false when validation refused the profile.
+	Saved bool `json:"saved"`
+	// Target is the project-relative file written.
+	Target string `json:"target,omitempty"`
+	// Changed is false when the file on disk already said this.
+	Changed  bool                         `json:"changed"`
+	Problems []coreprofile.ProfileProblem `json:"problems"`
+	// Guide is the profile as a tool would read it, rendered from what was
+	// saved.
+	Guide string `json:"guide,omitempty"`
 }
 
 // ProjectVoiceResult is every point the recipe declares, with its voice.
@@ -204,7 +243,182 @@ func (a *App) voicePoint(
 	} else {
 		row.Notes = append(row.Notes, "no voice profile binds at this point")
 	}
+	row.Edit = voiceEditTarget(declared, root, pt.Profile, source, found)
 	return row, nil
+}
+
+// voiceEditTarget resolves the file a save at a point writes to.
+//
+// It inverts the load ladder: the point's own `voice: profile_file` if it has
+// one, otherwise the conventional location for that point, which is where the
+// loader would look next. A binding naming a starter pack or a stored profile
+// has no file to write, and says so rather than inventing one.
+func voiceEditTarget(
+	declared *project.ResolvedGovernance,
+	root, profileName, loadedFrom string,
+	found bool,
+) VoiceEditTargetDTO {
+	own := declared != nil && declared.Voice != nil &&
+		(profileName == "" || declared.VoiceField != project.DefaultVoiceField)
+
+	if own {
+		switch {
+		case declared.Voice.Pack != "":
+			return VoiceEditTargetDTO{
+				Reason: fmt.Sprintf(
+					"%s binds the %q starter pack. Bind a profile file to edit the voice here.",
+					declared.VoiceField, declared.Voice.Pack),
+			}
+		case declared.Voice.Profile != "":
+			return VoiceEditTargetDTO{
+				Reason: fmt.Sprintf(
+					"%s binds %q from the voice store, which no file edit reaches.",
+					declared.VoiceField, declared.Voice.Profile),
+			}
+		case declared.Voice.ProfileFile != "":
+			rel := filepath.ToSlash(declared.Voice.ProfileFile)
+			return VoiceEditTargetDTO{
+				Target:   rel,
+				Writable: true,
+				Exists:   fileExists(filepath.Join(root, filepath.FromSlash(rel))),
+			}
+		}
+	}
+
+	// Nothing bound at this point: the conventional location for it is where
+	// the loader looks, so it is where a save belongs.
+	var rel string
+	if profileName == "" {
+		rel = project.RelStatePath(host.VoiceConventionalName)
+		for _, conv := range host.VoiceProfileConventions(root) {
+			if fileExists(conv) {
+				if r, err := filepath.Rel(root, conv); err == nil {
+					rel = r
+				}
+				break
+			}
+		}
+	} else {
+		rel = project.RelStatePath(project.ProfilesDirName, profileName, host.VoiceConventionalName)
+	}
+	abs := filepath.Join(root, filepath.FromSlash(rel))
+	exists := fileExists(abs)
+	return VoiceEditTargetDTO{
+		Target:   filepath.ToSlash(rel),
+		Writable: true,
+		Exists:   exists,
+		// A point reading a profile loaded from somewhere else has no voice of
+		// its own; saving here creates one that shadows what it inherits.
+		Inherited: found && !exists && !sameFile(loadedFrom, abs),
+	}
+}
+
+// fileExists reports whether a regular file sits at path.
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// sameFile compares two paths after cleaning, so a source and a target that
+// name one file are not read as two.
+func sameFile(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+// ValidateVoiceProfile reports what `kapi voice validate` would report for this
+// profile, without writing anything.
+//
+// The profile is marshalled and run back through the same three stages the
+// command runs — the lenient load, the strict decode, then the semantic checks
+// — so the editor and the CLI cannot disagree about whether a profile is sound.
+func (a *App) ValidateVoiceProfile(profile coreprofile.VoiceProfile) ([]coreprofile.ProfileProblem, error) {
+	probs, err := validateVoiceProfile(&profile)
+	if err != nil {
+		return nil, err
+	}
+	return probs, nil
+}
+
+// VoiceFieldValues returns the values each constrained profile field accepts,
+// so the editor offers exactly what validation applies.
+func (a *App) VoiceFieldValues() map[string]coreprofile.FieldValueSet {
+	return coreprofile.FieldValues()
+}
+
+// VoiceStarterPacks lists the starter profiles a new voice can begin from.
+func (a *App) VoiceStarterPacks() ([]string, error) {
+	return packs.List()
+}
+
+// VoiceStarterPack returns one starter profile, for seeding a new voice.
+func (a *App) VoiceStarterPack(name string) (*coreprofile.VoiceProfile, error) {
+	return packs.Load(name)
+}
+
+// SaveVoiceProfile writes a voice profile to the file the point resolves to.
+//
+// Validation runs first and a blocking problem refuses the write, so the file a
+// run reads is never one the loader would reject. Warnings do not refuse: a
+// tone the usual list does not name is kept and rendered as written.
+//
+// The write goes through the comment-preserving writer, so an author's
+// reasoning and key order survive an edit made here.
+func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.VoiceProfile) (*VoiceSaveResult, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil, fmt.Errorf("project tab %q not found", tabID)
+	}
+	if op.Project == nil || op.Path == "" {
+		return nil, errors.New("the tab has no project recipe on disk")
+	}
+	root := filepath.Dir(op.Path)
+
+	declared, err := op.Project.ResolveGovernanceFor(project.GovernancePoint{Profile: profileName})
+	if err != nil {
+		return nil, err
+	}
+	target := voiceEditTarget(declared, root, profileName, "", false)
+	if !target.Writable {
+		return nil, errors.New(target.Reason)
+	}
+
+	probs, err := validateVoiceProfile(&profile)
+	if err != nil {
+		return nil, err
+	}
+	out := &VoiceSaveResult{Target: target.Target, Problems: probs}
+	if len(coreprofile.Blocking(probs)) > 0 {
+		return out, nil
+	}
+
+	path := filepath.Join(root, filepath.FromSlash(target.Target))
+	changed, werr := yamledit.WriteFile(path, &profile, 0o644)
+	if werr != nil {
+		return nil, werr
+	}
+	out.Saved = true
+	out.Changed = changed
+	out.Guide = coreprofile.RenderVoiceGuide(&profile)
+	return out, nil
+}
+
+// validateVoiceProfile runs the three stages `kapi voice validate` runs.
+func validateVoiceProfile(profile *coreprofile.VoiceProfile) ([]coreprofile.ProfileProblem, error) {
+	body, err := yaml.Marshal(profile)
+	if err != nil {
+		return nil, fmt.Errorf("render profile: %w", err)
+	}
+	probs := []coreprofile.ProfileProblem{}
+	if _, lerr := coreprofile.LoadProfileYAML(bytes.NewReader(body)); lerr != nil {
+		probs = append(probs, coreprofile.ProfileProblem{Message: lerr.Error()})
+	}
+	decoded, serr := coreprofile.DecodeProfileStrict(bytes.NewReader(body))
+	probs = append(probs, host.StrictDecodeProblems(serr)...)
+	probs = append(probs, coreprofile.ValidateProfile(decoded)...)
+	return probs, nil
 }
 
 // pointLabel names a point for a reader.

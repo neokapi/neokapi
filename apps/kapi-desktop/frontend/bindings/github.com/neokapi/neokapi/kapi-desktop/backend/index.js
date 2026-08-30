@@ -116,7 +116,9 @@ export {
     VariantInputDTO,
     VersionInfo,
     VoiceBindingDTO,
+    VoiceEditTargetDTO,
     VoiceFallbackDTO,
     VoicePointDTO,
+    VoiceSaveResult,
     VoiceValidityDTO
 } from "./models.js";

@@ -2,7 +2,7 @@ import { render, screen, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { VoicePage } from "../components/VoicePage";
-import { voiceFixture } from "./voiceFixture";
+import { valueSetsFixture, voiceFixture } from "./voiceFixture";
 
 describe("VoicePage", () => {
   it("lists every declared point, the project's own first", () => {
@@ -79,6 +79,36 @@ describe("VoicePage", () => {
     render(<VoicePage tabID="t1" result={voiceFixture} />);
     await userEvent.click(screen.getByRole("button", { name: /support/ }));
     expect(screen.getByText("No voice profile binds at this point")).toBeInTheDocument();
+  });
+
+  it("offers to edit the file the point resolves to", async () => {
+    render(<VoicePage tabID="t1" result={voiceFixture} valueSets={valueSetsFixture} />);
+    await userEvent.click(screen.getByTestId("voice-edit"));
+    expect(screen.getByTestId("voice-editor")).toHaveTextContent(".kapi/voice.yaml");
+  });
+
+  it("offers to give an inheriting point its own voice", async () => {
+    render(<VoicePage tabID="t1" result={voiceFixture} valueSets={valueSetsFixture} />);
+    await userEvent.click(screen.getAllByTestId("voice-point-row")[1]);
+    expect(screen.getByTestId("voice-edit")).toHaveTextContent("Give this point its own voice");
+  });
+
+  it("refuses to edit a binding no file edit reaches", () => {
+    const pack = structuredClone(voiceFixture);
+    pack.points[0].edit = {
+      writable: false,
+      exists: false,
+      inherited: false,
+      reason: 'defaults.voice binds the "technical-docs" starter pack.',
+    };
+    render(<VoicePage tabID="t1" result={pack} valueSets={valueSetsFixture} />);
+    expect(screen.getByTestId("voice-edit")).toBeDisabled();
+    expect(screen.getByTestId("voice-edit-reason")).toHaveTextContent("starter pack");
+  });
+
+  it("renders read-only when editing is off", () => {
+    render(<VoicePage tabID="t1" result={voiceFixture} editable={false} />);
+    expect(screen.queryByTestId("voice-edit")).not.toBeInTheDocument();
   });
 
   it("reads as complete for a project with a single point", () => {

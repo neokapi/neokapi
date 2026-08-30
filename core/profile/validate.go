@@ -235,3 +235,34 @@ func validateTerms(add func(field, msg string), base string, terms []TermRule) {
 		checkEnum(add, f+".severity", t.Severity, validSeverity)
 	}
 }
+
+// FieldValueSet is the values a constrained field accepts, and what happens to
+// one outside them.
+type FieldValueSet struct {
+	Values []string `json:"values"`
+	// Open is true when a value outside Values is kept and rendered rather than
+	// refused. Tone is described, not enumerated: a register the list does not
+	// name is what distinguishes one voice from another, and squashing it to the
+	// nearest label discards exactly that.
+	Open bool `json:"open"`
+}
+
+// FieldValues returns the value sets ValidateProfile applies, keyed by the field
+// path a ProfileProblem names.
+//
+// An editor offering these cannot drift from what validation accepts, because
+// both read the same slices. `severity` and `scope` are keyed bare: they apply
+// to every rule and pattern rather than to one path.
+func FieldValues() map[string]FieldValueSet {
+	return map[string]FieldValueSet{
+		"tone.formality":        {Values: slices.Clone(validFormality), Open: true},
+		"tone.emotion":          {Values: slices.Clone(validEmotion), Open: true},
+		"tone.humor":            {Values: slices.Clone(validHumor), Open: true},
+		"style.sentence_length": {Values: slices.Clone(validSentenceLength)},
+		"style.person_pov":      {Values: slices.Clone(validPersonPOV)},
+		"style.contractions":    {Values: slices.Clone(validContractions)},
+		"examples.category":     {Values: slices.Clone(validCategory)},
+		"severity":              {Values: slices.Clone(validSeverity)},
+		"scope":                 {Values: []string{ScopeProse, ScopeCode, ScopeHeading}},
+	}
+}

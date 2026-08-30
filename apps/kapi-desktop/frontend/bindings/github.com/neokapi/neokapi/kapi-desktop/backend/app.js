@@ -25,6 +25,9 @@ import * as i18n$0 from "../../core/i18n/models.js";
 import * as locale$0 from "../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as profile$0 from "../../core/profile/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as project$0 from "../../core/project/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -2187,6 +2190,26 @@ export function SaveUserFlow(req) {
 }
 
 /**
+ * SaveVoiceProfile writes a voice profile to the file the point resolves to.
+ * 
+ * Validation runs first and a blocking problem refuses the write, so the file a
+ * run reads is never one the loader would reject. Warnings do not refuse: a
+ * tone the usual list does not name is kept and rendered as written.
+ * 
+ * The write goes through the comment-preserving writer, so an author's
+ * reasoning and key order survive an edit made here.
+ * @param {string} tabID
+ * @param {string} profileName
+ * @param {profile$0.VoiceProfile} profile
+ * @returns {$CancellablePromise<$models.VoiceSaveResult | null>}
+ */
+export function SaveVoiceProfile(tabID, profileName, profile) {
+    return $Call.ByID(3732332618, tabID, profileName, profile).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType138($result);
+    }));
+}
+
+/**
  * SearchMemoryEntries searches content-memory entries by query with pagination.
  * anyLocale restricts the text search to entries with a variant in that
  * locale; requireLocale additionally requires that variant to exist.
@@ -2200,7 +2223,7 @@ export function SaveUserFlow(req) {
  */
 export function SearchMemoryEntries(handle, query, anyLocale, requireLocale, offset, limit) {
     return $Call.ByID(3872715149, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType138($result);
+        return $$createType140($result);
     }));
 }
 
@@ -2217,7 +2240,7 @@ export function SearchMemoryEntries(handle, query, anyLocale, requireLocale, off
  */
 export function SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
     return $Call.ByID(28274782, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType138($result);
+        return $$createType140($result);
     }));
 }
 
@@ -2247,7 +2270,7 @@ export function SearchPlugins(query) {
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
     return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType140($result);
+        return $$createType142($result);
     }));
 }
 
@@ -2510,7 +2533,55 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType142($result);
+        return $$createType144($result);
+    }));
+}
+
+/**
+ * ValidateVoiceProfile reports what `kapi voice validate` would report for this
+ * profile, without writing anything.
+ * 
+ * The profile is marshalled and run back through the same three stages the
+ * command runs — the lenient load, the strict decode, then the semantic checks
+ * — so the editor and the CLI cannot disagree about whether a profile is sound.
+ * @param {profile$0.VoiceProfile} profile
+ * @returns {$CancellablePromise<profile$0.ProfileProblem[]>}
+ */
+export function ValidateVoiceProfile(profile) {
+    return $Call.ByID(3282285205, profile).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType146($result);
+    }));
+}
+
+/**
+ * VoiceFieldValues returns the values each constrained profile field accepts,
+ * so the editor offers exactly what validation applies.
+ * @returns {$CancellablePromise<{ [_ in string]?: profile$0.FieldValueSet }>}
+ */
+export function VoiceFieldValues() {
+    return $Call.ByID(3817869228).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType148($result);
+    }));
+}
+
+/**
+ * VoiceStarterPack returns one starter profile, for seeding a new voice.
+ * @param {string} name
+ * @returns {$CancellablePromise<profile$0.VoiceProfile | null>}
+ */
+export function VoiceStarterPack(name) {
+    return $Call.ByID(3653487720, name).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType150($result);
+    }));
+}
+
+/**
+ * VoiceStarterPacks lists the starter profiles a new voice can begin from.
+ * @returns {$CancellablePromise<string[]>}
+ */
+export function VoiceStarterPacks() {
+    return $Call.ByID(3929689729).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
     }));
 }
 
@@ -2652,9 +2723,17 @@ const $$createType133 = $Create.Array($$createType132);
 const $$createType134 = $models.ProjectFilter.createFrom;
 const $$createType135 = $Create.Nullable($$createType134);
 const $$createType136 = $Create.Nullable($$createType109);
-const $$createType137 = $models.MemorySearchResult.createFrom;
+const $$createType137 = $models.VoiceSaveResult.createFrom;
 const $$createType138 = $Create.Nullable($$createType137);
-const $$createType139 = $models.TermSearchResult.createFrom;
+const $$createType139 = $models.MemorySearchResult.createFrom;
 const $$createType140 = $Create.Nullable($$createType139);
-const $$createType141 = project$0.FlowValidationIssue.createFrom;
-const $$createType142 = $Create.Array($$createType141);
+const $$createType141 = $models.TermSearchResult.createFrom;
+const $$createType142 = $Create.Nullable($$createType141);
+const $$createType143 = project$0.FlowValidationIssue.createFrom;
+const $$createType144 = $Create.Array($$createType143);
+const $$createType145 = profile$0.ProfileProblem.createFrom;
+const $$createType146 = $Create.Array($$createType145);
+const $$createType147 = profile$0.FieldValueSet.createFrom;
+const $$createType148 = $Create.Map($Create.Any, $$createType147);
+const $$createType149 = profile$0.VoiceProfile.createFrom;
+const $$createType150 = $Create.Nullable($$createType149);

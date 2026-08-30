@@ -11,7 +11,7 @@
 // governance changing on a date is visible.
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   BookOpen,
@@ -19,17 +19,28 @@ import {
   FileText,
   Languages,
   MessageSquareQuote,
+  Pencil,
   Radio,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { Badge, PageHeader, Separator, Skeleton, SimpleTooltip, cn } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Button,
+  PageHeader,
+  Separator,
+  Skeleton,
+  SimpleTooltip,
+  cn,
+} from "@neokapi/ui-primitives";
 import { EmptyHint, ErrorHint } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { severityFails } from "../types/voice";
+import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import type {
+  FieldValueSet,
   Pattern,
   ProjectVoiceResult,
   TermRule,
@@ -37,12 +48,19 @@ import type {
   StyleRules,
   VoiceExample,
   VoicePoint,
+  VoiceProfile,
+  VoiceSaveResult,
 } from "../types/voice";
 
 export interface VoicePageProps {
   tabID: string;
   /** Injected in tests and stories; production reads the Wails backend. */
   result?: ProjectVoiceResult;
+  /** False renders the profile without the edit affordance. */
+  editable?: boolean;
+  /** Injected in tests and stories; production writes through the backend. */
+  save?: (profile: VoiceProfile) => Promise<VoiceSaveResult | null>;
+  valueSets?: Record<string, FieldValueSet>;
 }
 
 /** A severity, and whether it fails a check or only reports. */
@@ -370,11 +388,41 @@ function PointRow({
 }
 
 /** The selected point's profile, read as a document. */
-function PointDetail({ point }: { point: VoicePoint }) {
+function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void }) {
   const profile = point.profile;
+  const edit = point.edit;
   return (
     <div className="space-y-5" data-testid="voice-detail">
-      <ResolutionChain point={point} />
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <ResolutionChain point={point} />
+        </div>
+        {onEdit &&
+          (edit?.writable ? (
+            <Button variant="outline" size="sm" onClick={onEdit} data-testid="voice-edit">
+              <Pencil className="mr-1 size-3.5" />
+              {edit.exists && !edit.inherited
+                ? t("Edit")
+                : edit.inherited
+                  ? t("Give this point its own voice")
+                  : t("Create a voice")}
+            </Button>
+          ) : (
+            <SimpleTooltip content={edit?.reason ?? ""}>
+              <span className="inline-flex">
+                <Button variant="outline" size="sm" disabled data-testid="voice-edit">
+                  <Pencil className="mr-1 size-3.5" />
+                  {t("Edit")}
+                </Button>
+              </span>
+            </SimpleTooltip>
+          ))}
+      </div>
+      {onEdit && edit && !edit.writable && edit.reason && (
+        <p className="text-xs text-muted-foreground" data-testid="voice-edit-reason">
+          {edit.reason}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {point.source && (
@@ -421,7 +469,13 @@ function PointDetail({ point }: { point: VoicePoint }) {
       {!profile ? (
         <EmptyHint
           title={t("No voice profile binds at this point")}
-          description={t("Bind one with defaults.voice, or put a profile at .kapi/voice.yaml.")}
+          description={
+            edit?.writable && edit.target
+              ? t("Create one at {target}, and checks here will apply it.", {
+                  target: edit.target,
+                })
+              : t("Bind one with defaults.voice, or put a profile at .kapi/voice.yaml.")
+          }
         />
       ) : (
         <div className="space-y-5">
@@ -595,7 +649,8 @@ function PointDetail({ point }: { point: VoicePoint }) {
  * so a single-point project reads as one row rather than as a surface with
  * something missing.
  */
-export function VoicePage({ tabID, result }: VoicePageProps) {
+export function VoicePage({ tabID, result, editable = true, save, valueSets }: VoicePageProps) {
+  const queries = useQueryClient();
   const query = useQuery({
     queryKey: qk.projectVoice(tabID),
     queryFn: () => call<ProjectVoiceResult>("ProjectVoice", tabID),
@@ -604,10 +659,20 @@ export function VoicePage({ tabID, result }: VoicePageProps) {
   const data = result ?? query.data ?? undefined;
 
   const [selected, setSelected] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const active = useMemo(() => {
     if (!data?.points.length) return undefined;
     return data.points.find((p) => p.label === selected) ?? data.points[0];
   }, [data, selected]);
+
+  // A profile the point inherits is a starting point, not the thing being
+  // edited: saving writes this point's own file. A point with nothing bound
+  // starts from its name.
+  const draft: VoiceProfile = useMemo(() => {
+    if (!active) return { name: "" };
+    if (active.profile && !active.edit?.inherited) return active.profile;
+    return active.profile ?? { name: active.label === "project default" ? "" : active.label };
+  }, [active]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
@@ -662,7 +727,27 @@ export function VoicePage({ tabID, result }: VoicePageProps) {
                   {t("Resolved {at}", { at: shortDate(data.at) })}
                 </p>
               </nav>
-              {active && <PointDetail point={active} />}
+              {active &&
+                (editing ? (
+                  <VoiceProfileEditor
+                    tabID={tabID}
+                    profileName={active.point.profile ?? ""}
+                    target={active.edit}
+                    profile={draft}
+                    valueSets={valueSets}
+                    save={save}
+                    onCancel={() => setEditing(false)}
+                    onSaved={() => {
+                      setEditing(false);
+                      void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
+                    }}
+                  />
+                ) : (
+                  <PointDetail
+                    point={active}
+                    onEdit={editable ? () => setEditing(true) : undefined}
+                  />
+                ))}
             </div>
           )}
         </>
