@@ -37,6 +37,27 @@ const (
 	EventDone EventType = "done"
 )
 
+// eventTypes is the closed set of progress events a run emits.
+var eventTypes = map[EventType]bool{
+	EventPassStart:    true,
+	EventLocaleStart:  true,
+	EventUnitProgress: true,
+	EventLocaleDone:   true,
+	EventPassDone:     true,
+	EventMaterialized: true,
+	EventLog:          true,
+	EventDone:         true,
+}
+
+// KnownEventType reports whether t names a progress event.
+//
+// A reader of a mixed NDJSON document uses it to tell a run's events from the
+// other records that share the stream's `type` key: it forwards what it
+// recognises and leaves the rest to the reader that owns it, so a record added
+// beside the events (a proposed change-set, a pushed voice profile) never
+// reaches a run view as an event with every field zero.
+func KnownEventType(t EventType) bool { return eventTypes[t] }
+
 // Locale states reported by EventLocaleDone / the final standing.
 const (
 	LocaleShippable = "shippable"
