@@ -151,6 +151,9 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // that legitimately continue past one bad unit.
 func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *coreprofile.VoiceProfile, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
+	// The review surface addresses a unit, and carries its own scope in the
+	// queue rather than on each finding, so the point stays unset here.
+	var point ContextPointDTO
 	fail := func(what string, err error) []DesktopFinding {
 		return append(findings, DesktopFinding{
 			Category: "check",
@@ -167,7 +170,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		}
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 			for _, f := range ann.Findings {
-				findings = append(findings, toDesktopFinding(f, b, "source"))
+				findings = append(findings, toDesktopFinding(f, b, "source", point))
 			}
 			b.DelAnno("voice")
 		}
@@ -178,7 +181,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		return fail("placeholder", err)
 	}
 	for _, f := range host.FindingsFromBlock(b, true) {
-		findings = append(findings, toDesktopFinding(f, b, "target"))
+		findings = append(findings, toDesktopFinding(f, b, "target", point))
 	}
 
 	if len(dntTerms) > 0 {
@@ -189,7 +192,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 			return fail("do-not-translate", err)
 		}
 		for _, f := range host.FindingsFromBlock(b, true) {
-			findings = append(findings, toDesktopFinding(f, b, "target"))
+			findings = append(findings, toDesktopFinding(f, b, "target", point))
 		}
 	}
 

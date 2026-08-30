@@ -204,6 +204,12 @@ export interface DesktopFinding {
   replacement?: string;
   /** Whether the panel may show a one-click "Apply fix" button. */
   fixable: boolean;
+  /** The rule that fired, so the finding traces to the decision behind it. */
+  rule?: string;
+  /** The coordinate the checked file sits at. Empty is the project's own point. */
+  point?: string;
+  /** The collection the checked file belongs to. */
+  collection?: string;
 }
 
 /** Findings grouped by content file. */
@@ -743,6 +749,8 @@ export interface ProjectServer {
   /** Server host (no scheme) — the short label a venue badge renders. */
   host?: string;
   serverURL?: string;
+  /** The stream the project reads and writes on. */
+  stream?: string;
 }
 
 /** A gated (collection, locale) scope still short of its gate after a run. */

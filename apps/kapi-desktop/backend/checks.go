@@ -43,6 +43,14 @@ type DesktopFinding struct {
 	// Fixable reports whether the panel may show an "Apply fix" button: a
 	// replacement and a block to target both exist.
 	Fixable bool `json:"fixable"`
+	// Rule names what fired, so a finding can be traced to the decision that
+	// produced it rather than only to the text it objects to.
+	Rule string `json:"rule,omitempty"`
+	// Point is the coordinate the checked file sits at, written the way the
+	// explorer addresses it. Empty is the project's own point.
+	Point string `json:"point,omitempty"`
+	// Collection is the one the checked file belongs to.
+	Collection string `json:"collection,omitempty"`
 }
 
 // CheckFileResult groups the findings for a single content file.
@@ -93,6 +101,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	// One instant for the whole run, so every file's point resolves against the
+	// same clock and two findings cannot disagree about which profile governs.
+	at := a.hostEngine().GovernanceInstant()
+
 	// The shared check pipeline holds single-occupancy state on the host.App
 	// (the open document cache), so a checks run is serialized.
 	a.checksMu.Lock()
@@ -128,6 +140,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// only its prose.
 			fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 
+			// The point this file sits at, resolved the way a run resolves it,
+			// so every finding on it can name where it is scoped.
+			filePoint, _, ptErr := contextPoint(op.Project, rf.Collection, rf.Relative, at)
+			if ptErr != nil {
+				filePoint = ContextPointDTO{Collection: rf.Collection, Default: true}
+			}
+
 			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, fmtCfg, sourceLang)
 			if rerr != nil {
 				// Surface the read failure as a finding rather than aborting the
@@ -162,7 +181,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					}
 					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 						for _, f := range ann.Findings {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", filePoint))
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -207,7 +226,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						break
 					}
 					for _, f := range host.FindingsFromBlock(b, true) {
-						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
+						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", filePoint))
 						allFindings = append(allFindings, f)
 					}
 				}
@@ -223,7 +242,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 							break
 						}
 						for _, f := range host.FindingsFromBlock(b, true) {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", filePoint))
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -583,7 +602,11 @@ func dntConcept(props map[string]string) bool {
 // toDesktopFinding flattens a check.Finding for the panel, wiring the block ID,
 // the field the offending text lives on, and a structured replacement (from
 // Metadata["replacement"], set by the vocabulary checker) when one exists.
-func toDesktopFinding(f check.Finding, b *model.Block, field string) DesktopFinding {
+//
+// Rule and Point travel with it so a finding can be acted on: the C-series
+// promise is that a finding names the rule, the point and the fix, and a reader
+// who cannot see which rule fired cannot go and change it.
+func toDesktopFinding(f check.Finding, b *model.Block, field string, point ContextPointDTO) DesktopFinding {
 	replacement := ""
 	if f.Metadata != nil {
 		replacement = f.Metadata["replacement"]
@@ -597,9 +620,40 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string) DesktopFind
 		BlockID:      b.ID,
 		Field:        field,
 		Replacement:  replacement,
+		Rule:         findingRule(f),
+		Point:        pointRef(point),
+		Collection:   point.Collection,
 	}
 	df.Fixable = replacement != "" && b.ID != "" && f.OriginalText != ""
 	return df
+}
+
+// findingRule names the rule that fired.
+//
+// The checker states it on Check; where it does not, the term or pattern the
+// rule is about identifies it, and the category is the last resort. A finding
+// that named nothing would leave a reader with a complaint and nowhere to go.
+func findingRule(f check.Finding) string {
+	if f.Check != "" {
+		return f.Check
+	}
+	if f.Metadata != nil {
+		for _, key := range []string{"rule", "term", "pattern"} {
+			if v := f.Metadata[key]; v != "" {
+				return v
+			}
+		}
+	}
+	if f.OriginalText != "" {
+		return f.OriginalText
+	}
+	return f.Category
+}
+
+// pointRef renders the point a finding is scoped to, as the explorer addresses
+// it. The project's own point renders empty rather than as a guessed name.
+func pointRef(p ContextPointDTO) string {
+	return project.ChannelRef{Profile: p.Profile, Channel: p.Channel}.String()
 }
 
 // isSinglePlainTextRun reports whether runs is exactly one TextRun — the only

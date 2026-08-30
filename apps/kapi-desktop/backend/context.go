@@ -642,6 +642,25 @@ func (a *App) ContextOptions(tabID, dimension string) ([]ContextOptionDTO, error
 			add(coll.TargetLanguages)
 		}
 		sort.Slice(out, func(i, j int) bool { return out[i].Value < out[j].Value })
+	case "path":
+		// By-location is the primitive `kapi context <path>` serves, and a
+		// reader browsing it should not have to type a path from memory. The
+		// options are the files the recipe's own globs claim, project-relative
+		// and labelled by the collection that claims them.
+		matches, merr := a.MatchContent(tabID)
+		if merr != nil {
+			return nil, merr
+		}
+		seen := map[string]bool{}
+		for _, m := range matches {
+			rel := filepath.ToSlash(m.Relative)
+			if rel == "" || seen[rel] {
+				continue
+			}
+			seen[rel] = true
+			out = append(out, ContextOptionDTO{Value: rel, Label: m.Collection})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].Value < out[j].Value })
 	case "coordinate":
 		seen := map[string]bool{}
 		for _, coll := range op.Project.Collections {

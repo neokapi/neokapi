@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
@@ -26,6 +27,37 @@ type ProjectServer struct {
 	Host string `json:"host,omitempty"`
 	// ServerURL is the base server URL (scheme + host) extracted from the URL.
 	ServerURL string `json:"serverURL,omitempty"`
+	// Stream the project reads and writes on. A recipe that names one in its
+	// venue block gets that; everything else is the framework's default.
+	Stream string `json:"stream,omitempty"`
+}
+
+// projectStream is the stream a tab's project sits on.
+//
+// The framework's interest in a venue block is deliberately two fields, so the
+// stream is read here rather than widened into project.VenueBinding: a recipe
+// that names one is on it, and a recipe that does not is on the default. The
+// desktop pins one stream per tab either way, which is why this is a value the
+// explorer reads rather than a dimension it offers.
+func projectStream(proj *project.KapiProject) string {
+	if proj == nil {
+		return schema.StreamMain
+	}
+	venue, ok := proj.Venue()
+	if !ok || venue.Key == "" {
+		return schema.StreamMain
+	}
+	node, present := proj.Extras[venue.Key]
+	if !present {
+		return schema.StreamMain
+	}
+	var fields struct {
+		Stream string `yaml:"stream"`
+	}
+	// A malformed block is the extension decoder's problem at load time; here
+	// it simply means no stream was named.
+	_ = node.Decode(&fields)
+	return schema.NormalizeStreamName(fields.Stream)
 }
 
 // GetProjectServer reports the run venue for a project tab: whether the open
@@ -43,11 +75,11 @@ func (a *App) GetProjectServer(tabID string) (*ProjectServer, error) {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
 	if op.Project == nil {
-		return &ProjectServer{}, nil
+		return &ProjectServer{Stream: schema.StreamMain}, nil
 	}
 	venue, ok := op.Project.Venue()
 	if !ok || venue.URL == "" {
-		return &ProjectServer{}, nil
+		return &ProjectServer{Stream: projectStream(op.Project)}, nil
 	}
 	info := schema.ParseProjectURL(venue.URL)
 	host := info.ServerURL
@@ -59,5 +91,6 @@ func (a *App) GetProjectServer(tabID string) (*ProjectServer, error) {
 		URL:       venue.URL,
 		Host:      host,
 		ServerURL: info.ServerURL,
+		Stream:    projectStream(op.Project),
 	}, nil
 }
