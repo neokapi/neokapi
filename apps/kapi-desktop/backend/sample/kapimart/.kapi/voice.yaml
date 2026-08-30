@@ -1,0 +1,111 @@
+# KapiMart house voice.
+#
+# Bound to the `kapimart` profile in kapi.yaml and to the default point, so
+# `kapi check` scores every surface against it with no flags.
+#
+# The register bends per surface (channels:, below): a walkthrough and a
+# contract are not written the same way. The vocabulary does not bend — a word
+# the storefront does not use is not used in the release notes either, and the
+# terms it names are the ones the committed terms record defines.
+name: KapiMart
+description: >-
+  KapiMart writes for the person integrating the storefront and the person
+  buying through it. Say what a thing does and what it costs them, name the
+  same object the same way every time, and stop.
+tone:
+  personality: [plain, specific, unhurried]
+  formality: neutral
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Lead with what the reader gets, then what it requires. Name the object, not
+    a pronoun for it. One idea per sentence. Where the interface and the
+    documentation disagree about a word, the interface wins and the
+    documentation follows it.
+style:
+  active_voice: true
+  sentence_length: medium
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    # Storefront copy drifts into exclamation under promotional pressure. The
+    # register is the same whether a page is selling or explaining.
+    - regex: '!(?:\s|$)'
+      description: Exclamation in prose
+      severity: minor
+      scope: prose
+    - regex: '\b(?:blazing|effortless(?:ly)?|seamless(?:ly)?|world-class)\b'
+      description: Marketing superlative
+      severity: major
+      scope: prose
+vocabulary:
+  preferred_terms:
+    - term: shopping cart
+      note: The object the buyer fills, named in full on first use.
+      concept_id: km-001
+    - term: checkout
+      note: The act of paying, one word.
+      concept_id: km-002
+  forbidden_terms:
+    # The storefront strings say "Your cart is empty" while the terms record
+    # names the concept "shopping cart". Bound to the concept so a reader can
+    # follow the rule back to the definition it came from.
+    - term: cart
+      replacement: shopping cart
+      severity: minor
+      concept_id: km-001
+      scope: prose
+      note: >-
+        "cart" is admitted, not preferred: it is ambiguous beside the delivery
+        sense. Write it in full.
+    - term: frequently asked questions
+      replacement: FAQ
+      severity: minor
+      concept_id: km-057
+      note: The heading is the abbreviation; the expansion reads as filler.
+  abbreviations:
+    FAQ: Frequently asked questions
+    SKU: Stock keeping unit
+examples:
+  - before: Your cart is empty!
+    after: Your shopping cart is empty.
+    explanation: Names the object in full and drops the exclamation.
+    category: vocabulary
+channels:
+  # A walkthrough addresses the reader directly and may contract.
+  web:
+    tone:
+      formality: neutral
+    style:
+      person_pov: second
+      contractions: sometimes
+  # A published record: an API page or a release note is read for a fact, not
+  # followed as a procedure.
+  reference:
+    tone:
+      formality: formal
+      personality: [precise, plain]
+    style:
+      person_pov: third
+      contractions: never
+      sentence_length: short
+  # Interface strings are read mid-task, in a narrow column.
+  store:
+    style:
+      sentence_length: short
+      contractions: sometimes
+  # Binding text. Changed only on purpose, and never softened.
+  legal:
+    tone:
+      formality: formal
+      emotion: neutral
+    style:
+      contractions: never
+      person_pov: third
+  # Campaign material is warmer, and still not promotional.
+  marketing:
+    tone:
+      formality: casual
+      personality: [plain, specific, warm]
+    style:
+      contractions: sometimes

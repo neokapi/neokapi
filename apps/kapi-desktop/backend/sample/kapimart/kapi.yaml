@@ -1,3 +1,9 @@
+# KapiMart — one product, four surfaces, five languages.
+#
+# Everything this recipe binds is a file in this directory: the voice profile,
+# the terms record and the content memory are all committed and reviewable, so
+# the project opens with its governance already in place and no server or
+# provider credential involved.
 version: v1
 name: KapiMart
 defaults:
@@ -8,32 +14,71 @@ defaults:
     - ja
     - nb
     - ar
+  # The house voice. Bound here as well as on the profile below, so the default
+  # point is governed too rather than falling through to nothing.
+  voice: .kapi/voice.yaml
+  # The committed vocabulary record. `kapi apply` writes term decisions here and
+  # recompiles them into .kapi/work/store.db, which is derived and gitignored.
+  terms_source: .kapi/terms.json
+  # The committed content memory, in the same relationship to the store: the
+  # authored artifact `git diff` reviews, compiled into the store on open.
+  memory_source: .kapi/memory/memory.json
+  coordinates:
+    # A declared axis. The structural axes (product, channel) are derived from a
+    # collection's channel: and are never written here.
+    brand: kapimart
+
+profiles:
+  kapimart:
+    # The storefront's own surfaces. `reference` is a peer of `web` rather than
+    # a part of it: an API page and a release note are a published record, and
+    # the register that suits a walkthrough does not suit either.
+    channels: [web, reference, store, legal, marketing]
+    voice: .kapi/voice.yaml
+
 collections:
-  # Natural per-area layout: each area keeps its source under <area>/en/, and
-  # localized files land beside it under sibling locale dirs (<area>/{lang}/) —
-  # e.g. web/en/getting-started.md → web/de/getting-started.md. The collection's
-  # base is the area directory, so its paths and targets are written relative to
-  # it. Format is auto-detected per file.
+  # Product documentation. The two historical surfaces — the API reference and
+  # the release notes — sit at their own point, and are listed first because a
+  # file takes the first item that matches it.
   - name: Website
     base: web
+    channel: kapimart/web
+    coordinates:
+      mode: how-to
     content:
+      - path: "en/api-reference.md"
+        target: "{lang}"
+        channel: kapimart/reference
+      - path: "en/release-notes.md"
+        target: "{lang}"
+        channel: kapimart/reference
       - path: "en/**/*.md"
         target: "{lang}"
+
+  # Storefront interface strings.
   - name: Online Store
     base: src
+    channel: kapimart/store
     content:
       - path: "en/*.{json,yaml,properties,html}"
         target: "{lang}"
+
+  # Contracts and price schedules: binding text, changed only on purpose.
   - name: Contracts
     base: legal
+    channel: kapimart/legal
     content:
       - path: "en/*.{docx,xlsx}"
         target: "{lang}"
+
+  # Campaign and onboarding material.
   - name: Templates
     base: marketing
+    channel: kapimart/marketing
     content:
       - path: "en/*.{pptx,docx}"
         target: "{lang}"
+
 flows:
   translate:
     steps:
