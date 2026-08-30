@@ -163,14 +163,20 @@ func TestHitsToFindings(t *testing.T) {
 		t.Errorf("position = %+v, want run 0 [7,14)", f.Position)
 	}
 
-	// Competitor hit: no replacement and no concept on the rule, so the metadata
-	// map stays nil (the keys are simply absent).
+	// Competitor hit: the rule that fired is named, and the keys for what the
+	// rule does not declare are simply absent.
 	comp := findings[1]
 	if want := `Competitor term "Globex" found`; comp.Message != want {
 		t.Errorf("competitor message = %q, want %q", comp.Message, want)
 	}
-	if comp.Metadata != nil {
-		t.Errorf("concept-less, replacement-less competitor metadata = %+v, want nil", comp.Metadata)
+	if comp.Metadata["term"] != "Globex" {
+		t.Errorf("term metadata = %q, want %q", comp.Metadata["term"], "Globex")
+	}
+	if _, ok := comp.Metadata["replacement"]; ok {
+		t.Errorf("replacement-less competitor carries a replacement: %+v", comp.Metadata)
+	}
+	if _, ok := comp.Metadata["concept_id"]; ok {
+		t.Errorf("concept-less competitor carries a concept: %+v", comp.Metadata)
 	}
 
 	// No hits → nil findings.

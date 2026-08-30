@@ -44,8 +44,8 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //     (LookupAll over each block's source text), carrying the matched surface
 //     form, its preferred target translation and domain;
 //   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
-//     from the project's resolved voice profile (resolveProjectVoiceProfile via
-//     coreprofile.MatchVocabulary);
+//     from the voice profile governing the point this file sits at
+//     (voiceResolver via coreprofile.MatchVocabulary);
 //   - rule-based QA overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
@@ -55,6 +55,20 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 // annotations toggle highlights them on the rendered document.
 func (a *App) InspectFileAnnotated(tabID, filePath string) (string, error) {
 	return a.inspect(tabID, filePath, true)
+}
+
+// inspectRelPath renders a file path project-relative, which is the form the
+// governance ladder matches item globs against. A path outside the project
+// resolves the project's own point.
+func inspectRelPath(op *openProject, filePath string) string {
+	if op == nil || op.Path == "" || filePath == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(filepath.Dir(op.Path), filePath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	return filepath.ToSlash(rel)
 }
 
 // inspect is the shared body of InspectFile / InspectFileAnnotated.
@@ -88,7 +102,7 @@ func (a *App) inspect(tabID, filePath string, annotate bool) (string, error) {
 	a.overlayProjectTargets(ctx, op, pctx, filePath, fmtName, sourceLang, parts)
 
 	if annotate {
-		a.annotateParts(ctx, op, parts)
+		a.annotateParts(ctx, op, parts, inspectRelPath(op, filePath))
 	}
 
 	tree := editor.BuildContentTree(parts, fmtName)
@@ -228,7 +242,7 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
 // and brand data from the open project rather than a seeded demo set.
-func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model.Part) {
+func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model.Part, relPath string) {
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLoc := pctx.SourceLocale
 	if sourceLoc == "" {
@@ -245,7 +259,9 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 			tb = h
 		}
 	}
-	profile := a.resolveProjectVoiceProfile(ctx, op)
+	// The overlays describe this file, so the voice is the one governing the
+	// point it sits at.
+	profile := a.newVoiceResolver(op, false).at(ctx, "", relPath)
 
 	for _, b := range blocksFromParts(parts) {
 		if !b.Translatable {

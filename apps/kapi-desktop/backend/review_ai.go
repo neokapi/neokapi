@@ -93,7 +93,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	case ReviewAIExplain:
 		return a.reviewAIExplain(ctx, b, sourceLang, locale)
 	case ReviewAIFixFindings:
-		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key)
+		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
 		instruction = fixFindingsInstruction(b.TargetText(loc), findings, instruction)
 		fallthrough
 	case ReviewAIRetranslate:
@@ -176,9 +176,11 @@ func renderReviewExplanation(res *aitools.ReviewResult) string {
 // currentUnitFindings gathers the unit's current findings for the fix-findings
 // instruction: the deterministic check findings (the ChecksPanel checkset) plus
 // any fresh AI-review findings recorded in the state store.
-func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope string, b *model.Block, loc model.LocaleID, sourceLang, key string) []string {
+func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope string, b *model.Block, loc model.LocaleID, sourceLang, key, collection, relPath string) []string {
 	var lines []string
-	profile := a.resolveProjectVoiceProfile(ctx, op)
+	// The findings a fix is asked to address are the ones this unit's own
+	// point produces, so the voice is resolved there.
+	profile := a.newVoiceResolver(op, false).at(ctx, collection, relPath)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	for _, f := range a.blockCheckFindings(ctx, b, loc, profile, dntTerms) {
 		line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
@@ -364,7 +366,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	profile := a.resolveProjectVoiceProfile(ctx, op)
+	voices := a.newVoiceResolver(op, false)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	src := string(op.Project.Defaults.SourceLanguage)
 
@@ -401,6 +403,8 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 		if terr != nil {
 			return nil, terr
 		}
+		// A proposal is steered by the voice governing this file's point.
+		profile := voices.at(ctx, rf.Collection, rf.Relative)
 
 		annotations := map[string]state.AIReview{}
 		type approval struct {

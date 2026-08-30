@@ -249,8 +249,9 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		detail.Status = ""
 	}
 
-	// Findings — the ChecksPanel checkset scoped to this block.
-	profile := a.resolveProjectVoiceProfile(ctx, op)
+	// Findings — the ChecksPanel checkset scoped to this block, judged by the
+	// voice governing the point this unit's source file sits at.
+	profile := a.newVoiceResolver(op, false).at(ctx, rf.Collection, rf.Relative)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile, dntTerms)
 
@@ -337,7 +338,7 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	profile := a.resolveProjectVoiceProfile(ctx, op)
+	voices := a.newVoiceResolver(op, false)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	// Group items by (file, locale) so each pair is read and overlaid once.
@@ -356,6 +357,8 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 		if berr != nil {
 			continue
 		}
+		// Each file is judged by the voice governing its own point.
+		profile := voices.at(ctx, rf.Collection, rf.Relative)
 		for _, i := range idxs {
 			b, ok := byKey[items[i].Key]
 			if !ok {
