@@ -455,10 +455,6 @@ export const api = {
   lookupMemory: (handle: string, req: unknown) => call<unknown[]>("LookupMemory", handle, req),
   annotateEntities: (handle: string, req: unknown) =>
     call<unknown>("AnnotateEntities", handle, req),
-  importTMXDialog: (handle: string) =>
-    call<{ session_id: string; count: number }>("ImportTMXDialog", handle),
-  exportTMXDialog: (handle: string, locales: string[]) =>
-    call<void>("ExportTMXDialog", handle, locales),
   getMemoryFacets: (handle: string) => call<unknown>("GetMemoryFacets", handle),
   getMemoryFacetsFiltered: (
     handle: string,
@@ -518,12 +514,6 @@ export const api = {
   updateConcept: (handle: string, req: unknown) => call<void>("UpdateConcept", handle, req),
   deleteConcept: (handle: string, id: string) => call<void>("DeleteConcept", handle, id),
   deleteConcepts: (handle: string, ids: string[]) => call<void>("DeleteConcepts", handle, ids),
-  importTermsCSVDialog: (handle: string, srcLocale: string, tgtLocale: string, domain: string) =>
-    call<{ count: number }>("ImportTermsCSVDialog", handle, srcLocale, tgtLocale, domain),
-  importTermsJSONDialog: (handle: string) =>
-    call<{ count: number }>("ImportTermsJSONDialog", handle),
-  exportTermsJSONDialog: (handle: string, name: string) =>
-    call<void>("ExportTermsJSONDialog", handle, name),
 
   // Inspect — returns the editor ContentTree (as JSON) for a project content
   // file, the structure the PreviewKit (DocumentViewer) renders. The annotated

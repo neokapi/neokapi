@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
-import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
+import { BookOpen, Plus, FolderOpen, X, AlertTriangle } from "lucide-react";
 import {
   Button,
   Card,
@@ -24,7 +24,7 @@ import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { ConceptsView } from "./ConceptsView";
-import { ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
+import { ResourceCard, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export interface TermsPageProps {
   /** Project tab ID — when set, shows the project-scoped terms. */
@@ -53,7 +53,6 @@ export function TermsPage({
   const [handle, setHandle] = useState<string | null>(null);
   const [tbName, setTbName] = useState("");
   const [tbPath, setTbPath] = useState("");
-  const [importing, setImporting] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newName, setNewName] = useState("");
   const [corruptPath, setCorruptPath] = useState<string | null>(null);
@@ -193,39 +192,6 @@ export function TermsPage({
     }
   }, [handle, refreshResources]);
 
-  const handleImportCSV = useCallback(async () => {
-    if (!activeHandle) return;
-    setImporting(true);
-    try {
-      await api.importTermsCSVDialog(activeHandle, "", "", "");
-    } catch (err) {
-      showError("Failed to import CSV", err);
-    } finally {
-      setImporting(false);
-    }
-  }, [activeHandle, showError]);
-
-  const handleImportJSON = useCallback(async () => {
-    if (!activeHandle) return;
-    setImporting(true);
-    try {
-      await api.importTermsJSONDialog(activeHandle);
-    } catch (err) {
-      showError("Failed to import JSON", err);
-    } finally {
-      setImporting(false);
-    }
-  }, [activeHandle, showError]);
-
-  const handleExport = useCallback(async () => {
-    if (!activeHandle) return;
-    try {
-      await api.exportTermsJSONDialog(activeHandle, tbName || "terms");
-    } catch (err) {
-      showError("Failed to export terms", err);
-    }
-  }, [activeHandle, tbName, showError]);
-
   // Open terms view — identical dashboard (stats + activity chart + the
   // visual concept/relation workspace) whether the terms store is project-scoped or
   // a named/ad-hoc one. Only the header (title, back button) differs.
@@ -251,21 +217,6 @@ export function TermsPage({
                 </Button>
               </SimpleTooltip>
             )
-          }
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleImportCSV}>
-                <Upload size={12} />
-                Import CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleImportJSON}>
-                <Upload size={12} />
-                Import JSON
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                Export JSON
-              </Button>
-            </div>
           }
         />
 
@@ -306,7 +257,6 @@ export function TermsPage({
 
         {/* Visual concept/relation workspace (browse → open → relate / re-status) */}
         <ConceptsView handle={activeHandle} localeScope={localeScope} />
-        <ImportProgress active={importing} />
       </div>
     );
   }
@@ -335,8 +285,7 @@ export function TermsPage({
         <Card className="mb-4 border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <BookOpen size={16} className="mx-auto mb-1 opacity-50" />
-            No project terms found. Import terminology to create one automatically, or create one
-            below.
+            No project terms found. Create one below, or open an existing terms store.
           </CardContent>
         </Card>
       )}
