@@ -1,10 +1,10 @@
 // Package sample provides the embedded sample project for the kapi-desktop
-// app: KapiMart, a multi-collection localization project in the natural
-// per-area layout (web/src/legal/marketing with locale dirs beside source).
+// app: KapiMart, a governed multi-collection project in the natural per-area
+// layout (web/src/legal/marketing with locale dirs beside source), shipping the
+// committed context its recipe binds.
 package sample
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"fmt"
@@ -19,12 +19,18 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-//go:embed kapimart/*
+// `all:` is required: the sample commits its `.kapi/` context — the voice
+// profile, the terms record, the content memory and the unit-state ledger — and
+// a plain pattern excludes every name beginning with a dot.
+//
+//go:embed all:kapimart
 var assetsFS embed.FS
 
 // DisplayName maps an internal sample name to its user-facing name.
@@ -51,6 +57,14 @@ func Scaffold(name, targetDir string) error {
 		if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
 			return fmt.Errorf("copy %s files: %w", area, err)
 		}
+	}
+
+	// Copy the committed context: the voice profile, the terms record and the
+	// content memory the recipe binds. They land on disk as authored files, the
+	// same ones `git diff` would review in a real project, and the store is
+	// compiled from them below rather than from a second copy.
+	if err := copyEmbeddedDir("kapimart/"+project.StateDirName, filepath.Join(targetDir, project.StateDirName)); err != nil {
+		return fmt.Errorf("copy context files: %w", err)
 	}
 
 	// Copy the project recipe (kapi.yaml).
@@ -100,40 +114,32 @@ func seedStore(targetDir string) error {
 	}
 	defer db.Close()
 
-	if err := seedTMv2(db.Memory()); err != nil {
+	if err := seedTMv2(db.Memory(), targetDir); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
 	}
-	if err := seedTermsv2(db.Terms()); err != nil {
+	if err := seedTermsv2(db.Terms(), targetDir); err != nil {
 		return fmt.Errorf("seed terms: %w", err)
 	}
 	return nil
 }
 
-// memorySeedName is the sample's committed content-memory bundle, the native
-// form the seed ships in.
-const memorySeedName = "kapimart/memory-seed" + kmb.Ext
+// MemorySourceRel and TermsSourceRel are where the committed context sources
+// sit inside a scaffolded project. They are the paths `kapi.yaml` binds under
+// defaults.memory_source and defaults.terms_source, so the store is compiled
+// from the same files the recipe names.
+var (
+	MemorySourceRel = filepath.Join(project.StateDirName, project.MemoryDirName, kmb.ConventionalName)
+	TermsSourceRel  = filepath.Join(project.StateDirName, ktb.ConventionalName)
+)
 
-func seedTMv2(tm *memory.SQLiteStore) error {
+func seedTMv2(tm *memory.SQLiteStore, targetDir string) error {
 	ctx := context.Background()
 
-	data, err := assetsFS.ReadFile(memorySeedName)
-	if err != nil {
-		return fmt.Errorf("read content-memory bundle: %w", err)
-	}
-	file, err := kmb.Unmarshal(data)
-	if err != nil {
-		return fmt.Errorf("parse content-memory bundle: %w", err)
-	}
-
-	// Each bundle entry is one multilingual entry carrying every target variant,
-	// under the identity it was serialized with.
-	if err := tm.BulkAddWithStream(ctx, file.ModelEntries(), ""); err != nil {
-		return fmt.Errorf("add content-memory entries: %w", err)
-	}
-	for _, s := range file.ModelImportSessions() {
-		if err := tm.CreateImportSession(ctx, s); err != nil {
-			return fmt.Errorf("create import session %s: %w", s.ID, err)
-		}
+	// Compiled through the same importer `kapi apply` uses, from the file the
+	// recipe binds, so the store has one writer and the committed bundle is the
+	// only description of what is in it.
+	if _, err := host.ImportKMBFile(ctx, tm, filepath.Join(targetDir, MemorySourceRel)); err != nil {
+		return fmt.Errorf("compile content memory: %w", err)
 	}
 
 	// Add enriched entries with structural inline codes and entity annotations.
@@ -156,13 +162,15 @@ func seedTMv2(tm *memory.SQLiteStore) error {
 	return nil
 }
 
-func seedTermsv2(tb *terms.SQLiteStore) error {
-	tbData, err := assetsFS.ReadFile("kapimart/termbase-seed.json")
+func seedTermsv2(tb *terms.SQLiteStore, targetDir string) error {
+	f, err := os.Open(filepath.Join(targetDir, TermsSourceRel))
 	if err != nil {
-		return fmt.Errorf("read terms JSON: %w", err)
+		return fmt.Errorf("open terms source: %w", err)
 	}
-	if _, err := terms.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
-		return fmt.Errorf("import terms: %w", err)
+	defer f.Close()
+
+	if _, err := host.ImportKTBFile(context.Background(), tb, f); err != nil {
+		return fmt.Errorf("compile terms: %w", err)
 	}
 	spreadTimestamps(tb.DB(), "tb_concepts", 90)
 	return nil
