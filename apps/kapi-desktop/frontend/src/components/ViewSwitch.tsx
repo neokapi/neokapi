@@ -342,6 +342,7 @@ export function ViewSwitch({
       case "project-settings":
         return (
           <ProjectSettingsPage
+            tabID={tabID}
             project={history.project}
             onUpdate={updateProject}
             pluginIssues={activeTab.pluginIssues}

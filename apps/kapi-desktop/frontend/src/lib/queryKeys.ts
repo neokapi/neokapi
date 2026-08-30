@@ -81,6 +81,8 @@ export const qk = {
   /** The values each constrained profile field accepts. */
   voiceFieldValues: () => ["voice", "field-values"] as const,
   voiceStarterPacks: () => ["voice", "starter-packs"] as const,
+  /** The axes, channels and profiles the open recipe can name. */
+  recipeGovernance: (tabID: string) => ["recipe-governance", tabID] as const,
 
   // Project model / handles
   project: (tabID: string) => ["project", tabID] as const,

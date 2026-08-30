@@ -8,6 +8,16 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   };
 }
+// Radix's popper-backed controls (Select, DropdownMenu) call these while
+// opening. jsdom implements neither, so without them a click on a trigger
+// throws and the menu never renders.
+if (typeof Element !== "undefined") {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.setPointerCapture ??= () => {};
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+}
+
 import { vi } from "vitest";
 
 // Mock @wailsio/runtime to prevent network calls during tests.

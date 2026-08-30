@@ -117,20 +117,30 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 	}
 }
 
+// DeclarableAxis reports whether an axis may be declared under
+// defaults.coordinates, returning the refusal when it may not.
+//
+// product and channel are DERIVED from a collection's `channel:`, which is why
+// Defaults.Coordinates documents itself as declared axes only: writing one here
+// would state a point the recipe also computes, and the two would be free to
+// disagree. Every surface that offers a coordinate editor asks here, so a
+// refusal reads the same wherever it is met.
+func DeclarableAxis(axis string) error {
+	if axis == "" {
+		return errors.New(`recipe: empty axis in "defaults.coordinates."`)
+	}
+	if axis == ProductAxis || axis == ChannelAxis {
+		return fmt.Errorf("recipe: %q is derived from a collection's channel, not declared: remove it from the point or set the collection's channel instead", axis)
+	}
+	return nil
+}
+
 // setDefaultCoordinate sets one axis of the project's default point. An empty
 // value removes the axis, so a change-set can withdraw a coordinate as well as
 // declare one and the operation stays total.
-//
-// The structural axes are refused. product and channel are DERIVED from a
-// collection's `channel:`, which is why Defaults.Coordinates documents itself
-// as declared axes only: writing one here would state a point the recipe also
-// computes, and the two would be free to disagree.
 func setDefaultCoordinate(proj *KapiProject, path, axis string, raw json.RawMessage) (bool, error) {
-	if axis == "" {
-		return false, errors.New(`recipe: empty axis in "defaults.coordinates."`)
-	}
-	if axis == ProductAxis || axis == ChannelAxis {
-		return false, fmt.Errorf("recipe: %q is derived from a collection's channel, not declared: remove it from the point or set the collection's channel instead", axis)
+	if err := DeclarableAxis(axis); err != nil {
+		return false, err
 	}
 
 	var v string
