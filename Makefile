@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -272,6 +272,9 @@ check-sidebar-ids: ## Guard: every doc id a Docusaurus sidebar names resolves to
 
 check-vocabulary: ## Guard: no retired framing or retired vocabulary in prose, product strings and build metadata
 	@./scripts/check-vocabulary.sh
+
+check-desktop-interchange: ## Guard: the Kapi Desktop surface names no interchange format (TMX/XLIFF/termbase)
+	@./scripts/check-desktop-interchange.sh
 
 check-comment-history: ## Guard: comments state what the code IS, not what it was changed from
 	@./scripts/check-comment-history.sh
@@ -2959,7 +2962,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-comment-history check-run-projection check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

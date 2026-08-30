@@ -129,9 +129,15 @@ function persist(cfg: PseudoConfig | null): void {
 
 export function DevPseudoCard() {
   // Production builds get nothing — both the UI and the runtime
-  // pseudo module are stripped by the bundler.
+  // pseudo module are stripped by the bundler. The controls live in their own
+  // component so this build-time decision is made before any hook runs: a
+  // component that returns early above its hooks calls a different number of
+  // them per render, which is what the rule forbids.
   if (!import.meta.env.DEV) return null;
+  return <DevPseudoControls />;
+}
 
+function DevPseudoControls() {
   const initial = readStoredConfig();
   const [enabled, setEnabled] = useState(initial !== null);
   const [prefix, setPrefix] = useState(initial?.prefix ?? DEFAULT_PREFIX);

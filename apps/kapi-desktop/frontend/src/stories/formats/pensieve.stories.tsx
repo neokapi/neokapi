@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Other/Pensieve content memory Filter",
+  title: "Formats & Tools/Formats/Other/Pensieve Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

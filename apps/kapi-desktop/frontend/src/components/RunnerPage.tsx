@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Play,
   Square,
@@ -26,7 +26,9 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { filterFiles, filterLanguages } from "../lib/filter";
@@ -105,6 +107,24 @@ export function RunnerPage({
 
   const [inputFiles, setInputFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
+
+  // Whether this flow produces a target variant, from the locale cardinality
+  // each tool declares. A flow whose every step is monolingual (word counts,
+  // format conversion, checks over the source) has nothing to target, so the
+  // manual run does not ask for a language. Anything not yet known — tools
+  // still loading, a step naming a tool the registry has no entry for — counts
+  // as needing one, so an unanswered question never launches a bilingual flow
+  // with no target.
+  const toolsQuery = useQuery({
+    queryKey: qk.projectTools(tabID),
+    queryFn: () => api.listProjectTools(tabID),
+  });
+  const needsTargetLanguage = useMemo(() => {
+    const steps = flow?.steps ?? [];
+    if (steps.length === 0 || !toolsQuery.data) return true;
+    const cardinality = new Map(toolsQuery.data.map((tool) => [tool.name, tool.cardinality]));
+    return steps.some((step) => cardinality.get(step.tool) !== "monolingual");
+  }, [flow, toolsQuery.data]);
   const [projectTargets, setProjectTargets] = useState<string[]>([]);
   const autoRunStarted = useRef(false);
 
@@ -240,9 +260,10 @@ export function RunnerPage({
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
-    if (!targetLang || inputFiles.length === 0) return;
-    await launchFlow(inputFiles, [targetLang]);
-  }, [inputFiles, targetLang, launchFlow]);
+    if (inputFiles.length === 0) return;
+    if (needsTargetLanguage && !targetLang) return;
+    await launchFlow(inputFiles, needsTargetLanguage ? [targetLang] : []);
+  }, [inputFiles, targetLang, needsTargetLanguage, launchFlow]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -319,38 +340,40 @@ export function RunnerPage({
               <p className="mt-1 text-xs text-muted-foreground">{t("From project content")}</p>
             )}
           </div>
-          <div>
-            <Label htmlFor="runner-target-lang" className="mb-1 block">
-              Target Language
-            </Label>
-            {projectTargets.length > 0 ? (
-              <Select value={targetLang} onValueChange={setTargetLang}>
-                <SelectTrigger
+          {needsTargetLanguage && (
+            <div>
+              <Label htmlFor="runner-target-lang" className="mb-1 block">
+                Target Language
+              </Label>
+              {projectTargets.length > 0 ? (
+                <Select value={targetLang} onValueChange={setTargetLang}>
+                  <SelectTrigger
+                    id="runner-target-lang"
+                    className="w-48"
+                    aria-label="Target language"
+                  >
+                    <SelectValue placeholder={t("Select a language")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectTargets.map((l) => (
+                      <SelectItem key={l} value={l} translate="no">
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
                   id="runner-target-lang"
+                  type="text"
+                  value={targetLang}
+                  onChange={(e) => setTargetLang(e.target.value)}
+                  placeholder="e.g. fr"
                   className="w-48"
-                  aria-label="Target language"
-                >
-                  <SelectValue placeholder={t("Select a language")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectTargets.map((l) => (
-                    <SelectItem key={l} value={l} translate="no">
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id="runner-target-lang"
-                type="text"
-                value={targetLang}
-                onChange={(e) => setTargetLang(e.target.value)}
-                placeholder="e.g. fr"
-                className="w-48"
-              />
-            )}
-          </div>
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -359,7 +382,7 @@ export function RunnerPage({
         {state === "idle" && !autoRun && !converge && (
           <Button
             onClick={handleRun}
-            disabled={!targetLang || inputFiles.length === 0 || hasActive}
+            disabled={(needsTargetLanguage && !targetLang) || inputFiles.length === 0 || hasActive}
             aria-label="Run flow"
           >
             {hasActive ? (

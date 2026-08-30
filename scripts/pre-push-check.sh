@@ -73,6 +73,10 @@ run_check "Absolute home paths" ./scripts/check-abs-paths.sh
 # quietly — a stale phrase reads as intentional to the next reader.
 run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
 
+# Ungated: the interchange chrome came back once as one adapter method and one
+# header action, and neither touched a file this check could have been gated on.
+run_check "Desktop names no interchange format" ./scripts/check-desktop-interchange.sh
+
 run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 
 # Ungated: a hand-rolled run walk is written wherever someone needs "just the

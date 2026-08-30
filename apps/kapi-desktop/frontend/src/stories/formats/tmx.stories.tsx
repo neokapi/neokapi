@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatCompare, FormatConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Translation Interchange/TMX (Translation Memory eXchange)",
+  title: "Formats & Tools/Formats/Interchange/TMX (Translation Memory eXchange)",
   parameters: { layout: "padded" },
 };
 export default meta;

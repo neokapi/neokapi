@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Translation Interchange/XLIFF 1.2 and 2.0 Filter",
+  title: "Formats & Tools/Formats/Interchange/XLIFF 1.2 and 2.0 Filter",
   parameters: { layout: "padded" },
 };
 export default meta;
