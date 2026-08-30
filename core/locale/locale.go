@@ -118,10 +118,8 @@ func cleanLocaleInput(s string) string {
 
 // primarySubtag returns the language subtag of a cleaned tag.
 func primarySubtag(cleaned string) string {
-	if i := strings.Index(cleaned, "-"); i >= 0 {
-		return cleaned[:i]
-	}
-	return cleaned
+	base, _, _ := strings.Cut(cleaned, "-")
+	return base
 }
 
 // canonicalShape applies BCP-47's own casing convention to a tag x/text declined
