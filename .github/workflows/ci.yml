@@ -50,6 +50,7 @@ jobs:
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
+      faces: ${{ github.event_name == 'push' || steps.filter.outputs.faces }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
@@ -135,6 +136,10 @@ jobs:
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
           check_paths plugins  '^plugins/'
+          # The three faces of one question, plus the record they are held to.
+          # Each leg lives in the module of the face it drives, so a PR touching
+          # one face would otherwise run one leg and merge a disagreement.
+          check_paths faces '^(cli|host)/' '^apps/kapi-desktop/backend/' '^kapi/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -482,6 +487,28 @@ jobs:
             coverage/cli.out
             coverage/host.out
           retention-days: 1
+
+  face-parity:
+    name: Face parity (CLI/MCP/desktop)
+    runs-on: ubuntu-latest
+    needs: changes
+    # One job for three legs. They live in three modules — the desktop's links
+    # Wails and cannot be linked beside the others — so a per-module job would
+    # run one face's leg against a record the other faces never re-read, and a
+    # disagreement would merge green. Any face changing runs all three.
+    if: needs.changes.outputs.faces == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+
+      # The desktop leg compiles the backend package, which links Wails.
+      - name: Install Wails system dependencies (Linux)
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+
+      - name: Run the face parity suite
+        run: make face-parity
 
   test-kapi:
     name: Test (kapi)

@@ -2023,6 +2023,24 @@ test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
 test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environment
 
+# ── Face parity ─────────────────────────────────────────────────────────────
+#
+# One question, three faces: the CLI verb, the MCP tool or resource, and the
+# desktop's backend method. The suites cannot share a binary — the desktop is
+# its own module and links Wails — so they meet at a committed record of
+# answers (host/facetest). Each leg builds the same fixture, asks its own face,
+# and compares.
+#
+# Not $(GOTEST) with a second -tags: `go` takes the last -tags flag rather than
+# unioning them, so every tag is spelled once, here.
+face-parity: i18n-catalogs ## Run the CLI/MCP/desktop face parity suite
+	$(GO) test -tags "fts5" ./host/ ./cli/ -run TestFaceParity -count=1
+	cd $(KAPI_DESKTOP_DIR) && $(GO) test -tags "fts5" ./backend/ -run TestFaceParity -count=1
+
+face-parity-update: i18n-catalogs ## Rewrite the face parity record from the host layer
+	$(GO) test -tags "fts5" ./host/ -run TestFaceParity -count=1 -update-face-golden
+	@echo "re-run 'make face-parity' and review host/facetest/testdata/answers.json before committing"
+
 # ── Bridge Tests ────────────────────────────────────────────────────────────
 
 # ── Bench (composite target at root) ───────────────────────────────────────
@@ -2990,6 +3008,7 @@ help: ## Show this help
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress \
         logo harness-deps harness-videos \
         harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \

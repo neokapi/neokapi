@@ -109,6 +109,13 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			}
 		}
 	}
+	// The vocabulary the project decided travels with the profile, here as it
+	// does in the verb: a term retired in the project's terms is a finding, and
+	// resolving the profile without it left an assistant reading a quieter
+	// report than the same file gets in CI.
+	if tb, terr := a.ProjectTermsForFile(NewEnvCommand(ctx, "check_file"), in.File); terr == nil {
+		opts.terms = tb
+	}
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
 

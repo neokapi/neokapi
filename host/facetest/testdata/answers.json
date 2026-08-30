@@ -1,0 +1,86 @@
+{
+  "context_at": {
+    "point": {
+      "path": "docs/guide.md",
+      "profile": "support",
+      "channel": "docs",
+      "collection": "Docs",
+      "default": false
+    },
+    "voice": {
+      "name": "Fjordline",
+      "field": "defaults.voice"
+    },
+    "terms": [
+      {
+        "concept_id": "c-berth",
+        "term": "berth",
+        "status": "preferred",
+        "discouraged": false,
+        "replacement": ""
+      },
+      {
+        "concept_id": "c-memory",
+        "term": "content memory",
+        "status": "preferred",
+        "discouraged": false,
+        "replacement": ""
+      },
+      {
+        "concept_id": "c-memory",
+        "term": "translation memory",
+        "status": "deprecated",
+        "discouraged": true,
+        "replacement": "content memory"
+      }
+    ],
+    "terms_total": 3
+  },
+  "context_search": {
+    "query": "memory",
+    "scope": "project",
+    "terms": [
+      {
+        "concept_id": "c-memory",
+        "term": "content memory",
+        "status": "preferred",
+        "discouraged": false,
+        "replacement": ""
+      },
+      {
+        "concept_id": "c-memory",
+        "term": "translation memory",
+        "status": "deprecated",
+        "discouraged": true,
+        "replacement": "content memory"
+      }
+    ],
+    "precedent": null
+  },
+  "status": {
+    "project": "Fjordline",
+    "collections": [
+      "App"
+    ],
+    "locales": [
+      {
+        "locale": "nb",
+        "translated_pct": 33
+      }
+    ]
+  },
+  "check": {
+    "findings": [
+      {
+        "severity": "major",
+        "message": "Forbidden term \"translation memory\" found",
+        "suggestion": "Use \"content memory\" instead"
+      },
+      {
+        "severity": "minor",
+        "message": "Retired term \"translation memory\" found in terms",
+        "suggestion": "Use \"content memory\" instead"
+      }
+    ]
+  }
+}
