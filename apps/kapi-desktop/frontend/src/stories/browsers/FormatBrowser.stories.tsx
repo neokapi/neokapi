@@ -7,9 +7,9 @@
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Button, Input } from "@neokapi/ui-primitives";
-import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import { formatSchemas, formatList } from "../_lib/reference-data";
+import { FormatSchemaPreview } from "../_lib/schema-story";
 const allSchemas = formatSchemas.all as unknown as ComponentSchema[];
 
 interface FormatEntry {
@@ -104,7 +104,7 @@ function FormatBrowser() {
         >
           <div>
             {selected.schema ? (
-              <FormatConfigEditor
+              <FormatSchemaPreview
                 schema={selected.schema}
                 values={configValues}
                 onChange={setConfigValues}
