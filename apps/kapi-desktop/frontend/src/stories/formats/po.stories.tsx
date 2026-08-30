@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatCompare, FormatConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Translation Interchange/PO Format (GNU Gettext)",
+  title: "Formats & Tools/Formats/Interchange/PO Format (GNU Gettext)",
   parameters: { layout: "padded" },
 };
 export default meta;

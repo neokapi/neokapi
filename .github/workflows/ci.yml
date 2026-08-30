@@ -1013,6 +1013,8 @@ jobs:
         run: ./scripts/check-abs-paths.sh
       - name: Guard — no retired framing in user-facing prose
         run: ./scripts/check-vocabulary.sh
+      - name: Guard — the Kapi Desktop surface names no interchange format
+        run: ./scripts/check-desktop-interchange.sh
       - name: Guard — every local action reference resolves where its job checks out
         run: ./scripts/check-local-actions.sh
 

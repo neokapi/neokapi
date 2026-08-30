@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Translation Interchange/SDLPPX and SDLRPX Filter",
+  title: "Formats & Tools/Formats/Interchange/SDLPPX and SDLRPX Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

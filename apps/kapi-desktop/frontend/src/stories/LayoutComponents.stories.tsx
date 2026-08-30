@@ -96,7 +96,7 @@ export const EmptyStateWithIcon: Story = {
       <EmptyState
         icon={<Database size={32} />}
         title="No content memories"
-        description="Import a TMX file or create a new TM to get started."
+        description="Create a content memory to get started."
         action={
           <Button size="sm">
             <Plus size={12} /> New memory
