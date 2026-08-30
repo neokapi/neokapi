@@ -10,6 +10,12 @@ vi.mock("../components/ContextExplorerView", () => ({
 vi.mock("../components/VoicePage", () => ({
   VoicePage: ({ tabID }: { tabID: string }) => <div>voice for {tabID}</div>,
 }));
+vi.mock("../components/TermsPage", () => ({
+  TermsPage: ({ tabID }: { tabID: string }) => <div>terms for {tabID}</div>,
+}));
+vi.mock("../components/MemoriesPage", () => ({
+  MemoriesPage: ({ tabID }: { tabID: string }) => <div>memory for {tabID}</div>,
+}));
 
 import { ContextHub } from "../components/ContextHub";
 
@@ -34,5 +40,27 @@ describe("ContextHub", () => {
   it("honours the section it is opened on", () => {
     render(<ContextHub tabID="t2" projectName="Northsea" section="voice" />);
     expect(screen.getByText("voice for t2")).toBeInTheDocument();
+  });
+
+  it("files the stores under Context", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
+    await userEvent.click(screen.getByRole("button", { name: "Terms" }));
+    expect(screen.getByText("terms for t1")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Content Memory" }));
+    expect(screen.getByText("memory for t1")).toBeInTheDocument();
+  });
+
+  it("keeps Content Memory quiet until the project declares targets", () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages={false} />);
+    expect(screen.getByRole("button", { name: "Terms" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to the explorer when the opened section is gated away", () => {
+    render(
+      <ContextHub tabID="t1" projectName="Northsea" section="memory" hasTargetLanguages={false} />,
+    );
+    expect(screen.getByText("explorer for t1")).toBeInTheDocument();
+    expect(screen.queryByText("memory for t1")).not.toBeInTheDocument();
   });
 });

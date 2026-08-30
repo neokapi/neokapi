@@ -97,6 +97,9 @@ const projectItems: SidebarItem[] = [
     view: "context",
     icon: <Compass size={20} strokeWidth={SW} />,
     label: "Context",
+    // Terms and Content Memory are sections of the hub; their view ids stay
+    // routable so a persisted view still opens where it used to.
+    activeViews: ["termbases", "memories"],
   },
   {
     type: "item",
@@ -117,19 +120,6 @@ const projectItems: SidebarItem[] = [
     icon: <Wrench size={20} strokeWidth={SW} />,
     label: "Toolbox",
     activeViews: ["flows"],
-  },
-  {
-    type: "item",
-    view: "termbases",
-    icon: <BookOpen size={20} strokeWidth={SW} />,
-    label: "Terms",
-  },
-  {
-    type: "item",
-    view: "memories",
-    icon: <Database size={20} strokeWidth={SW} />,
-    label: "Content Memory",
-    localeGated: true,
   },
   {
     type: "item",

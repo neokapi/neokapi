@@ -5,7 +5,6 @@ import {
   Loader2,
   Plug,
   Settings2,
-  Wrench,
   ShieldCheck,
   AlertTriangle,
   RefreshCw,
@@ -23,6 +22,7 @@ import { api, type SampleInfo } from "../hooks/useApi";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
 import { ConvergenceHero } from "./ConvergenceHero";
+import { ProjectStanding, type ProjectPointsResult } from "./ProjectStanding";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -54,6 +54,12 @@ export interface HomePageProps {
   formatList?: import("../types/api").FormatInfo[];
   /** Pre-loaded base path for Storybook — forwarded to CollectionsPanel. */
   basePath?: string;
+  /** Pre-loaded point map for Storybook/tests — skips ProjectPoints. */
+  points?: ProjectPointsResult;
+  /** Pre-loaded venue for Storybook/tests — skips GetProjectServer. */
+  server?: import("../types/api").ProjectServer;
+  /** Open Context standing at a point on the map. */
+  onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
 }
 
 export function HomePage({
@@ -74,6 +80,9 @@ export function HomePage({
   sampleInfo: propSampleInfo,
   formatList,
   basePath,
+  points,
+  server,
+  onOpenPoint,
 }: HomePageProps) {
   const { active: activeFilter } = useActiveFilter();
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
@@ -244,6 +253,20 @@ export function HomePage({
         </div>
       )}
 
+      {/* The graph first: what the project stands at on both axes, and the
+          coordinate points its content sits at. The hero's verb follows. */}
+      {tabID && (
+        <ProjectStanding
+          tabID={tabID}
+          project={project}
+          displayName={displayName}
+          status={status}
+          points={points}
+          server={server}
+          onOpenPoint={onOpenPoint}
+        />
+      )}
+
       {/* Convergence hero — the primary verb of the home (issue #1078 C4):
           drift summary + Bring up to date + the pre-flight Plan… dialog. */}
       {tabID && (
@@ -257,7 +280,7 @@ export function HomePage({
       )}
 
       {/* Quick actions — the Content card is gone; the page is content now. */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <ActionCard
           icon={<ShieldCheck size={16} />}
           title="Check"
@@ -273,12 +296,6 @@ export function HomePage({
               : t("Build your first flow")
           }
           onClick={() => onNavigate("flows")}
-        />
-        <ActionCard
-          icon={<Wrench size={16} />}
-          title="Tools"
-          description="Run individual tools on files"
-          onClick={() => onNavigate("tools")}
         />
         <ActionCard
           icon={<Settings2 size={16} />}

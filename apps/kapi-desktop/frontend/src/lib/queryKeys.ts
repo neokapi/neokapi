@@ -83,6 +83,8 @@ export const qk = {
   voiceStarterPacks: () => ["voice", "starter-packs"] as const,
   /** The axes, channels and profiles the open recipe can name. */
   recipeGovernance: (tabID: string) => ["recipe-governance", tabID] as const,
+  /** Every coordinate point the recipe declares, and what governs there. */
+  projectPoints: (tabID: string) => ["project-points", tabID] as const,
 
   // Project model / handles
   project: (tabID: string) => ["project", tabID] as const,

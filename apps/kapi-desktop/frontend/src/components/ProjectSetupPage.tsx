@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { FolderInput, FolderOutput, FileBox } from "lucide-react";
 import { ActionCard } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 
 interface ProjectSetupPageProps {
   tabID: string;
@@ -32,13 +34,17 @@ const templates = [
 
 export function ProjectSetupPage({ tabID, onDone }: ProjectSetupPageProps) {
   const [applying, setApplying] = useState<string | null>(null);
+  const { showError } = useError();
 
+  // A template that fails to apply leaves the tab empty, so the failure is
+  // reported rather than shown as a spinner that quietly stops.
   const handleSelect = async (templateID: string) => {
     setApplying(templateID);
     try {
       await api.applyTemplate(tabID, templateID);
       onDone();
-    } catch {
+    } catch (err) {
+      showError(t("The template did not apply"), err);
       setApplying(null);
     }
   };
