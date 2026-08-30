@@ -180,9 +180,11 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	var lines []string
 	// The findings a fix is asked to address are the ones this unit's own
 	// point produces, so the voice is resolved there.
-	profile := a.newVoiceResolver(op, false).at(ctx, collection, relPath)
+	points := a.newPointResolver(op, false)
+	profile := points.at(ctx, collection, relPath)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, loc, profile, dntTerms) {
+	for _, f := range a.blockCheckFindings(ctx, b, loc, profile,
+		points.termsAt(ctx, collection, relPath), dntTerms) {
 		line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
 		if f.Suggestion != "" {
 			line += " (suggestion: " + f.Suggestion + ")"
@@ -366,7 +368,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	voices := a.newVoiceResolver(op, false)
+	points := a.newPointResolver(op, false)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	src := string(op.Project.Defaults.SourceLanguage)
 
@@ -403,8 +405,10 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 		if terr != nil {
 			return nil, terr
 		}
-		// A proposal is steered by the voice governing this file's point.
-		profile := voices.at(ctx, rf.Collection, rf.Relative)
+		// A proposal is steered by the voice and vocabulary governing this
+		// file's point.
+		profile := points.at(ctx, rf.Collection, rf.Relative)
+		tb := points.termsAt(ctx, rf.Collection, rf.Relative)
 
 		annotations := map[string]state.AIReview{}
 		type approval struct {
@@ -448,7 +452,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 			res.Reviewed++
 
 			if policy.AutoApprove && score >= policy.MinScore &&
-				!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, model.LocaleID(k.locale), profile, dntTerms)) {
+				!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, model.LocaleID(k.locale), profile, tb, dntTerms)) {
 				approvals = append(approvals, approval{item: it, score: score})
 			}
 		}

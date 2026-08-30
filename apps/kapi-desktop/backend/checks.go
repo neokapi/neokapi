@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // DesktopFinding is one content-check finding, flattened for the React Checks
@@ -118,7 +119,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// Do-not-translate terms come from the bound terms store, project-wide.
 	// Both are optional — when absent the corresponding check is skipped,
 	// matching the CLI's flag-free behaviour.
-	voices := a.newVoiceResolver(op, true)
+	points := a.newPointResolver(op, true)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	var allFindings []check.Finding
@@ -167,12 +168,16 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// loop's own read-failure branch above already guards against.
 			var checkErr error
 
-			// Voice vocabulary — source-side, against the profile governing THIS
-			// file's point. Runs once per file (independent of how many target
-			// languages are checked).
-			profile := voices.at(ctx, rf.Collection, rf.Relative)
+			// Voice vocabulary — source-side, against the profile AND the
+			// vocabulary governing THIS file's point. Passing no terminology
+			// reports what the profile forbids and stays silent about every
+			// term the project itself retired. Runs once per file (independent
+			// of how many target languages are checked).
+			profile := points.at(ctx, rf.Collection, rf.Relative)
 			if profile != nil {
-				vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
+				vocab := coretools.NewVoiceVocabCheckTool(
+					profile, points.termsAt(ctx, rf.Collection, rf.Relative),
+				).InSourceLocale(pctx.SourceLocale)
 				for _, b := range sourceBlocks {
 					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
 						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
@@ -305,18 +310,20 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName string, fmt
 	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, fmtCfg, sourceLang)
 }
 
-// voiceResolver resolves the voice profile governing a point, once per point.
+// pointResolver answers what governs a file — the voice profile and the
+// vocabulary — at that file's own point, once per point.
 //
-// A project binds a voice per profile, so the profile that governs a file is
-// the one at that file's own point. Resolving once for the project and applying
-// it everywhere checks half a two-profile repository against the wrong rules,
-// and reports each finding against the point it did not use.
+// A project binds both per profile, so the pair governing a file is the pair at
+// its point. Resolving once for the project and applying it everywhere checks
+// half a two-profile repository against the wrong rules, and reports each
+// finding against a point it did not use.
 //
-// Resolution reads files, so each point is resolved once and reused. The key is
-// the resolved channel reference rather than the file: every file at a point
-// shares its governance, which is what makes the point the unit.
-type voiceResolver struct {
+// Both resolutions read from disk, so each point is resolved once and reused.
+// The key is the resolved channel reference rather than the file: every file at
+// a point shares its governance, which is what makes the point the unit.
+type pointResolver struct {
 	app  *App
+	op   *openProject
 	proj *project.KapiProject
 	root string
 	// instant is the governance clock for the whole operation, so two files
@@ -324,24 +331,80 @@ type voiceResolver struct {
 	instant time.Time
 	// held is true when the caller already owns checksMu, as a checks run does
 	// for its whole duration.
-	held bool
-	seen map[string]*coreprofile.VoiceProfile
+	held   bool
+	voices map[string]*coreprofile.VoiceProfile
+	terms  map[string]terms.Terminology
 }
 
-// newVoiceResolver builds a resolver for one operation over one project. held
+// newPointResolver builds a resolver for one operation over one project. held
 // says whether the caller already owns checksMu.
-func (a *App) newVoiceResolver(op *openProject, held bool) *voiceResolver {
+func (a *App) newPointResolver(op *openProject, held bool) *pointResolver {
 	if op == nil || op.Project == nil || op.Path == "" {
 		return nil
 	}
-	return &voiceResolver{
+	return &pointResolver{
 		app:     a,
+		op:      op,
 		proj:    op.Project,
 		root:    filepath.Dir(op.Path),
 		instant: a.hostEngine().GovernanceInstant(),
 		held:    held,
-		seen:    map[string]*coreprofile.VoiceProfile{},
+		voices:  map[string]*coreprofile.VoiceProfile{},
+		terms:   map[string]terms.Terminology{},
 	}
+}
+
+// point builds the governance point for a file.
+func (v *pointResolver) point(collection, relPath string) project.GovernancePoint {
+	return project.GovernancePoint{Collection: collection, Path: relPath, At: v.instant}
+}
+
+// key names the point a file resolves to. A point that fails to resolve keys as
+// the project's own, which is where its content is governed.
+func (v *pointResolver) key(pt project.GovernancePoint) string {
+	if rc, err := v.proj.ResolveGovernanceFor(pt); err == nil {
+		return rc.Ref().String()
+	}
+	return ""
+}
+
+// termsAt returns the vocabulary the project decided for this file's point —
+// what `kapi check` runs its gate against.
+//
+// A surface passing no terminology reports only what a voice profile forbids
+// and stays silent about every term the project itself retired, which is a
+// different answer about the same file. Best-effort: nil when nothing binds.
+func (v *pointResolver) termsAt(ctx context.Context, collection, relPath string) terms.Terminology {
+	if v == nil {
+		return nil
+	}
+	k := v.key(v.point(collection, relPath))
+	if tb, ok := v.terms[k]; ok {
+		return tb
+	}
+	tb := v.loadTerms(ctx, relPath)
+	v.terms[k] = tb
+	return tb
+}
+
+// loadTerms performs one vocabulary resolution through the same host resolver
+// the CLI's gate uses, taking checksMu unless the caller holds it.
+func (v *pointResolver) loadTerms(ctx context.Context, relPath string) terms.Terminology {
+	if !v.held {
+		v.app.checksMu.Lock()
+		defer v.app.checksMu.Unlock()
+	}
+	cmd, err := v.app.contextCommand(ctx, v.op)
+	if err != nil {
+		return nil
+	}
+	tb, terr := v.app.checksCLI().ProjectTermsForFile(
+		ctx, cmd, filepath.Join(v.root, filepath.FromSlash(relPath)),
+	)
+	if terr != nil {
+		return nil
+	}
+	return tb
 }
 
 // at returns the voice profile governing the point (collection, relPath), which
@@ -349,29 +412,22 @@ func (a *App) newVoiceResolver(op *openProject, held bool) *voiceResolver {
 //
 // Best-effort: nil when nothing is bound or resolution fails, and the voice
 // vocabulary check is then skipped — the CLI's flag-free behaviour.
-func (v *voiceResolver) at(ctx context.Context, collection, relPath string) *coreprofile.VoiceProfile {
+func (v *pointResolver) at(ctx context.Context, collection, relPath string) *coreprofile.VoiceProfile {
 	if v == nil {
 		return nil
 	}
-	pt := project.GovernancePoint{Collection: collection, Path: relPath, At: v.instant}
-
-	// Files sharing a point share a resolution. A point that fails to resolve
-	// keys as the project's own, which is where its content is governed.
-	key := ""
-	if rc, err := v.proj.ResolveGovernanceFor(pt); err == nil {
-		key = rc.Ref().String()
-	}
-	if p, ok := v.seen[key]; ok {
+	pt := v.point(collection, relPath)
+	k := v.key(pt)
+	if p, ok := v.voices[k]; ok {
 		return p
 	}
-
 	profile := v.load(ctx, pt)
-	v.seen[key] = profile
+	v.voices[k] = profile
 	return profile
 }
 
 // load performs one resolution, taking checksMu unless the caller holds it.
-func (v *voiceResolver) load(ctx context.Context, pt project.GovernancePoint) *coreprofile.VoiceProfile {
+func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *coreprofile.VoiceProfile {
 	if !v.held {
 		v.app.checksMu.Lock()
 		defer v.app.checksMu.Unlock()

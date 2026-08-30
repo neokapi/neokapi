@@ -20,6 +20,7 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // ReviewUnitDetail is the full picture of one review-queue unit for the Review
@@ -149,7 +150,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // integrity was never verified. A synthetic blocking finding is honest at the
 // panel and fail-safe at the gate, and keeps the signature usable from the paths
 // that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *coreprofile.VoiceProfile, dntTerms []string) []DesktopFinding {
+func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	// The review surface addresses a unit, and carries its own scope in the
 	// queue rather than on each finding, so the point stays unset here.
@@ -164,7 +165,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 	}
 
 	if profile != nil {
-		vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(profile, tb)
 		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
 			return fail("voice vocabulary", err)
 		}
@@ -251,9 +252,11 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 
 	// Findings — the ChecksPanel checkset scoped to this block, judged by the
 	// voice governing the point this unit's source file sits at.
-	profile := a.newVoiceResolver(op, false).at(ctx, rf.Collection, rf.Relative)
+	points := a.newPointResolver(op, false)
+	profile := points.at(ctx, rf.Collection, rf.Relative)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile, dntTerms)
+	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile,
+		points.termsAt(ctx, rf.Collection, rf.Relative), dntTerms)
 
 	// Recorded decision + provenance from the project state store, when the
 	// decision still judges the current translation.
@@ -338,7 +341,7 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	voices := a.newVoiceResolver(op, false)
+	points := a.newPointResolver(op, false)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	// Group items by (file, locale) so each pair is read and overlaid once.
@@ -357,14 +360,15 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 		if berr != nil {
 			continue
 		}
-		// Each file is judged by the voice governing its own point.
-		profile := voices.at(ctx, rf.Collection, rf.Relative)
+		// Each file is judged by the voice and vocabulary governing its own point.
+		profile := points.at(ctx, rf.Collection, rf.Relative)
+		tb := points.termsAt(ctx, rf.Collection, rf.Relative)
 		for _, i := range idxs {
 			b, ok := byKey[items[i].Key]
 			if !ok {
 				continue
 			}
-			has := len(a.blockCheckFindings(ctx, b, model.LocaleID(s.locale), profile, dntTerms)) > 0
+			has := len(a.blockCheckFindings(ctx, b, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
 			items[i].HasFindings = &has
 		}
 	}
