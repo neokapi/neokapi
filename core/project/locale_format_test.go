@@ -33,6 +33,30 @@ func TestResolveTargetPathInRendersTheDeclaredStyle(t *testing.T) {
 	}
 }
 
+// {lang} is projected wherever it appears in the pattern, so a target that
+// mirrors its sources under a per-locale directory gets the declared style in
+// the directory name as well as in a filename. The Project Settings hint says
+// "file and directory names"; this is the half that is not a filename.
+func TestResolveTargetPathInProjectsDirectorySegments(t *testing.T) {
+	cases := []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{"directory segment", "i18n/{lang}/messages.json", "i18n/nb_NO/messages.json"},
+		// A directory target mirrors the source tree beneath it; the source's
+		// own fixed prefix ("app/") is the base that gets trimmed.
+		{"directory mirror", "i18n/{lang}/", "i18n/nb_NO/en.json"},
+		{"both segments", "i18n/{lang}/app.{lang}.json", "i18n/nb_NO/app.nb_NO.json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ResolveTargetPathIn("app/en.json", "", tc.target, "app/en.json", "nb-NO", "posix")
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // A locale is projected on the way out and canonicalized on the way back, so a
 // posix project's own files answer to the locale its recipe declares.
 func TestLocaleFormatRoundTrips(t *testing.T) {
