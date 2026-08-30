@@ -12,6 +12,25 @@ export interface KapiProject {
   collections?: Collection[];
   preset?: string;
   flows?: Record<string, FlowSpec>;
+  /** Governance bound to a product, keyed by the product's name. */
+  profiles?: Record<string, ProfileSpec>;
+}
+
+/** A profile: the channels a product ships on, and what governs them. */
+export interface ProfileSpec {
+  channels?: (string | { id: string; concept?: string })[];
+  voice?: VoiceBindingSpec;
+  termstore?: string;
+  concept?: string;
+  valid_from?: string;
+  valid_to?: string;
+}
+
+/** A voice binding: exactly one of a file, a starter pack, or a stored name. */
+export interface VoiceBindingSpec {
+  profile_file?: string;
+  profile?: string;
+  pack?: string;
 }
 
 export interface PluginSpec {
@@ -30,6 +49,16 @@ export interface ProjectDefaults {
   formats?: Record<string, FormatDefaults>;
   /** The default flow `kapi up` / Bring up to date converges with. */
   flow?: string;
+  /** Glob patterns skipped during content scanning. */
+  exclude?: string[];
+  /** The voice profile bound as standing project context. */
+  voice?: VoiceBindingSpec;
+  /**
+   * The project's default point: the declared axes every collection sits at
+   * unless it says otherwise. The structural axes (product, channel) are
+   * derived from a collection's `channel:` and never written here.
+   */
+  coordinates?: Record<string, string>;
 }
 
 export interface FormatDefaults {
@@ -57,6 +86,9 @@ export interface Collection {
    * at: `profile/channel`, or a bare `channel` when exactly one profile
    * declares it. */
   channel?: string;
+
+  /** Declared axes this collection sits at, overriding the project's own. */
+  coordinates?: Record<string, string>;
 
   // Bare entry fields (short form — promoted from ContentItem).
   path?: string;

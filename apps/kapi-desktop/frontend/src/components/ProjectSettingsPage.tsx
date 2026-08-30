@@ -29,14 +29,19 @@ import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";
+import { GovernanceSettings, type RecipeGovernance } from "./GovernanceSettings";
 
 export interface ProjectSettingsPageProps {
+  /** Project tab ID — the project whose governance vocabulary is read. */
+  tabID: string;
   project: KapiProject;
   onUpdate: (project: KapiProject) => void;
   /** Pre-loaded installed plugins for Storybook — skips api.listPlugins(). */
   installedPlugins?: PluginInfo[];
   /** Plugin issues from CheckProjectPlugins — shows detailed resolution guidance. */
   pluginIssues?: PluginIssue[];
+  /** Injected in tests and stories; production reads the Wails backend. */
+  governance?: RecipeGovernance;
 }
 
 const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-JP"];
@@ -75,10 +80,12 @@ function formatPin(pin: VersionPin, base: string): string | undefined {
 }
 
 export function ProjectSettingsPage({
+  tabID,
   project,
   onUpdate,
   installedPlugins: propInstalled,
   pluginIssues,
+  governance,
 }: ProjectSettingsPageProps) {
   const { showError } = useError();
   const defaults = project.defaults ?? {};
@@ -200,6 +207,14 @@ export function ProjectSettingsPage({
             </CardContent>
           </Card>
         </section>
+
+        {/* Governance — what governs the content, and where it sits */}
+        <GovernanceSettings
+          tabID={tabID}
+          project={project}
+          onUpdate={onUpdate}
+          governance={governance}
+        />
 
         {/* Plugins */}
         <section>

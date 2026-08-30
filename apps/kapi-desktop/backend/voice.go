@@ -421,6 +421,140 @@ func validateVoiceProfile(profile *coreprofile.VoiceProfile) ([]coreprofile.Prof
 	return probs, nil
 }
 
+// RecipeAxisDTO is one axis a recipe can put a coordinate on.
+type RecipeAxisDTO struct {
+	Axis string `json:"axis"`
+	// Declarable is false for the structural axes, which a collection's
+	// channel derives rather than a recipe declaring them.
+	Declarable bool `json:"declarable"`
+	// Refusal is what a recipe is told when it declares this axis anyway.
+	Refusal string `json:"refusal,omitempty"`
+	// Values are the ones this axis is known to take, where it has a set.
+	Values []string `json:"values,omitempty"`
+	// Used is the value the open project declares on this axis.
+	Used string `json:"used,omitempty"`
+}
+
+// RecipeGovernanceDTO is what the recipe can say about where content sits and
+// what governs it there.
+type RecipeGovernanceDTO struct {
+	// Axes covers the structural axes, the axes the framework names, and every
+	// axis this project already declares.
+	Axes []RecipeAxisDTO `json:"axes"`
+	// Channels are the `profile/channel` references a collection may name.
+	Channels []string `json:"channels"`
+	// Profiles are the declared profile names.
+	Profiles []string `json:"profiles"`
+	// VoiceFiles are the profile files already on disk under the state
+	// directory, offered when binding defaults.voice.
+	VoiceFiles []string `json:"voice_files"`
+	// Packs are the starter profiles a binding can name instead of a file.
+	Packs []string `json:"packs"`
+}
+
+// RecipeGovernance describes the governance vocabulary of the open project: the
+// axes a point can carry, the channels a collection can name, and the profiles
+// a voice binding can reach.
+//
+// The refusal for a structural axis comes from project.DeclarableAxis, the same
+// check `kapi apply` runs, so the editor cannot offer an axis the recipe would
+// reject or word the refusal differently.
+func (a *App) RecipeGovernance(tabID string) (*RecipeGovernanceDTO, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil, fmt.Errorf("project tab %q not found", tabID)
+	}
+	if op.Project == nil {
+		return nil, errors.New("the tab has no project recipe")
+	}
+	proj := op.Project
+
+	out := &RecipeGovernanceDTO{
+		Channels:   []string{},
+		Profiles:   []string{},
+		VoiceFiles: []string{},
+		Packs:      []string{},
+	}
+
+	seen := map[string]bool{}
+	addAxis := func(axis string, values []string) {
+		if axis == "" || seen[axis] {
+			return
+		}
+		seen[axis] = true
+		row := RecipeAxisDTO{Axis: axis, Values: values, Used: proj.Defaults.Coordinates[axis]}
+		if err := project.DeclarableAxis(axis); err != nil {
+			row.Refusal = err.Error()
+		} else {
+			row.Declarable = true
+		}
+		out.Axes = append(out.Axes, row)
+	}
+	addAxis(project.ProductAxis, nil)
+	addAxis(project.ChannelAxis, nil)
+	addAxis(project.BrandAxis, nil)
+	addAxis(project.ModeAxis, []string{
+		project.ModeTutorial, project.ModeHowTo, project.ModeReference, project.ModeExplanation,
+	})
+	for _, axis := range sortedKeys(proj.Defaults.Coordinates) {
+		addAxis(axis, nil)
+	}
+	for i := range proj.Collections {
+		for _, axis := range sortedKeys(proj.Collections[i].Coordinates) {
+			addAxis(axis, nil)
+		}
+	}
+
+	for _, name := range sortedKeys(proj.Profiles) {
+		out.Profiles = append(out.Profiles, name)
+		for _, ch := range proj.Profiles[name].Channels {
+			if ch.ID == "" {
+				continue
+			}
+			out.Channels = append(out.Channels, project.ChannelRef{Profile: name, Channel: ch.ID}.String())
+		}
+	}
+
+	if op.Path != "" {
+		out.VoiceFiles = discoverVoiceFiles(filepath.Dir(op.Path))
+	}
+	if names, perr := packs.List(); perr == nil {
+		out.Packs = names
+	}
+	return out, nil
+}
+
+// discoverVoiceFiles lists the profile files under the project's state
+// directory, project-relative, so a binding can be picked rather than typed.
+func discoverVoiceFiles(root string) []string {
+	stateDir := filepath.Join(root, project.StateDirName)
+	var out []string
+	_ = filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			// Generated state is not authored source, so nothing under it is a
+			// profile a person would bind.
+			if d.Name() == "work" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
+			return nil
+		}
+		rel, rerr := filepath.Rel(root, path)
+		if rerr != nil {
+			return nil
+		}
+		out = append(out, filepath.ToSlash(rel))
+		return nil
+	})
+	sort.Strings(out)
+	return out
+}
+
 // pointLabel names a point for a reader.
 func pointLabel(profile string) string {
 	if profile == "" {

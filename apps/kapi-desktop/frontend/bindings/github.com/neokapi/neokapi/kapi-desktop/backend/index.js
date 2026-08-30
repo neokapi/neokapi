@@ -89,6 +89,8 @@ export {
     ProviderSaveRequest,
     ProviderTypeInfo,
     RecentFile,
+    RecipeAxisDTO,
+    RecipeGovernanceDTO,
     RelationDTO,
     ResourceInfo,
     ReviewAIActionResult,

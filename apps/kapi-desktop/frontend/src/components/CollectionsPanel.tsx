@@ -54,8 +54,12 @@ import type {
   LocaleCoverage,
 } from "../types/api";
 import { isBareEntry } from "../types/api";
-import { api, type OutputFileInfo } from "../hooks/useApi";
+import { useQuery } from "@tanstack/react-query";
+import { api, call, type OutputFileInfo } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { FormatConfigDialog, type FormatConfigValue } from "./FormatConfigDialog";
+import { CollectionPointBadge, CollectionPointFields } from "./CollectionPointFields";
+import type { RecipeGovernance } from "./GovernanceSettings";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
 import { FilePreview } from "./FilePreview";
 import { ArchiveEntries, isArchivePath } from "./ArchiveEntries";
@@ -180,6 +184,8 @@ export interface CollectionsPanelProps {
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
   /** Pre-loaded formats for Storybook — skips api.listFormats(). */
   formatList?: FormatInfo[];
+  /** The recipe's governance vocabulary; injected in tests and stories. */
+  governance?: RecipeGovernance;
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
   basePath?: string;
   /** Pre-loaded status for Storybook/tests — skips api.getProjectStatus(). */
@@ -544,10 +550,20 @@ export function CollectionsPanel({
   basePath: propBasePath,
   status: propStatus,
   convergence: propConvergence,
+  governance: propGovernance,
 }: CollectionsPanelProps) {
   const { showError } = useError();
   const { locales } = useLocales();
   const { hasActive } = useJobFeed();
+  // The channels a collection may name and the axes it may declare, read from
+  // the same answer Project Settings reads, so the two surfaces cannot offer
+  // different points.
+  const governanceQuery = useQuery({
+    queryKey: qk.recipeGovernance(tabID),
+    queryFn: () => call<RecipeGovernance>("RecipeGovernance", tabID),
+    enabled: !propGovernance && !!tabID,
+  });
+  const governance = propGovernance ?? governanceQuery.data ?? undefined;
   const shortenHome = useShortenHome();
   const {
     active: activeFilter,
@@ -1146,6 +1162,12 @@ export function CollectionsPanel({
             />
           </div>
         </div>
+        <CollectionPointFields
+          coll={coll}
+          channels={governance?.channels ?? []}
+          declarableAxes={(governance?.axes ?? []).filter((a) => a.declarable).map((a) => a.axis)}
+          onChange={(patch) => handleUpdateCollection(ci, { ...coll, ...patch })}
+        />
         <div>
           <Label className="mb-1 block text-xs text-muted-foreground">Patterns</Label>
           <div className="space-y-2">
@@ -2076,6 +2098,7 @@ export function CollectionsPanel({
                       <SimpleTooltip content={title}>
                         <span className="truncate text-sm font-medium">{title}</span>
                       </SimpleTooltip>
+                      <CollectionPointBadge coll={coll} defaults={project.defaults?.coordinates} />
                     </button>
                     <span className="text-right text-xs tabular-nums text-muted-foreground">
                       {files.length}
