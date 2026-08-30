@@ -823,6 +823,22 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 	return t, nil
 }
 
+// ProjectTermsForFile resolves the vocabulary the project decided for one file:
+// the terms bound at the point that file sits at, or nil outside a project.
+//
+// It is what `kapi check` runs its vocabulary gate against, exported so an
+// embedded surface runs the same gate rather than a quieter one. A surface that
+// passed no terminology reported only what a voice profile forbids and stayed
+// silent about every term the project itself retired, which is a different
+// answer about the same file.
+func (a *App) ProjectTermsForFile(ctx context.Context, cmd Command, file string) (terms.Terminology, error) {
+	resolver, err := a.newCheckTerms(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return resolver.forFile(ctx, file)
+}
+
 // forFile returns the vocabulary governing one file, or nil when nothing binds
 // one there.
 func (t *checkTerms) forFile(ctx context.Context, file string) (terms.Terminology, error) {
