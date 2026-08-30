@@ -96,6 +96,53 @@ export class ChannelOverride {
 }
 
 /**
+ * FieldValueSet is the values a constrained field accepts, and what happens to
+ * one outside them.
+ */
+export class FieldValueSet {
+    /**
+     * Creates a new FieldValueSet instance.
+     * @param {Partial<FieldValueSet>} [$$source = {}] - The source object to create the FieldValueSet.
+     */
+    constructor($$source = {}) {
+        if (!("values" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["values"] = [];
+        }
+        if (!("open" in $$source)) {
+            /**
+             * Open is true when a value outside Values is kept and rendered rather than
+             * refused. Tone is described, not enumerated: a register the list does not
+             * name is what distinguishes one voice from another, and squashing it to the
+             * nearest label discards exactly that.
+             * @member
+             * @type {boolean}
+             */
+            this["open"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldValueSet instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FieldValueSet}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("values" in $$parsedSource) {
+            $$parsedSource["values"] = $$createField0_0($$parsedSource["values"]);
+        }
+        return new FieldValueSet(/** @type {Partial<FieldValueSet>} */($$parsedSource));
+    }
+}
+
+/**
  * LocaleOverride provides locale-specific adjustments to a voice profile.
  */
 export class LocaleOverride {
@@ -156,8 +203,8 @@ export class LocaleOverride {
      * @returns {LocaleOverride}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType7;
+        const $$createField4_0 = $$createType6;
+        const $$createField5_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("vocabulary_overrides" in $$parsedSource) {
             $$parsedSource["vocabulary_overrides"] = $$createField4_0($$parsedSource["vocabulary_overrides"]);
@@ -243,7 +290,7 @@ export class Pattern {
      * @returns {Pattern}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType9;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rate" in $$parsedSource) {
             $$parsedSource["rate"] = $$createField3_0($$parsedSource["rate"]);
@@ -360,8 +407,8 @@ export class PersonaOverride {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType5;
-        const $$createField3_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tone" in $$parsedSource) {
             $$parsedSource["tone"] = $$createField0_0($$parsedSource["tone"]);
@@ -376,6 +423,60 @@ export class PersonaOverride {
             $$parsedSource["avoided_terms"] = $$createField3_0($$parsedSource["avoided_terms"]);
         }
         return new PersonaOverride(/** @type {Partial<PersonaOverride>} */($$parsedSource));
+    }
+}
+
+/**
+ * ProfileProblem is one structural problem found while validating a voice profile
+ * profile. Field is a dotted path into the profile (e.g.
+ * "style.prohibited_patterns[0].regex"); Message explains the problem. Field is
+ * empty for whole-profile problems (e.g. an empty document).
+ */
+export class ProfileProblem {
+    /**
+     * Creates a new ProfileProblem instance.
+     * @param {Partial<ProfileProblem>} [$$source = {}] - The source object to create the ProfileProblem.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["field"] = undefined;
+        }
+        if (!("message" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Warning marks a problem that does not make the profile unusable.
+             * 
+             * Everything here used to be fatal, which forced a choice between refusing
+             * a profile and saying nothing about it. Tone needs the third answer: an
+             * unfamiliar register is a description the guide passes through, worth
+             * mentioning and never worth refusing over.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["warning"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProfileProblem instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProfileProblem}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProfileProblem(/** @type {Partial<ProfileProblem>} */($$parsedSource));
     }
 }
 
@@ -443,8 +544,8 @@ export class StyleRules {
      * @returns {StyleRules}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType11;
-        const $$createField5_0 = $$createType11;
+        const $$createField4_0 = $$createType12;
+        const $$createField5_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prohibited_patterns" in $$parsedSource) {
             $$parsedSource["prohibited_patterns"] = $$createField4_0($$parsedSource["prohibited_patterns"]);
@@ -577,7 +678,7 @@ export class TermRule {
      * @returns {TermRule}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType12;
+        const $$createField6_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -644,7 +745,7 @@ export class ToneProfile {
      * @returns {ToneProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("personality" in $$parsedSource) {
             $$parsedSource["personality"] = $$createField0_0($$parsedSource["personality"]);
@@ -700,9 +801,9 @@ export class VocabularyRules {
      * @returns {VocabularyRules}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType5;
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType5;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("preferred_terms" in $$parsedSource) {
@@ -929,7 +1030,7 @@ export class VoiceProfile {
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType2;
         const $$createField5_0 = $$createType14;
-        const $$createField6_0 = $$createType7;
+        const $$createField6_0 = $$createType8;
         const $$createField7_0 = $$createType16;
         const $$createField8_0 = $$createType18;
         const $$createField9_0 = $$createType20;
@@ -968,15 +1069,15 @@ const $$createType0 = ToneProfile.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = StyleRules.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = TermRule.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = VoiceExample.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = PatternRate.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = Pattern.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $Create.Array($Create.Any);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = TermRule.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = VoiceExample.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = PatternRate.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = Pattern.createFrom;
+const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = $Create.Map($Create.Any, $Create.Any);
 const $$createType14 = VocabularyRules.createFrom;
 const $$createType15 = LocaleOverride.createFrom;

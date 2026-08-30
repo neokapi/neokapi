@@ -171,6 +171,41 @@ export interface VoicePoint {
   validity?: VoiceValidity;
   fallback?: VoiceFallback;
   notes?: string[];
+  edit: VoiceEditTarget;
+}
+
+/** Where a save at a point writes, and whether it may. */
+export interface VoiceEditTarget {
+  target?: string;
+  writable: boolean;
+  exists: boolean;
+  /** True when the point reads a voice bound coarser than itself. */
+  inherited: boolean;
+  reason?: string;
+}
+
+/** A problem `kapi voice validate` reports. */
+export interface ProfileProblem {
+  field?: string;
+  message: string;
+  /** True when the problem is a note rather than a refusal. */
+  warning?: boolean;
+}
+
+/** The result of a save. */
+export interface VoiceSaveResult {
+  saved: boolean;
+  target?: string;
+  changed: boolean;
+  problems: ProfileProblem[];
+  guide?: string;
+}
+
+/** The values a constrained field accepts, and what happens to one outside. */
+export interface FieldValueSet {
+  values: string[];
+  /** True when a value outside the set is kept and rendered rather than refused. */
+  open: boolean;
 }
 
 /** Every point the recipe declares, with its voice. */

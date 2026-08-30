@@ -5,10 +5,12 @@
 export {
     AutonomyConfig,
     ChannelOverride,
+    FieldValueSet,
     LocaleOverride,
     Pattern,
     PatternRate,
     PersonaOverride,
+    ProfileProblem,
     StyleRules,
     TermRule,
     ToneProfile,

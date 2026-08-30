@@ -3,7 +3,25 @@
 // binds at. Shared by the page tests and the Storybook story so both exercise
 // the same shape.
 
-import type { ProjectVoiceResult } from "../types/voice";
+import type { FieldValueSet, ProjectVoiceResult } from "../types/voice";
+
+/**
+ * The value sets the backend serves from what validation applies.
+ *
+ * Tone is open — a register outside the list is kept and rendered — while the
+ * style enums are closed, because the offline check reads them.
+ */
+export const valueSetsFixture: Record<string, FieldValueSet> = {
+  "tone.formality": { values: ["casual", "neutral", "formal", "technical"], open: true },
+  "tone.emotion": { values: ["warm", "neutral", "authoritative"], open: true },
+  "tone.humor": { values: ["none", "light", "frequent"], open: true },
+  "style.sentence_length": { values: ["short", "medium", "varied"], open: false },
+  "style.person_pov": { values: ["first_plural", "second", "third"], open: false },
+  "style.contractions": { values: ["always", "sometimes", "never"], open: false },
+  "examples.category": { values: ["tone", "style", "vocabulary"], open: false },
+  severity: { values: ["neutral", "minor", "major", "critical"], open: false },
+  scope: { values: ["prose", "code", "heading"], open: false },
+};
 
 export const voiceFixture: ProjectVoiceResult = {
   at: "2026-08-30T09:00:00Z",
@@ -18,6 +36,7 @@ export const voiceFixture: ProjectVoiceResult = {
       binding: { kind: "profile_file", value: ".kapi/voice.yaml" },
       termstore: ".kapi/terms.json",
       guide: "Write as Northsea: say the useful thing first.",
+      edit: { target: ".kapi/voice.yaml", writable: true, exists: true, inherited: false },
       profile: {
         name: "Northsea",
         description: "How Northsea writes to everyone.",
@@ -33,7 +52,7 @@ export const voiceFixture: ProjectVoiceResult = {
           active_voice: true,
           sentence_length: "medium",
           person_pov: "second",
-          contractions: "allowed",
+          contractions: "sometimes",
           prohibited_patterns: [
             {
               regex: "\\bsynergy\\b",
@@ -69,7 +88,7 @@ export const voiceFixture: ProjectVoiceResult = {
             before: "Utilize the portal.",
             after: "Use the portal.",
             explanation: "Plain words carry further.",
-            category: "word choice",
+            category: "vocabulary",
           },
         ],
         locales: {
@@ -100,6 +119,12 @@ export const voiceFixture: ProjectVoiceResult = {
         message: 'profile "campaign" expired 2026-08-29; governing with the project default',
       },
       guide: "Write as Northsea: say the useful thing first.",
+      edit: {
+        target: ".kapi/profiles/campaign/voice.yaml",
+        writable: true,
+        exists: false,
+        inherited: true,
+      },
       profile: { name: "Northsea", tone: { personality: ["clear"] } },
     },
     {
@@ -109,6 +134,12 @@ export const voiceFixture: ProjectVoiceResult = {
       channels: ["docs"],
       collections: ["Docs"],
       field: "profiles.support.voice",
+      edit: {
+        target: ".kapi/profiles/support/voice.yaml",
+        writable: true,
+        exists: false,
+        inherited: false,
+      },
       notes: ["no voice profile binds at this point"],
     },
   ],

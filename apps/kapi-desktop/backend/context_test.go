@@ -20,14 +20,14 @@ description: How Northsea writes to everyone.
 tone:
   personality: [clear, calm]
   formality: neutral
-  emotion: measured
+  emotion: neutral
   humor: none
   guidelines: Say the useful thing first.
 style:
   active_voice: true
   sentence_length: medium
   person_pov: second
-  contractions: allowed
+  contractions: sometimes
   prohibited_patterns:
     - regex: '\bsynergy\b'
       description: Corporate filler.
@@ -46,7 +46,7 @@ examples:
   - before: Utilize the portal.
     after: Use the portal.
     explanation: Plain words carry further.
-    category: word choice
+    category: vocabulary
 locales:
   nb-NO:
     formality: informal

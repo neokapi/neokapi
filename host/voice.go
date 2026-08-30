@@ -528,7 +528,7 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 		return nil, "", false, err
 	}
 	if !found {
-		for _, conv := range voiceProfileConventions(root) {
+		for _, conv := range VoiceProfileConventions(root) {
 			p, lerr := loadProfileFile(conv)
 			if lerr != nil {
 				return nil, "", false, lerr
@@ -551,14 +551,14 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 // that profile's. A per-profile scope belongs in the path, not in the filename.
 const VoiceConventionalName = "voice.yaml"
 
-// voiceProfileConventions lists the well-known profile locations, in the order
+// VoiceProfileConventions lists the well-known profile locations, in the order
 // an unbound project is searched.
 //
 // `.kapi/` comes first: it is committed, and it is where a project's authored
 // sources live — beside the terms bundle and the memory bundles, which is where
 // a reader looks for the voice. The root spelling is second; a project that
 // keeps its profile there is not wrong.
-func voiceProfileConventions(root string) []string {
+func VoiceProfileConventions(root string) []string {
 	return []string{
 		filepath.Join(root, project.RelStatePath(VoiceConventionalName)),
 		filepath.Join(root, VoiceConventionalName),
