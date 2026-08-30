@@ -30,6 +30,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/yamledit"
 
@@ -766,26 +767,46 @@ type ContentItem struct {
 
 // ResolvedSourceLanguage returns the source language for this item, falling
 // back through collection and project defaults.
+//
+// The answer is canonical BCP-47 whatever style the recipe wrote, because this
+// is where a declared locale becomes the identity a run, a store lookup and a
+// coverage tally all key on. The recipe itself is left as written.
 func (item *ContentItem) ResolvedSourceLanguage(coll *Collection, defaults Defaults) model.LocaleID {
 	if item.SourceLanguage != "" {
-		return item.SourceLanguage
+		return locale.Normalize(item.SourceLanguage)
 	}
 	if coll != nil && coll.SourceLanguage != "" {
-		return coll.SourceLanguage
+		return locale.Normalize(coll.SourceLanguage)
 	}
-	return defaults.SourceLanguage
+	return locale.Normalize(defaults.SourceLanguage)
 }
 
 // ResolvedTargetLanguages returns the target languages for this item, falling
-// back through collection and project defaults.
+// back through collection and project defaults, canonicalized as
+// ResolvedSourceLanguage is.
 func (item *ContentItem) ResolvedTargetLanguages(coll *Collection, defaults Defaults) []model.LocaleID {
 	if len(item.TargetLanguages) > 0 {
-		return item.TargetLanguages
+		return normalizeLocales(item.TargetLanguages)
 	}
 	if coll != nil && len(coll.TargetLanguages) > 0 {
-		return coll.TargetLanguages
+		return normalizeLocales(coll.TargetLanguages)
 	}
-	return defaults.TargetLanguages
+	return normalizeLocales(defaults.TargetLanguages)
+}
+
+// normalizeLocales canonicalizes a declared list, leaving the caller's slice
+// alone. A locale that will not parse is left as written: validateLocales has
+// already refused a recipe holding one, and a lookup that misses is a better
+// answer here than a panic.
+func normalizeLocales(in []model.LocaleID) []model.LocaleID {
+	if len(in) == 0 {
+		return in
+	}
+	out := make([]model.LocaleID, len(in))
+	for i, l := range in {
+		out[i] = locale.Normalize(l)
+	}
+	return out
 }
 
 // DeclaresTargetLanguages reports whether the recipe names a target language
@@ -1046,6 +1067,68 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 			ip := fmt.Sprintf("collections[%d].content[%d].", i, j)
 			if err := validateExtras(ScopeItem, ip, item.Extras); err != nil {
 				return err
+			}
+		}
+	}
+	if err := p.validateLocales(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateLocales rejects a recipe that names something which is not a locale.
+//
+// The recipe is where a locale is written by hand, so it is where a typo is
+// caught. Downstream nothing can tell one apart from a language nobody has
+// translated yet: a target of "engish" produces no files, no memory hits and no
+// findings, and reports as 0% translated exactly as a real locale would.
+//
+// It validates and does not rewrite. What the recipe holds stays what the user
+// wrote, so a later save round-trips their file rather than restyling it;
+// canonicalization happens where a locale becomes internal state instead.
+func (p *KapiProject) validateLocales() error {
+	check := func(field string, id model.LocaleID) error {
+		if id == "" {
+			return nil
+		}
+		if _, err := locale.Canonical(string(id)); err != nil {
+			return fmt.Errorf("%s: %w", field, err)
+		}
+		return nil
+	}
+
+	if err := check("defaults.source_language", p.Defaults.SourceLanguage); err != nil {
+		return err
+	}
+	for i, l := range p.Defaults.TargetLanguages {
+		if err := check(fmt.Sprintf("defaults.target_languages[%d]", i), l); err != nil {
+			return err
+		}
+	}
+	for _, key := range sortedKeys(p.Defaults.Locales) {
+		if err := check("defaults.locales."+key, model.LocaleID(key)); err != nil {
+			return err
+		}
+	}
+	for i, c := range p.Collections {
+		prefix := fmt.Sprintf("collections[%d].", i)
+		if err := check(prefix+"source_language", c.SourceLanguage); err != nil {
+			return err
+		}
+		for j, l := range c.TargetLanguages {
+			if err := check(fmt.Sprintf("%starget_languages[%d]", prefix, j), l); err != nil {
+				return err
+			}
+		}
+		for j, item := range c.Content {
+			ip := fmt.Sprintf("collections[%d].content[%d].", i, j)
+			if err := check(ip+"source_language", item.SourceLanguage); err != nil {
+				return err
+			}
+			for k, l := range item.TargetLanguages {
+				if err := check(fmt.Sprintf("%starget_languages[%d]", ip, k), l); err != nil {
+					return err
+				}
 			}
 		}
 	}

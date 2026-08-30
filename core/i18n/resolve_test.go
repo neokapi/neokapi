@@ -86,10 +86,60 @@ func TestResolve_RegionalTagFindsMinimalCatalog(t *testing.T) {
 	for _, tag := range []string{"nb-NO", "NB-no", "nb_NO"} {
 		t.Run(tag, func(t *testing.T) {
 			tr := Resolve(ResolveOptions{Flag: tag})
-			assert.Equal(t, tag, string(tr.Locale()),
-				"the tag the user asked for is reported back verbatim")
+			assert.Equal(t, "nb-NO", string(tr.Locale()),
+				"a resolved translator reports the canonical tag, whatever style was asked for")
 			assert.Equal(t, translated, tr.T(nbScope, nbSource),
 				"%q must resolve the nb catalog", tag)
+		})
+	}
+}
+
+// Every source of a UI locale is canonicalized, not just the LANG family. The
+// same locale asked for three ways used to resolve three ways, because only the
+// environment branch converted POSIX.
+func TestResolve_CanonicalizesEverySource(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	t.Run("flag", func(t *testing.T) {
+		tr := Resolve(ResolveOptions{Flag: "nb_NO"})
+		assert.Equal(t, "nb-NO", string(tr.Locale()))
+	})
+
+	t.Run("config", func(t *testing.T) {
+		tr := Resolve(ResolveOptions{ConfigLanguage: "nb_NO"})
+		assert.Equal(t, "nb-NO", string(tr.Locale()))
+	})
+
+	t.Run("KAPI_LANG", func(t *testing.T) {
+		t.Setenv("KAPI_LANG", "nb_NO")
+		tr := Resolve(ResolveOptions{})
+		assert.Equal(t, "nb-NO", string(tr.Locale()))
+	})
+
+	t.Run("LANG with codeset", func(t *testing.T) {
+		t.Setenv("LANG", "nb_NO.UTF-8")
+		tr := Resolve(ResolveOptions{})
+		assert.Equal(t, "nb-NO", string(tr.Locale()))
+	})
+}
+
+// A locale that names no language still resolves to something: asking for a
+// catalog is not where a bad locale is refused, and the caller falls back to
+// the source text.
+func TestResolve_UnknownLocaleDegrades(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	for _, tag := range []string{"C", "POSIX", "xx_YY"} {
+		t.Run(tag, func(t *testing.T) {
+			tr := Resolve(ResolveOptions{Flag: tag})
+			assert.Equal(t, nbSource, tr.T(nbScope, nbSource),
+				"an unknown locale falls back to the source text")
 		})
 	}
 }
