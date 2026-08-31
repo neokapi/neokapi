@@ -287,3 +287,56 @@ func TestInspectFileUnknownTab(t *testing.T) {
 	_, err := app.InspectFile("nope", "/tmp/whatever.json")
 	require.Error(t, err)
 }
+
+// TestInspectTargetFileUsesTargetLocale guards the bug behind the kapi-desktop
+// preview rendering an RTL target file as if it were the project's LTR
+// English source: previewing a committed target file straight from the file
+// tree (rather than via its source file's source↔target toggle) must tag the
+// tree with that file's own locale, not the project's global source default.
+// Get this wrong and the viewer's locale-driven `dir` derivation renders
+// Arabic/Hebrew text left-to-right.
+func TestInspectTargetFileUsesTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "locales")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+
+	srcPath := filepath.Join(srcDir, "en.json")
+	require.NoError(t, os.WriteFile(srcPath, []byte(`{"greeting":"Hello world"}`), 0o644))
+	tgtPath := filepath.Join(srcDir, "ar.json")
+	require.NoError(t, os.WriteFile(tgtPath, []byte(`{"greeting":"مرحبا بالعالم"}`), 0o644))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{model.LocaleID("ar")},
+		},
+		Collections: []project.Collection{
+			{Path: "locales/en.json", Target: "locales/{lang}.json"},
+		},
+	}
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, proj))
+
+	app := NewApp()
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	out, err := app.InspectFile(tab.ID, tgtPath)
+	require.NoError(t, err)
+	var tree editor.ContentTree
+	require.NoError(t, json.Unmarshal([]byte(out), &tree))
+	b := findBlock(t, &tree)
+	assert.Equal(t, "ar", b.SourceLocale,
+		"previewing ar.json directly must tag its blocks with the ar locale, not the project's en source default")
+	assert.Equal(t, "مرحبا بالعالم", model.RunsText(b.Source))
+
+	// The project's actual source file must still resolve to the source locale.
+	srcOut, err := app.InspectFile(tab.ID, srcPath)
+	require.NoError(t, err)
+	var srcTree editor.ContentTree
+	require.NoError(t, json.Unmarshal([]byte(srcOut), &srcTree))
+	sb := findBlock(t, &srcTree)
+	assert.Equal(t, "en", sb.SourceLocale)
+}

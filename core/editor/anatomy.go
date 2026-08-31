@@ -317,7 +317,19 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 			if !ok {
 				continue
 			}
-			attach(blockNode(b))
+			n := blockNode(b)
+			// A block's own SourceLocale is an override for the rare case where
+			// its language genuinely differs from its layer's (a mixed-locale
+			// bundle); ordinarily no reader sets it, and the language lives
+			// where meta.language maps it — Layer.Locale (constructs.yaml). Every
+			// consumer of this tree that derives writing direction or `lang`
+			// reads the block's own field (never the layer's), so leaving it
+			// unset here silently defaults every document to LTR regardless of
+			// its actual language.
+			if n.SourceLocale == "" {
+				n.SourceLocale = enclosingLayerLocale(stack)
+			}
+			attach(n)
 			tree.Stats.Blocks++
 			tree.Stats.Runs += len(b.SourceRuns())
 
@@ -358,6 +370,17 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 	tree.Render = projection.ProjectStream(parts)
 
 	return tree
+}
+
+// enclosingLayerLocale returns the Locale of the innermost open layer on
+// stack, seeing past any group containers nested between it and the block.
+func enclosingLayerLocale(stack []*ContentNode) string {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if stack[i].Kind == "layer" {
+			return stack[i].Locale
+		}
+	}
+	return ""
 }
 
 // blockNode builds the leaf node for a translatable Block, capturing its run

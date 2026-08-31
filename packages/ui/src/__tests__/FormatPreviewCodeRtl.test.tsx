@@ -163,4 +163,70 @@ describe("preview — writing direction", () => {
   it("carries the source locale onto the render model", () => {
     expect(treeToRenderDoc(bilingual).sourceLocale).toBe("en");
   });
+
+  // A locale-tagged line's dir/lang must land on its own block-level element
+  // (the box text-align actually keys off), not only on LineText's inline
+  // span nested inside it — an inline descendant's dir does not reach the
+  // ancestor block/flex-item box's text-align resolution.
+  it("puts dir/lang on a slide title's and bullet's own block element", () => {
+    const tree: ContentTree = {
+      format: "openxml",
+      stats: {},
+      root: [
+        {
+          kind: "layer",
+          id: "l1",
+          name: "ppt/slides/slide1.xml",
+          children: [
+            block("title1", "مرحباً بك في كابي مارت", { sourceLocale: "ar" }),
+            block("bullet1", "دليل إعداد الشريك", { sourceLocale: "ar" }),
+          ],
+        },
+      ],
+    } as ContentTree;
+
+    const c = render(tree);
+    const title = c.querySelector('[class*="slideTitle"]');
+    expect(title?.getAttribute("dir")).toBe("rtl");
+    expect(title?.getAttribute("lang")).toBe("ar");
+
+    const bullet = c.querySelector("li");
+    expect(bullet?.getAttribute("dir")).toBe("rtl");
+    expect(bullet?.getAttribute("lang")).toBe("ar");
+  });
+
+  it("puts dir/lang on a spreadsheet cell's own <td>", () => {
+    const tree: ContentTree = {
+      format: "openxml",
+      stats: {},
+      root: [
+        {
+          kind: "layer",
+          id: "l1",
+          name: "xl/worksheets/sheet1.xml",
+          children: [block("c1", "مرحباً", { sourceLocale: "ar", properties: { cell: "A1" } })],
+        },
+      ],
+    } as ContentTree;
+
+    const c = render(tree);
+    // The grid's corner/header cells are <td> too and never carry dir; select
+    // the one that does — the data cell itself.
+    const td = c.querySelector("td[dir]");
+    expect(td?.getAttribute("dir")).toBe("rtl");
+    expect(td?.getAttribute("lang")).toBe("ar");
+  });
+
+  it("puts dir/lang on a list entry's value column, without touching the key's own isolation", () => {
+    const c = render(bilingual, "ar");
+    // .entry is a flex row with the key pinned to a fixed-width column: dir
+    // must land on the value's own column (entryText), never on the row
+    // itself, or an RTL value would reverse the row and swap the always-LTR
+    // key to the far side instead of just right-aligning the value.
+    const value = c.querySelector('[class*="entryText"]');
+    expect(value?.getAttribute("dir")).toBe("rtl");
+    expect(value?.getAttribute("lang")).toBe("ar");
+    const key = c.querySelector("bdi");
+    expect(key?.getAttribute("dir")).toBe("ltr");
+  });
 });

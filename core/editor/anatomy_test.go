@@ -105,6 +105,51 @@ func TestBuildContentTree_Hierarchy(t *testing.T) {
 	assert.Equal(t, "block", embedded.Children[0].Kind)
 }
 
+// TestBuildContentTree_BlockLocaleFallsBackToLayer guards the fix for a block
+// that renders with no writing direction: no reader sets Block.SourceLocale
+// for an ordinary (single-locale) document — meta.language's model mapping is
+// Layer.Locale (constructs.yaml) — so a preview that reads a block's own
+// sourceLocale (packages/ui's FormatPreview) saw nothing and rendered every
+// document left-to-right regardless of its actual language.
+func TestBuildContentTree_BlockLocaleFallsBackToLayer(t *testing.T) {
+	parts := []*model.Part{
+		layerStart(&model.Layer{ID: "root", Format: "json", Locale: "ar"}),
+		groupStart(&model.GroupStart{ID: "g1"}),
+		blockPart(model.NewBlock("b1", "بدون قفل لغة")), // block sets no SourceLocale of its own
+		groupEnd("g1"),
+		// A block that does declare its own locale (the mixed-locale-bundle
+		// case) must keep it rather than being overwritten by the layer.
+		blockPart(&model.Block{
+			ID: "b2", Translatable: true, SourceLocale: "fr",
+			Source: []model.Run{{Text: &model.TextRun{Text: "bonjour"}}},
+		}),
+		// A nested layer with its own locale wins for its own blocks — the
+		// fallback is the innermost enclosing layer, not the root.
+		layerStart(&model.Layer{ID: "child", Format: "html", Locale: "en", ParentID: "root"}),
+		blockPart(model.NewBlock("b3", "hello")),
+		layerEnd("child"),
+		layerEnd("root"),
+	}
+
+	tree := BuildContentTree(parts, "json")
+	require.Len(t, tree.Root, 1)
+	root := tree.Root[0]
+	require.Len(t, root.Children, 3)
+
+	grp := root.Children[0]
+	require.Len(t, grp.Children, 1)
+	assert.Equal(t, "ar", grp.Children[0].SourceLocale,
+		"a block through a group falls back to its enclosing layer's locale")
+
+	assert.Equal(t, "fr", root.Children[1].SourceLocale,
+		"a block's own SourceLocale is never overwritten by its layer's")
+
+	child := root.Children[2]
+	require.Len(t, child.Children, 1)
+	assert.Equal(t, "en", child.Children[0].SourceLocale,
+		"a block falls back to its innermost enclosing layer, not the root")
+}
+
 func TestBuildContentTree_SegmentOverlayAndTargets(t *testing.T) {
 	tree := BuildContentTree([]*model.Part{blockPart(richBlock())}, "json")
 	require.Len(t, tree.Root, 1)

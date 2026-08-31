@@ -586,16 +586,24 @@ function DiffText({ text, prev }: { text: string; prev: string | undefined }): R
 // ── Structure renderers ──────────────────────────────────────────────────────
 
 function SlideTitle({ line }: { line: RenderLine }): React.ReactElement {
+  // dir/lang belong on this block-level element, not only on LineText's inline
+  // span: text-align and the direction the browser lays the line out in follow
+  // the nearest block/flex-item box's own `direction`, which an inline
+  // descendant's `dir` does not reach.
+  const ctx = useCtx();
+  const attrs = lineDirAttrs(line, ctx);
   return (
-    <div {...useBlockProps(line.id, styles.slideTitle)}>
+    <div {...attrs} {...useBlockProps(line.id, styles.slideTitle)}>
       <LineText line={line} seq={0} />
     </div>
   );
 }
 
 function SlideBullet({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
+  const ctx = useCtx();
+  const attrs = lineDirAttrs(line, ctx);
   return (
-    <li {...useBlockProps(line.id)}>
+    <li {...attrs} {...useBlockProps(line.id)}>
       <LineText line={line} seq={seq} />
     </li>
   );
@@ -621,8 +629,10 @@ function Slides({ slides }: { slides: RenderSlide[] }): React.ReactElement {
 }
 
 function Cell({ cell }: { cell: RenderCell }): React.ReactElement {
+  const ctx = useCtx();
+  const attrs = lineDirAttrs(cell, ctx);
   return (
-    <td {...useBlockProps(cell.id, styles.cell)}>
+    <td {...attrs} {...useBlockProps(cell.id, styles.cell)}>
       <LineText line={cell} />
     </td>
   );
@@ -741,6 +751,12 @@ function Pages({ pages }: { pages: RenderPage[] }): React.ReactElement {
 }
 
 function Entry({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
+  const ctx = useCtx();
+  // dir/lang go on entryText, not the row (.entry is a flex row with the key
+  // pinned to a fixed-width column): dir on the row itself would reverse flex
+  // item order for an RTL value, swapping the always-LTR key to the far side
+  // instead of just right-aligning the value's own text.
+  const attrs = lineDirAttrs(line, ctx);
   return (
     <div {...useBlockProps(line.id, styles.entry)}>
       {line.key && (
@@ -750,7 +766,7 @@ function Entry({ line, seq }: { line: RenderLine; seq: number }): React.ReactEle
           {line.key}
         </bdi>
       )}
-      <span className={styles.entryText}>
+      <span {...attrs} className={styles.entryText}>
         <LineText line={line} seq={seq} />
       </span>
     </div>

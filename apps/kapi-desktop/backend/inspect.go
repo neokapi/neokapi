@@ -71,6 +71,47 @@ func inspectRelPath(op *openProject, filePath string) string {
 	return filepath.ToSlash(rel)
 }
 
+// resolveFileLocale returns the language filePath's own text is written in,
+// for the format reader: the project's source language, unless filePath is
+// itself a materialized target of a resolved content item (its Target
+// template resolved for one of the project's target locales) — in which case
+// that target locale is the file's actual language, regardless of the
+// project's global source default.
+//
+// Without this, previewing a target file directly from the file tree (rather
+// than via its source file's source↔target toggle) tags an Arabic or Hebrew
+// translation as the project's English source, so the reader hands the
+// viewer the wrong locale and it renders the RTL text left-to-right.
+func (a *App) resolveFileLocale(pctx *project.ProjectContext, op *openProject, filePath string) string {
+	sourceLang := string(pctx.SourceLocale)
+	if sourceLang == "" {
+		sourceLang = "en"
+	}
+	if len(pctx.TargetLocales) == 0 {
+		return sourceLang
+	}
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		abs = filePath
+	}
+	resolved, err := pctx.ResolveContent(a.formatReg)
+	if err != nil {
+		return sourceLang
+	}
+	for i := range resolved {
+		rf := resolved[i]
+		if rf.Item == nil || rf.Item.Target == "" {
+			continue
+		}
+		for _, loc := range pctx.TargetLocales {
+			if tgtPath := a.resolveTargetPath(rf, op, string(loc)); tgtPath != "" && tgtPath == abs {
+				return string(loc)
+			}
+		}
+	}
+	return sourceLang
+}
+
 // inspect is the shared body of InspectFile / InspectFileAnnotated.
 func (a *App) inspect(tabID, filePath string, annotate bool) (string, error) {
 	op := a.getOpenProject(tabID)
@@ -79,10 +120,7 @@ func (a *App) inspect(tabID, filePath string, annotate bool) (string, error) {
 	}
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
-	sourceLang := string(pctx.SourceLocale)
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
+	sourceLang := a.resolveFileLocale(pctx, op, filePath)
 
 	fmtName := pctx.DetectFormat(a.formatReg, filePath)
 	if fmtName == "" {
@@ -102,7 +140,7 @@ func (a *App) inspect(tabID, filePath string, annotate bool) (string, error) {
 	a.overlayProjectTargets(ctx, op, pctx, filePath, fmtName, sourceLang, parts)
 
 	if annotate {
-		a.annotateParts(ctx, op, parts, inspectRelPath(op, filePath))
+		a.annotateParts(ctx, op, parts, inspectRelPath(op, filePath), sourceLang)
 	}
 
 	tree := editor.BuildContentTree(parts, fmtName)
@@ -242,9 +280,9 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
 // and brand data from the open project rather than a seeded demo set.
-func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model.Part, relPath string) {
+func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model.Part, relPath, sourceLang string) {
 	pctx := project.NewProjectContext(op.Project, op.Path)
-	sourceLoc := pctx.SourceLocale
+	sourceLoc := model.LocaleID(sourceLang)
 	if sourceLoc == "" {
 		sourceLoc = model.LocaleID("en")
 	}
