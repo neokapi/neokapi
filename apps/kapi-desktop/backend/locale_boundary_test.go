@@ -21,8 +21,27 @@ func TestCanonicalLocaleNormalizesAndRefuses(t *testing.T) {
 	_, err = canonicalLocale("not a locale at all")
 	assert.Error(t, err, "a string that is not a locale is refused, not carried")
 
-	_, err = canonicalLocale("")
-	assert.Error(t, err)
+	// An unscoped question is a real question: an empty locale answers empty
+	// rather than failing.
+	empty, err := canonicalLocale("")
+	require.NoError(t, err)
+	assert.Empty(t, string(empty))
+}
+
+// A method that asks about one language cannot proceed without one, so it takes
+// the stricter gate.
+func TestRequireLocaleRefusesAnEmptyOne(t *testing.T) {
+	loc, err := requireLocale("nb_NO")
+	require.NoError(t, err)
+	assert.Equal(t, "nb-NO", string(loc))
+
+	_, err = requireLocale("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "one language")
+
+	_, err = requireLocale("!!!")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not a locale")
 }
 
 func TestCanonicalLocalesNormalizesAList(t *testing.T) {
@@ -105,9 +124,12 @@ func TestReviewAICanonicalizesItsLocale(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not a locale")
 
+	// Pre-review over every locale is a real request, so its locale is
+	// canonicalized rather than required; a string that is not a locale is
+	// still refused.
 	_, err = app.RunAIPreReview(tab.ID, "!!!", PreReviewScope{}, PreReviewPolicy{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is not a locale")
+	assert.Contains(t, err.Error(), "invalid locale")
 }
 
 // inspect.go takes no locale argument: its locales are the project's, already

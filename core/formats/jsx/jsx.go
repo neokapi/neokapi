@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strings"
 
@@ -353,9 +354,7 @@ func cloneTargetOrigins(in map[kbf.LocaleID]kbf.TargetOrigin) map[kbf.LocaleID]k
 		return nil
 	}
 	out := make(map[kbf.LocaleID]kbf.TargetOrigin, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 	return out
 }
 

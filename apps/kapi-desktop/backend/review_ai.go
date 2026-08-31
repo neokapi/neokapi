@@ -60,7 +60,7 @@ type ReviewAIActionResult struct {
 // ai.provider/ai.model defaults + credential store); with none configured a
 // friendly error tells the user to configure one in Settings.
 func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction string) (*ReviewAIActionResult, error) {
-	canon, lerr := canonicalLocale(locale)
+	canon, lerr := requireLocale(locale)
 	if lerr != nil {
 		return nil, lerr
 	}
@@ -338,13 +338,11 @@ type PreReviewResult struct {
 // honest identity "ai/<model-id>". Human-required gates are unaffected by
 // those approvals (core/gate approver classes).
 func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy PreReviewPolicy) (*PreReviewResult, error) {
-	if strings.TrimSpace(locale) != "" {
-		canon, lerr := canonicalLocale(locale)
-		if lerr != nil {
-			return nil, lerr
-		}
-		locale = string(canon)
+	canon, lerr := canonicalLocale(locale)
+	if lerr != nil {
+		return nil, lerr
 	}
+	locale = string(canon)
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)

@@ -215,7 +215,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		return nil, errors.New("project has no recipe loaded")
 	}
 
-	loc, err := canonicalLocale(locale)
+	loc, err := requireLocale(locale)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +403,7 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 	if op == nil {
 		return fmt.Errorf("project tab %q not found", tabID)
 	}
-	loc, lerr := canonicalLocale(locale)
+	loc, lerr := requireLocale(locale)
 	if lerr != nil {
 		return lerr
 	}
@@ -438,7 +438,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return errors.New("the edited translation is empty — reject the unit instead to send it back to draft")
 	}
-	loc, lerr := canonicalLocale(locale)
+	loc, lerr := requireLocale(locale)
 	if lerr != nil {
 		return lerr
 	}

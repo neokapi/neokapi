@@ -1,39 +1,40 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// canonicalLocale normalizes a locale a caller supplied, and refuses one that
-// is not a locale.
+// requireLocale canonicalizes a locale a method cannot proceed without.
 //
-// Every desktop method taking a locale ARGUMENT goes through it: BCP-47 is the
-// only representation inside kapi, so a tab passing `nb_NO` must reach the
-// stores and the resolver as `nb-NO`. Without the gate a typo becomes an
-// identity nothing rejects — indistinguishable from a language nobody has
-// translated yet — and the raw string keys a lookup that silently matches
-// nothing.
-func canonicalLocale(s string) (model.LocaleID, error) {
-	loc, err := locale.Canonical(s)
+// canonicalLocale (memory.go) answers an empty locale with an empty result,
+// because an unscoped search is a real question. A review decision is not: it
+// is about one language, and an empty locale there names no unit.
+func requireLocale(s string) (model.LocaleID, error) {
+	if strings.TrimSpace(s) == "" {
+		return "", errors.New("no locale: this asks about one language")
+	}
+	loc, err := canonicalLocale(s)
 	if err != nil {
 		return "", fmt.Errorf("locale %q is not a locale: %w", s, err)
 	}
 	return loc, nil
 }
 
-// canonicalLocales normalizes a list, refusing on the first entry that is not a
-// locale. An empty list stays empty rather than erroring: a filter naming no
-// language is a filter that does not narrow by language.
+// canonicalLocales normalizes the locales a filter narrows by, refusing on the
+// first entry that is not one. An empty list stays empty rather than erroring:
+// a filter naming no language does not narrow by language.
 func canonicalLocales(in []string) ([]string, error) {
 	if len(in) == 0 {
 		return nil, nil
 	}
 	out := make([]string, 0, len(in))
 	for _, s := range in {
-		loc, err := canonicalLocale(s)
+		loc, err := requireLocale(s)
 		if err != nil {
 			return nil, err
 		}
