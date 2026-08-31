@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { useState } from "react";
+import { DirectionalText } from "@neokapi/ui-primitives";
 
 interface TermEntry {
   id: string;
@@ -47,19 +48,34 @@ export function TermExplorerPublic({ terms, className }: TermExplorerPublicProps
             <div key={t.id} className="rounded-lg border bg-card p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="font-medium">{t.term}</span>
+                  <DirectionalText as="span" locale={t.locale} className="font-medium">
+                    {t.term}
+                  </DirectionalText>
                   {t.domain && (
                     <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs">{t.domain}</span>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground">{t.locale}</span>
+                <bdi dir="ltr" className="text-xs text-muted-foreground">
+                  {t.locale}
+                </bdi>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{t.definition}</p>
+              <DirectionalText
+                as="p"
+                locale={t.locale}
+                className="mt-1 text-sm text-muted-foreground"
+              >
+                {t.definition}
+              </DirectionalText>
               {t.translations && Object.keys(t.translations).length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {Object.entries(t.translations).map(([loc, text]) => (
                     <span key={loc} className="rounded bg-muted px-2 py-0.5 text-xs">
-                      <strong>{loc}:</strong> {text}
+                      <strong>
+                        <bdi dir="ltr">{loc}</bdi>:
+                      </strong>{" "}
+                      <DirectionalText as="span" locale={loc}>
+                        {text}
+                      </DirectionalText>
                     </span>
                   ))}
                 </div>

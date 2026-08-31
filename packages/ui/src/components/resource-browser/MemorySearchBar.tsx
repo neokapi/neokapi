@@ -416,6 +416,7 @@ export function MemorySearchBar({
                           <CodedTextDisplay
                             text={src.text}
                             runs={src.runs}
+                            locale={src.locale}
                             className="text-[12px] text-foreground flex-1"
                           />
                         </div>
@@ -426,6 +427,7 @@ export function MemorySearchBar({
                           <CodedTextDisplay
                             text={tgt.text}
                             runs={tgt.runs}
+                            locale={tgt.locale}
                             className="text-[12px] text-muted-foreground flex-1"
                           />
                         </div>

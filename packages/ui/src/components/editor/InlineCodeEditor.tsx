@@ -405,7 +405,9 @@ export function InlineCodeEditor({
         <TagPalette sourceSpans={sourceSpans} onInsert={handleInsertTag} usedSpans={currentSpans} />
       )}
       <TagValidationBar validation={validation} />
-      {!compact && <InlinePreview codedText={currentCodedText} spans={currentSpans} />}
+      {!compact && (
+        <InlinePreview codedText={currentCodedText} spans={currentSpans} locale={locale} />
+      )}
     </div>
   );
 }
