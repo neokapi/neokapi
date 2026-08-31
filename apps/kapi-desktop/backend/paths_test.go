@@ -38,3 +38,23 @@ func TestUserHomeDirHonorsEnv(t *testing.T) {
 		t.Fatalf("userHomeDir = %q, err=%v, want /tmp/iso/home", got, err)
 	}
 }
+
+// defaultPluginDir must read the same KAPI_PLUGINS_DIR the CLI and the
+// desktop's own venue dispatch honour, or a developer isolating one surface
+// (e.g. via KAPI_PLUGINS_DIR_ONLY) silently doesn't isolate the other —
+// exactly the "plugin declared in both ..." duplicate the mismatch produced.
+func TestDefaultPluginDirHonorsEnv(t *testing.T) {
+	t.Setenv("KAPI_PLUGINS_DIR", "/tmp/iso/plugins")
+	if got := defaultPluginDir(); got != "/tmp/iso/plugins" {
+		t.Fatalf("defaultPluginDir = %q, want /tmp/iso/plugins", got)
+	}
+}
+
+func TestDefaultPluginDirFallsBackToConfigDir(t *testing.T) {
+	t.Setenv("KAPI_PLUGINS_DIR", "")
+	t.Setenv("KAPI_CONFIG_DIR", "/tmp/iso/kapi")
+	want := filepath.Join("/tmp/iso/kapi", "plugins")
+	if got := defaultPluginDir(); got != want {
+		t.Fatalf("defaultPluginDir = %q, want %q", got, want)
+	}
+}

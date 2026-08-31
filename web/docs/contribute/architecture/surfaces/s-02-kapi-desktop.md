@@ -240,9 +240,10 @@ target-language catalogs are build artefacts, regenerated rather than authored.
 Provider configuration and installed plugins live under the kapi config home,
 shared with the CLI: `providers.json` there, API keys in the OS keychain under
 the `kapi` service name, and plugins under `plugins/` ([S-01](s-01-kapi-cli.md)).
-The CLI takes an alternative plugin root from `KAPI_PLUGINS_DIR`; the desktop
-today reads `KAPI_PLUGIN_DIR` for the same purpose, so the two binaries do not
-yet honour one variable.
+The CLI and the desktop both take an alternative plugin discovery root from
+`KAPI_PLUGINS_DIR`, and both honour `KAPI_PLUGINS_DIR_ONLY` to skip the
+user/system roots entirely — the same isolation contract dev, CI, and the
+harness recorder already rely on.
 
 The desktop's own preferences (theme, interface language, hidden and custom
 locales, telemetry consent, recent projects) live in a *separate* root,

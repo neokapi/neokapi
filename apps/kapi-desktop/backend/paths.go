@@ -24,7 +24,10 @@ import (
 //	                         recent.json. Default: <UserConfigDir>/kapi-desktop
 //	KAPI_HOME_DIR            user home — default project location (~/KapiProjects),
 //	                         file-dialog defaults. Default: os.UserHomeDir()
-//	KAPI_PLUGIN_DIR          plugin dir (takes precedence over KAPI_CONFIG_DIR/plugins)
+//	KAPI_PLUGINS_DIR         plugin discovery root (takes precedence over
+//	                         KAPI_CONFIG_DIR/plugins), same variable the CLI
+//	                         reads — set KAPI_PLUGINS_DIR_ONLY=1 alongside it to
+//	                         skip the user/system roots entirely (dev/CI/sandbox)
 //
 // On macOS os.UserConfigDir() is ~/Library/Application Support and
 // os.UserHomeDir() is $HOME; on Linux they follow XDG.

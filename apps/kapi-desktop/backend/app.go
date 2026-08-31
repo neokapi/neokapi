@@ -1756,7 +1756,7 @@ func InjectEventSink(a *App, sink func(name string, data any)) {
 }
 
 func defaultPluginDir() string {
-	dir := os.Getenv("KAPI_PLUGIN_DIR")
+	dir := os.Getenv("KAPI_PLUGINS_DIR")
 	if dir != "" {
 		return dir
 	}

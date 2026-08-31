@@ -242,7 +242,10 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
     // Discover plugins ONLY from the isolated config dir — never the developer's
     // or the machine's globally-installed plugins (so the recorded plugin list
-    // is just what the demo installs).
+    // is just what the demo installs). Named explicitly rather than relying on
+    // the KAPI_CONFIG_DIR-derived default, matching the CLI/harness contract
+    // (see kapiIsolationEnv in lib/paths.ts).
+    KAPI_PLUGINS_DIR: path.join(ISO_DIR, "plugins"),
     KAPI_PLUGINS_DIR_ONLY: "1",
     // Never bind the repo's dogfood kapi.yaml via the upward project walk: these
     // backend processes run from an in-repo cwd, and desktop projects are opened
