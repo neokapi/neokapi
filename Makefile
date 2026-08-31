@@ -998,6 +998,7 @@ contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FIL
 	    -native-src core/formats/$(CONTRACT_FILTER) \
 	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \
+	    $(if $(wildcard $(CONTRACT_FAILSAFE)),-okapi-failsafe $(CONTRACT_FAILSAFE),) \
 	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \
 	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
 	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
@@ -1029,6 +1030,7 @@ contract-audit-all: ## Generate the dashboard for every filter with cached Suref
 	    -native-src core/formats \
 	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \
+	    $(if $(wildcard $(CONTRACT_FAILSAFE)),-okapi-failsafe $(CONTRACT_FAILSAFE),) \
 	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \
 	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
 	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \

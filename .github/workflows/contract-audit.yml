@@ -58,6 +58,13 @@ jobs:
           git clone --depth 1 --branch "$OKAPI_REF" \
             https://gitlab.com/okapiframework/Okapi.git okapi-java
 
+      - name: Checkout okapi-bridge (spec.config schemas)
+        uses: actions/checkout@v7
+        with:
+          repository: neokapi/okapi-bridge
+          path: okapi-bridge
+          fetch-depth: 1
+
       - name: Set up Java 17
         uses: actions/setup-java@v5
         with:
@@ -87,10 +94,20 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Okapi's RoundTrip*IT / *XliffCompareIT contracts run under Maven
+      # Failsafe, not Surefire, so the drift check needs their reports too —
+      # without them every // okapi: *IT annotation reads as "not present".
+      - name: Generate Okapi Failsafe IT reports
+        working-directory: neokapi
+        env:
+          OKAPI_REPO: ${{ github.workspace }}/okapi-java
+        run: make okapi-failsafe-reports OKAPI_REPO="$OKAPI_REPO"
+
       - name: Run native go test + contract-audit generator per filter
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
+          BRIDGE_SCHEMAS: ${{ github.workspace }}/okapi-bridge/schemas
           # Drift checking: a `// okapi: ClassName#methodName` annotation
           # whose Java target no longer exists in the pinned upstream
           # version is a contract bug — the dashboard would silently
@@ -102,7 +119,7 @@ jobs:
           mkdir -p .contract-audit
           for filter in $(echo "$FILTERS" | tr ',' ' '); do
             echo "::group::contract-audit $filter"
-            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
+            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO" BRIDGE_SCHEMAS="$BRIDGE_SCHEMAS" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
             echo "::endgroup::"
           done
 
