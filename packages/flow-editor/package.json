@@ -20,28 +20,28 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.7.1",
+    "@hookform/resolvers": "^5.9.1",
     "@neokapi/contract-types": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
-    "@xyflow/react": "^12.11.2",
-    "lucide-react": "^1.30.0",
-    "react-hook-form": "^7.84.0",
+    "@xyflow/react": "^12.11.5",
+    "lucide-react": "^1.35.0",
+    "react-hook-form": "^7.86.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.7",
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
+    "@storybook/react-vite": "^10.5.10",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.7",
+    "storybook": "^10.5.10",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.8",
-    "vitest": "^4.1.10"
+    "vite-plus": "^0.3.0",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "react": "^19.0.0",

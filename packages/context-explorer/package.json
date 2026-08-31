@@ -23,20 +23,20 @@
     "@neokapi/concept-ui": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
-    "lucide-react": "^1.30.0"
+    "lucide-react": "^1.35.0"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.7",
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.3",
+    "@storybook/react-vite": "^10.5.10",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.7",
+    "storybook": "^10.5.10",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.8",
-    "vitest": "^4.1.10"
+    "vite-plus": "^0.3.0",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "react": "^19.0.0",

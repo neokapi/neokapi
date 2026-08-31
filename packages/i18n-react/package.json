@@ -107,17 +107,17 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "^1.0.0",
-    "@swc/core": "^1.15.46",
+    "@swc/core": "^1.16.1",
     "unplugin": "^3.3.0"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.7",
-    "@types/node": "^26.1.2",
+    "@storybook/react-vite": "^10.5.10",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "react": "^19.2.8",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@storybook/react-vite": "^10.0.0",

@@ -19,7 +19,7 @@
     "test": "vp test"
   },
   "dependencies": {
-    "posthog-js": "^1.414.0"
+    "posthog-js": "^1.422.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

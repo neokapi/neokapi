@@ -23,7 +23,7 @@
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.1",
-    "@codemirror/view": "^6.43.8",
+    "@codemirror/view": "^6.43.9",
     "@neokapi/contract-types": "*",
     "@neokapi/kapi-format": "*",
     "@neokapi/i18n-react": "*",
@@ -33,22 +33,22 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "codemirror": "^6.0.2",
-    "lucide-react": "^1.30.0",
+    "lucide-react": "^1.35.0",
     "radix-ui": "^1.6.7",
     "react-markdown": "^10.1.0",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
-    "shadcn": "^4.16.2",
-    "slot-text": "^0.3.3",
-    "sonner": "^2.0.7",
+    "shadcn": "^4.19.0",
+    "slot-text": "^0.3.4",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "vitest": "^4.1.10"
+    "@types/react-dom": "^19.2.5",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@lexical/react": "^0.44.0",
