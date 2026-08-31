@@ -30,6 +30,18 @@ export interface EntityMappingDTO {
   concept_id?: string;
 }
 
+/**
+ * A context point as its rungs, coarsest first.
+ *
+ * The stored form joins them with a unit separator, so a surface receives them
+ * split rather than parsing a string with control characters in it.
+ */
+export interface MemoryPointDTO {
+  profile?: string;
+  channel?: string;
+  collection?: string;
+}
+
 /** Frontend-facing multilingual content-memory entry. */
 export interface MemoryEntryDTO {
   id: string;
@@ -42,6 +54,17 @@ export interface MemoryEntryDTO {
   properties?: Record<string, string>;
   note?: string;
   origins?: OriginDTO[];
+  /** The block this answer was approved for. */
+  unit?: string;
+  /**
+   * The coordinate the answer was approved at.
+   *
+   * Recorded only when one source has been answered differently at two points,
+   * which is the disagreement the field exists to keep straight. An entry the
+   * whole project agrees on carries a unit and no point, and a surface that can
+   * resolve one shows where the unit sits instead.
+   */
+  point?: MemoryPointDTO;
   created_at: string;
   updated_at: string;
 }

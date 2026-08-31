@@ -5,7 +5,12 @@ import { describe, it, expect, vi } from "vitest";
 // The explorer mounts the shared package against the Wails backend, which no
 // test runtime provides; the hub's job is routing, so the panes stand in.
 vi.mock("../components/ContextExplorerView", () => ({
-  ContextExplorerView: ({ tabID }: { tabID: string }) => <div>explorer for {tabID}</div>,
+  ContextExplorerView: ({ tabID, pin }: { tabID: string; pin?: { path?: string } }) => (
+    <div>
+      explorer for {tabID}
+      {pin?.path && <span data-testid="explorer-pinned-path">{pin.path}</span>}
+    </div>
+  ),
 }));
 vi.mock("../components/VoicePage", () => ({
   VoicePage: ({ tabID }: { tabID: string }) => <div>voice for {tabID}</div>,
@@ -14,7 +19,12 @@ vi.mock("../components/TermsPage", () => ({
   TermsPage: ({ tabID }: { tabID: string }) => <div>terms for {tabID}</div>,
 }));
 vi.mock("../components/MemoriesPage", () => ({
-  MemoriesPage: ({ tabID }: { tabID: string }) => <div>memory for {tabID}</div>,
+  MemoriesPage: ({ tabID, onOpenUnit }: { tabID: string; onOpenUnit?: (p: string) => void }) => (
+    <div>
+      memory for {tabID}
+      <button onClick={() => onOpenUnit?.("web/en/index.md")}>open unit</button>
+    </div>
+  ),
 }));
 
 import { ContextHub } from "../components/ContextHub";
@@ -54,6 +64,15 @@ describe("ContextHub", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages={false} />);
     expect(screen.getByRole("button", { name: "Terms" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Content Memory" })).not.toBeInTheDocument();
+  });
+
+  it("opens the explorer standing at a unit the memory browser names", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" hasTargetLanguages />);
+    await userEvent.click(screen.getByRole("button", { name: "Content Memory" }));
+    await userEvent.click(screen.getByRole("button", { name: "open unit" }));
+
+    expect(screen.getByText("explorer for t1")).toBeInTheDocument();
+    expect(screen.getByTestId("explorer-pinned-path")).toHaveTextContent("web/en/index.md");
   });
 
   it("falls back to the explorer when the opened section is gated away", () => {

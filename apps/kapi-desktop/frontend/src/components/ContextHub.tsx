@@ -62,6 +62,9 @@ export function ContextHub({
   hasTargetLanguages,
 }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? "explorer");
+  // A pin set from inside the hub (the memory browser opening a unit) rather
+  // than handed in by the router.
+  const [unitPin, setUnitPin] = useState<ContextPin | null>(null);
   const sections = SECTIONS.filter((s) => !s.localeGated || hasTargetLanguages);
   // A section the project's languages gated away must not stay selected.
   const current = sections.some((s) => s.id === active) ? active : "explorer";
@@ -92,11 +95,21 @@ export function ContextHub({
       </nav>
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
-          <ContextExplorerView tabID={tabID} projectName={projectName} pin={pin} />
+          <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
         {current === "voice" && <VoicePage tabID={tabID} />}
         {current === "terms" && <TermsPage tabID={tabID} />}
-        {current === "memory" && <MemoriesPage tabID={tabID} />}
+        {current === "memory" && (
+          <MemoriesPage
+            tabID={tabID}
+            onOpenUnit={(unitPath) => {
+              // An approved answer names the unit it was approved for; the
+              // explorer is where that unit's governance is read.
+              setUnitPin({ path: unitPath });
+              setActive("explorer");
+            }}
+          />
+        )}
       </div>
     </div>
   );

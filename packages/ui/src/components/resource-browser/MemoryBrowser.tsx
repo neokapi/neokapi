@@ -498,6 +498,8 @@ export function MemoryBrowser({
             onToggleSelect={toggleSelect}
             onEditVariant={(entry, locale, runs) => void handleEditVariant(entry, locale, runs)}
             onDelete={(id) => void handleDelete(id)}
+            resolvePoint={adapter.resolvePoint?.bind(adapter)}
+            onOpenUnit={adapter.openUnit?.bind(adapter)}
             page={page}
             totalCount={totalCount}
             onPageChange={setPage}
