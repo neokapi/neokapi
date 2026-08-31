@@ -159,7 +159,7 @@ echo "live=$live local=$local"
 - **One render at a time** keeps CPU sane — the harness already renders demos
   sequentially; don't fan them out.
 - All recordings run against **real** backends (no mocks): real Keycloak/`demo`
-  provider, real bowrain-server, real SQLite/Postgres.
+  provider, real bowrain-server, a real PostgreSQL database.
 - `ThemedVideo` (`@neokapi/docs-shared`) resolves `src` through `useBaseUrl`;
   always use root-absolute `/video/...` / `/img/...` paths in MDX, never bare.
 - Every served `.webm` must be **bt709 / limited-range** — the harness publish
