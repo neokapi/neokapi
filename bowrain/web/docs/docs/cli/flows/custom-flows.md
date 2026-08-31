@@ -5,9 +5,9 @@ title: Custom Flows
 
 # Creating Custom Flows
 
-Define your own translation workflows as YAML files in `.kapi/flows/`.
+Define your own workflows as YAML files in `.kapi/flows/`.
 
-## Flow Definition Format
+## Flow definition format
 
 ```yaml
 name: my-flow
@@ -16,197 +16,135 @@ description: Brief description of what this flow does
 steps:
   - tool: tool-name
     config:
-      option1: value1
-      option2: value2
+      optionA: value
 
   - tool: another-tool
     config:
-      optionA: valueA
+      optionB: value
 ```
 
-## Example Flows
+Step config keys are the tool's own schema keys, in camelCase, exactly as the
+[tool reference](https://neokapi.github.io/tools) lists them. An unrecognized
+key is ignored rather than rejected, so a misspelling costs you the option
+rather than an error. The locale is never a config key: it comes from the
+run's `--target-lang`, or from the recipe inside a project, so one flow serves
+every locale. `kapi tools` lists the tools your installation provides,
+plugins included.
 
-### Simple AI Translation
+## Example flows
+
+### Simple AI drafting
 
 `.kapi/flows/translate-simple.yaml`:
 
 ```yaml
 name: translate-simple
-description: Basic AI translation without extras
+description: AI drafting with the project's default provider settings
 
 steps:
   - tool: translate
     config:
       provider: anthropic
-      model: claude-sonnet-4.5
+      model: claude-sonnet-5
 ```
 
-### Translation with Pre/Post Processing
+The `provider` and `model` keys accept any provider the
+[translate tool](https://neokapi.github.io/reference/tools/translate)
+supports; omit them to use the project's defaults.
+
+### Reuse first, then draft, then check
 
 `.kapi/flows/full-translation.yaml`:
 
 ```yaml
 name: full-translation
-description: Complete translation workflow with all bells and whistles
+description: Reuse from memory, draft the remainder, check terms and quality
 
 steps:
-  # 1. Look up terminology before translating
-  - tool: term-lookup
-    config:
-      fuzzy_threshold: 85
-
-  # 2. Pre-fill from content memory
+  # 1. Pre-fill from content memory before spending any credits
   - tool: recycle
-    config:
-      fuzzy_threshold: 70
-      provider: memory
 
-  # 3. Translate untranslated blocks with AI
+  # 2. Draft what memory could not fill
   - tool: translate
     config:
       provider: anthropic
-      model: claude-sonnet-4.5
-      temperature: 0.3
-      skip_translated: true # Only translate empty targets
+      model: claude-sonnet-5
 
-  # 4. Validate terminology compliance
-  - tool: term-enforce
+  # 3. Check the terms in force at each block's point
+  - tool: term-check
     config:
-      required: true
-      fail_on_violation: true
+      caseSensitive: true
 
-  # 5. Run quality checks
+  # 4. Run quality checks
   - tool: qa
     config:
-      rules:
-        - whitespace
-        - punctuation
-        - placeholders
-        - numbers
-        - terminology
+      checkDoubleSpaces: true
+      checkDoubledWord: true
+      checkPatterns: true
+      checkTargetInconsistency: true
 ```
 
-### Multi-Provider Translation
+The `recycle` and `term-check` steps read the content memory and the terms the
+recipe binds (`defaults.memory_source`, `defaults.terms_source`, or a
+profile's own `termstore:`), so they take no path of their own. See the
+[recycle](https://neokapi.github.io/reference/tools/recycle) and
+[term-check](https://neokapi.github.io/reference/tools/term-check) references
+for their options.
 
-`.kapi/flows/multi-mt.yaml`:
+### Checks only
+
+`.kapi/flows/checks-only.yaml`:
 
 ```yaml
-name: multi-mt
-description: Try DeepL, fall back to Google, finally use AI
+name: checks-only
+description: Quality and term checks without drafting
 
 steps:
-  - tool: translate
+  - tool: placeholder-check
     config:
-      provider: deepl
-      skip_translated: true
+      flagExtra: true
 
-  - tool: translate
-    config:
-      provider: google
-      skip_translated: true
+  - tool: term-check
 
-  - tool: translate
+  - tool: qa
     config:
-      provider: anthropic
-      skip_translated: true
+      checkDoubleSpaces: true
+      checkPatterns: true
 ```
 
-### QA-Only Flow
+Run it, then let `kapi check` turn the findings into an exit code; see
+[Source language preparation](/cli/use-cases/source-prep).
 
-`.kapi/flows/qa-only.yaml`:
+### Source cleanup
+
+`.kapi/flows/cleanup.yaml`:
 
 ```yaml
-name: qa-only
-description: Quality assurance checks without translation
+name: cleanup
+description: Normalize source case, then tidy the target's whitespace
 
 steps:
-  - tool: qa
+  - tool: case-transform
     config:
-      rules:
-        - whitespace
-        - punctuation
-        - placeholders
-        - case
-        - spelling
+      mode: title
+      applySource: true
 
-  - tool: term-enforce
-
-  - tool: qa
+  - tool: whitespace-correct
     config:
-      provider: anthropic
-      model: claude-sonnet-4.5
-      checks:
-        - fluency
-        - accuracy
-        - consistency
+      normalizeSpaces: true
+      matchSourceWhitespace: true
+      removeZeroWidthChars: true
 ```
 
-## Tool Configuration
+## The wording constraint
 
-Each tool has its own configuration options. Common patterns:
+`term-check`, `translate` and `recycle` take one key for the wording
+constraint, `term_rules:`, a list of rules naming a term, what to use instead,
+and how hard the rule bites. Inside a project you rarely write it by hand: the
+voice profile's `vocabulary:` and the bound terms store supply the rules in
+force at each block's point. See [Project model](/cli/project-model#tool-configuration).
 
-### AI Translation Tools
-
-```yaml
-- tool: translate
-  config:
-    provider: anthropic | openai | ollama
-    model: claude-sonnet-4.5 | gpt-4o | llama3:70b
-    temperature: 0.0-1.0 # Creativity (0 = deterministic)
-    skip_translated: true # Only translate empty targets
-```
-
-### MT Translation Tools
-
-```yaml
-- tool: translate
-  config:
-    provider: deepl | google | microsoft | modernmt | mymemory
-    api_key: ${DEEPL_API_KEY} # Environment variable
-    formality: formal | informal
-    skip_translated: true
-```
-
-### Reuse from content memory
-
-```yaml
-- tool: recycle
-  config:
-    fuzzy_threshold: 70 # Match threshold (0-100)
-    provider: memory | null
-    tmx_path: ./my-tm.tmx # Optional TMX import
-```
-
-### QA Check
-
-```yaml
-- tool: qa
-  config:
-    rules:
-      - whitespace # Leading/trailing/double spaces
-      - punctuation # Mismatched punctuation
-      - placeholders # Missing/extra placeholders
-      - numbers # Number consistency
-      - case # Uppercase/lowercase consistency
-      - spelling # Spell check (requires hunspell)
-      - terminology # Term compliance (requires a bound terms store)
-```
-
-### Terminology
-
-```yaml
-- tool: term-lookup
-  config:
-    fuzzy_threshold: 85
-    domain: software # Filter by domain
-
-- tool: term-enforce
-  config:
-    required: true # Block must use term if available
-    fail_on_violation: true # Exit flow if violation found
-```
-
-## Variable Substitution
+## Variable substitution
 
 Use environment variables in flow configs:
 
@@ -214,10 +152,10 @@ Use environment variables in flow configs:
 - tool: translate
   config:
     provider: anthropic
-    api_key: ${ANTHROPIC_API_KEY} # From environment
+    apiKey: ${ANTHROPIC_API_KEY} # From environment
 ```
 
-## Running Custom Flows
+## Running custom flows
 
 ```bash
 # List all flows (built-in + custom)
@@ -225,24 +163,21 @@ kapi flows
 
 # Run your custom flow
 kapi run my-flow
-
-# Run with verbose output
-kapi run my-flow --verbose
 ```
 
-## Best Practices
+## Best practices
 
-1. **Name flows descriptively**: `translate-review-export` not `my-flow`
-2. **Document in description**: Explain what the flow does and why
-3. **Use skip_translated**: Avoid retranslating existing content
-4. **Order matters**: Place expensive tools (AI) last
-5. **Test incrementally**: Add one tool at a time
+1. **Name flows descriptively**: `translate-review-export` rather than `my-flow`
+2. **Document in description**: explain what the flow does and why
+3. **Reuse before you draft**: put `recycle` ahead of `translate`
+4. **Order matters**: place expensive tools (AI) last
+5. **Test incrementally**: add one tool at a time
 6. **Commit flows to git**: `.kapi/flows/*.yaml` should be versioned
-7. **Use hooks for gates**: Pre-push QA prevents bad uploads
+7. **Gate in CI**: `kapi check --ship` is the enforcement point, not the flow
 
-## Next Steps
+## Next steps
 
-- [Flow Hooks](/cli/flows/hooks)
-- [Run Command](/cli/commands/run)
-- [Available Formats](https://neokapi.github.io/formats)
-- [AI Translation](https://neokapi.github.io/framework/translation)
+- [Flow hooks](/cli/flows/hooks)
+- [Run command](/cli/commands/run)
+- [Available formats](https://neokapi.github.io/formats)
+- [Tool reference](https://neokapi.github.io/tools)

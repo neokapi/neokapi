@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Implementing a Format
-description: Step-by-step guide for adding a new document format to neokapi — reader and writer Go structs, inline code (Run) handling, roundtrip fidelity tests, and registration in the format registry.
+description: "Step-by-step guide for adding a new document format to neokapi: reader and writer Go structs, inline code (Run) handling, roundtrip fidelity tests, and registration in the format registry."
 keywords: [format implementation, DataFormatReader, DataFormatWriter, neokapi, Go, format reader, runs, roundtrip]
 ---
 
@@ -102,7 +102,7 @@ func (r *Reader) Close() error {
 ```
 
 The example above emits plain text. Most real-world formats contain inline
-markup (bold, links, images) that must be preserved through the pipeline —
+markup (bold, links, images) that must be preserved through the pipeline;
 see [Inline Code Handling](#inline-code-handling) below.
 
 ## Writer
@@ -132,7 +132,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
             switch part.Type {
             case model.PartBlock:
                 block := part.Resource.(*model.Block)
-                // Write translated content — see renderRuns below
+                // Write translated content: see renderRuns below
             case model.PartData:
                 // Write structural content verbatim
             }
@@ -145,7 +145,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 
 ## Inline Code Handling
 
-Most document formats contain inline markup — bold, italic, links, images,
+Most document formats contain inline markup: bold, italic, links, images,
 line breaks, variables, placeholders. The framework must preserve this markup
 through the entire pipeline (extraction, content-memory lookup, MT, AI
 translation, QA, reconstruction) without corruption.
@@ -159,7 +159,7 @@ writer reconstructs the original markup by re-emitting each run's `Data`.
 
 ### The Run Model
 
-A `Run` is a discriminated union — exactly one of its pointer fields is set:
+A `Run` is a discriminated union: exactly one of its pointer fields is set:
 
 ```go
 type Run struct {
@@ -176,7 +176,7 @@ type Run struct {
 The three inline-code runs you reach for most are:
 
 ```go
-// PlaceholderRun — a self-closing token (<br/>, {count}, an icon).
+// PlaceholderRun: a self-closing token (<br/>, {count}, an icon).
 type PlaceholderRun struct {
     ID          string          // unique within the run sequence
     Type        string          // semantic type (e.g., "fmt:linebreak", "var")
@@ -187,8 +187,8 @@ type PlaceholderRun struct {
     Constraints *RunConstraints // deletable / cloneable / reorderable
 }
 
-// PcOpenRun — the opening half of a paired code. PcCloseRun mirrors it
-// (sharing ID) but omits Disp and Constraints — the close inherits the
+// PcOpenRun: the opening half of a paired code. PcCloseRun mirrors it
+// (sharing ID) but omits Disp and Constraints; the close inherits the
 // opener's behavior.
 type PcOpenRun struct {
     ID          string
@@ -243,7 +243,7 @@ The runs are ordered, and a `PcClose` shares its `ID` with the matching
 
 Tools project the runs to plain text and skip the inline codes. Translation
 engines get clean text with opaque tokens. The writer re-emits each run's
-`Data` to reconstruct the original markup perfectly — even preserving
+`Data` to reconstruct the original markup perfectly, even preserving
 attributes like `class="emphasis"` or `href="/help"`.
 
 ### Three Categories of Inline Elements
@@ -291,7 +291,7 @@ func (r *Reader) collectFromNode(n *html.Node, runs *[]model.Run) {
     for child := n.FirstChild; child != nil; child = child.NextSibling {
         switch child.Type {
         case html.TextNode:
-            // Plain text — coalesce into the run sequence
+            // Plain text: coalesce into the run sequence
             appendText(runs, child.Data)
 
         case html.ElementNode:
@@ -317,7 +317,7 @@ func (r *Reader) collectFromNode(n *html.Node, runs *[]model.Run) {
                     Data: fmt.Sprintf("</%s>", child.Data),
                 }})
             }
-            // Block-level elements are NOT collected — they form new Blocks
+            // Block-level elements are NOT collected; they form new Blocks
         }
     }
 }
@@ -334,7 +334,7 @@ correct order. Attach the collected runs to a block with
 
 The writer walks the run sequence and emits each run's content: literal text for
 `TextRun`s, the captured `Data` for inline-code runs. The framework provides
-`model.RenderRunsWithData` for exactly this — the canonical rendering path the
+`model.RenderRunsWithData` for exactly this, the canonical rendering path the
 HTML, XML, and Markdown writers all use:
 
 ```go
@@ -345,7 +345,7 @@ func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
 }
 ```
 
-This approach guarantees **perfect roundtrip fidelity** — the writer doesn't
+This approach guarantees **perfect roundtrip fidelity**: the writer doesn't
 need to understand the markup format. It just replays whatever `Data` the
 reader stored. An `<a href="/help" class="nav">` tag roundtrips as exactly
 that string, attributes and all.
@@ -404,7 +404,7 @@ if block.Skeleton != nil {
 
 Skeletons are critical for roundtrip fidelity of the block-level document
 structure. Without them, the writer would need to re-generate all surrounding
-tags, whitespace, and attributes — which risks losing information.
+tags, whitespace, and attributes, which risks losing information.
 
 ---
 
@@ -431,7 +431,7 @@ experience for translators and tools but are optional.
 
 ## Configuration
 
-`DataFormatConfig` requires four methods — `FormatName()`, `Reset()`,
+`DataFormatConfig` requires four methods: `FormatName()`, `Reset()`,
 `Validate()`, and `ApplyMap(values map[string]any) error`. `ApplyMap` applies
 config values from a map and rejects unknown keys and type mismatches. The
 `format.ApplyMapViaJSON` helper (`core/format/applymap.go`) implements this for
@@ -478,6 +478,13 @@ reg.RegisterWriter("myformat", func() format.DataFormatWriter {
 
 ## Testing
 
+The helpers used below (`testutil.RawDocFromString`, `RawDocFromReader`,
+`CollectBlocks`, `CollectParts`, `PartsToChannel`) live in
+`github.com/neokapi/neokapi/core/internal/testutil`. Being an internal
+package, it is importable only by formats inside this repository. A plugin
+format in another repository builds the `model.RawDocument` and drains the
+`Read` channel itself; each helper is a few lines.
+
 ### Extraction Tests
 
 Verify that the reader correctly identifies translatable content and inline
@@ -501,7 +508,7 @@ func TestReadInlineRuns(t *testing.T) {
     assert.Equal(t, "Click here for info", blocks[0].SourceText())
 
     // Inline codes are preserved as a PcOpen/PcClose pair on the source runs.
-    // (There is no Segment type — segmentation is an opt-in overlay, F-02.)
+    // (There is no Segment type; segmentation is an opt-in overlay, F-02.)
     runs := blocks[0].SourceRuns()
     require.Len(t, runs, 4) // "Click ", <b>, "here", </b> + trailing text coalesces
     require.NotNil(t, runs[1].PcOpen)

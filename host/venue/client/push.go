@@ -290,7 +290,7 @@ const (
 	maxDirectChunkMarshaledBytes = 16 * 1024 * 1024 // 16 MiB
 )
 
-// Push performs a complete push: init → diff → upload chunks → commit.
+// Push performs a complete push: init → upload chunks → commit.
 // blocksByItem maps item_name → blocks for that item; items is the item
 // metadata; pushCtx is the context content type — the collections the recipe
 // declares, which travel in the commit manifest so the structure the items are
@@ -298,28 +298,23 @@ const (
 // pushCtx pushes content without touching the declared context, which is what
 // a caller that has no recipe to read (or a --no-brand-style opt-out) wants.
 //
-// WIRE CONTRACT — additive-only push (#43).
+// What this push says about the project's content.
 //
-// blocksByItem carries ONLY the blocks the caller determined have changed (the
-// caller diffs against its local content-hash cache before calling Push, so an
-// unchanged item is absent from the map entirely and a changed item carries
-// only its changed blocks). The full per-item / per-project block set is NOT
-// available at this layer.
+// blocksByItem carries only the blocks the producer found changed when it
+// diffed its scan against the venue's tree: an unchanged item is absent from
+// the map, and a changed item carries only its changed blocks. The ItemHashes
+// and RootHash sent at init are computed over that subset. They are change
+// indicators for init's fast path, never Merkle roots over the whole project,
+// and the client reads none of the per-item verdicts init returns
+// (initResp.DeletedItems included).
 //
-// Consequently the ItemHashes / RootHash sent in the init request are computed
-// over the changed subset, not the complete tree. They are therefore NOT
-// authoritative Merkle roots: an item absent from blocksByItem is not a
-// deletion, and an item hash computed from a partial block set will not match
-// the server's hash over the item's full block set. The server MUST treat this
-// push as additive — upsert the blocks it receives and never infer deletions
-// from the client's hashes. The client deliberately IGNORES every deletion the
-// server reports back (initResp.DeletedItems and diffResp.Deleted; see below),
-// preserving non-destructiveness regardless of server behavior.
-//
-// If destructive sync (server-side deletion of blocks/items the client no
-// longer has) is ever required, the caller must pass the FULL block set so
-// ItemHashes / RootHash become authoritative, and this comment + the
-// deletion-ignoring sites below must be revisited together.
+// What is gone travels separately, as the declared scope and tree
+// (DeclareTree). The scope is the set of paths this push is authoritative
+// over; the tree lists every item read within it with the block keys each
+// holds. Inside the scope the server deletes an item the tree omits and prunes
+// the blocks an item no longer lists; outside it nothing is touched, and a
+// push that declares no scope removes nothing. A collection the recipe no
+// longer names is reported (initResp.UndeclaredCollections), never deleted.
 func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []venue.UnitDecision, opts ...PushOption) (*SyncPushResponse, error) {
 	var settings pushSettings
 	for _, opt := range opts {

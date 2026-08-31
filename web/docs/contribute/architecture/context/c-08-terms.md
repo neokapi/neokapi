@@ -2,8 +2,8 @@
 id: c-08-terms
 sidebar_position: 8
 title: "C-08: Terms"
-description: "Architecture decision: terminology is concept-oriented — a Concept groups terms across locales with per-term status, part of speech and validity — and the committed JSON source is the truth while the store is a rebuildable projection."
-keywords: [terms, terminology, Concept, TBX, terms store, concept-oriented, validity, architecture decision, neokapi]
+description: "Architecture decision: terminology is concept-oriented (a Concept groups terms across locales with per-term status, part of speech and validity), the committed JSON source is the truth while the store is a rebuildable projection, and one pass locates every declared term in a text."
+keywords: [terms, terminology, Concept, TBX, terms store, concept-oriented, validity, term rules, architecture decision, neokapi]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
@@ -13,13 +13,15 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 Terminology is **concept-oriented**: a `Concept` groups terms across locales with
-per-term metadata — status, part of speech, grammatical gender, validity. The
+per-term metadata (status, part of speech, grammatical gender, validity). The
 `Terminology` interface (`terms/`) supports in-memory and SQLite backends, a
 tiered lookup pipeline, and TBX import and export.
 
 The committed JSON source is the truth and the store is a rebuildable projection
 of it. Terms flow through the streaming pipeline as first-class annotation types
-whose positions are run-anchored, so a match survives run-preserving edits.
+whose positions are run-anchored, so a match survives run-preserving edits. One
+pass, `terms.Locate`, finds every declared term in a text, whether it was
+declared in a voice profile, in a tool's `term_rules:` or in the store.
 
 ## Context
 
@@ -28,8 +30,8 @@ flat list cannot express that *bug*, *defect* and *issue* are terms for one
 concept in different contexts, nor that *bug* is preferred in engineering
 documentation and deprecated in customer-facing content.
 
-The framework needs progressive complexity — start from a word list, grow into
-concept management without rewriting data — pipeline integration rather than a
+The framework needs progressive complexity (start from a word list, grow into
+concept management without rewriting data), pipeline integration rather than a
 separate service, precise run-anchored positions so a UI can highlight inside a
 fragment, and annotation semantics that distinguish do-not-translate markers,
 locale formatting hints, and model-proposed candidates from curated entries.
@@ -56,23 +58,31 @@ type Term struct {
 }
 
 type Concept struct {
-    ID         string
-    ProjectID  string
-    Domain     string
-    Definition string
-    Source     TermSource // terminology, or voice vocabulary
-    Terms      []Term
-    Properties map[string]string
-    CreatedAt  time.Time
-    UpdatedAt  time.Time
+    ID             string
+    ProjectID      string
+    Domain         string
+    Definition     string
+    Source         TermSource // terminology, or voice vocabulary
+    Terms          []Term
+    DoNotTranslate bool       // the source term travels into every target unchanged
+    Properties     map[string]string
+    CreatedAt      time.Time
+    UpdatedAt      time.Time
 }
 ```
+
+`DoNotTranslate` marks a concept whose source term is the same string
+everywhere: a product name, a trademark, a format acronym. It is independent of
+whether a target term exists, because an untranslated term needs no entry per
+locale.
 
 Progressive disclosure: a CSV import auto-creates concepts with a single
 preferred term per locale, so nothing is imposed on a user who wants a word list.
 
-The `Terminology` interface carries `AddConcept`, `GetConcept`, `DeleteConcept`,
-`Lookup`, `LookupAll`, `Search`, `Count`, `Concepts` and `Close`. Import and
+The `Terminology` interface carries the concept methods (`AddConcept`,
+`GetConcept`, `DeleteConcept`, `Lookup`, `LookupAll`, `Search`, `Count`,
+`Concepts`, `Close`) and the relation methods (`AddRelation`, `DeleteRelation`,
+`RelationsOf`, `ListRelations`); every method takes a context. Import and
 export are standalone functions rather than interface methods, so a backend does
 not have to implement a file format to be a backend.
 
@@ -89,7 +99,7 @@ terms are do-not-translate and what the preferred wording is, and those decision
 belong in review and version control alongside the recipe and the voice profile.
 So the split is source versus projection, not a two-way sync:
 
-- the committed **terms source is the truth** — a diff-friendly, mergeable JSON
+- the committed **terms source is the truth**: a diff-friendly, mergeable JSON
   document (`kind: "kapi-terms"`) bound by `defaults.terms_source`, edited
   directly (`kapi apply` with `kind:"term"` writes the file first), reviewed in a
   pull request, and versioned with the code. It is plain JSON under a compound
@@ -98,7 +108,7 @@ So the split is source versus projection, not a two-way sync:
 - the **terms tables inside `.kapi/work/store.db` are a rebuildable projection**
   of it ([C-03](c-03-context-store-and-graph.md)), ignored by version control and
   rebuilt when the committed source changes, guarded by its content digest.
-  Discard them, rebuild from the source, lose nothing — **nothing authoritative
+  Discard them, rebuild from the source, lose nothing: **nothing authoritative
   ever lives only in the database.** Committing the binary database would be
   hostile to review and would defeat interchange in any case.
 
@@ -112,12 +122,12 @@ Both rungs are committed and both reach review, which is the one thing the terms
 source exists to do.
 
 That ladder works here because **a project has exactly one set of terms**. The
-content memory has no equivalent convention, deliberately: a project accumulates
-*many* memory bundles, one per content surface
-([C-09](c-09-content-memory.md)), so there is no single bundle for a fallback to
-name. The asymmetry is a consequence of what each store is.
+content memory has no equivalent convention: a project accumulates *many* memory
+bundles, one per content surface ([C-09](c-09-content-memory.md)), so there is
+no single bundle for a fallback to name. The asymmetry is a consequence of what
+each store is.
 
-Read-only consumers read the committed source directly — the terminology gate
+Read-only consumers read the committed source directly. The terminology gate
 decodes it without materializing any tables, which is why it holds on a fresh CI
 checkout. Presence is table-level, so the gate behaves identically whether the
 project's database is absent, present with empty terms tables, or fully populated
@@ -141,16 +151,16 @@ Two properties make that safe to run unattended:
 
 - **Upsert-only, at every level.** A concept the decision set does not mention
   survives; a term it does not mention survives; nothing is removed. A
-  whole-store export over the authored file would be the opposite — it would
-  delete every concept the decision source has not adopted — so removal stays an
-  edit an author makes deliberately.
+  whole-store export over the authored file would be the opposite: it would
+  delete every concept the decision source has not adopted. Removal stays an
+  edit an author makes by hand.
 - **Byte-stable.** The merged document is compared against the bytes on disk and
   an identical serialization is not rewritten, so a run with no new decisions
   writes nothing at all.
 
 What counts as reviewed is the term's own status. A layer that admits *forbidden*
-and *preferred* only from a reviewed change-set — refusing them on the direct
-write path — makes a term resting at either carry the evidence that a reviewer
+and *preferred* only from a reviewed change-set, refusing them on the direct
+write path, makes a term resting at either carry the evidence that a reviewer
 approved it. A concept whose terms are all ungoverned is ordinary working state
 and stays out of version control until a decision touches it. The same rule
 selects the one governed relation kind.
@@ -163,11 +173,11 @@ request, never a push to the default branch.
 Lookup is a cascading pipeline (`terms.LookupTiered`, with `LookupAllTiered` for
 occurrence scanning):
 
-1. **Exact** — case-sensitive match on normalized term text.
-2. **Normalized** — Unicode NFC, case folding, whitespace collapse.
-3. **Fuzzy** — trigram candidate retrieval plus Levenshtein scoring over the
+1. **Exact**: case-sensitive match on normalized term text.
+2. **Normalized**: Unicode NFC, case folding, whitespace collapse.
+3. **Fuzzy**: trigram candidate retrieval plus Levenshtein scoring over the
    closest candidates, inside a length window.
-4. **Model-assisted** (opt-in) — a provider proposes candidate mappings that
+4. **Model-assisted** (opt-in): a provider proposes candidate mappings that
    produce term-candidate annotations for human review.
 
 Each tier stops early once it has an answer. The fuzzy tier uses the same FTS5
@@ -177,30 +187,31 @@ NFC before comparison, and Levenshtein runs over runes rather than bytes, which
 is correct for every script including CJK.
 
 Which tiers run is selected per call through the lookup options, alongside case
-sensitivity, a minimum score, and the status and validity filters — so a caller
+sensitivity, a minimum score, and the status and validity filters, so a caller
 can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
 
 ### Scanning a text: one matcher, one rule
 
-`LookupAllTiered` asks a different question — *which declared terms does this
-passage use* — and answers it with `check.TermMatcher`, the single definition of
+`LookupAllTiered` asks a different question (*which declared terms does this
+passage use*) and answers it with `check.TermMatcher`, the single definition of
 what it means for a text to use a term. The voice-profile vocabulary rules, the
 do-not-translate check and the occurrence graph scan with the same matcher, so a
 word is a hit for the whole gate or for none of it.
 
-`term-check` is the exception, and deliberately. A mandate names a lemma while
-content inflects it: a source reading "Two new alerts" uses the term `alert`,
-and an obedient Norwegian rendering of `alarmmelding` is `alarmmeldinger`. So
-both its sides match on containment rather than on word boundaries. The cost is
-real — a mandate on `use` also fires inside `user` — and no boundary rule
-separates the two cases, because `user` is a word that starts with `use` exactly
-as `alerts` is a word that starts with `alert`. Telling an inflection from a
-coincidence needs stemming or explicitly declared forms, not a stricter matcher;
-`scripts/contexteval` pins the Norwegian case that would regress first. The rule is whole-word and
-Unicode-aware: an underscore continues a word, so `mooring_id` is one token
-rather than a use of `mooring`; scripts written without word separators take no
-boundary rule at all; and a multi-word term matches across any run of
-whitespace.
+`term-check` is the exception. A mandate names a lemma while content inflects
+it: a source reading "Two new alerts" uses the term `alert`, and an obedient
+Norwegian rendering of `alarmmelding` is `alarmmeldinger`. So both its sides
+match on containment rather than on word boundaries. The cost is real (a mandate
+on `use` also fires inside `user`), and no boundary rule separates the two
+cases, because `user` is a word that starts with `use` exactly as `alerts` is a
+word that starts with `alert`. Telling an inflection from a coincidence needs
+stemming or explicitly declared forms, not a stricter matcher, which is what a
+term rule's `forms` are for ([C-07](c-07-voice-profiles.md));
+`scripts/contexteval` pins the Norwegian case that would regress first. The
+whole-word rule is Unicode-aware: an underscore continues a word, so
+`mooring_id` is one token rather than a use of `mooring`; scripts written
+without word separators take no boundary rule at all; and a multi-word term
+matches across any run of whitespace.
 
 Where two declared terms cover the same characters, the longer one is reported
 and the shorter suppressed. A project that has declared `mooring_id` a concept of
@@ -213,7 +224,7 @@ unranked substring queries.
 
 ### Locating declared terms: one pass, two sources
 
-A term is declared in two places. A voice profile lists the words a brand
+A term is declared in two places. A voice profile lists the words a product
 forbids and a competitor's names it must not print, and a tool's `term_rules:`
 lists the wording a piece of content is held to; the terms store holds the
 concepts the project has decided, which is where `kapi apply` writes. Both are
@@ -226,7 +237,10 @@ store, matches the rules through `profile.MatchTermRules` and the store through
 declaration that governs it, the concept it denotes, and a `model.Anchor`
 positioning it in the block's runs. Store matches are deduped across the
 candidate languages, because a term recorded in both `en-GB` and `en` is one
-decision about one word.
+decision about one word. A `LocateRequest` also carries the domains, minimum
+score and validity scope passed through to the store lookup; those narrow which
+declarations are consulted, which is a different question from which uses
+matter.
 
 An occurrence is a **use**, not a verdict. The pass reports every declared term
 it finds, including the preferred and approved ones, and says nothing about
@@ -234,7 +248,7 @@ whether any of them is a problem. Which uses are violations is the consuming
 gate's policy and lives there: the voice vocabulary gate objects to a
 competitor's name, a forbidden term and a retired one, and `term-lookup`
 annotates all of them because context is what it is for. A pass that filtered to
-one caller's three statuses was a pass only that caller could use.
+one caller's three statuses would be a pass only that caller could use.
 
 The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
 term rule *sets*, each carrying the kind of violation a hit is and the severity
@@ -246,29 +260,29 @@ being a second-class citizen of the vocabulary gate.
 
 What a consumer does with an occurrence is its own business. The voice
 vocabulary gate raises a finding, presenting it through `HitsToFindings`, the
-mapping the `/check` endpoint, the `check_vocabulary` MCP tool and the desktop
-panel share. It names the terms store when the store is what declared the term,
-because "forbidden by the profile" and "forbidden in terms" send a writer
-to different places to argue with the decision. Locating is the part they share.
+mapping every check surface shares (`kapi check`, the `check_text` and
+`check_file` MCP tools, the desktop panel). It names the terms store when the
+store is what declared the term, because "forbidden by the profile" and
+"forbidden in terms" send a writer to different places to argue with the
+decision. Locating is the part they share.
 
 ### Annotations
 
-Three annotation types implement the annotation interface with run-anchored
-positions, so a UI highlights precisely without re-detecting term boundaries at
-render time. The lookup itself returns a character-level range into the source
-text, which the pipeline tool converts to a run range when it writes the
-annotation onto the block.
+Three annotation types implement the annotation interface. Each is written onto
+a block as an overlay span whose range is a `model.Anchor`, so a UI highlights
+precisely without re-detecting term boundaries at render time. The lookup itself
+returns a character-level range into the source text, which `terms.Locate`
+converts to an anchor once, so two callers cannot convert it differently.
 
-- **`TermAnnotation`** — a matched term from the store, carrying the concept id,
-  target-term options, status and position.
-- **`TermCandidateAnnotation`** — a proposed term not yet in the store, carrying
+- **`TermAnnotation`**: a matched term from the store, carrying the concept id,
+  target-term options, status, score and match type.
+- **`TermCandidateAnnotation`**: a proposed term not yet in the store, carrying
   a proposed marker so a reviewer can accept, reject or defer.
-- **`EntityAnnotation`** — named entities (people, organizations, products,
-  dates, locations) with run-anchored positions and optional do-not-translate
-  flags. Entity annotations feed content-memory generalization
-  ([C-09](c-09-content-memory.md)), do-not-translate handling in translation,
-  locale formatting hints, and term-candidate discovery — one annotation pass
-  serving several consumers.
+- **`EntityAnnotation`**: named entities (people, organizations, products,
+  dates, locations) with optional do-not-translate flags. Entity annotations
+  feed content-memory generalization ([C-09](c-09-content-memory.md)),
+  do-not-translate handling in translation, locale formatting hints, and
+  term-candidate discovery: one annotation pass serving several consumers.
 
 ### Concept relations
 
@@ -280,7 +294,7 @@ related, replaced-by, use-instead, exact-match/close-match, and competitor.
 Writes are gated: a relation is rejected unless its type is in the vocabulary and
 both concepts exist. The read methods take an optional scope and return only
 edges whose validity matches. Relations give UIs a graph substrate for browsing
-terminology without a separate graph database, and drive deprecation workflows —
+terminology without a separate graph database, and drive deprecation workflows:
 the `term-enforce` tool resolves *use-instead* and *replaced-by* to name the
 replacement.
 
@@ -288,7 +302,7 @@ replacement.
 
 A term and a relation each carry an optional half-open `[valid-from, valid-to)`
 interval plus free-form tags. Lookup options and the relation read methods accept
-a scope — a point in time plus tags — and return only what is active there. This
+a scope (a point in time plus tags) and return only what is active there. This
 is how the store answers as-of-time and within-a-tag-scope questions; the
 framework assigns tags no meaning, leaving the vocabulary to the caller.
 
@@ -300,7 +314,7 @@ then* reads identically wherever it is asked.
 ### Status transitions
 
 `ValidateTransition` accepts any transition between known statuses, and
-`IsGovernedTransition` flags the consequential ones — any transition to
+`IsGovernedTransition` flags the consequential ones: any transition to
 *forbidden* or *preferred*, or away from *forbidden*. The framework classifies
 transitions; it does not impose a review workflow, which is left to a layer
 above.
@@ -317,20 +331,31 @@ voice guardrails without depending on the whole voice module.
 
 The framework ships terminology tools as ordinary pipeline stages:
 
-- **`term-lookup`** (enrich) — records where the source uses a declared term,
+- **`term-lookup`** (enrich): records where the source uses a declared term,
   as term annotations with run-anchored positions. It reads both sources through
   `terms.Locate`: the concepts in the store and the rules a project carries under
   `term_rules:`, so terminology declared in a recipe counts as much as
   terminology decided in the store. Downstream tools use these for context.
-- **`term-enforce`** (validate) — for each known source term, checks that an
+- **`term-check`** (validate): holds a target to the renderings its
+  `term_rules:` mandate, with the containment matcher described above. A rule's
+  severity sorts a violation into an error or a warning, and the verify gate
+  reports both while failing only on the first.
+- **`term-enforce`** (validate): for each known source term, checks that an
   acceptable target-locale translation is present, and flags blocks where it is
-  missing. Forbidden, deprecated and competitor detection is
+  missing. A source term whose concept is forbidden or deprecated redirects
+  through its *use-instead* or *replaced-by* relation, so the expected rendering
+  is the replacement's. Forbidden, deprecated and competitor detection is
   `voice-vocab-check`'s job, not this one's.
-- **`term-extract`** (enrich, model-assisted) — extraction of candidate terms
+- **`dnt-check`** (validate): checks that do-not-translate terms survive
+  verbatim into the target. It takes `term_rules:` like every governed step and
+  unions the rules marked do-not-translate, which is how the store's
+  `DoNotTranslate` concepts reach it, with the strings a recipe or `--terms`
+  names directly. A store is not required: a recipe may name its terms alone.
+- **`term-extract`** (enrich, model-assisted): extraction of candidate terms
   with a proposed status.
-- **`entity-extract`** (enrich, model-assisted) — named-entity annotation. Should
+- **`entity-extract`** (enrich, model-assisted): named-entity annotation. Should
   run early, before `recycle`.
-- **`redact`** / **`unredact`** ([C-10](c-10-redaction.md)) — the pair that
+- **`redact`** / **`unredact`** ([C-10](c-10-redaction.md)): the pair that
   replaces entity values with typed placeholders before an external service and
   restores them afterwards.
 
@@ -351,7 +376,9 @@ The framework ships terminology tools as ordinary pipeline stages:
 `kapi terms` carries `import`, `export`, `lookup`, `search`, `occurrences`,
 `stats` and `list`. The store selector is **`--termstore`**: `--terms` is already
 taken as the boolean gate on `kapi exec dnt-check`, and the asymmetry with
-`--memory` is deliberate and guarded by a test.
+`--memory` is guarded by a test. The recipe follows the flag: a profile binds a
+standalone store with `profiles.<name>.termstore`, and `terms` names contents
+(the concepts, and dnt-check's list of strings), never a store.
 
 `kapi terms occurrences` reports where a concept is actually used, reading the
 occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
@@ -362,6 +389,8 @@ occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
   step.
 - Run-anchored positions enable precise inline highlighting without re-detecting
   boundaries at render time.
+- One pass locates every declared term, so the gates that consume it cannot
+  disagree about whether a word is in use.
 - Entity annotations drive both term extraction and content-memory
   generalization.
 - Concept relations give UIs a graph substrate without a separate graph database
@@ -373,12 +402,14 @@ occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
 
 ## See also
 
-- [C-01: The project model](c-01-project-model.md) — `defaults.terms_source`.
-- [C-03: The context store and graph](c-03-context-store-and-graph.md) — where
+- [C-01: The project model](c-01-project-model.md): `defaults.terms_source`.
+- [C-03: The context store and graph](c-03-context-store-and-graph.md): where
   the projection lives and how occurrence is indexed.
-- [C-09: Content memory](c-09-content-memory.md) — shared matching
+- [C-07: Voice profiles](c-07-voice-profiles.md): the `TermRule` shape and the
+  vocabulary gate.
+- [C-09: Content memory](c-09-content-memory.md): shared matching
   infrastructure, and the source-versus-state contrast.
-- [E-03: Tool System](../engine/e-03-tool-system.md) — the pipeline-tool
+- [E-03: Tool System](../engine/e-03-tool-system.md): the pipeline-tool
   pattern.
-- [Terminology data model](../../implementation/context/terminology-data-model.md) — the
+- [Terminology data model](../../implementation/context/terminology-data-model.md): the
   full Go structs, the tool catalog and the relation vocabulary.

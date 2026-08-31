@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Introduction
 slug: /introduction
-description: Bowrain is the context graph your people and agents plug into — the coordinates that fix voice and tone for a specific time, place and audience, held across every project and connected to the systems content already lives in.
+description: Bowrain is the context graph your people and agents plug into, the coordinates that fix voice and tone for a specific time, place and audience, held across every project and connected to the systems content already lives in.
 keywords: [bowrain, context graph, profiles, coordinates, governance, connectors, content memory, review, automation]
 ---
 
@@ -10,24 +10,23 @@ import { SwimlaneDiagram, ThemedVideo } from "@neokapi/docs-shared";
 
 # Bowrain
 
-Bowrain is **the context graph your people and agents plug into** — the
+Bowrain is **the context graph your people and agents plug into**: the
 coordinates that fix voice and tone for a specific time, place and audience,
 recorded in a form a machine can read. Profiles, vocabulary and content memory
-are held on a server and shared across every project, person, and agent — with
+are held on a server and shared across every project, person, and agent, with
 collaborative editing, review, automation, and version history around them.
 
-New to the idea? Start with **[The context graph](/getting-started/the-context-graph)**
-— what a profile is, what coordinates are, and why a rename is one decision and
+New to the idea? Start with **[The context graph](/getting-started/the-context-graph)**:
+what a profile is, what coordinates are, and why a rename is one decision and
 five different rules.
 
 Content reaches a workspace from the systems it already lives in. A content
 platform, a design file, a code repository, and a developer's checkout are peer
 routes in, and everything is ordinary project content once it arrives: same
-governance, same review queue, same history.
+governance, same review, same history.
 
-A team shares one workspace through a browser and a native desktop app —
-editing, terminology, content memory, presence, and reviews all live on the
-server.
+A team shares one workspace through a browser and a native desktop app. The
+hub, the editor, review, presence and history all live on the server.
 
 <ThemedVideo
   sources={{
@@ -42,47 +41,53 @@ server.
 ### Shared, versioned governance
 
 Profiles, vocabulary, and content memory held on the server and shared across
-everyone — writers, reviewers, and AI tools — instead of living in each person's
-checkout. Changes are versioned and auditable: who approved a term, when a
-profile changed, what a piece of text used to say. And the context _learns_:
-repeated corrections become versioned, enforced rules, so what a team discovers
-by correcting real output is captured instead of lost — see
-[Voice & corrections](/server/context-voice).
+everyone, writers, reviewers, and AI tools alike, instead of living in each
+person's checkout. Changes are versioned and auditable: who approved a term,
+when a profile changed, what a piece of text used to say. And the context
+_learns_: repeated corrections become versioned, enforced rules, so what a team
+discovers by correcting real output is captured instead of lost. See
+[Voice and corrections](/server/context-voice).
+
+### Governed review
+
+A run drafts and checks and parks what a machine cannot decide; a person
+promotes it in one [review session](/server/review) across items and locales,
+and the decision is recorded against the workspace. Review decides what a
+locale can ship as, and the last approval starts the run that delivers.
 
 ### Collaboration
 
 A web editor and a desktop app connect to the same server. People work in Visual
-and Table views with content memory and terminology in context; edits, presence,
-and live updates propagate to every client without a refresh — see
-[Real-time collaboration](/server/collaboration).
+and Table views with the checks, the terms in force and the content memory in
+context; edits, presence, and live updates propagate to every client without a
+refresh. See [Real-time collaboration](/server/collaboration).
 
 ### Connectors
 
-A workspace syncs against the systems content already lives in — a content
+A workspace syncs against the systems content already lives in: a content
 platform (WordPress, HubSpot), a design tool (Figma), a code repository (GitHub,
 GitLab), or a developer's checkout (kapi). Most run **server-side, with no local
 checkout**: source flows into the governed workspace, gets drafted and checked,
 and publishes back to where it came from. See [Connectors](/server/connectors).
 
-### AI that stays on-brand
+### AI that knows where it is
 
 The workspace's governed vocabulary, content memory, and voice checks are
-the context an AI agent reads — over [MCP](/server/context-voice) — so
-generated and adapted copy is on-voice from the first draft, and corrections
-flow back into the shared, enforced checks.
+the context an AI agent reads, over [MCP](/cli/mcp), so generated and adapted
+copy is on-voice from the first draft, and corrections flow back into the
+shared, enforced checks.
 
 ### Automation
 
-Server-side rules run flows when content arrives, a quality gate passes, or a
-connector syncs — shared, event-driven workflows for the whole workspace. See
+Server-side rules run flows when content arrives, a quality gate fails, or a
+review completes: shared, event-driven workflows for the whole workspace. See
 [Automation](/server/automation).
 
 ### Stewardship over time
 
 A persistent, versioned content store keeps the history of every block, branch,
-and language, so the work compounds: vocabulary decisions, voice
-corrections, and remembered text stay with the project as people and tools come
-and go.
+and language, so the work compounds: vocabulary decisions, voice corrections,
+and remembered text stay with the project as people and tools come and go.
 
 ## How it fits together
 
@@ -96,7 +101,7 @@ and go.
     { from: 0, to: 1, label: "bring source in", detail: "a connector fetch, or a push" },
     { from: 1, to: 1, label: "draft, check, gate", detail: "server automation" },
     { from: 1, to: 2, label: "deliver for review", detail: "live-sync to web / desktop" },
-    { from: 2, to: 2, label: "review & approve", detail: "in the editor" },
+    { from: 2, to: 2, label: "review & approve", detail: "in the session" },
     { from: 2, to: 1, label: "approved edits", detail: "back to the workspace" },
     { from: 1, to: 0, label: "publish back", detail: "to the source system" },
   ]}
@@ -105,29 +110,28 @@ and go.
 
 ## Parts of the platform
 
-- **Server** — workspaces, authentication, the versioned content store,
+- **Server**: workspaces, authentication, the versioned content store,
   automation, and the connectors.
-- **Connectors** — content platforms, design tools, code repositories, and a
+- **Connectors**: content platforms, design tools, code repositories, and a
   developer's checkout. Most run server-side with no checkout involved; see
   [Connectors](/server/connectors).
-- **Web editor** — a browser-based workbench with Visual and Table views,
-  content memory, and terminology.
-- **Desktop app** — a native cross-platform editor with offline support.
+- **Web app**: the Context hub, the review session, and a browser-based editor
+  with Visual and Table views.
+- **Desktop app**: a native cross-platform client with offline support.
 
 ## What's next
 
-- [Keeping content caught up](/the-loop) — how a project stays current
-- [Quick start](/quickstart) — get content in, from your systems or from a codebase
-- [Connectors](/server/connectors) — every route into a workspace
-- [Publish on brand](/server/publish-on-brand) — the content-platform route, end to end
-- [Installation](/installation) — the server, the clients, and the kapi plugin
-- [How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain) — the open toolchain underneath
+- [Keeping content caught up](/the-loop): how a project stays current
+- [Quick start](/quickstart): get content in, from your systems or from a codebase
+- [Connectors](/server/connectors): every route into a workspace
+- [Publish on brand](/server/publish-on-brand): the content-platform route, end to end
+- [Installation](/installation): the server, the clients, and the kapi plugin
+- [How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain): one graph, two scopes
 
-## Just need local tools?
+## One graph, two scopes
 
-Bowrain is built on [kapi](https://neokapi.github.io/), an
-Apache-2.0 toolchain that runs on its own — extraction, brand and terminology
-checks, drafting, pseudo-translation, QA — directly on files, with no server or
-account. Reach for Bowrain when the work should persist beyond a single run:
-several projects, several surfaces, a memory that compounds, hosted review, or a
-team working together.
+Bowrain is built on [kapi](https://neokapi.github.io/), the Apache-2.0
+toolchain that holds the context graph for one project and runs on its own,
+directly on files, with no server or account. Nothing is withheld from it.
+Reach for Bowrain when the graph has to reach further: several projects,
+several surfaces, hosted review, or a team working together.

@@ -1,32 +1,31 @@
 ---
 sidebar_position: 1
-title: Multimodal content — implementation map
+title: "Multimodal content: implementation map"
 ---
 
-# Multimodal content — implementation map
+# Multimodal content: implementation map
 
 Tactical notes for the multimodal surface described in
-[M-03](../../architecture/multilingual/m-03-multimodal-content.md)
-(extraction + refinement) and
-[M-03](../../architecture/multilingual/m-03-multimodal-content.md) (vision). The
-content-model anchors are [F-02](../../architecture/foundations/f-02-content-model.md):
-a block carries a temporal `TimingAnnotation`, a spatial `GeometryAnnotation`,
-and a recognition `Origin` (OCR/ASR, with confidence).
+[M-03](../../architecture/multilingual/m-03-multimodal-content.md): extraction,
+refinement, and vision. The content-model anchors are
+[F-02](../../architecture/foundations/f-02-content-model.md): a block carries a
+temporal `TimingAnnotation`, a spatial `GeometryAnnotation`, and a recognition
+`Origin` (OCR/ASR, with confidence).
 
 ## Two axes of adaptation
 
 Every image / audio / video asset can be adapted two ways, and both are
 first-class:
 
-- **Extracted content** — the text *inside* the asset (OCR text, speech,
+- **Extracted content**: the text *inside* the asset (OCR text, speech,
   on-screen frame text, subtitle cues). Translate it, then round-trip into a
   text-carrying artifact (a subtitle file, an alt-text sidecar).
-- **The whole asset** (`replace-asset`) — the file *is* the deliverable. The
+- **The whole asset** (`replace-asset`): the file *is* the deliverable. The
   project pairs the source with a per-locale file the user/connector supplies,
-  and treats it as authoritative. `core/project.ResolveAssetVariants` +
-  `IsBinaryAssetFormat` now cover `image`, `audio`, and `video`; the audio/video
+  and treats it as authoritative. `core/project.ResolveAssetVariants` and
+  `IsBinaryAssetFormat` cover `image`, `audio`, and `video`; the audio/video
   writers are passthrough sinks that emit the (replacement) bytes. The engine
-  does **not** synthesize translated media — no TTS / re-encode in core.
+  does **not** synthesize translated media: no TTS or re-encode in core.
 
 ## Readers, writers, round-trip
 
@@ -37,19 +36,19 @@ first-class:
 | video | audio child-layer (ASR) + frames child-layer (OCR geometry+timing), or opaque Media when no ffmpeg | passthrough | subtitle file (speech only); whole-video replace-asset |
 | vtt / srt / ttml | subtitle cues with `TimingAnnotation` | yes | byte-exact subtitle round-trip |
 
-The `srt` reader now populates the canonical `TimingAnnotation` (not just
-`Properties["timecode"]`). The `video` reader degrades to opaque Media when no
-ffmpeg/av engine is resolvable instead of erroring.
+The `srt` reader populates the canonical `TimingAnnotation`, not only
+`Properties["timecode"]`. The `video` reader degrades to opaque Media when no
+ffmpeg/av engine is resolvable, rather than erroring.
 
 ## Flows
 
 Built-in flows (`host/flowdef.BuiltInFlows`) compose the existing tools; the
 reader/writer are run-time bindings (E-04), so a flow is just the tool chain:
 
-- `audio-to-subtitles` — `translate` (the audio reader yields timed cues).
-- `video-to-subtitles` — `translate` over the demuxed cues (both the speech
+- `audio-to-subtitles`: `translate` (the audio reader yields timed cues).
+- `video-to-subtitles`: `translate` over the demuxed cues (both the speech
   track and the frame-OCR blocks carry timing anchors).
-- `image-ocr-translate` — `translate` (round-trips translated alt-text).
+- `image-ocr-translate`: `translate` (round-trips translated alt-text).
 
 ```bash
 kapi run video-to-subtitles -i talk.mp4 -o talk.fr.vtt --target-lang fr
@@ -66,20 +65,20 @@ multimodal LLM over a bounded media slice (`ImageSlicer`, `AudioCutter`,
 
 ## Desktop viewing (kapi-desktop)
 
-The `DocumentViewer` already renders **Structure** (role/reading-order tree) and
+The `DocumentViewer` renders **Structure** (role/reading-order tree) and
 **Layout** (page-scaled bounding boxes) for geometry-bearing sources. The
 multimodal additions:
 
-- **Media tab** — auto-shown when the tree has a media node or timing. Image →
+- **Media tab**: auto-shown when the tree has a media node or timing. Image →
   `MediaCanvas` (raster + role-colored OCR overlay, bidirectional box↔block
   selection); audio → `AudioPlayer`; video → `VideoPlayer` (player + subtitle
   timeline synced to the timing cues). Components live in
   `@neokapi/ui-primitives/preview`; the shared coordinate/timecode math is in
   `geometry.ts` / `timeline.ts`.
-- **Media serving** — the backend `MediaDataURL` reads a media node's file and
+- **Media serving**: the backend `MediaDataURL` reads a media node's file and
   returns a `data:` URL; `FilePreview` resolves each media node and passes
   `resolveMediaUrl` to the viewer.
-- **On-demand engine install** — opening an image/audio/video installs the
+- **On-demand engine install**: opening an image/audio/video installs the
   enriching engine plugin (`vision` / `asr` / `av`) when it isn't already
   available (`ensureMediaEngine`), the engine analogue of `ensureFormatPlugin`.
 

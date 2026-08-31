@@ -2,7 +2,7 @@
 id: verify-content
 title: "Check content like tests"
 sidebar_label: "Check content like tests"
-description: "Run kapi check over content the way you run tests over code: structured findings, a pass/fail gate, an exit code CI understands — and check --ship as the project's pre-release bar."
+description: "Run kapi check over content the way you run tests over code: structured findings, a pass/fail gate, an exit code CI understands, and check --ship as the project's pre-release bar."
 hide_table_of_contents: true
 ---
 
@@ -12,14 +12,14 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Check content like tests
 
-**Goal:** verify content before it ships — over-long strings, forbidden phrases, brand drift, structural faults — with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; fixing flagged blocks is [`kapi apply`'s job](/kapi/recipes/rewrite-content). For the Report model and every check family, see [Checks](/framework/checks).
+**Goal:** verify content before it ships (over-long strings, forbidden phrases, voice drift, structural faults) with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; fixing flagged blocks is [`kapi apply`'s job](/kapi/recipes/rewrite-content). For the Report model and every check family, see [Checks](/framework/checks).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 Open your project and switch to the **Checks** view.
 
-1. **Run the checkset.** Kapi runs the project's bound rules — hygiene, length, patterns, and voice vocabulary when a profile is bound — over the tracked content.
+1. **Run the checkset.** Kapi runs the project's bound rules (hygiene, length, patterns, and voice vocabulary when a profile is bound) over the tracked content.
 2. **Read the findings.** Each finding names its rule, severity, and the exact block; click through to see the flagged text in context.
 3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
 
@@ -35,7 +35,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcome:
 
 > Go through `docs/` and fix anything that fails our content rules.
 
-The assistant runs the loop itself: `check_file` returns the Report (stable rule ids, block locations), it rewrites the flagged blocks, lands them with `apply_edits` (content-hash guarded, structure preserved), and re-checks until the gate is green. Because rule ids are stable across runs, it can tell a fixed finding from a new one — and stops when the Report is clean.
+The assistant runs the loop itself: `check_file` returns the Report (stable rule ids, block locations), it rewrites the flagged blocks, lands them with `apply_edits` (content-hash guarded, structure preserved), and re-checks until the gate is green. Because rule ids are stable across runs, it can tell a fixed finding from a new one, and stops when the Report is clean.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -49,7 +49,7 @@ kapi check content/*.md --pack marketing-blog          # built-in starter pack
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-`--json` emits the structured `kapi.check/v1` Report — pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block:
+`--json` emits the structured `kapi.check/v1` Report: pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block:
 
 ```json
 {
@@ -67,9 +67,9 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 }
 ```
 
-Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/voice-check).
+Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 
-**Exit codes are the gate:** `0` pass, `3` gate failed, `1` operational error — so `kapi check` drops straight into CI. `--strict` fails on any critical or major finding; `--lenient` and `--no-fail` loosen it for report-only sweeps. `--validate report|strict` folds reader structure/encoding findings into the same Report.
+**Exit codes are the gate:** `0` pass, `3` gate failed, `1` operational error, so `kapi check` drops straight into CI. `--strict` fails on any critical or major finding; `--lenient` and `--no-fail` loosen it for report-only sweeps. `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
 **Bilingual checks** (placeholder integrity, do-not-translate, terminology) are opt-in: add `--target <file> --target-lang <lang>` to check a translation against its source.
 
@@ -78,20 +78,20 @@ Field-by-field, the Report is documented in [Checks](/framework/checks); the fla
 
 ## In a project: the ship gate
 
-Inside a [`.kapi` project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, QA, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet — the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+Inside a [kapi project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (voice, terminology, QA, staleness) plus the ship/source coverage gates over the project's content, and exits non-zero when any gate is unmet. It is the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 The QA gate reads the project's own record where a rule can only guess. A target
 identical to its source is normally a unit nobody translated, so it fails the
-gate — unless the project has settled it: an approval bound to that exact pairing
+gate, unless the project has settled it: an approval bound to that exact pairing
 (a person read it and said the wording is right), or a terms entry whose target
 is its source. Both are the same rule wherever the gate is evaluated, so `kapi
 check --ship` and the checks `kapi up` runs inside the loop cannot reach opposite
 verdicts on one unit. Nothing else is settled by it: a dropped placeholder on an
 approved unit still fails.
 
-The **staleness** gate is the one that reads provenance rather than content. Every producer stamps the governing context it was given onto what it writes, so a target can be compared against the context in force at the point that governs its file. Move the voice profile or the terminology and the targets written under the old one fail the gate, naming what moved; `kapi up` reproduces them under the context now in force. Content that carries no stamp — written before the stamp existed, or by hand — is reported and never failed.
+The **staleness** gate is the one that reads provenance rather than content. Every producer stamps the governing context it was given onto what it writes, so a target can be compared against the context in force at the point that governs its file. Move the voice profile or the terminology and the targets written under the old one fail the gate, naming what moved; `kapi up` reproduces them under the context now in force. Content that carries no stamp (written before the stamp existed, or by hand) is reported and never failed.
 
-The two are different bars, not variants of one: a bare `kapi check <files>` gates the *files you name* (a checkset over content — the test runner), while `--ship` gates the *project* against its [`ship_gates:`](/reference/project-file#ship-gates) coverage thresholds across every target language (the release bar).
+The two are different bars: a bare `kapi check <files>` gates the *files you name* (a checkset over content: the test runner), while `--ship` gates the *project* against its [`ship_gates:`](/reference/project-file#ship-gates) coverage thresholds across every target language (the release bar).
 
 ## Check-only content in other assets
 
@@ -139,7 +139,7 @@ target look the same in the file.
 
 ## Next
 
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — `kapi check --ship` on every PR.
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply` loop that fixes what a check flags.
-- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the rules that make agent output pass.
-- [Checks](/framework/checks) — the Report schema and every check family.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): `kapi check --ship` on every PR.
+- [Edit content](/kapi/recipes/rewrite-content): the inspect → edit → `apply` loop that fixes what a check flags.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai): the rules that make agent output pass.
+- [Checks](/framework/checks): the Report schema and every check family.

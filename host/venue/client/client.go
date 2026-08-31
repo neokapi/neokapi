@@ -21,8 +21,9 @@ import (
 // Override in tests to avoid real network calls.
 var defaultHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
-// StreamHeader is the HTTP header used to communicate the active stream (legacy).
-// New clients use URL path-based stream routing instead.
+// StreamHeader is an HTTP header name for the active stream. No request in
+// this package sends or reads it: every sync and asset route carries the
+// stream as the `:ref` path segment (see streamPrefix and assetPrefix).
 const StreamHeader = "X-Bowrain-Stream"
 
 // BowrainClient is a REST client for the Bowrain server sync API.

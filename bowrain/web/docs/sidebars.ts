@@ -2,17 +2,19 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 // One sidebar per top-level navbar section.
 //
-//   gettingStartedSidebar  — what the platform is, how content stays current,
-//                            and the routes in; anchored to the site root
-//   usingBowrainSidebar    — the product, organized by what you do; shared
-//                            across the browser and desktop clients
-//   cliSidebar             — the developer/CI connector: kapi + the bowrain
-//                            plugin. One route among the connectors, not the
-//                            default way into the platform.
-//   forDevelopersSidebar   — self-hosting + the developer/ engineering docs
+//   gettingStartedSidebar: what the platform is, how content stays current,
+//                          and the routes in; anchored to the site root
+//   usingBowrainSidebar:   the product, organized by what you do; shared
+//                          across the browser and desktop clients. Context
+//                          governance leads; the multilingual surfaces
+//                          (editor, memory) follow as the extension.
+//   cliSidebar:            the developer/CI connector: kapi + the bowrain
+//                          plugin. One route among the connectors, not the
+//                          default way into the platform.
+//   forDevelopersSidebar:  self-hosting + the developer/ engineering docs
 //
 // Section headings use `collapsible: false` so they render as static labels
-// rather than collapsible menus — consistent with the kapi docs site pattern.
+// rather than collapsible menus, consistent with the kapi docs site pattern.
 const sidebars: SidebarsConfig = {
   gettingStartedSidebar: [
     {
@@ -45,39 +47,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "Workspaces & members",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "server/workspaces",
-        "server/members-and-roles",
-        "server/billing-and-credits",
-      ],
-    },
-    {
-      type: "category",
-      label: "The editor",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "server/translation-editor",
-        "server/pre-process",
-        "server/review",
-        "server/collaboration",
-      ],
-    },
-    {
-      type: "category",
-      label: "Content memory & terminology",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "server/translation-memory",
-        "server/terminology",
-      ],
-    },
-    {
-      type: "category",
       label: "Context & voice",
       collapsible: false,
       className: "sidebar-section-heading",
@@ -85,6 +54,27 @@ const sidebars: SidebarsConfig = {
         "server/context",
         "server/context-scan",
         "server/context-voice",
+        "server/terminology",
+      ],
+    },
+    {
+      type: "category",
+      label: "Review",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/review",
+      ],
+    },
+    {
+      type: "category",
+      label: "Workspaces & members",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/workspaces",
+        "server/members-and-roles",
+        "server/billing-and-credits",
       ],
     },
     {
@@ -102,6 +92,25 @@ const sidebars: SidebarsConfig = {
         "server/publish-on-brand",
         "server/flows",
         "server/automation",
+      ],
+    },
+    {
+      type: "category",
+      label: "The editor",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/translation-editor",
+        "server/collaboration",
+      ],
+    },
+    {
+      type: "category",
+      label: "Content memory",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/translation-memory",
       ],
     },
     {

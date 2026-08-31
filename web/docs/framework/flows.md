@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: Flows
-description: A flow is a named, ordered composition of tools. Flows are defined in YAML, can be embedded in a project file or stored separately, and run with a single kapi command.
+description: A flow is a named, ordered composition of tools. Flows are defined in YAML in a kapi.yaml project file, or ship built in, and run with a single kapi command.
 keywords: [flows, pipeline, YAML, tool composition, kapi run, translation workflow]
 ---
 
@@ -13,8 +13,8 @@ import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 A **flow** is a named, ordered composition of [tools](/framework/tools): a
 recipe that says "read the document, run these steps in this order, write the
 result." Where a single tool
-does one thing, a flow assembles several into an end-to-end workflow — leverage
-from memory, look up terminology, translate the remainder, check quality — and
+does one thing, a flow assembles several into an end-to-end workflow (leverage
+from memory, look up terminology, translate the remainder, check quality) and
 gives it a name so it can be run, shared, and reused.
 
 Flows separate _what to do_ from _how it runs_. A flow describes the chain; the
@@ -22,7 +22,7 @@ Flows separate _what to do_ from _how it runs_. A flow describes the chain; the
 generated list of flows that ship in a given build is the `kapi flows` command
 and the [Command Reference](/commands).
 
-In the CLI, a flow is the abstraction behind `kapi run <flow>` — one named
+In the CLI, a flow is the abstraction behind `kapi run <flow>`: one named
 flow, one pass. `kapi up` loops the project's default flow (`defaults.flow`,
 or the built-in default when none is set) until the project's gates are met.
 How the two verbs relate, and where the raw tool layer sits underneath, is
@@ -53,7 +53,7 @@ f, err := flow.NewFlow("translate").
 ```
 
 A flow built this way holds concrete tool instances. For running the same flow
-over many documents at once, a flow can instead hold **tool factories** — each
+over many documents at once, a flow can instead hold **tool factories**: each
 document then gets its own fresh tool chain, so per-document state never leaks
 between concurrent runs.
 
@@ -62,7 +62,7 @@ between concurrent runs.
 A flow can be authored in two equivalent forms, and both compile to the same
 executable graph.
 
-### Steps — the human-authored form
+### Steps: the human-authored form
 
 The **steps** format is a YAML list of tools. It is the form people write by
 hand:
@@ -83,8 +83,8 @@ steps:
 
 Each step names a tool and optionally configures it. Steps run sequentially: each
 tool's output channel feeds the next tool's input channel. A flow carries only
-its steps — *where content comes from and goes to* is a binding decided when you
-run it, not part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
+its steps; *where content comes from and goes to* is a binding decided when you
+run it rather than part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
 
 A [check](/framework/checks) such as `qa` is just a read-only step: it
 attaches findings to each block as annotations rather than rewriting content, so
@@ -105,7 +105,7 @@ steps:
 
 ### Transformers
 
-Some tools rewrite the **source** itself — redaction replacing sensitive spans
+Some tools rewrite the **source** itself: redaction replacing sensitive spans
 with placeholders, a simplifier rephrasing for clarity, a normalizer. These
 **transformers** are ordinary steps in the same ordered list as everything
 else:
@@ -119,7 +119,7 @@ steps:
 
 A transformer does not edit the block directly: it is a read-only **edit
 producer** that returns an edit plan, and a single framework-owned **applier**
-performs the rewrite — applying the edits, rebasing surviving run-anchored
+performs the rewrite: applying the edits, rebasing surviving run-anchored
 overlays (segments, term and entity spans) onto the new runs, vaulting any
 secrets fail-closed, and bounds-checking the result, atomically. Because the
 applier mutates inline and in order, each transformer settles the source
@@ -127,7 +127,7 @@ before later steps observe it.
 
 Ordering safety is a **placement pass** that validates every flow at build and
 load time. It rejects a transformer placed after a step that produces a
-committed target (rewriting source would orphan the targets — `unredact` is
+committed target (rewriting source would orphan the targets; `unredact` is
 exempt because it rewrites both sides), rejects a recoverable transformer such
 as `redact` placed after a step that sends source to a remote service (except
 a step producing an input the transformer's configuration requires), and warns
@@ -138,7 +138,7 @@ overlay present at apply time must be rebased. See
 A flow that declares the removed `source_transforms:` field is rejected at
 load with a migration error: list the transformers as ordered steps instead.
 
-### Graph — the canonical form
+### Graph: the canonical form
 
 Internally a flow is a directed graph of **tool nodes** connected by **edges**:
 
@@ -156,17 +156,17 @@ that survives to execution. Compilation from steps to graph is mechanical:
 `StepsToGraph` creates a tool node for each step (chained by edges) and a fan-out
 for each `parallel:` block. A `parallel:` block becomes several tool nodes all
 connected from the previous node; the step after it connects from every branch
-endpoint (fan-in). Cycles are rejected — the executor runs nodes in topological
-order. The flow's ends — where content enters and leaves — are not nodes; they
-are bindings, covered next.
+endpoint (fan-in). Cycles are rejected; the executor runs nodes in topological
+order. The flow's ends (where content enters and leaves) are bindings rather
+than nodes, covered next.
 
 Because both forms compile to the same graph, the steps you write by hand and
 the graph you build in the editor are interchangeable: a hand-written flow opens
 in the editor, and an editor-built flow runs from the CLI.
 
 :::tip Build a flow, then run it
-Assemble a flow in the same node editor the desktop app uses — add, remove, and
-reorder tool nodes — then press **Run flow** to execute it on a file and step
+Assemble a flow in the same node editor the desktop app uses (add, remove, and
+reorder tool nodes), then press **Run flow** to execute it on a file and step
 through the result. The graph is serialized to a `kapi.yaml` recipe and run with the
 real `kapi` engine in your browser via WebAssembly, so the flow you build is the
 flow that runs.
@@ -179,14 +179,14 @@ flow that runs.
 A flow processes a stream of blocks; *where that stream comes from and where the
 result goes* are its **source** and **sink** bindings. The same flow runs over a
 loose file, the blocks already in a project, a `.kpz` workspace, or content
-imported from an interchange file — only the binding changes:
+imported from an interchange file; only the binding changes:
 
 | Binding | As source | As sink |
 | --- | --- | --- |
 | `file` (default) | read + parse a file | write a file (round-trip via skeleton) |
-| `store` / `kpz` | existing blocks + overlays | commit overlays — no file |
+| `store` / `kpz` | existing blocks + overlays | commit overlays; no file |
 | interchange | import from XLIFF / PO / a bilingual `.kpz` | emit interchange for a translator |
-| `none` | — | discard (analysis / checks only) |
+| `none` | (none) | discard (analysis / checks only) |
 
 Bindings are resolved when you run the flow, by precedence: an explicit `-i` / `-o`
 flag, then the project or `.kpz` you're in, then the flow's own intent, then
@@ -195,8 +195,8 @@ auto-detection from the path. A plain path is detected (`.kpz` → workspace,
 (`-o store:`, `-o xliff:hand.xliff`). `kapi run <flow> --explain` prints the
 resolved `source → sink` without running anything.
 
-A flow only ever declares *intrinsic* intent — a check flow that produces no
-document sets `sink: none` — never a path. Inside a project, a run with no `-o`
+A flow only ever declares *intrinsic* intent (a check flow that produces no
+document sets `sink: none`) and never a path. Inside a project, a run with no `-o`
 lands its work in the store (process-only); `kapi merge` materializes files when
 you're ready. See [E-04](/contribute/architecture/engine/e-04-flows-and-io-binding) for the
 full model.
@@ -216,7 +216,7 @@ kapi run translate-qa -i app.xliff --target-lang fr
 kapi flows
 ```
 
-The demo below runs the `pseudo-translate` flow — `source → pseudo-translate →
+The demo below runs the `pseudo-translate` flow: `source → pseudo-translate →
 sink`. Because it is a single-tool flow, it is invoked directly as `kapi
 pseudo-translate`. The left pane is the CLI invocation; the right pane is the
 framework's result, the same file with its source strings replaced by accented
@@ -236,7 +236,7 @@ look-alikes:
 
 ## Built-in flows
 
-The framework ships a set of built-in flows covering common workflows —
+The framework ships a set of built-in flows covering common workflows:
 AI translation, AI translation with a quality pass, pseudo-translation for
 layout testing, memory leverage, rule-based QA, a redact-translate-restore flow
 for [sensitive content](/framework/redaction), and media-to-subtitles flows that
@@ -247,6 +247,6 @@ generated from the live flow set.
 
 ## Related reading
 
-- [Tools](/framework/tools) — the units a flow composes.
-- [Pipeline](/framework/pipeline) — how the executor runs a flow's graph concurrently.
-- [Flow Authoring](/contribute/flow-authoring) — the full steps-format reference and more examples.
+- [Tools](/framework/tools): the units a flow composes.
+- [Pipeline](/framework/pipeline): how the executor runs a flow's graph concurrently.
+- [Flow Authoring](/contribute/flow-authoring): the full steps-format reference and more examples.

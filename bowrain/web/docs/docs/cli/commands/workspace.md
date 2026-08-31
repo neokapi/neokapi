@@ -63,10 +63,10 @@ kapi workspace create --name "Acme Corp" --slug acme
 
 ## Exit Codes
 
-- `0` — Success
-- `1` — Error (not authenticated, server unreachable, slug conflict, …)
+- `0`: success
+- `1`: error (not authenticated, server unreachable, slug conflict, …)
 
 ## Related Commands
 
-- [`kapi auth`](/cli/commands/auth) — Authenticate before listing or creating workspaces
-- [`kapi init`](/cli/commands/init) — Scaffolds a project and can select or create a workspace interactively
+- [`kapi auth`](/cli/commands/auth): authenticate before listing or creating workspaces
+- [`kapi init`](/cli/commands/init): scaffolds a project and can select or create a workspace interactively

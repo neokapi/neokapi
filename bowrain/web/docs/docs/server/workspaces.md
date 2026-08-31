@@ -1,12 +1,12 @@
 ---
 title: Workspaces
 sidebar_position: 9
-description: A workspace is the top-level unit in Bowrain — it groups projects, members, terminology, and content memory, much like a GitHub organization or a Slack workspace.
+description: A workspace is the top-level unit in Bowrain. It groups projects, members, terms, and content memory, much like a GitHub organization or a Slack workspace.
 ---
 
 # Workspaces
 
-A workspace is the top-level organizational unit in Bowrain. It groups projects, members, terminology, and content memory together — similar to a GitHub organization or Slack workspace. Every project belongs to exactly one workspace.
+A workspace is the top-level organizational unit in Bowrain. It groups projects, members, terms, and content memory together, similar to a GitHub organization or Slack workspace. Every project belongs to exactly one workspace.
 
 ## Concepts
 
@@ -14,10 +14,10 @@ A workspace is the top-level organizational unit in Bowrain. It groups projects,
 
 A workspace holds:
 
-- **Projects** — translation projects with content, content memory, and terminology
-- **Members** — users with role-based access
-- **Connectors** — configured content sources shared across projects
-- **Settings** — workspace-level configuration
+- **Projects**: projects with content, content memory, and terms
+- **Members**: users with role-based access
+- **Connectors**: configured content sources shared across projects
+- **Settings**: workspace-level configuration
 
 ### Roles
 
@@ -28,13 +28,13 @@ Each workspace member has a role that determines their permissions:
 | **Owner**  | Workspace creator       | Full control, delete workspace, manage billing |
 | **Admin**  | Workspace administrator | Manage members, settings, all projects         |
 | **Member** | Regular team member     | Create and edit projects, push and pull content |
-| **Viewer** | Read-only access        | View projects and translations                 |
+| **Viewer** | Read-only access        | View projects and their content                |
 
 ### Before you connect
 
 Until the desktop app is connected to a Bowrain server, its workspace rail shows
 a single placeholder "Personal" workspace. It is not a place to author
-local-file projects — that is [kapi's job](/getting-started/kapi-vs-bowrain).
+local-file projects; that is [kapi's job](/getting-started/kapi-vs-bowrain).
 Once you connect, the workspaces you have been invited to appear in the rail and
 the desktop opens their server-hosted projects.
 

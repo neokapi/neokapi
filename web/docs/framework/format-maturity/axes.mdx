@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: The axes
-description: The format-maturity score is a vector — one level per axis, grouped into three families (Comprehension, Assurance, Enablement). This page describes what each axis measures and the ladder it climbs, and features the Structure & Geometry axis.
+description: "The format-maturity score is a vector: one level per axis, grouped into three families (Comprehension, Assurance, Enablement). This page describes what each axis measures and the ladder it climbs, and features the Structure & Geometry axis."
 keywords: [maturity axes, comprehension, assurance, enablement, engine, vocabulary, structure and geometry, corpus, security, knowledge, editor]
 ---
 
@@ -9,7 +9,7 @@ import { AxisFamiliesDiagram, AxisLadderDiagram } from "@neokapi/docs-shared";
 
 # The axes
 
-The [maturity score](/framework/format-maturity) is a vector, not a single
+The [maturity score](/framework/format-maturity) is a vector rather than a single
 number: one level per axis, each axis a short ladder. The seven axes group into
 three families, named for the question each answers.
 
@@ -41,31 +41,31 @@ three families, named for the question each answers.
       ],
     },
   ]}
-  caption="Seven axes in three families — a reading aid, not a gating unit."
+  caption="Seven axes in three families; the grouping is a reading aid."
 />
 
 The grouping is a reading aid. The headline tier is still the minimum over the
-**gating axes** — Engine, Corpus, and Knowledge — which deliberately span all
+**gating axes** (Engine, Corpus, and Knowledge), which deliberately span all
 three families. Two axes, **Security** and **Structure & Geometry**, are
 **non-gating**: they score and rank work without entering the tier minimum, for
 now.
 
-## Comprehension — how deeply we read it
+## Comprehension: how deeply we read it
 
 The three Comprehension axes ask one fidelity question at increasing resolution:
 bytes, then inline meaning, then structure.
 
-- **Engine (L0–L4)** — fidelity of the serialization itself. Does the reader
-  parse the format, round-trip it (the skeleton back byte-for-byte), and — where
-  a reference implementation exists — match it head-to-head? The ladder climbs
+- **Engine (L0–L4)**: fidelity of the serialization itself. Does the reader
+  parse the format, round-trip it (the skeleton back byte-for-byte), and, where
+  a reference implementation exists, match it head-to-head? The ladder climbs
   *reads → round-trips → specified → parity-verified → rock-solid*.
-- **Vocabulary (V0–V3)** — whether inline meaning (bold, a link, a placeholder)
+- **Vocabulary (V0–V3)**: whether inline meaning (bold, a link, a placeholder)
   survives into the canonical [content model](/framework/content-model) as a
   typed [run](/framework/inline-formatting), rather than as opaque bytes. The
   ladder climbs *opaque → typed reading → bidirectional → loss-proven*. See
   [inline formatting](/framework/inline-formatting) and
   [vocabularies](/framework/vocabularies).
-- **Structure & Geometry (G0–G4)** — how much of the document's logical and
+- **Structure & Geometry (G0–G4)**: how much of the document's logical and
   spatial structure the reader recovers: roles, reading order, tables, and page
   geometry. It is featured below.
 
@@ -82,7 +82,7 @@ rung recovers more of the page:
     { grade: "G3", name: "Logical structure", gloss: "headings, tables, order" },
     { grade: "G4", name: "Spatial geometry", gloss: "page coords, bounding boxes" },
   ]}
-  caption="Structure & Geometry on an image format — each rung recovers more of the page."
+  caption="Structure & Geometry on an image format: each rung recovers more of the page."
 />
 
 Extracting only the *metadata* (G1) is shallower than recovering *OCR text* in
@@ -91,45 +91,45 @@ reading order* (G3), which is shallower than recovering *page geometry and
 bounding boxes* (G4). Each rung adds a richer stand-off layer over the
 [content model](/framework/content-model). Geometry is the top rung because it is
 the hardest to recover faithfully and, for a translation flow, the least
-directly useful — logical structure is what the pipeline acts on, while geometry
+directly useful: logical structure is what the pipeline acts on, while geometry
 is read-only reconstruction metadata that native writers ignore.
 
 The axis is **orthogonal** to Engine and Vocabulary: a reader can round-trip
 bytes perfectly (high Engine) while flattening every page to a single block (G0),
 and a format with typed inline runs (high Vocabulary) can recover no geometry at
-all. The vision and PDF readers are where the upper rungs are populated — see the
+all. The vision and PDF readers are where the upper rungs are populated; see the
 [vision and image-adaptation design](/contribute/architecture/multilingual/m-03-multimodal-content)
 and the [PDF reader design](/contribute/architecture/engine/e-08-document-structure-tiers), and
 try the [Structure & Layout lab](/lab/structure) on your own files.
 
-## Assurance — how we prove it
+## Assurance: how we prove it
 
-- **Corpus (C0–C3)** — the reference files that validate support, with
+- **Corpus (C0–C3)**: the reference files that validate support, with
   provenance: committed exemplars, harvested wild files (license-checked and
   hash-verified), and synthetic edge-case generators. Real and varied files are
   what keep a parser honest, so the corpus is treated as evidence with a recorded
-  origin, not a folder of fixtures.
-- **Security (S0–S4)** — how well the parser resists malicious or pathological
+  origin rather than a folder of fixtures.
+- **Security (S0–S4)**: how well the parser resists malicious or pathological
   input: resource budgets, fuzzing, and clean sweeps over a hostile corpus. This
   is the structural advantage of a memory-safe Go engine, made measurable.
   Non-gating, for now.
 
-## Enablement — how we work with it
+## Enablement: how we work with it
 
-- **Knowledge (K0–K3)** — the specification and learning assets that let a person
+- **Knowledge (K0–K3)**: the specification and learning assets that let a person
   *or a model* work on the format correctly from in-repo material alone: a
   dossier of authoritative spec sources, clauses cited and resolved against
   pinned snapshots, and a generated context pack.
-- **Editor (E0–E4)** — how close kapi gets to the format's native editing
+- **Editor (E0–E4)**: how close kapi gets to the format's native editing
   surface: from a faithful, structure-true preview, through a round-trip workflow
   with stable identity binding, to a live add-in embedded inside the native
   editor.
 
 ## How a grade stays honest
 
-Each axis level is **computed, not chosen**. A deterministic floor inspects the
+Each axis level is **computed from evidence**. A deterministic floor inspects the
 format's own files and pins each axis level; a model may only *demote* a small
-set of quality dimensions, and only with a cited file or test as evidence — it
+set of quality dimensions, and only with a cited file or test as evidence; it
 can never promote a level above what the files support. A reproducibility check
 proves the floor alone fixes the level, so re-runs, and newer models, produce the
 same vector.
@@ -141,7 +141,7 @@ are on the [/format-maturity dashboard](/format-maturity).
 
 ## Read next
 
-- [Format support & maturity](/framework/format-maturity) — the promise-vs-score
+- [Format support & maturity](/framework/format-maturity): the promise-vs-score
   split and why the framework exists.
-- [Keeping it alive](/framework/format-maturity/keeping-it-alive) — how the
+- [Keeping it alive](/framework/format-maturity/keeping-it-alive): how the
   scores stay current.

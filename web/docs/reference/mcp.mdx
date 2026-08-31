@@ -20,7 +20,7 @@ kapi exposes its format-aware content engine as an
 assistant connected to it can read the content inside a `.docx`, a JSON catalog
 or a Markdown file, ask what the project's own context says about a phrase,
 edit the content, verify it against the project's checks, and write it back
-byte-for-byte — through structured tool calls rather than by guessing at the
+byte-for-byte, through structured tool calls rather than by guessing at the
 file's bytes.
 
 For the agent-skills path (Claude Code calling the `kapi` CLI), see
@@ -42,7 +42,7 @@ Start the MCP server:
 kapi mcp
 ```
 
-This launches a JSON-RPC server on stdio. You don't run it manually — your AI
+This launches a JSON-RPC server on stdio. You don't run it manually; your AI
 tool starts it as a subprocess.
 
 ## Setup
@@ -147,10 +147,10 @@ If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/lo
 
 ## Available tools
 
-`kapi mcp` serves a curated set of <McpToolCount /> tools. Exposure is a
-decision with a name attached, not a consequence of a tool existing: an
-assistant that is handed every pipeline step picks the wrong one about half the
-time, so the steps the loop runs for you are deliberately absent.
+`kapi mcp` serves a curated set of <McpToolCount /> tools. Each tool is exposed
+by a named decision: an assistant that is handed every pipeline step picks the
+wrong one about half the time, so the steps the loop runs for you are
+deliberately absent.
 
 <McpToolList />
 
@@ -177,7 +177,7 @@ through `kapi exec`.
 
 ## Available resources
 
-Retrieval comes in two shapes, and they are not both tools. Asking what a word
+Retrieval comes in two shapes, a tool and a resource. Asking what a word
 means is a call with arguments, so it is the `context_search` tool. Asking what
 applies at a location is reading something that already exists at an address,
 so it is a **resource**:
@@ -185,14 +185,14 @@ so it is a **resource**:
 <McpResourceList />
 
 The two addresses are one primitive. A path answers *what applies here*; a
-profile name answers the same question for a caller with no file in hand — an
-ad-hoc run, or a starter pack. Both return the point the location resolved to,
+profile name answers the same question for a caller with no file in hand (an
+ad-hoc run, or a starter pack). Both return the point the location resolved to,
 the voice profile in force with its full guidance, the terms bound there, and
 the governance windows around them.
 
-**The rendering is a property of the read, not a second address.** `?format=json`
-returns the same answer as `application/json` — the document `kapi context <path>
---json` prints — and everything else returns `text/markdown`. An unrecognised
+**The rendering is a property of the read.** `?format=json`
+returns the same answer as `application/json` (the document `kapi context <path>
+--json` prints) and everything else returns `text/markdown`. An unrecognised
 format is refused rather than answered with prose a program cannot parse.
 
 ```
@@ -202,8 +202,8 @@ context://profile/marketing            # a named profile, no location needed
 ```
 
 The CLI half is [`kapi context <path>`](/reference/commands/context), which
-calls the same host function and prints the same markdown. Parity between the
-two surfaces is a test, not a convention.
+calls the same host function and prints the same markdown. A conformance test
+holds the two surfaces to the same answer.
 
 ## Example conversations
 
@@ -219,15 +219,15 @@ with word, block, character, and segment counts.
 > Is "sign-in" the term we use, and how do we say it in French?
 
 The assistant calls `context_search`. One question reaches every store the
-project binds — its terms, its content memory, its voice profile — and the
+project binds (its terms, its content memory, its voice profile) and the
 answer says what the project calls the thing, whether it is discouraged and
 what to say instead, and any wording already approved. Asking before writing is
-the cheap route; learning the same fact from a failing check afterwards is not.
+cheaper than learning the same fact from a failing check afterwards.
 
 Every answer carries `notes`, and the first of them says whether the context,
 the terms or the decisions moved since this session last read them. The
 comparison is against what the project last observed of its server, held on
-disk — so it costs a small file read and no round trip, and it reports rather
+disk, so it costs a small file read and no round trip, and it reports rather
 than resolves: an assistant told the terms moved asks again before continuing,
 because the wording it had settled on was chosen against a context that has
 since changed.
@@ -247,13 +247,13 @@ translatable block with its ID, content hash, source text (inline codes as
 The assistant reads the blocks with `extract_content`, rewrites the text itself
 (no second model), sends the change back through `apply_edits` (the
 byte-faithful round-trip, drift- and inline-code-guarded), then calls
-`check_file` to confirm the gate passes — looping until it does.
+`check_file` to confirm the gate passes, looping until it does.
 
 ### "Catch the project up"
 
 > What translation work is outstanding, and how much would it cost?
 
-The assistant calls `up_plan` — a dry run reporting, per collection and locale,
+The assistant calls `up_plan`, a dry run reporting, per collection and locale,
 the units missing a target, the content-memory leverage, the remaining AI work
 and a rough token estimate. Nothing is written and no provider is called. `up`
 then does the work: re-extract what drifted, reuse the content memory, translate
@@ -288,7 +288,7 @@ a content edit, or an edit to an asset the project owns.
 <McpToolParams name="apply_edits" />
 
 Each change-set entry carries a `kind`. Content edits address a block by file,
-`id`, and `content_hash` — the drift guard: if the block's source has changed
+`id`, and `content_hash`, the drift guard: if the block's source has changed
 since it was read, the edit is refused rather than applied to different text.
 Asset edits carry an `op` and the fields for their kind.
 
@@ -331,7 +331,7 @@ kapi apply <<<'{"kind":"memory","source":"Save","target":"Lagre","source_locale"
 
 ## How it works
 
-Kapi MCP uses the same machinery as the CLI commands — the format registry for
+Kapi MCP uses the same machinery as the CLI commands: the format registry for
 detection, the executor for flow orchestration, and the same built-in tools.
 The MCP server exposes them as typed, discoverable tools over the
 [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
@@ -344,14 +344,14 @@ down when the session ends.
 Most tools here are rule-based and need no API key: `context_search`,
 `check_text`, `check_file`, `voice_check`, `voice_rewrite`, `stats`,
 `extract_content`, `apply_edits`, and the review verbs all run offline. The
-ones that reach a language model — `translate`, and `up` when there is work the
-content memory cannot cover — need a provider credential, which they read from
+ones that reach a language model (`translate`, and `up` when there is work the
+content memory cannot cover) need a provider credential, which they read from
 the same credential store the CLI uses (`kapi credentials add`).
 :::
 
 ## Related
 
-- [Use the Kapi Agent Skills](/kapi/get-started/use-with-claude) — the agent-skills path.
-- [kapi CLI overview](/kapi/cli)
-- [Context retrieval](/contribute/architecture/context/c-06-retrieval) — why one question reaches every store.
+- [Use the Kapi Agent Skills](/kapi/get-started/use-with-claude): the agent-skills path.
+- [Kapi CLI guides](/kapi/cli)
+- [Context retrieval](/contribute/architecture/context/c-06-retrieval): why one question reaches every store.
 - [Command reference](/commands)

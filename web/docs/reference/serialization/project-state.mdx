@@ -1,13 +1,13 @@
 ---
 sidebar_position: 7
 title: Project state
-description: The committed unit-state record under .kapi/state/ — JSON Lines, one shard per document, one line per unit — the working set that stages changes until kapi commit, and the unit state fields.
+description: "The committed unit-state record under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the working set that stages changes until kapi commit, and the unit state fields."
 keywords:
   [
     project state,
     kapi/units,
     jsonl,
-    kapi-project-state,
+    kapi-state,
     review,
     unit state,
     approval,
@@ -26,8 +26,8 @@ Implemented in Go at
 
 ## The working set stages, the record commits
 
-A change is recorded into a **working set** — the unit-state tables of
-[`.kapi/work/store.db`](/kapi/project-store) — and stays there until `kapi commit`
+A change is recorded into a **working set** (the unit-state tables of
+[`.kapi/work/store.db`](/kapi/project-store)) and stays there until `kapi commit`
 materializes it into the committed record under `.kapi/state/`. The model is
 deliberately the one you already know from git: unit state behaves like staged
 changes, and you publish deliberately. `kapi status` reports what is staged, so
@@ -36,7 +36,7 @@ nothing is lost silently.
 The consequences follow from that:
 
 - The working set is a derived index over the record and can be discarded. Only
-  **uncommitted** state is lost — exactly like uncommitted changes.
+  **uncommitted** state is lost, exactly like uncommitted changes.
 - Committing is a no-op when nothing changed, which keeps a CI step from
   producing an empty commit.
 - A server-backed project has a different sink for the same record:
@@ -54,13 +54,13 @@ scope, each line a single unit:
 ```
 
 ```json title="one line of a shard"
-{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"reviewed","targetHash":"…","updated":"2026-08-04T09:12:44Z"}
+{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"reviewed","targetHash":"…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
 ```
 
 **JSON Lines rather than one document**, because the record is appended to and
 diffed far more often than it is read whole: a line per unit makes recording an
 approval a one-line diff instead of a rewrite of every byte. **Sharded per
-document** for the same reason at a larger grain — editing the documentation
+document** for the same reason at a larger grain: editing the documentation
 does not rewrite the shard holding the interface strings, and two branches
 touching unrelated documents do not conflict on sight.
 
@@ -69,9 +69,9 @@ A shard whose last unit is gone is pruned rather than left behind claiming units
 that no longer exist. A malformed line is an error: state is authoritative and
 must never be silently discarded.
 
-Shard filenames are *derived* from the document scope, not taken from it. A
-scope is the document's resolved **key**, never its path — so renaming a file
-does not orphan its state — and deriving the filename keeps an opaque key
+Shard filenames are *derived* from the document scope rather than taken from
+it. A scope is the document's resolved **key**, never its path (so renaming a
+file does not orphan its state), and deriving the filename keeps an opaque key
 from escaping the directory.
 
 ## Why the record is committed and the store is not
@@ -89,33 +89,48 @@ The [overview](/reference/serialization/overview) states the general rule, and
 ## Unit state
 
 Each line carries one unit's state. The record's schema identity is
-`kapi-project-state` at `schemaVersion` `1.0`; a shard is bare JSON Lines, so
+`kapi-state` at `schemaVersion` `1.0`; a shard is bare JSON Lines, so
 the version rides the single-document serialization of the same records.
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `scope` | string | The document the unit belongs to, and the shard it is written into. Part of the record's identity: a unit id is unique inside its document and nowhere wider. |
-| `unit` | string | Unit identity — the block's content hash, the same key the block tables and overlays address it by. |
+| `unit` | string | Unit identity: the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
 | `status` | string | Target ladder position: draft → translated → reviewed → signed-off. |
 | `sourceStatus` | string | Source ladder position: authored → checked → approved. |
 | `origin` | object | Provenance of the current target (engine/tool/reference). |
 | `targetHash` | string | Content hash of the translation this state blesses. |
-| `decision` | object | The recorded workflow decision. |
+| `contentHash` | string | The decision's **basis**: the hash of the source wording the decision was made against. A record whose basis no longer matches the unit's current source reads as *stale*. |
+| `contextHash` | string | The fingerprint of the governing context (voice, terms, point) in force when the unit was produced; the staleness gate compares it against the context in force now. |
+| `decision` | object | The recorded workflow decision: `reviewState` (`approved`, `rejected`, …), `by` (empty for a person, `ai/<model>` for an autonomous AI approval, `agent/<client>` for an agent acting for a person), `at`, `note`, `parked`, `assignee`. |
 | `aiReview` | object | Last AI pre-review annotation. Optional. |
 | `updated` | string | RFC 3339. |
 
-Two fields carry most of the design:
+Three hashes carry most of the design:
 
 **`targetHash` does not duplicate the translation.** It is a hash of the text
 the review was made against, so editing that text invalidates a stale approval
 rather than silently carrying it forward. The translation itself lives in the
 deliverable; this record only blesses it.
 
+**`contentHash` binds the decision to its source.** An approval is about a
+pairing, this rendering *of this source*, so the record keeps the hash of the
+source wording as the decision's basis. Edit the source and the unit reads as
+stale until someone decides the new pairing; restore the source and the
+decision applies again. It is also what lets a block removed in one revision
+and restored in a later one come back to its own history rather than being
+re-translated.
+
+**`contextHash` binds the target to the governance it was produced under.** The
+staleness gate reads it: a target written under a voice profile or a terms
+store that has since moved fails the gate, naming what moved, and `kapi up`
+reproduces it under the context now in force.
+
 **`aiReview` is advisory and never a review outcome.** It informs the review queue
 with a score and findings. Where an AI pre-review justified an automatic
 approval, that approval is recorded separately in `decision`, with `by`
-carrying the `ai/<model>` identity — so a machine judgement and a machine
+carrying the `ai/<model>` identity, so a machine judgement and a machine
 approval remain distinguishable in the record.
 
 ## What is deliberately not in it
@@ -123,12 +138,12 @@ approval remain distinguishable in the record.
 - **The translations themselves.** Only their hashes. The content lives in the
   deliverable or in a [content bundle](/reference/serialization/content-bundle).
 - **Anything derivable.** Coverage percentages and review queues are computed
-  from these shards plus the content, not stored alongside.
-- **Uncommitted state.** By construction — that is what `kapi commit` is
+  from these shards plus the content rather than stored alongside.
+- **Uncommitted state.** By construction; that is what `kapi commit` is
   for.
 
 ## See also
 
-- [The project store](/kapi/project-store) — the committed record, the local store, and the cache.
-- [Overview](/reference/serialization/overview) — store, bundle, and committed state.
-- [Terms](/reference/serialization/terms) — the other committed artifact a reviewer reads.
+- [The project store](/kapi/project-store): the committed record, the local store, and the cache.
+- [Overview](/reference/serialization/overview): store, bundle, and committed state.
+- [Terms](/reference/serialization/terms): the other committed artifact a reviewer reads.

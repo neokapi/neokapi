@@ -1,17 +1,17 @@
 ---
 sidebar_position: 2
 title: Project file
-description: Reference for the kapi.yaml project file — a portable YAML recipe capturing source and target languages, content file patterns, flows, plugin requirements, and processing defaults, plus how kapi discovers it.
+description: "Reference for the kapi.yaml project file: a portable YAML recipe capturing the content a project governs, the voice, terms and coordinates that govern it, its languages, flows, plugin requirements and processing defaults, plus how kapi discovers it."
 keywords: [kapi project, kapi.yaml, project file, YAML recipe, flows, defaults, discovery]
 ---
 
 # Project file
 
-A Kapi project is a portable `kapi.yaml` recipe at a project's root that captures a content workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
+A kapi project is a portable `kapi.yaml` recipe at a project's root that captures a content workflow: which files count as content, the voice profile, terms and coordinates that govern them, source and target languages, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
 
 ## Discovery
 
-Like git, `kapi` walks up the directory tree from where you run it and uses the nearest `kapi.yaml` recipe — running in **project mode** with that project's languages, defaults, and flows. A directory holds at most one `kapi.yaml`, so discovery is unambiguous. An explicit `-p <path>` overrides discovery, and `KAPI_NO_PROJECT=1` disables it so the CLI runs ad-hoc.
+Like git, `kapi` walks up the directory tree from where you run it and uses the nearest `kapi.yaml` recipe, running in **project mode** with that project's languages, defaults, and flows. A directory holds at most one `kapi.yaml`, so discovery is unambiguous. An explicit `-p <path>` overrides discovery, and `KAPI_NO_PROJECT=1` disables it so the CLI runs ad-hoc.
 
 ## Format
 
@@ -93,11 +93,13 @@ defaults:
 | `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
 | `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
 | `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
+| `verified_gate` | Gate      | A single catch-all verified gate: the bar a locale must clear to read as *verified*, independent of shipping (see [Ship gates](#ship-gates)) |
+| `verified_gates` | ShipGateRule[] | Scoped verified-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale is verified |
 
 ### Collections
 
-`collections` is a list. Each entry is either a **bare entry** — one glob and its
-target, written inline — or a **named collection**, which groups content items
+`collections` is a list. Each entry is either a **bare entry** (one glob and its
+target, written inline) or a **named collection**, which groups content items
 under a name and can bind them to a point in the project's context space.
 
 ```yaml
@@ -119,7 +121,8 @@ collections:
 | ------------------ | --------------- | -------------------------------------------------------------------------------------------------------- |
 | `name`             | string          | Collection name. Required to bind a `channel:`, and what a ship-gate rule's `collections:` selector matches |
 | `base`             | string          | The directory this collection lives in; every `path`, `target` and item `base` below is written relative to it |
-| `channel`          | string          | The point in the context space this collection's content sits at — always `profile/channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `channel`          | string          | The point in the context space this collection's content sits at, always `profile/channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `coordinates`      | map             | Declared axes (`brand`, `mode`) the collection sits at, overlaid per axis on `defaults.coordinates`; product and channel come from `channel:` and are rejected here (see [Declared axes](#declared-axes)) |
 | `content`          | ContentItem[]   | The collection's content items                                                                            |
 | `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
 | `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
@@ -168,7 +171,7 @@ collections:
 
 An item's own `base` is the separate, narrower thing: the directory a matched
 file's path is made relative to, which drives the `{relpath}` / `{path}` /
-`{dir}` tokens. An item that declares none keeps none — the tokens then
+`{dir}` tokens. An item that declares none keeps none, and the tokens then
 relativize against the joined pattern's own fixed prefix.
 
 ### Source and target paths
@@ -179,9 +182,9 @@ the listed alternatives (e.g. `input/store/*.{json,yaml,html}`). One glob can
 therefore cover a whole directory of mixed content; the format is auto-detected
 per file unless you pin `format`. Patterns resolve relative to the project root.
 
-The `base` in play here is the item's own — the directory a matched file's path
+The `base` in play here is the item's own: the directory a matched file's path
 is made relative to, after any collection `base` has been folded in. It defaults
-to the glob's *fixed prefix* — the literal part of `path` before the first wildcard
+to the glob's *fixed prefix*, the literal part of `path` before the first wildcard
 (`input/docs/` for `input/docs/**/*.md`). The relative path drives the `{relpath}`
 / `{path}` / `{dir}` tokens and how much of the source tree a directory-mirror
 target reproduces.
@@ -204,8 +207,8 @@ A bare `*` is shorthand for `{name}`.
 **Directory-mirror (the easy default).** When `target` ends with `/`, or its last
 segment has no extension and no wildcard/token, it names a *directory* and the
 source's `{relpath}` (under `base`) is mirrored beneath it. So `target:
-output/{lang}` reproduces the source tree under each per-language root —
-`input/docs/api.md` → `output/fr/docs/api.md` — with no `*` and no risk of a
+output/{lang}` reproduces the source tree under each per-language root
+(`input/docs/api.md` → `output/fr/docs/api.md`) with no `*` and no risk of a
 doubled extension:
 
 ```yaml
@@ -225,11 +228,12 @@ collections:
 
 ### Profiles and channels
 
-Content is written for a point in a two-axis space: the **product** it belongs to
-and the **channel** it ships on. The space is structural rather than declared — a
-key under `profiles:` is a product, the channels that profile lists are the
-channels that product ships on, and a collection names the point its content sits
-at with one `channel:` reference. [Context](/kapi/context) is the concept; this
+Content is written for a point in the context space. Two axes are structural:
+the **product** it belongs to and the **channel** it ships on. A key under
+`profiles:` is a product, the channels that profile lists are the channels that
+product ships on, and a collection names the point its content sits at with one
+`channel:` reference. Further axes are declared under `coordinates:` (see
+[Declared axes](#declared-axes)). [Context](/kapi/context) is the concept; this
 section is the schema.
 
 ```yaml
@@ -269,19 +273,19 @@ collections:
 
 The map key is the profile's name: the product-axis value its collections carry,
 and the directory under `.kapi/profiles/<name>/` holding the files it overrides.
-A profile that binds neither a voice nor a vocabulary is still a profile — the
+A profile that binds neither a voice nor a vocabulary is still a profile: the
 directory is the binding.
 
 Profile names and channels are slugs: lowercase letters, digits and hyphens,
-starting with a letter or digit. They are machine identifiers — stable, never
-translated, comparable byte for byte — which is why a profile or a channel may
+starting with a letter or digit. They are machine identifiers (stable, never
+translated, comparable byte for byte), which is why a profile or a channel may
 *carry* a concept for display but resolution never looks at it.
 
-A collection's `channel:` is always written `profile/channel` — the product owns
+A collection's `channel:` is always written `profile/channel`: the product owns
 the surface, and the binding reads as one. A bare channel name is a load error
 that spells out the qualified form(s), even when exactly one profile declares it.
 Binding a channel requires a named collection. A
-collection that binds none is governed by the project default point —
+collection that binds none is governed by the project default point,
 `defaults.voice` and the project's own terms.
 
 A content item may carry its own `channel:`, in the same qualified form and under
@@ -310,19 +314,53 @@ collection's point, most specific first:
 
 The channel then refines the voice that resolved: a matching entry under the
 voice profile's own `channels:` replaces its tone, its style, or both. Vocabulary
-is not channel-scoped.
+applies to every channel.
+
+#### Declared axes
+
+Beyond product and channel, a project names the further axes its content varies
+along under `defaults.coordinates`. Every collection inherits them; a collection
+that sits elsewhere on one axis sets that axis in its own `coordinates:` and
+keeps the rest. Per axis, the most specific value wins.
+
+```yaml
+defaults:
+  coordinates:
+    brand: acme
+
+collections:
+  - name: sdk-docs
+    channel: sdk/docs
+    coordinates:
+      mode: reference
+    content:
+      - path: "web/docs/**/*.mdx"
+```
+
+| Axis    | Conventional values                                   | Meaning                                                                 |
+| ------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| `brand` | a slug                                                | The brand a point sits under, coarser than product                      |
+| `mode`  | `tutorial`, `how-to`, `reference`, `explanation`      | The kind of document at the point, in the Diátaxis sense                 |
+
+The map is open: any other axis name is accepted, and the values are
+conventions rather than an enumeration. `product` and `channel` are refused
+under `coordinates:` at load, because both are derived from `channel:` and a
+declared copy could contradict the derived one. A collection's resolved point
+(the defaults, overlaid with what `channel:` derives, overlaid with its own
+`coordinates:`) is what `kapi context` reports and what a connected project
+sends to the server.
 
 #### Profile validity
 
-`valid_from` and `valid_to` bound a profile's governance in time — the same
+`valid_from` and `valid_to` bound a profile's governance in time, the same
 half-open window a term carries, with `valid_from` inclusive and `valid_to`
 exclusive, so a `valid_to` date excludes that whole day. A bound is a date
 (`YYYY-MM-DD`) or an RFC3339 instant; an unparseable bound or an inverted range
 fails at load.
 
 A profile outside its window does not govern. Resolution falls through to the
-next binding — a collection's channel under an expired item channel, then the
-project default — exactly as if the expired profile were absent, and the run,
+next binding (a collection's channel under an expired item channel, then the
+project default) exactly as if the expired profile were absent, and the run,
 check or push that applied the fall-through reports it once:
 
 ```
@@ -352,10 +390,15 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `memory`           | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [memory](#memory))                         |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
+| `annotations`      | AnnotationDefaults  | `write:` lists the annotation types a writer draws into the document as inline marks, out of what the format declares it can carry. Empty draws every type the format supports; naming a type a format cannot carry asks for nothing there |
 | `voice`            | VoiceBinding        | Bind a voice profile as standing project context (see [voice](#voice)). A profile's own `voice:` overrides it for that product's content |
-| `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Binds any path. Unset, kapi falls back to `<root>/.kapi/terms.json` — the conventional home in the committed context graph — then `<root>/terms.json` |
-| `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
-| `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
+| `coordinates`      | map                 | The project's default point on the declared axes (`brand`, `mode`), inherited by every collection; `product` and `channel` are derived from `channel:` and rejected here (see [Declared axes](#declared-axes)) |
+| `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Binds any path. Unset, kapi falls back to `<root>/.kapi/terms.json` (the conventional home in the committed context graph), then `<root>/terms.json` |
+| `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from, the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
+| `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and a severity; see the [voice profile reference](/reference/serialization/voice-profile#term-rules)) |
+| `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)) |
+| `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
+| `materialize`      | string              | Who delivers translated files. `manual` (default) leaves delivery to `kapi merge` or `kapi up --materialize`; `on-converge` makes `kapi up` write a locale's files to the collection's `target:` only once its gated scopes are shippable |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
 | `source_gate`      | string              | Source-first convergence level: the source status a block must reach before it is translated (see [source_gate](#defaults-source-gate)) |
 
@@ -364,29 +407,29 @@ Individual content items can override `redaction` per entry (`ContentItem.redact
 #### source_gate {#defaults-source-gate}
 
 `defaults.source_gate` is the **source-first convergence** gate: the source
-status a block must reach before the loop translates it. It gates the fan-out —
-distinct from the top-level [`source_gate`](#source_gate) coverage bar that
-`kapi check --ship` evaluates. Source-first convergence settles the source
-(terminology, brand, source QA) and holds the fan-out on it, so an unsettled,
-off-brand, un-term-checked source is never translated into every locale only to
-be redone when it changes. See
-[Convergence — source first](/kapi/convergence#source-first).
+status a block must reach before the loop translates it. It gates the fan-out,
+and is distinct from the top-level [`source_gate`](#source_gate) coverage bar
+that `kapi check --ship` evaluates. Source-first convergence settles the source
+(terminology, voice, source QA) and holds the fan-out on it, so an unsettled,
+non-compliant, un-term-checked source is never translated into every locale only
+to be redone when it changes. See
+[Convergence: source first](/kapi/convergence#source-first).
 
 ```yaml
 defaults:
   source_gate: checked   # the default: source cleared its automated terminology,
-                         # brand, and source-QA checks (no human bottleneck)
+                         # voice, and source-QA checks (no human bottleneck)
   # source_gate: approved  # require a human/agent source sign-off first
-  # source_gate: none      # opt out — raw fan-out, no source gate
+  # source_gate: none      # opt out: raw fan-out, no source gate
 ```
 
 | Value      | Meaning                                                                 |
 | ---------- | ----------------------------------------------------------------------- |
 | _(unset)_  | Runner applies the default (`checked`)                                   |
-| `authored` | Presence baseline — any non-empty source qualifies                      |
-| `checked`  | **Default** — source passed its automated terminology, brand, source-QA checks |
-| `approved` | A human or agent signed off the source (brand-critical / regulated)     |
-| `none`     | Deliberate opt-out — translate without settling the source first        |
+| `authored` | Presence baseline: any non-empty source qualifies                       |
+| `checked`  | **Default**: source passed its automated terminology, voice and source-QA checks |
+| `approved` | A human or agent signed off the source (voice-critical or regulated content) |
+| `none`     | Deliberate opt-out: translate without settling the source first         |
 
 On a connected project, a below-gate source **holds** the convergence run
 (`source_not_ready`) and opens a source-review task rather than translating; the
@@ -402,7 +445,7 @@ while you still tune individual formats in one place. Each entry takes:
 | ---------- | ------ | --------------------------------------------------------------------------------------------------- |
 | `preset`   | string | A named format preset applied to this format (see [`kapi formats`](/reference/commands/formats))    |
 | `config`   | map    | Reader option overrides for this format (merged under, and overridable by, a content item's `format.config`) |
-| `priority` | int    | Detection priority — higher wins when several formats claim the same extension                       |
+| `priority` | int    | Detection priority; higher wins when several formats claim the same extension                        |
 
 `priority` is the engine-pin escape hatch. Most extensions map to one format, but
 some are claimed by several: `.srt` by both `okf_vtt` and `okf_regex`, `.txt` by
@@ -464,7 +507,7 @@ The sensitive term list lives in a separate rules file referenced by `rules` (so
 #### voice
 
 Bind a voice profile under `defaults.voice`. Exactly one source is expected. The
-short form is the profile file itself — `voice: .kapi/voice.yaml` — which is what
+short form is the profile file itself, `voice: .kapi/voice.yaml`, which is what
 a recipe writes when the profile is a file in the project, as it usually is.
 
 | Field          | Type   | Description                                                             |
@@ -505,10 +548,10 @@ flows:
 Ship gates decide when translated content is *shippable*: coverage thresholds
 over the target lifecycle ladder (`draft` → `translated` → `reviewed` →
 `signed-off`), enforced by [`kapi check --ship`](/reference/commands/check) and
-driven toward by [`kapi up`](/reference/commands/up). The model — ladders,
-derived state, review — is [the kapi loop](/kapi/convergence); this section is
-the schema. All four keys are top-level (siblings of `defaults`) and optional:
-with none set, nothing is gated.
+driven toward by [`kapi up`](/reference/commands/up). The model (ladders,
+derived state, review) is [the kapi loop](/kapi/convergence); this section is
+the schema. All of these keys are top-level (siblings of `defaults`) and
+optional: with none set, nothing is gated.
 
 | Field         | Type           | Description                                                                                       |
 | ------------- | -------------- | ------------------------------------------------------------------------------------------------- |
@@ -516,6 +559,13 @@ with none set, nothing is gated.
 | `ship_gates`  | ShipGateRule[] | Scoped rules, each a selector plus a gate; when present it replaces `ship_gate`                    |
 | `gates`       | map            | Named gate registry; a `ship_gates` rule references an entry with `gate: <name>`                   |
 | `source_gate` | Gate           | A gate over the source authoring ladder (`authored` → `checked` → `approved`)                      |
+| `verified_gate` | Gate         | A single catch-all verified gate, in the same threshold form as `ship_gate`                        |
+| `verified_gates` | ShipGateRule[] | Scoped verified-gate rules; the most specific rule wins                                         |
+
+Shipping and being verified are independent readings. A verified gate names the
+bar a locale must clear to be reported as *verified* (by `kapi status --ship`
+and the ship-aware language picker), and a locale can ship without meeting it.
+With neither verified key set, no locale is verified.
 
 ### Gate and thresholds
 
@@ -532,10 +582,10 @@ on the ladder. A threshold is written in one of two forms:
 **approver class** for the decision rungs (*reviewed*, *signed-off*): `human`
 (the default) counts only decisions made by a person or an agent acting for
 one, `any` also counts autonomous AI approvals. The short form always means
-`by: human` — an AI-approved unit never satisfies it. See
+`by: human`; an AI-approved unit never satisfies it. See
 [approver classes](/kapi/convergence#approver-classes) for the rationale.
 
-**Simple form** — one bar for the whole project:
+**Simple form**, one bar for the whole project:
 
 ```yaml
 ship_gate: { translated: 100, reviewed: 80 }
@@ -544,7 +594,7 @@ ship_gate: { translated: 100, reviewed: 80 }
 Every unit translated, the important 80% reviewed by a person; the long tail
 ships machine-translated.
 
-**Extended thresholds** — the same shape with explicit `pct`/`by`:
+**Extended thresholds**, the same shape with explicit `pct`/`by`:
 
 ```yaml
 ship_gate:
@@ -568,7 +618,7 @@ default. When several rules match a (collection, locale) unit, the rule
 constraining the **most axes** wins wholesale; among equal specificity, the
 earliest-listed wins.
 
-**Scoped rules** — different scopes answer to different bars:
+**Scoped rules**, where different scopes answer to different bars:
 
 ```yaml
 ship_gates:
@@ -579,7 +629,7 @@ ship_gates:
   - gate: { translated: 100, reviewed: 80 } # the default
 ```
 
-**Named gates** — define once in the `gates` registry, reference by name:
+**Named gates**, defined once in the `gates` registry and referenced by name:
 
 ```yaml
 gates:
@@ -605,7 +655,7 @@ than the translations.
 source_gate: { checked: 100 }
 ```
 
-Every source unit clears its bound brand and terminology checks before
+Every source unit clears its bound voice and terminology checks before
 `kapi check --ship` passes. Like `ship_gate`, the top-level `source_gate` is a
 **coverage bar** evaluated by `kapi check --ship`; source drift never blocks an
 ordinary build.
@@ -618,10 +668,10 @@ yet?*.
 
 ## Key Properties
 
-- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
-- **No state** — No sync cursors, caches, or timestamps. Kapi project files are always clean and safe to commit.
-- **Portable** — One `kapi.yaml` per project folder; share via git.
-- **CLI-compatible** — `kapi run flowname -p kapi.yaml`
+- **No credentials**: API keys are never stored in a kapi project file. They come from the OS keychain (`kapi credentials add`, shared with Kapi Desktop) or from environment variables.
+- **No state**: no sync cursors, caches, or timestamps. A kapi project file is always clean and safe to commit.
+- **Portable**: one `kapi.yaml` per project folder; share via git.
+- **CLI-compatible**: `kapi run flowname -p kapi.yaml`
 
 ## Using with Kapi CLI
 
@@ -638,14 +688,16 @@ kapi translate -i file.json --target-lang fr
 
 ## Using with Kapi Desktop
 
-- **File > Open** to load a project by its folder (the one containing `kapi.yaml`)
-- **File > New** to create one from scratch
-- **File > Save / Save As** for standard document operations
-- Open a project by its folder rather than by double-clicking a branded file
-- Drag and drop a project folder onto the app window
+- **File > Open** loads a project by its folder (the one containing `kapi.yaml`)
+- **File > New Project** creates one from scratch: a name, a location and a source language
+- **File > Recent Projects** reopens one you have worked in before
+
+The app opens to your projects and edits the recipe in place: content and
+governance under **Project Settings**, the stores under **Context**. See the
+[desktop overview](/kapi/desktop/overview).
 
 ## See also
 
-- [C-01: Project model](/contribute/architecture/context/c-01-project-model) — the architectural decision behind the `kapi.yaml` recipe and its extension mechanism.
-- [kapi.yaml Project File Format](/contribute/implementation/context/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, `Collection` and `Profile` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
-- [Flow Steps Format](/contribute/implementation/engine/flow-steps-format) — the full step specification used by `flows`.
+- [C-01: Project model](/contribute/architecture/context/c-01-project-model): the architectural decision behind the `kapi.yaml` recipe and its extension mechanism.
+- [kapi.yaml Project File Format](/contribute/implementation/context/kapi-project-file): the implementation note; the `KapiProject`, `Defaults`, `Collection` and `Profile` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
+- [Flow Steps Format](/contribute/implementation/engine/flow-steps-format): the full step specification used by `flows`.

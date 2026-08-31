@@ -1,7 +1,7 @@
 # Keep content in voice
 
-Score and fix content against a voice profile with the local `kapi` CLI —
-offline, no account. One loop: load the voice guide before writing, score a
+Score and fix content against a voice profile with the local `kapi` CLI,
+offline, with no account. One loop: load the voice guide before writing, score a
 draft, fix what drifts.
 
 ## Profiles
@@ -11,17 +11,17 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 `kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,
 `technical-docs`, `marketing-blog`, `customer-support`.
 
-**Inside a project, the profile is part of the context — don't pass a flag.** When
+**Inside a project, the profile is part of the context; don't pass a flag.** When
 the project binds a voice profile (a `defaults.voice` recipe entry, or a
-`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check
+`.kapi/voice.yaml`, or a `voice.yaml` at the project root), run `kapi voice check
 <file>` and `kapi voice guide` with **no**
-`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
+`--profile`/`--profile-file`/`--pack`: kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
 [project.md](project.md).
 
 ## Create a profile
 
-If the user has no profile yet, draft one for them — you (the assistant) do the
+If the user has no profile yet, draft one for them: you (the assistant) do the
 analysis; the CLI gives you the schema and stores the result.
 
 ```bash
@@ -32,18 +32,33 @@ kapi voice new --pack marketing-blog -o voice.yaml   # or start from a close pac
 Fill in `voice.yaml` from whatever signal is available:
 
 - **What you already know** about the product/company from this conversation or
-  the repo (README, marketing copy, existing UI strings) — infer personality,
+  the repo (README, marketing copy, existing UI strings): infer personality,
   formality, and preferred/forbidden terms.
 - **Samples** the user pastes or points at (a few on-brand paragraphs, past
-  emails, docs) — derive tone and vocabulary, and turn weak→strong pairs into
+  emails, docs): derive tone and vocabulary, and turn weak→strong pairs into
   `examples` (before / after).
-- **A website** the user links — fetch a page or two (your web tool, or `curl`),
+- **A website** the user links: fetch a page or two (your web tool, or `curl`),
   read the live copy, and capture its voice. For a saved page, `kapi stats
   page.html` / `kapi extract` pulls the text to analyze.
 
 Keep it concrete: 2–4 personality adjectives, a handful of forbidden/competitor
 terms with replacements, and 2–3 before/after examples beat a long abstract
-description. Then save and verify:
+description. Each vocabulary rule carries a `severity` (`minor`, `major`, or
+`critical`); `minor` only warns, the others fail the check. Phrasing to avoid
+that is a pattern rather than a term (`!{2,}`, a sentence opening with "Just")
+goes under `style.prohibited_patterns` as a regex with a message.
+
+For an inflected language, `kapi voice expand` asks a model for each vocabulary
+term's other surface forms (inflections, declensions) and writes them into the
+profile as `forms:`, so the check matches them exactly:
+
+```bash
+kapi voice expand --profile-file voice.yaml --language nb   # write forms for Norwegian
+kapi voice expand --profile-file voice.yaml --dry-run       # print what would be added
+```
+
+Rules that already carry forms are left alone unless `--overwrite` is given; the
+result is authoring-time work you review in the diff. Then save and verify:
 
 ```bash
 kapi voice import voice.yaml                 # into the local store
@@ -65,31 +80,31 @@ terms (use the listed replacements). Then draft, and check the result.
 
 ## 2. Check a draft
 
-Pipe text via stdin (or `--text "..."`); always pass `--json`:
+Pipe text via stdin (or pass `--input-text "..."`); always pass `--json`:
 
 ```bash
-echo "$DRAFT" | kapi voice check --pack marketing-blog --text - --json
+echo "$DRAFT" | kapi voice check --pack marketing-blog --input-text - --json
 ```
 
 Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 `position`, `suggestion`). The rule-based check is deterministic and offline; add
 `--ai` for an LLM tone/style/clarity pass (needs a saved credential).
 
-## 3. Fix what's flagged — you rewrite, kapi checks
+## 3. Fix what's flagged: you rewrite, kapi checks
 
 Rewrite the off-voice text on-brand **yourself**, route the change through kapi's
 write verb, then re-check. kapi does not send content to a model to rewrite it:
 `kapi voice rewrite` only substitutes forbidden/competitor terms with their
-approved replacements, deterministically and offline — it won't fix tone, style,
+approved replacements, deterministically and offline; it won't fix tone, style,
 or phrasing. For those, rewrite the text yourself with the voice guide as
 context. Load it first:
 
 ```bash
-kapi voice guide                       # the voice to follow — your context
+kapi voice guide                       # the voice to follow: your context
 kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
-Rewrite each flagged block, then apply your edits with `kapi apply` — the one
+Rewrite each flagged block, then apply your edits with `kapi apply`, the one
 write verb. It writes the file in place through the faithful round-trip
 (structure and inline codes preserved) and rejects an edit that drifted or would
 corrupt markup. See [edit.md](edit.md) for the `content`-entry shape, the guards,
@@ -102,7 +117,7 @@ kapi inspect blog-post.md --jsonl > blocks.jsonl
 kapi apply edits.jsonl --diff           # preview, then drop --diff to apply
 ```
 
-When the off-voice text is a file the user owns, apply in place — git records the
+When the off-voice text is a file the user owns, apply in place: git records the
 change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
 the file has uncommitted edits, say so before overwriting, so unsaved work isn't
 lost. Re-run the check to confirm the score improved.
@@ -111,7 +126,7 @@ lost. Re-run the check to confirm the score improved.
 
 A recurring off-voice term is better fixed at the source: add a vocabulary rule
 so every future draft is checked against it. That is just another `kind` in the
-**same** `kapi apply` change-set — the content fix and the rule that justifies it
+**same** `kapi apply` change-set: the content fix and the rule that justifies it
 land together, atomically:
 
 ```jsonl
@@ -128,12 +143,12 @@ YAML (the `defaults.voice.profile_file` the recipe binds), and the existing
 import compiles it into the local voice store. `git diff` shows the one new rule;
 the next `kapi voice check` / `kapi check --ship` enforces it. `list` is `forbidden`,
 `competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
-approved term instead with a `term` entry — see [create.md](create.md).)
+approved term instead with a `term` entry; see [create.md](create.md).)
 
 ### Offline term substitution
 
 `kapi voice rewrite` swaps forbidden and competitor terms for their approved
-replacements — deterministic, offline, no model. It reads text from
+replacements: deterministic, offline, no model. It reads text from
 `--input-text` or stdin and prints the rewrite, reporting each `change`:
 
 ```bash

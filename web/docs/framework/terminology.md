@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: Terminology
-description: neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata — backing the kapi terms commands and the term-check pipeline tool.
+description: "neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata, backing the kapi terms commands and the term-check pipeline tool."
 keywords: [terminology, terms, TBX, concepts, term enforcement, quality checks]
 ---
 
@@ -12,8 +12,8 @@ import { PipelineDiagram, StreamDiagram } from "@neokapi/docs-shared";
 neokapi manages terminology with a concept-oriented model inspired by the TBX
 (TermBase eXchange) standard: language-neutral concepts group multi-locale
 terms, each carrying a lifecycle status and optional grammatical metadata. The
-same model backs the `kapi terms` commands, the `term-lookup` and
-`term-enforce` pipeline tools, and the `terms/` Go library.
+same model backs the `kapi terms` commands, the `term-check`, `dnt-check` and
+`term-extract` pipeline tools, and the `terms/` Go library.
 
 ## Concept-oriented model
 
@@ -23,7 +23,7 @@ status, and a locale may hold several terms (a preferred form plus admitted
 variants).
 
 <StreamDiagram
-  title='Concept — "cloud storage"'
+  title='Concept: "cloud storage"'
   ariaLabel='Concept "cloud storage": its domain, its definition, and its terms in English, French, German and Japanese'
   items={[
     { kind: "Domain", detail: '"infrastructure"', role: "meta" },
@@ -100,21 +100,20 @@ exist before persisting an edge.
 
 A relation, and an individual term, may carry a **validity**: a half-open time
 interval `[valid-from, valid-to)` plus a set of free-form tags. A query supplies
-a **scope** — a point in time and a set of tags — and only edges and terms whose
+a **scope** (a point in time and a set of tags) and only edges and terms whose
 validity matches the scope are returned. A nil validity is unbounded (it matches
 every scope); a nil scope applies no filtering.
 
 This makes the same terms store answer scope-dependent questions: which terms were
 preferred *as of* last quarter, or which relations hold *within* a given market.
 Tags are open-ended (the framework assigns them no meaning); a caller chooses a
-tag vocabulary — for example a `market` key — and uses it consistently. A nil
-validity matches every scope; a nil scope filters nothing.
+tag vocabulary (for example a `market` key) and uses it consistently.
 
 ### Status transitions
 
 A term's status changes over its lifetime. `ValidateTransition(from, to)`
-accepts any transition between known statuses — history is the guard, not a
-trap — while `IsGovernedTransition(from, to)` reports whether a change is
+accepts any transition between known statuses (history is the guard), while
+`IsGovernedTransition(from, to)` reports whether a change is
 consequential enough to deserve review: any transition **to** `forbidden` or
 `preferred`, or any transition **from** `forbidden`. The framework only
 classifies; a platform built on it decides what governance a governed transition
@@ -125,9 +124,9 @@ requires.
 Two backends ship in the `terms/` package, both thread-safe
 (RWMutex-protected) and implementing the full `Terminology` interface:
 
-1. **In-memory** (`terms.NewInMemoryStore`) — fast and ephemeral, used
+1. **In-memory** (`terms.NewInMemoryStore`): fast and ephemeral, used
    for session-scoped batch processing.
-2. **SQLite** (`terms.NewSQLiteStore`) — persistent file-based storage
+2. **SQLite** (`terms.NewSQLiteStore`): persistent file-based storage
    for CLI workflows, with fuzzy matching via SQL-based Levenshtein distance.
 
 The `Terminology` interface also accommodates server-side backends for multi-user
@@ -154,7 +153,7 @@ resolved location.
 
 With no flag inside a project, the terms store is instead a set of tables in the
 project's `.kapi/work/store.db`, compiled from the committed bundle the recipe binds
-with `defaults.terms_source` — see
+with `defaults.terms_source`; see
 [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 ```bash
@@ -172,29 +171,58 @@ kapi terms lookup "authenticating users" -s en -t fr --fuzzy
 kapi terms search "auth" -s en --limit 50
 kapi terms stats --name project-terms
 kapi terms list
+
+# Inside a project: where the extracted content uses a term or a concept
+kapi terms occurrences "content memory"
+kapi terms occurrences c-dashboard --locale nb --collection docs
 ```
 
-The `kapi terms` commands cover import, export, lookup, search,
-statistics, and listing. Concept **relations** are not edited from the
-command line: they are authored visually. Kapi Desktop opens a per-concept
-dashboard — the `@neokapi/concept-ui` component, which shows a concept's
-terms, geography, constraints, a local relations widget, and a timeline —
-over a local terms store, where an editor adds, retypes, scopes, and removes
-edges directly. The relation data this produces is the same
-`ConceptRelation` records persisted by the terms store and read through the [Go
-API](#go-library) below.
+The `kapi terms` commands cover import, export, lookup, search, occurrences,
+statistics, and listing. Inside a project, a term decision also lands through
+the one write verb: a `kapi apply` entry with `kind:"term"` (`op`, `term`,
+`locale`, `status`, `replaces`) is written to the committed terms source the
+recipe binds with `defaults.terms_source` and compiled into the project store,
+so `git diff` is the review surface. Concept **relations** are authored
+visually rather than from the command line: Kapi Desktop opens a per-concept
+dashboard (the `@neokapi/concept-ui` component, which shows a concept's terms,
+geography, constraints, a local relations widget, and a timeline) over a local
+terms store, where an editor adds, retypes, scopes, and removes edges directly.
+The relation data this produces is the same `ConceptRelation` records
+persisted by the terms store and read through the [Go API](#go-library) below.
 
 ## Pipeline integration
 
-Two pipeline tools bring terminology into the translation flow:
+Three pipeline tools bring terminology into the flow:
 
-- **`term-lookup`** scans each Block's source text and attaches matched
-  terminology as `TermAnnotation` entries (source term, target suggestions,
-  positions, status). It can also power per-block suggestions in an editor.
-- **`term-enforce`** checks that translated blocks use the expected
-  terminology. Violations are reported as block properties
-  (`term-enforce-errors`, `term-enforce-violations`) and as annotations with
-  expected-vs-actual detail.
+- **`term-check`** scans each Block's source text for the terms a store or a
+  rule list carries, attaches the matches as `term` annotations (source term,
+  target suggestions, positions, status), and, where a target exists, checks
+  that it uses the expected rendering. Violations are reported as findings with
+  expected-versus-actual detail, and the tool exits non-zero on them so it
+  doubles as a gate. It takes its rules from the project's terms store
+  (`--termstore` outside a project) or from `term_rules:` in a flow step's
+  config: the same shape a voice profile's vocabulary uses (one `term`, its
+  `replacement`, a `severity`, and optionally a `concept_id` that ties the rule
+  to a concept here). A rule whose `severity` is `minor` warns; any other value,
+  including unset, fails, because a rule resolved from a store carries no
+  severity and must not be silently downgraded.
+- **`dnt-check`** (do-not-translate) fails a target where a term listed under
+  `--terms` (product names, trademarks, code identifiers) was translated,
+  transliterated or dropped. The translate step masks those spans so the model
+  never sees them.
+- **`term-extract`** surfaces candidate terms from the source, for a curator to
+  approve into the store.
+
+Two further stages exist only in the Go library: `term-lookup` and
+`term-enforce` (`terms/tool.go`, `NewTermLookupTool` and `NewTermEnforceTool`).
+`term-lookup` scans a Block's source text and attaches the matches as
+`TermAnnotation` entries; `term-enforce` checks a translated block against the
+expected terminology and records the outcome as block properties
+(`term-enforce-passed`, `term-enforce-errors`, `term-enforce-violations`).
+Neither is a registered tool: a recipe cannot name them and `kapi tools` does
+not list them. The runner appends both automatically behind any registered tool
+whose schema declares that it requires terms, whenever a terms store is open,
+so a flow step gets the lookup and the enforcement without naming either.
 
 ## Go library
 
@@ -221,12 +249,14 @@ type Terminology interface {
 }
 ```
 
-(Methods, and the import/export helpers below, take a `context.Context` as their
-first argument in the real API; it is elided here for readability.)
+(Every method, and the import/export helpers below, takes a `context.Context`
+as its first argument and returns an `error` as its last in the real API; both
+are elided here for readability.)
 
 `Lookup` finds the best match for a single term. `LookupAll` scans running text
-and returns every term occurrence with positions — this is what powers the
-`term-lookup` tool and editor suggestions. By default `LookupAll` matches
+and returns every term occurrence with positions; this is what powers the
+`term-check` tool, the `term-lookup` library stage, and editor suggestions. By
+default `LookupAll` matches
 case-insensitively (terminology should be recognized regardless of
 capitalization); set `CaseSensitive` to override.
 
@@ -364,8 +394,8 @@ concept structure:
 Terminology and [content memory](/framework/content-memory) are
 deliberately separate systems because they answer different questions:
 
-- **Content memory** — "How was this sentence rendered before?" (segment pairs).
-- **Terminology** — "What is the correct term for this concept?" (multi-locale
+- **Content memory**: "How was this sentence rendered before?" (segment pairs).
+- **Terminology**: "What is the correct term for this concept?" (multi-locale
   knowledge units).
 
 They share the `Block` annotation system as their integration point, so both

@@ -64,18 +64,19 @@ its own goroutine. Buffered channels provide backpressure. See
 
 ## Package Layout
 
-The project is a **multi-module monorepo** with seven Go modules coordinated by
-`go.work`. The **framework** (`github.com/neokapi/neokapi`) at the repo root
-provides the content engine and stays platform-agnostic. A shared **CLI**
-base (`cli/`) is reused by both the **kapi** binary and bowrain. The **kapi
-desktop** app and the three **bowrain** modules (`bowrain`, `bowrain/core`,
-`bowrain/plugin`) build on top. The bowrain modules are
+The project is a **multi-module monorepo** coordinated by `go.work`. The
+**framework** (`github.com/neokapi/neokapi`) at the repo root provides the
+content engine and stays platform-agnostic. The **host** module (`host/`) is the
+cobra-free runtime and services layer; the **CLI** module (`cli/`) is the thin
+Cobra shell over it, reused by the **kapi** binary and by the `kapi-bowrain`
+plugin. The **kapi desktop** app and the three **bowrain** modules (`bowrain`,
+`bowrain/core`, `bowrain/plugin`) build on top. The bowrain modules are
 documented here as cross-module facts; their own architecture lives under
 `bowrain/docs/`.
 
 ```
 neokapi/
-├── go.work                          # workspace: framework + cli + kapi + kapi-desktop + bowrain modules
+├── go.work                          # workspace: framework + host + cli + kapi + kapi-desktop + bowrain modules
 │
 │   ── Framework Module (repo root) ──
 ├── go.mod                           # module github.com/neokapi/neokapi (Apache-2.0)
@@ -93,7 +94,7 @@ neokapi/
 │   ├── storage/                     # Shared SQLite DB infrastructure (Open, Migrate)
 │   ├── project/                     # .kapi project file format (Load, Save, Validate)
 │   ├── tools/                       # Built-in utility tools (word count, pseudo, etc.)
-│   ├── voice/                       # Voice profiles + checks
+│   ├── profile/                     # Voice profiles + checks
 │   ├── check/                       # Unified content checks
 │   ├── plugin/                      # Plugin runtime support
 │   │   ├── manifest/                # manifest.json parsing + validation
@@ -103,18 +104,21 @@ neokapi/
 ├── memory/                        # Content memory (interface + in-memory + SQLite + matching)
 ├── terms/                        # Terminology (interface + in-memory + SQLite + import/export)
 ├── providers/
-│   ├── ai/                          # package aiprovider — LLM providers + AI tools
-│   └── mt/                          # package mtprovider — MT providers + MT tools
+│   ├── ai/                          # package aiprovider: LLM providers + AI tools
+│   └── mt/                          # package mtprovider: MT providers + MT tools
 ├── bench/                           # Benchmarks
 ├── examples/                        # Plugin examples
 │
+│   ── Host Module ──
+├── host/
+│   ├── go.mod                       # module github.com/neokapi/neokapi/host (framework only; cobra-free)
+│   ├── config/                      # App configuration (os.UserConfigDir + kapi)
+│   ├── pluginhost/                  # Manifest discovery + dispatch + Mode-C daemon pool
+│   └── output/                      # Shared output formatting + types
+│
 │   ── CLI Module ──
 ├── cli/
-│   ├── go.mod                       # module github.com/neokapi/neokapi/cli (framework only)
-│   ├── config/                      # Viper-based app configuration (os.UserConfigDir + kapi)
-│   ├── pluginhost/                  # Manifest discovery + dispatch + Mode-C daemon pool
-│   ├── output/                      # Shared output formatting + types
-│   └── storage/                     # SQLite-backed terms and content memory for CLI workflows
+│   └── go.mod                       # module github.com/neokapi/neokapi/cli (framework + host): the Cobra shell
 │
 │   ── Kapi Module ──
 ├── kapi/
@@ -142,9 +146,9 @@ neokapi/
 │   ── Shared Frontend ──
 ├── package.json                     # Root npm workspace coordinating frontend packages
 ├── packages/
-│   ├── ui/                          # @neokapi/ui-primitives — shadcn/ui primitives
-│   ├── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
-│   ├── i18n-react/                  # @neokapi/i18n-react — React component library
+│   ├── ui/                          # @neokapi/ui-primitives: shadcn/ui primitives
+│   ├── flow-editor/                 # @neokapi/flow-editor: shared React flow editor
+│   ├── i18n-react/                  # @neokapi/i18n-react: React component library
 │   └── …                            # docs-shared, kapi-playground, reference-data, …
 │
 │   ── Non-Go Assets ──
@@ -152,7 +156,7 @@ neokapi/
 └── web/                        # Docusaurus documentation site (ADs + internal notes)
 ```
 
-The format packages live in the framework module under `core/formats/` — one
+The format packages live in the framework module under `core/formats/`, one
 package (reader.go, writer.go, config.go) per format, all registered via
 `init()`. They span document, data, subtitle, office, and bilingual
 interchange families. For the current set and their configuration options, see the
@@ -240,12 +244,12 @@ Layers, each with its own DataFormat. See
 
 ### Inline Content as Runs
 
-A block's `Source` (and each `Target`) is a flat `[]Run` — a discriminated
+A block's `Source` (and each `Target`) is a flat `[]Run`, a discriminated
 union of typed `Run` values. Plain text is a `TextRun`; paired
 inline markup becomes a `PcOpenRun` / `PcCloseRun` sharing an ID; standalone
 placeholders (variables, `<br/>`, icons) are a `PlaceholderRun`. Inline
 markup never lives inside the text string, so text operations cannot corrupt
-it. There is no structural `Segment` type — segmentation is a stand-off
+it. There is no structural `Segment` type; segmentation is a stand-off
 `Overlay` layered over the runs.
 
 ```
@@ -336,4 +340,4 @@ The `kapi` CLI binary is built from `kapi/cmd/kapi`.
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (build + publish on tag push). See
-[RELEASE.md](RELEASE.md) for the release process.
+[RELEASE.md](../../RELEASE.md) for the release process.

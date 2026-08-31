@@ -1,4 +1,4 @@
-# Format Engineering in neokapi — Knowledge Base
+# Format Engineering in neokapi: Knowledge Base
 
 A neokapi format faithfully re-implements an Okapi (Java) filter: it extracts
 translatable content as `model.Block`s of `model.Run`s, and round-trips
@@ -54,23 +54,23 @@ goroutine that `defer`-closes it. It emits `PartLayerStart{*Layer}` (layer ID
 a `select(ch<-, ctx.Done())`. **Parse errors go on the channel as
 `PartResult{Error: ...}`, not returned from `Open`.** `Open` only validates
 `doc != nil && doc.Reader != nil` and stashes `r.Doc`. (Consequence: a caller
-that ignores `PartResult.Error` treats malformed input as empty — robustness
+that ignores `PartResult.Error` treats malformed input as empty; robustness
 tests must assert the error is surfaced.)
 
 **Content model** (`core/model/`):
 
-- `Layer` — structural grouping; nests for embedded content.
-- `Block` — `Source []Run`, `Targets map[VariantKey]*Target`, `Properties`,
-  `Annotations`, stand-off `Overlays`. There is **no structural `Segment`** —
+- `Layer`: structural grouping; nests for embedded content.
+- `Block`: `Source []Run`, `Targets map[VariantKey]*Target`, `Properties`,
+  `Annotations`, stand-off `Overlays`. There is **no structural `Segment`**;
   segmentation is an opt-in overlay (F-02).
-- `Run` — a union: `Text` / `Ph` / `PcOpen`+`PcClose` (paired by a shared string
+- `Run`: a union: `Text` / `Ph` / `PcOpen`+`PcClose` (paired by a shared string
   ID) / `Sub` (→ child `Block`) / `Plural` / `Select`.
 
 Inline markup lives **in runs** (verbatim in `Run.Data`), not in the text, so it
 survives translation. Writers render with `model.RenderRunsWithData(runs)`,
 never `SourceText()` (which drops codes). Notes land in
-`block.Annotations["note"]`. Formats populate `Block` fields directly — they do
-**not** use tool capability views (`Annotate`/`Translate`/`Transform`, E-03);
+`block.Annotations["note"]`. Formats populate `Block` fields directly and never through the tool capability
+views (`Annotate`/`Produce`/`Transform`, E-03);
 those are for tools, not formats. Writer value-resolution, shared by every
 writer: if `w.Locale` is set **and** `block.HasTarget(w.Locale)` →
 `TargetRuns(w.Locale)`, else `SourceRuns()` / raw.
@@ -78,7 +78,7 @@ writer: if `w.Locale` is set **and** `block.HasTarget(w.Locale)` →
 ## 2. Canonical file layout
 
 Minimum: `reader.go`, `writer.go`, `config.go` (name == id). Of 52 dirs, ~49 are
-real formats — `exec`, `jsx` (kbf-rename alias stub), and `memorytest` are
+real formats; `exec`, `jsx` (kbf-rename alias stub), and `memorytest` are
 thin/internal.
 
 | File | Responsibility |
@@ -88,22 +88,22 @@ thin/internal.
 | `config.go` | `DataFormatConfig` (`FormatName`/`Reset`/`Validate`/`ApplyMap`); `ApplyMap` is a key switch whose `default` **rejects unknown keys** (or `format.ApplyMapViaJSON` with `DisallowUnknownFields`). |
 | `schema.go` (27 formats) | `Schema() *FormatSchema` with `Groups` + `Properties` + conditional `Visible(ConditionExpr)`. Feeds CLI introspection, UI forms, and generated reference docs. |
 | `transform.go` (14 formats) | Okapi config-kind transformer registered in `init()`; maps Okapi param names → native config keys. Only formats with an Okapi-bridge counterpart. |
-| `spec.yaml` + `spec_test.go` (41) | Executable spec — see §3. |
+| `spec.yaml` + `spec_test.go` (41) | Executable spec; see §3. |
 | `scanner.go`/`parse.go`/`catalog.go`/`encode.go`/`rewrite.go`/`path.go` | The byte-faithful tokenizer family used by re-tokenize formats (xcstrings/arb/json). |
 
 **Three round-trip strategies (the main axis of divergence):**
 
 1. **SkeletonStore binary stream** (`core/format/skeleton.go`: `[type:1B][len:4B
    BE][data]` of `SkeletonText`/`SkeletonRef`/`SkeletonLang`; reader implements
-   `SkeletonStoreEmitter`, writer `SkeletonStoreConsumer`) — properties, html
+   `SkeletonStoreEmitter`, writer `SkeletonStoreConsumer`): properties, html
    (token), xliff2 (streaming), openxml, idml.
-2. **Original-bytes-on-layer + re-tokenize-and-splice** — xcstrings (via
+2. **Original-bytes-on-layer + re-tokenize-and-splice**: xcstrings (via
    `unsafe.String` sharing the read buffer), arb, json.
-3. **DOM patch / re-serialize** — xliff2's **default** etree writer
+3. **DOM patch / re-serialize**: xliff2's **default** etree writer
    *intentionally* normalizes formatting / attribute order / namespaces
    (idempotent but **not** byte-equal, ~21 tracked fails, #560); html's DOM path
    when no skeleton. openxml additionally strips WML elements via regex on
-   serialized bytes (fragile — the source of its remaining bugs).
+   serialized bytes (fragile, and the source of its remaining bugs).
 
 ## 3. Config / Schema / spec.yaml wiring
 
@@ -130,7 +130,7 @@ passes*), `divergence_kind`
 `parity_strict`, `origin`, and inline `Assertions` (`block_count`/`_min`/`_max`,
 `first_block_text`, `block_texts` exact-ordered, `has_block_with_text`
 substring, `no_block_with_text`). **Assertions see only translatable block
-source text — there is no round-trip / writer-output assertion type.**
+source text; there is no round-trip / writer-output assertion type.**
 
 **Three consumers of `spec.yaml`:**
 
@@ -163,9 +163,9 @@ spec/parity engine. Kinds observed (approx. counts):
 | Kind | Purpose | Detect |
 |---|---|---|
 | `reader_test` (~37) | extraction: block count/text/code preservation | `reader_test.go` |
-| `spec_test` (40) | drives `spec.NativeRunner` over `spec.yaml` — **mandatory if an Okapi counterpart exists** | `spec_test.go` + `spec.yaml` |
+| `spec_test` (40) | drives `spec.NativeRunner` over `spec.yaml`; **mandatory if an Okapi counterpart exists** | `spec_test.go` + `spec.yaml` |
 | `skeleton_test` (~30) | byte-exact read→write edge cases | `skeleton_test.go` |
-| `roundtrip_test` (~9) | byte/semantic equality — effectively mandatory | `roundtrip_test.go` |
+| `roundtrip_test` (~9) | byte/semantic equality; effectively mandatory | `roundtrip_test.go` |
 | `writer_test` | writer-specific (mo/openxml/po/yaml) | `writer_test.go` |
 | `transform_test` (8) | Okapi config-kind mapping | `transform_test.go` |
 | `config_test` (mif/rtf/ttx/txml) | config validation | `config_test.go` |
@@ -176,11 +176,11 @@ spec/parity engine. Kinds observed (approx. counts):
 | `acceptance_test` (7 harvest) | external validator, `//go:build acceptance`, **SKIP if tool absent, FAIL only on rejection** | `acceptance_test.go` |
 | `corpus_test` (harvest + idml/mif) | real-world files; caught 2 androidxml bugs | `corpus_test.go` |
 | `invariants_test` (harvest) | translate→re-read: leaf/placeholder/state/CLDR preserved | `invariants_test.go` |
-| `malformed_test` (**only arb/resx/xcstrings**) | clean Error + NotPanics — **should be mandatory** | `malformed_test.go` |
+| `malformed_test` (**only arb/resx/xcstrings**) | clean Error + NotPanics; **should be mandatory** | `malformed_test.go` |
 | `okapi_stubs_test` (json/properties/xliff/xliff2/yaml) | porting markers `// okapi: Class#method` | `okapi_stubs_test.go` |
 | `okapi_skip_test` (8 harvest) | prose why there is no Okapi counterpart | `okapi_skip_test.go` |
-| `okapi_test`/`okapi_parity_test` (mosestext/ttx/markdown) | bespoke parity | — |
-| `parity_spec_test` (38) | `cli/parity/formats/<id>_spec_test.go` head-to-head | — |
+| `okapi_test`/`okapi_parity_test` (mosestext/ttx/markdown) | bespoke parity | (none) |
+| `parity_spec_test` (38) | `cli/parity/formats/<id>_spec_test.go` head-to-head | (none) |
 
 **Two parity layers coexist.** The older `formatSpecs` table
 (`cli/parity/formats/spec.go`, pinned manifest 1.48.0) with `Skip` constants +
@@ -193,8 +193,7 @@ come from `scripts/okapi-test-scan` (regex, not AST) harvesting `String snippet 
 `go run ./scripts/okapi-test-scan -src <okapi-java>/.../src/test/java -class
 <Class> -package formats -out cli/parity/formats/fixtures_<x>_generated.go`.
 
-**Test helpers** import from `core/internal/testutil` (NOT `core/testutil` —
-CLAUDE.md is stale on this): `RawDocFromString`, `RawDocFromReader`,
+**Test helpers** import from `core/internal/testutil`: `RawDocFromString`, `RawDocFromReader`,
 `CollectBlocks`, `CollectParts`, `PartsToChannel`.
 
 ## 5. The parity harness
@@ -225,7 +224,7 @@ cd cli && KAPI_PARITY_SANDBOX=<p> KAPI_PARITY_REPORT=<p> \
 `make parity-test` builds the sandbox + exports the env; a missing sandbox
 **hard-fails** via `RequireSandbox` unless `KAPI_PARITY_SKIP=1`.
 `make parity-publish` runs `scripts/testcompare` for the per-filter summary
-under `.parity/` (a local artifact — no parity data is published to the docs
+under `.parity/` (a local artifact; no parity data is published to the docs
 site). Local runs need `icu4c` on `PKG_CONFIG_PATH` + the `fts5` tag.
 
 **Proves:** same input + same semantic config → native and the Okapi Java filter
@@ -234,15 +233,15 @@ extract the same translatable block text (byte-equal serialization when
 code-serialization / skeleton ids (finer fidelity needs the byte rig, which
 skips without Tikal/Okapi reference); native round-trip never fails CI without a
 `MinTier`; step parity is stability-only (~120 steps, `cli/parity/tools/spec.go`);
-**dashboards are stale caches** (regenerate after any change — a bridge that is
+**dashboards are stale caches** (regenerate after any change; a bridge that is
 byte-stable while the tier moved means native regressed; dump via
 `PARITY_DUMP`); `testcompare` ignores `parity_warn`/`expected_fail`.
 
 ## 6. Okapi mapping
 
 Okapi (Java) lives at `$NEOKAPI_OKAPI_DIR/okapi/filters/` (default
-`<checkouts>/okapi/Okapi` — see
-[workspace paths](workspace-paths.md)) — one Maven
+`<checkouts>/okapi/Okapi`; see
+[workspace paths](workspace-paths.md)), one Maven
 module per filter, v1.48.0. The filter id is `okf_<format>` from `getName()`.
 
 A filter module contains: `<Format>Filter.java` (an `IFilter` event pull-parser:
@@ -250,9 +249,9 @@ A filter module contains: `<Format>Filter.java` (an `IFilter` event pull-parser:
 builds a `GenericSkeleton` of literal bytes + `addContentPlaceholder`);
 `Parameters.java` (extends `StringParameters`, key constants + `reset()`
 defaults; many implement `ISimplifierRulesParameters` and embed an
-`InlineCodeFinder` — properties ships **4 default rules**; reproduce them for
+`InlineCodeFinder`; properties ships **4 default rules**; reproduce them for
 exact `getCodes().size()` parity); and `IEditorDescriptionProvider` (SWT GUI
-metadata, **non-load-bearing — do not port**).
+metadata, **non-load-bearing; do not port**).
 
 **Find the test corpus:**
 
@@ -275,11 +274,11 @@ markers (`OPENING` 0xE101 / `CLOSING` 0xE102 / `ISOLATED` 0xE103 / `CHARBASE`
 plural/select → `PluralRun`/`SelectRun`. `Code.type` → `Run.Type`, `Code.data` →
 `Run.Data`, `Code.outerData` → `Run.Equiv`/`Disp`, `CLONEABLE`/`DELETEABLE` →
 `Run.Constraints`. A faithful port **linearizes the coded-text walk into an
-ordered `[]Run` with stable ID remapping** — the most correctness-sensitive
+ordered `[]Run` with stable ID remapping**, the most correctness-sensitive
 step. `outerData` / `MERGED` / `HASREF` refs / move-codes-to-skeleton have no
-automatic equivalent — model them or record an accepted divergence.
+automatic equivalent; model them or record an accepted divergence.
 
-**Issue tracker.** `https://gitlab.com/okapiframework/Okapi/-/issues` — **GitLab,
+**Issue tracker.** `https://gitlab.com/okapiframework/Okapi/-/issues`, **GitLab,
 not GitHub** (`gh` does not apply; declared in `superpom/pom.xml`). Query:
 
 ```bash
@@ -291,7 +290,7 @@ curl -s "https://gitlab.com/api/v4/projects/62298414/issues?labels=bug&state=ope
 ```
 
 Issue numbers are embedded in source comments and fixture names
-(`issue_NNN.properties` / `.fprm`) — grep the checkout, then open `/-/issues/NNN`.
+(`issue_NNN.properties` / `.fprm`); grep the checkout, then open `/-/issues/NNN`.
 
 ## 7. Hard-won principles & failure modes
 
@@ -302,20 +301,20 @@ Issue numbers are embedded in source comments and fixture names
   (idml `MergeAdjacentCSRs`); never mutate writer output. openxml deleted ~5800
   LOC of WSO machinery; xliff Okapi-compat is opt-in.
 - **Never regex/byte-rewrite serialized writer output to fix a modeling gap.**
-  The one exception — reproducing an Okapi transform on opaque bytes — must cite
+  The one exception, reproducing an Okapi transform on opaque bytes, must cite
   the mirrored class/method (openxml's DrawingML default-run hoist; flagged
   fragile).
 - **Ground every change in BOTH the format spec AND the Okapi Java
   class/method (v1.48.0); the spec wins ties.** Argue "your filter violates
   <cited spec>," don't normalize-hack.
 - **Parity is semantic-config equivalence, not default-matching.** A pure
-  default-only divergence is **not** an `expected_fail` — converge with explicit
+  default-only divergence is **not** an `expected_fail`; converge with explicit
   config (translated in `bridge_config`). csv #530 was recorded with converging
   examples.
 - **xfail / divergence model.** Every `expected_fail` is tracked + attributed
   (`divergence_kind`). Only `native-bug` is alarming (≈0). Native never judges
-  itself — an `engine: okapi` example means the reference can't produce output,
-  so the sub-test skips. #616 triaged 151 xfails. The "assertions now pass —
+  itself: an `engine: okapi` example means the reference can't produce output,
+  so the sub-test skips. #616 triaged 151 xfails. The "assertions now pass,
   remove the tag" log is the only safety net catching stale xfails.
 - **faithful% tiers:** byte / canon / divergent; `CanonClass` faithful = do not
   chase to byte, closeable = native loses info, unclassified = conservative;

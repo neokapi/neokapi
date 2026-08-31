@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: neokapi-i18n Configuration Reference
-description: Full reference for the neokapi-i18n Vite plugin options — mode, locale, fallbackLocales, translationsDir, componentMap, Storybook integration, and CLI flags for extract and compile.
+description: "Full reference for the neokapi-i18n Vite plugin options: mode, locale, fallbackLocales, translationsDir, componentMap, Storybook integration, and CLI flags for extract and compile."
 keywords: [neokapi-i18n, configuration, plugin options, Vite, locale, componentMap, CLI flags, Storybook]
 ---
 
@@ -34,9 +34,9 @@ neokapi({
 
 See [Runtime vs. inline mode](./modes).
 
-- `"runtime"` — one bundle, dict loaded at runtime.
-- `"inline"` — one bundle per locale, translations inlined.
-- Omitted — plugin is a no-op. Useful for dev mode (no extraction, source text renders as-is).
+- `"runtime"`: one bundle, dict loaded at runtime.
+- `"inline"`: one bundle per locale, translations inlined.
+- Omitted: plugin is a no-op. Useful for dev mode (no extraction, source text renders as-is).
 
 ### `locale` (inline mode only)
 
@@ -74,11 +74,11 @@ neokapi({
 
 Before consulting this option, the plugin **auto-resolves** mappings for every non-relative import it sees, in three stages:
 
-1. **Library-shipped manifest** — `<package>/i18n-manifest.json`. This is the first-priority source and the pattern we recommend for library authors; see [Authoring i18n manifests](#authoring-i18n-manifests-for-libraries).
-2. **Community manifest directory** — `<communityManifestDir>/<package-name>.json`, if you've configured one.
-3. **`.d.ts` heuristic** — regex-match for `React.ForwardRefExoticComponent<... & RefAttributes<HTMLXxxElement>>` in the package's declared types. Picks up most pre-React-19 shadcn / Radix / MUI components for free.
+1. **Library-shipped manifest**: `<package>/i18n-manifest.json`. This is the first-priority source and the pattern we recommend for library authors; see [Authoring i18n manifests](#authoring-i18n-manifests-for-libraries).
+2. **Community manifest directory**: `<communityManifestDir>/<package-name>.json`, if you've configured one.
+3. **`.d.ts` heuristic**: regex-match for `React.ForwardRefExoticComponent<... & RefAttributes<HTMLXxxElement>>` in the package's declared types. Picks up most pre-React-19 shadcn / Radix / MUI components for free.
 
-Your `componentMap` entries merge on top of the auto-resolved map, so explicit overrides always win. The common case — using shadcn-style components from a library with proper types or a shipped manifest — needs no `componentMap` entry at all.
+Your `componentMap` entries merge on top of the auto-resolved map, so explicit overrides always win. The common case (using shadcn-style components from a library with proper types or a shipped manifest) needs no `componentMap` entry at all.
 
 Unmapped components still auto-extract via the promotion rule, but each one fires a warning. Adding an entry silences the warning and re-keys the block's hash from `Component` to the underlying HTML tag.
 
@@ -108,7 +108,7 @@ Ship an `i18n-manifest.json` at the root of your component library so consumers 
 ```
 
 - Keys are the exported component names.
-- Values are the underlying HTML element name — or `null` to explicitly opt out of translation.
+- Values are the underlying HTML element name, or `null` to explicitly opt out of translation.
 - `aliases` map alternative export names onto canonical ones (useful for Radix-style namespace re-exports like `Tabs.Trigger`).
 
 The plugin loads this file automatically when any file imports from the library. See [`@neokapi/ui-primitives/i18n-manifest.json`](https://github.com/neokapi/neokapi/blob/main/packages/ui/i18n-manifest.json) for a production reference.
@@ -144,9 +144,9 @@ Selector forms:
 
 How the plugin handles missing translations in inline mode:
 
-- `"warn"` (default) — log a console warning, fall back to source text.
-- `"error"` — throw a build error.
-- `false` — silent, fall back to source text.
+- `"warn"` (default): log a console warning, fall back to source text.
+- `"error"`: throw a build error.
+- `false`: silent, fall back to source text.
 
 ### `onWarning`
 
@@ -165,7 +165,7 @@ Useful for tests (suppress noise) or to integrate with a project logger.
 
 ### `warningsAsErrors`
 
-Promote extraction-time warnings (currently: `unknown-component`) to a thrown build error. Orthogonal to `strict` above — `strict` is about missing translations at inline time, this is about authoring-time issues the walker records.
+Promote extraction-time warnings (currently: `unknown-component`) to a thrown build error. Orthogonal to `strict` above: `strict` is about missing translations at inline time, this is about authoring-time issues the walker records.
 
 ```ts
 neokapi({
@@ -186,7 +186,7 @@ neokapi({
 });
 ```
 
-Dev and staging only — never ship a production build with it on.
+Dev and staging only; never ship a production build with it on.
 
 ## CLI flags
 
@@ -213,8 +213,8 @@ neokapi-i18n extract --strict
 
 `--ignore` is repeatable and accepts any glob; it's piped through to
 Node's `fs/promises.glob` `exclude` option. Use it to keep
-fixture-only code (`src/stories/**`, test helpers) out of the catalog
-— your lint config should agree (see [Linting → Excluding fixture
+fixture-only code (`src/stories/**`, test helpers) out of the catalog;
+your lint config should agree (see [Linting → Excluding fixture
 code](./linting#excluding-fixture-code)).
 
 `neokapi-i18n compile` (accepts a `.kbf.json` file, a directory of them, or `-` for NDJSON stdin):
@@ -223,7 +223,7 @@ code](./linting#excluding-fixture-code)).
 neokapi-i18n compile \
   i18n/ \
   --out public/translations \
-  --locale fr            # optional — filter to a single locale
+  --locale fr            # optional: filter to a single locale
 ```
 
 `neokapi-i18n explain` (audit what extracts, and why):
@@ -243,11 +243,11 @@ L7    <input>        [container] skipped — no translator-editable text
 
 Every line is the W3C ITS classification, the gate that fired, and the hash the block got. Reach for it when a string you expected didn't make the catalog, or one you didn't expect did.
 
-`neokapi-i18n split` slices master dicts into per-chunk subsets for lazy loading — see [Lazy loading per route](./modes#lazy-loading-per-route-code-splitting).
+`neokapi-i18n split` slices master dicts into per-chunk subsets for lazy loading; see [Lazy loading per route](./modes#lazy-loading-per-route-code-splitting).
 
 ### Share one config between the CLI and the plugin
 
-The `componentMap` and `rules` feed the **hash**. If the extract CLI and the build plugin disagree about them, the two sides compute different keys for the same element, and every affected string silently falls back to source text — a failure with no error message anywhere.
+The `componentMap` and `rules` feed the **hash**. If the extract CLI and the build plugin disagree about them, the two sides compute different keys for the same element, and every affected string silently falls back to source text, a failure with no error message anywhere.
 
 So don't maintain two copies. Keep one JSON file and have both sides read it:
 
@@ -271,7 +271,7 @@ neokapi({ mode: "runtime", ...neokapiI18nConfig });
 neokapi-i18n extract --config neokapi-i18n.config.json
 ```
 
-The file name is yours to choose — the CLI takes it via `--config` and the plugin just takes the object. What matters is that there is exactly one of them.
+The file name is yours to choose: the CLI takes it via `--config` and the plugin just takes the object. What matters is that there is exactly one of them.
 
 ## Storybook integration
 
@@ -327,7 +327,7 @@ A globe icon appears in the Storybook toolbar; switching locale re-renders every
 </html>
 ```
 
-The runtime also swaps `dir="rtl"` for the common RTL primary subtags (`ar`, `dv`, `fa`, `he`, `ku`, `ps`, `sd`, `ur`, `yi`, and a few more). Everything else defaults to `dir="ltr"`. The attribute drives browser-level hyphenation, spelling, font fallbacks, and — most importantly — screen-reader language announcements.
+The runtime also swaps `dir="rtl"` for the common RTL primary subtags (`ar`, `dv`, `fa`, `he`, `ku`, `ps`, `sd`, `ur`, `yi`, and a few more). Everything else defaults to `dir="ltr"`. The attribute drives browser-level hyphenation, spelling, font fallbacks, and, above all, screen-reader language announcements.
 
 ### Initial page load
 
@@ -347,7 +347,7 @@ await loadTranslations("ja", "/translations/ja.json", {
 });
 ```
 
-SSR is handled automatically — the option defaults to `true` when `document` is defined and `false` otherwise, so `setTranslations` is safe to call from Node.
+SSR is handled automatically: the option defaults to `true` when `document` is defined and `false` otherwise, so `setTranslations` is safe to call from Node.
 
 ### Manual sync
 
@@ -402,7 +402,7 @@ Hash changed; run `neokapi-i18n extract` and update the translation dict. A stal
 
 ### "My custom component's text isn't getting translated"
 
-Run `neokapi-i18n explain <file>` — it prints the decision for every element on the page, so you rarely have to guess. The usual causes:
+Run `neokapi-i18n explain <file>`: it prints the decision for every element on the page, so you rarely have to guess. The usual causes:
 
 1. Does the component have direct JSXText children? The `<MyWidget>some text</MyWidget>` pattern auto-extracts with a warning.
 2. Is the prop translatable *here*? HTML/ARIA names extract anywhere; convention names like `helpText` extract on PascalCase components only.
@@ -414,7 +414,7 @@ You're probably building Storybook or running tests with the plugin active. Rout
 
 ### "Hash mismatch between extract and transform"
 
-Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `neokapi-i18n explain` prints the hash each element gets, so you can compare it against the `.kbf.json` directly.
+Almost always a `componentMap` desync: the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `neokapi-i18n explain` prints the hash each element gets, so you can compare it against the `.kbf.json` directly.
 
 ### "A string renders in English in a pseudo build, but the component looks translatable"
 
@@ -422,17 +422,17 @@ Usually one of these three:
 
 1. **A stale build, not a stale dict.** The plugin re-reads a
    translation file whenever its mtime changes, so re-running
-   `neokapi-i18n compile` while the dev server is up is enough — you
-   don't need to restart it. If a *code* change seems not to have
+   `neokapi-i18n compile` while the dev server is up is enough; there
+   is no need to restart it. If a *code* change seems not to have
    landed, that's Vite's dep cache: kill the dev server and
    `rm -rf node_modules/.vite`.
-2. **Linked workspace package** — your app's extract only walks
+2. **Linked workspace package**: your app's extract only walks
    its own `src/**` by default. A JSX string in a linked workspace
    package gets the runtime `__t()` rewrite (via Vite's plugin)
    but no extracted catalog entry, so the lookup falls back to
    source. Pass another `--src` glob for each package, or run
    each package's extract into a shared `i18n/` directory.
-3. **Double-wrap detection** — see "Translated content shows `▒ ▒ … ▒ ▒`
+3. **Double-wrap detection**: see "Translated content shows `▒ ▒ … ▒ ▒`
    in pseudo" below.
 
 ### "Translated content shows `▒ ▒ … ▒ ▒` in pseudo"
@@ -461,12 +461,12 @@ Mark the outer element `translate="no"` so only the inner `t()` wraps:
 
 ### "A `{placeholder}` name is rendering as `{ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀ}` in pseudo"
 
-Fixed in kapi's pseudo-translate tool; the accent transform preserves
-`{…}` contents verbatim. Regenerate the catalog to pick up the fix
-(typically `npm run extract && kapi pseudo-translate … && npm run
+kapi's pseudo-translate tool preserves `{…}` contents verbatim through
+the accent transform, so a mangled name means the catalog is stale.
+Regenerate it (typically `npm run extract && kapi pseudo-translate … && npm run
 compile`, or whatever script your project wires up).
 
 ## Next
 
-- [C-01 Kapi Project Model](/contribute/architecture/context/c-01-project-model) — project layout and block store.
-- [kapi CLI overview](/kapi/cli) — translation commands that consume your `.kbf.json`.
+- [C-01 Kapi Project Model](/contribute/architecture/context/c-01-project-model): project layout and block store.
+- [kapi CLI overview](/kapi/cli): translation commands that consume your `.kbf.json`.

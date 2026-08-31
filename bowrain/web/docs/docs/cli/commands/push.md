@@ -5,27 +5,10 @@ sidebar_position: 5
 
 # kapi push
 
-Send local file changes to Bowrain Server. Only transfers modified blocks
-(incremental sync using content hashing).
-
-When the project is claimed into a workspace and a baseline was pulled (see
-[`kapi pull`](/cli/commands/pull)), push also reconciles local terminology edits
-in the bound terms store against that baseline. Ordinary edits — definitions, notes,
-proposed terms, non-governed relations — apply directly through the concept
-endpoints. Governed edits — a term set to `forbidden` or `preferred`, an
-un-forbidding, a `replaced_by` relation, a concept delete — are bundled into a
-single submitted change-set **proposal** for review, the same separation of
-duties the [Context](/server/context#tiered-governance) hub enforces. Push reports
-what applied directly versus what was proposed, with a link to review the
-change-set.
-
-When the recipe binds a voice profile (`defaults.voice`, or a
-`brand.yaml` at the project root), push also carries it into the workspace
-[Context](/server/context) hub, matched by profile name: created on first push, a
-no-op when the content is unchanged, and otherwise applied as a **new profile
-version** — the previous server-side state is archived in the version history,
-never overwritten, and vocabulary rules the server promoted from corrections
-are preserved. Use `--no-brand` to skip.
+Send local changes to Bowrain Server. `kapi push` is pure transport: it moves
+project state, the content, the terms edits, the voice binding, and never
+drafts anything. With the project's `bowrain.converge` policy at its default
+`on-push`, the server starts a run of its own when the push lands.
 
 ## Usage
 
@@ -36,7 +19,7 @@ kapi push [paths...] [flags]
 ## Examples
 
 ```bash
-# Push all local changes to server
+# Push all local changes to the server
 kapi push
 
 # Push specific files
@@ -45,95 +28,113 @@ kapi push src/locales/en/
 # Show what would be pushed without uploading
 kapi push --dry-run
 
-# Force re-push all blocks (ignoring sync cache)
+# Re-upload every block, ignoring what the server already holds
 kapi push --force
+
+# Push only local terms edits (no content, no automations)
+kapi push --concepts
 
 # Example output:
 # Pushed 47 blocks (scanned 12 files)
-#   (sent in 1 batches)
 ```
 
 ## Options
 
-| Flag        | Description                               | Default |
-| ----------- | ----------------------------------------- | ------- |
-| `--force`   | Push all blocks, ignoring sync cache      | `false` |
-| `--dry-run` | Show what would be pushed without sending | `false` |
-| `--concepts` | Sync only local terminology edits to the workspace (direct edits + governed change-set) — no content transport, no hooks | `false` |
+| Flag         | Description                                                                 | Default |
+| ------------ | --------------------------------------------------------------------------- | ------- |
+| `--force`    | Re-upload everything, even unchanged blocks                                 | `false` |
+| `--dry-run`  | Show what would be uploaded without sending                                 | `false` |
+| `--stream`   | Target stream (default: auto-detected from git/CI)                          | `$auto` |
+| `--concepts` | Sync only local terms edits to the workspace (direct edits + governed change-set); no content transport, no automations | `false` |
 
-## What Happens
+## The protocol
 
-1. **Read local files** via FormatRegistry (using the recipe's `collections:`)
-2. **Extract blocks** from each file (streaming Parts -> Blocks)
-3. **Compute block hashes** using `BlockIdentity` (SHA-256)
-4. **Compare with `.kapi/work/cache/sync-cache.json`** to identify changed blocks
-5. **Send changed blocks** to server via `POST /api/v1/projects/:id/sync/push`
-   - Batched at 1000 blocks per request
-   - Server enforces batch limits and body size (50MB)
-6. **Update `.kapi/work/cache/sync-cache.json`** with new hashes and sync cursor
+A push declares its tree and uploads only what the server lacks. The same
+protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
+[`kapi pull`](/cli/commands/pull) reads the same tree back.
 
-## Content Hashing
+1. **Scan.** kapi reads the recipe's `collections:`, extracts every block, and
+   computes each item's content hash.
+2. **Declare the tree.** The client sends the server its whole tree: every
+   tracked item, its path, its collection and the point it sits at, and its
+   hash. The server diffs that against the tree it holds and answers with the
+   items it needs.
+3. **Upload.** Only the items the server asked for travel, in chunks, to
+   presigned upload URLs (or through the server when the blob store is not
+   reachable from the client). Media assets referenced by the content travel
+   the same way.
+4. **Commit.** The client commits a manifest naming what it uploaded. The
+   server validates it, answers `202`, and a worker applies the push: content is
+   stored, and the output's `ingest` field says whether the push was applied
+   or queued when the command returned.
 
-kapi uses content-addressed blocks for efficient sync:
+Because the tree is declared whole, the server reconciles what a diff alone
+could not:
 
-```
-content_hash = sha256(normalized_source_text)
-```
+- **Deletions.** A path present in the last tree and absent from this one is
+  retired on the server, on this stream.
+- **Renames.** An item with the same content at a new path is a rename, so its
+  targets, decisions and history move with it instead of starting over.
+- **Collections and points.** Each item arrives with the collection and the
+  coordinates the recipe resolved for it; the workspace's profile cards are
+  derived from that declaration. The server refuses content at a point whose
+  axis no recipe declares.
 
-Only blocks with changed hashes are transferred. A project with 10,000 blocks
-where 5 changed will only transfer those 5 blocks.
+`.kapi/work/cache/sync-cache.json` records the last tree the client declared
+and the ref it was committed as. It is gitignored and safe to delete: the next
+push declares the tree again and the server tells it what it lacks.
 
-## Sync Cache
+## Terms edits
 
-Push state is tracked in `.kapi/work/cache/sync-cache.json` (auto-gitignored):
+When the project is claimed into a workspace and a baseline was pulled (see
+[`kapi pull`](/cli/commands/pull)), push also reconciles local terms edits in
+the bound terms store against that baseline. Ordinary edits, such as
+definitions, notes, proposed terms and non-governed relations, apply directly
+through the concept endpoints. Governed edits, such as a term set to
+`forbidden` or `preferred`, an un-forbidding, a `replaced_by` relation, or a
+concept delete, are bundled into a single submitted change-set **proposal** for
+review, the same separation of duties the
+[Context](/server/context#tiered-governance) hub enforces. Push reports what
+applied directly versus what was proposed, with a link to review the
+change-set.
 
-```json
-{
-  "server_url": "https://app.bowrain.cloud",
-  "project_id": "abc123",
-  "sync_cursor": 4821,
-  "last_sync": "2026-02-15T10:30:00Z",
-  "files": {
-    "_blocks": {
-      "blocks": {
-        "greeting": "a1b2c3d4...",
-        "farewell": "e5f6a7b8..."
-      }
-    }
-  }
-}
-```
+## The voice binding
 
-The sync cache can be safely deleted — it will be regenerated on the next push
-(which will re-scan and re-push all blocks). The server is the source of truth.
+When the recipe binds a voice profile (`defaults.voice`, conventionally
+`.kapi/voice.yaml`, or a profile's own `voice:`), push carries it into the
+workspace [Context](/server/context) hub, matched by profile name: created on
+first push, a no-op when the content is unchanged, and otherwise applied as a
+**new profile version**. The previous server-side state is archived in the
+version history, never overwritten, and vocabulary rules the server promoted
+from corrections are preserved. The output reports whether the voice was
+carried, skipped, or would be pushed on a dry run.
 
-## Exit Codes
+## Exit codes
 
-- `0` — Success (changes pushed or already up to date)
-- `1` — Error (server rejected, network error, etc.)
+- `0`: success (changes pushed or already up to date)
+- `1`: error (server rejected, network error, and so on)
 
-## Related Commands
+## Related commands
 
-- [`kapi pull`](/cli/commands/pull) — Fetch changes from server
-- [`kapi status`](/cli/commands/status) — Show what will be pushed
-- [`kapi diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi pull`](/cli/commands/pull): fetch the server's changes into the tree
+- [`kapi status`](/cli/commands/status): coverage, ship standing, and what is pending
+- [`kapi diff`](/cli/commands/diff): the changed blocks, per file
+- [`kapi up`](/cli/commands/up): push, run on the server, pull
 
-## When to Use
+## When to use
 
 Push to Bowrain Server to:
 
-- **Share translations** with your team
-- **Trigger workflows** (AI translation, QA, terminology extraction)
-- **Send terminology edits** — ordinary edits land directly; governed edits
-  travel up as a [change-set](/server/context#experiments-change-sets-and-pilots)
+- **Share your work** with your team, and let the server catch the project up
+- **Send terms edits**: ordinary edits land directly; governed edits travel up
+  as a [change-set](/server/context#experiments-change-sets-and-pilots)
   proposal
-- **Backup content** to the server
-- **Integrate with CI/CD** pipelines
+- **Carry the voice profile** the recipe binds
+- **Integrate with CI/CD** pipelines, where `kapi up` is usually the better
+  verb because it also waits for the run and pulls the results
 
-Think of it as `git push` for content.
-
-## Best Practices
+## Best practices
 
 1. **Run `kapi status`** before pushing to see what changed
-2. **Pull first** if working with a team to avoid conflicts
+2. **Pull first** if working with a team, so the tree you declare is current
 3. **Use `--dry-run`** when unsure about what will be uploaded

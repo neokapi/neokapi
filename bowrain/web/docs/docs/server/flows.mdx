@@ -1,44 +1,54 @@
 ---
-title: Server-Side Flows
+title: Server-side flows
 sidebar_position: 12
-description: Server-side flows run the same processing pipelines as the CLI, triggered by events, automations, or API calls — reading content from the store and writing results back with no local CLI.
+description: Server-side flows run the same processing pipelines as the CLI, as part of a convergence run or from an automation rule, reading content from the workspace and writing results back with no local CLI.
 ---
 
 import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
-# Server-Side Flows
+# Server-side flows
 
-Flows on Bowrain Server execute the same processing pipelines available in the CLI, but triggered by events, automations, or manual API calls. Server-side flows run in the background, process content from the ContentStore, and write results back — no local CLI needed.
+Flows on Bowrain Server execute the same processing pipelines available in the
+CLI, over content held in the workspace rather than in local files. A flow runs
+on the server in one of two ways: as the flow a [convergence run](/the-loop)
+drives, or from an automation rule's `run_flow` action. Either way it runs in
+the background, reads the project's blocks, streams them through its tools, and
+writes the results back, with no CLI involved.
 
-## How Server-Side Flows Work
-
-When a flow runs on the server, it follows this lifecycle:
+## How a server-side flow runs
 
 <PhaseFlow
   nodes={[
-    { label: "Event", sub: "connector.push.completed" },
-    { label: "Automation rule matches", edge: "trigger" },
-    { label: "Enqueue translation jobs → worker", edge: "auto_translate" },
-    { label: "Read blocks from ContentStore", sub: "store binding", edge: "read", role: "io" },
-    { label: "Process through tool pipeline", edge: "tools", role: "translate" },
-    { label: "Write results to ContentStore", sub: "store binding", edge: "write", role: "io" },
-    { label: "Emit flow.completed / flow.failed", sub: "intended, not yet emitted", edge: "emit" },
+    { label: "Trigger", sub: "a run, or an automation rule" },
+    { label: "Read blocks", sub: "from the project", edge: "load", role: "io" },
+    { label: "Tools", sub: "recycle · translate · checks", edge: "stream", role: "translate" },
+    { label: "Write results", sub: "back to the project", edge: "store", role: "io" },
+    { label: "Runs view", sub: "progress and outcome", edge: "report" },
   ]}
 />
 
-Unlike CLI flows that read/write local files, server-side flows operate on the ContentStore — the server's persistent block storage. This means flows can run without any CLI connected.
+Progress and the outcome appear in the project's **Runs** view, and in
+`kapi up`'s terminal view when the run was started from a checkout.
 
-## Triggering Flows
+## Triggering flows
 
-### Via Automation Rules
+### As part of a run
 
-The most common way to run server-side flows is through automation rules. See [Automation](/server/automation) for details on creating rules.
+Every run drives the project's default flow: recycle from memory, draft, check.
+Start one from the Runs view with **Run now**, from a checkout with
+[`kapi up`](/cli/commands/up), or let the project's `bowrain.converge` policy
+start one on every push.
 
-Example: automatically translate content when it arrives from a connector push:
+### From an automation rule
+
+An automation rule runs a named flow when an event fires. See
+[Automation](/server/automation) for the triggers and for creating rules.
+
+Example: draft content when it arrives from a push:
 
 ```json
 {
-  "name": "auto-translate",
+  "name": "auto-draft",
   "trigger": "connector.push.completed",
   "action": {
     "type": "run_flow",
@@ -50,106 +60,28 @@ Example: automatically translate content when it arrives from a connector push:
 }
 ```
 
-### Via API
+### From the web app
 
-Trigger a flow manually through the REST API:
-
-```bash
-# Start a flow execution
-curl -X POST https://app.bowrain.cloud/api/v1/projects/:id/flows/run \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flow": "translate",
-    "config": {
-      "target_locales": ["fr"],
-      "provider": "anthropic",
-      "model": "claude-sonnet-4.5"
-    }
-  }'
-
-# Response:
-# {
-#   "execution_id": "exec-abc123",
-#   "status": "running",
-#   "flow": "translate",
-#   "started_at": "2026-03-09T14:30:00Z"
-# }
-```
-
-### Via Web UI
-
-The Bowrain web app exposes a **superset flow + automation editor** under
+The Bowrain web app exposes a flow and automation editor under
 **Project > Automations**, with three tabs:
 
-1. **Runs** — automation run history (see [Automation](/server/automation)).
-2. **Rules** — trigger, CEL conditions, and ordered actions. A `run_flow`
+1. **Runs**: run history (see [Automation](/server/automation)).
+2. **Rules**: trigger, conditions, and ordered actions. A `run_flow`
    action selects a flow from the project's flow registry.
-3. **Flows** — the flow canvas. This is the same `@neokapi/flow-editor`
-   component the desktop apps render, wired to the flow-definition REST API.
+3. **Flows**: the flow canvas, the same visual editor the desktop app renders.
    It lists the built-in flows alongside the project's stored flows and edits
    the latter on a reader → tool(s) → writer graph; transformers such as
    redaction and normalization are ordinary ordered steps whose placement is
    validated when the flow is built.
 
 Flows are **connector-agnostic**: a flow runs server-side on content from any
-[connector](/server/connectors). The graph never names one — content that
+[connector](/server/connectors). The graph never names one; content that
 arrived from a content platform, a design tool, a repository, or a developer's
 checkout is handled identically.
 
-## Monitoring Executions
+## Event flow
 
-### Polling Status
-
-```bash
-# Check execution status
-curl https://app.bowrain.cloud/api/v1/projects/:id/flows/executions/:execId \
-  -H "Authorization: Bearer $TOKEN"
-
-# Response:
-# {
-#   "execution_id": "exec-abc123",
-#   "status": "completed",
-#   "flow": "translate",
-#   "started_at": "2026-03-09T14:30:00Z",
-#   "completed_at": "2026-03-09T14:30:42Z",
-#   "blocks_processed": 47,
-#   "summary": {
-#     "translated": 45,
-#     "skipped": 2
-#   }
-# }
-```
-
-### Execution States
-
-| Status      | Description                  |
-| ----------- | ---------------------------- |
-| `pending`   | Queued, waiting to start     |
-| `running`   | Currently processing blocks  |
-| `completed` | Finished successfully        |
-| `failed`    | Stopped due to an error      |
-| `cancelled` | Cancelled by user or timeout |
-
-### Listing Executions
-
-```bash
-# List recent executions for a project
-curl https://app.bowrain.cloud/api/v1/projects/:id/flows/executions \
-  -H "Authorization: Bearer $TOKEN"
-
-# Filter by flow name
-curl "https://app.bowrain.cloud/api/v1/projects/:id/flows/executions?flow=translate" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Filter by status
-curl "https://app.bowrain.cloud/api/v1/projects/:id/flows/executions?status=failed" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-## Event Flow Diagram
-
-One end-to-end example — the developer route, where a checkout pushes and the
+One end-to-end example: the developer route, where a checkout pushes and the
 server runs the flow. Content arriving through any other connector follows the
 same server-side path:
 
@@ -157,21 +89,21 @@ same server-side path:
   actors={[
     { label: "Developer", sub: "kapi", role: "io" },
     { label: "Bowrain Server", role: "translate" },
-    { label: "Translator", role: "qa" },
+    { label: "Reviewer", role: "qa" },
   ]}
   messages={[
     { from: 0, to: 1, label: "kapi push" },
     { from: 1, to: 1, label: "Event: connector.push.completed" },
-    { from: 1, to: 1, label: "Automation: run translate", detail: "read → translate → write" },
+    { from: 1, to: 1, label: "Run: recycle → draft → check", detail: "parks what needs a person" },
     { from: 1, to: 0, label: "kapi pull" },
-    { from: 2, to: 1, label: "Open editor, review, approve" },
+    { from: 2, to: 1, label: "Review session: approve" },
   ]}
 />
 
-## Managing Flow Definitions
+## Managing flow definitions
 
 Project flow definitions are stored server-side and exposed through a
-project-scoped REST API. The flow editor in the web app (and the desktop apps)
+project-scoped REST API. The flow editor in the web app (and the desktop app)
 drives these endpoints; automations reference a flow by its `id`.
 
 | Method   | Path                            | Description                                  |
@@ -182,7 +114,7 @@ drives these endpoints; automations reference a flow by its `id`.
 | `PUT`    | `/api/v1/:ws/:id/flows/:flowId` | Replace a project flow                       |
 | `DELETE` | `/api/v1/:ws/:id/flows/:flowId` | Delete a project flow                        |
 
-Built-in flows are read-only — the server rejects writes to a flow whose `id`
+Built-in flows are read-only; the server rejects writes to a flow whose `id`
 collides with a built-in. Mutations require the `manage_automation` permission.
 
 A flow definition is a node/edge graph (reader → tool(s) → writer) rather than
@@ -215,19 +147,17 @@ project.
 
 ## Composing multi-step work
 
-Multi-step work composes *inside* a single flow definition — the node graph
-above chains translate and QA in one run. There is no flow-to-flow chaining:
-automations react to content events such as `connector.push.completed` with a
-fixed set of actions (translate, extract, notify, review tasks, overlay
-writes — see [Automation](/server/automation)), and the `flow.completed`
-event is defined but not yet emitted, so no automation can react to a flow
-finishing. See
-[Automation > Loop Prevention](/server/automation#loop-prevention) for how
-the automation engine bounds event-driven work.
+Multi-step work composes *inside* a single flow definition: the node graph
+above chains translate and QA in one run. There is no flow-to-flow chaining.
+Automations react to content events such as `connector.push.completed` with a
+fixed set of actions (see [Automation](/server/automation)), and no automation
+trigger fires when a flow finishes, so a rule cannot chain on one. See
+[Automation > Loop prevention](/server/automation#loop-prevention) for how the
+automation engine bounds event-driven work.
 
 ## Related
 
-- [Automation](/server/automation) — event-driven automation rules
-- [Connectors](/server/connectors) — where flow input comes from
-- [Flows on the developer route](/cli/flows/overview) — authoring flows in a project
-- [kapi up](/cli/commands/up) — catch a connected project up (push → run → pull)
+- [Automation](/server/automation): event-driven automation rules
+- [Connectors](/server/connectors): where flow input comes from
+- [Flows on the developer route](/cli/flows/overview): authoring flows in a project
+- [kapi up](/cli/commands/up): catch a connected project up (push → run → pull)

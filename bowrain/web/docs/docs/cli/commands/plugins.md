@@ -7,7 +7,7 @@ title: plugins
 
 Manage plugins and bundles that add formats and tools. Plugins are a
 [neokapi engine](https://neokapi.github.io/) feature shared by every
-kapi installation — this page covers what a Bowrain user typically needs. For
+kapi installation; this page covers what a Bowrain user typically needs. For
 the full command surface and the plugin model, see the neokapi reference:
 
 - [`kapi plugin` command reference](https://neokapi.github.io/reference/commands/plugin)
@@ -21,8 +21,8 @@ kapi plugin <command> [flags]
 
 A **plugin** is a standalone format reader/writer or processing tool. A
 **bundle** is a collection distributed as one installable unit; its individual
-formats and tools register separately, so you can reference them by name (e.g.
-`okapi-html`) without knowing they came from a bundle.
+formats and tools register separately, so you can reference them by name (for
+example `okapi-html`) without knowing they came from a bundle.
 
 ## Common commands
 
@@ -38,7 +38,7 @@ kapi plugin remove <name>        # remove all versions (or <name>@<version>)
 ## The Okapi bridge bundle
 
 The Okapi bridge is the canonical bundle: it brings the Okapi Framework's family
-of format filters — desktop-publishing, CAT-tool, and document formats — into
+of format filters (desktop-publishing, CAT-tool, and document formats) into
 kapi in one install.
 
 ```bash

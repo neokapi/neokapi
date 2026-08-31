@@ -522,7 +522,11 @@ const config: Config = {
           },
           {
             from: "/contribute/implementation/streaming-tree-formats",
-            to: "/contribute/implementation/engine/streaming-tree-formats",
+            to: "/contribute/implementation/engine/skeleton-store",
+          },
+          {
+            from: "/contribute/implementation/engine/streaming-tree-formats",
+            to: "/contribute/implementation/engine/skeleton-store",
           },
           {
             from: "/contribute/implementation/content-fidelity",
@@ -538,7 +542,11 @@ const config: Config = {
           },
           {
             from: "/contribute/implementation/tool-data-model-redesign",
-            to: "/contribute/implementation/engine/tool-data-model-redesign",
+            to: "/contribute/architecture/engine/e-03-tool-system",
+          },
+          {
+            from: "/contribute/implementation/engine/tool-data-model-redesign",
+            to: "/contribute/architecture/engine/e-03-tool-system",
           },
           {
             from: "/contribute/implementation/plugin-model",
@@ -664,7 +672,7 @@ const config: Config = {
           },
           {
             from: "/contribute/notes-internal/streaming-tree-formats",
-            to: "/contribute/implementation/engine/streaming-tree-formats",
+            to: "/contribute/implementation/engine/skeleton-store",
           },
           {
             from: "/contribute/notes-internal/terminology-data-model",
@@ -672,7 +680,7 @@ const config: Config = {
           },
           {
             from: "/contribute/notes-internal/tool-data-model-redesign",
-            to: "/contribute/implementation/engine/tool-data-model-redesign",
+            to: "/contribute/architecture/engine/e-03-tool-system",
           },
           {
             from: "/contribute/notes-internal/wasm-engine-abi",

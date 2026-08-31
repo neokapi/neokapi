@@ -1,7 +1,7 @@
 # Create content with kapi as the checker
 
-When you are **authoring new content** — there is no frozen source file to edit,
-you are writing the document — kapi is still the checker. You write; kapi parses
+When you are **authoring new content** (there is no frozen source file to edit;
+you are writing the document), kapi is still the checker. You write; kapi parses
 what you wrote, holds it to the voice profile and terminology, and tells you what
 to fix. No model provider is involved; the loop is just you and kapi.
 
@@ -12,7 +12,7 @@ back.
 
 ## 1. Author in a generative format
 
-Write the document in a format kapi can produce from content alone — Markdown,
+Write the document in a format kapi can produce from content alone: Markdown,
 HTML, JSON, YAML, and the other **generative** formats. Confirm a target format
 is generative before authoring into it:
 
@@ -21,7 +21,7 @@ kapi formats --json | jq -r '.formats[] | select(.generative) | .name'
 ```
 
 **Binary office formats (`.docx`, `.pptx`, `.xlsx`) cannot be authored from
-scratch** — they are editable but not generative. To produce one, author the
+scratch**: they are editable but not generative. To produce one, author the
 content in a generative format and, if a binary deliverable is required, start
 from an existing binary file and edit it in place ([edit.md](edit.md)).
 
@@ -50,7 +50,7 @@ kapi check --ship --json                                       # in a project
 ```
 
 The check exits 0 when the gate passes and 3 when it fails, with one finding per
-block — its location, the rule, and a suggested fix. Load the voice guide and the
+block: its location, the rule, and a suggested fix. Load the voice guide and the
 approved wording **before** writing so the first draft is already close:
 
 ```bash
@@ -63,9 +63,9 @@ kapi terms lookup "dashboard" -t en  # the approved term
 Fix what the check flagged, then re-run it. Two ways to revise, both
 provider-free:
 
-- **Edit the source directly** and re-check — natural while you are still
+- **Edit the source directly** and re-check, which is natural while you are still
   drafting.
-- **Route the fix through `kapi apply`** as a `content` entry — when you want the
+- **Route the fix through `kapi apply`** as a `content` entry, when you want the
   edit guarded by the faithful round-trip and the drift/inline-code checks, or
   when the fix travels alongside an asset change (below). See [edit.md](edit.md)
   for the content-entry shape and the guards.
@@ -77,7 +77,7 @@ line.
 
 When a check flags a term, the durable fix is usually two changes: correct **this
 draft**, and record the rule so **future** drafts are checked against it. Both
-are typed entries in **one** `kapi apply` change-set, and they land atomically —
+are typed entries in **one** `kapi apply` change-set, and they land atomically:
 content and asset through the single write verb:
 
 ```jsonl
@@ -95,9 +95,9 @@ kapi apply changeset.jsonl
   store. `git diff` shows the one new term; the next `kapi check --ship`
   enforces it.
 
-The asset kinds `kapi apply` accepts — `term`, `memory`, `voice`, `recipe` — and
+The asset kinds `kapi apply` accepts (`term`, `memory`, `voice`, `recipe`) and
 their fields are summarized in [edit.md](edit.md); the voice-vocabulary case is
-detailed in [voice.md](voice.md). Asset entries require a `.kapi` project (the
+detailed in [voice.md](voice.md). Asset entries require a kapi project (the
 committed source and recipe live there).
 
 After applying, run `kapi check --ship` (or `kapi check`) once more to confirm the

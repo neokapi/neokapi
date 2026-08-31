@@ -15,9 +15,10 @@ import { CycleDiagram } from "@neokapi/docs-shared";
 kapi's frontends are translated through the ordinary content pipeline: extract
 the translatable blocks from source, run them through the loop, compile
 per-locale runtime catalogs. The Go backends serving those frontends emit their
-own text — a tool's, format's or plugin's display name and description, a
-parameter's title and description, enum labels, group labels — and so does the
-CLI itself, in command help and in the fixed chrome of its table output.
+own text (a tool's, format's or plugin's display name and description, a
+parameter's title and description, enum labels and descriptions, group labels)
+and so does the CLI itself, in command help and in the fixed chrome of its
+table output.
 
 Left in English, the backend-sourced half of every screen would sit beside a
 translated frontend. So the same pipeline covers three surfaces:
@@ -42,10 +43,12 @@ uses, so a translator sees exactly one source artefact across the whole stack
 rather than a message id on one side and a sentence on the other.
 
 `Scope` is the dot-separated full key path of the value in the canonical
-document — `tools.translate.displayName`,
+document: `tools.translate.displayName`,
 `tools.translate.properties.provider.title`,
 `cli.commands.kapi.extract.short`. Homonyms stay isolated: "Description" across
-many tools is many entries, not one.
+many tools is many entries, not one. An enum value's description resolves under
+its own container, `<base>.enumDescriptions.<value>`, so the sentence beside an
+enum label is translated as well as the label.
 
 The first path segment of a command scope is always `kapi`, regardless of the
 root command's name, so a catalog stays valid across every binary built on the
@@ -76,7 +79,7 @@ mature pure-Go loader. But a compiled catalog is build output, and a binary in
 version control is a diff nobody can read.
 
 So the repository carries the **translated catalog as JSON in the shape of its
-source document** — the review surface, written by the loop — and a build-time
+source document**, the review surface written by the loop, and a build-time
 compiler turns each into a sibling MO before anything that embeds it compiles.
 
 <CycleDiagram
@@ -95,7 +98,7 @@ restating it, so the message context it writes is *by construction* the key path
 the catalog JSON was written under and the scope the runtime looks a string up
 by. It pairs source and translation by that key path: the message id is the
 English source, the message string is the translation. A string the locale has
-not translated, or has copied verbatim, is left out — the runtime then returns
+not translated, or has copied verbatim, is left out; the runtime then returns
 the source, which is exactly what target-language drift should look like.
 
 The compiler imports neither package it writes for, so it builds and runs
@@ -108,7 +111,7 @@ directive resolves at compile time, so the catalog target runs ahead of every
 target that builds, tests, vets or lints the affected packages, and a build that
 skipped it fails on the embed rather than silently shipping English.
 
-### Translate at the boundary, not per call site
+### Translate at the boundary
 
 One pass where metadata leaves the process centralizes translation instead of
 scattering lookups through tool constructors. Tool and format metadata both
@@ -116,7 +119,7 @@ serialize as the same component-schema type, so a single pass over that type
 covers both. Command help is translated by one walk of the command tree at
 startup; output chrome goes through the output package's own table lookup.
 
-Two details of that walk are load-bearing. A command whose name contains a path
+Two details of that walk matter. A command whose name contains a path
 separator is left untouched, because it would corrupt the scope. And a
 multi-line help string whose translation came back without line breaks is
 rejected in favour of the English source: the memory's plain-text path normalizes
@@ -128,17 +131,20 @@ principle as leaving an untranslated string out of the catalog.
 
 The translator is built at startup from the first locale that resolves: the
 `--lang` flag, then `KAPI_LANG`, then the language in the user's config, then
-`LC_ALL`, `LC_MESSAGES`, `LANG`, falling back to English. Environment values are
-normalized from POSIX form on the way through, so `en_US.UTF-8` arrives as
-`en-US` and `fr_CA@euro` as `fr-CA`. Aliasing stops there: `C` and `POSIX` are
-passed through and treated as unknown locales, which degrade gracefully.
+`LC_ALL`, `LC_MESSAGES`, `LANG`, falling back to English. Every value, whichever
+source supplied it, passes through the one canonicalization the framework
+applies at every ingress (`core/locale.Canonical`), so `en_US.UTF-8` arrives as
+`en-US`, `fr_CA@euro` as `fr-CA`, and `--lang nb_NO` as `nb-NO`. `C` and
+`POSIX` are not locales; they fall back to the English source rather than
+being refused, because asking for a catalog is not the place to reject a bad
+locale.
 
 English needs no catalog, because the message ids *are* the English source. The
 comparison is made in minimal form, so `en-US` short-circuits too while a
 genuinely distinct `en-GB` still gets a lookup.
 
-Catalog lookup follows the locale's fallback chain — the exact tag, then the
-CLDR-minimal form, then the bare language — so a config that still says `nb-NO`,
+Catalog lookup follows the locale's fallback chain (the exact tag, then the
+CLDR-minimal form, then the bare language), so a config that still says `nb-NO`,
 or a `LANG` of `nb_NO.UTF-8`, finds the `nb` catalog instead of silently
 degrading to English.
 
@@ -163,7 +169,7 @@ plugin-dir/
 
 The conventional path and the loader helpers exist in the framework, and the
 resolver takes a list of plugin catalogs to merge. **Not yet built:** nothing
-populates that list — plugin discovery does not feed catalogs into the
+populates that list. Plugin discovery does not feed catalogs into the
 translator, so a plugin's `i18n/` directory is currently inert. A plugin without
 one works unchanged: the absence of a translation is silent, never an error.
 
@@ -183,7 +189,7 @@ one works unchanged: the absence of a translation is silent, never an error.
 ## Scope boundaries
 
 The MO writer does not flatten placeholder runs. Metadata strings are plain
-text, so placeholder handling would be dead code — revisit if a metadata surface
+text, so placeholder handling would be dead code; revisit if a metadata surface
 grows interpolation.
 
 The desktop backend's raw schema accessor, which returns unprocessed JSON to
@@ -192,9 +198,9 @@ reads the listing endpoint, which is.
 
 ## Related
 
-- [E-02: The format system](../engine/e-02-format-system.md) — the JSON reader that extracts and the MO writer that compiles
-- [E-03: The tool system](../engine/e-03-tool-system.md) — the component-schema surface being translated
-- [E-05: The plugin system](../engine/e-05-plugin-system.md) — the plugin manifest and the `i18n/` bundle layout
-- [S-01: The kapi CLI](../surfaces/s-01-kapi-cli.md) — the `--lang` flag and where the translator is installed
-- [S-02: Kapi Desktop](../surfaces/s-02-kapi-desktop.md) — the frontend this aligns with
-- [S-05: The i18n runtime](../surfaces/s-05-i18n-runtime.md) — the runtime catalogs the frontend half compiles to
+- [E-02: The format system](../engine/e-02-format-system.md): the JSON reader that extracts and the MO writer that compiles
+- [E-03: The tool system](../engine/e-03-tool-system.md): the component-schema surface being translated
+- [E-05: The plugin system](../engine/e-05-plugin-system.md): the plugin manifest and the `i18n/` bundle layout
+- [S-01: The kapi CLI](../surfaces/s-01-kapi-cli.md): the `--lang` flag, where the translator is installed, and the locale canonicalization every ingress shares
+- [S-02: Kapi Desktop](../surfaces/s-02-kapi-desktop.md): the frontend this aligns with
+- [S-05: The i18n runtime](../surfaces/s-05-i18n-runtime.md): the runtime catalogs the frontend half compiles to

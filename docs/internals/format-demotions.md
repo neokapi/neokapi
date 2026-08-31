@@ -1,6 +1,6 @@
 # Format Demotions Ledger
 
-This file records every support-tier demotion of a format — the durable
+This file records every support-tier demotion of a format, the durable
 "why" behind each downgrade in `core/formats/support.yaml`. Demotion is a
 normal, recorded outcome, never deletion ([format-maturity.md §1](./format-maturity.md)):
 announce before the release, drop at most one tier at a time

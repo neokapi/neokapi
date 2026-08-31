@@ -5,9 +5,17 @@
   "description": "Prose held in source files, located by syntax rather than by pattern. Read-only: this format has no writer, and a program is never written back.",
   "type": "object",
   "properties": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "The grammar to parse with, by name (for example \"ruby\"). Empty picks the grammar from the file's extension, which is the usual case; set it when the file reaches the reader without a name or the extension is ambiguous.",
+      "default": ""
+    },
     "nodePathPatterns": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "title": "Node paths",
       "description": "The calls whose arguments hold prose, e.g. [\"desc\", \"caveats\"] for a Homebrew cask. The analogue of the JSON and YAML readers' key paths: a recipe already says which keys of a config file hold sentences, and says the same thing here about a call. Empty extracts every string the grammar exposes, which is how you find out what a file holds before narrowing it.",
       "default": []

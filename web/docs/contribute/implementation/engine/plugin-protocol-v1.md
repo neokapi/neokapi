@@ -2,7 +2,7 @@
 sidebar_position: 9
 id: plugin-protocol-v1
 title: "Plugin protocol v1"
-description: The versioned, language-neutral specification for kapi plugins — the manifest model, the three transport modes, the Mode-C gRPC surface and wire format, and the conformance suite an out-of-tree plugin repository runs against a released kapi to self-report conformance.
+description: "The versioned, language-neutral specification for kapi plugins: the manifest model, the three transport modes, the Mode-C gRPC surface and wire format, and the conformance suite an out-of-tree plugin repository runs against a released kapi to self-report conformance."
 keywords:
   [
     plugin protocol,
@@ -27,7 +27,7 @@ import { LanesDiagram } from "@neokapi/docs-shared";
 This is the **versioned, language-neutral specification** for plugins targeting
 kapi. It is a contract, not a tour: a plugin author in any language implements
 against this page and verifies the result with the
-[conformance suite](#conformance-suite) — which runs against a *released* kapi
+[conformance suite](#conformance-suite), which runs against a *released* kapi
 module, so a plugin repository never needs to live inside this one.
 
 The architectural rationale is [E-05](/contribute/architecture/engine/e-05-plugin-system);
@@ -86,6 +86,7 @@ under a discovery root, with a `manifest.json` at its root:
     "source_connectors": [],
     "schema_extensions": [],
     "command_contributions": [],
+    "config_namespaces": [],
     "selfcheck": true
   },
   "daemon": {
@@ -105,7 +106,7 @@ against the exact document kapi validates against.
 ### Manifest rules
 
 These are the rules the host enforces at discovery time. A manifest that breaks
-any of them means the plugin does not register — usually silently, which is why
+any of them means the plugin does not register, usually silently, which is why
 the conformance suite checks each one by name.
 
 | Rule                                                                                                        | Why it matters                                                                                |
@@ -123,7 +124,7 @@ the conformance suite checks each one by name.
 Capability names must not collide **between plugins**: kapi drops the
 conflicting entry from its dispatch table and reports the conflict, so an
 ambiguous capability does not dispatch until one plugin is removed. A
-collision with a *built-in* is resolved in the plugin's favour — installing a
+collision with a *built-in* is resolved in the plugin's favour: installing a
 plugin for a format is an explicit signal to prefer it.
 
 ### Discovery
@@ -134,7 +135,7 @@ conflict):
 
 | Order       | Root                                                                                             | Source             |
 | ----------- | ------------------------------------------------------------------------------------------------ | ------------------ |
-| 1 (highest) | `$KAPI_PLUGINS_DIR` (OS path list — `:` separated, `;` on Windows)                                 | dev / CI / sandbox |
+| 1 (highest) | `$KAPI_PLUGINS_DIR` (OS path list, `:` separated, `;` on Windows)                                 | dev / CI / sandbox |
 | 2           | `$XDG_DATA_HOME/kapi/plugins` (default `~/.local/share/kapi/plugins`)                              | per-user install   |
 | 3           | `/opt/homebrew/share/kapi/plugins`, `/usr/local/share/kapi/plugins`, `/usr/share/kapi/plugins`      | system install     |
 
@@ -182,7 +183,7 @@ may declare any subset.
 | `source_connectors`     | Mode C    | `<binary> daemon`                       |
 | `schema_extensions`     | none      | validated in-process by kapi            |
 
-### Mode A — one-shot subprocess
+### Mode A: one-shot subprocess
 
 ```
 <binary> command <name> [sub...] [args/flags...]
@@ -195,7 +196,7 @@ may declare any subset.
   API-key variables** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
   `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`). A plugin is separate software the
   user installed; kapi's model credentials are not part of what installing it
-  granted. Everything else is inherited — `PATH`, `HOME`, `TMPDIR`,
+  granted. Everything else is inherited: `PATH`, `HOME`, `TMPDIR`,
   `XDG_CACHE_HOME`, and any variables the plugin's own `models` declarations
   resolve to. A plugin that genuinely needs to reach a model provider should
   say so in its manifest rather than read the host's key by inheritance. The
@@ -213,15 +214,15 @@ attaches under the group *only*. A plugin that needs to participate in a core
 verb uses a `command_contribution` rather than a same-name command. See
 [E-05](/contribute/architecture/engine/e-05-plugin-system).
 
-### Mode B — session subprocess (MCP over stdio)
+### Mode B: session subprocess (MCP over stdio)
 
 ```
 <binary> mcp-server
 ```
 
 - One long-lived process per `kapi mcp` session.
-- The transport is **newline-delimited JSON-RPC 2.0** on stdin/stdout — the MCP
-  stdio transport. **stdout carries nothing else**: a stray log line corrupts
+- The transport is **newline-delimited JSON-RPC 2.0** on stdin/stdout (the MCP
+  stdio transport). **stdout carries nothing else**: a stray log line corrupts
   the stream and kills the session mid-call. Diagnostics go to stderr.
 - The server answers `initialize` with a `protocolVersion` and a
   `serverInfo.name`, then serves `tools/list` and `tools/call`.
@@ -230,7 +231,7 @@ verb uses a `command_contribution` rather than a same-name command. See
 - **Closing stdin ends the session**: the process must exit, or kapi leaks one
   process per session.
 
-### Mode C — daemon over a Unix socket
+### Mode C: daemon over a Unix socket
 
 ```
 <binary> daemon
@@ -238,8 +239,8 @@ verb uses a `command_contribution` rather than a same-name command. See
 {"socket":"/tmp/kapi-daemon-myplugin-12345.sock","version":"1.4.0","pid":12345}
 ```
 
-- The daemon binds a **Unix-domain socket**, prints exactly one JSON line — the
-  **handshake** — then keeps stdout open. Everything after that first line is
+- The daemon binds a **Unix-domain socket**, prints exactly one JSON line, the
+  **handshake**, then keeps stdout open. Everything after that first line is
   log output, which kapi forwards to its own stderr.
 - The handshake's `socket` is required and must be an **absolute path**. kapi
   dials `unix://<socket>` and only that; it never connects over TCP.
@@ -255,7 +256,7 @@ verb uses a `command_contribution` rather than a same-name command. See
   idle timeout, and kapi's own exit all tear daemons down with SIGTERM, and a
   stale socket blocks the next bind at that path.
 - `$KAPI_DAEMON_SOCKET_<PLUGIN>` (e.g. `KAPI_DAEMON_SOCKET_MYPLUGIN`) points
-  kapi at an already-running daemon's socket and skips `exec` entirely — how a
+  kapi at an already-running daemon's socket and skips `exec` entirely, which is how a
   benchmark measures per-call cost without paying startup each time.
 
 Mode C is POSIX-only today: the transport is a Unix socket, and the host returns
@@ -285,8 +286,8 @@ service BridgeService {
 
 Only the RPCs backing declared capabilities need real implementations: a
 formats-only plugin may leave `Segment` unimplemented, and a segmenter-only
-plugin may leave `Process` unimplemented. `Shutdown` is recommended but optional
-— the host falls back to SIGTERM.
+plugin may leave `Process` unimplemented. `Shutdown` is recommended but optional;
+the host falls back to SIGTERM.
 
 A daemon that serves gRPC without registering `BridgeService` answers every call
 with `Unimplemented`, which is indistinguishable from a plugin that provides
@@ -296,7 +297,7 @@ nothing. The conformance suite probes for this explicitly.
 
 One `Process` stream handles a full document:
 
-1. **kapi sends `ProcessHeader`** — format name (`filter_class`), input document
+1. **kapi sends `ProcessHeader`**: format name (`filter_class`), input document
    (`ContentRef`: path, inline bytes, or URI), source/target locale, encoding,
    MIME type, parameters, an optional output destination, and a
    `subscribe_parts` filter.
@@ -317,8 +318,8 @@ without a writer.
 ### Wire format
 
 Two lightweight message types keep gRPC framing cheap. `ContentBlock` is a
-stripped block — roughly a tenth the size of a full `BlockMessage`, omitting the
-skeleton and referent flags, which stay on the plugin's side — and
+stripped block (roughly a tenth the size of a full `BlockMessage`) omitting the
+skeleton and referent flags, which stay on the plugin's side, and
 `ContentBlockBatch` amortizes framing over up to 1024 of them:
 
 ```protobuf
@@ -330,7 +331,7 @@ message ContentBlockBatch {
 `ProcessHeader.subscribe_parts` controls which part types cross the wire at all.
 Empty means all of them (backwards compatible); `[5]` means blocks only, letting
 the plugin write structural events directly without a round-trip. On a large
-spreadsheet that cuts message counts by roughly 3–4× — far more than any buffer
+spreadsheet that cuts message counts by roughly 3–4×, far more than any buffer
 tuning.
 
 Direction matters for batching:
@@ -355,14 +356,14 @@ message ContentRef {
 ```
 
 **Prefer `path`.** A real filesystem path lets the plugin resolve relative
-references — linked rule files, stand-off annotations, companion assets — and
+references, linked rule files, stand-off annotations, companion assets, and
 avoids moving bytes over the socket. The host raises the per-message ceiling to
 256 MB precisely because plugins that use `inline` stream whole documents.
 
 ### Concurrency inside a daemon
 
 A daemon serves concurrent RPCs (a gRPC connection is multiplexed), so its
-internal design is its own business — but two patterns are worth stating,
+internal design is its own business, but two patterns must hold,
 because getting them wrong deadlocks the protocol rather than merely slowing it
 down.
 
@@ -402,8 +403,8 @@ instead of pinning a worker forever.
 
 ### Parameters
 
-Format, tool, and segmenter parameters arrive as `map<string, string>` —
-`ProcessHeader.filter_params` and `SegmentRequest.params` — described by the JSON
+Format, tool, and segmenter parameters arrive as `map<string, string>`
+(`ProcessHeader.filter_params` and `SegmentRequest.params`), described by the JSON
 Schema the manifest points at (`capabilities.formats[].schema`,
 `capabilities.tools[].schema`, `capabilities.segmenters[].schema`). The host
 loads those schemas through `core/format/schema` for CLI introspection and UI
@@ -427,7 +428,7 @@ Schema file in the plugin directory:
 
 At register time kapi compiles that schema and validates the recipe's payload
 under that key at parse time. A schema that cannot be read, parsed, or compiled
-degrades to a structural-only check with a warning — one plugin's broken schema
+degrades to a structural-only check with a warning: one plugin's broken schema
 never stops a recipe from loading, which is exactly why the conformance suite
 treats an unreadable schema as a failure on the plugin's side.
 
@@ -468,9 +469,16 @@ a user can install without kapi at all:
 kapi-myplugin-1.4.0-darwin-arm64.tar.gz
 └── myplugin/
     ├── manifest.json
+    ├── LICENSE
     ├── kapi-myplugin
     └── schemas/server.json
 ```
+
+The plugin's `LICENSE` text ships inside the tarball, so the archive carries the
+terms of the work it contains; a plugin that bundles a third-party runtime ships
+that runtime's licence text beside it. A plugin's GitHub release is published as
+not-latest, so a tool that resolves the repository's latest release still finds
+kapi rather than the plugin.
 
 ```bash
 tar -xzf kapi-myplugin-*.tar.gz -C ~/.local/share/kapi/plugins/
@@ -483,7 +491,7 @@ registry-pinned hash, then the bundle's signing certificate against the pinned
 identity using [`sigstore-go`](https://github.com/sigstore/sigstore-go),
 mirroring `cosign verify-blob` keyless defaults (SCT, transparency-log, and
 observer-timestamp thresholds of 1). A registry entry missing `signature`,
-`cert_identity`, or `cert_oidc_issuer` is rejected unless `--unsafe` is passed —
+`cert_identity`, or `cert_oidc_issuer` is rejected unless `--unsafe` is passed,
 there is no silent unsigned install path.
 
 Because tarballs are fetched with Go's HTTP client rather than a browser, the
@@ -501,7 +509,7 @@ written in any language.
 
 It lives in the **framework** module (`github.com/neokapi/neokapi`), so an
 out-of-tree plugin repository depends on a released kapi version and imports
-nothing else — no CLI, no cobra, no platform code.
+nothing else: no CLI, no cobra, no platform code.
 
 ```go
 import "github.com/neokapi/neokapi/core/plugin/conformance"
@@ -512,7 +520,7 @@ func TestProtocolConformance(t *testing.T) {
 ```
 
 `RunT` logs the full transcript and fails the test once per failing required
-check. For a non-test caller — a release gate, a `doctor`-style command — use
+check. For a non-test caller (a release gate, a `doctor`-style command), use
 `Run` and inspect the report:
 
 ```go
@@ -527,14 +535,14 @@ if !report.OK() {
 }
 ```
 
-A failing check is never an `error` from `Run` — the error return is reserved for
+A failing check is never an `error` from `Run`; the error return is reserved for
 a suite that could not start. Callers gate on `report.OK()`.
 
 ### What it checks
 
 Checks are grouped and namespaced `<group>.<name>`. The authoritative list is
-`conformance.Checks()`, which returns every check — ID, title, transport, whether
-it is required, and a one-line statement of what breaks in kapi when it fails —
+`conformance.Checks()`, which returns every check (ID, title, transport, whether
+it is required, and a one-line statement of what breaks in kapi when it fails),
 without running anything, so CI can diff coverage over time.
 
 | Group      | Covers                                                                                                                                                                                                                    |
@@ -547,7 +555,7 @@ without running anything, so CI can diff coverage over time.
 
 A check is **required** or **advisory**. An advisory failure is reported but does
 not clear `report.OK()`: it names something the host tolerates today that a
-well-behaved plugin should still fix. Two are advisory — a `version` verb that
+well-behaved plugin should still fix. Two are advisory: a `version` verb that
 disagrees with the manifest, and a socket reachable by other users.
 
 A check that does not apply is **skipped**, never failed: a plugin declaring no
@@ -555,7 +563,7 @@ MCP tools skips the whole `modeB` group, Mode C skips on Windows, and each
 opt-in probe skips when not configured. A skip is not a deficiency.
 
 When a prerequisite fails, dependent checks skip with a pointer to the root cause
-rather than restating it — a daemon that never printed its handshake produces
+rather than restating it: a daemon that never printed its handshake produces
 exactly one failure, not nine.
 
 ### Opt-in probes
@@ -605,8 +613,8 @@ different ways and one knob cannot govern them all:
 The two daemon-lifecycle budgets are waits on the *plugin's* process, not work
 the suite does, so neither is clamped by `Timeout`; a check that owns one is
 given its `Timeout` plus that wait. Keeping them separate is what lets a caller
-shorten the one wait a healthy plugin never uses in full — the teardown grace, on
-a case written to prove a daemon ignores SIGTERM — without also starving startup.
+shorten the one wait a healthy plugin never uses in full (the teardown grace) on
+a case written to prove a daemon ignores SIGTERM, without also starving startup.
 Collapsing them makes a loaded machine report every negative Mode-C case as the
 same startup timeout instead of the protocol violation it was written to catch.
 
@@ -614,16 +622,16 @@ A startup timeout is reported as its own failure mode: the detail names the
 startup budget, the dependent checks skip citing it rather than a generic "the
 daemon did not start", and `Result.Err` wraps `ErrStartupTimeout`. It is the one
 Mode-C outcome an overloaded machine can produce on its own, so it is worth
-telling apart from a protocol violation — which is a claim about the plugin.
+telling apart from a protocol violation, which is a claim about the plugin.
 
 ### The reference plugins
 
 Two plugins in this repository are checked by the suite's own tests, so the
 specification and its examples cannot drift apart:
 
-- **`examples/plugins/hello/`** — a minimal Mode A + B plugin with no
+- **`examples/plugins/hello/`**: a minimal Mode A + B plugin with no
   third-party dependencies. If it ever stops conforming, the suite says so.
-- **`core/plugin/conformance/testdata/probedaemon/`** — a Mode A + C fixture that
+- **`core/plugin/conformance/testdata/probedaemon/`**: a Mode A + C fixture that
   speaks the whole protocol and carries environment switches making it violate
   one rule at a time (no handshake, non-JSON handshake, missing socket field,
   relative socket, unregistered service, permissive socket, missing `Shutdown`,
@@ -633,5 +641,5 @@ specification and its examples cannot drift apart:
 Out of tree, [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) is
 the reference implementation in a non-Go language: a JVM daemon exposing the
 Okapi Framework's Java filters over Mode C. Its role is to keep this protocol
-honest from the outside — it consumes released kapi versions and reports
+honest from the outside: it consumes released kapi versions and reports
 conformance on a schedule, never gating this repository.

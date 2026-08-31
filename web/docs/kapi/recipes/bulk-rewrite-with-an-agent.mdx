@@ -2,7 +2,7 @@
 id: bulk-rewrite-with-an-agent
 title: "Bulk rewrite with an agent"
 sidebar_label: "Bulk rewrite with an agent"
-description: "Sweep a rewrite across a whole content set — rename a product, retire a term, change tense — with an AI agent doing the writing and kapi guaranteeing that only the text changes."
+description: "Sweep a rewrite across a whole content set (rename a product, retire a term, change tense) with an AI agent doing the writing and kapi guaranteeing that only the text changes."
 hide_table_of_contents: true
 ---
 
@@ -11,15 +11,15 @@ import TabItem from "@theme/TabItem";
 
 # Bulk rewrite with an agent
 
-**Goal:** apply one editorial change everywhere — rename a product, retire a phrase, soften a tense — across files your editor can't even open (`.docx`, catalogs, HTML, Markdown), without risking structure. The division of labor: the agent decides what the new text says; kapi guarantees everything else — inline codes preserved, drift-guarded writes, and a check gate that proves the sweep is done. No second model is involved in the write.
+**Goal:** apply one editorial change everywhere (rename a product, retire a phrase, soften a tense) across files your editor can't even open (`.docx`, catalogs, HTML, Markdown), without risking structure. The division of labor: the agent decides what the new text says; kapi guarantees everything else: inline codes preserved, drift-guarded writes, and a check gate that proves the sweep is done. No second model is involved in the write.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 The sweep itself is agent- or CLI-driven; Desktop is where you verify it:
 
-1. **Before:** bind the rule that motivates the sweep — a forbidden term, a required phrasing — in the project's voice profile, so the **Checks** view shows exactly which blocks are affected and how many.
-2. **After:** re-run the Checks view to confirm the count is zero, and spot-check the edited files in the preview — structure, styles, and placeholders intact.
+1. **Before:** bind the rule that motivates the sweep (a forbidden term, a required phrasing) in the project's voice profile, so the **Checks** view shows exactly which blocks are affected and how many.
+2. **After:** re-run the Checks view to confirm the count is zero, and spot-check the edited files in the preview: structure, styles, and placeholders intact.
 
 For translated content, an edited source drops affected units back to *pending*; **Bring up to date** re-translates just those, and the [Review queue](/kapi/recipes/review-and-approve) picks up anything that parks.
 
@@ -28,14 +28,14 @@ For translated content, an edited source drops affected units back to *pending*;
 
 State the change once, over the whole set:
 
-> We renamed "Acme Sync" to "Acme Flow". Update every mention across `docs/` and `src/locales/en/` — including the `.docx` one-pagers — and keep the formatting.
+> We renamed "Acme Sync" to "Acme Flow". Update every mention across `docs/` and `src/locales/en/` (including the `.docx` one-pagers) and keep the formatting.
 
 The assistant runs the loop at scale:
 
-1. `kapi inspect --jsonl` over the set — one record per block, with `id`, `content_hash`, and the text (inline codes as `<x id="…"/>` placeholders).
-2. It rewrites only the blocks that mention the term — judgment calls included ("Acme Sync's engine" → "the Acme Flow engine"), which is why this is an agent job and not a `sed` job.
+1. `kapi inspect --jsonl` over the set: one record per block, with `id`, `content_hash`, and the text (inline codes as `<x id="…"/>` placeholders).
+2. It rewrites only the blocks that mention the term, judgment calls included ("Acme Sync's engine" → "the Acme Flow engine"), which is why this is an agent job rather than a `sed` job.
 3. `kapi apply` lands the change-set; any block whose hash drifted since the read is left unchanged and reported, so a concurrent edit can't be clobbered.
-4. `kapi check --forbid "Acme Sync"` proves completion — exit 0 means the sweep is actually done, not probably done.
+4. `kapi check --forbid "Acme Sync"` proves completion: exit 0 means the sweep is done.
 
 Make the retired term a permanent [voice vocabulary rule](/kapi/recipes/keep-source-on-brand) in the same change-set, and the old name can never quietly return.
 
@@ -46,20 +46,20 @@ The same loop with you (or a script) as the writer:
 
 ```bash
 kapi inspect docs/**/*.md report.docx --jsonl > blocks.jsonl
-# rewrite the matching blocks' "text" into edits.jsonl — content entries
+# rewrite the matching blocks' "text" into edits.jsonl (content entries)
 # carrying each block's id + content_hash; keep the <x id="…"/> tags
 kapi apply edits.jsonl --diff            # preview the whole sweep as one diff
 kapi apply edits.jsonl --in-place=.bak   # land it, keeping backups
 kapi check docs/**/*.md --forbid "Acme Sync"   # prove it's done
 ```
 
-For pure vocabulary substitution with zero judgment involved, `kapi voice rewrite` does it deterministically from a profile — no agent, no model. The change-set shape and the round-trip guards are in [Edit content](/kapi/recipes/rewrite-content).
+For pure vocabulary substitution with zero judgment involved, `kapi voice rewrite` does it deterministically from a profile: no agent, no model. The change-set shape and the round-trip guards are in [Edit content](/kapi/recipes/rewrite-content).
 
 </TabItem>
 </Tabs>
 
 ## Next
 
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → apply loop and its guards, in depth.
-- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the standing rules that keep future output clean.
-- [Use with Claude](/kapi/get-started/use-with-claude) — wiring the assistant that runs this loop.
+- [Edit content](/kapi/recipes/rewrite-content): the inspect → edit → apply loop and its guards, in depth.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai): the standing rules that keep future output clean.
+- [Use with Claude](/kapi/get-started/use-with-claude): wiring the assistant that runs this loop.

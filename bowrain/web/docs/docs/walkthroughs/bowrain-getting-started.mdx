@@ -2,7 +2,7 @@
 id: bowrain-getting-started
 title: "Getting started from a local codebase (kapi)"
 sidebar_label: "Developer path (kapi)"
-description: "Connect a local project to Bowrain with kapi and sync translations like git: init, push, status, pull."
+description: "Connect a local project to Bowrain with kapi and sync results like git: init, push, status, pull."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -10,10 +10,10 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # Getting started from a local codebase (kapi)
 
 The kapi developer path: connect a local project to your Bowrain server, push the
-source for the team to translate, and pull translations back — synced like git.
+source for the team, and pull results back, synced like git.
 This is one of [several routes into a workspace](/server/connectors), and the
 one for a developer working from a checkout. Content in a content platform, a
-design tool, or a repository connects server-side instead — no checkout, and
+design tool, or a repository connects server-side instead: no checkout, and
 nothing installed.
 
 <ThemedVideo
@@ -27,14 +27,14 @@ nothing installed.
 `kapi init --server https://app.bowrain.cloud` writes a `kapi.yaml` recipe and a sibling
 `.kapi/` directory and connects the project to your Bowrain server (pass
 `--workspace <slug>` if you belong to several). `kapi add` tracks the files you
-want translated; `kapi push` sends the source up (pure transport); `kapi status`
-shows standing, exactly like git; and `kapi pull` brings translations back into
-the same files and formats. `kapi up` does all of it on the server in one command — push, catch up, and
-pull — for the daily reconcile and for CI.
+want governed; `kapi push` sends the source up (pure transport); `kapi status`
+shows standing, exactly like git; and `kapi pull` brings results back into
+the same files and formats. `kapi up` does all of it on the server in one command (push, catch up, and
+pull) for the daily reconcile and for CI.
 
 ## Next
 
-- [Auth and workspaces](/walkthroughs/bowrain-auth) — sign in and choose where to push.
-- [Automation](/walkthroughs/bowrain-automation) — local rules + GitHub Actions.
+- [Auth and workspaces](/walkthroughs/bowrain-auth): sign in and choose where to push.
+- [Automation](/walkthroughs/bowrain-automation): local rules + GitHub Actions.
 - Command reference: [init](/cli/commands/init), [push](/cli/commands/push),
   [pull](/cli/commands/pull), [up](/cli/commands/up), [status](/cli/commands/status).

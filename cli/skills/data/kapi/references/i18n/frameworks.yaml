@@ -6,7 +6,7 @@
 # Toil axes 0-3: w=marking, x=extraction, s=sync, r=runtime-correctness,
 # e=ecosystem risk. grade is derived from `recommended` per the rubric.
 # status: recommended | supported | caution | avoid.
-# All `watch` claims verified 2026-07-10 (see strategy/i18n-skill/research-*.md).
+# All `watch` claims verified 2026-07-10.
 
 version: 1
 rubric: docs/internals/i18n-toil.md

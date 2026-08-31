@@ -1,22 +1,22 @@
 ---
 title: HubSpot
 sidebar_position: 2
-description: The HubSpot connector reads CMS site pages from HubSpot, delivers their titles and meta descriptions to Bowrain for translation, and writes approved text back.
+description: The HubSpot connector reads CMS site pages from HubSpot, delivers their titles and meta descriptions to Bowrain, and writes approved text back.
 ---
 
 # HubSpot connector
 
 The HubSpot connector is a marketing connector. It reads CMS site pages from
-HubSpot over the CMS API, delivers their title and meta description to Bowrain
-for translation, and writes approved text back to the same pages.
+HubSpot over the CMS API, delivers their title and meta description to Bowrain,
+and writes approved text back to the same pages.
 
 :::note
 
 This connector is added in a project's **Connectors** view in the web app, or
 through the workspace **connectors API** described below. Saved credentials are
-write-only — used for sync, never displayed again. All connector operations
+write-only: used for sync, never displayed again. All connector operations
 require the **manage connectors** permission. It is one route into a workspace
-among several — see [Connectors](/server/connectors) for the full row.
+among several; see [Connectors](/server/connectors) for the full row.
 
 :::
 
@@ -67,8 +67,8 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you fetch or publish — **Fetch now**
-and **Publish** in the Connectors view, or the endpoints below. The connector
+Sync is explicit: content moves only when you fetch or publish (**Fetch now**
+and **Publish** in the Connectors view, or the endpoints below). The connector
 does not poll HubSpot on a schedule and does not receive HubSpot webhooks.
 
 **Fetch** requests site pages and stores each page's title and meta description
@@ -80,8 +80,8 @@ as blocks on the target project's main content stream. Call
 ```
 
 The response reports how many items were fetched. Fetching stores source
-content; it does not itself start translation. Translate the fetched content the
-way you would any project content — for example by running a flow or by letting
+content; it does not itself start a run. Catch the fetched content up the
+way you would any project content, for example by starting a run or by letting
 the project's `bowrain.converge` policy produce and review targets.
 
 **Publish** sends the project's stored title and meta-description text back to

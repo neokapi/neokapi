@@ -204,7 +204,7 @@ const config: Config = {
           { from: "/architecture-decisions/012-distributed-event-bus", to: "/developer/events" },
           { from: "/architecture-decisions/013-automation-engine", to: "/server/automation" },
           { from: "/architecture-decisions/014-translator-workflow", to: "/server/review" },
-          { from: "/architecture-decisions/015-server-ai-operations", to: "/server/pre-process" },
+          { from: "/architecture-decisions/015-server-ai-operations", to: "/server/translation-editor" },
           { from: "/architecture-decisions/016-bravo-agent", to: "/server/web-overview" },
           { from: "/architecture-decisions/017-bowrain-apps", to: "/server/desktop-app" },
           {
@@ -251,6 +251,10 @@ const config: Config = {
           { from: "/server/brand", to: "/server/context" },
           { from: "/server/brand-scan", to: "/server/context-scan" },
           { from: "/server/voice", to: "/server/context-voice" },
+          // The file-wide operations (pseudo-translate, bulk reuse, AI draft)
+          // are documented on the editor page; the surface itself is one
+          // switch away from the editor in the app.
+          { from: "/server/pre-process", to: "/server/translation-editor" },
         ],
       },
     ],

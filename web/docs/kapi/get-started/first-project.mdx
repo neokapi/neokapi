@@ -1,6 +1,6 @@
 ---
 title: Your first project
-description: Create a .kapi project — in Kapi Desktop, from your AI assistant, or on the command line — and bring it to its first green ship gate.
+description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, and bring it to its first green ship gate."
 keywords: [kapi, project, first project, Kapi Desktop, kapi init, kapi up, ship gate]
 ---
 
@@ -10,21 +10,22 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, voice, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
+A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work: approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, voice, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude), no key), a local Ollama model, or a stored API key — one click; or skip and use the demo engine.
+Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects (a Claude Code sign-in that [uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude) with no key, a local Ollama model, or a stored API key) in one click; or skip and use the demo engine.
 
-1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first — content collections, five target languages, and a stocked content memory.
+1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first: content collections, a bound voice profile and terms, five target languages, and a stocked content memory.
 2. **Add content.** In the **Project** view, add a pattern that matches your source files (for example `docs/**/*.md`). Kapi lists the matched files and the detected format, grouped into a collection.
-3. **Bring it up to date.** The project view shows per-locale coverage and each scope's ship-gate standing. **Bring up to date** runs the project's default flow until every gated scope is shippable or parked for a person — the desktop form of `kapi up`.
-4. **Review what parked.** Anything a machine can't decide lands in the **Review** queue — open it from a ship-gate cell. See [Review & approve](/kapi/recipes/review-and-approve).
+3. **Read where it stands.** The project home says where the project is on two axes: **Content** (what has been read in, what changed on disk, what is missing) and **Governance** (the voice profile in force, the terms bound, when it last converged). Below, the **point map** gives one row per point the recipe declares. Bind a voice profile and set the default point under **Project Settings**; the **Context** hub then shows what applies at any file.
+4. **Bring it up to date.** **Bring up to date** runs the project's default flow until every gated scope is shippable or parked for a person, the desktop form of `kapi up`. For a source-only project that means the checks; once you [add languages](/kapi/get-started/add-languages), per-language coverage appears on the collections it applies to.
+5. **Review what parked.** Anything a machine can't decide lands in the **Review** queue. See [Review & approve](/kapi/recipes/review-and-approve).
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   Creating a project from the New Project dialog, opening the KapiMart sample,
-  adding a content collection, and reading the coverage and ship-gate panel.
+  adding a content collection, and reading the two-axis standing and the point map.
 </PendingMedia>
 
 </TabItem>
@@ -34,7 +35,7 @@ With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, and a terms source. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, and a terms source. From there your prompts stay short; "check this is on brand" needs no flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -48,24 +49,28 @@ kapi stats                     # blocks, words, characters for what's tracked
 kapi check                     # check the project's content; exit 3 on gate fail
 ```
 
-For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping — `kapi init --list-presets` lists them. The recipe is plain YAML:
+For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping; `kapi init --list-presets` lists them. The recipe is plain YAML, and the governance a source-only project checks against is bound under `defaults:`:
 
 ```yaml title="kapi.yaml"
 version: v1
 name: my-app
 defaults:
   source_language: en
+  voice: .kapi/voice.yaml            # the voice profile: kapi voice new --pack <pack> -o .kapi/voice.yaml
+  terms_source: .kapi/terms.json     # the committed terms record: kapi terms import / kapi apply write it
+  coordinates:
+    brand: my-app                    # a declared axis every collection inherits
 collections:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe **and `.kapi/`** — that directory is your project's context (terms, content memory, voice profile, and the record of where each unit stands in review), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
+Commit the recipe **and `.kapi/`**: that directory is your project's context (terms, content memory, voice profile, and the record of where each unit stands in review), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have (a Claude Code sign-in, Ollama, or an API key) and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>
 
 ## Next
 
-- [Add languages](/kapi/get-started/add-languages) — target locales, `kapi up`, review, gates.
-- [Projects](/kapi/projects) — the concept: ad-hoc vs project, bindings, the store.
-- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes) — the source-quality half.
+- [Add languages](/kapi/get-started/add-languages): target locales, `kapi up`, review, gates.
+- [Projects](/kapi/projects): the concept; ad-hoc vs project, bindings, the store.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): the source-quality half.

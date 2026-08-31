@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Connectors
-description: How content reaches a Bowrain workspace — content platforms, design tools, code repositories, and a developer's checkout via kapi — and how approved results publish back.
+description: How content reaches a Bowrain workspace, from content platforms, design tools, code repositories, and a developer's checkout via kapi, and how approved results publish back.
 keywords: [connectors, wordpress, figma, hubspot, github, gitlab, git, kapi, sync, publish]
 ---
 
@@ -11,10 +11,10 @@ import { LanesDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
 
 Bowrain governs content where it already lives. A **connector** links a
 workspace to a system that holds source content, brings that content into a
-project so the workspace's voice, terms, and content memory apply to it, and
-publishes approved results back to where they came from.
+project so the voice, terms, and content memory in force at its point apply to
+it, and publishes approved results back to where they came from.
 
-No single connector is the way in. A workspace can run several at once — a
+No single connector is the way in. A workspace can run several at once: a
 marketing site, a design file, and a product repository can all converge under
 one governed vocabulary.
 
@@ -22,7 +22,7 @@ one governed vocabulary.
 
 | Connector | What it holds | Where it runs | Direction |
 | --- | --- | --- | --- |
-| [WordPress](/server/connectors/wordpress) | Site posts — title, body, excerpt | Server-side | In and back out |
+| [WordPress](/server/connectors/wordpress) | Site posts: title, body, excerpt | Server-side | In and back out |
 | [HubSpot](/server/connectors/hubspot) | CMS page title and meta description | Server-side | In and back out |
 | [Figma](/server/connectors/figma) | Design text layers | Server-side | In only |
 | [GitHub / GitLab](/server/connectors/github) | Repository content files | Server-side | In, back out as a pull/merge request |
@@ -30,7 +30,7 @@ one governed vocabulary.
 
 Everything above the last row runs **server-side**: nobody installs anything,
 nothing is checked out, and the workspace reaches the source system directly
-over its API. The last row is the developer path — a person or a CI job working
+over its API. The last row is the developer path: a person or a CI job working
 in a repository, driving content in and out from where they already are.
 
 <LanesDiagram
@@ -65,13 +65,13 @@ in a repository, driving content in and out from where they already are.
 
 ## What a connector does
 
-1. **Fetch** — the connector reads source content from the external system and
+1. **Fetch.** The connector reads source content from the external system and
    delivers it into the project.
-2. **Converge** — the workspace catches the content up: reuse what memory
-   already holds, draft the rest, check everything against the voice profile
-   and the workspace's terms, and park what needs a person. See
-   [Keeping content caught up](/the-loop).
-3. **Publish** — approved results go back to the system they came from.
+2. **Converge.** The workspace catches the content up: checks the source
+   against the context, reuses what memory already holds, drafts the rest,
+   checks everything against the voice profile and the terms in force, and
+   parks what needs a person. See [Keeping content caught up](/the-loop).
+3. **Publish.** Approved results go back to the system they came from.
 
 <RoundTripDiagram
   forward={[
@@ -98,22 +98,27 @@ in a repository, driving content in and out from where they already are.
 Server-side connectors are scoped to a workspace and managed from a project's
 **Connectors** view in the web app: add one there, browse the content it can
 see, fetch it into the project, and publish results back. Saved credentials are
-write-only — used for sync, never displayed again. The same operations are
+write-only: used for sync, never displayed again. The same operations are
 available through the workspace connectors API for scripting. Both surfaces
 require the **manage connectors** permission.
 
 Sync is explicit: content moves when you select **Fetch now** or **Publish**, or
-call the corresponding endpoints. A fetch does not emit an event, so automation
-rules do not react to it — the convergence orchestrator subscribes to push
-completion. Catch fetched content up by starting a run or a flow, or let the
-project's `bowrain.converge` policy produce and review targets.
+call the corresponding endpoints. A fetch emits no event, so automation rules do
+not react to it; a run starts when a push completes. Catch fetched content up
+by starting a run or a flow, or let the project's `bowrain.converge` policy
+produce and review targets.
 
 The GitHub/GitLab connector is configured through the workspace connectors API,
 or from a project's Connectors page once the server has a GitHub App. The plain
 `git` and local `file` connectors are server-side building blocks with no
-web-app surface — they back the repository connector and server-hosted
-directories. The kapi connector needs no server-side configuration at all: it
-authenticates as the developer and connects a project from the command line.
+web-app surface: they back the repository connector and server-hosted
+directories, and only a single-tenant host registers them. The kapi connector
+needs no server-side configuration at all: it authenticates as the developer
+and connects a project from the command line.
+
+A PostHog connector reads locale demand from product analytics into the
+workspace's locale-demand view. It carries no content and is kept as labelled
+sample data rather than as a route in.
 
 ## Choosing a route for a repository
 
@@ -125,7 +130,7 @@ drives:
   pull/merge request that every delivery updates in place. There is no CI
   configuration in the repository and no CLI on anyone's machine.
 - **[kapi](/server/connectors/kapi)** when a developer wants the work under
-  their own hand — running it locally before a commit, watching progress stream
+  their own hand: running it locally before a commit, watching progress stream
   into their terminal, or gating a release in CI with an explicit exit code.
 
 They are not exclusive. A repository can deliver through GitHub while a
@@ -133,7 +138,7 @@ developer also runs kapi locally against the same project.
 
 ## Next steps
 
-- [Keeping content caught up](/the-loop) — what happens between fetch and publish
-- [Publish on brand](/server/publish-on-brand) — the content-platform route, end to end
-- [Automation](/server/automation) — rules that run when content arrives
-- [Connector system](/developer/connectors) — the Go interfaces behind a connector
+- [Keeping content caught up](/the-loop): what happens between fetch and publish
+- [Publish on brand](/server/publish-on-brand): the content-platform route, end to end
+- [Automation](/server/automation): rules that run when content arrives
+- [Connector system](/developer/connectors): the Go interfaces behind a connector

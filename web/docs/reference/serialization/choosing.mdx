@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: Choosing a format
-description: Which kapi serialization format to reach for — the native versus lossy interchange decision, bundle versus project archive, and how the content bundle maps onto XLIFF 2.2.
+description: "Which kapi serialization format to reach for: the native versus lossy interchange decision, bundle versus project archive, and how the content bundle maps onto XLIFF 2.2."
 keywords:
   [
     choosing a format,
@@ -25,34 +25,34 @@ inside kapi, or leaving it?**
 ## Native or interchange
 
 kapi's own formats are lossless. The industry interchange formats it also reads
-and writes — XLIFF and PO for content, TMX for content memory, TBX for terms —
+and writes (XLIFF and PO for content, TMX for content memory, TBX for terms)
 are a **deliberately lossy tier**. They drop the fields that make kapi's data
 useful inside kapi: entity and concept cross-links, per-entry provenance,
-brand and competitor flags, and free-form properties.
+the term-source (`brand_vocabulary`) and competitor flags, and free-form properties.
 
 That is why the native tier is spelled `bundle` rather than `json` on the
 command line. `kapi terms export --format json` also produces JSON, but it
 carries **no relations at all** and has no `kind` marker, so it cannot even be
-identified by sniffing. Two JSON outputs, very different guarantees — the
-format name is the thing that tells them apart.
+identified by sniffing. Two JSON outputs with very different guarantees; the
+format name tells them apart.
 
 | You are… | Reach for |
 | --- | --- |
 | Moving content between kapi commands | The native bundle |
-| Committing terminology for review | [`.terms.json`](/reference/serialization/terms) at the project root |
+| Committing terminology for review | [`.kapi/terms.json`](/reference/serialization/terms) (or any path bound with `terms_source`) |
 | Handing one task to a translator | A `kapi-interchange` [`.kpz`](/reference/serialization/project-archive) |
 | Archiving or transferring a whole project | A `kapi-project` [`.kpz`](/reference/serialization/project-archive) |
 | Feeding a third-party CAT tool or TMS | XLIFF |
 | Feeding a third-party memory or terminology tool | TMX or TBX |
-| Loading strings in a running application | Neither — compile to a runtime catalog |
+| Loading strings in a running application | Neither; compile to a runtime catalog |
 
 Use an interchange format when the recipient is outside this project, and
 accept the loss knowingly. Use a native format everywhere else.
 
 ## Bundle or project archive
 
-Both are native and lossless, so the boundary is not size — it is **whether the
-recipient already shares your project context**.
+Both are native and lossless, so the boundary is **whether the recipient
+already shares your project context** rather than size.
 
 A [content bundle](/reference/serialization/content-bundle) is one document's
 blocks and targets. A [project archive](/reference/serialization/project-archive)
@@ -61,7 +61,7 @@ content memory, the terms, the skeletons, the source bytes, and a Merkle root
 hash over all of it.
 
 - Reach for a **bundle** when the recipient already has the same memory and
-  terms — another step in your own pipeline, say.
+  terms (another step in your own pipeline, say).
 - Reach for a **`.kpz`** when they do not: a handoff, an archive, or a
   resumable run.
 
@@ -74,22 +74,22 @@ faithfully. A bundle cannot do that, because the context was never in it.
 [XLIFF](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html)
 is the OASIS standard for exchanging translatable content between tools. KBF
 serves the same purpose _inside_ the neokapi toolchain. The two formats model
-the same problem and most concepts map cleanly between them — but they make
+the same problem and most concepts map cleanly between them, but they make
 different choices about structure, segmentation, and serialization. This page
 maps KBF onto XLIFF and explains where, and why, they diverge, and where XLIFF
 is the better tool for the job.
 
 The comparison targets **XLIFF 2.2**, which is published in two parts: **Part 1
-(Core)** — the structural and inline model every conformant tool understands —
-and **Part 2 (Extended)** — a set of optional modules (Translation Candidates,
+(Core)**, the structural and inline model every conformant tool understands,
+and **Part 2 (Extended)**, a set of optional modules (Translation Candidates,
 Glossary, Validation, Plural/Gender/Select, and more). Where a capability lives
 in an Extended module rather than Core, that is called out, because older
 XLIFF 2.0 / 2.1 tools and some CAT tools support only a subset of the modules.
 
 The two are interchange formats for **different recipients**. A task-scoped
 **bilingual `.kpz`** (the `kind: kapi-interchange` profile of the package) is
-neokapi's *native* interchange format — lossless, with inline codes plus
-content-memory and term context in one file — for a translator or reviewer
+neokapi's *native* interchange format (lossless, with inline codes plus
+content-memory and term context in one file) for a translator or reviewer
 working in kapi or the neokapi review tool. **XLIFF** is the *industry-interop*
 tier: neokapi reads and writes it
 so content can move to and from third-party CAT tools and TMS platforms that
@@ -106,14 +106,14 @@ KBF is also the internal content representation the pipeline operates on.
 | (no structural grouping)         | `<group>`                                                                                   | XLIFF can nest `<group>`s for hierarchy; KBF blocks are flat within a `Document`.                                     |
 | `Block`                          | `<unit>`                                                                                    | The unit of translation tracking.                                                                                     |
 | `source` `Run[]`                 | `<segment><source>` content                                                                 | KBF has no structural segment; XLIFF wraps source/target in one or more structural `<segment>`s per `<unit>`.         |
-| `targets` map (locale → `Run[]`) | `<segment><target>`                                                                         | **KBF holds many target locales in one file; XLIFF is bilingual — one `trgLang` per document.**                       |
+| `targets` map (locale → `Run[]`) | `<segment><target>`                                                                         | **KBF holds many target locales in one file; XLIFF is bilingual: one `trgLang` per document.**                        |
 | (no per-target state)            | `<segment state>`                                                                           | XLIFF tracks `initial` → `translated` → `reviewed` → `final` (+ `subState`); KBF has no segment state machine.        |
 | `text` run                       | character data                                                                              |                                                                                                                       |
 | `ph` run                         | `<ph>` (standalone code)                                                                    | KBF carries the original token inline in `data`; XLIFF references native data via `<originalData>`/`dataRef`.         |
 | `pcOpen` / `pcClose`             | `<pc>` (or `<sc>` / `<ec>`)                                                                 | A paired code wrapping content. XLIFF distinguishes well-formed `<pc>` from overlapping `<sc>`/`<ec>` spans.          |
 | `RunConstraints` (per-run)       | `canCopy` / `canDelete` / `canReorder` / `canOverlap`                                       | Both formats encode per-code editing rules; XLIFF's are a standardized inline-code attribute set.                     |
 | `sub` run                        | `subFlows` / `subFlowsStart`/`subFlowsEnd` (referenced `<unit>` ids)                        | Embedded content extracted by a subfilter.                                                                            |
-| `plural` / `select` run          | **Plural, Gender, and Select Module** (Extended, `urn:…:xliff:pgs:1.0`)                     | First-class in KBF Core; in XLIFF an _Extended module_ added in 2.2 — and with no standard representation before 2.2. |
+| `plural` / `select` run          | **Plural, Gender, and Select Module** (Extended, `urn:…:xliff:pgs:1.0`)                     | First-class in KBF Core; in XLIFF an _Extended module_ added in 2.2, with no standard representation before 2.2.      |
 | `Placeholder` metadata           | code metadata + `<originalData>`                                                            | KBF declares every placeholder once per block for validation.                                                         |
 | `BlockProperties` (file/line/…)  | `<note>` / Metadata module                                                                  | Provenance for translators and tools.                                                                                 |
 | `.overlays.jsonl` annotations              | `<mrk>` / `<sm>`/`<em>` inline markers + Metadata module                                    | **KBF keeps annotations stand-off in a separate file; XLIFF inlines them.**                                           |
@@ -122,8 +122,8 @@ KBF is also the internal content representation the pipeline operates on.
 
 ## Where they differ in philosophy
 
-**JSON vs XML.** KBF is JSON with a deterministic serializer — sorted map keys,
-fixed field order, 2-space indent, no HTML escaping, trailing newline — so a
+**JSON vs XML.** KBF is JSON with a deterministic serializer (sorted map keys,
+fixed field order, 2-space indent, no HTML escaping, trailing newline), so a
 document hashes stably and diffs cleanly in git. XLIFF is XML, where equivalent
 documents can serialize many ways (attribute order, whitespace, namespace
 prefixes), which makes content hashing and line-diffing harder.
@@ -134,16 +134,16 @@ native data (`<originalData>`/`<data>` referenced by `dataRef`,
 `dataRefStart`/`dataRefEnd`), which de-duplicates repeated codes and is robust,
 at the cost of a layer of indirection.
 
-**Segmentation is an overlay, not structure.** XLIFF makes `<segment>` a
+**Segmentation is an overlay.** XLIFF makes `<segment>` a
 structural child of `<unit>`, and gives each segment its own translation state.
 KBF deliberately has _no_ `Segment` type: segmentation is an opt-in stand-off
 overlay anchored to run-index ranges
 ([F-02](/contribute/architecture/foundations/f-02-content-model)). A block is always a flat
-`Run[]`; how it is segmented is metadata layered on top, not a reshaping of the
-content.
+`Run[]`; how it is segmented is metadata layered on top rather than a reshaping
+of the content.
 
 **Plural and select.** ICU plural and select constructs are first-class **Core**
-runs in KBF — a `pivot` plus a map of `Run[]` per form — so markup and
+runs in KBF (a `pivot` plus a map of `Run[]` per form), so markup and
 placeholders inside a clause stay first-class and any tool can reason about the
 whole group. XLIFF gained an equivalent only in 2.2, as the optional **Plural,
 Gender, and Select Module** in Part 2 (Extended); XLIFF 2.0 / 2.1 had no standard
@@ -164,21 +164,21 @@ each block's `targets` map. XLIFF is bilingual by design: a document declares on
 
 ## Where XLIFF is the stronger choice
 
-KBF is deliberately narrow — a deterministic content-exchange format for the
+KBF is deliberately narrow: a deterministic content-exchange format for the
 pipeline. XLIFF is a mature, broad industry standard, and there are real areas
 where it is the better tool:
 
 - **Industry interoperability.** XLIFF is _the_ lingua franca of translation
   vendors, CAT tools (Trados, memoQ, Phrase, …) and TMS platforms. Handing off
-  to a human translation supply chain means XLIFF, not KBF.
+  to a human translation supply chain means XLIFF.
 - **A translation workflow state machine.** XLIFF's per-segment `state`
   (`initial` → `translated` → `reviewed` → `final`) plus `subState` models the
   lifecycle of a translation through review. KBF has no notion of target state;
-  it records committed content, not where it is in a workflow.
+  it records committed content rather than workflow position.
 - **Inline memory and MT match suggestions.** The **Translation Candidates**
   module carries scored translation suggestions (`<mtc:matches>`) right next to
-  the unit they apply to. KBF has no inline match-candidate representation —
-  matches live in the content memory, not in the exchange file.
+  the unit they apply to. KBF has no inline match-candidate representation;
+  matches live in the content memory rather than the exchange file.
 - **A rich, standardized module ecosystem.** XLIFF 2.2 Extended defines
   **Glossary**, **Format Style**, **Metadata**, **Resource Data**, **Size and
   Length Restriction** (enforce length limits on translations), **Validation**
@@ -187,7 +187,7 @@ where it is the better tool:
   none of these; equivalent concerns are handled by separate neokapi subsystems
   or `.overlays.jsonl` annotations rather than standardized in the file.
 - **Formal conformance and processing requirements.** XLIFF specifies how a
-  conformant Agent must behave — e.g. an agent MUST preserve XLIFF-defined
+  conformant Agent must behave, e.g. an agent MUST preserve XLIFF-defined
   elements it does not understand, and MUST NOT alter the `<skeleton>`. That
   contract is what lets a chain of independent tools cooperate safely on the same
   document.
@@ -211,15 +211,15 @@ and deterministic serialization make it the natural fit for programmatic and
 AI-driven workflows.
 
 Use **XLIFF** when you need to interoperate with the wider translation industry
-— handing content to a translation vendor, or round-tripping through an external
-CAT tool or TMS — or when you need the workflow state, match candidates, or
+(handing content to a translation vendor, or round-tripping through an external
+CAT tool or TMS), or when you need the workflow state, match candidates, or
 Extended modules described above. neokapi treats XLIFF as an interchange
 boundary: `kapi extract` can emit it and `kapi merge` can consume it, so you can
 move between KBF and XLIFF through the toolchain rather than choosing one forever.
 
 ## See also
 
-- [Specification](/reference/serialization/content-bundle) — the normative KBF schema.
-- [Bilingual workflow](/kapi/bilingual-workflow) — extracting to and merging from interchange formats.
-- [Format reference](/formats) — the full grid of format readers and writers, including XLIFF.
-- [XLIFF 2.2 Core (Part 1)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html) and [Extended (Part 2)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html) — the OASIS specification.
+- [Specification](/reference/serialization/content-bundle): the normative KBF schema.
+- [Bilingual workflow](/kapi/bilingual-workflow): extracting to and merging from interchange formats.
+- [Format reference](/formats): the full grid of format readers and writers, including XLIFF.
+- [XLIFF 2.2 Core (Part 1)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html) and [Extended (Part 2)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html): the OASIS specification.

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Overview
-description: The formats kapi writes for itself — the store, bundle and committed-state distinction, the compound suffix convention, the shared version contract, and the two ways a file says what it is.
+description: "The formats kapi writes for itself: the store, bundle and committed-state distinction, the compound suffix convention, the shared version contract, and the two ways a file says what it is."
 keywords:
   [
     kapi serialization formats,
@@ -21,25 +21,25 @@ These are the formats kapi writes for itself: the on-disk shapes it uses to
 move its own content, memory, terminology, annotations and decisions between
 commands, machines and people.
 
-They are distinct from the formats kapi *reads and writes on your behalf* —
-JSON catalogs, DOCX, Markdown, `strings.xml` and the rest — which are covered
+They are distinct from the formats kapi *reads and writes on your behalf*
+(JSON catalogs, DOCX, Markdown, `strings.xml` and the rest), which are covered
 in the [format reference](/formats). This section is about kapi's own file
 family.
 
 ## Three kinds of artifact
 
-The most useful distinction in this family is not between one format and
-another. It is between three roles a file can play.
+The most useful distinction in this family is between three roles a file can
+play.
 
-**A store is working state.** One SQLite database under the project's `.kapi/`
-directory — `store.db`, whose tables hold the content memory, the terms, the
-block cache and the unit-state working set — plus the skeleton and parse caches
-beside it. It is fast, indexed, mutable, and **rebuildable**: a projection of
+**A store is working state.** One SQLite database at `.kapi/work/store.db`,
+whose tables hold the content memory, the terms, the voice store, the block
+cache and the unit-state working set, plus the skeleton and parse caches beside
+it. It is fast, indexed, mutable, and **rebuildable**: a projection of
 what the project commits, never its truth. See
 [the project store](/kapi/project-store).
 
 **A bundle is a portable serialization.** One reviewable, hashable, diff-able
-file carrying the same content losslessly — a
+file carrying the same content losslessly: a
 [content bundle](/reference/serialization/content-bundle), a
 [content-memory bundle](/reference/serialization/content-memory), a
 [terms bundle](/reference/serialization/terms), or a whole
@@ -50,7 +50,7 @@ are what you commit, hand over, or ship.
 [terms bundle](/reference/serialization/terms) kept as the project terminology, a
 [voice profile](/reference/serialization/voice-profile), a
 [project unit-state record](/reference/serialization/project-state). These are the
-review surface — the files a person reads in a pull request.
+review surface, the files a person reads in a pull request.
 
 ### The rule this produces
 
@@ -73,8 +73,8 @@ appear in a diff, if it were part of the derived store.
 | [Annotation sidecar](/reference/serialization/overlays) | `.overlays.jsonl` | header `annotationType` | Stand-off annotations anchored into runs |
 | [Overlay set](/reference/serialization/overlays) | `.overlays.json` | `kapi-overlay-set` | In-progress workspace overlay layers |
 | [Project archive](/reference/serialization/project-archive) | `.kpz` | `kapi-project`, `kapi-interchange` | A whole project, or one interchange task |
-| [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/state/`) | `kapi-project-state` | Review and workflow decisions |
-| [Voice profile](/reference/serialization/voice-profile) | `.yaml` | — | Tone, style, vocabulary, examples |
+| [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/state/`) | `kapi-state` | Review and workflow decisions |
+| [Voice profile](/reference/serialization/voice-profile) | `.yaml` | (none) | Tone, style, vocabulary, examples |
 
 Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 
@@ -82,7 +82,7 @@ Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 
 Every one of these files except the project archive and the voice profile is
 JSON or JSON Lines, and each portable one keeps a **marker segment ahead of the
-serialization suffix** — `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The unit
+serialization suffix**: `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The unit
 shards are the exception, and the exception proves the rule: they never travel
 alone, their names are derived from document keys, and the directory holding
 them (`.kapi/state/`) already says what they are.
@@ -95,8 +95,8 @@ recognised before parsing.
 One cost follows: the standard library's `filepath.Ext` reports `.json` for
 every one of them. Extension-driven code goes through the
 helpers in
-[`core/format`](https://github.com/neokapi/neokapi/tree/main/core/format) —
-`Ext`, `TrimExt`, `Stem`, `HasExt` — which return the most specific match. A
+[`core/format`](https://github.com/neokapi/neokapi/tree/main/core/format)
+(`Ext`, `TrimExt`, `Stem`, `HasExt`), which return the most specific match. A
 naive `filepath.Ext` on `en-US.kbf.json` yields `.json`, and trimming that
 leaves a stray `.kbf` behind.
 
@@ -107,7 +107,7 @@ follows the same forward-compatibility rule:
 
 > Reject an unknown **major**. Accept unknown **minors** of a known major.
 
-Strict on major, best-effort on minor — not open-ended forward compatibility. A
+Strict on major, best-effort on minor. A
 file from a future major version is refused with a message naming the version
 the build speaks, rather than parsed into something half-understood.
 
@@ -120,10 +120,10 @@ separately, and the overlay set inside a project archive carries **its own**
 Identification is deliberately split, and the two mechanisms answer different
 questions:
 
-- **`kind`** — the magic string on the document root. Answers *what schema is
+- **`kind`**: the magic string on the document root. Answers *what schema is
   this?*, works on content alone, and survives a rename. It is what sniffing
   uses.
-- **The extension** — answers *what should I expect?* before the file is
+- **The extension**: answers *what should I expect?* before the file is
   opened, which is what lets a command route a path without reading it.
 
 The two are checked independently, so a file that is not what it claims to be
@@ -134,9 +134,9 @@ reader before opening anything.
 ## Import identifies the file, or says that it cannot
 
 `kapi memory import` and `kapi terms import` resolve `--format auto` from the
-extension, and they refuse to guess. Guessing looks harmless and is not. The
+extension, and they refuse to guess, because a wrong guess is silent. The
 TMX reader handed a file with no translation units returns zero entries, and
-the CSV reader skips every row it cannot turn into a concept — so a file the
+the CSV reader skips every row it cannot turn into a concept, so a file the
 importer never actually read reports `Imported 0 entries` and exits 0, which is
 indistinguishable from an empty content memory.
 
@@ -155,6 +155,6 @@ extension at all, so there `auto` falls back to the interchange default.
 
 ## See also
 
-- [Choosing a format](/reference/serialization/choosing) — including when an interchange format is the right answer instead.
-- [Content model](/framework/content-model) — the in-memory model these serialize.
-- [Project file](/reference/project-file) — the `kapi.yaml` recipe that binds them.
+- [Choosing a format](/reference/serialization/choosing): including when an interchange format is the right answer instead.
+- [Content model](/framework/content-model): the in-memory model these serialize.
+- [Project file](/reference/project-file): the `kapi.yaml` recipe that binds them.

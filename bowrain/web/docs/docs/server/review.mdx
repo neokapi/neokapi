@@ -1,100 +1,214 @@
 ---
 sidebar_position: 4
 title: Review
-description: The Review surface is where translations are checked block by block, and the corrections you accept feed back into the workspace's shared context.
+description: The governed review session walks every pending block across a project's items and locales; approvals feed the context graph, decide a locale's ship state, and continue the loop through to delivery.
+keywords: [review, review session, ship state, governed, ai_shippable, pending, bulk approve, review inbox, in-context review, bowrain]
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
 
 # Review
 
-The Review surface is where translations are checked block by block. It is a
-sibling of the [Translation Editor](/server/translation-editor), scoped to the
-same file and reached from the surface switcher in the header.
-
-Review is deliberately separate from editing: the Translate editor stays focused
-on producing translations, while Review is focused on accepting them.
-
-Review is also the promote step of [catching content up](/the-loop): what a run of
-`kapi up` — or a server-side convergence run — **parks** because a machine
-cannot decide it lands here as pending work. Approving it moves the unit past
-what the loop can do unaided; the next run reads the decision and moves on.
-
-The Review surface steps through a file block by block — source, target, and the
-draft→translated→reviewed status — with approvals recorded against the workspace.
-Review status is tracked **per locale**: a block's status is a property of each
-target variant, so reviewing the French target never changes the German one, and
-the status you see is for the locale you are reviewing.
+Review is the promote step of [catching content up](/the-loop). A run drafts
+and checks, and **parks** what a machine cannot decide; a person promotes it
+here. Every decision is recorded against the workspace, feeds the
+[context graph](/server/context), and decides what a locale can ship as.
 
 <ThemedVideo
   sources={{
     light: "/video/bowrain-web/bowrain-web-review-light.webm",
     dark: "/video/bowrain-web/bowrain-web-review-dark.webm",
   }}
+  outdated="wording"
 />
 
-## Source review: the phase-1 worklist
+## The review session
 
-Target review is the *second* gate. The loop settles the source **before** it
-translates ([the loop is source-first](/the-loop)), so a run has a first, upstream
-worklist: **source review**. When a convergence run finds source that has not
-cleared the project's `source_gate`, it does not fan out — it **holds** the
-fan-out for that content and routes it to a person instead of paying to translate
-an unsettled source into every language.
+A project has one review surface: the **review session**. It is a dedicated
+page rather than a mode of the editor, and every entry point that says
+"review", whether a run's hand-off, a dashboard card, or a file's own review
+link, opens it.
 
-Concretely, when a run holds on source:
+The session walks every pending block across the project's items and locales
+in one keyboard-first flow. Each step shows the source beside the draft, the
+checks that fired on it, the voice findings, and the terms in force at the
+block's point. A collection can be carried into the session from the project
+overview, so a reviewer who owns the help centre reviews only the help centre;
+item and locale filters narrow the queue further.
 
-- The run parks with the reason **`source_not_ready`** and records how many
-  blocks are blocked on source. In the **Runs** view this reads as *parked —
-  N blocks need source review*; the run still exits without error.
-- The loop opens a **source-review task** (`source_review`) for a member with
-  source-edit permission. It is the same task queue as `translate`, `review`, and
-  the fix-up tasks — no new surface, just a new task type — and appears on the
-  Task Board and in *My Tasks*.
+For each block:
 
-A source reviewer works the same content as this Review surface, but on the
-**source** rather than a target: they check terminology consistency,
-do-not-translate identification, placeholder correctness, and context before the
-language fan-out. Settling the source once here prevents fixing the same source
-issue once per locale downstream.
+- **Approve** marks the target reviewed for that locale.
+- **Reject** sends it back to draft for another pass.
+- **Edit** fixes the draft in place. A fix is a correction made at a point, and
+  corrections are what the context learns from (see
+  [Voice and corrections](/server/context-voice)).
 
-Clearing the task lifts the affected source units to the gate and lets the loop
-proceed: completing it emits `source.review.completed`, which fans out the
-per-locale translate/review tasks the run was holding. A reviewer can also
-lower the bar — a project may set `source_gate: none` to opt out of the gate
-entirely — but the governed default is to settle first. The next run reads the
-cleared source and translates the now-approved content, memory-first.
+Review status is tracked **per locale**. A block's status is a property of each
+target, so approving the French target never changes the German one.
 
-## Block list
+### Correct the context from the session
 
-Review lists every translatable block with its source, target, and current
-status. Filter the list by status — **Not Started**, **Draft**, **Translated**,
-or **Reviewed** — to work through one stage at a time. Each filter shows a count
-so you can see how much of the file remains.
+Some of what a reviewer notices is about the rules rather than the draft. Three
+actions in the session act on the context instead of the block:
 
-## Approve and reject
+- **Mark a source term.** Records that a word in the source is a term, with the
+  status it should carry. Setting a governed status such as `forbidden` or
+  `preferred` opens a [change-set](/server/context#experiments-change-sets-and-pilots)
+  rather than applying directly, so someone other than the author approves it.
+- **Propose a source change.** A fix that belongs in the source, not in one
+  target, is routed to the source owner as a proposal. It invalidates every
+  locale of that block once accepted, and the proposal shows that reach before
+  anyone accepts it.
+- **Suggest a voice rule.** A recurring fix becomes a candidate rule for the
+  voice profile in force at the point, reviewed on the
+  [Context hub's Voice section](/server/context-voice).
 
-Each block has **Approve** and **Reject** actions. Approving marks the block
-**Reviewed**; rejecting sends it back to **Draft** for further work. The status
-badge updates in place.
+### Bulk approval
 
-## Bulk actions
+A workspace with one reviewer and many drafts does not need to click through
+every block. **Approve everything passing** approves every pending block whose
+checks report no error-severity finding and whose voice score meets the
+profile's compliance bar. Blocks that fail a check or fall below the bar are
+left pending for a person. The same predicate decides a locale's ship state
+below, so what bulk approval accepts is exactly what was already shippable on
+machine review.
 
-Select blocks individually or use **Select all** to act on the whole filtered
-list at once:
+### Machine authorship
 
-- **Mark reviewed** — approve every selected block.
-- **Apply exact Memory** — fill selected blocks from exact (100%) content-memory
-  matches.
+Drafts a run produced are recorded as machine-authored. Separation of duties
+(see [Members and roles](/server/members-and-roles#governance-controls)) stops
+a person from approving their own writing; it does not stop the one person in a
+small workspace from approving what the machine wrote. The approval is recorded
+in the audit log like any other.
 
-## QA findings
+### The reviewer is summoned
 
-Click **Run QA** to check the file. Findings appear both inline under each
-affected block and in a problems panel; clicking a finding scrolls to its block.
-Each finding carries a severity (error or warning), a type, and a message.
+When a run parks work, the reviewer is told: a review task opens, an email goes
+out, and the app shows a banner and a badge sized to what is actually pending.
+The summons names the count and the locales, not the whole project.
 
-## Brand review
+### Approval continues the loop
 
-Block-level translation review is separate from brand-rule review. Promoting or
-rejecting suggested brand rules happens on the brand review page — see
-[Voice & corrections](/server/context-voice).
+Approving the last pending block of a locale closes its review task. When that
+empties the project's whole review queue, a completing run starts on its own
+and delivers the approved content, so review never ends in a dead end that
+needs another click.
+
+<PhaseFlow
+  nodes={[
+    { label: "run parks", sub: "checks green is not enough", role: "translate" },
+    { label: "session", sub: "approve · reject · edit · correct the context", role: "qa", edge: "summons" },
+    { label: "review complete", sub: "last pending block approved", edge: "approve" },
+    { label: "completing run", sub: "delivers approved content", role: "io", edge: "continues" },
+  ]}
+  caption="A run parks what it cannot decide; the session promotes it; the last approval starts the run that delivers."
+/>
+
+## Source review: the first worklist
+
+Target review is the second gate. The loop settles the source **before** it
+translates ([the loop is source-first](/the-loop)), so a run has an upstream
+worklist: **source review**. When a run finds source that has not cleared the
+project's `source_gate`, it holds the fan-out for that content and routes it to
+a person instead of paying to translate an unsettled source into every
+language.
+
+When a run holds on source:
+
+- The run parks with the reason `source_not_ready` and records how many blocks
+  are blocked on source. In the **Runs** view this reads as *parked, N blocks
+  need source review*; the run still exits without error.
+- The loop opens a **source review** task for a member with source-edit
+  permission. It is the same task queue as translate, review and the fix-up
+  tasks, and appears on the task board and in *My Tasks*.
+
+A source reviewer works the same content on the **source** side: terms, do-not-
+translate marks, placeholders, and context, before the fan-out. Clearing the
+task lifts the affected source to the gate; the next run translates the
+now-approved content, memory first. A project that wants raw fan-out sets
+`source_gate: none`.
+
+## The review inbox
+
+The workspace-level **Review inbox** rolls up every project awaiting review,
+most-pending first, each linking into its own session. It reads the same
+project-scoped standing the dashboard shows, so pooled review and review
+assigned to a person are both visible, not only what is assigned to you.
+
+## Ship states
+
+Review decides what a locale can ship as. Bowrain derives one **ship state** per
+locale, per project and per collection, from what the work left behind:
+
+| State | Meaning |
+| --- | --- |
+| `governed` | Every block translated, no failing check, nothing stale, and every target carrying a review decision. |
+| `ai_shippable` | Every block translated and no failing check, but review is incomplete: shippable on machine review only. |
+| `pending` | Anything less: partial coverage, a failing check, a stale decision, or nothing to ship yet. |
+
+The rule is the same everywhere it is read. A locale with any untranslated
+block, any error-severity finding, or any decision made against content that
+has since changed is `pending`. Otherwise it is `governed` when every target is
+approved and `ai_shippable` when some are not. A block whose target uses a
+forbidden term, or whose voice score sits under the profile's bar, counts as a
+failing check, so it can never be `governed` or `ai_shippable`.
+
+The state appears on the project dashboard, per collection, in the Runs view's
+per-locale summary, and in the workspace loop rollup. It is also published at
+the delivery edge: `GET /api/v1/projects/:id/ship.json` serves a per-locale
+manifest a site's language picker can read to hide locales that are not
+shippable and to badge those shipped on machine review. The same manifest is
+what `kapi status --ship --emit ship.json` writes at build time, so a site
+built from a checkout and a site reading the server agree.
+
+Set the bar where the content sits. A legal notice waits for a person
+(`governed`); a help article may ship on checks (`ai_shippable`). The project's
+`ship_gate` and per-scope `ship_gates` in the recipe carry that decision (see
+[Project model](/cli/project-model)).
+
+## Review in place
+
+Strings read differently in a component than in a table. A collection can
+declare where its strings can be read in place:
+
+```yaml
+collections:
+  - name: web-ui
+    channel: app
+    preview:
+      kind: storybook
+      url: https://storybook.example.com
+    content:
+      - path: "i18n/en/*.json"
+        format: json
+```
+
+`preview` names a host and how to find a view in it. A `storybook` host
+publishes an index that maps components to stories, so an item resolves to the
+stories of the components its blocks name. The offer to review in place appears
+on the page a reviewer opens a file from; the reviewer's own translations are
+pushed into the running page as they review. A collection with no `preview`
+block offers no in-place reading. The block is declared per collection because
+a repository publishes one host per surface it ships.
+
+## Checks in review
+
+Checks run in the loop, and their findings travel with the block into the
+session: each finding carries a severity, a type, and a message, and a block
+with an error-severity finding cannot be approved in bulk. A reviewer can re-run
+the checks over a file from the session after editing.
+
+## Voice review
+
+Block review and voice review are different decisions. Promoting or rejecting a
+candidate rule, or a rule change bundled into a change-set, happens on the
+[Context hub's Voice section](/server/context-voice), by someone other than the
+rule's author.
+
+## Related
+
+- [Keeping content caught up](/the-loop): where a run parks, and why
+- [Voice and corrections](/server/context-voice): how a correction becomes a rule
+- [Members and roles](/server/members-and-roles): who may review which point
+- [The loop in CI](/cli/ci/overview): the ship gate, in a pipeline

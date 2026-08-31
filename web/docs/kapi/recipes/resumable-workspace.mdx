@@ -14,21 +14,21 @@ import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 
 # Pause & resume a big run
 
-**Goal:** a big run that doesn't have to finish in one sitting. A `.kpz` is a single file holding an entire run in progress — pull sources into it, work as far as you get, set it down, and resume exactly where you left off, later or on another machine. Its configuration (languages, output layout) rides inside the file: no project, no server. The parcel model sits inside the [Projects](/kapi/projects) concept; the package format is in the [KBF reference](/reference/serialization/project-archive).
+**Goal:** a big run that doesn't have to finish in one sitting. A `.kpz` is a single file holding an entire run in progress: pull sources into it, work as far as you get, set it down, and resume exactly where you left off, later or on another machine. Its configuration (languages, output layout) rides inside the file: no project, no server. The parcel model sits inside the [Projects](/kapi/projects) concept; the package format is in the [project archive reference](/reference/serialization/project-archive).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The `.kpz` workspace lifecycle is a CLI capability today — Kapi Desktop does not drive a parcel directly. Where Desktop meets it: a project you work on visually can be snapshotted from the CLI (`kapi pack`) for a colleague, and the translated files a `merge` emits open and preview in Desktop like any others. For pausing and resuming *project* work visually, the project store already persists between sessions — just reopen the project.
+The `.kpz` workspace lifecycle is a CLI capability; Kapi Desktop does not drive a parcel directly. Where Desktop meets it: a project you work on visually can be snapshotted from the CLI (`kapi pack`) for a colleague, and the translated files a `merge` emits open and preview in Desktop like any others. For pausing and resuming *project* work visually, the project store already persists between sessions; reopen the project.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
 Hand the parcel over like you would to a person:
 
-> Here's `work.kpz` from the vendor — finish the French pass, run the checks, and merge the files out.
+> Here's `work.kpz` from the vendor: finish the French pass, run the checks, and merge the files out.
 
-The assistant inspects it (`kapi info`), resumes the work in place, and merges when done. Because progress is derived from the content itself — the overlays present — resuming is idempotent: the assistant can't double-translate what's already done.
+The assistant inspects it (`kapi info`), resumes the work in place, and merges when done. Because progress is derived from the content itself (the overlays present), resuming is idempotent: the assistant can't double-translate what's already done.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -48,11 +48,11 @@ kapi merge work.kpz -o locales/                           # emit the finished fi
 What's happening underneath:
 
 - **Extract** records a small recipe (target locales, output layout) so later steps need no flags. By default the `.kpz` carries identity + a round-trip skeleton, not raw bytes; `--with-source` embeds the originals for offline re-extraction.
-- **Transforms run against a working cache** keyed to the `.kpz` — the file itself changes only when you `pack` (or pass `--pack` on a transform). `info` reports `dirty` when the cache holds unpacked work. Re-running a transform reuses work already done, so AI steps never run twice.
-- **Merge replays** the stored translations onto the source and writes one file per source × locale — it never re-runs a tool or calls a provider. With no `-o` it uses the recipe's layout.
+- **Transforms run against a working cache** keyed to the `.kpz`; the file itself changes only when you `pack` (or pass `--pack` on a transform). `info` reports `dirty` when the cache holds unpacked work. Re-running a transform reuses work already done, so AI steps never run twice.
+- **Merge replays** the stored translations onto the source and writes one file per source × locale; it never re-runs a tool or calls a provider. With no `-o` it uses the recipe's layout.
 - **Another machine** just receives the packed file: the first command rebuilds the cache from the `.kpz` alone.
 
-One thing to avoid: running a `.kpz` workspace *and* a `.kapi` project over the same content — use the parcel when there is no project.
+One thing to avoid: running a `.kpz` workspace *and* a kapi project over the same content. Use the parcel when there is no project.
 
 </TabItem>
 </Tabs>
@@ -63,11 +63,11 @@ Walk the lifecycle as narrated commands, live in your browser:
 
 <KapiGuidedEmbed id="kapi-kpz-workspace" />
 
-Then do it yourself — work, **pack**, reopen on a fresh path (a stand-in for another machine), and watch kapi rebuild the workspace from the file alone:
+Then do it yourself: work, **pack**, reopen on a fresh path (a stand-in for another machine), and watch kapi rebuild the workspace from the file alone:
 
 <WorkspaceExplorer defaultSampleId="json" />
 
 ## Next
 
-- [The Kapi format family & `.kpz` package](/reference/serialization/project-archive) — the package format and its working-state members.
-- [Hand off to translators](/kapi/bilingual-workflow) — the bilingual interchange profile of the same round-trip.
+- [The Kapi format family & `.kpz` package](/reference/serialization/project-archive): the package format and its working-state members.
+- [Hand off to translators](/kapi/bilingual-workflow): the bilingual interchange profile of the same round-trip.

@@ -1,20 +1,19 @@
 ---
 sidebar_position: 4
 title: Content memory
-description: The content memory holds pairs of source and target segments that Bowrain reuses to draft and check new translations across the whole workspace.
+description: The content memory holds the approved wording a workspace reuses, pairs of source and target text with the point and the context they were approved under, so a draft can recycle what the workspace has already settled.
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Content memory
 
-The content memory holds pairs of source and target text segments that Bowrain
-reuses across projects to keep translations consistent and avoid re-translating
-what the workspace has already settled. It is the same store the engine keeps
-locally, held on the server instead — entries, matches, and scores.
-
-The content memory and terminology live on the server, shared across every
-project and translator — searchable and versioned.
+The content memory holds the approved wording a workspace reuses. Each entry
+pairs a source segment with a target segment, and carries where and under what
+context it was approved, so a run can recycle what the workspace has already
+settled instead of drafting it again. It is the same store the engine keeps
+locally, held on the server instead, shared across every project in the
+workspace.
 
 <ThemedVideo
   sources={{
@@ -28,10 +27,10 @@ project and translator — searchable and versioned.
 
 There are two ways to open the content memory browser:
 
-1. **From a project** — click the **Content memory** button in the project view
+1. **From a project**: click the **Content memory** button in the project view
    header. This opens the browser with the project's source and target locales
    pre-selected.
-2. **From the sidebar** — click **Content memory** in the main sidebar to browse
+2. **From the sidebar**: click **Content memory** in the main sidebar to browse
    the workspace-scoped content memory without locale pre-filtering.
 
 ## Browsing entries
@@ -41,7 +40,7 @@ The browser displays entries in a paginated table with these columns:
 | Column            | Description                      |
 | ----------------- | -------------------------------- |
 | **Source**        | The source language text         |
-| **Target**        | The target language translation  |
+| **Target**        | The target language text         |
 | **Source Locale** | Language code of the source text |
 | **Target Locale** | Language code of the target text |
 | **Updated**       | Date the entry was last modified |
@@ -51,14 +50,15 @@ The entry count badge in the header shows the total number of entries matching c
 
 ## Searching
 
-Type in the search box to filter entries by source or target text. The search uses debounced input (300ms delay) to avoid excessive API calls while you type. Results update automatically as you type.
+Type in the search box to filter entries by source or target text. Results
+update as you type.
 
 ## Filtering by locale
 
 Use the locale filter dropdowns to narrow entries:
 
-- **Source locale filter** — show only entries with a specific source language
-- **Target locale filter** — show only entries with a specific target language
+- **Source locale filter**: show only entries with a specific source language
+- **Target locale filter**: show only entries with a specific target language
 
 Filters can be combined with text search. Changing a filter resets to page 1.
 
@@ -66,17 +66,17 @@ Filters can be combined with text search. Changing a filter resets to page 1.
 
 1. Click **Add Entry** in the header
 2. Fill in the form:
-   - **Source text** — the original language text
-   - **Target text** — the translation
-   - **Source locale** — select from available project locales
-   - **Target locale** — select from available project locales
+   - **Source text**: the original language text
+   - **Target text**: the approved wording
+   - **Source locale**: select from available project locales
+   - **Target locale**: select from available project locales
 3. Click **Add** to save, or **Cancel** to discard
 
 ## Editing entries
 
 1. Click **Edit** on an entry row
 2. The target text becomes an inline text input
-3. Modify the translation
+3. Modify the text
 4. Click **Save** to confirm, or **Cancel** to discard changes
 
 Only the target text can be edited inline. To change the source text or locales, delete the entry and create a new one.
@@ -94,23 +94,40 @@ When there are more than 50 entries, pagination controls appear below the table:
 
 ## Content memory in editing and review
 
-The content memory also assists translation work outside the browser:
+The content memory also assists work outside the browser:
 
-- **Context panel** — the [translation editor](./translation-editor.mdx) shows
-  per-block content-memory matches with scores and match types, with one-click
-  apply.
-- **Bulk recycle** — [Pre-process](./pre-process.md) pre-fills targets from the
-  content memory across the whole file; exact and high-confidence fuzzy matches
-  land as drafts you can review.
-- **Apply exact Memory** — [Review](./review.mdx) fills selected blocks from exact
-  (100%) matches.
+- **Context panel**: the [editor](/server/translation-editor) shows per-block
+  matches with scores and match types, with one-click apply.
+- **Bulk recycle**: the editor's
+  [file-wide operations](/server/translation-editor#file-wide-operations)
+  pre-fill targets from the content memory across the whole file; exact and
+  high-confidence fuzzy matches land as drafts for review.
+- **In a run**: every [run](/the-loop) recycles from memory before it drafts,
+  so approved wording is reused before any credit is spent.
 
 ## Match scores
 
-Each match receives a score from 0 to 100% representing how closely the source text matches the stored entry. Matches are color-coded:
+Each match receives a score from 0 to 100% representing how closely the source text matches the stored entry. Matches are colour-coded:
 
-- **Green** (100%) — exact match
-- **Yellow** (70–99%) — fuzzy match
+- **Green** (100%): exact match
+- **Yellow** (70–99%): fuzzy match
 - Lower scores appear with reduced emphasis
 
-Bowrain's matching accounts for inline formatting differences, so a source segment and a stored entry can match even if their tag structure differs slightly. For more on how the underlying engine matches across projects, see the framework's [content memory](https://neokapi.github.io/framework/content-memory) reference.
+Bowrain's matching accounts for inline formatting differences, so a source
+segment and a stored entry can match even if their tag structure differs
+slightly.
+
+## Governed version reuse
+
+An entry is more than a pair of strings. Successive answers for one block are
+linked as a version chain, and each carries a fingerprint of the context it was
+approved under: the point, the voice, the terms in force. When a block's source
+changes, the prior answer is offered to the model only as a reference, only
+under the fingerprint it was approved under, and the reuse decision reads
+whether the words actually moved (none, cosmetic, or substantive) rather than a
+similarity score alone. A translation can be asked to reuse the prior version or
+to start clean. The chain and the fingerprint travel with the entry, so a memory
+exported from one workspace keeps its provenance in the next.
+
+For how the underlying engine matches across projects, see the framework's
+[content memory](https://neokapi.github.io/framework/content-memory) reference.

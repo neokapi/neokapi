@@ -1,26 +1,25 @@
 ---
-title: Gate brand terminology in CI
-sidebar_label: Gate brand terminology in CI
+title: Gate governed terms in CI
+sidebar_label: Gate governed terms in CI
 ---
 
-# Use case: gate brand terminology in CI
+# Use case: gate governed terms in CI
 
-A team's governed terminology lives in the [Context](/server/context) hub on the
-Bowrain server — preferred terms, forbidden terms, the wording approved per
-market. This guide wires that governed terminology into a CI gate, so a pull
-request that uses a banned term or the wrong translation fails the build before
-it merges.
+A team's governed terms live in the [Context](/server/context) hub on the
+Bowrain server: preferred terms, forbidden terms, the wording approved per
+market. This guide wires those terms into a CI gate, so a pull request that
+uses a banned term or the wrong rendering fails the build before it merges.
 
 The loop is two commands:
 
-1. [`kapi pull`](/cli/commands/pull) fetches translations and, when the project
+1. [`kapi pull`](/cli/commands/pull) fetches results and, when the project
    is claimed into a workspace, also snapshots the workspace's governed concepts
    and their relations into the project's local terms store.
-2. `kapi check --ship` runs the project's bound gates — the terminology gate
+2. `kapi check --ship` runs the project's bound gates; the terms gate
    checks the project's target files against that terms store and exits non-zero
    when a file violates it.
 
-Pull the truth once, then verify offline — no per-file server round-trip, and
+Pull the truth once, then verify offline: no per-file server round-trip, and
 the gate enforces exactly what the hub shows.
 
 ## Prerequisites
@@ -35,21 +34,21 @@ the gate enforces exactly what the hub shows.
 ## Locally
 
 ```bash
-# 1. Pull translations and governed terminology from the workspace.
+# 1. Pull results and governed terms from the workspace.
 kapi pull
 
-# 2. Gate the project against its bound gates, terminology included.
+# 2. Gate the project against its bound gates, terms included.
 kapi check --ship
 ```
 
-`kapi check --ship` runs every gate the project binds — brand, terminology,
-QA — plus its ship/source coverage gates. The terminology gate runs because the
-project's terms store has concepts in it — exactly the ones `kapi pull`
-snapshotted — so the gate enforces what the hub shows with no extra
+`kapi check --ship` runs every gate the project binds (voice, terms,
+checks) plus its ship/source coverage gates. The terms gate runs because the
+project's terms store has concepts in it, exactly the ones `kapi pull`
+snapshotted, so the gate enforces what the hub shows with no extra
 configuration.
 
-Scope the check to one locale with `--locale`, or point the terminology gate
-at a specific terms store with `--termstore`:
+Scope the check to one locale with `--locale`, or point the terms gate at a
+specific terms store with `--termstore`:
 
 ```bash
 kapi check --ship --locale fr
@@ -58,10 +57,10 @@ kapi check --ship --locale fr
 ## In GitHub Actions
 
 Install kapi with [`setup-kapi`](/cli/use-cases/github-actions) (the bowrain
-plugin is included by default), pull terminology, then gate:
+plugin is included by default), pull terms, then gate:
 
 ```yaml
-name: Brand terminology gate
+name: Terms gate
 
 on:
   pull_request:
@@ -71,7 +70,7 @@ on:
       - ".kapi/**"
 
 jobs:
-  terminology:
+  terms:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +80,7 @@ jobs:
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
-      - name: Pull translations and governed terminology
+      - name: Pull results and governed terms
         run: kapi pull
 
       - name: Gate against the project's bound gates
@@ -90,8 +89,8 @@ jobs:
 
 The `auth-token` input exports `BOWRAIN_AUTH_TOKEN`, which `kapi pull` uses to
 reach the workspace; the `server` input (exported as `BOWRAIN_SERVER_URL`) is
-only needed for a self-hosted server — the hosted service is the default. A
-failing gate exits non-zero and fails the job.
+only needed for a self-hosted server, since the hosted service is the default.
+A failing gate exits non-zero and fails the job.
 
 ## Exit codes
 
@@ -99,12 +98,12 @@ failing gate exits non-zero and fails the job.
 
 | Exit | Meaning                                                                 |
 | ---- | ---------------------------------------------------------------------- |
-| `0`  | Pass — every bound gate passed                                         |
+| `0`  | Pass: every bound gate passed                                          |
 | `3`  | A gate failed                                                          |
 | `1`  | Operational error (project not found, unreadable file, …)             |
 
 Exit `3` means "not on-spec yet", not a crash: read the findings and fix them.
-Pass `--no-fail` to always exit `0` (report mode) — useful inside an assistant
+Pass `--no-fail` to always exit `0` (report mode), useful inside an assistant
 fix-loop that reads the findings from the output and re-runs; omit it for CI
 gating, where the non-zero exit is the point.
 
@@ -117,16 +116,15 @@ kapi check --ship --json
 ## Keeping the snapshot fresh
 
 `kapi pull` refreshes the local terms store on every run, so pulling at the start of
-each CI job keeps the gate aligned with the current governed terminology. When
-the workspace changes a preferred or forbidden term — a
+each CI job keeps the gate aligned with the current governed terms. When
+the workspace changes a preferred or forbidden term, a
 [governed edit](/server/context#tiered-governance) that travels through a
-[change-set](/server/context#experiments-change-sets-and-pilots) — the next CI run
+[change-set](/server/context#experiments-change-sets-and-pilots), the next CI run
 pulls it and gates against it automatically.
 
 ## Related
 
-- [kapi pull](/cli/commands/pull) — fetches translations and governed
-  terminology into the local terms store
-- [Context](/server/context) — where terminology is governed
-- [GitHub Actions](/cli/use-cases/github-actions) — installing kapi in CI and CI authentication
-- [Source language preparation](/cli/use-cases/source-prep) — QA gates on source content in CI
+- [kapi pull](/cli/commands/pull): fetches results and governed terms into the local terms store
+- [Context](/server/context): where terms are governed
+- [GitHub Actions](/cli/use-cases/github-actions): installing kapi in CI and CI authentication
+- [Source language preparation](/cli/use-cases/source-prep): checks on source content in CI

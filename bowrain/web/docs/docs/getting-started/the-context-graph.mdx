@@ -1,8 +1,8 @@
 ---
 sidebar_position: 2
 title: The context graph
-description: Every project carries a content context — the coordinates that fix voice and tone for a specific time, place and audience. Profiles bundle those coordinates, collections declare them, files and passages override them, and rules scoped by them inherit down a path and expire on a date.
-keywords: [context graph, profile, coordinates, collections, overrides, context discovery, governance, validity, bowrain]
+description: Every project carries a content context, the coordinates that fix voice and tone for a specific time, place and audience. Profiles bundle those coordinates, collections declare them, and rules scoped by them inherit down a path and expire on a date.
+keywords: [context graph, profile, coordinates, axes, collections, context discovery, governance, validity, bowrain]
 ---
 
 import { AxisLadderDiagram } from "@neokapi/docs-shared";
@@ -11,13 +11,13 @@ import { AxisLadderDiagram } from "@neokapi/docs-shared";
 
 Communication is contextual. You do not write a legal notice the way you write a
 help article, or a release note the way you write a landing page. Same company,
-same product, often the same fact — but the register, the vocabulary, the length
+same product, often the same fact, but the register, the vocabulary, the length
 and how much is assumed of the reader all move with the audience, the surface and
 the moment.
 
 So every project carries a **content context**: the parameters that fix the voice
 and tone of a message for a specific time, place and audience. Most organizations
-hold that informally — a style guide nobody opens, the judgement of two or three
+hold that informally: a style guide nobody opens, the judgement of two or three
 experienced people, a tacit sense of *that is not how we say it here*. It is
 almost never written down in a form a machine can read. That was tolerable while
 only people wrote. It is not tolerable now that agents write a growing share of
@@ -32,7 +32,7 @@ a new name:
 |---|---|
 | Help articles | Use the new name |
 | The API parameter | Must not change |
-| The changelog | Keeps the old name — that is what shipped |
+| The changelog | Keeps the old name, because that is what shipped |
 | The migration guide | Needs both, side by side |
 | Support replies | Recognise the old name for a year, never use it |
 
@@ -65,27 +65,40 @@ explainable. They are also the join: the AI agent asking *what applies here*, th
 check asking *does this rule fire*, and the engine asking *may this approved
 wording be reused* are one question asked by three callers.
 
+### The axes a recipe declares
+
+In a project the five questions are answered by named **axes**. Two are
+structural and come from the recipe's shape: `product` is the profile a
+collection belongs to and `channel` is the surface it ships on, both derived
+from a collection's `channel:` key. The rest are declared: `brand` (a workspace
+has brands, a brand has products, a product ships channels) and `mode` (what
+kind of document sits at a point, in the Diátaxis sense: tutorial, how-to,
+reference, explanation) are the named ones, and a project adds any other axis
+its content varies along under `defaults.coordinates`. A language is an axis
+too. Validity sits on the rule rather than on the point: a rule can start and
+stop on a date. See the [project model](/cli/project-model) for the recipe keys.
+
 ## Declared where cheapest, inherited from there
 
-Nobody tags a paragraph unless a paragraph is genuinely the exception. Coordinates
-are declared at the broadest scope that is true, and everything beneath inherits
-them until something overrides.
+Nobody tags a paragraph unless a paragraph is genuinely the exception.
+Coordinates are declared at the broadest scope that is true, and everything
+beneath inherits them until something overrides.
 
 <AxisLadderDiagram
   rungs={[
     { grade: "WS", name: "workspace", gloss: "the organization's defaults" },
-    { grade: "PR", name: "project", gloss: "one product or property" },
+    { grade: "PR", name: "project", gloss: "defaults.coordinates in the recipe" },
     { grade: "CO", name: "collection", gloss: "this folder is the help centre" },
-    { grade: "FI", name: "file", gloss: "this page is a regulated disclosure" },
-    { grade: "PA", name: "passage", gloss: "these two paragraphs, and nowhere else" },
   ]}
   caption="Coordinates are declared at the broadest true scope and inherited down; each level may override the one above it."
 />
 
-A collection — this folder is the help centre, that one is the marketing site —
-carries a profile for everything inside it. A file can override its collection. A
-passage can override its file, which is exactly what the migration guide needs:
-the old name is permitted *here*, in these two paragraphs, and nowhere else.
+A project's recipe sets its defaults, and a collection, this folder is the help
+centre and that one is the marketing site, carries a profile for everything
+inside it, overriding its project on the one axis it differs on and inheriting
+the rest. A file or a passage cannot yet declare its own coordinates: an
+exception at that scope, the old name permitted in these two paragraphs and
+nowhere else, is expressed today by giving the exception its own collection.
 
 ## Rules inherit and expire
 
@@ -102,14 +115,15 @@ and gone when it expires.
 ## Starting from nothing
 
 An empty context is worth nothing, and nobody will write one from a blank page. So
-the first act is **context discovery**: point it at what already exists — the
-repository, the published site, whatever style guide there is — and let it propose
-the profiles, the coordinates and the starting vocabulary for review.
+the first act is **context discovery**: point it at what already exists, the
+repository, the published site, whatever style guide there is, and let it propose
+the axes, the profiles and the starting vocabulary for review.
 
 You correct a first draft instead of authoring one. That is the same correction
 loop that keeps the context current afterwards, so there is no separate onboarding
-mode to maintain. See [Voice & corrections](/server/context-voice) for how the
-loop keeps running.
+mode to maintain. See [Context scan](/server/context-scan) for what a scan
+proposes and [Voice and corrections](/server/context-voice) for how the loop
+keeps running.
 
 ## Agreed rather than assumed
 
@@ -119,10 +133,10 @@ computed before anyone approves it**. A change-set can be **piloted** on selecte
 content streams before it merges, so a what-if becomes a measured experiment
 rather than a leap.
 
-The rules are drawn from the corrections people actually make, not written in a
-workshop — which is the only way a context stays current. See
+The rules are drawn from the corrections people actually make rather than written
+in a workshop, which is the only way a context stays current. See
 [The Context hub](/server/context) for the graph in the product and
-[Voice & corrections](/server/context-voice) for how the context learns.
+[Voice and corrections](/server/context-voice) for how the context learns.
 
 ## One graph, two scopes
 
@@ -133,7 +147,7 @@ governance.
 
 Nothing is withheld from the local half to make the shared one attractive. The
 difference is **reach, not capability**: one project's context, or every
-project's. See [kapi vs Bowrain](/getting-started/kapi-vs-bowrain).
+project's. See [kapi and Bowrain](/getting-started/kapi-vs-bowrain).
 
 ## Where a language fits
 

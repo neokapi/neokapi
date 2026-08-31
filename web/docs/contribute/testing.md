@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Testing Strategy
-description: neokapi's test strategy — roundtrip gold-standard tests for formats, table-driven tests, parity tests against Okapi Framework data, mock AI providers for CI, and integration tests for flows.
+description: "neokapi's test strategy: roundtrip gold-standard tests for formats, table-driven tests, parity tests against Okapi Framework data, mock AI providers for CI, and integration tests for flows."
 keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock providers, neokapi]
 ---
 
@@ -9,12 +9,12 @@ keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock 
 
 ## Principles
 
-1. **Every format and tool has tests** — No format reader/writer or tool ships without tests.
-2. **Roundtrip is the gold standard** — For formats: read, write, compare with original.
-3. **Port Okapi test data** — Use Okapi's test resource files as the source of truth.
-4. **Table-driven tests** — Go's table-driven pattern for covering multiple inputs.
-5. **Test at the interface boundary** — Test against `DataFormatReader`/`Tool` interfaces, not internals.
-6. **Deterministic AI tests** — AI tools use mock providers in CI; real providers in manual integration tests.
+1. **Every format and tool has tests.** No format reader/writer or tool ships without tests.
+2. **Roundtrip is the gold standard.** For formats: read, write, compare with original.
+3. **Port Okapi test data.** Use Okapi's test resource files as the source of truth.
+4. **Table-driven tests.** Go's table-driven pattern for covering multiple inputs.
+5. **Test at the interface boundary.** Test against `DataFormatReader`/`Tool` interfaces, not internals.
+6. **Deterministic AI tests.** AI tools use mock providers in CI; real providers in manual integration tests.
 
 ## Test Structure
 
@@ -37,7 +37,7 @@ neokapi/
 │   └── ... (each format follows the same pattern)
 │
 ├── core/ai/tools/
-│   └── tools_test.go               # AI tool tests — use mock provider
+│   └── tools_test.go               # AI tool tests; use mock provider
 ├── providers/ai/
 │   └── mock.go                     # Mock LLM provider
 │
@@ -117,7 +117,7 @@ control:
 func TestFlowExecution(t *testing.T) {
     uppercase := &tool.BaseTool{
         ToolName: "uppercase",
-        Translate: func(v tool.VariantView) error {
+        Produce: func(v tool.VariantView) error {
             if v.Translatable() {
                 v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
             }
@@ -153,18 +153,23 @@ make cover              # Coverage report
 Single test:
 
 ```bash
-go test ./core/flow/ -run TestFlowExecutorContextCancellation -v
+go test -tags fts5 ./core/flow/ -run TestFlowExecutorContextCancellation -v
 ```
+
+Pass `-tags fts5` whenever you bypass `make`. The build succeeds without it, and
+only a query that reaches FTS5 (content memory, terms) fails at runtime with
+`no such function: fts5`. Spell every tag in one comma-separated flag
+(`-tags "fts5,parity"`): `go` keeps only the last `-tags` occurrence.
 
 ## Test Tags
 
-| Tag           | Purpose                                  | Command                            |
-| ------------- | ---------------------------------------- | ---------------------------------- |
-| (none)        | Unit tests only                          | `go test ./...`                    |
-| `integration` | + plugin and format integration          | `go test ./... -tags=integration`  |
-| `acceptance`  | + native-format consumer-toolchain tests | `go test ./... -tags=acceptance`   |
-| `parity`      | + Okapi parity comparison tests          | `go test ./... -tags=parity`       |
-| `e2e`         | + end-to-end tests                       | `go test ./... -tags=e2e`          |
+| Tag           | Purpose                                  | Command                                    |
+| ------------- | ---------------------------------------- | ------------------------------------------ |
+| (none)        | Unit tests only                          | `go test -tags fts5 ./...`                 |
+| `integration` | + plugin and format integration          | `go test -tags "fts5,integration" ./...`   |
+| `acceptance`  | + native-format consumer-toolchain tests | `go test -tags "fts5,acceptance" ./...`    |
+| `parity`      | + Okapi parity comparison tests          | `go test -tags "fts5,parity" ./...`        |
+| `e2e`         | + end-to-end tests                       | `go test -tags "fts5,e2e" ./...`           |
 
 ## CI
 

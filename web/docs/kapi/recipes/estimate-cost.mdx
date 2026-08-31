@@ -3,7 +3,7 @@ id: estimate-cost
 title: "Estimate a run's cost"
 sidebar_label: "Estimate a job"
 sidebar_position: 2
-description: "Count blocks, words, and characters in any supported format to size a translation job before you commission it."
+description: "Count blocks, words, and characters in any supported format to size a translation job before you commission it, and let kapi up --plan price the pending work in a project."
 hide_table_of_contents: true
 ---
 
@@ -13,23 +13,23 @@ import { StatsWidget } from "@site/src/components/Lab";
 
 # Estimate a run's cost
 
-**Goal:** know what a translation run will cost before you start it. kapi counts what there actually is to translate — blocks, words, characters, off the **extracted content**, so boilerplate, keys, and markup are excluded — and you multiply by a model's or vendor's per-word rate. Try it in your browser:
+**Goal:** know what a translation run will cost before you start it. kapi counts what there actually is to translate (blocks, words, characters, off the **extracted content**, so boilerplate, keys, and markup are excluded), and you multiply by a model's or vendor's per-word rate. In a project, `kapi up --plan` goes further and prices the pending work per language. Try the counter in your browser:
 
 <StatsWidget />
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Open the project — each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. For a loose file, the stats tool runs as a **quick tool** from the Toolbox.
+Open the project: each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. **Plan…** beside **Bring up to date** shows the pending work per language, the leverage available from content memory, and a token estimate before anything runs. For a loose file, the stats tool runs as a **quick tool** from the Toolbox.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
 Ask the sizing question directly:
 
-> How big is translating `docs/` into French and Japanese — words, and a rough cost at $0.08/word?
+> How big is translating `docs/` into French and Japanese: words, and a rough cost at $0.08/word?
 
-The assistant runs `kapi stats --json` over the content, multiplies out the rate you gave, and can subtract what the content memory already covers ([leverage first](/kapi/recipes/pre-translate-from-memory)) so the estimate reflects only the work that remains.
+The assistant runs `kapi stats --json` over the content, multiplies out the rate you gave, and can subtract what the content memory already covers ([leverage first](/kapi/recipes/pre-translate-from-memory)) so the estimate reflects only the work that remains. In a project it runs `kapi up --plan --json` instead, which already nets out the memory and reports a token estimate per language.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -44,10 +44,21 @@ kapi stats --json docs/*.md          # blocks, words, characters, segments, by-r
 
 For every flag and the field-by-field JSON output, see [`kapi stats`](/reference/commands/stats).
 
+**In a project**, `kapi up --plan` is the estimate that matters: a dry run of the loop that names, per language, the units missing, stale and unanswered, how many the content memory answers exactly, how many the flow would draft, and a token estimate for those, with no writes, no provider calls and no keys:
+
+```bash
+kapi up --plan
+# scope  missing  stale  unanswered  content memory exact  drafted by flow  out of reach  ~tokens
+# fr          96      0           0                    18               78             0     20k
+# de          96      1           0                    18               79             0     21k
+```
+
+`--json` emits the same table for a script or a pull-request comment ([the loop in CI](/kapi/convergence-in-ci#report-the-cost-of-a-change-on-its-pull-request)); the columns are explained under [the kapi loop](/kapi/convergence#the-run-is-live).
+
 </TabItem>
 </Tabs>
 
 ## Next
 
-- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory) — shrink the job before pricing it.
-- [Hand off to translators](/kapi/bilingual-workflow) — extract, translate, merge back.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory): shrink the job before pricing it.
+- [Hand off to translators](/kapi/bilingual-workflow): extract, translate, merge back.

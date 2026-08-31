@@ -1,6 +1,6 @@
 ---
 title: Add languages
-description: Take a source-only project multilingual — declare target locales, run kapi up until every language clears its ship gate, and review what parks.
+description: "Take a source-only project multilingual: declare target locales, run kapi up until every language clears its ship gate, and review what parks."
 keywords: [kapi, target languages, multilingual, kapi up, ship gate, review, coverage]
 ---
 
@@ -10,13 +10,13 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Add languages
 
-Going multilingual is one loop: declare the target locales, let `kapi up` catch every language up to its ship gate, review what needs a person, and gate the release on `kapi check --ship`. Translation drift never breaks a build — a language that is behind is pending work, not an error.
+Going multilingual is one loop: declare the target locales, let `kapi up` catch every language up to its ship gate, review what needs a person, and gate the release on `kapi check --ship`. Translation drift never breaks a build; a language that is behind is pending work.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`).
-2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first — content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date** — kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
+2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first: content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date**; kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
 3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the `reviewed` coverage that a `{ reviewed: … }` gate measures.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
@@ -31,7 +31,7 @@ Ask for the outcome:
 
 > Add French and German to this project and bring both up to date.
 
-Claude adds `target_languages` to the recipe, runs `kapi up`, reads `kapi status` for what parked, and walks you through the review worklist conversationally — you approve, it records the decisions with `kapi apply`. See [Use with Claude](/kapi/get-started/use-with-claude).
+Claude adds `target_languages` to the recipe, runs `kapi up`, reads `kapi status` for what parked, and walks you through the review worklist conversationally; you approve, it records the decisions with `kapi apply`. See [Use with Claude](/kapi/get-started/use-with-claude).
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -47,8 +47,8 @@ collections:
     target: "src/locales/{lang}"
 ```
 
-The `target:` says where a translated file goes. `kapi add` writes it for you —
-`kapi add "src/locales/en/*.json" --target "src/locales/{lang}"` — and refuses a
+The `target:` says where a translated file goes. `kapi add` writes it for you
+(`kapi add "src/locales/en/*.json" --target "src/locales/{lang}"`), and refuses a
 target that lands back inside the pattern it comes from, which would make the
 collection re-track its own output as source.
 
@@ -58,20 +58,20 @@ Then catch up, inspect, and gate:
 kapi up                  # run the default flow until every gated scope ships or parks
 kapi status              # per-locale coverage and ship-gate standing (never fails)
 kapi status --review     # the worklist: translated units awaiting a person
-kapi check --ship        # enforce the gates — the pre-release bar, exit 3 when unmet
+kapi check --ship        # enforce the gates: the pre-release bar, exit 3 when unmet
 ```
 
-`kapi up` needs a translation provider for LLM translation — see [Choose a translation model](/kapi/recipes/choose-a-translation-provider). Approve reviewed units with `kapi apply` (`kind:"review"`); see [Review & approve](/kapi/recipes/review-and-approve).
+`kapi up` needs a translation provider for LLM translation; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider). Approve reviewed units with `kapi apply` (`kind:"review"`); see [Review & approve](/kapi/recipes/review-and-approve).
 
 </TabItem>
 </Tabs>
 
 ## How the gate thinks
 
-Each translation climbs a ladder — draft, translated, reviewed, signed-off — and a **ship gate** is coverage thresholds over that ladder (`{ translated: 100, reviewed: 80 }`). `kapi up` produces, review promotes, `kapi check --ship` releases. [The kapi loop](/kapi/convergence) explains the model.
+Each translation climbs a ladder (draft, translated, reviewed, signed-off) and a **ship gate** is coverage thresholds over that ladder (`{ translated: 100, reviewed: 80 }`). `kapi up` produces, review promotes, `kapi check --ship` releases. [The kapi loop](/kapi/convergence) explains the model.
 
 ## Next
 
-- [Translate with your AI](/kapi/recipes/translate-content) — the translation loop in depth.
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — run `kapi check --ship` on every PR.
-- [Review & approve](/kapi/recipes/review-and-approve) — the human half of the loop.
+- [Translate with your AI](/kapi/recipes/translate-content): the translation loop in depth.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): run `kapi check --ship` on every PR.
+- [Review & approve](/kapi/recipes/review-and-approve): the human half of the loop.

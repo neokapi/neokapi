@@ -5,16 +5,16 @@ title: Hooks
 
 # Flow hooks
 
-:::warning Not yet executed
+:::warning Not executed
 Hooks are **parsed and validated** in the recipe, but the kapi-bowrain plugin
-**does not yet run them**. Declaring a `hooks:` block has no runtime effect on
-`kapi push` / `kapi pull` today, and there are no `--no-hooks` / hook-bypass
-flags. This page describes the intended design; until execution ships, use
+**does not run them**. Declaring a `hooks:` block has no runtime effect on
+`kapi push` / `kapi pull`, and there are no `--no-hooks` / hook-bypass
+flags. This page describes the intended design; use
 [automations](#what-runs-today) for the lifecycle behavior that does run.
 :::
 
 :::note Not the assistant hooks
-This page is about the recipe's `hooks:` block — lifecycle flows around
+This page is about the recipe's `hooks:` block: lifecycle flows around
 `kapi push` / `kapi pull`. It is a different mechanism from kapi's
 **assistant-integration hooks** (`kapi hook stop`, `kapi hook pre-edit`), which
 do run, on every Claude Code session in a kapi project, and have their own
@@ -48,7 +48,7 @@ that runs the referenced flows is not implemented.
 ## What runs today {#what-runs-today}
 
 The lifecycle behavior that **does** run on `kapi push` / `kapi pull` is the
-recipe's `automations:` block — trigger-based rules whose actions (such as
+recipe's `automations:` block: trigger-based rules whose actions (such as
 `pull`, `push`, and `wait_translate`) the plugin executes. See
 [Automation](/server/automation) for that model.
 

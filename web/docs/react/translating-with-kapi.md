@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: Translating neokapi-i18n Projects with kapi
-description: How to use the kapi CLI to translate a neokapi-i18n KBF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
+description: "How to use the kapi CLI to translate a neokapi-i18n KBF archive: pseudo-translation for QA, AI translation with the provider of your choice, and review and QA flows that write results back to the archive in place."
 keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, translation workflow]
 ---
 
@@ -11,27 +11,27 @@ keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n,
 
 ## Pseudo-translation for UI QA
 
-Pseudo-translation is the fastest way to see what's been picked up for translation — and what hasn't.
+Pseudo-translation is the fastest way to see what has been picked up for translation, and what has not.
 
 ```bash
 kapi pseudo-translate i18n/
 ```
 
-No `-o` — the default for KBF inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
+With no `-o`, the default for KBF inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
 
-Source `Welcome to Acme` becomes `[Ŵéḷçőḿé tő Âçmé]`:
+Source `Welcome to Acme` becomes `▒ Ŵéḷçőḿé tő Âçmé ▒`:
 
 - **Accented characters** make translated strings visually distinct. Untranslated strings (bugs) stand out immediately in the UI.
-- **Brackets** mark start/end, so truncation is obvious (`Welcome to Ac…` never wraps to `[Ŵéḷç…`).
-- **Expansion** (adding 30–50% more characters) mimics German / French / Russian string growth so layout bugs surface before you ship.
+- **Markers** (`▒`) mark start and end, so truncation is obvious (`Welcome to Ac…` never wraps to `▒ Ŵéḷç…`).
+- **Expansion** (adding 30–50% more characters) mimics German, French and Russian string growth so layout bugs surface before you ship.
 
-Then `neokapi-i18n compile` it + load as any other locale:
+Then `neokapi-i18n compile` it and load it as any other locale:
 
 ```bash
 neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Your dev server now has a `qps` locale — wire a language picker and ship pseudo-translated screenshots to design review.
+Your dev server now has a `qps` locale. Wire a language picker and ship pseudo-translated screenshots to design review.
 
 ### Pseudo-translation in CI
 
@@ -54,9 +54,9 @@ kapi translate i18n/ --target-lang de
 kapi translate i18n/ --target-lang ja
 ```
 
-Each call accumulates a target locale in place. To redirect output to a different file, pass `-o target-dir/` — the input stays untouched.
+Each call accumulates a target locale in place. To redirect output to a different file, pass `-o target-dir/`; the input stays untouched.
 
-kapi supports Anthropic, OpenAI, Google Gemini, Azure OpenAI, and local Ollama models. Select the provider (and optionally the model) with flags — or in a flow's step config:
+kapi supports Anthropic, OpenAI, Google Gemini, Azure OpenAI, and local Ollama models. Select the provider (and optionally the model) with flags, or in a flow's step config:
 
 ```bash
 kapi translate i18n/ --target-lang fr --provider anthropic
@@ -68,9 +68,9 @@ See [Translation](/framework/translation) for the full provider and configuratio
 
 ### Context carries through
 
-Every block in the KBF directory carries its element (`"button"`, `"p"`, …), its file and line, its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt — so a `<button>Close</button>` gets a different translation than an `<a>Close</a>` in a list-item's delete action.
+Every block in the KBF directory carries its element (`"button"`, `"p"`, …), its file and line, its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt, so a `<button>Close</button>` gets a different translation than an `<a>Close</a>` in a list-item's delete action.
 
-Where the element alone isn't enough to disambiguate — two buttons both reading "Open", one a verb and one a state — add the note explicitly with `data-i18n-note` or `t(text, context)`. That note is part of the key, so the two strings separate for the translator and stay separate.
+Where the element alone is too little to disambiguate (two buttons both reading "Open", one a verb and one a state), add the note explicitly with `data-i18n-note` or `t(text, context)`. That note is part of the key, so the two strings separate for the translator and stay separate.
 
 ### Translate a subset
 
@@ -94,13 +94,13 @@ kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminol
 
 `qa` covers:
 
-- **Placeholder & inline-code integrity** — every `{name}` and inline-element token (`{=m0}`) in the source appears in the target.
-- **Length bounds** — flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
-- **Consistency** — double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
+- **Placeholder and inline-code integrity**: every `{name}` and inline-element token (`{=m0}`) in the source appears in the target.
+- **Length bounds**: flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
+- **Consistency**: double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-`term-check` flags targets that diverge from an approved term — e.g. a brand term that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the QA pass instead of running a separate command.)
+`term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the QA pass instead of running a separate command.)
 
-QA results can fail your build — a common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
+QA results can fail your build. A common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
 
 ## Content memory leverage
 
@@ -128,7 +128,7 @@ kapi terms import product-terms.csv -s en -t fr --name product-terms
 kapi exec term-check i18n/ --target-lang fr --termstore product-terms
 ```
 
-To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's terminology section.
+To feed terminology into the translation step itself rather than only checking it afterward, bind the store in the recipe (`defaults.terms_source`) or list rules under `term_rules:` in the step's config. `translate` reads the matching rules itself and sends them in the prompt's terminology section.
 
 See [Terminology](/framework/terminology).
 
@@ -149,7 +149,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Drive it from a project
 
-The commands above are ad-hoc — flags on every call, fine for a quick run. For an
+The commands above are ad-hoc: flags on every call, fine for a quick run. For an
 app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model)
 is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
@@ -159,8 +159,8 @@ and terminology across releases.
 `kapi init --framework neokapi-i18n` scaffolds the recommended layout, in which
 everything the stack authors sits under one `i18n/` directory. The bundler writes
 source catalogs to `i18n/src/`; kapi writes per-locale targets to `i18n/{lang}/`.
-Source living under `i18n/src/` (not flat under `i18n/`) is what lets the source
-glob stay clear of the generated targets — no sibling `i18n-<lang>/` trees:
+Source living under `i18n/src/` (rather than flat under `i18n/`) is what lets the source
+glob stay clear of the generated targets, with no sibling `i18n-<lang>/` trees:
 
 ```yaml title="kapi.yaml"
 version: v1
@@ -168,7 +168,7 @@ name: MyApp
 defaults:
   source_language: en
   target_languages: [de, fr, ja, nb]
-  # Brand vocabulary and voice are git-tracked sources under i18n/.
+  # The terms store and the voice profile are git-tracked sources under i18n/.
   voice:
     profile_file: i18n/voice.yaml
   terms_source: i18n/terms.json
@@ -182,13 +182,14 @@ collections:
 i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
 ├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
-├── terms.json     voice vocabulary (git source)
+├── terms.json              terms store (git source)
 └── voice.yaml              voice profile (git source)
 ```
 
-Content memory and pseudo-locale output are rebuildable state, so they live
-under `.kapi/` (gitignored) — never committed siblings. Define a `translate` flow
-in the recipe (for example `recycle` → `translate` → `qa`), then:
+The content memory's local store and the pseudo-locale output are rebuildable
+state, so they live under `.kapi/work/` (gitignored); the memory bundle the
+recipe names in `defaults.memory_source` is committed with the rest of `.kapi/`.
+Define a `translate` flow in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"
 {
@@ -206,19 +207,19 @@ in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 The same flows run from your AI assistant. With the [kapi MCP server](/reference/mcp)
 connected, point Claude at your extracted strings and ask it to translate and check
-them — it calls `kapi` to translate the KBF archive, runs the QA checks, and fixes
+them. It calls `kapi` to translate the KBF archive, runs the QA checks, and fixes
 anything that breaks, the same author → check → revise loop you'd run by hand:
 
-> "Translate the strings in `i18n/` to French and German — keep the placeholders and
-> inline elements intact — then run QA and fix anything that fails."
+> "Translate the strings in `i18n/` to French and German, keep the placeholders and
+> inline elements intact, then run QA and fix anything that fails."
 
 Claude translates in place (locale-additive), runs `kapi exec qa` / `kapi exec term-check`, and
 loops on the findings until the archive passes; you `neokapi-i18n compile` the result as
-usual. Nothing about your components changes — only the catalogue.
+usual. Your components stay as they are; only the catalogue changes.
 
 See [Use with Claude](/kapi/get-started/use-with-claude) for the MCP setup and the
 broader agent loop.
 
 ## Next
 
-- [Configuration](./configuration) — componentMap, rules, Storybook, warnings.
+- [Configuration](./configuration): componentMap, rules, Storybook, warnings.

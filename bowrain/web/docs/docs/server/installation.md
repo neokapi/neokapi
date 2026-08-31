@@ -1,25 +1,25 @@
 ---
 sidebar_position: 2
 title: Installation
-description: Install Bowrain Server as several cooperating services — the server, worker, database, and job queue — rather than a single binary.
+description: Install Bowrain Server as several cooperating services (the server, worker, database, and job queue) rather than a single binary.
 ---
 
 # Installing Bowrain Server
 
 A Bowrain deployment is several cooperating services, not a single binary:
 
-- **bowrain-server** — the REST + gRPC API (one process; gRPC is multiplexed onto the HTTP port).
-- **bowrain-worker** — the async worker that ingests pushes and runs the auto-translate-on-push automation against an upstream translation provider.
-- **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users, jobs). The server requires PostgreSQL; **there is no SQLite or file backend.**
+- **bowrain-server**: the REST + gRPC API (one process; gRPC is multiplexed onto the HTTP port).
+- **bowrain-worker**: the async worker that ingests pushes and runs the drafting jobs a run enqueues against an upstream AI provider.
+- **PostgreSQL**: the authoritative store (projects, blocks, workspaces, users, jobs). The server requires PostgreSQL; **there is no SQLite or file backend.**
 - A **job queue** (Amazon SQS, or an SQS-compatible broker such as ElasticMQ) and **Redis** for the event bus (Redis Streams), shared by the server and worker.
-- **bowrain-web** — the static web UI, served as its own container.
-- An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
+- **bowrain-web**: the static web UI, served as its own container.
+- An **OIDC identity provider** (for example Keycloak) and an **SMTP** sender.
 
 This page covers local evaluation. For a production stack with TLS, backups, and a reverse proxy, see [Self-Hosting](/server/self-hosting), which is the canonical reference for the full architecture and the complete environment-variable set.
 
 ## One-command local stack
 
-The repository ships a self-contained local stack at [`bowrain/compose.full.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/compose.full.yaml) — server, worker, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, MinIO, Keycloak (with a pre-imported realm), and Mailpit. It defaults to the offline `demo` translation provider, so the full push → translate → pull cycle works with no API keys and no OIDC setup:
+The repository ships a self-contained local stack at [`bowrain/compose.full.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/compose.full.yaml): server, worker, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, MinIO, Keycloak (with a pre-imported realm), and Mailpit. It defaults to the offline `demo` provider, so the full push → draft → pull cycle works with no API keys and no OIDC setup:
 
 ```bash
 docker compose -f bowrain/compose.full.yaml up -d --build --wait
@@ -40,26 +40,26 @@ To serve the web UI from the server, add the `web` profile:
 docker compose -f bowrain/compose.full.yaml --profile web up -d --build
 ```
 
-For real translations, set `BOWRAIN_PLATFORM_PROVIDER` (e.g. `gemini`) and the matching API key in a `.env` file — see [Self-Hosting](/server/self-hosting#environment-variables).
+For real drafts, set `BOWRAIN_PLATFORM_PROVIDER` (for example `gemini`) and the matching API key in a `.env` file; see [Self-Hosting](/server/self-hosting#environment-variables).
 
 Tear down with `docker compose -f bowrain/compose.full.yaml down -v`.
 
 ## Self-hosting from published images
 
-To run from the published `ghcr.io/neokapi/` images against your own OIDC provider, use the reference stack at [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml) — Traefik, PostgreSQL, ElasticMQ, Redis, the server, the worker, and the web UI.
+To run from the published `ghcr.io/neokapi/` images against your own OIDC provider, use the reference stack at [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml): Traefik, PostgreSQL, ElasticMQ, Redis, the server, the worker, and the web UI.
 
 ```bash
 docker compose -f deploy/docker/compose.yaml up -d
 ```
 
-At minimum, provide an external OIDC issuer, a JWT secret, and (for auto-translate) an upstream provider:
+At minimum, provide an external OIDC issuer, a JWT secret, and (for drafting) an upstream provider:
 
 ```bash
 POSTGRES_PASSWORD=...                          # database password
 BOWRAIN_JWT_SECRET=$(openssl rand -base64 32)  # JWT signing secret
 BOWRAIN_OIDC_ISSUER_URL=...                    # your realm's issuer URL
 BOWRAIN_OIDC_CLIENT_SECRET=...                 # the bowrain client's secret
-BOWRAIN_PLATFORM_PROVIDER=gemini               # or openai / anthropic / ollama
+BOWRAIN_PLATFORM_PROVIDER=gemini               # or bedrock / openai / anthropic / ollama
 BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
 ```
 
@@ -94,7 +94,7 @@ bowrain-server \
   --port 8080
 ```
 
-The schema is created automatically on first start; migrations run on startup. The async worker is configured entirely through environment variables — see [Configuration](/server/configuration).
+The schema is created automatically on first start; migrations run on startup. The async worker is configured entirely through environment variables; see [Configuration](/server/configuration).
 
 ### systemd service
 
@@ -152,6 +152,6 @@ curl http://localhost:8080/api/v1/health
 
 ## Next steps
 
-- [Configuration](/server/configuration) — the complete environment-variable and CLI-flag reference.
-- [Getting Started](/server/getting-started) — first login, workspaces, invitations.
-- [Self-Hosting](/server/self-hosting) — production deployment with TLS and backups.
+- [Configuration](/server/configuration): the complete environment-variable and CLI-flag reference.
+- [Getting Started](/server/getting-started): first login, workspaces, invitations.
+- [Self-Hosting](/server/self-hosting): production deployment with TLS and backups.
