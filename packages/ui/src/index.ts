@@ -15,15 +15,21 @@ export { useIsMobile } from "./hooks/use-mobile";
 export { useDebounced } from "./hooks/use-debounced";
 
 // Writing direction — locale → `dir`/`lang`, plus the bidi-isolation predicate.
-// Every surface that renders source or target text should derive `dir` from the
-// locale rather than inheriting the app's; RTL targets otherwise render with
-// scrambled punctuation, digits, and embedded LTR fragments.
+// Every surface that renders a Block's or Run's own source or target text
+// should render it through DirectionalText (never a bare <span>/<div>/<li>/…)
+// so dir/lang land on the element CSS text-align actually resolves against,
+// rather than deriving the app's own direction. `directionAttrs`/
+// `localeDirection` are DirectionalText's internals, exported for the rare
+// non-JSX or already-`useMemo`'d-attrs call site.
 export {
   localeDirection,
   isRTLLocale,
   directionAttrs,
   needsIsolation,
+  localeOfVariant,
+  DirectionalText,
   type TextDirection,
+  type DirectionalTextProps,
 } from "./lib/text-direction";
 
 // Positions reported by the engine are UTF-8 byte offsets; a renderer slicing

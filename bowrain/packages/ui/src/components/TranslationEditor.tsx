@@ -840,6 +840,7 @@ export function TranslationEditor({
           ) : (
             <TableView
               blocks={blocks}
+              sourceLocale={project.default_source_language}
               targetLocale={targetLocale}
               targetLocaleLabel={getDisplayName(targetLocale)}
               selectedIndex={selectedIndex}

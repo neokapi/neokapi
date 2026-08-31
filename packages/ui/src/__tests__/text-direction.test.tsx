@@ -1,11 +1,25 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
+import { createElement, act, type ReactElement } from "react";
+import { createRoot } from "react-dom/client";
 
 import {
+  DirectionalText,
   directionAttrs,
   isRTLLocale,
   localeDirection,
+  localeOfVariant,
   needsIsolation,
 } from "../lib/text-direction";
+
+function render(el: ReactElement): HTMLDivElement {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  act(() => {
+    createRoot(container).render(el);
+  });
+  return container;
+}
 
 describe("localeDirection", () => {
   it("resolves the RTL language subtags to rtl", () => {
@@ -99,5 +113,70 @@ describe("needsIsolation", () => {
     expect(needsIsolation("ar", "en")).toBe(true);
     expect(needsIsolation("ar", "he")).toBe(false);
     expect(needsIsolation("en", "nb")).toBe(false);
+  });
+});
+
+describe("localeOfVariant", () => {
+  it("strips a tone and/or channel suffix, keeping the bare locale", () => {
+    expect(localeOfVariant("ar-EG")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG#formal")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG|social")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG#formal|social")).toBe("ar-EG");
+  });
+});
+
+describe("DirectionalText", () => {
+  it("renders a <span> by default, with dir/lang derived from locale", () => {
+    const c = render(createElement(DirectionalText, { locale: "ar" }, "مرحباً"));
+    const el = c.firstElementChild!;
+    expect(el.tagName).toBe("SPAN");
+    expect(el.getAttribute("dir")).toBe("rtl");
+    expect(el.getAttribute("lang")).toBe("ar");
+  });
+
+  it("renders as whatever element `as` names, carrying the same attributes", () => {
+    for (const [as, tag] of [
+      ["div", "DIV"],
+      ["li", "LI"],
+      ["td", "TD"],
+      ["p", "P"],
+      ["ul", "UL"],
+    ] as const) {
+      const c = render(createElement(DirectionalText, { as, locale: "he" }, "שלום"));
+      const el = c.firstElementChild!;
+      expect(el.tagName, as).toBe(tag);
+      expect(el.getAttribute("dir"), as).toBe("rtl");
+      expect(el.getAttribute("lang"), as).toBe("he");
+    }
+  });
+
+  it("resolves ltr and omits lang for an unset locale, same as directionAttrs", () => {
+    const c = render(createElement(DirectionalText, {}, "hello"));
+    const el = c.firstElementChild!;
+    expect(el.getAttribute("dir")).toBe("ltr");
+    expect(el.getAttribute("lang")).toBeNull();
+  });
+
+  it("lets an explicit `dir` override the locale-derived direction", () => {
+    // The one legitimate reason: content that stays ltr regardless of the
+    // surrounding document's locale (e.g. source code).
+    const c = render(createElement(DirectionalText, { as: "pre", locale: "ar", dir: "ltr" }, "x"));
+    const el = c.firstElementChild!;
+    expect(el.getAttribute("dir")).toBe("ltr");
+    expect(el.getAttribute("lang")).toBeNull();
+  });
+
+  it("passes through every other prop unchanged (className, data-*, title, …)", () => {
+    const c = render(
+      createElement(
+        DirectionalText,
+        { locale: "ar", className: "foo", title: "a title", "data-block-id": "b1" },
+        "x",
+      ),
+    );
+    const el = c.firstElementChild!;
+    expect(el.className).toBe("foo");
+    expect(el.getAttribute("title")).toBe("a title");
+    expect(el.getAttribute("data-block-id")).toBe("b1");
   });
 });

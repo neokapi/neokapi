@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { cn } from "../../lib/utils";
+import { DirectionalText } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
-import { runsText } from "./renderDoc";
+import { blockSideText } from "./renderDoc";
 import { planeStyle, roleStyle, visibilityStyle } from "./roleStyle";
 import type { ContentNode, ContentTree } from "./types";
 
@@ -18,14 +19,6 @@ export interface StructureViewProps {
   /** "source" or a target variant key — selects which text the rows show. */
   side?: string;
   className?: string;
-}
-
-function blockText(node: ContentNode, side: string): string {
-  if (side && side !== "source") {
-    const t = node.targets?.[side];
-    if (t && t.length > 0) return runsText(t);
-  }
-  return runsText(node.source);
 }
 
 /** Normalize the implicit defaults so body/visible are first-class facet keys. */
@@ -101,7 +94,8 @@ function StructureRow({ row, side }: { row: Row; side: string }): React.ReactEle
   const plane = planeOf(node);
   const visibility = visibilityOf(node);
   const dimmed = plane !== "body" || visibility !== "visible";
-  const text = blockText(node, side).trim();
+  const { text: rawText, locale } = blockSideText(node, side);
+  const text = rawText.trim();
 
   return (
     <div
@@ -134,9 +128,9 @@ function StructureRow({ row, side }: { row: Row; side: string }): React.ReactEle
           {visibilityStyle(visibility).label}
         </Badge>
       )}
-      <span className="min-w-0 flex-1 truncate text-sm" title={text}>
+      <DirectionalText locale={locale} className="min-w-0 flex-1 truncate text-sm" title={text}>
         {text || <span className="text-muted-foreground italic">(empty)</span>}
-      </span>
+      </DirectionalText>
     </div>
   );
 }

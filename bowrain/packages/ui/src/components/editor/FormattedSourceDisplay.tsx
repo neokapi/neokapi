@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { EntityInfo, SpanInfo } from "../../types/api";
 import {
+  DirectionalText,
   getDefaultRegistry,
   parseCodedSegments,
   semanticLabel,
@@ -19,6 +20,12 @@ interface FormattedSourceDisplayProps {
    * has loaded them.
    */
   entities?: EntityInfo[];
+  /**
+   * The locale this text is written in (the source language, or the target
+   * being displayed) — every caller should pass it: without it this reads
+   * left-to-right regardless of the actual language.
+   */
+  locale?: string;
 }
 
 /** Map HTML open tags from the vocabulary to CSS styles for preview rendering. */
@@ -80,6 +87,7 @@ export function FormattedSourceDisplay({
   codedText,
   spans,
   entities,
+  locale,
 }: FormattedSourceDisplayProps) {
   const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
 
@@ -202,5 +210,5 @@ export function FormattedSourceDisplay({
     return elements;
   }, [segments, marks]);
 
-  return <span>{rendered}</span>;
+  return <DirectionalText locale={locale}>{rendered}</DirectionalText>;
 }

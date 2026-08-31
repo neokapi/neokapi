@@ -180,6 +180,7 @@ const PSEUDO_LOCALE = "__pseudo";
 function ContentPreview({
   blocks,
   itemName,
+  sourceLocale,
   targetLocale,
   side,
   selectedBlockId,
@@ -190,6 +191,7 @@ function ContentPreview({
 }: {
   blocks: BlockInfo[];
   itemName: string;
+  sourceLocale?: string;
   targetLocale: string;
   side: "source" | "target" | "pseudo";
   selectedBlockId?: string;
@@ -215,8 +217,8 @@ function ContentPreview({
   }, [blocks, side]);
 
   const tree = useMemo(
-    () => blocksToContentTree(projected, { format: extOf(itemName), name: itemName }),
-    [projected, itemName],
+    () => blocksToContentTree(projected, { format: extOf(itemName), name: itemName, sourceLocale }),
+    [projected, itemName, sourceLocale],
   );
 
   const blockAttrs = useCallback(
@@ -283,6 +285,8 @@ function ContentPreview({
 interface DocumentPreviewProps {
   projectId: string;
   itemName: string;
+  /** The project's source language, for the content-model fallback preview's direction. */
+  sourceLocale?: string;
   targetLocale: string;
   selectedBlockId?: string;
   onBlockSelect: (blockId: string) => void;
@@ -302,6 +306,7 @@ interface DocumentPreviewProps {
 export function DocumentPreview({
   projectId,
   itemName,
+  sourceLocale,
   targetLocale,
   selectedBlockId,
   onBlockSelect,
@@ -541,6 +546,7 @@ export function DocumentPreview({
         <ContentPreview
           blocks={contentBlocks}
           itemName={itemName}
+          sourceLocale={sourceLocale}
           targetLocale={targetLocale}
           side={showPseudo ? "pseudo" : showTarget ? "target" : "source"}
           selectedBlockId={selectedBlockId}

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { cn } from "../../lib/utils";
+import { DirectionalText, localeOfVariant } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { collectCues, formatDuration, formatTimecode, type Cue } from "./timeline";
@@ -133,19 +134,23 @@ export default function SubtitleTimeline({
                   </Badge>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm text-foreground" data-testid="cue-source">
+                  <DirectionalText
+                    locale={cue.node.sourceLocale}
+                    className="block text-sm text-foreground"
+                    data-testid="cue-source"
+                  >
                     {source || <span className="italic text-muted-foreground">(empty)</span>}
-                  </span>
+                  </DirectionalText>
                   {showTarget && (
-                    <span
+                    <DirectionalText
+                      locale={localeOfVariant(activeSide)}
                       className="mt-0.5 block text-sm text-primary/90"
                       data-testid="cue-target"
-                      lang={activeSide}
                     >
                       {target || (
                         <span className="italic text-muted-foreground/70">(untranslated)</span>
                       )}
-                    </span>
+                    </DirectionalText>
                   )}
                 </span>
               </button>

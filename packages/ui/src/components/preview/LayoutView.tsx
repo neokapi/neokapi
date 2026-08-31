@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
+import { DirectionalText } from "../../lib/text-direction";
 import { boxPercent, extentOf, flattenGeometry, topUnits, type PlacedBlock } from "./geometry";
-import { runsText } from "./renderDoc";
+import { blockSideText } from "./renderDoc";
 import { roleStyle } from "./roleStyle";
-import type { ContentNode, ContentTree } from "./types";
+import type { ContentTree } from "./types";
 
 // LayoutView — the editor's spatial layout view (WS5). For layout-aware sources
 // (PDF, Docling/DocLang, slide/sheet coordinates) it places each block's
@@ -17,14 +18,6 @@ export interface LayoutViewProps {
   /** "source" or a target variant key — selects which text the boxes show. */
   side?: string;
   className?: string;
-}
-
-function blockText(node: ContentNode, side: string): string {
-  if (side && side !== "source") {
-    const t = node.targets?.[side];
-    if (t && t.length > 0) return runsText(t);
-  }
-  return runsText(node.source);
 }
 
 interface Page {
@@ -75,7 +68,8 @@ function PageCanvas({
           const rs = roleStyle(b.node.structure?.role ?? b.node.type, b.node.structure?.level);
           // Bottom-left origin: flip Y so the page renders top-down (shared math).
           const p = boxPercent(b.g, extentW, extentH);
-          const text = blockText(b.node, side).trim();
+          const { text: rawText, locale } = blockSideText(b.node, side);
+          const text = rawText.trim();
           return (
             <div
               key={b.node.id}
@@ -96,7 +90,9 @@ function PageCanvas({
               )}, ${Math.round(b.g.w)}×${Math.round(b.g.h)}]`}
             >
               <span className="font-mono opacity-60">{b.order}</span>{" "}
-              <span className="align-middle">{text}</span>
+              <DirectionalText locale={locale} className="align-middle">
+                {text}
+              </DirectionalText>
             </div>
           );
         })}

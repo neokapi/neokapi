@@ -246,6 +246,7 @@ export function UnifiedTargetEditor({
         onCancel={onCancel}
         onChange={handleEditorChange}
         compact={compact}
+        locale={locale}
         handleRef={innerEditorRef}
       />
       <div className="flex justify-end gap-2">

@@ -783,6 +783,7 @@ export function ReviewSession({
         <div className="flex min-h-0 flex-1">
           <ReviewQueueList
             entries={visible}
+            sourceLocale={sourceLocale}
             groupBy={groupBy}
             onGroupByChange={setGroupBy}
             currentId={current?.id ?? null}

@@ -267,3 +267,22 @@ describe("UnifiedTargetEditor — cancel", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("UnifiedTargetEditor — writing direction", () => {
+  // The contenteditable is what a translator actually types into: pass the
+  // target locale through, or the cursor and every keystroke behave as if
+  // they were typing English regardless of the target language.
+  it("sets the contenteditable's CSS direction for an RTL target locale", () => {
+    render(
+      <UnifiedTargetEditor
+        block={makeBlock()}
+        locale="ar-EG"
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    const editable = document.querySelector<HTMLElement>('[contenteditable="true"]');
+    expect(editable?.style.direction).toBe("rtl");
+    expect(editable?.getAttribute("lang")).toBe("ar-EG");
+  });
+});

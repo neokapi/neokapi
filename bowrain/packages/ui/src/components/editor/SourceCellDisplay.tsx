@@ -1,12 +1,19 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo, EntityInfo } from "../../types/api";
-import { parseCodedSegments, TagChipComponent, buildPairs } from "@neokapi/ui-primitives";
+import {
+  DirectionalText,
+  parseCodedSegments,
+  TagChipComponent,
+  buildPairs,
+} from "@neokapi/ui-primitives";
 import { entityMarks, markEntities } from "./entityMarks";
 
 interface SourceCellDisplayProps {
   codedText: string;
   spans: SpanInfo[];
   entities?: EntityInfo[];
+  /** The locale this text is written in — see FormattedSourceDisplay's `locale`. */
+  locale?: string;
 }
 
 /**
@@ -14,7 +21,7 @@ interface SourceCellDisplayProps {
  * Entity ranges are defined on the plain source text; we track running plaintext offset
  * to apply entity styling to text segments in the coded view.
  */
-export function SourceCellDisplay({ codedText, spans, entities }: SourceCellDisplayProps) {
+export function SourceCellDisplay({ codedText, spans, entities, locale }: SourceCellDisplayProps) {
   const segments = useMemo(() => parseCodedSegments(codedText, spans), [codedText, spans]);
   const pairs = useMemo(() => buildPairs(spans), [spans]);
   const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
@@ -34,7 +41,7 @@ export function SourceCellDisplay({ codedText, spans, entities }: SourceCellDisp
   let plainOffset = 0; // Running code-point offset in the plain source text.
 
   return (
-    <span>
+    <DirectionalText locale={locale}>
       {segments.map((seg, i) => {
         if (seg.type === "text") {
           const offset = plainOffset;
@@ -63,6 +70,6 @@ export function SourceCellDisplay({ codedText, spans, entities }: SourceCellDisp
           </span>
         );
       })}
-    </span>
+    </DirectionalText>
   );
 }

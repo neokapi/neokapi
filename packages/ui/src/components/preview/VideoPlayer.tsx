@@ -1,12 +1,13 @@
 import React, { useMemo, useRef, useState } from "react";
 import { cn } from "../../lib/utils";
+import { DirectionalText } from "../../lib/text-direction";
 import { extentOf, flattenGeometry, type PlacedBlock } from "./geometry";
 import OCROverlay from "./OCROverlay";
 import SubtitleTimeline from "./SubtitleTimeline";
 import { activeCueIndex, collectCues } from "./timeline";
 import { useMediaTime } from "./useMediaTime";
-import { runsText } from "./renderDoc";
-import type { ContentTree, Run } from "./types";
+import { blockSideText } from "./renderDoc";
+import type { ContentTree } from "./types";
 
 // VideoPlayer — a <video> element wired to a SubtitleTimeline, with the active
 // subtitle burned in over the frame and, optionally, the frame's OCR boxes (the
@@ -37,18 +38,6 @@ export interface VideoPlayerProps {
   className?: string;
 }
 
-/** Pick the cue text for a side, falling back to source when no target exists. */
-function cueText(
-  node: { source?: Run[]; targets?: Record<string, Run[]> },
-  side: string | undefined,
-): string {
-  if (side && side !== "source") {
-    const t = node.targets?.[side];
-    if (t && t.length > 0) return runsText(t);
-  }
-  return runsText(node.source);
-}
-
 export default function VideoPlayer({
   src,
   tree,
@@ -65,7 +54,8 @@ export default function VideoPlayer({
 
   const cues = useMemo(() => collectCues(tree), [tree]);
   const active = activeCueIndex(cues, timeMs);
-  const subtitle = active >= 0 ? cueText(cues[active].node, side) : "";
+  const { text: subtitle, locale: subtitleLocale } =
+    active >= 0 ? blockSideText(cues[active].node, side) : { text: "", locale: undefined };
 
   // Frame OCR: geometry blocks whose timing span contains the playhead.
   const placed: PlacedBlock[] = useMemo(() => flattenGeometry(tree).placed, [tree]);
@@ -108,12 +98,12 @@ export default function VideoPlayer({
             className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center px-4"
             data-testid="burned-subtitle"
           >
-            <span
+            <DirectionalText
+              locale={subtitleLocale}
               className="max-w-[90%] rounded bg-black/70 px-2 py-1 text-center text-sm text-white"
-              lang={side && side !== "source" ? side : undefined}
             >
               {subtitle}
-            </span>
+            </DirectionalText>
           </div>
         )}
       </div>

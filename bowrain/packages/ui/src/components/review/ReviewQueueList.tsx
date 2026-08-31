@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, DirectionalText } from "@neokapi/ui-primitives";
 import { getTargetText } from "../editor/blockStatus";
 import { AlertTriangle, CircleCheck } from "../icons";
 import {
@@ -26,6 +26,8 @@ const verdictDot: Record<ReviewQueueVerdict, { className: string; icon: typeof A
 export interface ReviewQueueListProps {
   /** The visible (already filtered) queue, in review order. */
   entries: ReviewEntry[];
+  /** The project's source language, so each row's source snippet reads in its own direction. */
+  sourceLocale: string;
   groupBy: ReviewGroupBy;
   onGroupByChange: (groupBy: ReviewGroupBy) => void;
   /** The id of the entry currently open in the reviewer. */
@@ -44,6 +46,7 @@ export interface ReviewQueueListProps {
  */
 export function ReviewQueueList({
   entries,
+  sourceLocale,
   groupBy,
   onGroupByChange,
   currentId,
@@ -131,13 +134,22 @@ export function ReviewQueueList({
                       aria-label={blockers.map((b) => BLOCKER_LABELS[b]).join(", ") || "Passing"}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{entry.block.source}</span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                      <DirectionalText locale={sourceLocale} className="block truncate text-sm">
+                        {entry.block.source}
+                      </DirectionalText>
+                      <DirectionalText
+                        locale={entry.locale}
+                        className="mt-0.5 block truncate text-xs text-muted-foreground"
+                      >
                         {groupBy !== "locale" && (
-                          <span className="mr-1 rounded bg-muted px-1 py-px">{entry.locale}</span>
+                          // A locale code is an identifier, not prose: always LTR and
+                          // isolated so an RTL row's direction can't reposition it.
+                          <bdi dir="ltr" className="mr-1 rounded bg-muted px-1 py-px">
+                            {entry.locale}
+                          </bdi>
                         )}
                         {getTargetText(entry.block, entry.locale) || "—"}
-                      </span>
+                      </DirectionalText>
                     </span>
                   </button>
                 );
