@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"math"
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/host/facetest"
@@ -129,14 +131,11 @@ func TestFaceParity_DesktopStatusNamesTheSameProjectAndLocales(t *testing.T) {
 	}
 }
 
-// The gap: the two readings do not yet meet. A target file sitting in the
-// working tree counts at the terminal and counts for nothing in the app until a
-// run writes it into the store, so one project reads as partly translated in one
-// place and untouched in the other. Pinned so the W3 status work fails here and
-// tightens this to the record.
+// The two readings meet: the desktop counts the coverage the CLI computes, so a
+// target file sitting in the working tree counts the same on both faces.
 //
-// See #2265.
-func TestFaceParity_DesktopStatusCountsTheStoreNotTheTree(t *testing.T) {
+// Closed #2265.
+func TestFaceParity_DesktopStatusCountsTheSameTranslatedUnits(t *testing.T) {
 	app, tab, _ := openFixture(t)
 	want := facetest.Golden(t)
 
@@ -145,11 +144,48 @@ func TestFaceParity_DesktopStatusCountsTheStoreNotTheTree(t *testing.T) {
 	status, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
 
-	var recorded int
+	require.NotEmpty(t, want.Status.Locales, "the record stands on a locale")
 	for _, l := range want.Status.Locales {
-		recorded += l.Translated
+		assert.Equal(t, l.Translated, desktopTranslatedPct(status, l.Locale, want.Status.Collections),
+			"locale %q: the desktop stands where the record stands", l.Locale)
 	}
-	require.Positive(t, recorded, "the record stands on a partly translated locale")
+}
+
+// desktopTranslatedPct renders the desktop's counts as the percentage the
+// record reports, over the collections the record reports on. Numerator and
+// denominator both come from the working-tree derivation, so the ratio is the
+// one `kapi status` prints.
+//
+// The two faces list different collections and both are defensible: `kapi
+// status` prints the ones that have a target locale row, the desktop draws
+// every declared collection so a reader sees the whole project. The percentage
+// is the part that has to agree, so it is compared over the same collections.
+func desktopTranslatedPct(status *ProjectStatus, loc string, collections []string) int {
+	var counted, total int
+	for _, c := range status.Collections {
+		if !slices.Contains(collections, c.Name) || !slices.Contains(c.TargetLanguages, loc) {
+			continue
+		}
+		counted += c.Coverage[loc]
+		total += c.Units[loc]
+	}
+	if total == 0 {
+		return 0
+	}
+	return int(math.Round(float64(counted) / float64(total) * 100))
+}
+
+// A target committed beside its source counts before any run has carried it
+// into the block store. This is the shape of the gap that was: extraction reads
+// sources, so a store-only reading saw the source and not the translation.
+func TestFaceParity_DesktopStatusCountsACommittedTargetBeforeARun(t *testing.T) {
+	app, tab, _ := openFixture(t)
+	want := facetest.Golden(t)
+
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+	status, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
 
 	var counted int
 	for _, c := range status.Collections {
@@ -157,6 +193,11 @@ func TestFaceParity_DesktopStatusCountsTheStoreNotTheTree(t *testing.T) {
 			counted += n
 		}
 	}
-	assert.Zero(t, counted,
-		"the desktop now counts the working tree: compare it against the record instead")
+	assert.Positive(t, counted, "the committed target in the tree is translated content")
+
+	for _, l := range want.Status.Locales {
+		assert.Positive(t, l.Translated, "the record stands on a partly translated locale")
+		assert.Positive(t, desktopTranslatedPct(status, l.Locale, want.Status.Collections),
+			"locale %q reads as touched in the app, as it does at the terminal", l.Locale)
+	}
 }

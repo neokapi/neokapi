@@ -1053,13 +1053,13 @@ export function GetProjectServer(tabID) {
 }
 
 /**
- * GetProjectStatus returns the current per-collection coverage for a project
- * tab, computed from the block cache in the project's store through the shared
- * coverage engine (convergence.TallyBlockStore + CoverageTally) — the same tally
- * the CLI's `kapi status` feeds from working-tree file reads, so the desktop and
- * the CLI count with one rung semantics. Blocks are addressed by their ID and
- * translated targets live under `targets/<locale>` overlays (the keys
- * `kapi run` / `kapi merge` write and read).
+ * GetProjectStatus returns the current per-collection status for a project tab,
+ * on the two axes `kapi status` reports.
+ * 
+ * Coverage is the CLI's own derivation (host.ProjectCoverageTally over
+ * working-tree reads), so a target committed beside its source counts here
+ * exactly as it counts at the terminal. Extracted totals come from the block
+ * cache, which is what the store knows and the tree does not.
  * 
  * If the project has never been extracted, the returned status has
  * HasData=false and zeroed coverage; this is a well-defined "no data yet"

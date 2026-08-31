@@ -7,7 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -165,41 +164,50 @@ func TestRunExtractPopulatesStoreAndCoverage(t *testing.T) {
 
 func TestRunExtractThenCoverageWithTargets(t *testing.T) {
 	app := NewApp()
-	tab, _ := newCoverageProject(t, app)
+	tab, root := newCoverageProject(t, app)
 
 	_, err := app.RunExtract(tab.ID)
 	require.NoError(t, err)
 
-	// Simulate a translation pass committing two fr-FR target overlays under the
-	// same keys a real `kapi run` writes: the store block's own Hash
-	// (blockstore.StoreKey — the source file's path plus the file-local id), not
-	// the file-local id, which restarts in every source. Through the app's own
-	// handle, not a second pool on the store file: the write gate that orders this
-	// process's writers is per pool.
-	db, err := app.projectStore(app.getOpenProject(tab.ID))
-	require.NoError(t, err)
-	ctx := context.Background()
-	sess, err := db.Blocks().Begin(ctx)
-	require.NoError(t, err)
-
-	var ids []string
-	for b, berr := range sess.Blocks(blockstore.BlockFilter{Collection: "App"}) {
-		require.NoError(t, berr)
-		ids = append(ids, b.Hash)
-	}
-	require.Len(t, ids, 3)
-
-	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr-FR", BlockHash: ids[0], Payload: []byte(`{"text":"Bonjour"}`)}))
-	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr-FR", BlockHash: ids[1], Payload: []byte(`{"text":"Au revoir"}`)}))
-	require.NoError(t, sess.Commit())
+	// A translation pass materializes the target beside its source, which is
+	// what a run writes and what the coverage derivation reads. Two of the
+	// three units carry French; the third has no target value at all, which is
+	// what "untranslated" looks like on disk — a target repeating its source is
+	// a translation that happens to match, and counts.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "locales", "fr-FR.json"),
+		[]byte(`{"greeting":"Bonjour","farewell":"Au revoir"}`),
+		0o644,
+	))
 
 	status, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
 	require.Len(t, status.Collections, 1)
 	coll := status.Collections[0]
 	assert.Equal(t, 3, coll.BlockCount)
-	assert.Equal(t, 2, coll.Coverage["fr-FR"], "two fr-FR targets committed")
-	assert.Equal(t, 0, coll.Coverage["de-DE"], "no de-DE targets yet")
+	assert.Equal(t, 2, coll.Coverage["fr-FR"], "two fr-FR units carry a translation")
+	assert.Equal(t, 0, coll.Coverage["de-DE"], "no de-DE target yet")
+}
+
+// A target committed in the working tree counts before any run has carried it
+// into the block store: the file is the content, and a reading that waited for
+// the store reported a translated project as untouched (#2265).
+func TestCoverageCountsACommittedTargetWithoutARun(t *testing.T) {
+	app := NewApp()
+	tab, root := newCoverageProject(t, app)
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "locales", "fr-FR.json"),
+		[]byte(`{"greeting":"Bonjour"}`),
+		0o644,
+	))
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	status, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	require.Len(t, status.Collections, 1)
+	assert.Equal(t, 1, status.Collections[0].Coverage["fr-FR"])
 }
 
 func TestRunExtractUnknownTab(t *testing.T) {

@@ -1060,10 +1060,23 @@ export class CollectionStatus {
         }
         if (!("coverage" in $$source)) {
             /**
+             * Coverage is the count of units carrying a translation, per target locale,
+             * derived from the working tree.
              * @member
              * @type {{ [_ in string]?: number }}
              */
             this["coverage"] = {};
+        }
+        if (!("units" in $$source)) {
+            /**
+             * Units is how many units that count is out of, per target locale, from the
+             * same derivation. It is the denominator a percentage must use: BlockCount
+             * answers a different question (how much this project has extracted) and a
+             * ratio mixing the two belongs to neither.
+             * @member
+             * @type {{ [_ in string]?: number }}
+             */
+            this["units"] = {};
         }
         if (!("targetLanguages" in $$source)) {
             /**
@@ -1083,13 +1096,17 @@ export class CollectionStatus {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType20;
-        const $$createField3_0 = $$createType2;
+        const $$createField3_0 = $$createType20;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coverage" in $$parsedSource) {
             $$parsedSource["coverage"] = $$createField2_0($$parsedSource["coverage"]);
         }
+        if ("units" in $$parsedSource) {
+            $$parsedSource["units"] = $$createField3_0($$parsedSource["units"]);
+        }
         if ("targetLanguages" in $$parsedSource) {
-            $$parsedSource["targetLanguages"] = $$createField3_0($$parsedSource["targetLanguages"]);
+            $$parsedSource["targetLanguages"] = $$createField4_0($$parsedSource["targetLanguages"]);
         }
         return new CollectionStatus(/** @type {Partial<CollectionStatus>} */($$parsedSource));
     }
