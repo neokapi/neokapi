@@ -87,7 +87,7 @@ packageManagerRegistries:
 # vite-plus, bump this entry to match — otherwise the plugins' `vite` build and
 # vite-plus's own build diverge and the TS2321/TS2769 overflow above returns.
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.8
+  vite: npm:@voidzero-dev/vite-plus-core@0.3.0
 
 # Cross-workspace version pins (was the root package.json npm "overrides").
 overrides:

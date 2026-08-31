@@ -52,80 +52,71 @@ function relation(over: Partial<ConceptRelation> = {}): ConceptRelation {
 /** A fake ApiAdapter exposing only the slice the source uses. */
 function fakeAdapter(over: Partial<ApiAdapter> = {}): ApiAdapter {
   const base = {
-    listConcepts: vi.fn(
-      async (): Promise<TermSearchResult> => ({ concepts: [conceptInfo()], total_count: 1 }),
-    ),
+    listConcepts: vi.fn(async (): Promise<TermSearchResult> => ({
+      concepts: [conceptInfo()],
+      total_count: 1,
+    })),
     getConcept: vi.fn(async () => conceptInfo()),
     listConceptRelations: vi.fn(async (): Promise<ConceptRelation[]> => [relation()]),
-    listMarkets: vi.fn(
-      async (): Promise<GraphMarket[]> => [
-        {
-          id: "m1",
-          workspace_id: "w",
-          name: "DACH",
-          description: "German-speaking",
-          locales: ["de-DE", "de-AT"],
-          created_at: "x",
-          updated_at: "y",
-        },
-      ],
-    ),
-    listObservations: vi.fn(
-      async (): Promise<GraphObservation[]> => [
-        {
-          id: "o1",
-          workspace_id: "w",
-          concept_id: "c1",
-          kind: "competitor",
-          quote: "they say sky",
-          source: "Acme site",
-          url: "https://acme.example",
-          created_by: "alice",
-          created_at: "2025-03-01T00:00:00Z",
-        },
-      ],
-    ),
-    listConceptComments: vi.fn(
-      async (): Promise<GraphComment[]> => [
-        {
-          id: "cm1",
-          workspace_id: "w",
-          concept_id: "c1",
-          parent_id: "",
-          body: "looks good",
-          author: "bob",
-          created_at: "2025-03-02T00:00:00Z",
-          resolved: false,
-        },
-      ],
-    ),
-    getConceptStory: vi.fn(
-      async (): Promise<ConceptStory> => ({
+    listMarkets: vi.fn(async (): Promise<GraphMarket[]> => [
+      {
+        id: "m1",
+        workspace_id: "w",
+        name: "DACH",
+        description: "German-speaking",
+        locales: ["de-DE", "de-AT"],
+        created_at: "x",
+        updated_at: "y",
+      },
+    ]),
+    listObservations: vi.fn(async (): Promise<GraphObservation[]> => [
+      {
+        id: "o1",
+        workspace_id: "w",
         concept_id: "c1",
-        entries: [
-          { kind: "revision", at: "2025-01-01T00:00:00Z", actor: "alice", summary: "Created" },
-          {
-            kind: "comment",
-            at: "2025-03-02T00:00:00Z",
-            actor: "bob",
-            data: { body: "looks good" },
-          },
-        ],
-      }),
-    ),
-    getConceptBlastRadius: vi.fn(
-      async (): Promise<ConceptUsage> => ({
+        kind: "competitor",
+        quote: "they say sky",
+        source: "Acme site",
+        url: "https://acme.example",
+        created_by: "alice",
+        created_at: "2025-03-01T00:00:00Z",
+      },
+    ]),
+    listConceptComments: vi.fn(async (): Promise<GraphComment[]> => [
+      {
+        id: "cm1",
+        workspace_id: "w",
         concept_id: "c1",
-        // total_blocks is the workspace scan denominator (rows scanned); blocks
-        // is the concept-hit count. They differ so the mapping can't conflate them.
-        total_blocks: 200,
-        blocks: 12,
-        occurrences: 30,
-        words: 240,
-        projects: [],
-        samples: [],
-      }),
-    ),
+        parent_id: "",
+        body: "looks good",
+        author: "bob",
+        created_at: "2025-03-02T00:00:00Z",
+        resolved: false,
+      },
+    ]),
+    getConceptStory: vi.fn(async (): Promise<ConceptStory> => ({
+      concept_id: "c1",
+      entries: [
+        { kind: "revision", at: "2025-01-01T00:00:00Z", actor: "alice", summary: "Created" },
+        {
+          kind: "comment",
+          at: "2025-03-02T00:00:00Z",
+          actor: "bob",
+          data: { body: "looks good" },
+        },
+      ],
+    })),
+    getConceptBlastRadius: vi.fn(async (): Promise<ConceptUsage> => ({
+      concept_id: "c1",
+      // total_blocks is the workspace scan denominator (rows scanned); blocks
+      // is the concept-hit count. They differ so the mapping can't conflate them.
+      total_blocks: 200,
+      blocks: 12,
+      occurrences: 30,
+      words: 240,
+      projects: [],
+      samples: [],
+    })),
     addConceptRelation: vi.fn(async () => relation({ id: "r-new", target_id: "c9" })),
     deleteConceptRelation: vi.fn(async () => undefined),
     updateConcept: vi.fn(async () => undefined),

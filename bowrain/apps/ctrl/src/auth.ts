@@ -228,9 +228,10 @@ export async function logout(): Promise<void> {
     // Best-effort — still try to terminate the SSO session below.
   }
 
-  const { end_session_endpoint } = await discoverEndpoints().catch(
-    (): OidcEndpoints => ({ authorization_endpoint: "", token_endpoint: "" }),
-  );
+  const { end_session_endpoint } = await discoverEndpoints().catch((): OidcEndpoints => ({
+    authorization_endpoint: "",
+    token_endpoint: "",
+  }));
   if (!end_session_endpoint) {
     // No RP-initiated logout advertised: the server session is already cleared;
     // just return to the app root.
