@@ -26,12 +26,17 @@ type LocaleInfo struct {
 	DisplayName string `json:"display_name"`
 }
 
-// Parse validates and normalizes a BCP-47 locale string.
-// It returns the canonical shortest form (e.g., "en" not "en-Latn-US").
+// Parse validates and normalizes a well-formed BCP-47 locale string, returning
+// its canonical form ("pt-br" → "pt-BR").
 //
 // Parse is strict about CLDR membership: a well-formed tag naming a subtag CLDR
-// does not know ("qps-Ploc", the Microsoft pseudo-locale) is an error here. Use
-// Canonical at an ingress boundary, which accepts those and keeps them whole.
+// does not know ("qps-Ploc", the Microsoft pseudo-locale) is an error here. It
+// also takes the tag as written, so it rejects the styles an operating system
+// or a person writes ("en_US.UTF-8", "nb@bokmal").
+//
+// It is therefore not an ingress boundary. Canonical is the one normalization a
+// locale entering neokapi crosses; it accepts those styles, and reaches this
+// function for the tags they clean up to.
 func Parse(s string) (model.LocaleID, error) {
 	tag, err := language.Parse(s)
 	if err != nil {
@@ -69,9 +74,11 @@ func Canonical(s string) (model.LocaleID, error) {
 		return "", fmt.Errorf("invalid locale %q: empty", s)
 	}
 
-	tag, err := language.Parse(cleaned)
+	// The strict attempt is Parse itself, so the form the two return for a tag
+	// they both accept cannot drift apart.
+	id, err := Parse(cleaned)
 	if err == nil {
-		return model.LocaleID(tag.String()), nil
+		return id, nil
 	}
 
 	// A subtag CLDR has never heard of is still a subtag. Keep the tag whole

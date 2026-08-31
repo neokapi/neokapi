@@ -32,7 +32,9 @@ func (a *App) GetKnownLocales() []locale.LocaleInfo {
 	for _, cl := range settings.CustomLocales {
 		displayName := cl.DisplayName
 		if displayName == "" {
-			id, err := locale.Parse(cl.Code)
+			// A custom locale is typed by the person adding it, so it arrives in
+			// whatever style they write and may name a pseudo-locale.
+			id, err := locale.Canonical(cl.Code)
 			if err != nil {
 				continue
 			}

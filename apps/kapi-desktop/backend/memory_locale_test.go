@@ -40,6 +40,31 @@ func TestMemory_CanonicalizesLocaleArguments(t *testing.T) {
 	}
 }
 
+// The app renders a pseudo-locale, and a person may add a custom one CLDR has
+// never heard of. Both are locales; only a primary subtag that names no
+// language is not. A boundary that validated strictly would turn the app's own
+// pseudo-locale away.
+func TestMemory_AcceptsAPseudoLocale(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestMemory(t, app)
+
+	require.NoError(t, app.AddMemoryEntry(handle, AddMemoryEntryRequest{
+		HintSrcLang: "en",
+		Variants: map[string]VariantInputDTO{
+			"en":          {Text: "Shopping cart"},
+			"qps-Ploc":    {Text: "[Šĥöppíñg çäŕţ]"},
+			"en_US.UTF-8": {Text: "Shopping cart"},
+		},
+	}))
+
+	res := app.SearchMemoryEntries(handle, "Shopping", "", "", 0, 10)
+	require.Len(t, res.Entries, 1)
+
+	got := res.Entries[0].Variants
+	assert.Contains(t, got, "qps-Ploc", "the pseudo-locale must survive whole")
+	assert.Contains(t, got, "en-US", "a POSIX locale with a codeset must be cleaned, not refused")
+}
+
 func TestMemory_RefusesALocaleThatNamesNothing(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestMemory(t, app)
