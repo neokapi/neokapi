@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from "react";
 import type { Run } from "@neokapi/kapi-format";
-import type { MemoryEntryDTO, VariantDTO } from "./types";
+import type { MemoryEntryDTO, MemoryPointDTO, VariantDTO } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
+import { EntryPlacement } from "./EntryPlacement";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
 import { codedToRuns, runsToCoded } from "../editor/runsCodedBridge";
 
@@ -44,6 +45,10 @@ interface MemoryGroupedEntryProps {
    * The source variant (driven by `hint_src_lang`) is always shown as the header.
    */
   visibleLocales?: string[];
+  /** Resolve where an uncontested entry's unit sits. Absent = no coordinate. */
+  resolvePoint?: (entry: MemoryEntryDTO) => Promise<MemoryPointDTO | null>;
+  /** Open the context surface at this entry's unit. */
+  onOpenUnit?: (entry: MemoryEntryDTO) => void;
 }
 
 /**
@@ -59,6 +64,8 @@ export function MemoryGroupedEntry({
   onEditVariant,
   onDelete,
   visibleLocales,
+  resolvePoint,
+  onOpenUnit,
 }: MemoryGroupedEntryProps) {
   const locales = useMemo(() => Object.keys(entry.variants), [entry.variants]);
 
@@ -195,6 +202,7 @@ export function MemoryGroupedEntry({
                 Project
               </span>
             )}
+            <EntryPlacement entry={entry} resolvePoint={resolvePoint} onOpenUnit={onOpenUnit} />
             <OriginsPopover origins={entry.origins ?? []} note={entry.note} />
             <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               <ConfirmDeleteButton onDelete={onDelete} mode="inline" />

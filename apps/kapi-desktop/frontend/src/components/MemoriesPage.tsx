@@ -33,6 +33,11 @@ export interface MemoriesPageProps {
   resources?: ResourceInfo[];
   /** Force loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
+  /**
+   * Open the context surface standing at an entry's unit. Absent where there is
+   * none to open — the ad-hoc store has no project to stand in.
+   */
+  onOpenUnit?: (unitPath: string) => void;
 }
 
 interface ActivityPoint {
@@ -48,6 +53,7 @@ export function MemoriesPage({
   tabID,
   resources: propResources,
   forceLoading = false,
+  onOpenUnit,
 }: MemoriesPageProps = {}) {
   const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
@@ -86,7 +92,7 @@ export function MemoriesPage({
     ? [sourceLang, ...filterLangs].filter(Boolean)
     : undefined;
   const activeHandle = projectHandle || handle;
-  const adapter = useMemoryAdapter(activeHandle);
+  const adapter = useMemoryAdapter(activeHandle, tabID, onOpenUnit);
 
   // Dashboard stats (count, activity) for whichever content memory is open — project OR
   // named. Both use the same view, so a named content memory shows the same activity chart.

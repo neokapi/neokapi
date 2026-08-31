@@ -1,6 +1,6 @@
 import { t } from "@neokapi/i18n-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
-import type { MemoryEntryDTO } from "./types";
+import type { MemoryEntryDTO, MemoryPointDTO } from "./types";
 import { Pagination } from "./Pagination";
 import { MemoryGroupedEntry } from "./MemoryGroupedEntry";
 import { ItemCard } from "../ui/item-card";
@@ -24,6 +24,10 @@ interface MemoryEntryListProps {
   page: number;
   totalCount: number;
   onPageChange: (page: number) => void;
+  /** Resolve where an uncontested entry's unit sits. Absent = no coordinate. */
+  resolvePoint?: (entry: MemoryEntryDTO) => Promise<MemoryPointDTO | null>;
+  /** Open the context surface at an entry's unit. */
+  onOpenUnit?: (entry: MemoryEntryDTO) => void;
 }
 
 /** Loading skeleton, empty state, entry cards, and pagination of the content memory browser. */
@@ -42,6 +46,8 @@ export function MemoryEntryList({
   page,
   totalCount,
   onPageChange,
+  resolvePoint,
+  onOpenUnit,
 }: MemoryEntryListProps) {
   const isEmpty = entries.length === 0;
 
@@ -80,6 +86,8 @@ export function MemoryEntryList({
             <MemoryGroupedEntry
               key={entry.id}
               entry={withHint(entry, hintLocale)}
+              resolvePoint={resolvePoint}
+              onOpenUnit={onOpenUnit}
               selected={selected.has(entry.id)}
               onToggleSelect={() => onToggleSelect(entry.id)}
               onEditVariant={(locale, runs) => onEditVariant(entry, locale, runs)}

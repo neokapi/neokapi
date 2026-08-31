@@ -1,6 +1,7 @@
 import type {
   MemorySearchResult,
   MemoryEntryDTO,
+  MemoryPointDTO,
   MemoryMatchDTO,
   AddMemoryEntryRequest,
   UpdateMemoryEntryRequest,
@@ -68,6 +69,22 @@ export interface MemoryAdapter {
   getImportSession?(id: string): Promise<ImportSessionDTO | null>;
   /** Delete an import session row (origins keep pointing at empty session_id). */
   deleteImportSession?(id: string): Promise<void>;
+  /**
+   * The coordinate the unit an entry was approved for sits at.
+   *
+   * Only a host holding the project's recipe can answer this: the corpus stores
+   * a point for a contested entry and nothing for the rest, because an answer
+   * every point agrees on is not a decision about a place. A host that has the
+   * recipe resolves where the unit sits; one that does not omits the method, and
+   * the browser shows no coordinate rather than guessing at one.
+   */
+  resolvePoint?(entry: MemoryEntryDTO): Promise<MemoryPointDTO | null>;
+  /**
+   * Open the project's context surface standing at an entry's unit. Absent
+   * where there is no such surface to open, and the unit then reads as a label
+   * rather than a link.
+   */
+  openUnit?(entry: MemoryEntryDTO): void;
 }
 
 /** Adapter interface for terms operations. */

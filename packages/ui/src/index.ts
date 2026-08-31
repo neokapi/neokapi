@@ -377,6 +377,7 @@ export type {
   MemoryAdapter,
   TermsAdapter,
   MemoryEntryDTO,
+  MemoryPointDTO,
   VariantDTO,
   VariantInputDTO,
   EntityMappingDTO,

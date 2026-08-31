@@ -1,6 +1,7 @@
 // Types
 export type {
   MemoryEntryDTO,
+  MemoryPointDTO,
   VariantDTO,
   VariantInputDTO,
   EntityMappingDTO,
