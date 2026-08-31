@@ -1,7 +1,7 @@
 ---
 title: The desktop app
 sidebar_label: The desktop app
-description: Bowrain Desktop is a native, offline-capable client for the same server-hosted workspace as the web client — a working copy of the server, never a separate source of truth.
+description: Bowrain Desktop is a native, offline-capable client for the same server-hosted workspace as the web client, a working copy of the server, never a separate source of truth.
 keywords: [desktop, offline, working copy, native app, bowrain]
 ---
 
@@ -9,16 +9,16 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # The desktop app
 
-Everything in this section describes one product served from one place — the
+Everything in this section describes one product served from one place, the
 Bowrain server. You reach a workspace through two clients: a browser and a
 native **desktop app**. They are equal real-time clients of the same server, so
-presence, edits, reviews, terminology, and content memory are shared live
-across both. The pages on workspaces, the editor, memory, terminology, brand
-governance, and connectors apply to both clients; this page covers only what is
-**different** about the desktop app.
+presence, edits, reviews, terms, and content memory are shared live across
+both. The pages on workspaces, the hub, review, the editor, memory, terms, and
+connectors apply to both clients; this page covers only what is **different**
+about the desktop app.
 
-The native desktop client is a real-time working copy of the server — the same
-dashboard, editor, and reviews as the browser.
+The native desktop client is a real-time working copy of the server, with the
+same dashboard, hub, editor, and reviews as the browser.
 
 <ThemedVideo
   sources={{
@@ -30,7 +30,7 @@ dashboard, editor, and reviews as the browser.
 ## A working copy of the server
 
 The desktop app is a **working copy of the server, never a separate source of
-truth**. The authoritative content, content memory, terminology, and project
+truth**. The authoritative content, content memory, terms, and project
 configuration live on the server; the desktop holds only:
 
 - a **content cache**, so a project opens fast and stays readable offline, and
@@ -39,17 +39,17 @@ configuration live on the server; the desktop holds only:
 
 Neither is a source of truth. If the local cache is cleared, the desktop
 re-fetches everything from the server. Authoring local files and project
-configuration — the `kapi.yaml` recipe with its content, flows, plugins, languages,
-and brand — is [kapi's job](/getting-started/kapi-vs-bowrain), not the desktop
-app's.
+configuration, the `kapi.yaml` recipe with its content, flows, plugins,
+languages, coordinates and voice binding, is
+[kapi's job](/getting-started/kapi-vs-bowrain), not the desktop app's.
 
 ## What the desktop adds: offline editing
 
 The browser client is always online. The desktop client keeps working when the
-network drops — on a flight, in a tunnel, or during server maintenance. Edits,
+network drops: on a flight, in a tunnel, or during server maintenance. Edits,
 reviews, and memory updates made offline queue locally and replay in order the
 moment you reconnect, then rejoin the live session. You never lose work to a
-dropped connection, and you do not have to think about sync — it happens on
+dropped connection, and you do not have to think about sync; it happens on
 reconnect. See [Real-time collaboration](/server/collaboration) for the shared
 presence and live-update model both clients use.
 
@@ -60,34 +60,34 @@ for is a matter of where you work, not what you can do.
 
 | | **Browser** | **Desktop app** |
 | --- | --- | --- |
-| Install | Nothing — open a URL | Native app (macOS / Linux / Windows) |
+| Install | Nothing; open a URL | Native app (macOS / Linux / Windows) |
 | Real-time presence & live updates | Yes | Yes |
-| Translation editor, memory & terminology explorers | Yes | Yes |
-| Brand, terminology & memory context | Yes | Yes |
-| AI/MT translation | Yes | Yes |
-| Works offline | No (always online) | **Yes** — edits queue, sync on reconnect |
-| Local footprint | Browser session | **Cache only** — content cache, offline edit queue, memory and terms mirrors |
-| Best for | Quick access, reviewers, occasional contributors | Daily translators, large files, unreliable connectivity |
+| Context hub, review session, editor, memory & terms explorers | Yes | Yes |
+| Voice, terms & memory context | Yes | Yes |
+| AI drafting | Yes | Yes |
+| Works offline | No (always online) | **Yes**: edits queue, sync on reconnect |
+| Local footprint | Browser session | **Cache only**: content cache, offline edit queue, memory and terms mirrors |
+| Best for | Quick access, reviewers, occasional contributors | Daily contributors, large files, unreliable connectivity |
 
 ## Installation
 
 Install via Homebrew (`brew install --cask neokapi/tap/bowrain`) or download a
-build for your platform — the [installation page](/installation#bowrain-desktop)
+build for your platform; the [installation page](/installation#bowrain-desktop)
 carries the direct, version-pinned links for the current release.
 
 ## First sign-in
 
 1. Launch Bowrain.
-2. Open **Settings** and enter your server URL (e.g. `https://app.bowrain.cloud`).
-3. Click **Connect** — this opens the login flow in your browser. After
+2. Open **Settings** and enter your server URL (for example `https://app.bowrain.cloud`).
+3. Click **Connect**. This opens the login flow in your browser. After
    authorization, your workspaces appear in the workspace rail.
 4. Pick a workspace, then open a project from its project list.
 
 Until you connect, the rail shows a single placeholder **Personal** workspace.
-The desktop does not author local-file projects there — creating and configuring
+The desktop does not author local-file projects there; creating and configuring
 projects is [kapi's job](/getting-started/kapi-vs-bowrain). Connect to a server
 to open real projects. Once connected, its workspaces, projects, and resources
-are **the server's** — the same ones the team works on in the browser. See
+are **the server's**, the same ones the team works on in the browser. See
 [Workspaces & members](/server/workspaces) for the role and permission model,
 and [The editor](/server/translation-editor) for the editing surfaces both
 clients share.
@@ -98,7 +98,7 @@ Pulling content from a CMS, a git host, or a design tool is configured
 server-side through [connectors](/server/connectors); both clients edit the
 resulting project. The desktop app itself offers only **remote/CMS** connectors
 (WordPress, Figma, HubSpot). The local-filesystem connectors (file, git) are
-registered **server-side only** — sourcing content from a filesystem or a git
+registered **server-side only**: sourcing content from a filesystem or a git
 checkout is a server-side concern, and a local codebase syncs in through kapi
 (`kapi push` / `kapi pull`).
 
@@ -112,4 +112,4 @@ the same file in its original format with all translations applied. See
 ## Platform
 
 Bowrain Desktop runs as a single native application on macOS, Windows, and
-Linux — no additional runtimes or dependencies are needed.
+Linux; no additional runtimes or dependencies are needed.

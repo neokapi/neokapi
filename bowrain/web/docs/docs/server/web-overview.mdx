@@ -1,34 +1,38 @@
 ---
 sidebar_position: 1
 title: Overview
-description: Bowrain is a governed, multi-user content platform reached through two equal real-time clients — a browser and a native desktop app — that share the same workspace, terminology, content memory, presence, and reviews.
+description: Bowrain is the context graph a workspace is governed by, reached through two equal real-time clients, a browser and a native desktop app, that share the same workspace, profiles, terms, content memory, presence, and reviews.
 ---
 
 import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 
 # Overview
 
-Bowrain is a governed, multi-user content platform served from one place — the Bowrain server. Everyone reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, content memory, presence, and reviews are shared across both. Writers and reviewers work here entirely; developers meet the same workspace through [the same server runs](/the-loop) — what a run parks arrives in the review queue, and what gets approved here feeds the next run. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
+Bowrain holds the context graph for every project in a workspace: the profiles,
+the terms, the content memory, and the decisions people make about them, served
+from one place, the Bowrain server. Everyone reaches the same workspace through
+two clients, a **browser** and a native **[desktop app](/server/desktop-app)**.
+They are equal real-time clients, so the hub, the review session, the editor,
+presence, and history are shared across both. Developers meet the same
+workspace through [server runs](/the-loop): what a run parks arrives in review,
+and what gets approved here feeds the next run.
+
+This section describes the platform by what you do with it. Client-specific
+differences are noted inline; the [desktop app](/server/desktop-app) page
+covers what is different about the native client.
 
 ## A quick tour
 
-The editor works on content from any [connector](/server/connectors) — a content platform, a design tool, a repository, or a developer's checkout — held on the server, shared across a team and governed over time. These short tours run against a live workspace.
+These short tours run against a live workspace.
 
-### The translation editor
+### The Context hub
 
-Open a file and it becomes a side-by-side workbench: source and target, a live preview of the page, and — beside each block — the matches from the workspace content memory and the approved terminology. One editor serves every target locale.
-
-<ThemedVideo
-  sources={{
-    light: "/video/bowrain-web/bowrain-web-editor-light.webm",
-    dark: "/video/bowrain-web/bowrain-web-editor-dark.webm",
-  }}
-  outdated="wording"
-/>
-
-### Shared terminology and memory
-
-Terminology and a content memory are often per-person files or spreadsheets. Bowrain keeps them on the server, shared across every project and every translator in the workspace — one governed source of the team's approved wording, searchable and versioned.
+The hub opens on the points a workspace's content sits at, one profile card per
+point: which voice governs it, what vocabulary is in force, what the checks say,
+what is waiting in review, and who holds the point. Terms are concepts with
+relations, per-market validity and a story; a change that reaches far travels
+through a change-set whose blast radius is measured before anyone approves it.
+See [Context](/server/context).
 
 <ThemedVideo
   sources={{
@@ -38,9 +42,13 @@ Terminology and a content memory are often per-person files or spreadsheets. Bow
   outdated="wording"
 />
 
-### Review and approve
+### Review
 
-Projects in Bowrain are reviewed by the team together, whichever connector the content arrived through. The Review surface steps through a file one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed — so the team always knows what is left, and approvals are recorded against the workspace rather than a local file.
+A run drafts and checks and parks what a machine cannot decide. The review
+session walks every pending block across items and locales with the source,
+the draft, the checks and the voice findings side by side; a reviewer approves,
+rejects, edits, or corrects the context itself. The last approval starts the
+run that delivers. See [Review](/server/review).
 
 <ThemedVideo
   sources={{
@@ -51,7 +59,12 @@ Projects in Bowrain are reviewed by the team together, whichever connector the c
 
 ### Checks that learn from corrections
 
-Every correction a team makes is a signal. Bowrain aggregates the phrasings people keep fixing into candidate rules, shows the blast radius of each across real content before it lands, and — on approval — promotes it into a versioned, enforced check. A correction made once becomes a check that stops the mistake from recurring, shared across everyone and every AI tool. See [Voice & corrections](/server/context-voice).
+Every correction a team makes is a signal. Bowrain aggregates the phrasings
+people keep fixing into candidate rules, shows the blast radius of each across
+real content before it lands, and on approval promotes it into a versioned,
+enforced check. A correction made once becomes a check that stops the mistake
+from recurring, shared across everyone and every AI tool. See
+[Voice and corrections](/server/context-voice).
 
 <ThemedVideo
   sources={{
@@ -60,9 +73,28 @@ Every correction a team makes is a signal. Bowrain aggregates the phrasings peop
   }}
 />
 
+### The editor
+
+Open a file and it becomes a side-by-side workbench: source and target, a live
+preview of the page, and beside each block the matches from the workspace
+content memory and the terms in force at its point. One editor serves the
+source and every target locale. See [The editor](/server/translation-editor).
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-web/bowrain-web-editor-light.webm",
+    dark: "/video/bowrain-web/bowrain-web-editor-dark.webm",
+  }}
+  outdated="wording"
+/>
+
 ### Collaboration and streams
 
-A workspace is shared by a whole team. You invite teammates by email and give each a role, and streams keep parallel work apart — like branches, a rebrand or a risky pass runs on its own stream, compared and merged back into the main line when it is ready.
+A workspace is shared by a team. You invite teammates by email and give each a
+role, bound to a language or a point where that fits, and streams keep parallel
+work apart: like branches, a rebrand or a risky pass runs on its own stream,
+compared and merged back into the main line when it is ready. See
+[Real-time collaboration](/server/collaboration).
 
 <ThemedVideo
   sources={{
@@ -76,7 +108,8 @@ A workspace is shared by a whole team. You invite teammates by email and give ea
 
 ### Login
 
-Bowrain authenticates through your identity provider. Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
+Bowrain authenticates through an identity provider: the hosted service's
+managed one, or the OIDC provider a self-hosted server is configured with.
 
 <ThemedImage
   alt="Login page with identity provider options"
@@ -86,9 +119,11 @@ Bowrain authenticates through your identity provider. Depending on configuration
   }}
 />
 
-### Workspace Selector
+### Workspace selector
 
-The workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, content memory, and terminology.
+The workspace rail on the left lets you switch between workspaces. Each
+workspace is an isolated environment with its own projects, profiles, terms,
+and content memory.
 
 <ThemedImage
   alt="Workspace rail with multiple workspaces"
@@ -98,9 +133,11 @@ The workspace rail on the left lets you switch between workspaces. Each workspac
   }}
 />
 
-### Project Dashboard
+### Project dashboard
 
-The dashboard shows all projects in the active workspace. Each card displays the project name, source and target languages, and file count. Create new projects or open existing ones from here.
+The dashboard shows all projects in the active workspace. Each card displays
+the project name, its source language, its target languages if it has any, and
+file count. Create new projects or open existing ones from here.
 
 <ThemedImage
   alt="Project dashboard with project cards"
@@ -110,9 +147,12 @@ The dashboard shows all projects in the active workspace. Each card displays the
   }}
 />
 
-### Project View
+### Project view
 
-The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access the content memory and terminology from the header buttons.
+The project view shows files in the selected project with format detection,
+word counts, and block counts, and the collections they sit in. Upload new
+files by dragging them onto the drop zone, or click "Add Files" to browse. The
+content memory and the terms explorer open from the header buttons.
 
 <ThemedImage
   alt="Project view with file list and upload zone"
@@ -124,7 +164,9 @@ The project view shows files in the selected project with format detection, word
 
 ### Content memory
 
-The [content memory](/server/translation-memory) browser provides full access to the workspace content memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
+The [content memory](/server/translation-memory) browser gives full access to
+the workspace content memory: browse, search, add, edit, and delete entries,
+filtered by source or target locale.
 
 <ThemedImage
   alt="Content memory browser with search and filtering"
@@ -134,12 +176,14 @@ The [content memory](/server/translation-memory) browser provides full access to
   }}
 />
 
-### Terminology Explorer
+### Terms explorer
 
-The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full terms store. Each term has a lifecycle status and domain classification.
+The [terms explorer](/server/terminology) is the Concepts view of the Context
+hub: browse, search, add, edit, and delete concepts with terms in every locale,
+a lifecycle status and a domain, and import from CSV or JSON.
 
 <ThemedImage
-  alt="Terminology explorer with concept browser"
+  alt="Terms explorer with concept browser"
   sources={{
     light: "/img/web-app/light/term-explorer.png",
     dark: "/img/web-app/dark/term-explorer.png",
@@ -158,25 +202,35 @@ View workspace information including name, slug, description, and your role.
   }}
 />
 
-## Features
+## What the workspace holds
 
-- **Translation editor** with Visual and Table views, inline tag support, block status tracking, and keyboard navigation
-- **Context panel** with per-block memory matches and terminology suggestions, one-click apply
-- **Terminology management** — concept-oriented, with multi-locale terms, lifecycle statuses, and CSV/JSON import/export
-- **Content memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and a browsable explorer
-- **AI translation** using configurable providers (Anthropic, OpenAI, Ollama)
-- **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
-- **Pseudo-translation** for layout testing and QA
-- **Multi-workspace** environments with role-based access control
-- **Single sign-on (SSO)** via GitHub, Google, LDAP, and other identity providers
-- **Format-agnostic** editing supporting HTML, XML, JSON, YAML, PO, Properties, Markdown, CSV, XLIFF, SRT, VTT, and more
-- **File export** in original format with translations applied
-- **Drag-and-drop** file upload with format auto-detection
+- **The context graph**: profiles per point, concepts with relations and
+  per-market validity, voice profiles, change-sets with blast radius and pilots,
+  and the decisions people made about them. See [Context](/server/context).
+- **Review**: one session per project, a workspace inbox, ship states per
+  locale, and review in place. See [Review](/server/review).
+- **An editor** with Visual and Table views, inline tag support, and per-block
+  memory and term context, for the source and for every target locale.
+- **Content memory** with tiered matching and governed version reuse.
+- **AI drafting** on the workspace's credits or on your own provider key, with
+  any provider the engine's [translate tool](https://neokapi.github.io/reference/tools/translate)
+  supports.
+- **Every format** the engine reads and writes, listed in the
+  [format reference](https://neokapi.github.io/formats).
+- **Workspaces** with role-based access, grants bound to a language or a point,
+  and single sign-on through an identity provider.
 
 ## Deployment
 
-The platform is served by `bowrain-server`. Users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [For developers → Self-hosting](/server/self-hosting) for deployment instructions.
+The platform is served by `bowrain-server`. Users authenticate through an
+identity provider and can belong to multiple workspaces with different roles.
+See [Self-hosting](/server/self-hosting) for deployment instructions.
 
 ## Browser and desktop clients
 
-The browser and the [desktop app](/server/desktop-app) share the same core surfaces (translation editor, content memory, terminology explorer) through the `@neokapi/ui` shared package, and connect to the same server and workspaces — so multi-user presence, SSO, terminology, and the content memory are shared across them. The differences are about where and how you run, not what you can do: the desktop client adds offline editing and runs as a native app. See [The desktop app](/server/desktop-app) for the full comparison.
+The browser and the [desktop app](/server/desktop-app) share the same surfaces
+and connect to the same server and workspaces, so presence, sign-on, the hub,
+review, and the content memory are shared across them. The differences are
+about where you run, not what you can do: the desktop client adds offline
+editing and runs as a native app. See [The desktop app](/server/desktop-app)
+for the full comparison.

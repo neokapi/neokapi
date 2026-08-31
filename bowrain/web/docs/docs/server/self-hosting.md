@@ -1,7 +1,7 @@
 ---
 title: Self-Hosting
 sidebar_position: 12
-description: Run your own Bowrain instance with Docker — the cooperating services a self-hosted deployment needs and how they fit together.
+description: Run your own Bowrain instance with Docker, the cooperating services a self-hosted deployment needs and how they fit together.
 ---
 
 # Self-Hosting
@@ -9,25 +9,27 @@ description: Run your own Bowrain instance with Docker — the cooperating servi
 Run your own Bowrain instance with Docker. A deployment is a few cooperating
 services:
 
-- **bowrain-server** — the REST + gRPC API.
-- **bowrain-worker** — the async worker; runs the auto-translate-on-push
-  automation and upstream machine translation.
-- **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users,
-  jobs). The server requires PostgreSQL; there is no SQLite/file backend.
+- **bowrain-server**: the REST + gRPC API.
+- **bowrain-worker**: the async worker; ingests pushes and runs the drafting
+  jobs a run enqueues against an upstream AI provider.
+- **PostgreSQL**: the authoritative store (projects, blocks, workspaces, users,
+  jobs). The server requires PostgreSQL; there is no SQLite or file backend.
 - A **job queue** (Amazon SQS, or an SQS-compatible broker such as ElasticMQ)
   and a **Redis** instance for the event bus (Redis Streams), shared by the
   server and worker. Push processing is asynchronous: the server enqueues, the
-  worker ingests and translates.
-- **bowrain-web** — the static web UI, served as its own container.
-- An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
+  worker ingests and drafts.
+- **Blob storage** for in-flight push payloads: a local directory shared by
+  the server and worker, or an S3 bucket (MinIO for a local stack).
+- **bowrain-web**: the static web UI, served as its own container.
+- An **OIDC identity provider** (for example Keycloak) and an **SMTP** sender.
 
 A reverse proxy routes `/api` + gRPC to the server and everything else to the web UI.
 
 ## Quick Start
 
 The repository ships a complete reference stack at
-[`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml)
-— Traefik, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, the server,
+[`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml):
+Traefik, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, the server,
 the worker, and the web UI, all from published images. Copy it together with
 its sibling `traefik.yml`, set the required values, then start it:
 
@@ -44,8 +46,8 @@ BOWRAIN_JWT_SECRET=$(openssl rand -base64 32)  # JWT signing secret
 BOWRAIN_OIDC_ISSUER_URL=...                    # your realm's issuer URL
 BOWRAIN_OIDC_CLIENT_SECRET=...                 # the bowrain client's secret
 BOWRAIN_APP_PUBLIC_URL=https://bowrain.example # the URL browsers use to reach Bowrain
-# Machine translation runs in the worker — configure an upstream provider:
-BOWRAIN_PLATFORM_PROVIDER=gemini               # or openai / anthropic / ollama
+# Drafting runs in the worker; configure an upstream AI provider:
+BOWRAIN_PLATFORM_PROVIDER=gemini               # or bedrock / openai / anthropic / ollama
 BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
 ```
 
@@ -53,8 +55,8 @@ Once up, the web UI is served through the proxy on port 80; new users self-regis
 through your OIDC provider.
 
 :::tip
-For a one-command local stack that also bundles Keycloak and Mailpit — with no
-OIDC setup and an offline translation provider by default — see the
+For a one-command local stack that also bundles Keycloak, MinIO and Mailpit,
+with no OIDC setup and an offline AI provider by default, see the
 [Installation guide](/server/installation).
 :::
 
@@ -64,11 +66,11 @@ OIDC setup and an offline translation provider by default — see the
 
 | Variable                     | Default   | Description                                                      |
 | ---------------------------- | --------- | ---------------------------------------------------------------- |
-| `BOWRAIN_DATABASE_URL`       |           | PostgreSQL connection string (`postgres://…`) — **required**     |
-| `BOWRAIN_JWT_SECRET`         |           | JWT signing secret — required for auth                           |
+| `BOWRAIN_DATABASE_URL`       |           | PostgreSQL connection string (`postgres://…`), **required**      |
+| `BOWRAIN_JWT_SECRET`         |           | JWT signing secret, required for auth                            |
 | `BOWRAIN_OIDC_ISSUER_URL`    |           | OIDC issuer URL (internal, reachable from the server)            |
 | `BOWRAIN_OIDC_PUBLIC_URL`    |           | Browser-facing URL of the identity provider, if it differs from the issuer URL |
-| `BOWRAIN_APP_PUBLIC_URL`     |           | The URL browsers use to reach Bowrain — sets the CORS and WebSocket origin allowlists |
+| `BOWRAIN_APP_PUBLIC_URL`     |           | The URL browsers use to reach Bowrain; sets the CORS and WebSocket origin allowlists |
 | `BOWRAIN_FORCE_SECURE_COOKIES` | `true`  | Marks session cookies `Secure` regardless of the request scheme  |
 | `BOWRAIN_OIDC_CLIENT_ID`     | `bowrain` | OIDC client ID                                                   |
 | `BOWRAIN_OIDC_CLIENT_SECRET` |           | OIDC client secret                                               |
@@ -76,7 +78,9 @@ OIDC setup and an offline translation provider by default — see the
 | `SQS_ENDPOINT`               |           | SQS endpoint override for ElasticMQ/LocalStack; empty on AWS     |
 | `BOWRAIN_EVENT_BACKEND`      |           | `redis` runs the event bus on Redis Streams                      |
 | `BOWRAIN_REDIS_URL`          |           | Redis URL (event bus, caching, session state)                    |
-| `BLOB_STORAGE_LOCAL_DIR`     |           | Directory for sync push payloads (shared with the worker)        |
+| `BLOB_STORAGE_BACKEND`       | `local`   | `local` or `s3` for in-flight push payloads                      |
+| `BLOB_STORAGE_LOCAL_DIR`     |           | Local blob directory (shared with the worker)                    |
+| `S3_BLOB_BUCKET`             |           | Bucket for the `s3` backend (setting it selects `s3`)            |
 | `BOWRAIN_SMTP_HOST`          |           | SMTP server `host:port` for transactional emails                 |
 | `BOWRAIN_SMTP_FROM`          |           | Sender email address for transactional emails                    |
 | `BOWRAIN_PORT`               | `8080`    | HTTP port to listen on                                           |
@@ -89,16 +93,19 @@ OIDC setup and an offline translation provider by default — see the
 | `BOWRAIN_DATABASE_URL`      | Same PostgreSQL connection string as the server                                                      |
 | `BOWRAIN_QUEUE_BACKEND` / `SQS_ENDPOINT` | Same job-queue selection as the server (the two must agree on the broker)               |
 | `BOWRAIN_EVENT_BACKEND` / `BOWRAIN_REDIS_URL` | Same event-bus selection as the server                                             |
-| `LOCAL_BLOB_DIR`            | Sync push payload dir — must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
-| `BOWRAIN_PLATFORM_PROVIDER` | Translation provider: `gemini`, `openai`, `anthropic`, `ollama` (or `demo` for offline output)       |
+| `LOCAL_BLOB_DIR`            | Local blob directory; must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
+| `BOWRAIN_PLATFORM_PROVIDER` | AI provider for platform jobs: `bedrock`, `gemini`, `openai`, `anthropic`, `ollama`, or `demo` (offline) |
 | `BOWRAIN_PLATFORM_API_KEY`  | Provider API key (or a provider-specific variable such as `GEMINI_API_KEY`)                          |
 | `BOWRAIN_PLATFORM_MODEL`    | Default model for the provider                                                                       |
+
+The complete reference, including the S3 endpoint variables for MinIO, is on
+the [Configuration](/server/configuration) page.
 
 ## OIDC Provider Setup
 
 Any OIDC-compliant identity provider works with bowrain-server (Keycloak, Auth0,
-Okta, Google, Azure AD, Dex, etc.). The server uses standard OIDC discovery to
-resolve authorization and token endpoints automatically.
+Okta, Google, Azure AD, Dex, and others). The server uses standard OIDC
+discovery to resolve authorization and token endpoints automatically.
 
 ### Keycloak (Recommended)
 
@@ -142,13 +149,13 @@ Never use the default development secret in production.
 
 ### Persistent Storage
 
-Two volumes hold durable state — back both with named volumes or bind mounts so
+Two volumes hold durable state. Back both with named volumes or bind mounts so
 they survive container restarts:
 
-- **PostgreSQL** — the authoritative store, in `postgres-data`
+- **PostgreSQL**: the authoritative store, in `postgres-data`
   (`/var/lib/postgresql/data`).
-- **Blob storage** — sync push payloads shared by the server and worker, in
-  `blob-data` (`/data`).
+- **Blob storage**: in-flight push payloads shared by the server and worker,
+  in `blob-data` (`/data`) for the `local` backend, or an S3 bucket.
 
 ```yaml
 volumes:
@@ -198,13 +205,13 @@ the internet.
 
 ## Docker Image Tags
 
-A deployment uses three images — `bowrain-server`, `bowrain-worker`, and
-`bowrain-web` — published under `ghcr.io/neokapi/`:
+A deployment uses three images, `bowrain-server`, `bowrain-worker`, and
+`bowrain-web`, published under `ghcr.io/neokapi/`:
 
 | Tag      | Description                      |
 | -------- | -------------------------------- |
 | `latest` | Most recent release              |
-| `X.Y.Z`  | Specific version (e.g., `0.5.0`) |
+| `X.Y.Z`  | Specific version (for example `0.5.0`) |
 
 Pull a specific version (keep server, worker, and web on the same tag):
 
@@ -216,9 +223,9 @@ docker pull ghcr.io/neokapi/bowrain-web:0.5.0
 
 ## Backup & Restore
 
-All authoritative data lives in PostgreSQL — back it up with `pg_dump`. (The blob
-volume holds only in-flight push payloads; committed content is in PostgreSQL, so
-the blob volume does not need backing up.)
+All authoritative data lives in PostgreSQL; back it up with `pg_dump`. (The blob
+store holds only in-flight push payloads; committed content is in PostgreSQL, so
+the blob store does not need backing up.)
 
 ### Backup
 

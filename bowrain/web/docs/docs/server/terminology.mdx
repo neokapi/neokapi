@@ -1,20 +1,20 @@
 ---
 sidebar_position: 5
-title: Terminology
-description: The Terminology Explorer is the Concepts view of a workspace's shared terms — the preferred and forbidden vocabulary every translation is checked against.
+title: Terms
+description: The terms explorer is the Concepts view of a workspace's shared terms, the preferred and forbidden vocabulary every draft and every check is judged against.
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Terminology
+# Terms
 
-The Terminology Explorer is the **Concepts** view of the [Context](/server/context)
+The terms explorer is the **Concepts** view of the [Context](/server/context)
 hub: concept-oriented term management for maintaining consistent vocabulary across
 locales. Each concept represents a single meaning with terms in multiple
 languages, lifecycle statuses, and domain classification.
 
-Terminology and content memory are kept on the server, shared across every
-project — one governed source of the team's approved wording.
+Terms and content memory are kept on the server, shared across every project:
+one governed source of the team's approved wording.
 
 A concept is more than its terms. In the Context hub each concept also carries typed
 **relations** to other concepts (what replaced it, what to use instead, which
@@ -31,63 +31,64 @@ concept model with relations and governance around it.
   outdated="wording"
 />
 
-## Accessing the Terminology Explorer
+## Accessing the terms explorer
 
-There are two ways to open the Terminology Explorer:
+There are two ways to open the terms explorer:
 
-1. **From a project** — click the **Terminology** button in the project view header. This opens the explorer with the project name displayed and source/target locales available for filtering.
-2. **From the sidebar** — click **Brand** in the main sidebar, then **Concepts**, to reach the workspace-scoped explorer.
+1. **From a project**: click the **Terms** button in the project view header. This opens the explorer with the project name displayed and source/target locales available for filtering.
+2. **From the sidebar**: click **Context** in the main sidebar, then **Concepts**, to reach the workspace-scoped explorer.
 
-## Browsing Concepts
+## Browsing concepts
 
 The explorer displays concepts in a paginated table with these columns:
 
 | Column          | Description                                                  |
 | --------------- | ------------------------------------------------------------ |
 | **Source Term** | The term in the source language                              |
-| **Target Term** | The translated term                                          |
-| **Domain**      | Subject area classification (e.g., "legal", "medical", "UI") |
+| **Target Term** | The term in the target language                              |
+| **Domain**      | Subject area classification (for example "legal", "medical", "UI") |
 | **Status**      | Lifecycle status badge                                       |
 | **Updated**     | Date the concept was last modified                           |
 
-Clicking a concept opens its [dashboard](/server/context#concepts) — the
+Clicking a concept opens its [dashboard](/server/context#concepts), the
 per-concept page that gathers its terms, geography, constraints, direct
 relations, and timeline. The concept count badge in the header shows the total
 number of concepts matching current filters.
 
-## Term Lifecycle Statuses
+## Term lifecycle statuses
 
 Each term carries a lifecycle status that communicates its approval level:
 
 | Status         | Meaning                                            |
 | -------------- | -------------------------------------------------- |
-| **Preferred**  | The recommended term — translators should use this |
+| **Preferred**  | The recommended term; use this one                 |
 | **Approved**   | Accepted for use                                   |
 | **Admitted**   | Acceptable but not preferred                       |
 | **Deprecated** | Was once approved but should no longer be used     |
 | **Proposed**   | Under review, not yet approved                     |
-| **Forbidden**  | Must not be used in translations                   |
+| **Forbidden**  | Must not be used                                   |
 
 ## Searching
 
-Type in the search box to filter concepts by source or target term text. The search uses debounced input (300ms delay) and results update automatically.
+Type in the search box to filter concepts by source or target term text.
+Results update as you type.
 
 ## Filtering
 
 Use the filter controls to narrow the concept list:
 
-- **Source locale filter** — show only concepts with a term in the specified source language
-- **Target locale filter** — show only concepts with a term in the specified target language
-- **Status filter** — show only concepts with a specific lifecycle status
+- **Source locale filter**: show only concepts with a term in the specified source language
+- **Target locale filter**: show only concepts with a term in the specified target language
+- **Status filter**: show only concepts with a specific lifecycle status
 
 Filters can be combined with text search. Changing a filter resets to page 1.
 
 ## Adding concepts
 
-Click **Add Concept** in the header to create a concept — the unit of meaning
+Click **Add Concept** in the header to create a concept, the unit of meaning
 that terms attach to. A new concept starts with a first term and a `proposed`
-status. To round it out — terms in other languages, a domain, relations, and
-per-market constraints — open its [dashboard](/server/context#concepts) and edit
+status. To round it out with terms in other languages, a domain, relations, and
+per-market constraints, open its [dashboard](/server/context#concepts) and edit
 it there.
 
 ## Editing concepts
@@ -99,11 +100,11 @@ metadata are edited on the dashboard rather than inline in the table.
 
 How an edit applies depends on whether it is governed:
 
-- **Ordinary edits** — adding or correcting a translation, adjusting a domain,
-  or moving a term to a non-governed status — apply directly.
-- **Governed edits** — setting or clearing a term's `forbidden` or `preferred`
-  status, recording a `replaced_by` relation, or deleting a concept — are
-  bundled into a reviewable
+- **Ordinary edits**, such as adding or correcting a translation, adjusting a
+  domain, or moving a term to a non-governed status, apply directly.
+- **Governed edits**, such as setting or clearing a term's `forbidden` or
+  `preferred` status, recording a `replaced_by` relation, or deleting a
+  concept, are bundled into a reviewable
   [change-set](/server/context#experiments-change-sets-and-pilots) whose blast
   radius is measured before anyone approves it.
 
@@ -115,7 +116,7 @@ Deleting a concept is a governed action. From the concept
 concept only once that change-set is approved and merged, so a concept other
 content still references cannot disappear unreviewed.
 
-## Import and Export
+## Import and export
 
 ### Import from CSV
 
@@ -146,7 +147,8 @@ Click **Import JSON** and select a JSON file containing an array of concept obje
 
 ### Export to JSON
 
-Click **Export JSON** to download the whole terms store as a JSON file. This is useful for backup, sharing with other workspaces, or importing into external tools.
+Click **Export JSON** to download the whole terms store as a JSON file, for
+backup, sharing with other workspaces, or importing into external tools.
 
 ## Pagination
 
@@ -155,20 +157,21 @@ When there are more than 50 concepts, pagination controls appear below the table
 - **Previous** / **Next** buttons to navigate pages
 - **Page X of Y** indicator showing current position
 
-## Terminology in the Translation Editor
+## Terms in the editor
 
-Terminology is also used within the translation editor:
+Terms are also used within the editor:
 
-- **Context panel** — shows per-block term matches with source terms, target suggestions, status badges, and domain labels
-- **Term enforcement** — validates that target translations use the correct terminology
+- **Context panel**: shows per-block term matches with source terms, target suggestions, status badges, and domain labels
+- **Term checks**: validate that a target uses the terms in force at its point
 
-When a block is selected in the editor, the context panel automatically looks up matching terms and displays them alongside memory matches.
+When a block is selected in the editor, the context panel looks up matching
+terms and displays them alongside memory matches. See
+[The editor](/server/translation-editor) for details on the context panel.
 
-See [Translation Editor](./translation-editor.mdx) for details on the context panel.
+## Concept model
 
-## Concept Model
-
-The terminology system is concept-oriented, inspired by the TBX (TermBase eXchange) standard:
+The terms system is concept-oriented, in the manner of the TBX (TermBase
+eXchange) standard:
 
 - A **concept** represents a single meaning or notion
 - Each concept has **terms** in one or more languages
@@ -176,10 +179,9 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 - Concepts are scoped to the workspace and shared across all projects
 
 The framework owns this concept and term model; for its architecture, see the
-[framework terminology reference](https://neokapi.github.io/framework/terminology).
+[framework terms reference](https://neokapi.github.io/framework/terminology).
 
-On the platform, the same concepts are the nodes of the [Context](/server/context)
-knowledge graph — with typed relations, per-market validity, observations,
-comments, and governed change-sets layered on top. When you are ready to model
-*how concepts relate* rather than just curate terms, start at
-[Context](/server/context).
+On the platform, the same concepts are the nodes of the [context graph](/server/context),
+with typed relations, per-market validity, observations, comments, and governed
+change-sets layered on top. When you are ready to model *how concepts relate*
+rather than just curate terms, start at [Context](/server/context).
