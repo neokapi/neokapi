@@ -132,7 +132,6 @@
   "2808377921": "GetTheme",
   "2822798572": "GetProjectMemoryHandle",
   "2829441104": "RecoverResource",
-  "2845824259": "SetEventSink",
   "2875711285": "OpenProject",
   "2892495329": "ProjectVoice",
   "2908430146": "ListProviderTypes",

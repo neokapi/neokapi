@@ -1739,12 +1739,17 @@ func (a *App) emitEvent(name string, data any) {
 	}
 }
 
-// SetEventSink registers a listener that receives every emitted event, in
+// InjectEventSink registers a listener that receives every emitted event, in
 // addition to the Wails app. Used by the recording wbridge to stream events
 // (plugin install progress, flow:event, …) to the browser over SSE. Passing nil
 // clears the sink. The sink is invoked from arbitrary goroutines, so it must be
 // safe for concurrent use.
-func (a *App) SetEventSink(sink func(name string, data any)) {
+//
+// A free function, not a method: Wails binds every exported App method as a
+// JS-callable RPC endpoint, and a raw func-typed parameter has no JSON
+// representation, so wails3 generate bindings warns about it. wbridge is the
+// only caller and it's plain Go, so this never needed a JS binding.
+func InjectEventSink(a *App, sink func(name string, data any)) {
 	a.eventMu.Lock()
 	a.eventSink = sink
 	a.eventMu.Unlock()

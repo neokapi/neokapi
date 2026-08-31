@@ -2364,19 +2364,6 @@ export function SetDefaultModel(model, provider) {
 }
 
 /**
- * SetEventSink registers a listener that receives every emitted event, in
- * addition to the Wails app. Used by the recording wbridge to stream events
- * (plugin install progress, flow:event, …) to the browser over SSE. Passing nil
- * clears the sink. The sink is invoked from arbitrary goroutines, so it must be
- * safe for concurrent use.
- * @param {any} sink
- * @returns {$CancellablePromise<void>}
- */
-export function SetEventSink(sink) {
-    return $Call.ByID(2845824259, sink);
-}
-
-/**
  * SetLocale configures the active locale for metadata Wails methods.
  * Called from the React frontend whenever the user changes UI language.
  * Empty or "en" disables localization; non-English locales load the

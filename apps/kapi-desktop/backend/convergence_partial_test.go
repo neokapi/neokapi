@@ -88,12 +88,12 @@ func TestBringUpToDate_PartialFailure_StateReflectsPartial(t *testing.T) {
 	// Observe the derived-state invalidation events the home surfaces listen on.
 	var mu sync.Mutex
 	seen := map[string]int{}
-	app.SetEventSink(func(name string, _ any) {
+	InjectEventSink(app, func(name string, _ any) {
 		mu.Lock()
 		seen[name]++
 		mu.Unlock()
 	})
-	t.Cleanup(func() { app.SetEventSink(nil) })
+	t.Cleanup(func() { InjectEventSink(app, nil) })
 
 	require.NoError(t, app.BringUpToDate(tab.ID))
 	require.Eventually(t, func() bool {
