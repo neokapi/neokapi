@@ -495,8 +495,15 @@ export interface CollectionStatus {
   name: string;
   /** Total translatable blocks across the collection's files. */
   blockCount: number;
-  /** Maps locale → translated block count. */
+  /** Maps locale → count of units carrying a translation, from the working tree. */
   coverage: Record<string, number>;
+  /**
+   * Maps locale → how many units that count is out of, from the same
+   * derivation. This is the denominator a percentage uses: blockCount answers
+   * a different question (how much has been extracted) and a ratio mixing the
+   * two belongs to neither.
+   */
+  units: Record<string, number>;
   targetLanguages: string[];
 }
 

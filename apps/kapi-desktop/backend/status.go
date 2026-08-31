@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
@@ -20,9 +21,16 @@ import (
 // committed `targets/<locale>` overlay in the project block store. BlockCount
 // is the total number of translatable blocks extracted for the collection.
 type CollectionStatus struct {
-	Name            string         `json:"name"`
-	BlockCount      int            `json:"blockCount"`
-	Coverage        map[string]int `json:"coverage"`
+	Name       string `json:"name"`
+	BlockCount int    `json:"blockCount"`
+	// Coverage is the count of units carrying a translation, per target locale,
+	// derived from the working tree.
+	Coverage map[string]int `json:"coverage"`
+	// Units is how many units that count is out of, per target locale, from the
+	// same derivation. It is the denominator a percentage must use: BlockCount
+	// answers a different question (how much this project has extracted) and a
+	// ratio mixing the two belongs to neither.
+	Units           map[string]int `json:"units"`
 	TargetLanguages []string       `json:"targetLanguages"`
 }
 
@@ -47,13 +55,13 @@ type ProjectStatus struct {
 	Collections []CollectionStatus `json:"collections"`
 }
 
-// GetProjectStatus returns the current per-collection coverage for a project
-// tab, computed from the block cache in the project's store through the shared
-// coverage engine (convergence.TallyBlockStore + CoverageTally) — the same tally
-// the CLI's `kapi status` feeds from working-tree file reads, so the desktop and
-// the CLI count with one rung semantics. Blocks are addressed by their ID and
-// translated targets live under `targets/<locale>` overlays (the keys
-// `kapi run` / `kapi merge` write and read).
+// GetProjectStatus returns the current per-collection status for a project tab,
+// on the two axes `kapi status` reports.
+//
+// Coverage is the CLI's own derivation (host.ProjectCoverageTally over
+// working-tree reads), so a target committed beside its source counts here
+// exactly as it counts at the terminal. Extracted totals come from the block
+// cache, which is what the store knows and the tree does not.
 //
 // If the project has never been extracted, the returned status has
 // HasData=false and zeroed coverage; this is a well-defined "no data yet"
@@ -140,9 +148,22 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 			Locales:    collTargets[name],
 		})
 	}
-	tally, totals, err := convergence.TallyBlockStore(sess, scopes)
+	_, totals, err := convergence.TallyBlockStore(sess, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("read block store coverage: %w", err)
+	}
+
+	// Coverage comes from the working tree, through the derivation `kapi
+	// status` counts from. A target file committed beside its source is
+	// translated content whether or not a run has carried it into the block
+	// store, and counting the store instead read one project as partly
+	// translated at the terminal and untouched in the app.
+	//
+	// The extracted totals stay the store's: they answer how much content this
+	// project has read in, which is what the store knows and the tree does not.
+	tally, terr := a.workingTreeCoverage(context.Background(), op)
+	if terr != nil {
+		return nil, terr
 	}
 
 	ladder := gate.TargetLadder()
@@ -150,22 +171,42 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	for _, name := range collOrder {
 		targets := collTargets[name]
 		coverage := make(map[string]int, len(targets))
+		units := make(map[string]int, len(targets))
 		for _, loc := range targets {
-			n := 0
 			if cov, ok := tally.Coverage(convergence.Scope{Collection: name, Locale: loc}); ok {
-				n = cov.AtLeastCount(ladder, string(model.TargetStatusTranslated))
+				coverage[loc] = cov.AtLeastCount(ladder, string(model.TargetStatusTranslated))
+				units[loc] = cov.Total
+				continue
 			}
-			coverage[loc] = n
+			coverage[loc] = 0
+			units[loc] = 0
 		}
 		out.Collections = append(out.Collections, CollectionStatus{
 			Name:            collectionLabel(name),
 			BlockCount:      totals[name],
 			Coverage:        coverage,
+			Units:           units,
 			TargetLanguages: targets,
 		})
 	}
 
 	return out, nil
+}
+
+// workingTreeCoverage derives the project's coverage the way `kapi status`
+// does, from the files in the tree rather than from the block store.
+func (a *App) workingTreeCoverage(ctx context.Context, op *openProject) (*convergence.CoverageTally, error) {
+	root := filepath.Dir(op.Path)
+	engine := a.hostEngine()
+	units, err := engine.UnitsFromProject(op.Project, root, "")
+	if err != nil {
+		return nil, fmt.Errorf("resolve verify units: %w", err)
+	}
+	tally, err := engine.ProjectCoverageTally(ctx, op.Project, root, units, nil)
+	if err != nil {
+		return nil, fmt.Errorf("compute working-tree coverage: %w", err)
+	}
+	return tally, nil
 }
 
 // buildEmptyCollections returns the declared collections with zeroed coverage,
@@ -177,13 +218,16 @@ func buildEmptyCollections(order []string, targets map[string][]string) []Collec
 	for _, name := range order {
 		locs := targets[name]
 		coverage := make(map[string]int, len(locs))
+		units := make(map[string]int, len(locs))
 		for _, loc := range locs {
 			coverage[loc] = 0
+			units[loc] = 0
 		}
 		out = append(out, CollectionStatus{
 			Name:            collectionLabel(name),
 			BlockCount:      0,
 			Coverage:        coverage,
+			Units:           units,
 			TargetLanguages: locs,
 		})
 	}

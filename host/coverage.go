@@ -403,6 +403,24 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, err
 	}
+	tally, err := a.ProjectCoverageTally(ctx, proj, root, units, excl)
+	if err != nil {
+		return nil, err
+	}
+	return tally.RollupGates(rs, vs), nil
+}
+
+// ProjectCoverageTally derives the coverage tally from working-tree reads: the
+// per-(collection, locale) unit states behind everything `kapi status` prints.
+//
+// ComputeShipCoverage is this plus the gate rollup. The split exists because a
+// surface needing ABSOLUTE counts — how many units of this collection are
+// translated into this locale — cannot recover them from the rolled-up rows,
+// which carry percentages. Deriving them a second way is how two faces come to
+// disagree about one project: a target file sitting in the working tree counted
+// at the terminal and counted for nothing in an app reading the block store,
+// and neither number was wrong for the question its own face was asking.
+func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) (*convergence.CoverageTally, error) {
 	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
@@ -483,7 +501,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 	}
 
-	return tally.RollupGates(rs, vs), nil
+	return tally, nil
 }
 
 // warnUnreadableFormats tells a human what the rollup could not open. The JSON
