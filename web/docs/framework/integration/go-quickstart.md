@@ -2,7 +2,7 @@
 sidebar_position: 1
 slug: /framework/go-quickstart
 title: Use neokapi from Go
-description: A minimal end-to-end Go program that uses the neokapi framework as a library — register the built-in formats, read a file into the streaming content model, run a built-in tool, walk the Blocks, and write bilingual XLIFF.
+description: "A minimal end-to-end Go program that uses the neokapi framework as a library: register the built-in formats, read a file into the streaming content model, run a built-in tool, walk the Blocks, and write bilingual XLIFF."
 keywords: [neokapi, go library, quickstart, framework, content model, format reader, format writer, pipeline, golang]
 ---
 
@@ -14,7 +14,7 @@ the content inside it, and writes it back byte-for-byte. The [`kapi` CLI and
 desktop app](/kapi/overview) and [neokapi-i18n](/react/introduction) are surfaces
 built on top of it, but the same content model, format readers and writers, tools,
 and streaming pipeline are a Go library you can import directly. This page walks
-the shortest path from `go get` to a working program — taking the round-trip
+the shortest path from `go get` to a working program, taking the round-trip
 route: read a file, fill in a target, and write it back as bilingual XLIFF.
 
 If you want the concepts behind the code first, read
@@ -109,7 +109,8 @@ func run() error {
 	}
 
 	// 4. Pick a built-in tool. pseudo-translate writes a target for each
-	//    Block by transforming the source text.
+	//    Block by transforming the source text. Its default markers are
+	//    "▒ " and " ▒"; this sample sets brackets so the output reads plainly.
 	pseudo := tools.NewPseudoTranslateTool(&tools.PseudoConfig{
 		TargetLocale: targetLocale,
 		Prefix:       "[",
@@ -260,7 +261,7 @@ depth.
 ## Running flows instead of wiring channels
 
 Wiring the channels by hand, as above, is the clearest way to see how Parts
-move — but you rarely need to. For a single file, `flow.NewFileRunner` runs the
+move, but you rarely need to. For a single file, `flow.NewFileRunner` runs the
 whole read → process → write pipeline (format detection, reader/writer creation,
 tool chain, output) for you:
 
@@ -280,16 +281,14 @@ model, and [Flows](/framework/flows) for composing named tool chains.
 
 ## Where to go next
 
-- [Content Model](/framework/content-model) — Parts, Blocks, Runs, Targets, and
+- [Content Model](/framework/content-model): Parts, Blocks, Runs, Targets, and
   overlays in depth.
-- [Formats](/framework/formats) — the built-in readers and writers, detection,
+- [Formats](/framework/formats): the built-in readers and writers, detection,
   and the generated [Format Reference](/formats).
-- [Tools](/framework/tools) — the tool interface, `BaseTool` dispatch, and the
+- [Tools](/framework/tools): the tool interface, `BaseTool` dispatch, and the
   generated [Tool Reference](/tools).
-- [Pipeline](/framework/pipeline) and [Flows](/framework/flows) — the executor,
+- [Pipeline](/framework/pipeline) and [Flows](/framework/flows): the executor,
   channels, backpressure, and named compositions.
 - [Implementing a Tool](/contribute/tools) and
-  [Implementing a Format](/contribute/formats) — extend the framework with your
+  [Implementing a Format](/contribute/formats): extend the framework with your
   own stages and readers/writers.
-```
-
