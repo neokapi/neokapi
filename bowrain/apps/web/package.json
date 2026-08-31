@@ -20,23 +20,23 @@
     "@neokapi/bowrain-app": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
-    "@sentry/react": "^10.68.0",
+    "@sentry/react": "^10.72.0",
     "@tailwindcss/vite": "^4.3.3",
-    "posthog-js": "^1.414.0",
+    "posthog-js": "^1.422.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.4",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.3.0"
   }
 }

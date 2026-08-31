@@ -40,12 +40,12 @@
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "lucide-react": "^1.30.0",
-    "onnxruntime-web": "^1.27.0"
+    "lucide-react": "^1.35.0",
+    "onnxruntime-web": "^1.29.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"
