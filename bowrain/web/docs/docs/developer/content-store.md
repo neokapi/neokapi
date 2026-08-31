@@ -9,7 +9,7 @@ The Content Store provides versioned, content-addressable persistence for conten
 
 ## Architecture
 
-The store sits between connectors (which pull/push external content) and the processing pipeline (flows, tools, content memory, terminology):
+The store sits between connectors (which pull/push external content) and the processing pipeline (flows, tools, content memory, terms):
 
 ```
 Connectors → ContentStore ← → Flows/Tools
@@ -19,10 +19,10 @@ Connectors → ContentStore ← → Flows/Tools
 
 ### Key Concepts
 
-- **BlockIdentity**: Content-addressable hashing (SHA-256) for block deduplication and change detection
-- **ContentRef**: Links blocks to their external connector source with sync tracking
+- **BlockIdentity**: content-addressable hashing (SHA-256) for block deduplication and change detection
+- **ContentRef**: links blocks to their external connector source with sync tracking
 - **DisplayHint**: UI rendering guidance (preview, context, max length, content type)
-- **Version**: Named snapshot of project state with block-level diffing
+- **Version**: named snapshot of project state with block-level diffing
 
 ## ContentStore Interface
 
@@ -47,7 +47,7 @@ type ContentStore interface {
 }
 ```
 
-Representative signatures — note the `stream` parameter throughout:
+Representative signatures; note the `stream` parameter throughout:
 
 ```go
 // BlockStore
@@ -67,7 +67,7 @@ Two backends implement `ContentStore`, with different roles:
   start without a `postgres://` database URL and builds all of its stores on
   that connection. This is the source of truth for every workspace.
 - **SQLite** (`bowrain/store/sqlitestore`) backs the desktop app's local
-  working copy — a cache for speed and offline edits that mirrors the server
+  working copy: a cache for speed and offline edits that mirrors the server
   and is never a source of truth.
 
 ```go
@@ -80,7 +80,7 @@ if err != nil {
 defer store.Close()
 ```
 
-Both backends share one logical schema — projects, streams, collections,
+Both backends share one logical schema: projects, streams, collections,
 items, blocks, versions, the change log, and assets.
 
 ## Block Identity
@@ -95,9 +95,9 @@ identity := model.ComputeIdentity(block)
 
 This enables:
 
-- **Deduplication**: Identical source text shares the same content hash
-- **Change detection**: Version diffs compare content hashes instead of full text
-- **Cache invalidation**: Translations can be cached by content hash
+- **Deduplication**: identical source text shares the same content hash
+- **Change detection**: version diffs compare content hashes instead of full text
+- **Cache invalidation**: results can be cached by content hash
 
 ## Version Tracking
 
@@ -120,6 +120,6 @@ for _, change := range diff.Changes {
 ## Flow Integration
 
 Server-side flows read from and write to the content store through the flow
-service rather than a flow-executor option — a run loads the project's blocks
+service rather than a flow-executor option: a run loads the project's blocks
 from the store, executes the flow, and stores the produced targets back. See
-[Server-Side Flows](/server/flows).
+[Server-side flows](/server/flows).
