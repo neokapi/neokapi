@@ -80,8 +80,8 @@ importers:
         specifier: 5.94.5
         version: 5.94.5(react@19.2.8)
       '@wailsio/runtime':
-        specifier: ^3.0.0-alpha.97
-        version: 3.0.0-alpha.97
+        specifier: ^3.0.0-beta.8
+        version: 3.0.0-beta.16
       '@xyflow/react':
         specifier: ^12.11.5
         version: 12.11.5(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.11)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -192,8 +192,8 @@ importers:
         specifier: ^1.170.32
         version: 1.170.32(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@wailsio/runtime':
-        specifier: ^3.0.0-alpha.97
-        version: 3.0.0-alpha.97
+        specifier: ^3.0.0-beta.8
+        version: 3.0.0-beta.16
       '@xyflow/react':
         specifier: ^12.11.5
         version: 12.11.5(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(immer@11.1.11)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1512,8 +1512,8 @@ importers:
         specifier: 2.2.1
         version: 2.2.1(patch_hash=5f926f5ec129bfca6dbd0a358ac53e73f29b8527aac1608ba7600238ae2b4076)
       motion:
-        specifier: ^12.40.0
-        version: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^13.1.1
+        version: 13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       prism-react-renderer:
         specifier: ^2.4.1
         version: 2.4.1(react@19.2.8)
@@ -6853,8 +6853,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@wailsio/runtime@3.0.0-alpha.97':
-    resolution: {integrity: sha512-alvEG6B0YqW7AcBcNaUWNMD9q8JWqx5AO6BPOZpijBeq4ZjhQxSom3jvvq8Z1mWSMKPEjSvlFirKIh9NLI3ajA==, tarball: https://registry.npmjs.org/@wailsio/runtime/-/runtime-3.0.0-alpha.97.tgz}
+  '@wailsio/runtime@3.0.0-beta.16':
+    resolution: {integrity: sha512-IzaYrUKYDmvWDXf3Pqfl0onT1R5T5YHTx+AnK9vX4MyuE1PF3lXZmQrtvtfYNAsBnL+9e+iCJvIROGhjyf1rew==, tarball: https://registry.npmjs.org/@wailsio/runtime/-/runtime-3.0.0-beta.16.tgz}
 
   '@webassemblyjs/ast@1.14.1':
     resolution: {integrity: sha512-nuBEDgQfm1ccRp/8bCQrx1frohyufl4JlbMMZ4P1wpeOfDhF6FQkxZJ1b/e+PLwr6X1Nhw6OLme5usuBWYBvuQ==, tarball: https://registry.npmjs.org/@webassemblyjs/ast/-/ast-1.14.1.tgz}
@@ -8706,15 +8706,12 @@ packages:
   fraction.js@5.3.4:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==, tarball: https://registry.npmjs.org/fraction.js/-/fraction.js-5.3.4.tgz}
 
-  framer-motion@12.42.2:
-    resolution: {integrity: sha512-5XY9luDiu0oHfHBjpDthFMh0ES+122w6p/papSJBweMkO8Sn+PW2QaEgRblQBpWFnuvZS5qvarpt/hO2pjGmnw==, tarball: https://registry.npmjs.org/framer-motion/-/framer-motion-12.42.2.tgz}
+  framer-motion@13.1.1:
+    resolution: {integrity: sha512-B/xn2TPS4f61cEBLFjiYlQFnBZUW1YVj/LM+C+N4OP8Rs95VLEI2ot/RlfBg111la/EiyECFaJJi/A3FWA8MUA==, tarball: https://registry.npmjs.org/framer-motion/-/framer-motion-13.1.1.tgz}
     peerDependencies:
-      '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
       react:
         optional: true
       react-dom:
@@ -10087,21 +10084,18 @@ packages:
   monaco-editor@0.55.1:
     resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==, tarball: https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.55.1.tgz}
 
-  motion-dom@12.42.2:
-    resolution: {integrity: sha512-5gIMWLp/PycBtJRJWRgjxke5n8dlvkSn2DrYW+tr3XcqAZY1xZh6BJyooJXCM8wdfM7wfMjkBJNLge1CKPUIRA==, tarball: https://registry.npmjs.org/motion-dom/-/motion-dom-12.42.2.tgz}
+  motion-dom@13.1.1:
+    resolution: {integrity: sha512-XSf8VYWSB6G/0IY3rWVbyLcxWXtAVHkN1PQE2agTaCv3u8RGvbwu56TyyR/MNzBqqNavEBTZzErcxI1TxBrjcA==, tarball: https://registry.npmjs.org/motion-dom/-/motion-dom-13.1.1.tgz}
 
-  motion-utils@12.39.0:
-    resolution: {integrity: sha512-8nadJAJjTtqRkmRF36FoJTrywK9nnFmnPwnSMyxaOCU7GDjN9RTMJIxx9De8ErM+vpPhMccr/6fo5WciyQLnMQ==, tarball: https://registry.npmjs.org/motion-utils/-/motion-utils-12.39.0.tgz}
+  motion-utils@13.0.0:
+    resolution: {integrity: sha512-7DnN7TmbLcYXcG4RVadXIihWlyuM9afoUww8Y5Agg431kGKiuL2/OMyP4mJ5wLz+pvN3t5ySClLOaVXJ+wekRQ==, tarball: https://registry.npmjs.org/motion-utils/-/motion-utils-13.0.0.tgz}
 
-  motion@12.42.2:
-    resolution: {integrity: sha512-Atvv11yUKIid41cVrRBDVX5m8tF8kNpExRSlbpt6APClhDjtwQssgFHhQzejxw7/7YYbjHSPKBVbHo05BuJT5Q==, tarball: https://registry.npmjs.org/motion/-/motion-12.42.2.tgz}
+  motion@13.1.1:
+    resolution: {integrity: sha512-WNZoK6xiF+kkTqkZ5K7FDDh6A8BG4i5Hc7KXtW8gtTxkpJFds+hIOrDaQGKjQj/AE/i4hJqAaUHEqp/Qo02y6Q==, tarball: https://registry.npmjs.org/motion/-/motion-13.1.1.tgz}
     peerDependencies:
-      '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
     peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
       react:
         optional: true
       react-dom:
@@ -18920,7 +18914,7 @@ snapshots:
   '@voidzero-dev/vite-plus-win32-x64-msvc@0.3.0':
     optional: true
 
-  '@wailsio/runtime@3.0.0-alpha.97': {}
+  '@wailsio/runtime@3.0.0-beta.16': {}
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:
@@ -20909,10 +20903,10 @@ snapshots:
 
   fraction.js@5.3.4: {}
 
-  framer-motion@12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  framer-motion@13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      motion-dom: 12.42.2
-      motion-utils: 12.39.0
+      motion-dom: 13.1.1
+      motion-utils: 13.0.0
       tslib: 2.8.1
     optionalDependencies:
       react: 19.2.8
@@ -22515,15 +22509,15 @@ snapshots:
       dompurify: 3.2.7
       marked: 14.0.0
 
-  motion-dom@12.42.2:
+  motion-dom@13.1.1:
     dependencies:
-      motion-utils: 12.39.0
+      motion-utils: 13.0.0
 
-  motion-utils@12.39.0: {}
+  motion-utils@13.0.0: {}
 
-  motion@12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  motion@13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      framer-motion: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      framer-motion: 13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tslib: 2.8.1
     optionalDependencies:
       react: 19.2.8
