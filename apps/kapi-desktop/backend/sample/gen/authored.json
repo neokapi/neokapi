@@ -1,0 +1,64 @@
+{
+  "_comment": [
+    "Answers a translator wrote, for strings the historic corpus never covered.",
+    "",
+    "They all carry a placeholder. Convergence has no answer for them, so without",
+    "this the sample's memory would hold nothing but plain text and the surfaces",
+    "that render inline codes — the entry editor, the match view, the preview —",
+    "would have no example to draw.",
+    "",
+    "The placeholders travel through the loop like any other run, so what the",
+    "memory ends up holding is a real Run sequence rather than a string that",
+    "happens to contain braces.",
+    "",
+    "Note the exclamation marks: the English keeps them and the answers do not.",
+    "The voice profile prohibits them in prose, and a translator following it",
+    "drops them."
+  ],
+  "answers": [
+    {
+      "file": "src/{locale}/store-ui.json",
+      "key": "product.low_stock",
+      "targets": {
+        "de": "Nur noch {count} auf Lager",
+        "fr": "Plus que {count} en stock",
+        "ja": "残り{count}点",
+        "nb": "Bare {count} igjen på lager",
+        "ar": "بقي {count} فقط في المخزون"
+      }
+    },
+    {
+      "file": "src/{locale}/store-ui.json",
+      "key": "cart.discount_applied",
+      "targets": {
+        "de": "Rabatt angewendet: {code}",
+        "fr": "Remise appliquée : {code}",
+        "ja": "割引を適用しました: {code}",
+        "nb": "Rabatt brukt: {code}",
+        "ar": "تم تطبيق الخصم: {code}"
+      }
+    },
+    {
+      "file": "src/{locale}/store-ui.json",
+      "key": "cart.free_shipping_notice",
+      "targets": {
+        "de": "Kostenloser Versand ab {amount}",
+        "fr": "Livraison gratuite à partir de {amount}",
+        "ja": "{amount}以上のご注文で送料無料",
+        "nb": "Gratis frakt på bestillinger over {amount}",
+        "ar": "شحن مجاني للطلبات التي تزيد عن {amount}"
+      }
+    },
+    {
+      "file": "src/{locale}/store-ui.json",
+      "key": "account.welcome_back",
+      "targets": {
+        "de": "Willkommen zurück, {name}",
+        "fr": "Bon retour, {name}",
+        "ja": "おかえりなさい、{name}さん",
+        "nb": "Velkommen tilbake, {name}",
+        "ar": "مرحبًا بعودتك، {name}"
+      }
+    }
+  ]
+}

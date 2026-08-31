@@ -99,12 +99,16 @@ func conceptToDTO(c terms.Concept) ConceptDTO {
 	}
 }
 
-func dtoToTerms(dtos []TermDTO) []terms.Term {
+func dtoToTerms(dtos []TermDTO) ([]terms.Term, error) {
 	ts := make([]terms.Term, 0, len(dtos))
 	for _, d := range dtos {
+		loc, err := canonicalLocale(d.Locale)
+		if err != nil {
+			return nil, err
+		}
 		ts = append(ts, terms.Term{
 			Text:           d.Text,
-			Locale:         model.LocaleID(d.Locale),
+			Locale:         loc,
 			Status:         model.TermStatus(d.Status),
 			PartOfSpeech:   d.PartOfSpeech,
 			Gender:         d.Gender,
@@ -113,7 +117,7 @@ func dtoToTerms(dtos []TermDTO) []terms.Term {
 			Validity:       validityFromDTO(d.Validity),
 		})
 	}
-	return ts
+	return ts, nil
 }
 
 // --- Resource discovery ---
@@ -222,7 +226,12 @@ func (a *App) SearchTerms(handle, query, srcLocale, tgtLocale string, offset, li
 	if !ok {
 		return &TermSearchResult{}
 	}
-	concepts, total, err := tb.Search(context.Background(), query, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), offset, limit)
+	src, tgt, named := canonicalSearchLocales(srcLocale, tgtLocale)
+	if !named {
+		return &TermSearchResult{}
+	}
+	concepts, total, err := tb.Search(context.Background(), query,
+		model.LocaleID(src), model.LocaleID(tgt), offset, limit)
 	if err != nil {
 		return &TermSearchResult{}
 	}
@@ -253,13 +262,17 @@ func (a *App) AddConcept(handle string, req AddConceptRequest) error {
 	if !ok {
 		return fmt.Errorf("terms handle %q not found", handle)
 	}
+	terms_, err := dtoToTerms(req.Terms)
+	if err != nil {
+		return err
+	}
 	concept := terms.Concept{
 		ID:         id.New(),
 		ProjectID:  req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Source:     terms.TermSourceTerminology,
-		Terms:      dtoToTerms(req.Terms),
+		Terms:      terms_,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
@@ -282,7 +295,11 @@ func (a *App) UpdateConcept(handle string, req UpdateConceptRequest) error {
 	existing.ProjectID = req.ProjectID
 	existing.Domain = req.Domain
 	existing.Definition = req.Definition
-	existing.Terms = dtoToTerms(req.Terms)
+	updated, err := dtoToTerms(req.Terms)
+	if err != nil {
+		return err
+	}
+	existing.Terms = updated
 	existing.UpdatedAt = time.Now()
 	return tb.AddConcept(context.Background(), existing) // AddConcept with same ID = update
 }

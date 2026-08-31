@@ -15,7 +15,7 @@ import (
 // binary version: a plain upgrade should not prompt when the sample itself did
 // not change.
 var Revision = map[string]int{
-	"kapimart": 4, // r4: profiles and channels, committed .kapi/ context, native terms and memory sources
+	"kapimart": 5, // r5: history — committed targets, memory absorbed from the record, unit-state ledger
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the

@@ -1308,6 +1308,9 @@ build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
 kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (hot reload)
 	cd $(KAPI_DESKTOP_DIR) && wails3 dev
 
+regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (targets, content memory, unit-state ledger)
+	@./apps/kapi-desktop/backend/sample/gen/regenerate.sh
+
 kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
 
@@ -2992,7 +2995,7 @@ help: ## Show this help
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
         frontend-check-all \
-        build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
+        build-kapi-desktop kapi-desktop-dev kapi-desktop-test regen-kapimart-sample \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \

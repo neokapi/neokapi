@@ -72,6 +72,7 @@ export {
     PluginCapability,
     PluginInfo,
     PluginUpdate,
+    PointDTO,
     PreReviewPolicy,
     PreReviewResult,
     PreReviewScope,

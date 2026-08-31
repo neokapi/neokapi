@@ -55,12 +55,23 @@ collections:
       - path: "en/**/*.md"
         target: "{lang}"
 
-  # Storefront interface strings.
+  # Storefront interface strings. The message catalogue sits with the reference
+  # surfaces: it is looked up by key when something has gone wrong, not read
+  # through, and it says the same thing to a buyer and to an integrator reading
+  # the API. The storefront and the catalogue name the same objects, and where
+  # they answer differently the content memory records both answers against the
+  # point each was approved at.
   - name: Online Store
     base: src
     channel: kapimart/store
     content:
-      - path: "en/*.{json,yaml,properties,html}"
+      - path: "en/error-messages.properties"
+        target: "{lang}"
+        channel: kapimart/reference
+      # The catalogue above is deliberately outside this glob. A file that
+      # matches two items is read once per item, at each item's point, which
+      # reads afterwards as one surface disagreeing with itself.
+      - path: "en/*.{json,yaml,html}"
         target: "{lang}"
 
   # Contracts and price schedules: binding text, changed only on purpose.

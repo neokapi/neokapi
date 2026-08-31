@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "One English string, two points, two answers.",
+    "",
+    "The storefront calls the object a Warenkorb; the message catalogue, which",
+    "sits at the reference point, calls it an Einkaufswagen. Both are in the",
+    "terms record under concept km-001 — the first preferred, the second",
+    "admitted — so this is a real disagreement between two surfaces rather than",
+    "one of them being wrong.",
+    "",
+    "It is here because a content-memory entry carries a point only when a",
+    "source has been answered differently at two of them. An answer every point",
+    "agrees on is not a decision about a place, and is stored without one.",
+    "",
+    "The storefront's answer comes from the historic translations. This file",
+    "supplies the catalogue's."
+  ],
+  "source": "Your cart is empty",
+  "answers": [
+    {
+      "file": "src/{locale}/error-messages.properties",
+      "key": "cart.empty",
+      "targets": {
+        "de": "Ihr Einkaufswagen ist leer",
+        "fr": "Votre panier d'achat est vide",
+        "ja": "買い物かごは空です",
+        "nb": "Handlevognen din er tom",
+        "ar": "عربة التسوق فارغة"
+      }
+    }
+  ]
+}
