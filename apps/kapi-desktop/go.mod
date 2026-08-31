@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/host v0.0.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.104
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -31,7 +31,6 @@ require (
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/digitorus/pkcs7 v0.0.0-20230818184609-3a137a874352 // indirect
 	github.com/digitorus/timestamp v0.0.0-20231217203849-220c5c2851b7 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
@@ -126,7 +125,7 @@ require (
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/image v0.45.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
