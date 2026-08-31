@@ -398,12 +398,16 @@ func memoryEntryToDTO(entry memory.Entry) MemoryEntryDTO {
 // one matches a stored variant. Canonicalizing at the method boundary is what
 // keeps a search for "nb_NO" from quietly finding nothing.
 //
+// This is an ingress boundary, so it goes through locale.Canonical rather than
+// locale.Parse: the app renders a pseudo-locale ("qps-Ploc") whose subtags CLDR
+// does not know, and the stricter function rejects it.
+//
 // An empty locale is a real answer — unscoped — rather than a bad one.
 func canonicalLocale(s string) (model.LocaleID, error) {
 	if s == "" {
 		return "", nil
 	}
-	return locale.Parse(s)
+	return locale.Canonical(s)
 }
 
 // canonicalSearchLocales canonicalizes the pair of locales a search or lookup
