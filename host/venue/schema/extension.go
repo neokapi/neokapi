@@ -22,9 +22,10 @@ func init() {
 	coreproj.RegisterExtensionGroup(Group, []coreproj.Extension{
 		// ── Project-level top-level keys ──────────────────────────
 		// `bowrain:` is the connection itself — the venue key kapi reads to
-		// decide where the loop runs. Everything else only acts around that
-		// relationship (hooks/automations fire on push/pull, assets and
-		// brand_voice seed server-side stores), so each declares
+		// decide where the loop runs. Everything else only means something
+		// inside that relationship (automations fire on push and pull,
+		// `assets:` governs media asset sync, `hooks:` and `brand_voice:` are
+		// validated here and carried on the recipe), so each declares
 		// DependsOn: VenueKey — set without it, the field is inert and
 		// kapi status/check surface that instead of silently ignoring it.
 		{Name: VenueKey, Scope: coreproj.ScopeProject, Decoder: serverDecoder, Venue: true},

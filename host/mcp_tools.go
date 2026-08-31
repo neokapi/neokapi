@@ -74,7 +74,7 @@ var agentFacingTools = map[string]bool{
 	"redact": true,
 }
 
-// neverAgentFacing are tools withheld even under KAPI_MCP_ALL_TOOLS.
+// neverAgentFacing are tools withheld even under `kapi mcp --all-tools`.
 //
 // "Show me every tool" and "let a caller execute arbitrary commands and
 // JavaScript" are different classes of decision. Bundling them would mean

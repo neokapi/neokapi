@@ -189,7 +189,7 @@ MCP exposes a **curated** set by default: the two retrieval primitives, the chec
 tools (`check_text`, `check_file`), `stats`, the convergence verbs (`up`,
 `up_plan`), the write verb (`apply_edits`), the two offline voice tools, and
 three registry tools that have no porcelain equivalent (`translate`,
-`term-check`, `redact`). `KAPI_MCP_ALL_TOOLS=1` restores the full generated
+`term-check`, `redact`). `kapi mcp --all-tools` restores the full generated
 surface for debugging and power use.
 
 **The tools that execute arbitrary commands and scripts are not part of that

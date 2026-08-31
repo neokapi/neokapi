@@ -44,7 +44,7 @@ const (
 // want unattended plugin installation; reusing it would mean every existing
 // automation silently acquired the right to execute whatever a checked-out
 // recipe names, on the day this gate shipped. Same reasoning AD-037 applied to
-// KAPI_MCP_ALL_TOOLS: "show me everything" and "run arbitrary commands" are
+// `kapi mcp --all-tools`: "show me everything" and "run arbitrary commands" are
 // different classes of decision, and bundling them grants the second by
 // accident.
 const execTrustEnvVar = "KAPI_TRUST_EXEC"
