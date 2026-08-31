@@ -59,10 +59,7 @@ func (a *App) InspectArchiveEntry(tabID, archivePath, entry string) (string, err
 		return "", fmt.Errorf("tab %q not found", tabID)
 	}
 	pctx := project.NewProjectContext(op.Project, op.Path)
-	sourceLang := string(pctx.SourceLocale)
-	if sourceLang == "" {
-		sourceLang = "en"
-	}
+	sourceLang := a.resolveFileLocale(pctx, op, archivePath)
 
 	content, _, err := container.OpenEntry(archivePath, entry)
 	if err != nil {
