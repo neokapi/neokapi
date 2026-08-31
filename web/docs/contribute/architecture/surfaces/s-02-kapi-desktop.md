@@ -126,7 +126,8 @@ drawn as a skipped rung with its boundary date and what governs in its place.
 The terms and memory pages browse and audit. Moving store contents in and out
 as files is the CLI's job (`kapi memory`, `kapi terms`), so the desktop offers
 no import or export control, and `scripts/check-desktop-interchange.sh` keeps
-one from returning. The view ids `termbases` and `memories` stay routable so a
+one from returning. The view ids the store tabs had before the hub stay
+routable so a
 persisted view still lands, and the ad-hoc rail keeps both stores, having no
 project to file them under.
 

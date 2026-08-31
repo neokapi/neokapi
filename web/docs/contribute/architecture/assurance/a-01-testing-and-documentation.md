@@ -2,7 +2,7 @@
 id: a-01-testing-and-documentation
 sidebar_position: 1
 title: "A-01: Testing and documentation"
-description: "A three-tier test pyramid (table-driven unit tests, format round-trips and flow integration, and a build-tagged CLI end-to-end suite), evals in three bands by what they have under test, and a single Docusaurus site, pseudo-localized end to end, whose demo assets are generated from real runs rather than authored by hand."
+description: "A three-tier test pyramid (table-driven unit tests, format round-trips and flow integration, and a build-tagged CLI end-to-end suite), evals in three bands by what they have under test, and a single Docusaurus site, built end to end in its pseudo-locale, whose demo assets are generated from real runs rather than authored by hand."
 keywords: [testing, documentation, testify, roundtrip, end-to-end, evals, Docusaurus, walkthrough, harness, architecture decision, neokapi]
 ---
 

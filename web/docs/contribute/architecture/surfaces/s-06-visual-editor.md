@@ -128,7 +128,7 @@ is already the source of truth.
 Turning a run sequence into text is the step every surface performs and the one
 easiest to get wrong. The lossy form is a loop that keeps text runs and skips
 the rest, which reads as "concatenate the text" and behaves as "delete every
-placeholder, paired code and plural". Nothing fails; the content is simply gone.
+placeholder, paired code and plural". Nothing fails; the content is gone.
 
 So a projection is **declared**, never looped. A `RunSpec`
 (`packages/kapi-format/src/run-projection.ts`) answers for every kind in
