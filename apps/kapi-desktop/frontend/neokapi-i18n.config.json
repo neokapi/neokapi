@@ -1,5 +1,7 @@
 {
   "componentMap": {
+    "ComboboxEmpty": "div",
+    "Fact": "span",
     "TabButton": "button"
   }
 }
