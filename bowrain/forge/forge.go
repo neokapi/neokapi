@@ -171,7 +171,7 @@ func (g *githubClient) do(ctx context.Context, method, u string, body any, out a
 
 func (g *githubClient) EnsureDeliveryPR(ctx context.Context, req DeliveryRequest) (PR, error) {
 	api := g.api(req.Repo.Host)
-	owner := strings.SplitN(req.Repo.Path, "/", 2)[0]
+	owner, _, _ := strings.Cut(req.Repo.Path, "/")
 
 	// One open PR per head branch: GitHub filters by "owner:branch".
 	var open []struct {

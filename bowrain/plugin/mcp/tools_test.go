@@ -31,14 +31,12 @@ func TestHandleProjectConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr", "de"},
-			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/*.json", Format: jsonFormat()},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr", "de"},
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/*.json", Format: jsonFormat()},
 		},
 	}
 
@@ -63,10 +61,8 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage: "en",
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage: "en",
 		},
 		Server: &project.ServerSpec{
 			URL: project.FormatProjectURL("https://bowrain.example.com", "", "proj-123"),
@@ -92,13 +88,11 @@ func TestHandleProjectLsFast(t *testing.T) {
 	writeTestFile(t, tmpDir, "locales/en.json", `{"hello": "world"}`)
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage: "en",
-			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/*.json", Format: jsonFormat()},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage: "en",
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/*.json", Format: jsonFormat()},
 		},
 	}
 
@@ -123,11 +117,9 @@ func TestHandleProjectLsFast_CompoundExtension(t *testing.T) {
 	writeTestFile(t, tmpDir, "i18n/en.kbf.json", `{"kind":"kapi-block-format","blocks":[]}`)
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{SourceLanguage: "en"},
-			// No format: — detection must resolve it.
-			Collections: []coreproj.Collection{{Path: "i18n/**/*.kbf.json"}},
-		},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
+		// No format: — detection must resolve it.
+		Collections: []coreproj.Collection{{Path: "i18n/**/*.kbf.json"}},
 	}
 
 	proj, err := project.InitProject(tmpDir, recipe)
@@ -148,14 +140,12 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 	writeTestFile(t, tmpDir, "other/data.json", `{"key": "value"}`)
 
 	recipe := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage: "en",
-			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/*.json", Format: jsonFormat()},
-				{Path: "other/*.json", Format: jsonFormat()},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage: "en",
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/*.json", Format: jsonFormat()},
+			{Path: "other/*.json", Format: jsonFormat()},
 		},
 	}
 

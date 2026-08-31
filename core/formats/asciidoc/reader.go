@@ -102,14 +102,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "asciidoc",
-			FormatDisplayName: "AsciiDoc",
-			FormatMimeType:    "text/asciidoc",
-			FormatExtensions:  []string{".adoc", ".asciidoc", ".adfm", ".asc"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "asciidoc",
+		FormatDisplayName: "AsciiDoc",
+		FormatMimeType:    "text/asciidoc",
+		FormatExtensions:  []string{".adoc", ".asciidoc", ".adfm", ".asc"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

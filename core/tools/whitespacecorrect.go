@@ -313,8 +313,8 @@ func trimLeadingRuns(runs []model.Run) []model.Run {
 
 // trimTrailingRuns is the trailing-edge counterpart of [trimLeadingRuns].
 func trimTrailingRuns(runs []model.Run) []model.Run {
-	for i := len(runs) - 1; i >= 0; i-- {
-		r := runs[i]
+	for i, r := range slices.Backward(runs) {
+
 		if r.Kind() != model.RunKindText {
 			return runs[:i+1]
 		}

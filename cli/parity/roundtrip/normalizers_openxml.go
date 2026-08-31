@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -335,8 +336,8 @@ func (st *wmlStyleTable) resolveStyleChain(styleID string) []rPrNode {
 	// replaces by element name, so iterating from the root down and combining
 	// each style's own rPr produces the §17.7 "closest wins" result.
 	var combined []rPrNode
-	for i := len(chain) - 1; i >= 0; i-- {
-		combined = combineDistinctRPr(combined, st.styles[chain[i]].rPrChildren)
+	for _, c := range slices.Backward(chain) {
+		combined = combineDistinctRPr(combined, st.styles[c].rPrChildren)
 	}
 	return combined
 }

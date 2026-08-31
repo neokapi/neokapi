@@ -600,9 +600,9 @@ func TestMemoryLeverageAsksFromWhereItIs(t *testing.T) {
 func TestMemoryLeverageBlockAwareAmbiguousSkips(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
-		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installation"}},
-		match:              corememory.Match{TargetRuns: iconTargetRuns(), Score: 99, Exact: true, Ambiguous: true},
-		found:              true,
+		exact: map[string]string{"Install": "Installation"},
+		match: corememory.Match{TargetRuns: iconTargetRuns(), Score: 99, Exact: true, Ambiguous: true},
+		found: true,
 	}
 	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
@@ -626,9 +626,9 @@ func TestMemoryLeverageBlockAwareAmbiguousSkips(t *testing.T) {
 func TestTMLeverageBlockAwareSubThresholdFallsThrough(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockMemoryProvider{
-		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installer"}},
-		match:              corememory.Match{TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Installation"}}}, Score: 80, Exact: false},
-		found:              true,
+		exact: map[string]string{"Install": "Installer"},
+		match: corememory.Match{TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Installation"}}}, Score: 80, Exact: false},
+		found: true,
 	}
 	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, FillTarget: true, FillTargetThreshold: 95, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)
@@ -657,9 +657,9 @@ func TestMemoryLeverageBlockAwareIncompatibleCodes(t *testing.T) {
 		{PcClose: &model.PcCloseRun{ID: "9", Type: "jsx:element", Data: "{/=m9}", Equiv: "=m9"}},
 	}
 	provider := &mockBlockMemoryProvider{
-		mockMemoryProvider: mockMemoryProvider{exact: map[string]string{"Install": "Installer"}},
-		match:              corememory.Match{TargetRuns: foreign, Score: 100, Exact: true},
-		found:              true,
+		exact: map[string]string{"Install": "Installer"},
+		match: corememory.Match{TargetRuns: foreign, Score: 100, Exact: true},
+		found: true,
 	}
 	cfg := &tools.MemoryLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Memory: provider}
 	tl := tools.NewMemoryLeverageTool(cfg)

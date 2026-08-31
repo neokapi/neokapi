@@ -250,8 +250,7 @@ func isNotFound(err error) bool {
 	if errors.As(err, &nsk) || errors.As(err, &nf) {
 		return true
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		switch apiErr.ErrorCode() {
 		case "NoSuchKey", "NotFound", "404":
 			return true

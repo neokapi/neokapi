@@ -53,14 +53,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "openxml",
-			FormatDisplayName: "Office Open XML",
-			FormatMimeType:    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-			FormatExtensions:  []string{".docx", ".docm", ".dotx", ".dotm", ".xlsx", ".xlsm", ".xltx", ".xltm", ".pptx", ".pptm", ".ppsx", ".potx"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "openxml",
+		FormatDisplayName: "Office Open XML",
+		FormatMimeType:    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		FormatExtensions:  []string{".docx", ".docm", ".dotx", ".dotm", ".xlsx", ".xlsm", ".xltx", ".xltm", ".pptx", ".pptm", ".ppsx", ".potx"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

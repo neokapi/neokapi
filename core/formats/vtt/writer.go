@@ -24,10 +24,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new VTT writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "vtt",
-		},
-		firstCue: true,
+		FormatName: "vtt",
+		firstCue:   true,
 	}
 }
 

@@ -16,7 +16,7 @@ runs:
       with:
         install-mode: binary
         verify: false
-        version: v2.9.0
+        version: v2.13.2
         working-directory: ${{ inputs.working-directory }}
         # Full lint on PRs too: the GitHub patch API the action uses for
         # only-new-issues filtering 406s on diffs over 20000 lines (large

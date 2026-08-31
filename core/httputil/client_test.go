@@ -34,9 +34,9 @@ func TestRetryTransport_ContextCancellationAbortsBackoff(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var hits int32
+			var hits atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				atomic.AddInt32(&hits, 1)
+				hits.Add(1)
 				if tt.retryAfter != "" {
 					w.Header().Set("Retry-After", tt.retryAfter)
 				}
@@ -74,7 +74,7 @@ func TestRetryTransport_ContextCancellationAbortsBackoff(t *testing.T) {
 			assert.Less(t, elapsed, 400*time.Millisecond,
 				"RoundTrip should abort backoff promptly on context cancel")
 			// Exactly one upstream call: the backoff before the retry was aborted.
-			assert.Equal(t, int32(1), atomic.LoadInt32(&hits))
+			assert.Equal(t, int32(1), hits.Load())
 		})
 	}
 }
@@ -112,9 +112,9 @@ func TestRetryAfterDelay_ClampedToMax(t *testing.T) {
 // path with a small (in-cap) Retry-After to confirm the header is honored and
 // the retry succeeds without waiting the (uncapped) advertised time.
 func TestRetryTransport_RetryAfterRespectedAndCapped(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		n := atomic.AddInt32(&hits, 1)
+		n := hits.Add(1)
 		if n == 1 {
 			// Advertise far above the cap; the client must clamp to MaxRetryAfter,
 			// and the context below cancels well before either the advertised
@@ -149,7 +149,7 @@ func TestRetryTransport_RetryAfterRespectedAndCapped(t *testing.T) {
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.Canceled)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&hits))
+	assert.Equal(t, int32(1), hits.Load())
 	assert.Less(t, elapsed, MaxRetryAfter, "wait must be bounded, never the advertised 600s")
 }
 
@@ -173,9 +173,9 @@ func TestRetryTransport_NoRetryOnNilGetBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var hits int32
+			var hits atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				atomic.AddInt32(&hits, 1)
+				hits.Add(1)
 				_, _ = io.Copy(io.Discard, r.Body)
 				w.WriteHeader(tt.statusCode)
 			}))
@@ -194,16 +194,16 @@ func TestRetryTransport_NoRetryOnNilGetBody(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, tt.statusCode, resp.StatusCode)
-			assert.Equal(t, int32(1), atomic.LoadInt32(&hits),
+			assert.Equal(t, int32(1), hits.Load(),
 				"must not retry when body cannot be replayed")
 		})
 	}
 }
 
 func TestRetryTransport_RetriesReplayableBodyOn429(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		n := atomic.AddInt32(&hits, 1)
+		n := hits.Add(1)
 		body, _ := io.ReadAll(r.Body)
 		assert.Equal(t, "payload", string(body), "replayed body should be intact on retry")
 		if n == 1 {
@@ -227,13 +227,13 @@ func TestRetryTransport_RetriesReplayableBodyOn429(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, int32(2), atomic.LoadInt32(&hits))
+	assert.Equal(t, int32(2), hits.Load())
 }
 
 func TestRetryTransport_SucceedsWithoutRetry(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
@@ -249,7 +249,7 @@ func TestRetryTransport_SucceedsWithoutRetry(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&hits))
+	assert.Equal(t, int32(1), hits.Load())
 }
 
 func TestBackoff_Increases(t *testing.T) {

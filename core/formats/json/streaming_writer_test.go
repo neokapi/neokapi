@@ -7,6 +7,7 @@ import (
 	"io"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -233,8 +234,8 @@ func TestStreamingWriterReorderedBlocks(t *testing.T) {
 	store.CloseWrite()
 
 	partsCh := make(chan *model.Part, len(parts))
-	for i := len(parts) - 1; i >= 0; i-- {
-		partsCh <- parts[i]
+	for _, part := range slices.Backward(parts) {
+		partsCh <- part
 	}
 	close(partsCh)
 

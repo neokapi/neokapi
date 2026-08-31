@@ -56,12 +56,10 @@ func NewBatchTool(cfg *BatchConfig) tool.Tool {
 	}
 
 	return &batchTool{
-		BaseTool: tool.BaseTool{
-			ToolName:        "batch",
-			ToolDescription: "Collect blocks into batches for downstream batch processing",
-			Cfg:             cfg,
-		},
-		size: cfg.Size,
+		ToolName:        "batch",
+		ToolDescription: "Collect blocks into batches for downstream batch processing",
+		Cfg:             cfg,
+		size:            cfg.Size,
 	}
 }
 

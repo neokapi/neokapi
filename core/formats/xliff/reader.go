@@ -226,14 +226,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "xliff",
-			FormatDisplayName: "XLIFF 1.2",
-			FormatMimeType:    "application/xliff+xml",
-			FormatExtensions:  []string{".xlf", ".xliff"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "xliff",
+		FormatDisplayName: "XLIFF 1.2",
+		FormatMimeType:    "application/xliff+xml",
+		FormatExtensions:  []string{".xlf", ".xliff"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 
@@ -354,8 +352,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		if r.cfg.PreserveSpaceByDefault {
 			return true
 		}
-		for i := len(preserveWSStack) - 1; i >= 0; i-- {
-			if preserveWSStack[i] {
+		for _, p := range slices.Backward(preserveWSStack) {
+			if p {
 				return true
 			}
 		}

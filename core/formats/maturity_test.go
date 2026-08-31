@@ -304,7 +304,7 @@ func evidencePathExists(evidence string) (exists, checked bool) {
 	if fileExists(root) || dirExists(root) {
 		return true, true
 	}
-	top := strings.SplitN(path, "/", 2)[0]
+	top, _, _ := strings.Cut(path, "/")
 	if !dirExists(filepath.Join("..", "..", top)) {
 		return false, false
 	}

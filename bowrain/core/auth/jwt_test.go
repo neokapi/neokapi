@@ -42,13 +42,12 @@ func TestValidateTokenRejectsWrongClaims(t *testing.T) {
 	}
 	now := time.Now()
 	base := func() Claims {
-		return Claims{RegisteredClaims: jwt.RegisteredClaims{
+		return Claims{
 			Issuer:    TokenIssuer,
 			Subject:   "u1",
 			Audience:  jwt.ClaimStrings{TokenAudience},
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
-		}}
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour))}
 	}
 
 	// Sanity: a well-formed token validates.

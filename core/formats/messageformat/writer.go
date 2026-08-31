@@ -35,11 +35,9 @@ func (w *Writer) StreamingWriter() {}
 // NewWriter creates a new MessageFormat writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "messageformat",
-		},
-		firstLine: true,
-		blocks:    make(map[string]*model.Block),
+		FormatName: "messageformat",
+		firstLine:  true,
+		blocks:     make(map[string]*model.Block),
 	}
 }
 

@@ -360,8 +360,7 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 // becomes a generic 502 via serverErrStatus, which logs the cause and strips it
 // from the body.
 func (s *Server) posthogUpstreamErr(c echo.Context, classifiedStatus int, err error) error {
-	var pe *connector.PostHogError
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*connector.PostHogError](err); ok {
 		slog.WarnContext(c.Request().Context(), "posthog upstream error",
 			"code", pe.Code, "status", pe.Status, "detail", pe.Message)
 		return c.JSON(classifiedStatus, PostHogErrorResponse{

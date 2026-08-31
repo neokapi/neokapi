@@ -44,14 +44,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset() // sets defaults
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "json",
-			FormatDisplayName: "JSON",
-			FormatMimeType:    "application/json",
-			FormatExtensions:  []string{".json"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "json",
+		FormatDisplayName: "JSON",
+		FormatMimeType:    "application/json",
+		FormatExtensions:  []string{".json"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

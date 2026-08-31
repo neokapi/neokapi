@@ -160,7 +160,8 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 	// sdtEndPr verbatim, then accumulate them onto rawStart so the
 	// OPEN sentinel emits the full `<w:sdt><w:sdtPr>...</w:sdtPr>
 	// <w:sdtEndPr/><w:sdtContent>` prefix.
-	wrapperOpen := rawStart
+	var wrapperOpen strings.Builder
+	wrapperOpen.WriteString(rawStart)
 	inSdtContent := false
 	for !inSdtContent {
 		tok, err := d.Token()
@@ -175,7 +176,7 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 				if err != nil {
 					return err
 				}
-				wrapperOpen += raw
+				wrapperOpen.WriteString(raw)
 			case "sdtEndPr":
 				// Empty <w:sdtEndPr/> is dropped by upstream Okapi
 				// (RunContainer.SDT_END_PROPERTIES filter — only the
@@ -187,10 +188,10 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 				}
 				// Self-closing or empty body: drop. Otherwise keep.
 				if !sdtEndPrIsEmpty(raw) {
-					wrapperOpen += raw
+					wrapperOpen.WriteString(raw)
 				}
 			case "sdtContent":
-				wrapperOpen += startElementToRaw(t)
+				wrapperOpen.WriteString(startElementToRaw(t))
 				inSdtContent = true
 			default:
 				// Unknown SDT child outside sdtContent — skip the
@@ -207,7 +208,7 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 			// emits a synthesised empty `</w:sdt>` pair (no
 			// sdtContent boundary because the source had none).
 			if t.Name.Local == "sdt" {
-				*runs = append(*runs, textRun{text: "\uE10E:sdt-no-content:" + wrapperOpen, props: runProps{}})
+				*runs = append(*runs, textRun{text: "\uE10E:sdt-no-content:" + wrapperOpen.String(), props: runProps{}})
 				*runs = append(*runs, textRun{text: "\uE10F:sdt-no-content:</w:sdt>", props: runProps{}})
 				return nil
 			}
@@ -215,7 +216,7 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 	}
 	// Emit the OPEN sentinel covering everything through the
 	// `<w:sdtContent>` start tag.
-	*runs = append(*runs, textRun{text: "\uE10E:sdt:" + wrapperOpen, props: runProps{}})
+	*runs = append(*runs, textRun{text: "\uE10E:sdt:" + wrapperOpen.String(), props: runProps{}})
 	// Drain `<w:sdtContent>` children, processing inner runs inline.
 	var cfs complexFieldState
 	for {

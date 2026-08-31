@@ -72,14 +72,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "odf",
-			FormatDisplayName: "Open Document Format",
-			FormatMimeType:    "application/vnd.oasis.opendocument.text",
-			FormatExtensions:  []string{".odt", ".ods", ".odp"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "odf",
+		FormatDisplayName: "Open Document Format",
+		FormatMimeType:    "application/vnd.oasis.opendocument.text",
+		FormatExtensions:  []string{".odt", ".ods", ".odp"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

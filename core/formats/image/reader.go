@@ -58,16 +58,14 @@ type Reader struct {
 // NewReader constructs an image reader.
 func NewReader() *Reader {
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "image",
-			FormatDisplayName: "Image",
-			FormatMimeType:    "image/png",
-			FormatExtensions: []string{
-				".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
-				".webp", ".heic", ".heif", ".avif",
-			},
-			Cfg: defaultConfig(),
+		FormatName:        "image",
+		FormatDisplayName: "Image",
+		FormatMimeType:    "image/png",
+		FormatExtensions: []string{
+			".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff",
+			".webp", ".heic", ".heif", ".avif",
 		},
+		Cfg: defaultConfig(),
 	}
 }
 
@@ -87,8 +85,8 @@ func (r *Reader) Signature() format.FormatSignature {
 		},
 		MagicBytes: [][]byte{
 			{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, // PNG
-			{0xff, 0xd8, 0xff},                            // JPEG
-			[]byte("GIF87a"), []byte("GIF89a"),            // GIF
+			{0xff, 0xd8, 0xff},                 // JPEG
+			[]byte("GIF87a"), []byte("GIF89a"), // GIF
 			[]byte("BM"),             // BMP
 			{0x49, 0x49, 0x2a, 0x00}, // TIFF little-endian
 			{0x4d, 0x4d, 0x00, 0x2a}, // TIFF big-endian

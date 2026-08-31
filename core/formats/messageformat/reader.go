@@ -62,14 +62,12 @@ type parsedLine struct {
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "messageformat",
-			FormatDisplayName: "ICU MessageFormat",
-			FormatMimeType:    "text/x-messageformat",
-			FormatExtensions:  []string{".mf", ".messageformat"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "messageformat",
+		FormatDisplayName: "ICU MessageFormat",
+		FormatMimeType:    "text/x-messageformat",
+		FormatExtensions:  []string{".mf", ".messageformat"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

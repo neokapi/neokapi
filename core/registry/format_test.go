@@ -21,16 +21,14 @@ type stubReader struct {
 
 func newStubReader(name string) *stubReader {
 	return &stubReader{
-		BaseFormatReader: format.BaseFormatReader{FormatName: name},
+		FormatName: name,
 	}
 }
 
 func newStubReaderWithSig(name, displayName string, mimes, exts []string) *stubReader {
 	return &stubReader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        name,
-			FormatDisplayName: displayName,
-		},
+		FormatName:        name,
+		FormatDisplayName: displayName,
 		sig: format.FormatSignature{
 			MIMETypes:  mimes,
 			Extensions: exts,
@@ -58,7 +56,7 @@ type stubWriter struct {
 
 func newStubWriter(name string) *stubWriter {
 	return &stubWriter{
-		BaseFormatWriter: format.BaseFormatWriter{FormatName: name},
+		FormatName: name,
 	}
 }
 

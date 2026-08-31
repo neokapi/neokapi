@@ -44,9 +44,7 @@ type contextGroup struct {
 // NewWriter creates a new Qt TS writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "ts",
-		},
+		FormatName:  "ts",
 		headerProps: make(map[string]string),
 	}
 }

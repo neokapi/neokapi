@@ -126,16 +126,14 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "doclang",
-			FormatDisplayName: "DocLang",
-			FormatMimeType:    "application/doclang+xml",
-			FormatExtensions:  []string{".dclg.xml"},
-			Cfg:               cfg,
-		},
-		cfg:         cfg,
-		currentPage: 1,
-		threadFirst: map[int]string{},
+		FormatName:        "doclang",
+		FormatDisplayName: "DocLang",
+		FormatMimeType:    "application/doclang+xml",
+		FormatExtensions:  []string{".dclg.xml"},
+		Cfg:               cfg,
+		cfg:               cfg,
+		currentPage:       1,
+		threadFirst:       map[int]string{},
 	}
 }
 

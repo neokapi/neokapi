@@ -194,7 +194,7 @@ func run() error {
 // them in the dashboard without this tool creating a duplicate.
 func ensureProduct(ctx context.Context, sc *stripe.Client, name, kind string) (string, error) {
 	for p, err := range sc.V1Products.List(ctx, &stripe.ProductListParams{
-		ListParams: stripe.ListParams{Limit: stripe.Int64(100)},
+		Limit: stripe.Int64(100),
 	}) {
 		if err != nil {
 			return "", fmt.Errorf("list products: %w", err)
@@ -234,7 +234,7 @@ type priceSpec struct {
 func ensurePrice(ctx context.Context, sc *stripe.Client, spec priceSpec) (string, error) {
 	for p, err := range sc.V1Prices.List(ctx, &stripe.PriceListParams{
 		LookupKeys: []*string{stripe.String(spec.lookupKey)},
-		ListParams: stripe.ListParams{Limit: stripe.Int64(1)},
+		Limit:      stripe.Int64(1),
 	}) {
 		if err != nil {
 			return "", fmt.Errorf("list prices for %s: %w", spec.lookupKey, err)
@@ -286,8 +286,8 @@ func ensurePrice(ctx context.Context, sc *stripe.Client, spec priceSpec) (string
 // alongside the revenue.
 func ensureMeter(ctx context.Context, sc *stripe.Client) error {
 	for m, err := range sc.V1BillingMeters.List(ctx, &stripe.BillingMeterListParams{
-		Status:     stripe.String("active"),
-		ListParams: stripe.ListParams{Limit: stripe.Int64(100)},
+		Status: stripe.String("active"),
+		Limit:  stripe.Int64(100),
 	}) {
 		if err != nil {
 			return fmt.Errorf("list meters: %w", err)
@@ -330,7 +330,7 @@ func ensureMeter(ctx context.Context, sc *stripe.Client) error {
 // until a customer's plan is wrong.
 func ensureWebhook(ctx context.Context, sc *stripe.Client, url string) (string, error) {
 	for w, err := range sc.V1WebhookEndpoints.List(ctx, &stripe.WebhookEndpointListParams{
-		ListParams: stripe.ListParams{Limit: stripe.Int64(100)},
+		Limit: stripe.Int64(100),
 	}) {
 		if err != nil {
 			return "", fmt.Errorf("list webhook endpoints: %w", err)

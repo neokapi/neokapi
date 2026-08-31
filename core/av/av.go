@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -323,8 +324,8 @@ func ExtractFrame(ctx context.Context, srcPath string, atMS int64, outPath strin
 // lastLine returns the last non-empty line of ffmpeg output, for concise errors.
 func lastLine(b []byte) string {
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		if s := strings.TrimSpace(lines[i]); s != "" {
+	for _, line := range slices.Backward(lines) {
+		if s := strings.TrimSpace(line); s != "" {
 			return s
 		}
 	}

@@ -30,26 +30,24 @@ func TestBuildPushContext_CarriesThePreviewHostPerCollection(t *testing.T) {
 	root := t.TempDir()
 
 	proj, err := bproject.InitProject(root, &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"nb"},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Name:    "bowrain-app",
+				Content: []coreproj.ContentItem{{Path: "app/**/*.kbf.json"}},
+				Extras:  previewExtra(t, "storybook", "https://neokapi.github.io/storybook/bowrain/"),
 			},
-			Collections: []coreproj.Collection{
-				{
-					Name:    "bowrain-app",
-					Content: []coreproj.ContentItem{{Path: "app/**/*.kbf.json"}},
-					Extras:  previewExtra(t, "storybook", "https://neokapi.github.io/storybook/bowrain/"),
-				},
-				{
-					Name:    "neokapi-desktop",
-					Content: []coreproj.ContentItem{{Path: "desktop/**/*.kbf.json"}},
-					Extras:  previewExtra(t, "storybook", "https://neokapi.github.io/storybook/kapi/"),
-				},
-				{
-					Name:    "neokapi-docs",
-					Content: []coreproj.ContentItem{{Path: "docs/**/*.md"}},
-				},
+			{
+				Name:    "neokapi-desktop",
+				Content: []coreproj.ContentItem{{Path: "desktop/**/*.kbf.json"}},
+				Extras:  previewExtra(t, "storybook", "https://neokapi.github.io/storybook/kapi/"),
+			},
+			{
+				Name:    "neokapi-docs",
+				Content: []coreproj.ContentItem{{Path: "docs/**/*.md"}},
 			},
 		},
 	})

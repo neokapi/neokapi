@@ -29,12 +29,10 @@ type Reader struct {
 // NewReader creates a new video reader.
 func NewReader() *Reader {
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "video",
-			FormatDisplayName: "Video",
-			FormatMimeType:    "video/mp4",
-			FormatExtensions:  []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
-		},
+		FormatName:        "video",
+		FormatDisplayName: "Video",
+		FormatMimeType:    "video/mp4",
+		FormatExtensions:  []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
 	}
 }
 

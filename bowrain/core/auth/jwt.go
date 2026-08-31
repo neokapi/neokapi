@@ -53,15 +53,13 @@ func generateToken(subject, email, name, secret, audience string, expiry time.Du
 	}
 	now := time.Now()
 	claims := Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    TokenIssuer,
-			Subject:   subject,
-			Audience:  jwt.ClaimStrings{audience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
-		},
-		Email: email,
-		Name:  name,
+		Issuer:    TokenIssuer,
+		Subject:   subject,
+		Audience:  jwt.ClaimStrings{audience},
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
+		Email:     email,
+		Name:      name,
 	}
 	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 	if err != nil {

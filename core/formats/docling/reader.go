@@ -75,15 +75,13 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "docling",
-			FormatDisplayName: "DoclingDocument JSON",
-			FormatMimeType:    "application/json",
-			FormatExtensions:  []string{".json"},
-			Cfg:               cfg,
-		},
-		cfg:     cfg,
-		visited: map[string]bool{},
+		FormatName:        "docling",
+		FormatDisplayName: "DoclingDocument JSON",
+		FormatMimeType:    "application/json",
+		FormatExtensions:  []string{".json"},
+		Cfg:               cfg,
+		cfg:               cfg,
+		visited:           map[string]bool{},
 	}
 }
 

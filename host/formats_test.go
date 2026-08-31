@@ -5,7 +5,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/registry"
-	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,11 +62,9 @@ func TestContainsLower(t *testing.T) {
 
 func TestToFormatInfoParam_Boolean(t *testing.T) {
 	prop := schema.PropertySchema{
-		PropertySchema: coreschema.PropertySchema{
-			Type:        "boolean",
-			Description: "Enable extraction",
-			Default:     true,
-		},
+		Type:        "boolean",
+		Description: "Enable extraction",
+		Default:     true,
 	}
 	p := ToFormatInfoParam("extractAll", prop)
 	assert.Equal(t, "extractAll", p.Name)
@@ -78,10 +75,8 @@ func TestToFormatInfoParam_Boolean(t *testing.T) {
 
 func TestToFormatInfoParam_ObjectWithOkapiFormat(t *testing.T) {
 	prop := schema.PropertySchema{
-		PropertySchema: coreschema.PropertySchema{
-			Type:        "object",
-			Description: "Inline code detection",
-		},
+		Type:        "object",
+		Description: "Inline code detection",
 		OkapiFormat: "inlineCodeFinder",
 	}
 	p := ToFormatInfoParam("codeFinderRules", prop)

@@ -51,10 +51,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "androidxml",
-		},
-		cfg: cfg,
+		FormatName: "androidxml",
+		cfg:        cfg,
 	}
 }
 

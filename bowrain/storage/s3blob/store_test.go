@@ -36,18 +36,16 @@ func newMinioStore(t *testing.T) *Store {
 
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "minio/minio:latest",
-			Cmd:          []string{"server", "/data"},
-			ExposedPorts: []string{"9000/tcp"},
-			Env: map[string]string{
-				"MINIO_ROOT_USER":     testAccessKey,
-				"MINIO_ROOT_PASSWORD": testSecretKey,
-			},
-			WaitingFor: wait.ForHTTP("/minio/health/ready").
-				WithPort("9000/tcp").
-				WithStartupTimeout(60 * time.Second),
+		Image:        "minio/minio:latest",
+		Cmd:          []string{"server", "/data"},
+		ExposedPorts: []string{"9000/tcp"},
+		Env: map[string]string{
+			"MINIO_ROOT_USER":     testAccessKey,
+			"MINIO_ROOT_PASSWORD": testSecretKey,
 		},
+		WaitingFor: wait.ForHTTP("/minio/health/ready").
+			WithPort("9000/tcp").
+			WithStartupTimeout(60 * time.Second),
 		Started: true,
 	})
 	require.NoError(t, err)
@@ -169,7 +167,7 @@ func TestPresignedURLRoundTrip(t *testing.T) {
 	// ...and so can a client with only a pre-signed GET URL.
 	getURL, err := s.GenerateDownloadURL(ctx, key, storage.SignOptions{})
 	require.NoError(t, err)
-	getResp, err := http.Get(getURL) //nolint:noctx // short-lived test fetch
+	getResp, err := http.Get(getURL)
 	require.NoError(t, err)
 	defer getResp.Body.Close()
 	require.Equal(t, http.StatusOK, getResp.StatusCode)

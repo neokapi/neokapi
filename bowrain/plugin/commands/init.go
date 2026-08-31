@@ -131,9 +131,7 @@ func parseTargetLocales(s string) []model.LocaleID {
 // newRecipeFromFlags builds a default recipe with source/target from CLI flags.
 func newRecipeFromFlags(sourceLocale string) *project.Recipe {
 	r := &project.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Version: coreproj.CurrentVersion,
-		},
+		Version: coreproj.CurrentVersion,
 	}
 	switch {
 	case sourceLocale != "":

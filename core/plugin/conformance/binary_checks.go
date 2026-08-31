@@ -26,44 +26,36 @@ const unknownCommand = "__kapi_conformance_unknown_command__"
 func binaryChecks() []registryEntry {
 	return []registryEntry{
 		{
-			Check: Check{
-				ID:       "binary.version",
-				Title:    "`<binary> version` exits 0 and prints a version",
-				Mode:     ModeAny,
-				Required: true,
-				Why:      "the host runs this verb to confirm an installed binary matches its manifest, and to warm first exec.",
-			},
-			run: checkBinaryVersion,
+			ID:       "binary.version",
+			Title:    "`<binary> version` exits 0 and prints a version",
+			Mode:     ModeAny,
+			Required: true,
+			Why:      "the host runs this verb to confirm an installed binary matches its manifest, and to warm first exec.",
+			run:      checkBinaryVersion,
 		},
 		{
-			Check: Check{
-				ID:       "binary.version-matches-manifest",
-				Title:    "the version verb reports the manifest's version",
-				Mode:     ModeAny,
-				Required: false,
-				Why:      "a binary and manifest that disagree make `kapi plugins list` and install provenance misleading.",
-			},
-			run: checkBinaryVersionMatches,
+			ID:       "binary.version-matches-manifest",
+			Title:    "the version verb reports the manifest's version",
+			Mode:     ModeAny,
+			Required: false,
+			Why:      "a binary and manifest that disagree make `kapi plugins list` and install provenance misleading.",
+			run:      checkBinaryVersionMatches,
 		},
 		{
-			Check: Check{
-				ID:       "binary.unknown-verb-rejected",
-				Title:    "an unrecognised first argument exits non-zero",
-				Mode:     ModeAny,
-				Required: true,
-				Why:      "a catch-all dispatcher silently absorbs verbs added by later protocol revisions instead of failing visibly.",
-			},
-			run: checkBinaryUnknownVerb,
+			ID:       "binary.unknown-verb-rejected",
+			Title:    "an unrecognised first argument exits non-zero",
+			Mode:     ModeAny,
+			Required: true,
+			Why:      "a catch-all dispatcher silently absorbs verbs added by later protocol revisions instead of failing visibly.",
+			run:      checkBinaryUnknownVerb,
 		},
 		{
-			Check: Check{
-				ID:       "binary.doctor",
-				Title:    "`<binary> doctor` exits 0 when selfcheck is declared",
-				Mode:     ModeAny,
-				Required: true,
-				Why:      "`kapi plugins doctor` dispatches this verb; a plugin that declares selfcheck must answer it.",
-			},
-			run: checkBinaryDoctor,
+			ID:       "binary.doctor",
+			Title:    "`<binary> doctor` exits 0 when selfcheck is declared",
+			Mode:     ModeAny,
+			Required: true,
+			Why:      "`kapi plugins doctor` dispatches this verb; a plugin that declares selfcheck must answer it.",
+			run:      checkBinaryDoctor,
 		},
 	}
 }
@@ -93,8 +85,7 @@ func (r *runner) runPlugin(ctx context.Context, args ...string) execResult {
 	case err == nil:
 		res.exitCode = 0
 	default:
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			res.exitCode = exitErr.ExitCode()
 		} else {
 			res.exitCode = -1
@@ -217,24 +208,20 @@ func checkBinaryDoctor(ctx context.Context, r *runner) (Status, string, error) {
 func modeAChecks() []registryEntry {
 	return []registryEntry{
 		{
-			Check: Check{
-				ID:       "modeA.unknown-command-rejected",
-				Title:    "`<binary> command <unknown>` exits non-zero",
-				Mode:     ModeA,
-				Required: true,
-				Why:      "the host builds its dispatch table from the manifest; a plugin that answers undeclared commands hides typos and future collisions.",
-			},
-			run: checkModeAUnknownCommand,
+			ID:       "modeA.unknown-command-rejected",
+			Title:    "`<binary> command <unknown>` exits non-zero",
+			Mode:     ModeA,
+			Required: true,
+			Why:      "the host builds its dispatch table from the manifest; a plugin that answers undeclared commands hides typos and future collisions.",
+			run:      checkModeAUnknownCommand,
 		},
 		{
-			Check: Check{
-				ID:       "modeA.command-probe",
-				Title:    "the probed command runs with the expected exit code and output",
-				Mode:     ModeA,
-				Required: true,
-				Why:      "Mode A propagates the plugin's exit code to the kapi caller; a command that cannot be dispatched breaks the verb.",
-			},
-			run: checkModeACommandProbe,
+			ID:       "modeA.command-probe",
+			Title:    "the probed command runs with the expected exit code and output",
+			Mode:     ModeA,
+			Required: true,
+			Why:      "Mode A propagates the plugin's exit code to the kapi caller; a command that cannot be dispatched breaks the verb.",
+			run:      checkModeACommandProbe,
 		},
 	}
 }

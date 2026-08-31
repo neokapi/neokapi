@@ -59,8 +59,8 @@ func knowledgeTestServer(t *testing.T) *httptest.Server {
 	})
 	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetDetail{
-			ChangeSet: apiclient.ChangeSet{ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review", CreatedBy: "alice"},
-			Governed:  true,
+			ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review", CreatedBy: "alice",
+			Governed: true,
 		})
 	})
 	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}/blast-radius", func(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +81,7 @@ func setupKnowledgeProject(t *testing.T, srv *httptest.Server) {
 
 	root := t.TempDir()
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{Defaults: coreproj.Defaults{SourceLanguage: "en"}},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
 		Server: &bproject.ServerSpec{
 			URL:    srv.URL + "/" + testWorkspace + "/" + testProjectID,
 			Stream: "main",
@@ -152,8 +152,8 @@ func blastRadiusServer(t *testing.T, handler http.HandlerFunc) *httptest.Server 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetDetail{
-			ChangeSet: apiclient.ChangeSet{ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review"},
-			Governed:  true,
+			ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review",
+			Governed: true,
 		})
 	})
 	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}/blast-radius", handler)
@@ -242,8 +242,8 @@ func TestHandleConceptSearchRequiresWorkspace(t *testing.T) {
 
 	root := t.TempDir()
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{Defaults: coreproj.Defaults{SourceLanguage: "en"}},
-		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/" + testProjectID},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
+		Server:   &bproject.ServerSpec{URL: srv.URL + "/projects/" + testProjectID},
 	}
 	_, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)

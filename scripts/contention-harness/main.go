@@ -980,8 +980,8 @@ type parentStores struct {
 }
 
 func (ps *parentStores) Close() {
-	for i := len(ps.closers) - 1; i >= 0; i-- {
-		_ = ps.closers[i]()
+	for _, v := range slices.Backward(ps.closers) {
+		_ = v()
 	}
 }
 

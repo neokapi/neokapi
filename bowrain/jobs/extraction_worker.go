@@ -126,8 +126,7 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 		postCtx := context.WithoutCancel(ctx)
 
 		if processErr != nil {
-			var te *transientError
-			if errors.As(processErr, &te) {
+			if _, ok := errors.AsType[*transientError](processErr); ok {
 				// The row is back in 'queued'. Publish a FRESH message rather
 				// than trusting nack() to reproduce a delivery whose visibility
 				// may already have lapsed; ClaimExtractionJob dedups a stray

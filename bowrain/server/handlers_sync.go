@@ -78,8 +78,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	if !req.AllowModelDowngrade {
 		if err := diffEngine.CheckContentModelEpoch(c.Request().Context(),
 			req.ProjectID, req.Stream, req.ContentModelEpoch); err != nil {
-			var conflict *bowsync.ContentModelConflict
-			if errors.As(err, &conflict) {
+			if conflict, ok := errors.AsType[*bowsync.ContentModelConflict](err); ok {
 				return apiErr(c, http.StatusConflict, conflict.Error())
 			}
 			return serverErr(c, err)

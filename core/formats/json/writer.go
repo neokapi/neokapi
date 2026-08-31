@@ -43,10 +43,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "json",
-		},
-		cfg: cfg,
+		FormatName: "json",
+		cfg:        cfg,
 	}
 }
 

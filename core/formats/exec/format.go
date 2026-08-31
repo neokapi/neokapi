@@ -35,10 +35,8 @@ const FormatName = "exec"
 // anywhere runs a subprocess for this format.
 func NewReader() format.DataFormatReader {
 	return &stubReader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        FormatName,
-			FormatDisplayName: "Exec (subprocess extractor)",
-		},
+		FormatName:        FormatName,
+		FormatDisplayName: "Exec (subprocess extractor)",
 	}
 }
 

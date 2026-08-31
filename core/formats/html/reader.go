@@ -160,15 +160,13 @@ func NewReader() *Reader {
 	vocab := model.NewVocabularyRegistry()
 	_ = vocab.LoadDefaults()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "html",
-			FormatDisplayName: "HTML",
-			FormatMimeType:    "text/html",
-			FormatExtensions:  []string{".html", ".htm", ".xhtml"},
-			Cfg:               cfg,
-		},
-		cfg:   cfg,
-		vocab: vocab,
+		FormatName:        "html",
+		FormatDisplayName: "HTML",
+		FormatMimeType:    "text/html",
+		FormatExtensions:  []string{".html", ".htm", ".xhtml"},
+		Cfg:               cfg,
+		cfg:               cfg,
+		vocab:             vocab,
 	}
 }
 

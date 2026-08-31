@@ -37,14 +37,12 @@ func (r *Reader) StreamingReader() {}
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "srt",
-			FormatDisplayName: "SRT Subtitles",
-			FormatMimeType:    "application/x-subrip",
-			FormatExtensions:  []string{".srt"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "srt",
+		FormatDisplayName: "SRT Subtitles",
+		FormatMimeType:    "application/x-subrip",
+		FormatExtensions:  []string{".srt"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

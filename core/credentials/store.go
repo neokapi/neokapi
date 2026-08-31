@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -149,7 +150,7 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 		}
 	}
 
-	s.configs = append(s.configs[:len(s.configs):len(s.configs)], cfg)
+	s.configs = append(slices.Clip(s.configs), cfg)
 	if err := s.save(); err != nil {
 		s.configs = prev
 		return ProviderConfig{}, err

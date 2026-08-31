@@ -38,15 +38,13 @@ func NewReader(resolver format.SubfilterResolver) *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "archive",
-			FormatDisplayName: "Archive (ZIP/TAR)",
-			FormatMimeType:    "application/zip",
-			FormatExtensions:  []string{".zip", ".tar", ".tgz", ".tar.gz"},
-			Cfg:               cfg,
-		},
-		cfg:      cfg,
-		resolver: resolver,
+		FormatName:        "archive",
+		FormatDisplayName: "Archive (ZIP/TAR)",
+		FormatMimeType:    "application/zip",
+		FormatExtensions:  []string{".zip", ".tar", ".tgz", ".tar.gz"},
+		Cfg:               cfg,
+		cfg:               cfg,
+		resolver:          resolver,
 	}
 }
 

@@ -23,7 +23,7 @@ type Writer struct {
 
 // NewWriter constructs a video writer.
 func NewWriter() *Writer {
-	return &Writer{BaseFormatWriter: format.BaseFormatWriter{FormatName: "video"}}
+	return &Writer{FormatName: "video"}
 }
 
 // Write consumes the part stream and writes the first Media part's video bytes.

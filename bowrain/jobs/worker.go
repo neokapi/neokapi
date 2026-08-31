@@ -319,8 +319,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		observe.JobsInFlight.WithLabelValues(queueLabel).Dec()
 		stopDrain()
 		if processErr != nil {
-			var de *deferredError
-			if errors.As(processErr, &de) {
+			if de, ok := errors.AsType[*deferredError](processErr); ok {
 				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "deferred").Inc()
 				// Parked on a known-down dependency. Re-enqueue with a delay
 				// matched to the breaker's cooldown, so the redelivery arrives
@@ -340,8 +339,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				}
 				continue
 			}
-			var te *transientError
-			if errors.As(processErr, &te) {
+			if _, ok := errors.AsType[*transientError](processErr); ok {
 				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "transient").Inc()
 				// Transient upstream failure with retry budget left:
 				// processJobWithDeps has already reset the row to 'queued'.

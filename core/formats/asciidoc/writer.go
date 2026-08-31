@@ -45,10 +45,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "asciidoc",
-		},
-		cfg: cfg,
+		FormatName: "asciidoc",
+		cfg:        cfg,
 	}
 }
 

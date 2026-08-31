@@ -24,9 +24,7 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new plain text writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "plaintext",
-		},
+		FormatName: "plaintext",
 		firstBlock: true,
 	}
 }

@@ -41,8 +41,7 @@ func RunContributionSubprocess(ctx context.Context, p *Plugin, args []string, di
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return fmt.Errorf("plugin %q contribution %q: %w", p.Name(), args[1], ctxErr)
 		}
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return withPluginExitCode(exitErr.ExitCode(), fmt.Errorf("plugin %q contribution %q: %w", p.Name(), args[1], err))
 		}
 		return fmt.Errorf("plugin %q contribution %q: %w", p.Name(), args[1], err)

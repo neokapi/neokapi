@@ -75,14 +75,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "plaintext",
-			FormatDisplayName: "Plain Text",
-			FormatMimeType:    "text/plain",
-			FormatExtensions:  []string{".txt", ".text"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "plaintext",
+		FormatDisplayName: "Plain Text",
+		FormatMimeType:    "text/plain",
+		FormatExtensions:  []string{".txt", ".text"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

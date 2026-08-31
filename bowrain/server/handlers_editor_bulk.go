@@ -160,8 +160,7 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 // carries its own sentence; anything else is a server fault the batch reports
 // without leaking internals.
 func bulkBlockError(err error) string {
-	var fault reviewFault
-	if errors.As(err, &fault) {
+	if fault, ok := errors.AsType[reviewFault](err); ok {
 		return fault.msg
 	}
 	return "the server could not apply the change to this block"

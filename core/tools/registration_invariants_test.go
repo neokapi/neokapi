@@ -163,7 +163,7 @@ func TestBilingualToolsTakeTheirLocaleFromTheRun(t *testing.T) {
 			continue
 		}
 		v := reflect.ValueOf(cfg.Config())
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			v = v.Elem()
 		}
 		if v.Kind() != reflect.Struct {

@@ -1363,8 +1363,8 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 // matches semType. Mirrors the legacy findOpeningSpanID but walks Runs.
 func findOpeningRunID(b *runBuilder, semType string) string {
 	openCount := make(map[string]int)
-	for i := len(b.runs) - 1; i >= 0; i-- {
-		r := b.runs[i]
+	for _, r := range slices.Backward(b.runs) {
+
 		switch {
 		case r.PcClose != nil && r.PcClose.Type == semType:
 			openCount[r.PcClose.ID]++

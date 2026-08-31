@@ -148,8 +148,8 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 	providerType := inferProviderID(toolName, config)
 	if key, ok := apiKeyFromEnv(providerType); ok {
 		return mergeCredentials(config, &ProviderConfigWithKey{
-			ProviderConfig: ProviderConfig{ProviderType: providerType},
-			APIKey:         key,
+			ProviderType: providerType,
+			APIKey:       key,
 		}), nil
 	}
 

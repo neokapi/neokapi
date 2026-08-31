@@ -19,9 +19,7 @@ import (
 func newDecisionsConnector(t *testing.T, a *host.App) *BowrainSourceConnector {
 	t.Helper()
 	proj, err := bproject.InitProject(t.TempDir(), &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{SourceLanguage: "en"},
-		},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
 	})
 	require.NoError(t, err)
 	return NewLocalConnector(a, proj, registry.NewFormatRegistry())

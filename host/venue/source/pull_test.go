@@ -89,14 +89,12 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 
 	projectID := "proj123"
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: langs,
-			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: langs,
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		},
 		Server: &bproject.ServerSpec{
 			URL:    srv.URL + "/projects/" + projectID,

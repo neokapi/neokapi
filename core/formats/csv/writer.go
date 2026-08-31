@@ -43,9 +43,7 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new CSV writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "csv",
-		},
+		FormatName:  "csv",
 		separator:   ',',
 		headerByCol: make(map[int]string),
 		blocks:      make(map[cellRef]*model.Block),
@@ -56,9 +54,7 @@ func NewWriter() *Writer {
 // NewTSVWriter creates a new TSV writer (tab-separated values).
 func NewTSVWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "tsv",
-		},
+		FormatName:  "tsv",
 		separator:   '\t',
 		headerByCol: make(map[int]string),
 		blocks:      make(map[cellRef]*model.Block),

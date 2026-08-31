@@ -27,14 +27,12 @@ func newDiffTestProject(t *testing.T, jsonContent string) (*bproject.Project, *r
 	formats.RegisterAll(reg)
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr"},
-			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)

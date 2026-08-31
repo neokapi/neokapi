@@ -65,14 +65,12 @@ func NewReader() *Reader {
 		WrapContent:          true,
 	}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "po",
-			FormatDisplayName: "PO (Gettext)",
-			FormatMimeType:    "text/x-gettext-translation",
-			FormatExtensions:  []string{".po", ".pot"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "po",
+		FormatDisplayName: "PO (Gettext)",
+		FormatMimeType:    "text/x-gettext-translation",
+		FormatExtensions:  []string{".po", ".pot"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

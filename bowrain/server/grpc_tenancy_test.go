@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -40,7 +39,7 @@ func (s *tenancyAuthStore) Close() error { return nil }
 
 func ctxWithGRPCUser(userID string) context.Context {
 	return context.WithValue(context.Background(), grpcUserKey{}, &platauth.Claims{
-		RegisteredClaims: jwt.RegisteredClaims{Subject: userID},
+		Subject: userID,
 	})
 }
 

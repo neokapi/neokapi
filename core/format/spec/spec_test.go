@@ -24,7 +24,7 @@ func TestValidateRejectsUnknownKind(t *testing.T) {
 	s := &Spec{
 		Format:   "okf_x",
 		Kind:     Kind("nonsense"),
-		Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}}}}},
+		Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", BlockCount: new(1)}}}},
 	}
 	if err := s.Validate(); err == nil {
 		t.Fatalf("Validate should reject unknown kind")
@@ -36,7 +36,7 @@ func TestValidateAcceptsKnownKinds(t *testing.T) {
 		s := &Spec{
 			Format:   "okf_x",
 			Kind:     k,
-			Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}}}}},
+			Features: []Feature{{ID: "f", Examples: []Example{{Name: "e", InputXML: "x", BlockCount: new(1)}}}},
 		}
 		if err := s.Validate(); err != nil {
 			t.Fatalf("Validate(kind=%q): unexpected err: %v", k, err)
@@ -62,29 +62,23 @@ func TestOriginAndSpecRefsRoundTrip(t *testing.T) {
 				},
 				Examples: []Example{
 					{
-						Name:     "authored_example",
-						InputXML: "Hello world\n",
-						Origin:   "authored: minimal CommonMark §6.7 soft-break case",
-						Assertions: Assertions{
-							BlockCount:     new(1),
-							FirstBlockText: new("Hello world"),
-						},
+						Name:           "authored_example",
+						InputXML:       "Hello world\n",
+						Origin:         "authored: minimal CommonMark §6.7 soft-break case",
+						BlockCount:     new(1),
+						FirstBlockText: new("Hello world"),
 					},
 					{
-						Name:     "fixture_example",
-						InputXML: "Other line\n",
-						Origin:   "okapi-fixture: MarkdownFilterTest#testEmphasisAcrossLines",
-						Assertions: Assertions{
-							BlockCount: new(1),
-						},
+						Name:       "fixture_example",
+						InputXML:   "Other line\n",
+						Origin:     "okapi-fixture: MarkdownFilterTest#testEmphasisAcrossLines",
+						BlockCount: new(1),
 					},
 					{
-						Name:     "real_world_example",
-						InputXML: "Real text\n",
-						Origin:   "real-world: Excalidraw locales/en.json",
-						Assertions: Assertions{
-							BlockCount: new(1),
-						},
+						Name:       "real_world_example",
+						InputXML:   "Real text\n",
+						Origin:     "real-world: Excalidraw locales/en.json",
+						BlockCount: new(1),
 					},
 				},
 			},
@@ -143,12 +137,12 @@ func TestDivergenceKindRoundTrip(t *testing.T) {
 						InputXML:       "x",
 						ExpectedFail:   "bridge != native (bytewise)",
 						DivergenceKind: "okapi-bug",
-						Assertions:     Assertions{BlockCount: new(1)},
+						BlockCount:     new(1),
 					},
 					{
 						Name:       "implicit",
 						InputXML:   "y",
-						Assertions: Assertions{BlockCount: new(1)},
+						BlockCount: new(1),
 					},
 				},
 			},
@@ -187,8 +181,8 @@ func TestValidateRejectsDuplicateCaseID(t *testing.T) {
 		Features: []Feature{{
 			ID: "f",
 			Examples: []Example{
-				{Name: "a", ID: "AB12", InputXML: "x", Assertions: Assertions{BlockCount: new(1)}},
-				{Name: "b", ID: "AB12", InputXML: "y", Assertions: Assertions{BlockCount: new(1)}},
+				{Name: "a", ID: "AB12", InputXML: "x", BlockCount: new(1)},
+				{Name: "b", ID: "AB12", InputXML: "y", BlockCount: new(1)},
 			},
 		}},
 	}
@@ -283,14 +277,14 @@ func TestValidateRejectsBadRoundtripMode(t *testing.T) {
 // is reachable through ExtractedAssertions, and that expected.extracted wins
 // when present.
 func TestExtractedAssertionsBackCompat(t *testing.T) {
-	legacy := Example{Name: "a", InputXML: "x", Assertions: Assertions{BlockCount: new(2)}}
+	legacy := Example{Name: "a", InputXML: "x", BlockCount: new(2)}
 	got := legacy.ExtractedAssertions()
 	if got.BlockCount == nil || *got.BlockCount != 2 {
 		t.Fatalf("legacy inline assertions not surfaced: %+v", got)
 	}
 	multi := Example{
 		Name: "b", InputXML: "x",
-		Assertions: Assertions{BlockCount: new(2)},
+		BlockCount: new(2),
 		Expected:   &Expected{Extracted: &Assertions{BlockCount: new(9)}},
 	}
 	got = multi.ExtractedAssertions()
@@ -326,7 +320,7 @@ func TestOriginAndSpecRefsAreOptional(t *testing.T) {
 					{
 						Name:       "e",
 						InputXML:   "x",
-						Assertions: Assertions{BlockCount: new(1)},
+						BlockCount: new(1),
 					},
 				},
 			},

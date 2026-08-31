@@ -464,9 +464,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	formats.RegisterAll(reg)
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{SourceLanguage: "en"},
-		},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
 		Server: &bproject.ServerSpec{
 			URL:    srv.URL + "/acme/proj1",
 			Stream: "main",

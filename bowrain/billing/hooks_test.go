@@ -45,7 +45,7 @@ func (m *mockEmailSender) Send(_ context.Context, to, subject, htmlBody string) 
 
 func TestUsageHooks_DeductTokens(t *testing.T) {
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 50000},
+		remaining: 50000,
 	}
 	h := &UsageHooks{
 		Store: store,
@@ -76,7 +76,7 @@ func TestUsageHooks_DeductTokens_NilStore(t *testing.T) {
 
 func TestUsageHooks_DeductContainerTime(t *testing.T) {
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 50000},
+		remaining: 50000,
 	}
 	h := &UsageHooks{
 		Store: store,
@@ -108,7 +108,7 @@ func TestUsageHooks_CheckCreditThresholds_Warning(t *testing.T) {
 	// => 0.8*remaining <= 200 => remaining <= 250.
 	// Use remaining=100: total=1100, used=1000, pct=1000/1100=0.909 > 0.8
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 100},
+		remaining: 100,
 	}
 	notifier := &BillingNotifier{Sender: sender, Store: store}
 	h := &UsageHooks{
@@ -131,7 +131,7 @@ func TestUsageHooks_CheckCreditThresholds_Exhausted(t *testing.T) {
 	// remaining=0 triggers the exhausted path in mockBillingStore:
 	// total=50000, used=50000, remaining=0.
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 0},
+		remaining: 0,
 	}
 	notifier := &BillingNotifier{Sender: sender, Store: store}
 	h := &UsageHooks{
@@ -151,7 +151,7 @@ func TestUsageHooks_CheckCreditThresholds_Exhausted(t *testing.T) {
 
 func TestUsageHooks_CheckCreditThresholds_NoNotifier(t *testing.T) {
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 0},
+		remaining: 0,
 	}
 	h := &UsageHooks{
 		Store:    store,
@@ -228,7 +228,7 @@ func TestUsageHooks_CheckCreditThresholds_ExhaustedOnZeroSpendable(t *testing.T)
 
 func TestUsageHooks_ReportMeter_NilStripe(t *testing.T) {
 	store := &recordingBillingStore{
-		mockBillingStore: mockBillingStore{remaining: 50000},
+		remaining: 50000,
 	}
 	h := &UsageHooks{
 		Store:  store,

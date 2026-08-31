@@ -54,13 +54,11 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "androidxml",
-			FormatDisplayName: "Android String Resources",
-			FormatExtensions:  []string{".xml"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "androidxml",
+		FormatDisplayName: "Android String Resources",
+		FormatExtensions:  []string{".xml"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

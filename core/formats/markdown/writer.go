@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -60,8 +61,8 @@ func listStartOf(g *model.GroupStart) int {
 // still open inside it. A malformed stream that ends a group it never started
 // leaves the stack untouched rather than unwinding it.
 func (w *Writer) closeContext(groupID string) {
-	for i := len(w.ctx) - 1; i >= 0; i-- {
-		if w.ctx[i].groupID == groupID {
+	for i, v := range slices.Backward(w.ctx) {
+		if v.groupID == groupID {
 			w.ctx = w.ctx[:i]
 			w.prevListItem = false
 			return
@@ -72,9 +73,9 @@ func (w *Writer) closeContext(groupID string) {
 // innermostQuoteID returns the group ID of the innermost open block quote, or
 // "" when the writer is not inside one.
 func (w *Writer) innermostQuoteID() string {
-	for i := len(w.ctx) - 1; i >= 0; i-- {
-		if w.ctx[i].kind == "blockquote" {
-			return w.ctx[i].groupID
+	for _, v := range slices.Backward(w.ctx) {
+		if v.kind == "blockquote" {
+			return v.groupID
 		}
 	}
 	return ""
@@ -121,9 +122,7 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "markdown",
-		},
+		FormatName: "markdown",
 		cfg:        cfg,
 		firstBlock: true,
 	}
@@ -448,8 +447,8 @@ func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
 }
 
 func (s *mdInlineSink) flush() {
-	for i := len(s.open) - 1; i >= 0; i-- {
-		s.sb.WriteString(s.open[i])
+	for _, v := range slices.Backward(s.open) {
+		s.sb.WriteString(v)
 	}
 }
 

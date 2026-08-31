@@ -154,8 +154,7 @@ func RunContextScanWorker(ctx context.Context, deps *ContextScanWorkerDeps) erro
 		processErr := processContextScanJob(traceCtx, deps, jobID)
 		endTrace(processErr)
 		if processErr != nil {
-			var te *transientError
-			if errors.As(processErr, &te) {
+			if _, ok := errors.AsType[*transientError](processErr); ok {
 				// Same rationale as the translation worker: publish a FRESH
 				// message and ACK this delivery, falling back to NAK only when
 				// the fresh enqueue fails (see RunWorkerWithDeps).

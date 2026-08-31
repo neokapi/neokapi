@@ -47,14 +47,12 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 func NewReader() *Reader {
 	cfg := &Config{Separator: ',', HasHeader: true, SourceColumn: -1, TargetColumn: -1}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "csv",
-			FormatDisplayName: "CSV",
-			FormatMimeType:    "text/csv",
-			FormatExtensions:  []string{".csv"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "csv",
+		FormatDisplayName: "CSV",
+		FormatMimeType:    "text/csv",
+		FormatExtensions:  []string{".csv"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 
@@ -62,14 +60,12 @@ func NewReader() *Reader {
 func NewTSVReader() *Reader {
 	cfg := &Config{Separator: '\t', HasHeader: true, SourceColumn: -1, TargetColumn: -1}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "tsv",
-			FormatDisplayName: "TSV",
-			FormatMimeType:    "text/tab-separated-values",
-			FormatExtensions:  []string{".tsv"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "tsv",
+		FormatDisplayName: "TSV",
+		FormatMimeType:    "text/tab-separated-values",
+		FormatExtensions:  []string{".tsv"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

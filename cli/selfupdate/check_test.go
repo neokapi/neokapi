@@ -104,9 +104,9 @@ func indexJSON(v string) string {
 }
 
 func TestCachedLatest_FetchesThenCaches(t *testing.T) {
-	var hits int64
+	var hits atomic.Int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		atomic.AddInt64(&hits, 1)
+		hits.Add(1)
 		fmt.Fprint(w, indexJSON("1.2.0"))
 	}))
 	t.Cleanup(srv.Close)
@@ -126,7 +126,7 @@ func TestCachedLatest_FetchesThenCaches(t *testing.T) {
 	if _, err := CachedLatest(ctx, "stable"); err != nil {
 		t.Fatalf("CachedLatest() second call error: %v", err)
 	}
-	if n := atomic.LoadInt64(&hits); n != 1 {
+	if n := hits.Load(); n != 1 {
 		t.Errorf("index fetched %d times, want 1 (second call should hit the cache)", n)
 	}
 }

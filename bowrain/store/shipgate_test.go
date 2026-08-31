@@ -146,11 +146,11 @@ func TestShipGateRollup(t *testing.T) {
 	t.Run("a voice score below the bar withholds a clean block", func(t *testing.T) {
 		got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate,
 			platstore.ShipGateScore{
-				ShipGateRef: platstore.ShipGateRef{BlockID: ids["b1"], Locale: fr},
-				BelowBar:    true,
+				BlockID: ids["b1"], Locale: fr,
+				BelowBar: true,
 			},
 			platstore.ShipGateScore{
-				ShipGateRef: platstore.ShipGateRef{BlockID: ids["b4"], Locale: fr},
+				BlockID: ids["b4"], Locale: fr,
 			}))
 		require.NoError(t, err)
 		a := got.CountsFor("col-a", fr)

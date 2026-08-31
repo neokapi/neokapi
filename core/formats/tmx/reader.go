@@ -45,14 +45,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "tmx",
-			FormatDisplayName: "TMX",
-			FormatMimeType:    "application/x-tmx+xml",
-			FormatExtensions:  []string{".tmx"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "tmx",
+		FormatDisplayName: "TMX",
+		FormatMimeType:    "application/x-tmx+xml",
+		FormatExtensions:  []string{".tmx"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

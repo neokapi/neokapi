@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -72,20 +73,20 @@ func BuildDocument() map[string]any {
 // subcommands. Mirrors cli.LocalizeCommandHelp's scope derivation.
 func walkCommand(c *cobra.Command, path []string, doc map[string]any) {
 	if c.Short != "" {
-		set(doc, append(path[:len(path):len(path)], "short"), c.Short)
+		set(doc, append(slices.Clip(path), "short"), c.Short)
 	}
 	if c.Long != "" {
-		set(doc, append(path[:len(path):len(path)], "long"), c.Long)
+		set(doc, append(slices.Clip(path), "long"), c.Long)
 	}
 	if c.Example != "" {
-		set(doc, append(path[:len(path):len(path)], "example"), c.Example)
+		set(doc, append(slices.Clip(path), "example"), c.Example)
 	}
 	for _, sub := range c.Commands() {
 		name := sub.Name()
 		if name == "" || strings.ContainsAny(name, ". ") {
 			continue
 		}
-		walkCommand(sub, append(path[:len(path):len(path)], name), doc)
+		walkCommand(sub, append(slices.Clip(path), name), doc)
 	}
 }
 

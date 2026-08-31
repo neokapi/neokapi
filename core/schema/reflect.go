@@ -24,7 +24,7 @@ func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
 	}
 
 	v := reflect.ValueOf(cfg)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
@@ -91,7 +91,7 @@ func fieldToProperty(field reflect.StructField, val reflect.Value) *PropertySche
 	ft := field.Type
 
 	// Unwrap pointer
-	if ft.Kind() == reflect.Ptr {
+	if ft.Kind() == reflect.Pointer {
 		ft = ft.Elem()
 	}
 
@@ -132,7 +132,7 @@ func fieldToProperty(field reflect.StructField, val reflect.Value) *PropertySche
 	case reflect.Slice:
 		prop.Type = "array"
 		elemType := ft.Elem()
-		if elemType.Kind() == reflect.Ptr {
+		if elemType.Kind() == reflect.Pointer {
 			elemType = elemType.Elem()
 		}
 		prop.Items = &PropertySchema{Type: goTypeToSchemaType(elemType)}
@@ -185,7 +185,7 @@ func structProperties(t reflect.Type) map[string]PropertySchema {
 // Uses the json tag if present, otherwise converts to camelCase.
 func fieldName(f reflect.StructField) string {
 	if tag := f.Tag.Get("json"); tag != "" {
-		name := strings.Split(tag, ",")[0]
+		name, _, _ := strings.Cut(tag, ",")
 		if name != "" && name != "-" {
 			return name
 		}

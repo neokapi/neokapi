@@ -51,8 +51,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	w := &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{FormatName: formatID},
-		cfg:              cfg,
+		FormatName: formatID,
+		cfg:        cfg,
 	}
 	w.inner = jsonfmt.NewWriter()
 	// Apply the i18next-derived settings (notably escapeForwardSlashes) to the

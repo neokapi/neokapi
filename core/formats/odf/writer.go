@@ -38,10 +38,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new ODF writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName:       "odf",
-			RequiresSkeleton: true,
-		},
+		FormatName:       "odf",
+		RequiresSkeleton: true,
 	}
 }
 

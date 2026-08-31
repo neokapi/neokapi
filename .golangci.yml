@@ -49,9 +49,9 @@ linters:
     gosec:
       # gosec is enabled for its high-value rules (Slowloris/timeout G112/G114,
       # weak crypto/TLS G401/G402/G403/G501/G502, SSRF G107, …). The rules below
-      # are excluded after a full-tree triage (2026-07): each is either pure
-      # noise on this codebase or already covered by another linter. See the
-      # triage notes for the reasoning per rule.
+      # are excluded after full-tree triages (2026-07, 2026-08): each is either
+      # pure noise on this codebase or already covered by another linter. See
+      # the triage notes for the reasoning per rule.
       excludes:
         # G101 — "hardcoded credentials": fires on constant *property-key*
         # names like PropWordCountTargetPrefix ("word-count-target:"), which
@@ -102,6 +102,47 @@ linters:
         # G602 — slice bounds out of range: false positives on indices already
         # bounded by a modulo (base62[b%len]) or an enclosing loop (gray[gy*n+gx]).
         - G602
+        # G703 — path traversal via taint analysis: the newer taint-tracing
+        # successor to G304 (see above), triaged 2026-08 across all 11 sites it
+        # fires on. Every one resolves through an existing containment guard
+        # the tracer cannot see across a function boundary (blobPath/uploadDir/
+        # contain() in bowrain's localblob store; safeJoin/withinDir in
+        # host/pluginhost/install.go; validateBinaryPath in
+        # core/plugin/manifest), is inherently safe by construction (built from
+        # filepath.Walk entries under a known local root, or from os.ReadDir
+        # results, which cannot contain ".." segments), or is a CLI flag /
+        # deployment env var naming a path the operator already trusts (kapi's
+        # -p, GITHUB_APP_PRIVATE_KEY_FILE) — the same trusted-path class G304
+        # covers.
+        - G703
+        # G704 — SSRF via taint analysis: the taint-tracing successor to G107
+        # (which stays enabled). Every site is a request to a destination
+        # supplied at construction time from operator config, never a
+        # request-scoped value: host/venue/client.Transport's baseURL comes
+        # from the project's configured venue server, and
+        # bowrain's admin-health worker probe URL comes from
+        # BOWRAIN_WORKER_HEALTH_URL (a deployment env var, not a request
+        # field).
+        - G704
+        # G706 — log injection via taint analysis: all 3 sites are startup/
+        # config lines (wbridge's listen-address log, its isolated-config-dir
+        # refusal message, pprof's listen-address log) built from deployment
+        # env vars (WBRIDGE_PORT, BOWRAIN_DESKTOP_CONFIG_DIR) — operator input
+        # at process start, never per-request attacker-supplied content.
+        - G706
+        # G122 — filepath.Walk/WalkDir symlink TOCTOU: all 5 sites are
+        # developer-tooling directory copies/snapshots (scripts/authoringlab,
+        # scripts/skilleval, host's local draft-delivery walk) over a directory
+        # the same local process owns outright — there is no concurrent
+        # untrusted writer to race against os.Root-style hardening.
+        - G122
+        # G124 — http.Cookie missing Secure/HttpOnly/SameSite: all 3 sites in
+        # bowrain/server/handlers_auth.go already set HttpOnly, SameSite, and a
+        # Secure value computed by cookieSecure() (true whenever the request is
+        # HTTPS or ForceSecureCookies is set) — gosec wants a literal `true` and
+        # cannot verify a boolean expression, which is exactly what lets local
+        # HTTP dev work without weakening prod.
+        - G124
     testifylint:
       # Only the checks below stay disabled, each for a reason:
       #   contains/encoded-compare/negative-positive — too many false positives
@@ -178,6 +219,18 @@ linters:
       # sample data — hardening rules (timeouts, file perms, weak-random) are
       # noise there. The production rules stay fully active on non-test code.
       - linters: [gosec]
+        path: _test\.go
+      # noctx: fires exclusively on httptest.NewRequest in test files (verified
+      # 2026-08 — zero hits outside _test.go across the tree). It builds an
+      # in-memory *http.Request handed straight to a handler under test: no
+      # dial, no timeout, nothing a context could cancel.
+      # httptest.NewRequestWithContext only became available once the
+      # module's Go version reached the level that ships it, so this fires
+      # across every httptest.NewRequest call in the tree (~100 files) the
+      # moment it's reachable, not because anything changed in the tests
+      # themselves. Same "test code is not a deployment surface" reasoning as
+      # the gosec rule above; production noctx findings stay fully active.
+      - linters: [noctx]
         path: _test\.go
     paths:
       - node_modules/

@@ -41,7 +41,7 @@ func (s *spyWriter) Write(context.Context, <-chan *model.Part) error { return ni
 func TestNewWriterInjectsSubfilterResolver(t *testing.T) {
 	reg := NewFormatRegistry()
 	reg.RegisterWriter("spy", func() format.DataFormatWriter {
-		return &spyWriter{BaseFormatWriter: format.BaseFormatWriter{FormatName: "spy"}}
+		return &spyWriter{FormatName: "spy"}
 	})
 
 	w, err := reg.NewWriter("spy")
@@ -62,7 +62,7 @@ func TestNewReaderInjectsSubfilterResolver(t *testing.T) {
 	reg := NewFormatRegistry()
 	reg.RegisterReader("spy",
 		func() format.DataFormatReader {
-			return &spyReader{BaseFormatReader: format.BaseFormatReader{FormatName: "spy"}}
+			return &spyReader{FormatName: "spy"}
 		},
 		format.FormatSignature{Extensions: []string{".spy"}}, "Spy")
 
@@ -83,7 +83,7 @@ func TestResolveReaderInjectsSubfilterResolver(t *testing.T) {
 	reg := NewFormatRegistry()
 	reg.RegisterReader("spy",
 		func() format.DataFormatReader {
-			return &spyReader{BaseFormatReader: format.BaseFormatReader{FormatName: "spy"}}
+			return &spyReader{FormatName: "spy"}
 		},
 		format.FormatSignature{Extensions: []string{".spy"}}, "Spy")
 

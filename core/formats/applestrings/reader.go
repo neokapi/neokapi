@@ -92,14 +92,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "applestrings",
-			FormatDisplayName: "Apple Strings",
-			FormatMimeType:    "text/plain",
-			FormatExtensions:  []string{".strings", ".stringsdict"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "applestrings",
+		FormatDisplayName: "Apple Strings",
+		FormatMimeType:    "text/plain",
+		FormatExtensions:  []string{".strings", ".stringsdict"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

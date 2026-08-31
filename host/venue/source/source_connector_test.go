@@ -33,14 +33,12 @@ func newServerProject(t *testing.T, server *bproject.ServerSpec, content []corep
 		}
 	}
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr"},
-			},
-			Collections: content,
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
 		},
-		Server: server,
+		Collections: content,
+		Server:      server,
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
@@ -176,13 +174,11 @@ func TestResolveTargetPath(t *testing.T) {
 			formats.RegisterAll(reg)
 
 			recipe := &bproject.Recipe{
-				KapiProject: coreproj.KapiProject{
-					Defaults: coreproj.Defaults{
-						SourceLanguage:  "en",
-						TargetLanguages: []model.LocaleID{"fr"},
-					},
-					Collections: tt.content,
+				Defaults: coreproj.Defaults{
+					SourceLanguage:  "en",
+					TargetLanguages: []model.LocaleID{"fr"},
 				},
+				Collections: tt.content,
 			}
 			proj, err := bproject.InitProject(root, recipe)
 			require.NoError(t, err)
@@ -265,16 +261,14 @@ func TestDetectFormat_CompoundExtension(t *testing.T) {
 	formats.RegisterAll(reg)
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"nb"},
-			},
-			Collections: []coreproj.Collection{
-				// No format: — detection must resolve it, exactly as the
-				// dogfood recipe leaves its catalog items.
-				{Path: "i18n/**/*.kbf.json"},
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Collections: []coreproj.Collection{
+			// No format: — detection must resolve it, exactly as the
+			// dogfood recipe leaves its catalog items.
+			{Path: "i18n/**/*.kbf.json"},
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)

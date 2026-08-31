@@ -173,12 +173,10 @@ type Reader struct {
 // NewReader creates a new KBF reader.
 func NewReader() *Reader {
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        FormatName,
-			FormatDisplayName: "Kapi Bundle Format (KBF)",
-			FormatMimeType:    MimeTypes[0],
-			FormatExtensions:  Extensions,
-		},
+		FormatName:        FormatName,
+		FormatDisplayName: "Kapi Bundle Format (KBF)",
+		FormatMimeType:    MimeTypes[0],
+		FormatExtensions:  Extensions,
 	}
 }
 

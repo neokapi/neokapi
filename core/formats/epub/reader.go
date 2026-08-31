@@ -36,14 +36,12 @@ var _ format.SubfilterAware = (*Reader)(nil)
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "epub",
-			FormatDisplayName: "EPUB E-Book",
-			FormatMimeType:    "application/epub+zip",
-			FormatExtensions:  []string{".epub"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "epub",
+		FormatDisplayName: "EPUB E-Book",
+		FormatMimeType:    "application/epub+zip",
+		FormatExtensions:  []string{".epub"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

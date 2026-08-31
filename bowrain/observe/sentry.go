@@ -54,8 +54,11 @@ func InitSentry(cfg SentryConfig) bool {
 		// reports errors normally, and silently discards every transaction —
 		// the same shape of fault as having no instrumentation at all, but
 		// harder to see because the configuration reads as correct.
-		EnableTracing:  cfg.TracesSampleRate > 0,
-		SendDefaultPII: false,
+		EnableTracing: cfg.TracesSampleRate > 0,
+		// SendDefaultPII is deprecated in favor of DataCollection; leaving
+		// DataCollection unset keeps its own denylist-based scrubbing (cookies,
+		// sensitive headers) as the default, on top of the explicit BeforeSend
+		// scrub below — belt and braces, not a relaxation.
 		BeforeSend: func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
 			// Defense in depth: never ship auth material even if some SDK path
 			// attaches request data.

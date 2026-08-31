@@ -26,12 +26,10 @@ type Reader struct {
 // NewReader creates a new audio reader.
 func NewReader() *Reader {
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "audio",
-			FormatDisplayName: "Audio",
-			FormatMimeType:    "audio/basic",
-			FormatExtensions:  []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
-		},
+		FormatName:        "audio",
+		FormatDisplayName: "Audio",
+		FormatMimeType:    "audio/basic",
+		FormatExtensions:  []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
 	}
 }
 

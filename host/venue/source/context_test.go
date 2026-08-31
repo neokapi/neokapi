@@ -32,26 +32,24 @@ func newContextProject(t *testing.T) *BowrainSourceConnector {
 	formats.RegisterAll(reg)
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr"},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+		},
+		Profiles: map[string]coreproj.Profile{
+			"kapi": {Channels: []coreproj.Channel{{ID: "docs"}}},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Name:    "docs",
+				Channel: "kapi/docs",
+				Content: []coreproj.ContentItem{{Path: "docs/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
 			},
-			Profiles: map[string]coreproj.Profile{
-				"kapi": {Channels: []coreproj.Channel{{ID: "docs"}}},
+			{
+				Name:    "marketing",
+				Content: []coreproj.ContentItem{{Path: "marketing/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
 			},
-			Collections: []coreproj.Collection{
-				{
-					Name:    "docs",
-					Channel: "kapi/docs",
-					Content: []coreproj.ContentItem{{Path: "docs/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
-				},
-				{
-					Name:    "marketing",
-					Content: []coreproj.ContentItem{{Path: "marketing/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
-				},
-				{Path: "loose/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
-			},
+			{Path: "loose/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)

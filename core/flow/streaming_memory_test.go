@@ -60,7 +60,7 @@ func runPlainRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 	var base runtime.MemStats
 	runtime.ReadMemStats(&base)
 
-	var peak uint64
+	var peak atomic.Uint64
 	stop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
@@ -73,8 +73,8 @@ func runPlainRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 			default:
 			}
 			runtime.ReadMemStats(&m)
-			if m.HeapAlloc > atomic.LoadUint64(&peak) {
-				atomic.StoreUint64(&peak, m.HeapAlloc)
+			if m.HeapAlloc > peak.Load() {
+				peak.Store(m.HeapAlloc)
 			}
 			time.Sleep(300 * time.Microsecond)
 		}
@@ -91,7 +91,7 @@ func runPlainRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 	close(stop)
 	<-done
 
-	p := atomic.LoadUint64(&peak)
+	p := peak.Load()
 	if p < base.HeapAlloc {
 		return 0
 	}

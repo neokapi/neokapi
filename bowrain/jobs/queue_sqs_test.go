@@ -28,12 +28,10 @@ func newElasticMQ(t *testing.T) string {
 	}
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "softwaremill/elasticmq-native:latest",
-			ExposedPorts: []string{"9324/tcp"},
-			WaitingFor: wait.ForListeningPort("9324/tcp").
-				WithStartupTimeout(60 * time.Second),
-		},
+		Image:        "softwaremill/elasticmq-native:latest",
+		ExposedPorts: []string{"9324/tcp"},
+		WaitingFor: wait.ForListeningPort("9324/tcp").
+			WithStartupTimeout(60 * time.Second),
 		Started: true,
 	})
 	require.NoError(t, err)

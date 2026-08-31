@@ -22,7 +22,7 @@ type fanOutTool struct {
 
 func newFanOutTool(factor int) *fanOutTool {
 	return &fanOutTool{
-		BaseTool: tool.BaseTool{ToolName: "fan-out"},
+		ToolName: "fan-out",
 		factor:   factor,
 	}
 }

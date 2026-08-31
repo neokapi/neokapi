@@ -234,14 +234,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "arb",
-			FormatDisplayName: "Flutter ARB",
-			FormatMimeType:    "application/json",
-			FormatExtensions:  []string{".arb"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "arb",
+		FormatDisplayName: "Flutter ARB",
+		FormatMimeType:    "application/json",
+		FormatExtensions:  []string{".arb"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

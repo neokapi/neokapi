@@ -53,14 +53,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "xliff2",
-			FormatDisplayName: "XLIFF 2.x",
-			FormatMimeType:    "application/xliff+xml",
-			FormatExtensions:  []string{".xlf", ".xliff"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "xliff2",
+		FormatDisplayName: "XLIFF 2.x",
+		FormatMimeType:    "application/xliff+xml",
+		FormatExtensions:  []string{".xlf", ".xliff"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

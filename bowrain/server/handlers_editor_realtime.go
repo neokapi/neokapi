@@ -223,8 +223,7 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 		Elevate: func() error { return s.requireLanguagePermission(c, platauth.PermReview, req.TargetLocale) },
 	})
 	if err != nil {
-		var fault reviewFault
-		if errors.As(err, &fault) {
+		if fault, ok := errors.AsType[reviewFault](err); ok {
 			return c.JSON(fault.code, ErrorResponse{Error: fault.msg})
 		}
 		if errors.Is(err, errAccessDenied) {

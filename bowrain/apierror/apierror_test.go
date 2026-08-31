@@ -15,7 +15,7 @@ import (
 func newCtx(t *testing.T, withRequestID bool) (echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/thing", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/thing", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	if withRequestID {

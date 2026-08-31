@@ -63,9 +63,9 @@ func TestScoreVoiceCompliance_ExplicitProfileWins(t *testing.T) {
 	ms := scoringTestServer(cs, "hex3")
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		ProfileID:       "hex1",
-		Text:            "hello world",
-		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
+		ProfileID: "hex1",
+		Text:      "hello world",
+		ProjectID: "hex-proj",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex1", out.Score.ProfileID, "explicit profile_id wins over the project binding")
@@ -79,8 +79,8 @@ func TestScoreVoiceCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) 
 	ms := scoringTestServer(cs, "hex3")
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		Text:            "hello world",
-		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
+		Text:      "hello world",
+		ProjectID: "hex-proj",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex2", out.Score.ProfileID, "the project binding wins when no explicit profile is given")
@@ -91,8 +91,8 @@ func TestScoreVoiceCompliance_FallsThroughToWorkspaceDefault(t *testing.T) {
 	ms := scoringTestServer(cs, "hex3")
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		Text:            "hello world",
-		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
+		Text:      "hello world",
+		ProjectID: "hex-proj",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex3", out.Score.ProfileID, "with no scope binding, the workspace default is used")
@@ -103,8 +103,8 @@ func TestScoreVoiceCompliance_NoProfileAnywhere(t *testing.T) {
 	ms := scoringTestServer(cs, "") // no workspace default either
 
 	_, _, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		Text:            "hello world",
-		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj"},
+		Text:      "hello world",
+		ProjectID: "hex-proj",
 	})
 	require.Error(t, err, "no profile bound at any level is an error, matching the prior empty-profile behavior")
 	assert.Contains(t, err.Error(), "no voice profile")
@@ -145,9 +145,9 @@ func TestScoreVoiceCompliance_PersonaRespected(t *testing.T) {
 
 	// With the persona, its avoided term is flagged on top of the brand's own.
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		ProfileID:       "hexP",
-		Text:            "utilize synergy today",
-		voiceScopeInput: voiceScopeInput{Persona: "jordan"},
+		ProfileID: "hexP",
+		Text:      "utilize synergy today",
+		Persona:   "jordan",
 	})
 	require.NoError(t, err)
 	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is always flagged")
@@ -171,9 +171,9 @@ func TestScoreVoiceCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T)
 
 	// An unknown persona is not an error: it leaves the base profile in force.
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		ProfileID:       "hexP",
-		Text:            "utilize synergy today",
-		voiceScopeInput: voiceScopeInput{Persona: "nobody"},
+		ProfileID: "hexP",
+		Text:      "utilize synergy today",
+		Persona:   "nobody",
 	})
 	require.NoError(t, err)
 	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is still flagged")
@@ -191,8 +191,8 @@ func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
 	ms := scoringTestServer(cs, "")
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		Text:            "hello world",
-		voiceScopeInput: voiceScopeInput{ProjectID: "hex-proj", Stream: "v2"},
+		Text:      "hello world",
+		ProjectID: "hex-proj", Stream: "v2",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "hex3", out.Score.ProfileID, "a stream binding wins over the project binding")

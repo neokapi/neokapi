@@ -121,11 +121,9 @@ func TestMergeCredentials_EndpointComesFromTheCredential(t *testing.T) {
 	got := mergeCredentials(
 		map[string]any{},
 		&ProviderConfigWithKey{
-			ProviderConfig: ProviderConfig{
-				ProviderType: "openai",
-				BaseURL:      "https://mt.internal.example/v1",
-			},
-			APIKey: "k",
+			ProviderType: "openai",
+			BaseURL:      "https://mt.internal.example/v1",
+			APIKey:       "k",
 		},
 	)
 	assert.Equal(t, "https://mt.internal.example/v1", got["baseURL"])
@@ -138,8 +136,8 @@ func TestMergeCredentials_NoEndpointWhenTheCredentialNamesNone(t *testing.T) {
 	got := mergeCredentials(
 		map[string]any{},
 		&ProviderConfigWithKey{
-			ProviderConfig: ProviderConfig{ProviderType: "openai"},
-			APIKey:         "k",
+			ProviderType: "openai",
+			APIKey:       "k",
 		},
 	)
 	assert.NotContains(t, got, "baseURL")

@@ -576,9 +576,9 @@ func (s *htmlInlineSink) Placeholder(r *model.PlaceholderRun) {
 
 // flush emits any trailing unclosed tags (defensive — well-formed runs balance).
 func (s *htmlInlineSink) flush() {
-	for i := len(s.open) - 1; i >= 0; i-- {
-		if s.open[i] != "" {
-			s.sb.WriteString(s.open[i])
+	for _, v := range slices.Backward(s.open) {
+		if v != "" {
+			s.sb.WriteString(v)
 		}
 	}
 }

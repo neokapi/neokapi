@@ -19,11 +19,9 @@ type Reader struct {
 // NewReader constructs the stub reader.
 func NewReader() *Reader {
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "mo",
-			FormatDisplayName: "MO (Gettext, binary)",
-			FormatExtensions:  []string{".mo"},
-		},
+		FormatName:        "mo",
+		FormatDisplayName: "MO (Gettext, binary)",
+		FormatExtensions:  []string{".mo"},
 	}
 }
 

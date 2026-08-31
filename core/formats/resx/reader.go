@@ -56,14 +56,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "resx",
-			FormatDisplayName: ".NET RESX",
-			FormatMimeType:    "text/microsoft-resx",
-			FormatExtensions:  []string{".resx", ".resw"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "resx",
+		FormatDisplayName: ".NET RESX",
+		FormatMimeType:    "text/microsoft-resx",
+		FormatExtensions:  []string{".resx", ".resw"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

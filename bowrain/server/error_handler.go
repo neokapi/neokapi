@@ -50,8 +50,7 @@ func (s *Server) httpErrorHandler(err error, c echo.Context) {
 	message := "internal server error"
 	details := ""
 
-	var he *echo.HTTPError
-	if errors.As(err, &he) {
+	if he, ok := errors.AsType[*echo.HTTPError](err); ok {
 		status = he.Code
 		if he.Message != nil {
 			message = fmt.Sprintf("%v", he.Message)

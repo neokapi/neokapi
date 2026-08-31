@@ -715,8 +715,7 @@ func findFirstUnknownHeaderChild(b []byte) int {
 			cursor = pos + end + 1
 			continue
 		}
-		local := string(tag[nameMatch[2]:nameMatch[3]])
-		if depth == 0 && !knownHeaderChildren[local] {
+		if depth == 0 && !knownHeaderChildren[string(tag[nameMatch[2]:nameMatch[3]])] {
 			return pos
 		}
 		if !selfClosing {

@@ -151,15 +151,13 @@ func NewReader() *Reader {
 	vocab := model.NewVocabularyRegistry()
 	_ = vocab.LoadDefaults()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "markdown",
-			FormatDisplayName: "Markdown",
-			FormatMimeType:    "text/markdown",
-			FormatExtensions:  []string{".md", ".markdown"},
-			Cfg:               cfg,
-		},
-		cfg:   cfg,
-		vocab: vocab,
+		FormatName:        "markdown",
+		FormatDisplayName: "Markdown",
+		FormatMimeType:    "text/markdown",
+		FormatExtensions:  []string{".md", ".markdown"},
+		Cfg:               cfg,
+		cfg:               cfg,
+		vocab:             vocab,
 	}
 }
 

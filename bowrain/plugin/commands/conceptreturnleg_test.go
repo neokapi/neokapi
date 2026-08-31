@@ -65,11 +65,9 @@ func newReturnLegProject(t *testing.T, srvURL string) (*bproject.Project, string
 	t.Helper()
 	root := t.TempDir()
 	proj, err := bproject.InitProject(root, &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage: "en",
-				TermsSource:    coreproj.RelStatePath(ktb.ConventionalName),
-			},
+		Defaults: coreproj.Defaults{
+			SourceLanguage: "en",
+			TermsSource:    coreproj.RelStatePath(ktb.ConventionalName),
 		},
 		Server: &bproject.ServerSpec{URL: srvURL + "/acme/proj1", Stream: "main"},
 	})

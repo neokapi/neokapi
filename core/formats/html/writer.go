@@ -37,10 +37,8 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // NewWriter creates a new HTML writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "html",
-		},
-		cfg: &Config{},
+		FormatName: "html",
+		cfg:        &Config{},
 	}
 }
 

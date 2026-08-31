@@ -45,28 +45,26 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 		[]byte("name: Test Voice\ndescription: How it sounds.\n"), 0o644))
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"nb"},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"nb"},
+		},
+		Profiles: map[string]coreproj.Profile{
+			"kapi": {
+				Channels: []coreproj.Channel{{ID: "docs"}, {ID: "app"}},
+				Voice:    &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
 			},
-			Profiles: map[string]coreproj.Profile{
-				"kapi": {
-					Channels: []coreproj.Channel{{ID: "docs"}, {ID: "app"}},
-					Voice:    &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
-				},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Name:    "kapi-docs",
+				Channel: "kapi/docs",
+				Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
 			},
-			Collections: []coreproj.Collection{
-				{
-					Name:    "kapi-docs",
-					Channel: "kapi/docs",
-					Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
-				},
-				{
-					Name:    "kapi-app",
-					Channel: "kapi/app",
-					Content: []coreproj.ContentItem{{Path: "app/**/*.json"}},
-				},
+			{
+				Name:    "kapi-app",
+				Channel: "kapi/app",
+				Content: []coreproj.ContentItem{{Path: "app/**/*.json"}},
 			},
 		},
 	}

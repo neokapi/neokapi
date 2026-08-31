@@ -107,8 +107,8 @@ func TestNewSkeletonStore_HealthyTempDirStillWorks(t *testing.T) {
 func TestNewWiredSkeleton_StoreFailureIsAnError(t *testing.T) {
 	brokenTempDir(t)
 
-	r := &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "openxml"}}
-	w := &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "openxml"}}
+	r := &stubReader{FormatName: "openxml"}
+	w := &stubWriter{FormatName: "openxml"}
 
 	store, err := NewWiredSkeleton(r, w)
 	require.Error(t, err, "a skeleton the pair needs and cannot get must fail, not silently reconstruct")
@@ -134,18 +134,18 @@ func TestNewWiredSkeleton_NoSkeletonPathIsNotAnError(t *testing.T) {
 	}{
 		{
 			name:   "reader emits no skeleton",
-			reader: &plainReader{BaseFormatReader: BaseFormatReader{FormatName: "json"}},
-			writer: &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "json"}},
+			reader: &plainReader{FormatName: "json"},
+			writer: &stubWriter{FormatName: "json"},
 		},
 		{
 			name:   "writer consumes no skeleton",
-			reader: &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "json"}},
-			writer: &plainWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "json"}},
+			reader: &stubReader{FormatName: "json"},
+			writer: &plainWriter{FormatName: "json"},
 		},
 		{
 			name:   "cross-format conversion",
-			reader: &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "openxml"}},
-			writer: &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "markdown"}},
+			reader: &stubReader{FormatName: "openxml"},
+			writer: &stubWriter{FormatName: "markdown"},
 		},
 	}
 	for _, tc := range cases {
@@ -164,8 +164,8 @@ func TestNewWiredSkeleton_NoSkeletonPathIsNotAnError(t *testing.T) {
 func TestNewWiredStreamingSkeleton_NeedsNoTempFile(t *testing.T) {
 	brokenTempDir(t)
 
-	r := &streamingStubReader{stubReader{BaseFormatReader: BaseFormatReader{FormatName: "json"}}}
-	w := &streamingStubWriter{stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "json"}}}
+	r := &streamingStubReader{stubReader{FormatName: "json"}}
+	w := &streamingStubWriter{stubWriter{FormatName: "json"}}
 
 	store := NewWiredStreamingSkeleton(r, w)
 	require.NotNil(t, store)
@@ -176,7 +176,7 @@ func TestNewWiredStreamingSkeleton_NeedsNoTempFile(t *testing.T) {
 	assert.Same(t, store, w.wired, "writer wired")
 	assert.Equal(t, "json", store.OriginFormat(), "the store is origin-tagged so a foreign writer cannot consume it")
 
-	assert.Nil(t, NewWiredStreamingSkeleton(&plainReader{BaseFormatReader: BaseFormatReader{FormatName: "json"}}, w),
+	assert.Nil(t, NewWiredStreamingSkeleton(&plainReader{FormatName: "json"}, w),
 		"a pair with no skeleton path still gets no store")
 }
 
@@ -189,8 +189,8 @@ func TestNewWiredStreamingSkeleton_NeedsNoTempFile(t *testing.T) {
 func TestNewWiredSkeleton_NeverReturnsAStreamingStore(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 
-	r := &streamingStubReader{stubReader{BaseFormatReader: BaseFormatReader{FormatName: "json"}}}
-	w := &streamingStubWriter{stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "json"}}}
+	r := &streamingStubReader{stubReader{FormatName: "json"}}
+	w := &streamingStubWriter{stubWriter{FormatName: "json"}}
 
 	store, err := NewWiredSkeleton(r, w)
 	require.NoError(t, err)
@@ -207,8 +207,8 @@ func TestNewWiredSkeleton_NeverReturnsAStreamingStore(t *testing.T) {
 func TestNewWiredSkeleton_HealthyPairIsWiredAndTagged(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 
-	r := &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "html"}}
-	w := &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "html"}}
+	r := &stubReader{FormatName: "html"}
+	w := &stubWriter{FormatName: "html"}
 
 	store, err := NewWiredSkeleton(r, w)
 	require.NoError(t, err)
@@ -224,13 +224,13 @@ func TestNewWiredSkeleton_HealthyPairIsWiredAndTagged(t *testing.T) {
 // TestSkeletonPairEligible pins the "absent" side of the distinction on its own,
 // so the predicate cannot drift into treating a foreign writer as eligible.
 func TestSkeletonPairEligible(t *testing.T) {
-	emit := &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "xml"}}
-	consume := &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "xml"}}
+	emit := &stubReader{FormatName: "xml"}
+	consume := &stubWriter{FormatName: "xml"}
 
 	assert.True(t, SkeletonPairEligible(emit, consume))
-	assert.False(t, SkeletonPairEligible(&plainReader{BaseFormatReader: BaseFormatReader{FormatName: "xml"}}, consume))
-	assert.False(t, SkeletonPairEligible(emit, &plainWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "xml"}}))
-	assert.False(t, SkeletonPairEligible(emit, &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "markdown"}}))
+	assert.False(t, SkeletonPairEligible(&plainReader{FormatName: "xml"}, consume))
+	assert.False(t, SkeletonPairEligible(emit, &plainWriter{FormatName: "xml"}))
+	assert.False(t, SkeletonPairEligible(emit, &stubWriter{FormatName: "markdown"}))
 	assert.False(t, SkeletonPairEligible(nil, consume))
 	assert.False(t, SkeletonPairEligible(emit, nil))
 }

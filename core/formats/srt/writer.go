@@ -34,9 +34,7 @@ func (w *Writer) StreamingWriter() {}
 // NewWriter creates a new SRT writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "srt",
-		},
+		FormatName: "srt",
 		firstEntry: true,
 	}
 }

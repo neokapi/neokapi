@@ -46,14 +46,12 @@ func NewReader() *Reader {
 		EscapeExtendedChars:    true,
 	}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "properties",
-			FormatDisplayName: "Java Properties",
-			FormatMimeType:    "text/x-java-properties",
-			FormatExtensions:  []string{".properties"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "properties",
+		FormatDisplayName: "Java Properties",
+		FormatMimeType:    "text/x-java-properties",
+		FormatExtensions:  []string{".properties"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

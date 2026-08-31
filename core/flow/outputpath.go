@@ -145,8 +145,7 @@ func ClassifyOutputPathError(path, dir string, err error) error {
 	if err == nil {
 		return nil
 	}
-	var already *OutputPathError
-	if errors.As(err, &already) {
+	if _, ok := errors.AsType[*OutputPathError](err); ok {
 		return err
 	}
 	// The obstruction itself is more informative than the errno: a rename onto

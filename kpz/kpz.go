@@ -450,7 +450,7 @@ func (p *Package) Marshal() ([]byte, error) {
 	// Write all entries sorted by path (manifest included) for deterministic
 	// archive bytes; store (no compression) so the bytes don't depend on a
 	// compressor version.
-	all := append([]memberContent{{Member: Member{Path: ManifestPath}, data: manifestData}}, members...)
+	all := append([]memberContent{{Path: ManifestPath, data: manifestData}}, members...)
 	sort.Slice(all, func(i, j int) bool { return all[i].Path < all[j].Path })
 
 	var buf bytes.Buffer
@@ -503,14 +503,14 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 	var members []memberContent
 	addData := func(path, ct string, data []byte) {
 		sum := sha256.Sum256(data)
-		members = append(members, memberContent{Member: Member{Path: path, ContentType: ct, SHA256: hex.EncodeToString(sum[:])}, data: data})
+		members = append(members, memberContent{Path: path, ContentType: ct, SHA256: hex.EncodeToString(sum[:]), data: data})
 	}
 	addContent := func(path, ct string, c Content) error {
 		sum, err := hashContent(c)
 		if err != nil {
 			return fmt.Errorf("kpz: hash %q: %w", path, err)
 		}
-		members = append(members, memberContent{Member: Member{Path: path, ContentType: ct, SHA256: sum}, content: c})
+		members = append(members, memberContent{Path: path, ContentType: ct, SHA256: sum, content: c})
 		return nil
 	}
 

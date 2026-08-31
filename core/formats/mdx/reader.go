@@ -67,14 +67,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "mdx",
-			FormatDisplayName: "MDX",
-			FormatMimeType:    "text/mdx",
-			FormatExtensions:  []string{".mdx"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "mdx",
+		FormatDisplayName: "MDX",
+		FormatMimeType:    "text/mdx",
+		FormatExtensions:  []string{".mdx"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

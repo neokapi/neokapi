@@ -221,9 +221,9 @@ func deriveShipGate(
 		rollup.Add(collByItem[itemName], localeStr, fails, isScored, isScored && sb.score < sb.bar)
 		if keepsVerdicts {
 			verdicts = append(verdicts, store.ShipGateVerdict{
-				ShipGateRef: store.ShipGateRef{BlockID: block.ID, Locale: localeStr},
-				Basis:       basis,
-				Fails:       fails,
+				BlockID: block.ID, Locale: localeStr,
+				Basis: basis,
+				Fails: fails,
 			})
 		}
 	}
@@ -297,8 +297,8 @@ func shipGateScores(scored map[string]map[string]scoredBlock) []store.ShipGateSc
 	for localeStr, byBlock := range scored {
 		for blockID, sb := range byBlock {
 			out = append(out, store.ShipGateScore{
-				ShipGateRef: store.ShipGateRef{BlockID: blockID, Locale: localeStr},
-				BelowBar:    sb.score < sb.bar,
+				BlockID: blockID, Locale: localeStr,
+				BelowBar: sb.score < sb.bar,
 			})
 		}
 	}

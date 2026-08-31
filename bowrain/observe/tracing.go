@@ -141,8 +141,7 @@ func responseStatus(c echo.Context, err error) int {
 	if err == nil || c.Response().Committed {
 		return c.Response().Status
 	}
-	var he *echo.HTTPError
-	if errors.As(err, &he) {
+	if he, ok := errors.AsType[*echo.HTTPError](err); ok {
 		return he.Code
 	}
 	return http.StatusInternalServerError

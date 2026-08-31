@@ -121,8 +121,7 @@ func pluginRunError(ctx context.Context, p *Plugin, err error) error {
 	// Propagate exit codes cleanly: return an error that carries the plugin's
 	// exit code so cli.Run's ExitCode() emits the right code via the exitCoder
 	// interface, without bypassing App.Shutdown.
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return withPluginExitCode(exitErr.ExitCode(), fmt.Errorf("plugin %q: %w", p.Name(), err))
 	}
 	return fmt.Errorf("plugin %q: %w", p.Name(), err)

@@ -3,6 +3,7 @@ package doclang
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -53,9 +54,9 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{FormatName: "doclang"},
-		cfg:              cfg,
-		threadOf:         map[string]int{},
+		FormatName: "doclang",
+		cfg:        cfg,
+		threadOf:   map[string]int{},
 	}
 }
 
@@ -505,9 +506,9 @@ func (s *doclangInlineSink) Placeholder(r *model.PlaceholderRun) {
 }
 
 func (s *doclangInlineSink) flush() {
-	for i := len(s.open) - 1; i >= 0; i-- {
-		if s.open[i] != "" {
-			s.sb.WriteString("</" + s.open[i] + ">")
+	for _, v := range slices.Backward(s.open) {
+		if v != "" {
+			s.sb.WriteString("</" + v + ">")
 		}
 	}
 }

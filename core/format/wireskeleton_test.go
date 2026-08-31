@@ -33,8 +33,8 @@ func (w *stubWriter) SetSkeletonStore(s *SkeletonStore)               { w.wired 
 
 func TestWireSkeleton_SameFormatWiresAndTags(t *testing.T) {
 	store := NewMemorySkeletonStore()
-	r := &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "html"}}
-	w := &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "html"}}
+	r := &stubReader{FormatName: "html"}
+	w := &stubWriter{FormatName: "html"}
 
 	if !WireSkeleton(store, r, w) {
 		t.Fatal("same-format WireSkeleton should wire the writer")
@@ -49,8 +49,8 @@ func TestWireSkeleton_SameFormatWiresAndTags(t *testing.T) {
 
 func TestWireSkeleton_CrossFormatDoesNotWireWriter(t *testing.T) {
 	store := NewMemorySkeletonStore()
-	r := &stubReader{BaseFormatReader: BaseFormatReader{FormatName: "openxml"}}
-	w := &stubWriter{BaseFormatWriter: BaseFormatWriter{FormatName: "markdown"}}
+	r := &stubReader{FormatName: "openxml"}
+	w := &stubWriter{FormatName: "markdown"}
 
 	if WireSkeleton(store, r, w) {
 		t.Fatal("cross-format WireSkeleton must NOT wire the foreign writer")

@@ -40,10 +40,8 @@ var _ format.SubfilterAware = (*Writer)(nil)
 // NewWriter creates a new EPUB writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName:       "epub",
-			RequiresSkeleton: true,
-		},
+		FormatName:       "epub",
+		RequiresSkeleton: true,
 	}
 }
 

@@ -580,8 +580,7 @@ func runGate(ctx context.Context, dir, gate string, opts Options) *GateResult {
 	res := &GateResult{Command: gate, Output: scrubPaths(truncate(string(out), 4000))}
 	if err != nil {
 		res.ExitCode = 1
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			res.ExitCode = ee.ExitCode()
 		}
 	}

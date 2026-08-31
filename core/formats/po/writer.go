@@ -40,11 +40,9 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new PO writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName:  "po",
-			Interchange: true,
-		},
-		firstEntry: true,
+		FormatName:  "po",
+		Interchange: true,
+		firstEntry:  true,
 	}
 }
 

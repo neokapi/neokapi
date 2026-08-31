@@ -54,10 +54,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "resx",
-		},
-		cfg: cfg,
+		FormatName: "resx",
+		cfg:        cfg,
 	}
 }
 

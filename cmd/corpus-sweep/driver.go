@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -236,8 +237,8 @@ func (d *Driver) classifyExit(out *fileOutcome, werr error, stdout []byte, stder
 // lastWorkerResult parses the last JSON object line on the worker's stdout.
 func lastWorkerResult(stdout []byte) (workerResult, bool) {
 	lines := strings.Split(strings.TrimRight(string(stdout), "\n"), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := strings.TrimSpace(lines[i])
+	for _, line := range slices.Backward(lines) {
+		line := strings.TrimSpace(line)
 		if line == "" || line[0] != '{' {
 			continue
 		}

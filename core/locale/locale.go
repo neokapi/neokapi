@@ -83,8 +83,7 @@ func Canonical(s string) (model.LocaleID, error) {
 
 	// A subtag CLDR has never heard of is still a subtag. Keep the tag whole
 	// unless the unknown part is the language itself.
-	var ve language.ValueError
-	if errors.As(err, &ve) {
+	if ve, ok := errors.AsType[language.ValueError](err); ok {
 		if strings.EqualFold(ve.Subtag(), primarySubtag(cleaned)) {
 			return "", fmt.Errorf("invalid locale %q: %w", s, err)
 		}

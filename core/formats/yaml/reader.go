@@ -39,14 +39,12 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "yaml",
-			FormatDisplayName: "YAML",
-			FormatMimeType:    "application/yaml",
-			FormatExtensions:  []string{".yaml", ".yml"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "yaml",
+		FormatDisplayName: "YAML",
+		FormatMimeType:    "application/yaml",
+		FormatExtensions:  []string{".yaml", ".yml"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

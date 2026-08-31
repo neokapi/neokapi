@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/encoding"
@@ -192,8 +193,8 @@ type outputPipeline struct {
 
 func (p *outputPipeline) Close() error {
 	var firstErr error
-	for i := len(p.closers) - 1; i >= 0; i-- {
-		if err := p.closers[i].Close(); err != nil && firstErr == nil {
+	for _, v := range slices.Backward(p.closers) {
+		if err := v.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

@@ -16,9 +16,7 @@ func daemonProjectRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	_, err := bproject.InitProject(root, &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{SourceLanguage: "en"},
-		},
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
 	})
 	require.NoError(t, err)
 	return root

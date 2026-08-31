@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -38,10 +39,8 @@ func (w *Writer) StreamingWriter() {}
 // NewWriter creates a new XML writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "xml",
-		},
-		cfg: NewWriterCfg(),
+		FormatName: "xml",
+		cfg:        NewWriterCfg(),
 	}
 }
 
@@ -642,8 +641,8 @@ func runsStartWithWhitespace(runs []model.Run) bool {
 // the run sequence is ASCII whitespace. Mirrors runsStartWithWhitespace
 // for the trailing edge.
 func runsEndWithWhitespace(runs []model.Run) bool {
-	for i := len(runs) - 1; i >= 0; i-- {
-		r := runs[i]
+	for _, r := range slices.Backward(runs) {
+
 		if r.Text == nil {
 			continue
 		}

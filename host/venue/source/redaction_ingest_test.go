@@ -42,19 +42,17 @@ func TestScanLocalBlocks_RedactsAtIngest(t *testing.T) {
 	require.NoError(t, rules.Save(rulesPath))
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr"},
-				Redaction: &coreproj.RedactionSpec{
-					Enabled:   true,
-					Rules:     "redact-rules.yaml",
-					Detectors: []string{"rules"},
-				},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+			Redaction: &coreproj.RedactionSpec{
+				Enabled:   true,
+				Rules:     "redact-rules.yaml",
+				Detectors: []string{"rules"},
 			},
-			Collections: []coreproj.Collection{
-				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
-			},
+		},
+		Collections: []coreproj.Collection{
+			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)

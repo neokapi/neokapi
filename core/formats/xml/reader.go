@@ -46,14 +46,12 @@ func (r *Reader) StreamingReader() {}
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "xml",
-			FormatDisplayName: "XML",
-			FormatMimeType:    "text/xml",
-			FormatExtensions:  []string{".xml"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "xml",
+		FormatDisplayName: "XML",
+		FormatMimeType:    "text/xml",
+		FormatExtensions:  []string{".xml"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 
@@ -700,9 +698,9 @@ func (s *xmlParseState) itsContext(thisName its.NameMatch, thisAttrs []its.Attri
 
 // findTextFrame returns the nearest non-inline ancestor frame.
 func (s *xmlParseState) findTextFrame() *elementFrame {
-	for i := len(s.stack) - 1; i >= 0; i-- {
-		if !s.stack[i].isInline {
-			return s.stack[i]
+	for _, v := range slices.Backward(s.stack) {
+		if !v.isInline {
+			return v
 		}
 	}
 	return nil
@@ -1526,9 +1524,9 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			}
 			if parent != nil && parent.hasRuns && !parent.isExcluded {
 				// Mark parent inline ancestors as having content.
-				for i := len(s.stack) - 1; i >= 0; i-- {
-					if s.stack[i].isInline {
-						s.stack[i].hasContent = true
+				for _, v := range slices.Backward(s.stack) {
+					if v.isInline {
+						v.hasContent = true
 					} else {
 						break
 					}
@@ -1548,9 +1546,9 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			return
 		}
 		// Mark parent inline elements as having content
-		for i := len(s.stack) - 1; i >= 0; i-- {
-			if s.stack[i].isInline {
-				s.stack[i].hasContent = true
+		for _, v := range slices.Backward(s.stack) {
+			if v.isInline {
+				v.hasContent = true
 			} else {
 				break
 			}
@@ -1669,9 +1667,9 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		parent := s.findTextFrame()
 		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			spanID := strconv.Itoa(frame.spanID)
-			for i := len(parent.runs) - 1; i >= 0; i-- {
-				if parent.runs[i].PcOpen != nil && parent.runs[i].PcOpen.ID == spanID {
-					parent.runs[i].PcOpen.Data = injectInlineAttrRefs(parent.runs[i].PcOpen.Data, inlineRefs)
+			for _, v := range slices.Backward(parent.runs) {
+				if v.PcOpen != nil && v.PcOpen.ID == spanID {
+					v.PcOpen.Data = injectInlineAttrRefs(v.PcOpen.Data, inlineRefs)
 					break
 				}
 			}
@@ -1797,11 +1795,11 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 		} else {
 			// The text frame is not excluded, but an inline ancestor is.
 			// Skip text from any excluded inline element in the ancestor chain.
-			for i := len(s.stack) - 1; i >= 0; i-- {
-				if !s.stack[i].isInline {
+			for _, v := range slices.Backward(s.stack) {
+				if !v.isInline {
 					break
 				}
-				if s.stack[i].isExcluded {
+				if v.isExcluded {
 					return
 				}
 			}
@@ -1813,9 +1811,9 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 
 	if textFrame != nil {
 		// Mark all inline ancestors as having content
-		for i := len(s.stack) - 1; i >= 0; i-- {
-			if s.stack[i].isInline {
-				s.stack[i].hasContent = true
+		for _, v := range slices.Backward(s.stack) {
+			if v.isInline {
+				v.hasContent = true
 			} else {
 				break
 			}
@@ -1907,8 +1905,7 @@ func (r *Reader) addWellFormednessDiagnostic(content []byte, err error, byteOffs
 		Message:    err.Error(),
 		ByteOffset: byteOffset,
 	}
-	var se *xml.SyntaxError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*xml.SyntaxError](err); ok {
 		d.Line = se.Line
 	}
 	if byteOffset > 0 {

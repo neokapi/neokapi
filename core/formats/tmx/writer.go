@@ -36,10 +36,8 @@ func (w *Writer) StreamingWriter() {}
 // NewWriter creates a new TMX writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName:  "tmx",
-			Interchange: true,
-		},
+		FormatName:  "tmx",
+		Interchange: true,
 		headerProps: make(map[string]string),
 	}
 }

@@ -63,8 +63,7 @@ func main() {
 		// ourselves. Without this, a bad flag or failed command exits 1 silently.
 		// (ExitError from a nested exec already printed its own output, so don't
 		// double-report it.)
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
+		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 		}
 		os.Exit(1)

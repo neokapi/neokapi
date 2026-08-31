@@ -36,11 +36,9 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "properties",
-		},
-		cfg:       cfg,
-		firstLine: true,
+		FormatName: "properties",
+		cfg:        cfg,
+		firstLine:  true,
 	}
 }
 

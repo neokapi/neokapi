@@ -39,14 +39,12 @@ func (r *Reader) StreamingReader() {}
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "ts",
-			FormatDisplayName: "Qt TS",
-			FormatMimeType:    "application/x-ts",
-			FormatExtensions:  []string{".ts"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "ts",
+		FormatDisplayName: "Qt TS",
+		FormatMimeType:    "application/x-ts",
+		FormatExtensions:  []string{".ts"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

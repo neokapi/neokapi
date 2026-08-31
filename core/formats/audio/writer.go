@@ -23,7 +23,7 @@ type Writer struct {
 
 // NewWriter constructs an audio writer.
 func NewWriter() *Writer {
-	return &Writer{BaseFormatWriter: format.BaseFormatWriter{FormatName: "audio"}}
+	return &Writer{FormatName: "audio"}
 }
 
 // Write consumes the part stream and writes the first Media part's audio bytes.

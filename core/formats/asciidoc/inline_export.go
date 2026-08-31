@@ -1,6 +1,7 @@
 package asciidoc
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -95,7 +96,7 @@ func (s *adocInlineSink) Placeholder(r *model.PlaceholderRun) {
 }
 
 func (s *adocInlineSink) flush() {
-	for i := len(s.open) - 1; i >= 0; i-- {
-		s.sb.WriteString(s.open[i])
+	for _, v := range slices.Backward(s.open) {
+		s.sb.WriteString(v)
 	}
 }

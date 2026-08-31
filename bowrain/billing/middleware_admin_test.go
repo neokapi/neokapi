@@ -27,7 +27,7 @@ func TestExtractBearerToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := echo.New()
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 			if tt.header != "" {
 				req.Header.Set("Authorization", tt.header)
 			}
@@ -48,7 +48,7 @@ func TestAdminGuard_MissingToken(t *testing.T) {
 	// the middleware returns unauthorized for missing tokens.
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/admin/test", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/test", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 

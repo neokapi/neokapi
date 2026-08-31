@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -182,8 +183,8 @@ func ReplaceProtectedTags(text string, tags []ProtectedTag) (string, map[string]
 	result := text
 
 	// Replace in reverse order to preserve offsets.
-	for i := len(tags) - 1; i >= 0; i-- {
-		tag := tags[i]
+	for i, tag := range slices.Backward(tags) {
+
 		placeholder := fmt.Sprintf("{%d}", i+1)
 		mapping[placeholder] = tag.Text
 		result = strings.Replace(result, tag.Text, placeholder, 1)

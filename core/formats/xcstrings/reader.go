@@ -314,14 +314,12 @@ func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "xcstrings",
-			FormatDisplayName: "Apple String Catalog",
-			FormatMimeType:    "application/json",
-			FormatExtensions:  []string{".xcstrings"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "xcstrings",
+		FormatDisplayName: "Apple String Catalog",
+		FormatMimeType:    "application/json",
+		FormatExtensions:  []string{".xcstrings"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

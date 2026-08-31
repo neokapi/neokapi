@@ -34,9 +34,7 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // NewWriter creates a new YAML writer.
 func NewWriter() *Writer {
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "yaml",
-		},
+		FormatName: "yaml",
 	}
 }
 

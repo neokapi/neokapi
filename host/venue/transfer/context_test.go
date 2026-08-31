@@ -28,36 +28,34 @@ func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 		"name: Acme Voice\ndescription: How Acme sounds.\ntone:\n  formality: neutral\n"), 0o644))
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage:  "en",
-				TargetLanguages: []model.LocaleID{"fr"},
+		Defaults: coreproj.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+		},
+		Profiles: map[string]coreproj.Profile{
+			"kapi": {
+				Channels: []coreproj.Channel{{ID: "docs"}, {ID: "email"}},
+				Voice:    &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
 			},
-			Profiles: map[string]coreproj.Profile{
-				"kapi": {
-					Channels: []coreproj.Channel{{ID: "docs"}, {ID: "email"}},
-					Voice:    &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
-				},
-				"bowrain": {Channels: []coreproj.Channel{{ID: "partners"}}},
+			"bowrain": {Channels: []coreproj.Channel{{ID: "partners"}}},
+		},
+		Collections: []coreproj.Collection{
+			{
+				Name:    "docs",
+				Channel: "kapi/docs",
+				Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
 			},
-			Collections: []coreproj.Collection{
-				{
-					Name:    "docs",
-					Channel: "kapi/docs",
-					Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
-				},
-				{
-					Name:    "mail",
-					Channel: "kapi/email",
-					Content: []coreproj.ContentItem{{Path: "mail/**/*.json"}},
-				},
-				{
-					Name:    "partner",
-					Channel: "bowrain/partners",
-					Content: []coreproj.ContentItem{{Path: "partner/**/*.json"}},
-				},
-				{Path: "loose/*.json"},
+			{
+				Name:    "mail",
+				Channel: "kapi/email",
+				Content: []coreproj.ContentItem{{Path: "mail/**/*.json"}},
 			},
+			{
+				Name:    "partner",
+				Channel: "bowrain/partners",
+				Content: []coreproj.ContentItem{{Path: "partner/**/*.json"}},
+			},
+			{Path: "loose/*.json"},
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)
@@ -154,10 +152,8 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	app := &host.App{}
 
 	proj, err := bproject.InitProject(t.TempDir(), &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults:    coreproj.Defaults{SourceLanguage: "en"},
-			Collections: []coreproj.Collection{{Path: "loose/*.json"}},
-		},
+		Defaults:    coreproj.Defaults{SourceLanguage: "en"},
+		Collections: []coreproj.Collection{{Path: "loose/*.json"}},
 	})
 	require.NoError(t, err)
 

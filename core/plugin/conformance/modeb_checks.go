@@ -25,44 +25,36 @@ const mcpProtocolVersion = "2025-06-18"
 func modeBChecks() []registryEntry {
 	return []registryEntry{
 		{
-			Check: Check{
-				ID:       "modeB.initialize",
-				Title:    "`<binary> mcp-server` completes the MCP initialize handshake on stdio",
-				Mode:     ModeB,
-				Required: true,
-				Why:      "kapi proxies its own MCP session to this subprocess; a server that never initializes contributes no tools.",
-			},
-			run: checkModeBInitialize,
+			ID:       "modeB.initialize",
+			Title:    "`<binary> mcp-server` completes the MCP initialize handshake on stdio",
+			Mode:     ModeB,
+			Required: true,
+			Why:      "kapi proxies its own MCP session to this subprocess; a server that never initializes contributes no tools.",
+			run:      checkModeBInitialize,
 		},
 		{
-			Check: Check{
-				ID:       "modeB.tools-list",
-				Title:    "tools/list returns every MCP tool the manifest declares",
-				Mode:     ModeB,
-				Required: true,
-				Why:      "the manifest is what kapi builds its dispatch table from; a declared tool the server does not serve is a dead entry.",
-			},
-			run: checkModeBToolsList,
+			ID:       "modeB.tools-list",
+			Title:    "tools/list returns every MCP tool the manifest declares",
+			Mode:     ModeB,
+			Required: true,
+			Why:      "the manifest is what kapi builds its dispatch table from; a declared tool the server does not serve is a dead entry.",
+			run:      checkModeBToolsList,
 		},
 		{
-			Check: Check{
-				ID:       "modeB.stdout-is-jsonrpc-only",
-				Title:    "the MCP server writes nothing but JSON-RPC to stdout",
-				Mode:     ModeB,
-				Required: true,
-				Why:      "stdout is the transport; a stray log line corrupts the stream and the session dies mid-call.",
-			},
-			run: checkModeBStdoutClean,
+			ID:       "modeB.stdout-is-jsonrpc-only",
+			Title:    "the MCP server writes nothing but JSON-RPC to stdout",
+			Mode:     ModeB,
+			Required: true,
+			Why:      "stdout is the transport; a stray log line corrupts the stream and the session dies mid-call.",
+			run:      checkModeBStdoutClean,
 		},
 		{
-			Check: Check{
-				ID:       "modeB.stdin-close-exits",
-				Title:    "closing stdin terminates the MCP server",
-				Mode:     ModeB,
-				Required: true,
-				Why:      "kapi ends a session by closing the pipe; a server that ignores EOF leaks a process per session.",
-			},
-			run: checkModeBStdinClose,
+			ID:       "modeB.stdin-close-exits",
+			Title:    "closing stdin terminates the MCP server",
+			Mode:     ModeB,
+			Required: true,
+			Why:      "kapi ends a session by closing the pipe; a server that ignores EOF leaks a process per session.",
+			run:      checkModeBStdinClose,
 		},
 	}
 }
@@ -385,8 +377,7 @@ func checkModeBStdoutClean(ctx context.Context, r *runner) (Status, string, erro
 	defer s.close()
 
 	if _, err := s.initialize(); err != nil {
-		var syn *json.SyntaxError
-		if errors.As(err, &syn) {
+		if _, ok := errors.AsType[*json.SyntaxError](err); ok {
 			return Fail, fmt.Sprintf("stdout carries non-JSON output: %v", err), err
 		}
 		return Skip, "the initialize handshake did not complete — see modeB.initialize", nil

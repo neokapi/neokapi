@@ -124,11 +124,9 @@ func newRefConnector(t *testing.T, srv *httptest.Server, projectID string) *Bowr
 	formats.RegisterAll(reg)
 
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults:    coreproj.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
-			Collections: []coreproj.Collection{{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}}},
-		},
-		Server: &bproject.ServerSpec{URL: srv.URL + "/projects/" + projectID, Stream: "main"},
+		Defaults:    coreproj.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+		Collections: []coreproj.Collection{{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}}},
+		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/" + projectID, Stream: "main"},
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)

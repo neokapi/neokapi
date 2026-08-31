@@ -41,12 +41,10 @@ func NewLayerProcessorTool(cfg *LayerProcessorConfig) *LayerProcessor {
 		cfg = &LayerProcessorConfig{}
 	}
 	return &LayerProcessor{
-		BaseTool: tool.BaseTool{
-			ToolName:        "layer-processor",
-			ToolDescription: "Applies format-specific tool chains to child layers",
-			Cfg:             cfg,
-		},
-		cfg: cfg,
+		ToolName:        "layer-processor",
+		ToolDescription: "Applies format-specific tool chains to child layers",
+		Cfg:             cfg,
+		cfg:             cfg,
 	}
 }
 

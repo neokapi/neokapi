@@ -29,14 +29,12 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 func NewReader() *Reader {
 	cfg := &Config{}
 	return &Reader{
-		BaseFormatReader: format.BaseFormatReader{
-			FormatName:        "vtt",
-			FormatDisplayName: "WebVTT",
-			FormatMimeType:    "text/vtt",
-			FormatExtensions:  []string{".vtt"},
-			Cfg:               cfg,
-		},
-		cfg: cfg,
+		FormatName:        "vtt",
+		FormatDisplayName: "WebVTT",
+		FormatMimeType:    "text/vtt",
+		FormatExtensions:  []string{".vtt"},
+		Cfg:               cfg,
+		cfg:               cfg,
 	}
 }
 

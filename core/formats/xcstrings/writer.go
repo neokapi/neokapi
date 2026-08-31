@@ -41,10 +41,8 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "xcstrings",
-		},
-		cfg: cfg,
+		FormatName: "xcstrings",
+		cfg:        cfg,
 	}
 }
 

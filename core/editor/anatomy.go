@@ -2,6 +2,7 @@ package editor
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -375,9 +376,9 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 // enclosingLayerLocale returns the Locale of the innermost open layer on
 // stack, seeing past any group containers nested between it and the block.
 func enclosingLayerLocale(stack []*ContentNode) string {
-	for i := len(stack) - 1; i >= 0; i-- {
-		if stack[i].Kind == "layer" {
-			return stack[i].Locale
+	for _, s := range slices.Backward(stack) {
+		if s.Kind == "layer" {
+			return s.Locale
 		}
 	}
 	return ""

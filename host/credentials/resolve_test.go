@@ -181,11 +181,9 @@ func TestMergeCredentials(t *testing.T) {
 		"batchSize":  50,
 	}
 	cred := &ProviderConfigWithKey{
-		ProviderConfig: ProviderConfig{
-			ProviderType: "anthropic",
-			Model:        "claude-sonnet-4-5-20250514",
-		},
-		APIKey: "sk-test-key",
+		ProviderType: "anthropic",
+		Model:        "claude-sonnet-4-5-20250514",
+		APIKey:       "sk-test-key",
 	}
 
 	result := mergeCredentials(config, cred)
@@ -211,10 +209,8 @@ func TestMergeCredentials_PreservesExplicitProvider(t *testing.T) {
 		"provider": "openai",
 	}
 	cred := &ProviderConfigWithKey{
-		ProviderConfig: ProviderConfig{
-			ProviderType: "anthropic",
-		},
-		APIKey: "sk-key",
+		ProviderType: "anthropic",
+		APIKey:       "sk-key",
 	}
 
 	result := mergeCredentials(config, cred)
@@ -270,10 +266,8 @@ func TestProviderInferenceFromCredential(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cred := &ProviderConfigWithKey{
-				ProviderConfig: ProviderConfig{
-					ProviderType: tc.credProviderType,
-				},
-				APIKey: "sk-test",
+				ProviderType: tc.credProviderType,
+				APIKey:       "sk-test",
 			}
 			result := mergeCredentials(tc.config, cred)
 			assert.Equal(t, tc.wantProvider, result["provider"], tc.desc)

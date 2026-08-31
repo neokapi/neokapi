@@ -96,11 +96,9 @@ func NewWriter() *Writer {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Writer{
-		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName:  "xliff2",
-			Interchange: true,
-		},
-		cfg: cfg,
+		FormatName:  "xliff2",
+		Interchange: true,
+		cfg:         cfg,
 	}
 }
 
