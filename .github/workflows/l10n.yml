@@ -117,7 +117,6 @@ jobs:
     # `vp install` or a test suite over PR content must not hold this token.
     permissions:
       contents: write
-      packages: read
     steps:
       - uses: actions/checkout@v7
         with:

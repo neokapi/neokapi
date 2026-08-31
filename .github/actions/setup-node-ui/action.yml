@@ -67,11 +67,6 @@ runs:
 
     - name: Install workspace dependencies
       shell: bash
-      env:
-        # Required by .npmrc to authenticate with @neokapi scoped packages on
-        # npm.pkg.github.com (e.g. @neokapi/react). Workflows that consume
-        # this action must grant `permissions: packages: read`.
-        GITHUB_TOKEN: ${{ github.token }}
       run: vp install --frozen-lockfile
 
     # @neokapi/i18n-react ships dist-only subpath exports (./runtime, ./vite, …)

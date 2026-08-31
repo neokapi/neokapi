@@ -49,8 +49,6 @@ jobs:
       # ran on, and opens the pull request that proposes it.
       contents: write
       pull-requests: write
-      # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
-      packages: read
     steps:
       - uses: actions/checkout@v7
 

@@ -25,7 +25,6 @@ on: pull_request
 
 permissions:
   contents: write
-  packages: read
 
 jobs:
   relock:
@@ -48,9 +47,6 @@ jobs:
           run-install: false
 
       - name: Re-resolve with the pinned pnpm
-        env:
-          # Required by .npmrc for @neokapi scoped packages on npm.pkg.github.com.
-          GITHUB_TOKEN: ${{ github.token }}
         run: vp install --lockfile-only
 
       - name: Push if the lockfile changed
