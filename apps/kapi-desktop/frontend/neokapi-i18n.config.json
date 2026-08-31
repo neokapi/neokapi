@@ -1,7 +1,17 @@
 {
   "componentMap": {
+    "Badge": "span",
+    "Button": "button",
+    "CollapsibleTrigger": "button",
     "ComboboxEmpty": "div",
+    "CommandEmpty": "div",
+    "DialogTitle": "h2",
     "Fact": "span",
-    "TabButton": "button"
+    "Label": "label",
+    "SheetDescription": "p",
+    "SheetTitle": "h2",
+    "TabButton": "button",
+    "TabsTrigger": "button",
+    "ToggleGroupItem": "button"
   }
 }
