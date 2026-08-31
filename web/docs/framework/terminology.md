@@ -213,6 +213,17 @@ Three pipeline tools bring terminology into the flow:
 - **`term-extract`** surfaces candidate terms from the source, for a curator to
   approve into the store.
 
+Two further stages exist only in the Go library: `term-lookup` and
+`term-enforce` (`terms/tool.go`, `NewTermLookupTool` and `NewTermEnforceTool`).
+`term-lookup` scans a Block's source text and attaches the matches as
+`TermAnnotation` entries; `term-enforce` checks a translated block against the
+expected terminology and records the outcome as block properties
+(`term-enforce-passed`, `term-enforce-errors`, `term-enforce-violations`).
+Neither is a registered tool: a recipe cannot name them and `kapi tools` does
+not list them. The runner appends both automatically behind any registered tool
+whose schema declares that it requires terms, whenever a terms store is open,
+so a flow step gets the lookup and the enforcement without naming either.
+
 ## Go library
 
 ### Interface
@@ -244,7 +255,8 @@ are elided here for readability.)
 
 `Lookup` finds the best match for a single term. `LookupAll` scans running text
 and returns every term occurrence with positions; this is what powers the
-`term-check` tool and editor suggestions. By default `LookupAll` matches
+`term-check` tool, the `term-lookup` library stage, and editor suggestions. By
+default `LookupAll` matches
 case-insensitively (terminology should be recognized regardless of
 capitalization); set `CaseSensitive` to override.
 

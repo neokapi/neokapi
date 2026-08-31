@@ -153,10 +153,13 @@ The `voice-check` tool runs in the pipeline alongside other tools:
 It uses an LLM to analyze content against the profile and attaches compliance
 scores and findings to each Block as annotations. The faster, rule-based
 `voice-vocab-check` tool checks forbidden and competitor terms without LLM
-calls. Voice vocabulary also flows through the ordinary terminology tool:
-`term-check` takes the profile's rules as `term_rules:`, so a forbidden or
-competitor term fires there too, and voice guardrails and terminology share
-one enforcement path.
+calls. Voice vocabulary also flows through the ordinary terminology tools:
+`term-check` and `dnt-check` are the registered tools, and `term-check` takes
+the profile's rules as `term_rules:`, so a forbidden or competitor term fires
+there too, and voice guardrails and terminology share one enforcement path.
+The `term-lookup` and `term-enforce` stages in `terms/tool.go` are library
+code rather than recipe names: the runner appends them behind any tool whose
+schema requires terms, and neither appears in `kapi tools`.
 
 ## MCP integration
 
