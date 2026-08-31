@@ -2,8 +2,8 @@
 id: s-06-visual-editor
 sidebar_position: 6
 title: "S-06: The visual editor data model"
-description: "The preview kit is a render-and-inspect surface over the content model: a Part stream becomes a ContentTree, normalized to a format-shaped RenderDoc, rendered with vocabulary-styled runs and overlay marks; a target edit is committed on the model and round-trips through reader, skeleton, and writer."
-keywords: [neokapi, architecture decision, visual editor, preview kit, ContentTree, RenderDoc, DocumentViewer, BlockInspector, vocabulary, overlays, round-trip]
+description: "The preview kit is a render-and-inspect surface over the content model: a Part stream becomes a ContentTree, normalized to a format-shaped RenderDoc, rendered with vocabulary-styled runs and overlay marks through a projection declared per run kind; a target edit is committed on the model and round-trips through reader, skeleton, and writer."
+keywords: [neokapi, architecture decision, visual editor, preview kit, ContentTree, RenderDoc, DocumentViewer, BlockInspector, vocabulary, overlays, RunSpec, round-trip]
 ---
 
 import { PipelineDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
@@ -19,10 +19,12 @@ stream is projected in Go to a hierarchical, JSON-serializable **`ContentTree`**
 (`core/editor`), then normalized on the TypeScript side to a **`RenderDoc`**
 whose `kind` drives a format-shaped renderer. Inline runs are styled through the
 **vocabulary**; stand-off **overlays** render as inline marks whose accent is a
-function of the overlay type *and* the span's own properties. Editing is
-deliberately not part of the kit: the canonical way to commit a translation is
-the model's own `SetTargetRuns`, and the byte-faithful round-trip is a property
-of reader + skeleton + writer, independent of who edited.
+function of the overlay type *and* the span's own properties. Every projection
+of a run sequence to text is declared per run kind, so a placeholder or a plural
+can never vanish from a view. Editing is deliberately kept out of the kit: the
+canonical way to commit a translation is the model's own `SetTargetRuns`, and
+the byte-faithful round-trip is a property of reader + skeleton + writer,
+independent of who edited.
 
 <RoundTripDiagram
   animated
@@ -50,8 +52,8 @@ system, and the interchange package family each have their own decision record.
 The editor spans two of them and belongs to neither, for two reasons.
 
 **It spans Go and TypeScript.** The model is projected to a `ContentTree` in
-`core/editor`, then normalized and rendered in `packages/ui`. The hand-off — the
-`ContentTree` and its TypeScript mirror — is the seam where the two halves meet,
+`core/editor`, then normalized and rendered in `packages/ui`. The hand-off, the
+`ContentTree` and its TypeScript mirror, is the seam where the two halves meet,
 and a seam nobody wrote down is a seam that drifts.
 
 **The back path is the least obvious part.** The framework supplies a target-edit
@@ -61,7 +63,7 @@ any particular interface's commit flow.
 
 ## Decision
 
-### The editor renders the content model; it does not own a parallel one
+### The editor renders the content model
 
 The bridge between the engine and any preview surface is the **`ContentTree`**
 (`core/editor/anatomy.go`): a hierarchical, JSON-serializable view of a
@@ -77,7 +79,7 @@ segmentation overlay ([M-02](../multilingual/m-02-segmentation.md)).
 `ContentTree` is distinct from the editor's other projection, **`BlockIndex`**,
 which flattens a block's source to plain strings for reconstruction. The preview
 kit consumes the run-preserving `ContentTree`, so the editor renders exactly what
-the model holds — inline placeholders, paired codes, plurals — rather than a
+the model holds (inline placeholders, paired codes, plurals) rather than a
 lossy string view.
 
 ### Render path
@@ -97,16 +99,16 @@ lossy string view.
 **`treeToRenderDoc`** normalizes a `ContentTree` into a `RenderDoc` through a
 data-driven `STRUCTURE_RULES` table. It collects target locales across all
 blocks, then tries layer-shape detectors in declaration order, first match
-winning — presentation slides, spreadsheet worksheets, a word-processing document
-body, a paged layer pattern — falling back to a format-family classification and
+winning (presentation slides, spreadsheet worksheets, a word-processing document
+body, a paged layer pattern), falling back to a format-family classification and
 finally to a generic section extraction. The result carries a `kind` of `slides`,
 `sheet`, `doc`, `pages`, `list`, or `sections`, and every block projects to a
-render line carrying its id, text, per-locale targets, role, overlays, and
-annotations.
+render line carrying its id, text, inline codes, per-locale targets, role,
+overlays, and annotations.
 
 **`FormatPreview`** dispatches on that kind to a kind-specific renderer. Leaf
 text goes through a shared component that applies the active transition, resolves
-overlay marks, and — when a `before` document is supplied — word-level diff
+overlay marks, and, when a `before` document is supplied, word-level diff
 highlighting.
 
 **`DocumentViewer`** composes the full surface: a header carrying the filename, a
@@ -117,20 +119,45 @@ structural roles, **Layout** when it carries page geometry
 ([E-08](../engine/e-08-document-structure-tiers.md)), **Media** when it carries a
 temporal or raster media layer ([M-03](../multilingual/m-03-multimodal-content.md)),
 and **Raw** when the host actually holds the bytes. A host can append its own
-tabs — the lab uses them for output-format pills. Downloading is the single
+tabs; the lab uses them for output-format pills. Downloading is the single
 header button rather than a duplicate tab, because on the desktop the local file
 is already the source of truth.
 
+### Projection is declared per run kind
+
+Turning a run sequence into text is the step every surface performs and the one
+easiest to get wrong. The lossy form is a loop that keeps text runs and skips
+the rest, which reads as "concatenate the text" and behaves as "delete every
+placeholder, paired code and plural". Nothing fails; the content is simply gone.
+
+So a projection is **declared**, never looped. A `RunSpec`
+(`packages/kapi-format/src/run-projection.ts`) answers for every kind in
+`RUN_KINDS`, and its type is a mapped type over that list, so a spec that omits
+a kind does not compile. Each kind is rendered, expanded, dropped with a stated
+reason, or declared unsupported and reported, in which case the spec's required
+`fallback` is drawn in its place. A kind added to the model breaks every
+projection until each has said what it does with it.
+`scripts/check-run-projection.sh` keeps a hand-written loop from returning; it
+runs in `make lint` and in CI.
+
+The kit's render line therefore carries a block's inline codes beside its text,
+so a placeholder is drawn as the same chip wherever it appears, and a plural
+block reads its `other` branch behind a chip that says so rather than rendering
+as an empty line. The chip names the variable a placeholder stands for, because
+the JSX vocabulary is one the default registry loads.
+
 ### Run, vocabulary, rendering
 
-Inline runs are styled through the **vocabulary registry**
-(`packages/ui/src/vocabularies`). Resolving a run's type yields display
-information: a category, a label, HTML and display templates, a chip label, a
-colour, an equivalence text, and editing constraints. An **unknown** type is not
-an error — the registry synthesizes an entry from a default fallback,
-interpolating the type name into the templates, deriving a short chip label, and
-giving it a neutral accent and permissive constraints. The editor uses those
-fields for styled chips, tooltips, and the deletable, cloneable, and reorderable
+Inline runs are styled through the **vocabulary registry**. The vocabulary packs
+are canonical as a Go embed in `core/model/vocabularies`; `packages/ui/src/vocabularies`
+carries a byte-identical mirror, and `scripts/check-vocab-packs.mjs` holds the
+two equal in `make lint`. Resolving a run's type yields display information: a
+category, a label, HTML and display templates, a chip label, a colour, an
+equivalence text, and editing constraints. An **unknown** type is not an error:
+the registry synthesizes an entry from a default fallback, interpolating the
+type name into the templates, deriving a short chip label, and giving it a
+neutral accent and permissive constraints. The editor uses those fields for
+styled chips, tooltips, and the deletable, cloneable, and reorderable
 affordances.
 
 This mirrors the model contract exactly: the vocabulary is **descriptive**. It
@@ -142,7 +169,7 @@ replay each run's own data verbatim ([F-02](../foundations/f-02-content-model.md
 Stand-off overlays become colour-coded, tooltipped marks. Three functions do the
 work, and each embodies a decision.
 
-**The accent key is effective, not literal.** A voice-vocabulary violation rides
+**The accent key is the effective category.** A voice-vocabulary violation rides
 on the generic `qa` overlay type, so an accent chosen on type alone would paint
 it as an ordinary QA finding. The resolver therefore reads the span's own
 category: a `qa` span categorised as voice vocabulary resolves to the voice
@@ -154,19 +181,19 @@ a censor bar instead of a background. Unknown keys fall back to a neutral
 "Annotation" accent with a title-cased label, so a new overlay type renders
 sensibly before anyone teaches the table about it.
 
-**Spans are located by their text, not by their range.** Overlays anchor to
-run-index ranges, but the renderer works over the concatenated literal text, so
-matching by the engine-extracted span text is robust across that projection. A
-per-overlay search cursor advances past each match, so repeated identical span
-texts within one overlay map to successive occurrences rather than all to the
-first. Spans whose text cannot be located — a span covering only inline markup,
-for instance — are dropped rather than mispositioned. One overlay type is
-excluded outright: a content-memory leverage marker is a line-level fact, not a
-span highlight, and the renderer styles the whole line from it.
+**Spans are located by their text.** Overlays anchor to run-index ranges, but
+the renderer works over the concatenated literal text, so matching by the
+engine-extracted span text is robust across that projection. A per-overlay
+search cursor advances past each match, so repeated identical span texts within
+one overlay map to successive occurrences rather than all to the first. Spans
+whose text cannot be located (a span covering only inline markup, for instance)
+are dropped rather than mispositioned. One overlay type is excluded outright: a
+content-memory leverage marker is a line-level fact, not a span highlight, and
+the renderer styles the whole line from it.
 
 **Overlaps flatten innermost-wins.** For each character position the narrowest
 covering span owns it, and contiguous positions under the same owner emit one
-non-overlapping segment — so a term inside an entity still shows as the term.
+non-overlapping segment, so a term inside an entity still shows as the term.
 
 `BlockInspector` is the structural counterpart to the styled preview: a
 collapsible per-block view rendering the source run sequence, each variant's row
@@ -180,9 +207,9 @@ grid, and flag badges.
 under `./preview`: the viewer and format preview, the file browser, the block
 inspector, the structure, layout, and content-tree views, run sequences and code
 views, the multimodal viewers for timed media and raster overlays, and the
-supporting utilities — the render-doc normalizer, the overlay style and span
+supporting utilities (the render-doc normalizer, the overlay style and span
 resolvers, run-range mapping, role styling, geometry flattening, and the
-vocabulary registry.
+vocabulary registry).
 
 | Consumer | How it uses the kit |
 | --- | --- |
@@ -206,8 +233,8 @@ The canonical way to commit a target edit is on the content model itself:
 `model.Block.SetTargetRuns(locale, runs)` sets the variant's runs in place, with
 the plain-text siblings `SetTargetText` and `SetText` for the string path
 ([E-03](../engine/e-03-tool-system.md)). How a host transports an edit to the
-model and persists the result — the project block store, interchange files, a
-database — is the host's concern.
+model and persists the result (the project block store, interchange files, a
+database) is the host's concern.
 
 <PipelineDiagram
   animated
@@ -225,7 +252,7 @@ database — is the host's concern.
 The round-trip is a framework mechanism independent of who edited: the source is
 replayed through its reader, the committed targets are injected into the emitted
 block parts, and the writer reconstructs the document by pairing the reader's
-skeleton emitter with the writer's skeleton consumer — interleaving literal
+skeleton emitter with the writer's skeleton consumer, interleaving literal
 skeleton fragments with the target runs rather than re-serializing a parse tree
 ([E-02](../engine/e-02-format-system.md)). The equivalent bilingual round-trip
 for a translator hand-off is the extract and merge workflow
@@ -237,7 +264,7 @@ assistant-proposed edit is `kapi apply` ([S-03](s-03-agent-surfaces.md)).
 Within the content model and its interchange family
 ([M-06](../multilingual/m-06-content-packages.md)):
 
-- **Targets** are first-class records — runs plus status, origin, and score.
+- **Targets** are first-class records: runs plus status, origin, and score.
 - **Annotations** are the block-scoped typed carrier; the block file carries
   blocks, targets, and properties, and the JSON-Lines sidecar carries annotation
   overlays with their anchor kinds.
@@ -257,16 +284,18 @@ the framework's overlay remapping; targets and annotations are unaffected.
 - Rendering is a **pure projection** of the content model: the editor cannot
   diverge from what the engine holds, because it consumes the run-preserving
   tree rather than a separate model.
+- A projection that forgets a run kind fails to compile, and a hand-written
+  loop fails lint, so content cannot silently disappear from a view.
 - Resolving the accent from type *and* span keeps one overlay type able to carry
   several kinds of finding without the renderer flattening them into one colour.
 - Locating spans by text rather than by range makes the marks robust across the
   run-to-text projection, at the price of silently dropping a span whose text
-  does not appear — which is the right trade when the alternative is a mark on
+  does not appear, which is the right trade when the alternative is a mark on
   the wrong words.
 - Editing and committing stay **outside** the kit and outside the framework,
   which is what keeps the kit dependency-light and shareable.
 - Faithful round-trip is a property of reader, skeleton, and writer, not of any
-  editor — setting a target run sequence and replaying the source is what
+  editor: setting a target run sequence and replaying the source is what
   reconstructs the document.
 - Overlays are ephemeral in the live preview: a durable interpretation must be
   stored as an annotation, or re-derived by re-running the tool that produced it.
@@ -289,12 +318,12 @@ the framework's overlay remapping; targets and annotations are unaffected.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — parts, blocks, runs, overlays, annotations, targets, and the projections the editor renders
-- [E-02: The format system](../engine/e-02-format-system.md) — readers, writers, and the skeleton that makes the round-trip byte-faithful
-- [E-03: The tool system](../engine/e-03-tool-system.md) — capability-typed immutability, the target-edit primitives, and overlay rebasing
-- [E-08: Document structure tiers](../engine/e-08-document-structure-tiers.md) — the roles and geometry the Structure and Layout tabs read
-- [C-01: The project model](../context/c-01-project-model.md) — the block store a host persists edits through
-- [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md) — the extract and merge round-trip
-- [M-03: Multimodal content](../multilingual/m-03-multimodal-content.md) — the media layer the multimodal viewers render
-- [M-06: Content packages](../multilingual/m-06-content-packages.md) — the block files and the annotation sidecar
-- [S-02: Kapi Desktop](s-02-kapi-desktop.md) — the application that hosts the kit
+- [F-02: The content model](../foundations/f-02-content-model.md): parts, blocks, runs, overlays, annotations, targets, and the projections the editor renders
+- [E-02: The format system](../engine/e-02-format-system.md): readers, writers, and the skeleton that makes the round-trip byte-faithful
+- [E-03: The tool system](../engine/e-03-tool-system.md): capability-typed immutability, the target-edit primitives, and overlay rebasing
+- [E-08: Document structure tiers](../engine/e-08-document-structure-tiers.md): the roles and geometry the Structure and Layout tabs read
+- [C-01: The project model](../context/c-01-project-model.md): the block store a host persists edits through
+- [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): the extract and merge round-trip
+- [M-03: Multimodal content](../multilingual/m-03-multimodal-content.md): the media layer the multimodal viewers render
+- [M-06: Content packages](../multilingual/m-06-content-packages.md): the block files and the annotation sidecar
+- [S-02: Kapi Desktop](s-02-kapi-desktop.md): the application that hosts the kit

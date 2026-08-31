@@ -81,8 +81,8 @@ file, never editing a list.
 | AD | Title | Scope |
 | --- | --- | --- |
 | [S-01](surfaces/s-01-kapi-cli.md) | The kapi CLI | the command tree, output formats, the credential store, exit codes |
-| [S-02](surfaces/s-02-kapi-desktop.md) | Kapi Desktop | the desktop app, the flow editor, the runner, the plugin manager |
-| [S-03](surfaces/s-03-agent-surfaces.md) | Agent surfaces: MCP and skills | the embedded skill, the curated MCP surface, the one write verb |
+| [S-02](surfaces/s-02-kapi-desktop.md) | Kapi Desktop | the desktop app, the project home and point map, the Context hub, governance editing, runs through the up venue |
+| [S-03](surfaces/s-03-agent-surfaces.md) | Agent surfaces: MCP and skills | the embedded skill, the curated MCP surface, `apply_edits` and the review verbs |
 | [S-04](surfaces/s-04-toolbox.md) | Toolbox utilities | the multi-call binary, block-text projection, exit codes |
 | [S-05](surfaces/s-05-i18n-runtime.md) | The i18n runtime for React | the runtime, build-time extraction, re-attach, in-context review |
 | [S-06](surfaces/s-06-visual-editor.md) | The visual editor data model | the render projection, the shared preview kit, the edit round-trip |
@@ -103,5 +103,5 @@ file, never editing a list.
 
 | AD | Title | Scope |
 | --- | --- | --- |
-| [A-01](assurance/a-01-testing-and-documentation.md) | Testing and documentation | the test pyramid, the docs site, screenshots, recordings |
-| [A-02](assurance/a-02-parity.md) | Parity with the Okapi Framework | the parity harness, the comparison dashboard, faithful output |
+| [A-01](assurance/a-01-testing-and-documentation.md) | Testing and documentation | the test pyramid, the eval bands, the docs site and its pseudo-locale, recordings |
+| [A-02](assurance/a-02-parity.md) | Parity with the Okapi Framework | the parity harness, the local report, faithful output |

@@ -14,7 +14,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 `kcat`, `kgrep`, `ksed`, and `kdiff` are format-aware reimaginings of `cat`,
 `grep`, `sed`, and `diff` that operate on the **text inside** any format kapi
-understands — a Word document, a JSON catalog, XLIFF, Markdown — rather than on
+understands (a Word document, a JSON catalog, XLIFF, Markdown) rather than on
 raw bytes. `kconv` has no classic analogue: it converts a document into another
 format by handing the blocks, and the role each carries, to a different format's
 writer. All five are the **same `kapi` binary under different names**, dispatched
@@ -30,7 +30,7 @@ target inside markup. A JSON catalog buries strings among keys and structure.
 Running `grep` on those byte streams matches markup and misses content split
 across runs; running `sed` on them corrupts structure.
 
-kapi already has the machinery to do this correctly — format detection, readers
+kapi already has the machinery to do this correctly: format detection, readers
 that yield blocks, writers that reconstruct structure faithfully through the
 skeleton store ([E-02](../engine/e-02-format-system.md)). The toolbox exposes
 that machinery behind an interface engineers already have in muscle memory.
@@ -49,8 +49,8 @@ The commands live in the shared CLI base (`cli/toolbox*.go`) and are built into
 
 **As multi-call names.** The build and the Homebrew formula create `kgrep`,
 `ksed`, `kcat`, `kconv`, and `kdiff` as symlinks to `kapi`. At startup
-`cli.BusyboxRoot(app, os.Args[0])` normalises the program name — stripping any
-`.exe` — and, on a match, returns a standalone root for that utility instead of
+`cli.BusyboxRoot(app, os.Args[0])` normalises the program name, stripping any
+`.exe`, and on a match returns a standalone root for that utility instead of
 the full kapi command tree. The standalone root owns the application lifecycle
 (config load, init, shutdown) so the utility behaves identically however it was
 launched.
@@ -59,7 +59,7 @@ launched.
 `kapi kconv`, and `kapi kdiff` are thin proxies with `DisableFlagParsing` set, so
 kapi's persistent flags are *not* merged into them. Each proxy hands its raw
 argument list to the very same standalone command the symlink runs. They carry
-the k-names verbatim — one spelling everywhere — which also keeps every bare verb
+the k-names verbatim, one spelling everywhere, which also keeps every bare verb
 free for something else.
 
 `DisableFlagParsing` is what lets the utilities keep the classic option surface.
@@ -87,8 +87,8 @@ the single place the toolbox decides what "the text" of a file is.
 />
 
 **Format resolution.** An explicit `--format` / `-f` wins; otherwise the
-framework's canonical detection cascade runs — extension, then container-aware
-content sniffing — falling back to plaintext. Standard input carries no usable
+framework's canonical detection cascade runs (extension, then container-aware
+content sniffing), falling back to plaintext. Standard input carries no usable
 path, so its detection is purely content-based through the same detector: a piped
 Word document or JSON catalog is still recognised.
 
@@ -96,7 +96,7 @@ Word document or JSON catalog is still recognised.
 work, and it is also what would make `kcat ~/Downloads/*` print a disk image. So
 the fallback is gated: input that no format claimed *and* whose bytes are binary
 fails with a dedicated error, which each utility reports per file and then
-carries on from. The rule is git's — a NUL byte in the first 8000 bytes —
+carries on from. The rule is git's (a NUL byte in the first 8000 bytes),
 exempting the Unicode byte-order marks, since UTF-16 and UTF-32 text is full of
 NUL bytes and announces itself. The guard sits in the one format-resolution
 helper, so every utility inherits it. It cannot fire for a format kapi
@@ -105,7 +105,7 @@ hatch because it short-circuits detection entirely.
 
 **Read path** (`kcat`, `kgrep`). The stream helper opens the input, detects the
 format, and calls back for each block in order. `kcat` prints each block's source
-text — or a `--target LOCALE` translation — one block per line; `kgrep` matches
+text, or a `--target LOCALE` translation, one block per line; `kgrep` matches
 each block's text against the pattern. Markup and non-translatable structure
 never reach the projection.
 
@@ -114,8 +114,8 @@ every part, and the reconstructed document is written back in the same format.
 The skeleton store is wired between reader and writer when both support it, so a
 faithful format round-trips its structure while only the edited text changes.
 Edits target the source unless `--target LOCALE` selects a translation. In-place
-editing requires a file argument and refuses stdin. A read-only format — one with
-no writer — returns an actionable error pointing at `kcat`.
+editing requires a file argument and refuses stdin. A read-only format, one with
+no writer, returns an actionable error pointing at `kcat`.
 
 **Convert path** (`kconv`). The input is read and written through a *different*
 format's writer, chosen from `--to` (a format id or an extension) or inferred
@@ -127,8 +127,8 @@ byte skeleton is never emitted. This is the same format-match guard the file
 runner applies.
 
 **Compare path** (`kdiff`). Two inputs are projected to block text and the
-**blocks are aligned**, not the lines, so structural noise — a re-zipped
-document, a reflowed container, a reordered catalog — never registers as a diff.
+**blocks are aligned**, not the lines, so structural noise (a re-zipped
+document, a reflowed container, a reordered catalog) never registers as a diff.
 Alignment is chosen per pair. **Keyed** sides, whose blocks carry stable semantic
 keys such as a JSON key path or an XLIFF unit id, align by key, so added,
 removed, changed, and reordered keys fall out directly (a reorder is reported as
@@ -137,7 +137,7 @@ removed, changed, and reordered keys fall out directly (a reorder is reported as
 over the block text, so an inserted paragraph is one added block rather than a
 cascade of changes. `--by id|content` overrides the heuristic; the LCS table is
 capped, with a positional fallback that is logged rather than silent. A single
-input plus `--target LOCALE` switches to **coverage mode** — source against
+input plus `--target LOCALE` switches to **coverage mode**, source against
 translation within one file, reporting untranslated and source-identical blocks.
 `kdiff` reads only; it never writes a document back.
 
@@ -149,7 +149,7 @@ content model's notion of what is translatable
 
 A cross-format conversion reconstructs the target from the content model, never
 from a foreign skeleton. So the valid `--to` targets are exactly the
-**generative, non-interchange** writers — the declared writer capabilities in
+**generative, non-interchange** writers, the declared writer capabilities in
 [E-02](../engine/e-02-format-system.md). Skeleton-bound formats (Word,
 PowerPoint, ODF, IDML, EPUB) can be converted *from* but not *to*. Bilingual
 interchange formats are reached through `kapi extract` and `kapi merge`
@@ -161,20 +161,20 @@ format, resolved declaratively without loading a plugin.
 
 Each utility carries its classic option surface plus a few kapi-aware additions.
 Common to all: `--target LOCALE` (operate on a translation instead of the
-source), `--format` / `-f`, `--source-lang`, and `--encoding`.
+source) and `--format` / `-f`.
 
-- **`kgrep`** — `-i`, `-v`, `-c`, `-n`, `-o`, `-l` / `-L`, `-w`, `-F`, `-r`,
+- **`kgrep`**: `-i`, `-v`, `-c`, `-n`, `-o`, `-l` / `-L`, `-w`, `-F`, `-r`,
   `-H` / `--no-filename`, repeatable `-e`, `-q`, plus `--color` and `--json`.
-- **`ksed`** — repeatable `-e` (`s/regexp/replacement/flags`), `-i` with an
+- **`ksed`**: repeatable `-e` (`s/regexp/replacement/flags`), `-i` with an
   optional attached backup suffix, and `-R` to recurse. The script supports
   backreferences, the `g` and `i` flags, and any single-byte delimiter. sed's
   attached-suffix form (`-i.bak`) is normalised before dispatch.
-- **`kcat`** — `-n`, `--id` (prefix each block with its source id), `-r`, and
+- **`kcat`**: `-n`, `--id` (prefix each block with its source id), `-r`, and
   `--json`.
-- **`kdiff`** — `--by auto|id|content`, `-q` / `--brief`, `--stat`, `--color`,
+- **`kdiff`**: `--by auto|id|content`, `-q` / `--brief`, `--stat`, `--color`,
   and `--json`. It takes one or two `FILE` arguments rather than a glob, and
   never edits in place.
-- **`kconv`** — `-t` / `--to FORMAT`, `-o` / `--output PATH`, `-r`, and
+- **`kconv`**: `-t` / `--to FORMAT`, `-o` / `--output PATH`, `-r`, and
   `--timing`.
 
 Recursion is `-R` on `ksed` and `-r` everywhere else. That is fidelity to the
@@ -183,29 +183,29 @@ taking that letter would silently rewrite a whole tree for someone who asked for
 a regexp dialect. `-r` is left unbound on `ksed`, so typing it is an error rather
 than a surprise.
 
-`kconv`'s `-o` becomes a **batch** when it names a directory — a trailing
+`kconv`'s `-o` becomes a **batch** when it names a directory: a trailing
 separator, or a path that already is one. Each input produces one output file
 named after its stem with the target extension, and the input sub-tree is
 mirrored relative to the deepest directory every input shares. That root is
 computed from the *resolved* inputs rather than the arguments, so a
 shell-expanded glob and a kapi-expanded one behave alike, and same-named files in
 sibling directories cannot collide. Two inputs resolving to one output, and an
-output that would land on its own input, are reported and skipped — never a
-silent overwrite.
+output that would land on its own input, are reported and skipped, never
+silently overwritten.
 
 With no `FILE`, or when `FILE` is `-`, standard input is read. A terminal stdin
 read is raced against the command context, so an interrupt (which the CLI traps
 as cancellation rather than letting the signal kill the process) returns cleanly
 rather than hanging.
 
-### Exit codes follow grep, not the CLI's default
+### Exit codes follow grep
 
 The utilities report a *result* as a status, not as an error. `kgrep` exits `0`
 when any block matched, `1` when none did, and `2` on operational trouble. To
 express "no match" as a status without printing an error line, a no-match returns
 the `ErrSilentExit` sentinel: the CLI runner maps it to a non-zero exit but
-suppresses the message, because the command has already written — or deliberately
-withheld — its own output.
+suppresses the message, because the command has already written, or deliberately
+withheld, its own output.
 
 `kdiff` reuses the same spine for the classic `diff` convention: `0` when the
 inputs are equivalent, `1` when they differ (or, in coverage mode, when
@@ -214,8 +214,8 @@ returns the sentinel, so there is no spurious error line after a legitimate
 result.
 
 This is the same exit-code spine used across the CLI
-([S-01](s-01-kapi-cli.md)) — success, error, usage, gate, and cancellation
-mapped to the signal code — so scripts and agent skills can branch on toolbox
+([S-01](s-01-kapi-cli.md)): success, error, usage, gate, and cancellation
+mapped to the signal code, so scripts and agent skills can branch on toolbox
 results reliably.
 
 ## Consequences
@@ -229,19 +229,19 @@ results reliably.
   document's structure through block roles into the target, so a Word document
   becomes clean Markdown or HTML without its source packaging.
 - `kdiff` compares content rather than bytes: re-saving a document or reordering
-  a catalog produces no diff, only genuine prose changes do — and the
+  a catalog produces no diff, only genuine prose changes do, and the
   block-shaped change set is exactly what a re-translation pass consumes.
 - The projection is defined once, so what counts as "the text" is consistent
   across the utilities and matches the rest of the pipeline.
 - The grep-style exit codes let scripts distinguish "no match" from "error"
-  without parsing output — the same property an agent skill relies on
+  without parsing output, the same property an agent skill relies on
   ([S-03](s-03-agent-surfaces.md)).
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — blocks, the unit the toolbox projects to
-- [E-02: The format system](../engine/e-02-format-system.md) — readers, writers, writer output modes, and the skeleton store
-- [S-01: The kapi CLI](s-01-kapi-cli.md) — the CLI base the utilities live in and the exit-code contract they extend
-- [S-03: Agent surfaces](s-03-agent-surfaces.md) — the skill that drives the toolbox, and `kapi apply` as the reviewed-edit sibling of `ksed`
-- [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md) — where interchange formats are reached instead
-- [CLI tools](/toolbox/overview) — the user-facing guide to each utility
+- [F-02: The content model](../foundations/f-02-content-model.md): blocks, the unit the toolbox projects to
+- [E-02: The format system](../engine/e-02-format-system.md): readers, writers, writer output modes, and the skeleton store
+- [S-01: The kapi CLI](s-01-kapi-cli.md): the CLI base the utilities live in and the exit-code contract they extend
+- [S-03: Agent surfaces](s-03-agent-surfaces.md): the skill that drives the toolbox, and `kapi apply` as the reviewed-edit sibling of `ksed`
+- [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): where interchange formats are reached instead
+- [CLI tools](/toolbox/overview): the user-facing guide to each utility

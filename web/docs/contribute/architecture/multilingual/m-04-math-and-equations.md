@@ -10,11 +10,11 @@ keywords: [neokapi, architecture decision, math, equations, OMML, MathML, LaTeX,
 
 ## Summary
 
-An equation in a document is content, not decoration. A display equation is
-context an ingestion pipeline wants to read, and it can itself contain
-natural-language prose — a "where", an "otherwise", a spelled-out unit — that
-has to be translated. neokapi treats math as first-class content without ever
-corrupting the authoritative source markup.
+An equation in a document is content. A display equation is context an
+ingestion pipeline wants to read, and it can itself contain natural-language
+prose (a "where", an "otherwise", a spelled-out unit) that has to be translated.
+neokapi treats math as first-class content without ever corrupting the
+authoritative source markup.
 
 The design is a separation of concerns:
 
@@ -23,7 +23,7 @@ The design is a separation of concerns:
   byte-for-byte. The round trip never serializes a parsed model back into the
   document.
 - A **cgo-free converter** parses OMML into a small portable AST and renders
-  Presentation MathML and LaTeX — a *projection* used only to produce additional
+  Presentation MathML and LaTeX: a *projection* used only to produce additional
   portable renderings, never to reconstruct the source.
 - Those renderings ride on **parity-safe placeholder carriers**, so a
   cross-format writer can emit math in each target's native idiom while
@@ -40,8 +40,8 @@ Three properties of math shape the design.
 
 **Math is context.** A formula carries meaning that downstream ingestion
 benefits from reading. The classification a reader applies to any
-non-translatable-but-meaningful fragment — surface it, do not bury it in the
-skeleton — applies to an equation as much as to a code block or a caption
+non-translatable-but-meaningful fragment (surface it, do not bury it in the
+skeleton) applies to an equation as much as to a code block or a caption
 ([E-02](../engine/e-02-format-system.md)). An equation buried opaquely is
 context lost.
 
@@ -57,14 +57,14 @@ between two notations with different coverage. A construct the converter does
 not model must degrade gracefully rather than fail a document read, and the
 result must never be treated as authoritative. So the original OMML remains the
 source of truth and the round trip replays *it*, never a re-serialization of the
-AST — which is what makes an approximation in the converter unable to mangle a
+AST, which is what makes an approximation in the converter unable to mangle a
 document. Because the same conversion also runs in the browser labs, where no
 cgo is available, the converter is pure Go with no native dependency.
 
 ## The converter
 
 `core/math` reads OMML once into a tree of `Exp` nodes and serializes that tree
-to any number of target notations. `Exp` is a sealed interface — a closed union
+to any number of target notations. `Exp` is a sealed interface, a closed union
 of concrete node types (numbers, identifiers, operators, fractions, scripts,
 radicals, n-ary operators, delimited groups, matrices, accents, group
 characters) marked by an unexported method.
@@ -118,8 +118,8 @@ then surfaced depends on where it sits in the paragraph:
 
 | Position | Surfaced as | Carrier |
 | --- | --- | --- |
-| **Inline** — alongside the paragraph's own text | a placeholder run (type `struct:opaque-para-child`, subtype `openxml:oMath`) | `Ph.Data` (raw OMML) + `Ph.Equiv` (delimited LaTeX) + `Ph.Disp` (bare LaTeX) |
-| **Standalone** — an equation-only paragraph | a detached non-translatable formula block | a placeholder run carrying the same data, equiv and disp |
+| **Inline**, alongside the paragraph's own text | a placeholder run (type `struct:opaque-para-child`, subtype `openxml:oMath`) | `Ph.Data` (raw OMML) + `Ph.Equiv` (delimited LaTeX) + `Ph.Disp` (bare LaTeX) |
+| **Standalone**, an equation-only paragraph | a detached non-translatable formula block | a placeholder run carrying the same data, equiv and disp |
 
 The conversion produces two renderings from the captured markup: `Equiv` is
 LaTeX wrapped in markdown math delimiters for writers that need a
@@ -128,7 +128,7 @@ math context. Both ride on the placeholder's own fields, never mixed into its
 data.
 
 The standalone formula block is **not** skeleton-referenced: the paragraph's
-bytes — or its sub-skeleton, below — already round-trip from the skeleton, so
+bytes, or its sub-skeleton (below), already round-trip from the skeleton, so
 the detached block exists purely as an export carrier. Surfacing is gated by the
 reader's non-translatable-content setting, which is on by default; with it off,
 the renderings are empty, no standalone block is emitted, and the markup is
@@ -155,13 +155,13 @@ When an equation carries prose, the reader writes it to the skeleton as a
 **sub-skeleton**: verbatim markup segments interleaved with skeleton references
 to one translatable block per prose span. The contract has two halves:
 
-- **Untranslated** — each reference resolves to its block's source text, which
+- **Untranslated**: each reference resolves to its block's source text, which
   the writer XML-escapes back into place, reproducing the original equation
   byte for byte.
-- **Translated** — the reference resolves to the target, splicing the
+- **Translated**: the reference resolves to the target, splicing the
   translation into place; the surrounding math structure is untouched.
 
-Offsets are validated — monotonic and in range — before any block is emitted;
+Offsets are validated (monotonic and in range) before any block is emitted;
 otherwise the reader falls back to writing the equation verbatim, so a
 malformed capture costs the translatability of that one equation and nothing
 else.
@@ -178,7 +178,7 @@ Because the portable renderings travel on the placeholder, an equation survives
 format-to-format conversion ([S-04](../surfaces/s-04-toolbox.md)) rendered into
 each target's native math idiom:
 
-- **markdown** emits the delimited form — LaTeX inside markdown math delimiters.
+- **markdown** emits the delimited form: LaTeX inside markdown math delimiters.
 - **DocLang** emits the bare form inside a formula element, which is what that
   format mandates there.
 
@@ -191,8 +191,8 @@ recognizable to editors and preview in another.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — the placeholder equivalence and display fields, semantic roles, and the inline math vocabulary these carriers use
-- [E-02: The format system](../engine/e-02-format-system.md) — the skeleton and the sub-skeleton mechanism, and the surfacing of non-translatable content
-- [S-04: The toolbox](../surfaces/s-04-toolbox.md) — the cross-format conversion that renders equations into each target's math idiom
-- [A-02: Parity](../assurance/a-02-parity.md) — why these carriers are excluded from the parity projection
-- [OMML math](/contribute/implementation/multilingual/omml-math) — the coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail
+- [F-02: The content model](../foundations/f-02-content-model.md): the placeholder equivalence and display fields, semantic roles, and the inline math vocabulary these carriers use
+- [E-02: The format system](../engine/e-02-format-system.md): the skeleton and the sub-skeleton mechanism, and the surfacing of non-translatable content
+- [S-04: The toolbox](../surfaces/s-04-toolbox.md): the cross-format conversion that renders equations into each target's math idiom
+- [A-02: Parity](../assurance/a-02-parity.md): why these carriers are excluded from the parity projection
+- [OMML math](/contribute/implementation/multilingual/omml-math): the coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail
