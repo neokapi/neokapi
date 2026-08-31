@@ -1,33 +1,33 @@
 ---
 title: Use with Claude
-description: Two directions — work in Claude while it drives kapi (Agent Skill, MCP), or let kapi run Claude through your local Claude Code sign-in, no API key needed.
+description: "Two directions: work in Claude while it drives kapi (Agent Skill, MCP), or let kapi run Claude through your local Claude Code sign-in, no API key needed."
 keywords: [kapi, claude, claude code, claude subscription, agent skills, mcp, model context protocol, kapi models setup, voice profile, terminology, CI]
 ---
 
 # Use with Claude
 
-kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi — the assistant writes and translates inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
+kapi and Claude connect in **two directions**. In one, you work in Claude and it drives kapi: the assistant writes and translates inside kapi's guardrails. In the other, kapi runs Claude: your local Claude Code sign-in becomes kapi's AI provider, so `kapi up` and `kapi translate` run on your Claude subscription with no API key. Start from what you have:
 
 | You have… | Use |
 |---|---|
-| **Claude Pro or Max** (Claude Code installed) | Both directions. [Work in Claude](#work-in-claude) via the skill or MCP; run `kapi models setup` and [kapi runs Claude](#let-kapi-run-claude) on your subscription — no key. |
+| **Claude Pro or Max** (Claude Code installed) | Both directions. [Work in Claude](#work-in-claude) via the skill or MCP; run `kapi models setup` and [kapi runs Claude](#let-kapi-run-claude) on your subscription, no key. |
 | **An API key** (Anthropic, OpenAI, Gemini) | `kapi models setup` finds keys already in your environment, or stores one in the OS keychain, and verifies it with a test call. |
 | **Nothing, or offline** | A local model via [`kapi models ollama`](/kapi/recipes/choose-a-translation-provider), or Kapi Desktop's demo engine (illustrative output, no AI). |
 
 ## Work in Claude
 
-You describe the outcome; Claude runs kapi. kapi supplies the guardrails — the faithful round-trip, voice profile, terminology, the check gates — and Claude does the writing inside them. All paths need `kapi` on your `PATH` ([installation](/kapi/get-started/installation)); no provider credential is required for attended work — Claude writes, kapi applies and checks, no second model.
+You describe the outcome; Claude runs kapi. kapi supplies the guardrails (the faithful round-trip, voice profile, terminology, the check gates) and Claude does the writing inside them. All paths need `kapi` on your `PATH` ([installation](/kapi/get-started/installation)); no provider credential is required for attended work: Claude writes, kapi applies and checks, with no second model.
 
 | You work in… | Use | How it drives kapi |
 |---|---|---|
-| **Chat** — Claude Code, plain-language prompts | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
-| **IDE** — Claude Desktop, Cursor, Windsurf, VS Code | the **MCP server** (`kapi mcp`) | structured tools: `extract_content`, `apply_edits`, `check_file`, `voice_check` |
-| **CI** — no assistant in the loop | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
+| **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
+| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | structured tools: `extract_content`, `apply_edits`, `check_file`, `voice_check` |
+| **CI** (no assistant in the loop) | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
 
 <details>
 <summary>Install the Agent Skill (Claude Code and any SKILL.md-aware tool)</summary>
 
-**Claude Code** — the plugin bundles the skill plus two hooks:
+**Claude Code**: the plugin bundles the skill plus two hooks:
 
 ```text
 /plugin marketplace add neokapi/claude-plugins
@@ -36,7 +36,7 @@ You describe the outcome; Claude runs kapi. kapi supplies the guardrails — the
 
 The **Stop hook** runs the project gate (`kapi check --ship`) when Claude tries to finish and keeps it working while a gate fails; the **PreToolUse hook** denies hand-edits to generated translation targets, steering changes through the source. Both are fail-open outside a project, and both follow one [decision protocol](#the-hook-decision-protocol).
 
-**Copilot, Cursor, Windsurf, VS Code, Codex** — `SKILL.md` is an open standard:
+**Copilot, Cursor, Windsurf, VS Code, Codex**: `SKILL.md` is an open standard:
 
 ```bash
 npx skills add neokapi/agent-skills --skill kapi     # add -a <tool> for a specific tool
@@ -48,7 +48,7 @@ npx skills update kapi                               # refresh later
 <details>
 <summary>Install the MCP server (Claude Desktop, Claude Code, Cursor, and the rest)</summary>
 
-Your client launches `kapi mcp` as a stdio subprocess. For Claude Code, add `.mcp.json` at the repository root (Claude Desktop uses `claude_desktop_config.json`, Copilot `.vscode/mcp.json` — same shape):
+Your client launches `kapi mcp` as a stdio subprocess. For Claude Code, add `.mcp.json` at the repository root (Claude Desktop uses `claude_desktop_config.json`, Copilot `.vscode/mcp.json`; same shape):
 
 ```json
 {
@@ -64,32 +64,32 @@ See [MCP server](/reference/mcp) for every client's configuration and the full t
 
 ### The hook decision protocol {#the-hook-decision-protocol}
 
-A kapi hook states its verdict as JSON on stdout and always exits `0`. The exit code is not the channel: Claude Code reads a non-zero exit as a *broken hook*, so a denial carried that way would be downgraded to a hook error rather than enforced. `kapi check --ship` keeps its own gate exit code (`3`) when you run it yourself — the hook drives that gate but is not it.
+A kapi hook states its verdict as JSON on stdout and always exits `0`. The verdict travels on stdout rather than in the exit code: Claude Code reads a non-zero exit as a *broken hook*, so a denial carried that way would be downgraded to a hook error rather than enforced. `kapi check --ship` keeps its own gate exit code (`3`) when you run it yourself; the hook drives that gate without replacing it.
 
 | What the hook found | On stdout | What happens |
 |---|---|---|
 | A gate fails / the file is a generated target | `{"decision":"block","reason":"…"}` (Stop) · `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"…"}}` (PreToolUse) | Claude keeps working, or the edit is refused. The `reason` names the findings, or the source and locale to change instead. |
-| Nothing to report — gates pass, the file is not generated, or there is no kapi project | nothing | The operation proceeds. |
-| **The guard could not run at all** | `{"systemMessage":"…"}` — plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. But the bypass is stated, because a guard that never ran must not look like a guard that passed. |
+| Nothing to report (gates pass, the file is not generated, or there is no kapi project) | nothing | The operation proceeds. |
+| **The guard could not run at all** | `{"systemMessage":"…"}` plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. But the bypass is stated, because a guard that never ran must not look like a guard that passed. |
 
-The third row is the one worth knowing about. An unreadable, empty, or malformed hook payload; a session directory kapi cannot enter; a recipe that will not load because it needs a plugin you have not installed — each of those leaves the guard installed but inert. The notice says which hook, and what stopped it.
+An unreadable, empty, or malformed hook payload; a session directory kapi cannot enter; a recipe that will not load because it needs a plugin you have not installed: each of those leaves the guard installed but inert. The notice says which hook, and what stopped it.
 
-The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and never silently.
+The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-The loop, whichever door: Claude pulls your voice guide and approved terms first (`kapi voice guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply` — structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short — "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
+The loop, whichever door: Claude pulls your voice guide and approved terms first (`kapi voice guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
 
 ## Let kapi run Claude
 
-For unattended runs — `kapi up` across every locale, `kapi translate` without you in the loop — kapi needs a provider of its own. If Claude Code is signed in on your machine, that provider can be your Claude subscription:
+For unattended runs (`kapi up` across every locale, `kapi translate` without you in the loop) kapi needs a provider of its own. If Claude Code is signed in on your machine, that provider can be your Claude subscription:
 
 ```bash
-kapi models setup     # detects the Claude Code CLI — "uses your Claude subscription" — one confirm, no key
+kapi models setup     # detects the Claude Code CLI ("uses your Claude subscription"): one confirm, no key
 ```
 
-Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop — whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window parks the remainder and reports when it resumes ("Claude subscription limit reached — resumes ~7pm"); the next `kapi up` picks up exactly the units still pending. For uninterrupted or CI runs use an API key instead — subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop, whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window parks the remainder and reports when it resumes ("Claude subscription limit reached; resumes ~7pm"); the next `kapi up` picks up exactly the units still pending. For uninterrupted or CI runs use an API key instead: subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Next
 
-- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the guardrails that make agent output pass.
-- [Bulk rewrite with an agent](/kapi/recipes/bulk-rewrite-with-an-agent) — a repo-wide sweep, gated.
-- [Choose a model](/kapi/recipes/choose-a-translation-provider) — every provider kapi can run.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai): the guardrails that make agent output pass.
+- [Bulk rewrite with an agent](/kapi/recipes/bulk-rewrite-with-an-agent): a repo-wide sweep, gated.
+- [Choose a model](/kapi/recipes/choose-a-translation-provider): every provider kapi can run.

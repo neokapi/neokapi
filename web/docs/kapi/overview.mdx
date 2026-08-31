@@ -1,14 +1,14 @@
 ---
 sidebar_position: 0
 title: Kapi
-description: Kapi holds your project's context — the terms, voice and rules it goes by — where your tools and your AI can read it. Built on neokapi's format-aware content engine, it parses any format, resolves what applies to each piece of content, and writes the original back byte-for-byte. It ships as a binary, an agent skill and an MCP server, free forever.
+description: "Kapi holds your project's context, the terms, voice and rules it goes by, where your tools and your AI can read it. Built on neokapi's format-aware content engine, it parses any format, resolves what applies to each piece of content, and writes the original back byte-for-byte. It ships as a binary, an agent skill and an MCP server, free forever."
 keywords: [Kapi, kapi CLI, Kapi Desktop, content engine, context, agent skill, MCP, checks, overview]
 ---
 
 # Kapi
 
-**Kapi holds your project's context** — the terms, the voice and the rules it
-actually goes by — **where your tools and your AI can read it**. It parses content
+**Kapi holds your project's context**, the terms, the voice and the rules it
+actually goes by, **where your tools and your AI can read it**. It parses content
 in **any format**, resolves what applies to a given piece of it, and writes the
 original back **byte-for-byte**. It is built on the open-source
 [neokapi content engine](/framework/architecture).
@@ -16,70 +16,70 @@ original back **byte-for-byte**. It is built on the open-source
 ## Why a project needs one
 
 Communication is contextual. You do not write a legal notice the way you write a
-help article, or a release note the way you write a landing page — same product,
+help article, or a release note the way you write a landing page. Same product,
 often the same fact, but the register, the vocabulary and how much is assumed of
 the reader all move with the audience and the surface.
 
 Most projects hold that informally: a style guide nobody opens, the judgement of
-two or three people, a tacit sense of *that is not how we say it here*. That was
-workable while only people wrote. It is not workable now that agents write a
-growing share of the output and have no way of knowing where they are.
+two or three people, a tacit sense of *that is not how we say it here*. That
+worked while only people wrote. Agents now write a growing share of the output,
+and they have no way of knowing where they are.
 
 So kapi keeps it in a form a machine can read, and answers one question for three
-different callers — the AI agent asking *what applies here*, the check asking
+different callers: the AI agent asking *what applies here*, the check asking
 *does this rule fire*, and the engine asking *may this approved wording be reused*.
 
 ## What it does with it
 
-- **Keep your source content right** — edit it faithfully and verify it against
+- **Keep your source content right.** Edit it faithfully and verify it against
   the context that holds there, with **checks** that act like **tests for AI
   output** (a draft scores 0–100 and a gate passes or fails).
-- **Say it the same way everywhere** — one verb, `kapi up`, brings every file and
+- **Say it the same way everywhere.** One verb, `kapi up`, brings every file and
   every language up to date: draft with the AI you already have, reuse what you
   have already approved, enforce your terminology, and park what needs a person
-  for review — all without ever mangling the file's structure.
+  for review, all without ever mangling the file's structure.
 
 A language is one more axis of the same context: staying on-profile in Norwegian
-is the same question as staying on-profile in a help article. Nothing here needs a
-second language to be worth having.
+is the same question as staying on-profile in a help article. A project in one
+language has the whole of it.
 
 ## Three ways to run it
 
-Kapi ships as **one binary, an agent skill and an MCP server — free forever**.
+Kapi ships as **one binary, an agent skill and an MCP server, free forever**.
 Every surface works the same **engine, tools, flows, and
-[`.kapi` projects](/reference/project-file)**, so a workflow built in one runs in
+[kapi projects](/reference/project-file)**, so a workflow built in one runs in
 the others:
 
-- **Kapi CLI** — a single binary that operates directly on files. Best for
+- **Kapi CLI**: a single binary that operates directly on files. Best for
   automation, scripting, and CI.
-- **Your AI agent** — the agent skill and the MCP server are how the context
+- **Your AI agent**: the agent skill and the MCP server are how the context
   reaches whichever AI you already use: Claude, or any skill/MCP-capable tool,
   driving kapi by plain language inside its guardrails. See
   [Use with Claude](/kapi/get-started/use-with-claude).
-- **Kapi Desktop** — a visual app: create projects, watch coverage against the
-  ship gates, review and approve translations, build flows, manage plugins and
-  credentials — no YAML, no flags.
+- **Kapi Desktop**: a visual app where a person reads and edits the project's
+  context (voice, terms, memory, coordinates), sees where it stands, and works
+  the checks and the review queue. No YAML, no flags.
 
 Not sure which fits? See **[Kapi CLI or Kapi Desktop?](/kapi/get-started/cli-vs-desktop)**
 
 ## How you'll work
 
 You drive Kapi either **ad-hoc** (one-off, on files you name) or as a **project**
-(a `kapi.yaml` recipe plus a store that remembers your work) — the same
+(a `kapi.yaml` recipe plus a store that remembers your work): the same
 commands, a different binding. See
 **[Projects](/kapi/projects)**.
 
-From there it's task by task: the [Kapi CLI recipes](/kapi/cli) walk preparing your
+From there it's task by task: the [Kapi CLI guides](/kapi/cli) walk preparing your
 source and going multilingual, and [Kapi Desktop](/kapi/desktop/overview) does the
 same work visually.
 
 ## Next
 
-- **[Context](/kapi/context)** — the model kapi holds: where a piece of content
+- **[Context](/kapi/context)**: the model kapi holds; where a piece of content
   sits, and what governs that place.
-- **[Installation](/kapi/get-started/installation)** — the CLI (Homebrew or
+- **[Installation](/kapi/get-started/installation)**: the CLI (Homebrew or
   download) and Kapi Desktop (macOS cask).
-- **[Quick Start](/kapi/get-started/quickstart)** — do something in your browser,
+- **[Quick Start](/kapi/get-started/quickstart)**: do something in your browser,
   no install.
-- **[Use Kapi with your AI agent](/kapi/get-started/use-with-claude)** — wire it
+- **[Use Kapi with your AI agent](/kapi/get-started/use-with-claude)**: wire it
   into Claude, Cursor, and more.

@@ -3,7 +3,7 @@ id: machine-ship-strategy
 title: "Tier gates per market"
 sidebar_label: "Tier gates per market"
 sidebar_position: 8
-description: "A tiered ship-gate strategy: contractual markets fully human-reviewed, mid-tier markets reviewed where it matters, the long tail shipped machine-translated with AI review counting — one recipe, enforced by kapi check --ship."
+description: "A tiered ship-gate strategy: contractual markets fully human-reviewed, mid-tier markets reviewed where it matters, the long tail shipped machine-translated with AI review counting, one recipe, enforced by kapi check --ship."
 hide_table_of_contents: true
 ---
 
@@ -13,8 +13,8 @@ hide_table_of_contents: true
 locale may require a person to approve every unit; a mid-tier market wants the
 important strings reviewed and the long tail machine-translated; a long-tail
 locale ships as soon as the machine's own review is clean. Ship gates encode
-that policy per market in the recipe, and one command —
-[`kapi check --ship`](/kapi/recipes/ship-gates-and-ci) — enforces all of
+that policy per market in the recipe, and one command,
+[`kapi check --ship`](/kapi/recipes/ship-gates-and-ci), enforces all of
 it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 [project-file reference](/reference/project-file#ship-gates).
 
@@ -29,7 +29,7 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 ## The recipe
 
 Define the tiers once in the `gates:` registry, then assign markets with
-`ship_gates:` rules — the most specific matching rule wins:
+`ship_gates:` rules; the most specific matching rule wins:
 
 ```yaml title="kapi.yaml"
 version: v1
@@ -41,7 +41,7 @@ defaults:
 
 gates:
   contractual: { translated: 100, reviewed: { pct: 100, by: human } }
-  standard: { translated: 100, reviewed: 80 } # short form — by: human implied
+  standard: { translated: 100, reviewed: 80 } # short form: by: human implied
   machine: { translated: 100, reviewed: { pct: 100, by: any } }
 
 ship_gates:
@@ -53,16 +53,16 @@ ship_gates:
 ```
 
 Rules can also select by **collection**, so regulated content answers to a
-higher bar in every market — a `when: { collections: [Legal] }` rule with a
+higher bar in every market: a `when: { collections: [Legal] }` rule with a
 `signed-off` threshold outranks the locale rules for that content because it
 is evaluated per (collection, locale) and the most specific rule wins.
 
-The `machine` tier's `by: any` only passes when reviews exist — pair
+The `machine` tier's `by: any` only passes when reviews exist; pair
 it with an AI review step (the `review` tool in the project's flow, or an AI
 pre-review that auto-approves what it scores clean) so autonomous approvals
 are recorded under an `ai/…` identity for `kapi up` to count. Without any
 review pass, gate the long tail on `{ translated: 100 }` alone. The class
-semantics — why `human` is the default and what `any` admits — are in
+semantics (why `human` is the default and what `any` admits) are in
 [Approver classes](/kapi/convergence#approver-classes).
 
 ## Trade-offs
@@ -71,8 +71,8 @@ semantics — why `human` is the default and what `any` admits — are in
   reviewer time proportional to its content; the long tail consumes none. A
   market moves tiers by moving one line in the recipe, and the change is
   reviewed in `git diff` like any policy change.
-- **The mid-tier percentage is a floor, not a selector.** `reviewed: 80` says
-  *at least 80%* — it does not choose which 80%. Reviewers work the worklist
+- **The mid-tier percentage is a floor.** `reviewed: 80` says
+  *at least 80%*; it does not choose which 80%. Reviewers work the worklist
   (`kapi status --review`) in whatever order matters; the gate only measures
   the outcome.
 - **`by: any` is an explicit trust decision.** An autonomous AI approving its
@@ -81,7 +81,7 @@ semantics — why `human` is the default and what `any` admits — are in
   default deciding it silently.
 - **Source drift degrades tiers gracefully.** An edited source string re-opens
   its units in every locale; the contractual tier then waits for a person while
-  the machine tier recovers on the next `kapi up` pass — see
+  the machine tier recovers on the next `kapi up` pass; see
   [drift, watched end to end](/kapi/convergence#drift-watched-end-to-end).
 
 ## In CI
@@ -96,14 +96,14 @@ kapi check --ship --json        # structured result for a job summary
 ```
 
 Two things the runner needs: the committed
-[unit-state record](/kapi/project-store) (`.kapi/state/`) in the checkout —
-`reviewed` thresholds read their decisions from it — and nothing else, since
+[unit-state record](/kapi/project-store) (`.kapi/state/`) in the checkout
+(`reviewed` thresholds read their decisions from it), and nothing else, since
 gate evaluation makes no provider calls. The workflow wiring is
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Next
 
-- [The kapi loop](/kapi/convergence) — ladders, gates, approver classes, and the derived-state model.
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the enforcement job on every PR.
-- [Review & approve](/kapi/recipes/review-and-approve) — working the worklist the human tiers depend on.
-- [Project file](/reference/project-file#ship-gates) — the full `ship_gates:` schema.
+- [The kapi loop](/kapi/convergence): ladders, gates, approver classes, and the derived-state model.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the enforcement job on every PR.
+- [Review & approve](/kapi/recipes/review-and-approve): working the worklist the human tiers depend on.
+- [Project file](/reference/project-file#ship-gates): the full `ship_gates:` schema.

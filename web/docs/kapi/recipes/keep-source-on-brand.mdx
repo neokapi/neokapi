@@ -1,6 +1,6 @@
 ---
 title: "Keep your source content on brand"
-description: "Check source content against a voice profile and rewrite what fails — so what goes to translation or production is already on-brand."
+description: "Check source content against a voice profile and rewrite what fails, so what goes to translation or production is already on-brand."
 hide_table_of_contents: true
 ---
 
@@ -10,10 +10,10 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Keep your source content on brand
 
-**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails — so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
+**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails, so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
 The video below walks the whole path on one repository, in one language. A
-drafted context graph — recipe, voice profile, vocabulary — is reviewed and
+drafted context graph (recipe, voice profile, vocabulary) is reviewed and
 committed; `kapi check --strict` runs as a gate over operator documentation,
 interface strings and a marketing page; the failures are corrected three ways in
 the source and once as a vocabulary decision the graph keeps, so the next check
@@ -32,9 +32,9 @@ enforces what the last one passed. No server, no model, no second language.
 
 With a voice profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
 
-1. **Run the checks.** Brand vocabulary findings appear alongside hygiene and length — each named by rule, located to a block, with the suggested wording.
+1. **Run the checks.** Voice vocabulary findings appear alongside hygiene and length, each named by rule, located to a block, with the suggested wording.
 2. **Fix at the block.** Open the flagged file, correct the wording, re-run; the score climbs as findings clear.
-3. **Fix the rule, not just the draft.** A recurring off-brand term belongs in the profile — add it as a vocabulary rule so every later check enforces it.
+3. **Fix the rule as well as the draft.** A recurring off-brand term belongs in the profile: add it as a vocabulary rule under **Context → Voice** so every later check enforces it.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -43,12 +43,12 @@ Ask for the sweep:
 
 > Check `blog/` against our voice profile and fix anything off-brand.
 
-The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice, not just rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` — structure intact, no second model. When a term recurs, it proposes a `brand` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
+The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice rather than merely rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it proposes a `voice` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-Check against a profile — yours, or a built-in starter pack — plus any inline constraints:
+Check against a profile (yours, or a built-in starter pack) plus any inline constraints:
 
 ```bash
 kapi check blog-post.md --profile-file brand/voice.yaml
@@ -66,24 +66,24 @@ kapi apply edits.jsonl               # write through the faithful round-trip
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported — see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only, not tone), `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
+An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported; see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only), `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
 {"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
 ```
 
-The `brand` entry lands in the committed profile YAML the recipe binds and compiles into the local store, so the next check enforces it (requires a `.kapi` project).
+The `voice` entry lands in the committed profile YAML the recipe binds and compiles into the local store, so the next check enforces it (requires a kapi project).
 
 </TabItem>
 </Tabs>
 
 ## In a project
 
-Bind the profile once (`defaults.voice.profile_file`) and every surface picks it up — the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
+Bind the profile once (`defaults.voice.profile_file`) and every surface picks it up: the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
 
 ## Next
 
-- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes) — from starter pack to bound profile.
-- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — brand + terms + checks as one guardrail set.
-- [Check content like tests](/kapi/recipes/verify-content) — the gate mechanics and exit codes.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): from starter pack to bound profile.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai): voice + terms + checks as one guardrail set.
+- [Check content like tests](/kapi/recipes/verify-content): the gate mechanics and exit codes.

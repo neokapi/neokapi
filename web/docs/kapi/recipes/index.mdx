@@ -4,7 +4,7 @@ slug: /kapi/cli
 title: Guides
 sidebar_label: Overview
 sidebar_position: 0
-description: "Task-by-task guides for kapi — check content like tests, translate with your AI, review and approve, gate a release — each showing the desktop, agent, and CLI door for the same job."
+description: "Task-by-task guides for kapi (check content like tests, translate with your AI, review and approve, gate a release), each showing the desktop, agent, and CLI door for the same job."
 keywords: [kapi, guides, recipes, desktop, agent, CLI, checks, translation, review, ship gates]
 hide_table_of_contents: true
 ---
@@ -15,8 +15,8 @@ import { ContentLab } from "@site/src/components/Lab";
 
 # Guides
 
-Each guide takes a single task — check content, translate it, review what a
-machine couldn't decide — and shows the same job through three doors, in order:
+Each guide takes a single task (check content, translate it, review what a
+machine couldn't decide) and shows the same job through three doors, in order:
 **Kapi Desktop**, **your AI agent**, and the **CLI**. The interactive embeds run
 the real `kapi` binary in your browser: no install, no server, no API key.
 
@@ -26,7 +26,7 @@ For what kapi is and how the surfaces relate, see the
 
 ## Get oriented
 
-`kapi` runs entirely in your browser here — no install, no server. Three commands
+`kapi` runs entirely in your browser here: no install, no server. Three commands
 orient you: `kapi --help` lists the top-level commands, `kapi formats` enumerates
 the format readers, and `kapi tools` lists the processing tools you can run on
 extracted content. Step through the tour from the rail, or press **Run all**.
@@ -34,7 +34,7 @@ extracted content. Step through the tour from the rail, or press **Run all**.
 <KapiGuidedEmbed id="kapi-overview" />
 
 The explorer below shows the format engine round-trip: run a file through
-`pseudo-translate` and compare the source with the output — only the leaf text
+`pseudo-translate` and compare the source with the output: only the leaf text
 changes, while the surrounding skeleton (tags, keys, attributes) returns
 byte-for-byte. This is the same reader and writer the recipes drive.
 
@@ -42,13 +42,14 @@ byte-for-byte. This is the same reader and writer the recipes drive.
 
 ## Ad-hoc or project?
 
-A **`.kapi` project is the recommended working model** for any repository or
-content set you work on repeatedly: languages, content patterns, and flows in a
-committed recipe, git-style discovery from any subdirectory, and a store that
-accumulates content memory, terminology, and approvals across runs.
+A **kapi project is the recommended working model** for any repository or
+content set you work on repeatedly: the content patterns, the voice, terms and
+coordinates that govern them, your flows and, if you translate, your languages
+in a committed recipe; git-style discovery from any subdirectory; and a store
+that accumulates content memory, terminology, and approvals across runs.
 [Create your first project](/kapi/get-started/first-project) walks the setup;
-[Projects](/kapi/projects) is the concept. kapi also runs **ad-hoc** — a command
-on the files you name, nothing saved — the quick path for one-offs, scripting,
+[Projects](/kapi/projects) is the concept. kapi also runs **ad-hoc** (a command
+on the files you name, nothing saved), the quick path for one-offs, scripting,
 and a fine on-ramp. Guides note the project form where it differs.
 
 ## Prepare your source
@@ -63,19 +64,19 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/rewrite-content">
       <h3>Edit content</h3>
-      <p>Edit the text inside any file — you supply the edits, kapi writes them back through the faithful round-trip.</p>
+      <p>Edit the text inside any file: you supply the edits, kapi writes them back through the faithful round-trip.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/create-content">
       <h3>Create content</h3>
-      <p>Author from scratch with kapi as the checker — parse it back, gate on voice and terms, revise.</p>
+      <p>Author from scratch with kapi as the checker: parse it back, gate on voice and terms, revise.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/verify-content">
       <h3>Check content like tests</h3>
-      <p>Structured findings, a pass/fail gate, an exit code CI understands — and <code>check --ship</code> as the release bar.</p>
+      <p>Structured findings, a pass/fail gate, an exit code CI understands, and <code>check --ship</code> as the release bar.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -105,7 +106,7 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/prepare-content">
       <h3>What gets translated</h3>
-      <p>Protect sensitive content, reuse past translations, and keep terms consistent — one pass before anything ships.</p>
+      <p>Protect sensitive content, reuse past translations, and keep terms consistent, in one pass before anything ships.</p>
     </Link>
   </div>
 </div>
@@ -116,7 +117,7 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/translate-content">
       <h3>Translate with your AI</h3>
-      <p><code>kapi up</code> catches a project up to its ship gates; <code>kapi translate</code> does one file — formats round-trip intact.</p>
+      <p><code>kapi up</code> catches a project up to its ship gates; <code>kapi translate</code> does one file. Formats round-trip intact.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -128,7 +129,7 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/choose-a-translation-provider">
       <h3>Choose a provider</h3>
-      <p>Select an LLM or MT backend, wire its credentials safely, and make it the default — including on-device Ollama.</p>
+      <p>Select an AI provider, wire its credentials safely, and make it the default, including on-device Ollama.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -140,7 +141,7 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/pre-translate-from-memory">
       <h3>Reuse what you've translated</h3>
-      <p>Leverage existing content memory, fill the gaps, and pre-flag terminology — deterministic, no API key.</p>
+      <p>Leverage existing content memory, fill the gaps, and pre-flag terminology: deterministic, no API key.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
@@ -170,32 +171,32 @@ and a fine on-ramp. Guides note the project form where it differs.
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/machine-ship-strategy">
       <h3>Tier gates per market</h3>
-      <p>Contractual locales human-reviewed, the long tail machine-shipped — one recipe encodes the review budget.</p>
+      <p>Contractual locales human-reviewed, the long tail machine-shipped; one recipe encodes the review budget.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/resumable-workspace">
       <h3>Pause &amp; resume a big run</h3>
-      <p>A single-file <code>.kpz</code> workspace: extract in, transform in place, merge out — config travels with the file.</p>
+      <p>A single-file <code>.kpz</code> workspace: extract in, transform in place, merge out. Config travels with the file.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/recipes/memory-and-terms-storage">
       <h3>Where translations &amp; terms live</h3>
-      <p>The three storage models — loose file, named store, or project store — and the flags that select each.</p>
+      <p>The three storage models (loose file, named store, or project store) and the flags that select each.</p>
     </Link>
   </div>
   <div className="col col--6 margin-bottom--lg">
     <Link className="card padding--lg" to="/kapi/bilingual-workflow">
       <h3>Hand off to translators</h3>
-      <p>Extract to XLIFF or PO, hand it to a translator, merge the targets back — with full memory provenance.</p>
+      <p>Extract to XLIFF or PO, hand it to a translator, merge the targets back, with full memory provenance.</p>
     </Link>
   </div>
 </div>
 
 ## Next steps
 
-- [Installation](/kapi/get-started/installation) — Homebrew, WinGet, and binary downloads
-- [Command reference](/commands) — every command and flag
-- [Kapi Desktop](/kapi/desktop/overview) — the visual companion for building flows and running tools
-- [Using kapi with AI assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
+- [Installation](/kapi/get-started/installation): Homebrew, WinGet, and binary downloads
+- [Command reference](/commands): every command and flag
+- [Kapi Desktop](/kapi/desktop/overview): where a person reads and edits the project's context, checks it, and reviews
+- [Using kapi with AI assistants](/reference/mcp): wire kapi into Claude Code, Cursor, and more

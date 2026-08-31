@@ -1,6 +1,6 @@
 ---
 title: The kapi loop in CI
-description: Run the kapi loop where the work already lives — your CI. Catch up on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner.
+description: "Run the kapi loop where the work already lives, your CI. Catch up on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner."
 keywords: [kapi, kapi loop, convergence, CI, CD, continuous translation, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
 ---
 
@@ -10,12 +10,12 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 
 # The kapi loop in CI
 
-Source content changes on every merge, and everything derived from it — its
-translations, its voice and terminology conformance — falls behind. That drift
-is the normal state of a shipping project, not an error. Running
+Source content changes on every merge, and everything derived from it (its
+translations, its voice and terminology conformance) falls behind. That drift
+is the normal state of a shipping project. Running
 [the kapi loop](/kapi/convergence) in CI keeps every language caught up from
 the pipeline that produces the drift: close what a machine can close, deliver
-it as a reviewable pull request, and enforce the release bar on merges —
+it as a reviewable pull request, and enforce the release bar on merges, with
 content quality treated like any other test. This covers the source language
 too: the ship gate includes the source gates (voice, terminology) alongside
 translation coverage and QA.
@@ -25,23 +25,25 @@ translation coverage and QA.
     { label: "change", sub: "a merge or a schedule tick", role: "io" },
     {
       label: "catch up",
-      sub: "kapi up — memory first, then AI, then checks",
+      sub: "kapi up: memory first, then AI, then checks",
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
     { label: "deliver", sub: "a pull request with the run report", role: "io", edge: "caught up / parked" },
     { label: "gate", sub: "kapi check --ship on merge requests", role: "qa", edge: "exit 3 blocks the merge" },
   ]}
-  caption="CI catches up and delivers; the gate — not drift — decides what blocks a merge."
+  caption="CI catches up and delivers; the gate alone decides what blocks a merge."
 />
 
 Inside a pass, for every language behind its gate, the default flow does three
-things in order: **reuse** — exact translation-memory matches fill first, for
-free; **translate** — the configured AI provider fills what remains, with the
-project's terminology and voice context; **check** — deterministic checks run
-over what was produced (placeholder integrity, inline tags, do-not-translate
-terms), and a unit with a failing finding counts as *drafted*, not translated,
-so bad output can never lift a language over its gate. What a machine cannot
+things in order: **reuse**, where exact content-memory matches fill first, for
+free, and an edited source carries its previously approved translation into the
+prompt as reference; **translate**, where the configured AI provider fills what
+remains, with the project's terminology and voice context; **check**, where
+deterministic checks run over what was produced (placeholder integrity, inline
+tags, do-not-translate terms). A unit with a failing finding still counts as
+*translated*, and the finding holds its locale out of shipping until it is
+fixed, so bad output can never lift a language over its gate. What a machine cannot
 decide **parks** for [review](/kapi/recipes/review-and-approve); an approval is
 recorded in the committed unit-state record, and the next run sees it.
 
@@ -49,12 +51,12 @@ Three commands carry the whole model, and they divide the work cleanly:
 
 | Command | Role | Exit behavior |
 |---|---|---|
-| `kapi status` | **Observe** — per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
-| `kapi up` | **Produce** — runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
-| `kapi check --ship` | **Enforce** — the release bar | `0` pass, `3` gate unmet, `1` operational error |
+| `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work |
+| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
+| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `1` operational error |
 
 An ordinary build never fails because a target language is behind. The gate is
-the explicit, opt-in enforcement point — wire it into merge-request pipelines
+the explicit, opt-in enforcement point: wire it into merge-request pipelines
 and a quality regression cannot merge, while day-to-day drift flows through
 review instead of breaking builds.
 
@@ -67,25 +69,25 @@ language and again on the fix. In CI this shows up two ways. `kapi check --ship`
 runs the project's `source_gate` alongside the target ship gates, so a merge whose
 **source** is off-brand or below its terminology bar fails the gate the same way a
 target-coverage regression does. And under source-first convergence, source that
-has not cleared its `source_gate` **holds** — reported as `source_not_ready`,
-routed to a source review — rather than spending on a machine translation of
-content that is about to change. Settling the source first is the cheap, honest
-outcome; see [Source first](/kapi/convergence#source-first) for the model.
+has not cleared its `source_gate` **holds** (reported as `source_not_ready`,
+routed to a source review) rather than spending on a machine translation of
+content that is about to change. See [Source first](/kapi/convergence#source-first)
+for the model.
 
 ## The surfaces
 
 | CI | Install | Run |
 |---|---|---|
 | GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) (CLI + plugins, cached) | [`kapi-action`](https://github.com/neokapi/kapi-action), or the one-line [reusable workflows](https://github.com/neokapi/kapi-workflows) |
-| GitLab CI | — (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
-| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; a variant with the server-sync plugin preinstalled is published alongside) | The CLI directly — the exit codes above are the contract |
+| GitLab CI | none needed (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
+| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; a variant with the server-sync plugin preinstalled is published alongside) | The CLI directly; the exit codes above are the contract |
 
 ## Catch up on a schedule, deliver a pull request
 
 The produced translations land as a branch and a pull request carrying the
-run report — outcome, passes, parked locales. A run that **parks** (work
+run report: outcome, passes, parked locales. A run that **parks** (work
 remains that needs a person) still delivers what it did catch up; the parked
-locales are the review queue, not a failure.
+locales are the review queue.
 
 <Tabs groupId="ci" queryString>
 <TabItem value="github" label="GitHub Actions" default>
@@ -108,12 +110,12 @@ jobs:
 ```
 
 The reusable workflow composes `setup-kapi`, `kapi-action`, and a delivery
-step that opens the pull request. Used directly, the action only reports —
+step that opens the pull request. Used directly, the action only reports:
 `has-changes` and `changed-files` feed a delivery step you own (plain git,
 `git-auto-commit-action`, `create-pull-request`), so the token, the authorship
 and the review policy are stated in your workflow. One GitHub behavior to
 know: pushes made with the workflow's own `GITHUB_TOKEN` trigger no
-workflows — give the delivery step a fine-grained PAT or a GitHub App token
+workflows, so give the delivery step a fine-grained PAT or a GitHub App token
 when CI or deploys should react to delivered translations.
 
 </TabItem>
@@ -134,12 +136,11 @@ jobs via dotenv.
 
 ## Gate merges on content quality
 
-`kapi check --ship` runs the project's bound quality gates — voice,
-terminology, QA — plus its ship/source coverage gates, and exits `3` when any
-gate is unmet. Machine-produced translations fail quietly: a dropped
+`kapi check --ship` runs the project's bound quality gates (voice,
+terminology, QA, staleness) plus its ship/source coverage gates, and exits `3`
+when any gate is unmet. Machine-produced translations fail quietly: a dropped
 placeholder, a competitor's term, wording that drifts off the approved
-vocabulary. The gate turns those from something a reader finds into something
-a pipeline finds.
+vocabulary. The gate makes the pipeline find them before a reader does.
 
 <Tabs groupId="ci" queryString>
 <TabItem value="github" label="GitHub Actions" default>
@@ -183,7 +184,7 @@ threshold pass on a runner.
 ## Report the cost of a change on its pull request
 
 `kapi up --plan` dry-runs the loop: pending units, content-memory leverage, and a
-token estimate — no writes, no provider calls, no keys. Posted on the pull request
+token estimate, with no writes, no provider calls, no keys. Posted on the pull request
 that created the work, it answers "what does this change cost in translation?"
 before anyone merges:
 
@@ -218,20 +219,20 @@ include:
 
 ## Credentials and state on a runner
 
-- **A producing job uses an API key** — set a provider key (for example
+- **A producing job uses an API key**: set a provider key (for example
   `ANTHROPIC_API_KEY`) as a CI secret. A subscription sign-in is bound to your
   user and its usage window; see
   [Let kapi run Claude](/kapi/get-started/use-with-claude#let-kapi-run-claude).
   In a server-connected project (a recipe that declares a server venue) the server
   holds the keys instead, and the job authenticates with a server token.
-- **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
+- **A gate-only job needs no keys at all**: `check --ship` and `up --plan`
   read the working tree.
-- **Unit state travels with the repo** — a `reviewed` threshold reads the
+- **Unit state travels with the repo**: a `reviewed` threshold reads the
   committed unit-state record under `.kapi/state/`; commit it in the PR or the runner
   sees no approvals. A job that makes decisions runs `kapi commit` and commits
   the shards it produces, alongside the translated files. It never commits
   `.kapi/work/store.db`.
-- **The cache is rebuildable, and cacheable** — `.kapi/work/cache` (parse cache,
+- **The cache is rebuildable, and cacheable**: `.kapi/work/cache` (parse cache,
   extractions) is gitignored and rebuilt on a fresh runner. Restore it across
   runs to skip re-extraction:
 
@@ -245,17 +246,17 @@ include:
 
   **Cache `.kapi/work/cache` only, never `.kapi/work/store.db`.** The store can hold
   unit state staged since the last commit, and restoring a stale copy of those
-  onto a fresh checkout is worse than a cold rebuild — which costs only time.
+  onto a fresh checkout is worse than a cold rebuild, which costs only time.
   Server-connected projects skip the cache entirely; the project's context lives
   on the server.
 
 :::note[Works with Bowrain]
-Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead — `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back — with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead: `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back, with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
 :::
 
 ## Next
 
-- [The kapi loop](/kapi/convergence) — the loop and the derived-state model behind `status`, `up`, and the gates.
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the enforcement recipe, end to end.
-- [Estimate a run's cost](/kapi/recipes/estimate-cost) — sizing a job with `kapi stats` before commissioning it.
-- [Review & approve](/kapi/recipes/review-and-approve) — the human half of a parked run.
+- [The kapi loop](/kapi/convergence): the loop and the derived-state model behind `status`, `up`, and the gates.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the enforcement recipe, end to end.
+- [Estimate a run's cost](/kapi/recipes/estimate-cost): sizing a job with `kapi stats` and `kapi up --plan` before commissioning it.
+- [Review & approve](/kapi/recipes/review-and-approve): the human half of a parked run.

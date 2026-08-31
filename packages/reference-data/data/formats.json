@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T12:40:29Z",
+  "generatedAt": "2026-08-31T13:49:30Z",
   "kind": "format",
   "entries": [
     {
@@ -3552,6 +3552,12 @@
         "description": "Prose held in source files, located by syntax rather than by pattern. Read-only: this format has no writer, and a program is never written back.",
         "type": "object",
         "properties": {
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "description": "The grammar to parse with, by name (for example \"ruby\"). Empty picks the grammar from the file's extension, which is the usual case; set it when the file reaches the reader without a name or the extension is ambiguous.",
+            "default": ""
+          },
           "nodePathPatterns": {
             "type": "array",
             "items": {

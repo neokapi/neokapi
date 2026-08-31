@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Quick Start
-description: Try kapi in your browser — pseudo-translate a file, count words, inspect the engine — with runnable examples and no install.
+description: Try kapi in your browser (pseudo-translate a file, count words, inspect the engine) with runnable examples and no install.
 keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, command line]
 ---
 
@@ -9,19 +9,19 @@ import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet
 
 # Quick Start
 
-Runnable first steps with kapi — no install, no setup. These are **ad-hoc** runs:
-one command, one file, configured by flags — the right shape for one-off jobs,
+Runnable first steps with kapi: no install, no setup. These are **ad-hoc** runs
+(one command, one file, configured by flags), the right shape for one-off jobs,
 scripting, and CI. For content you work on repeatedly, you'll graduate to a
-[project](/kapi/get-started/first-project) — see the end of this page.
+[project](/kapi/get-started/first-project); see the end of this page.
 
 Each command below carries a **▸ Run** button. Pressing it runs the **real
-`kapi` binary** in your browser — nothing leaves your machine. The first run
+`kapi` binary** in your browser; nothing leaves your machine. The first run
 takes a moment to start; after that it's instant.
 
 ## Pseudo-translate a file
 
 Generate pseudo-translations to test your UI for truncation and layout issues.
-Press **▸ Run** — it seeds a small `messages.json` and writes `messages-qps.json`,
+Press **▸ Run**: it seeds a small `messages.json` and writes `messages-qps.json`,
 which you can preview in the **Files** panel:
 
 <RunnableSnippet
@@ -50,7 +50,7 @@ List every format kapi understands, then the processing tools and composable flo
 ## Edit before you run
 
 With `editable`, the command is placed at the prompt instead of running
-automatically — press **Enter** when you're ready, or tweak it first:
+automatically; press **Enter** when you're ready, or tweak it first:
 
 <RunnableSnippet cmd="kapi stats messages.json --json" seed={["messages.json"]} editable />
 
@@ -59,23 +59,24 @@ For a full interactive terminal, open the [CLI Playground](/playground-cli).
 ## Beyond the demo
 
 The commands that talk to a model or edit files in place run after you
-[install](/kapi/get-started/installation) — each has its own guide:
+[install](/kapi/get-started/installation); each has its own guide:
 
-- **Read, check, and edit any file** — `kapi inspect`, `kapi check`, and the one
+- **Read, check, and edit any file**: `kapi inspect`, `kapi check`, and the one
   write verb `kapi apply`: [Edit content](/kapi/recipes/rewrite-content) and
   [Check content like tests](/kapi/recipes/verify-content).
-- **Translate with your AI** — one `kapi models setup` confirm connects your
+- **Translate with your AI**: one `kapi models setup` confirm connects your
   Claude subscription, an API key, or a local Ollama model:
   [Translate with your AI](/kapi/recipes/translate-content).
-- **Keep AI output on-brand** — voice profiles, scoring, and rewrite:
+- **Keep AI output on-brand**: voice profiles, scoring, and rewrite:
   [Brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes).
-- **Drive it from Claude** — the Agent Skill and MCP server:
+- **Drive it from Claude**: the Agent Skill and MCP server:
   [Use with Claude](/kapi/get-started/use-with-claude).
 
 ## Next: set up a project
 
-Once you work on the same content more than once, capture the languages,
-patterns, and flows in a `.kapi` project so you stop repeating flags and start
-accumulating work: [create your first project](/kapi/get-started/first-project) —
-desktop, agent, or CLI — then `kapi up` brings it up to date — toward its ship
-gates ([Projects](/kapi/projects) explains the model).
+Once you work on the same content more than once, capture the content patterns,
+the voice and terms that govern them, your flows and, if you translate, your
+languages in a kapi project, so you stop repeating flags and start accumulating
+work: [create your first project](/kapi/get-started/first-project) on the
+desktop, from your agent, or on the CLI; then `kapi up` brings it up to date
+toward its ship gates ([Projects](/kapi/projects) explains the model).

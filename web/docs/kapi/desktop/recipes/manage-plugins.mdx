@@ -9,33 +9,34 @@ hide_table_of_contents: true
 # Install and manage plugins
 
 **For the concept**, see [Plugins](/contribute/plugins); this recipe walks the
-desktop plugin manager — the visual equivalent of `kapi plugin install`.
+desktop plugin manager, the visual equivalent of `kapi plugin install`.
 
-**Goal:** add new formats and tools to a project — for example the **kapi-sat**
-segmenter for ML sentence segmentation, or the **kapi-pdfium** PDF reader —
+**Goal:** add new formats and tools to a project, for example the **kapi-sat**
+segmenter for ML sentence segmentation or the **kapi-pdfium** PDF reader,
 without touching a terminal.
 
 ## Steps
 
 1. **Open the plugin manager.** From **Settings → Plugins**, browse the registry
-   of available plugins — format readers/writers, segmenters, OCR/ASR engines, and
-   tool packs.
+   of available plugins: format readers and writers, segmenters, OCR and ASR
+   engines, and tool packs.
 2. **Install.** Click **Install** on a plugin (for example the kapi-sat
    segmenter). The app downloads and verifies it, then registers the formats and
    tools it adds.
 3. **Use it immediately.** New formats appear in the project's content view, and
-   new tools appear in the flow editor's palette — ready to run against the
-   project's content.
+   new tools appear in the palette under **Toolbox → Flows**, ready to run
+   against the project's content. Opening a file whose format needs a plugin
+   offers to install it there and then.
 4. **Keep current.** The manager flags updates; one click pulls the latest version.
 
 ## Why the desktop
 
-Discovery and one-click install are the GUI's strength: you see what a plugin
+Discovery and one-click install are the app's strength: you see what a plugin
 adds, install it with verification handled for you, and the new capabilities show
 up in the editor without re-reading docs. The underlying plugin model is identical
-to the CLI's — the same plugins, the same registry.
+to the CLI's: the same plugins, the same registry.
 
 ## Next
 
-- [Build a flow visually](/kapi/desktop/recipes/build-a-flow-visually) — use the
+- [Build a flow visually](/kapi/desktop/recipes/build-a-flow-visually): use the
   new tools a plugin provides.

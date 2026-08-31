@@ -3,7 +3,7 @@ id: terminology-qa
 title: "Keep terms consistent"
 sidebar_label: "Terminology QA"
 sidebar_position: 5
-description: "Import a term list, look up terms, and flag terminology drift — in source and in every translated file — before it ships."
+description: "Import a term list, look up terms, and flag terminology drift, in source and in every translated file, before it ships."
 hide_table_of_contents: true
 ---
 
@@ -20,20 +20,20 @@ settings,paramètres,ui`;
 
 # Keep terms consistent
 
-**Goal:** decide once how your key terms carry across languages — product names, UI actions, the words your domain depends on — and have kapi flag anything that drifts before it ships. The same terms store guides translation up front and validates it after. Concepts: [Terminology](/framework/terminology); storage models: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
+**Goal:** decide once how your key terms carry across languages (product names, UI actions, the words your domain depends on) and have kapi flag anything that drifts before it ships. The same terms store guides translation up front and validates it after. Concepts: [Terminology](/framework/terminology); storage models: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
-kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.json`). To bring in a list your team already maintains elsewhere, import it across the boundary — a spreadsheet exported to CSV, for example:
+kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.json`). To bring in a list your team already maintains elsewhere, import it across the boundary, a spreadsheet exported to CSV for example:
 
 <CsvTable csv={termsCsv} caption="terms.csv" />
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The **Terms** view is where that list lives:
+**Context → Terms** is where that list lives:
 
-1. **Import the list.** Import the CSV into the project terms store; terms are listed by language pair and domain, ready to browse and search.
-2. **Spot-check a term.** Look up an entry to confirm the approved target before a full pass.
-3. **Enforce it.** With the terms store in the project, term findings surface in the **Checks** view, in the terminology gate of `check --ship`, and against each unit in the [Review queue](/kapi/recipes/review-and-approve) — the same drift, caught wherever you look.
+1. **Bring in the list.** Import the CSV from the CLI (`kapi terms import`, below) or land entries through `kapi apply`; both write the committed record the recipe binds with `defaults.terms_source`. The view lists terms by language pair and domain, ready to browse and search.
+2. **Spot-check a term.** Look up an entry to confirm the approved target before a full pass, and open its occurrences to see where the project uses it.
+3. **Enforce it.** With the terms store in the project, term findings surface in the **Checks** view, in the terminology gate of `check --ship`, and against each unit in the [Review queue](/kapi/recipes/review-and-approve): the same drift, caught wherever you look.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -42,7 +42,7 @@ Ask for enforcement, or for curation:
 
 > Check the French files against our approved terms and fix what drifts.
 
-The assistant looks up approved terms before it writes (`kapi terms lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the list: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply` — written to the committed terms source the recipe binds with `defaults.terms_source`, for you to approve in `git diff`.
+The assistant looks up approved terms before it writes (`kapi terms lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the list: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply`, written to the committed terms source the recipe binds with `defaults.terms_source`, for you to approve in `git diff`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -57,21 +57,26 @@ kapi exec term-check messages_fr.json \
   --source-lang en --target-lang fr --termstore product-terms
 ```
 
-The `term-check` tool flags targets that don't use the approved equivalent for a source term — "code secret" where the terms store says "mot de passe" — and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
+The `term-check` tool flags targets that don't use the approved equivalent for a source term ("code secret" where the terms store says "mot de passe") and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
 
-**In a project**, the check resolves the project terms store and the recipe's languages automatically — no flags — and the terminology gate folds into [`kapi check --ship`](/kapi/recipes/ship-gates-and-ci).
+Two neighbours of `term-check` cover what a store alone cannot say:
+
+- **Rules without a store.** `term_rules:` is the same shape a voice profile's vocabulary uses (one term, what to use instead, a severity), and `term-check`, `translate`, `recycle` and `pseudo-translate` all take it in a flow step's `config:` or under `defaults.tools`. A rule can carry a `concept_id` that ties it to the concept in the store; a rule with no `replacement` is skipped, because "say this instead" needs a this. The fields are in the [voice profile reference](/reference/serialization/voice-profile#term-rules).
+- **Terms that must survive verbatim.** `kapi exec dnt-check` (do-not-translate) fails a target where a product name, trademark or code identifier listed under `--terms` was translated, transliterated or dropped; the translate step masks those spans so the model never sees them.
+
+**In a project**, the check resolves the project terms store and the recipe's languages automatically, with no flags, and the terminology gate folds into [`kapi check --ship`](/kapi/recipes/ship-gates-and-ci). `kapi terms occurrences "log in"` (a term as written, or a concept id, with `--locale` and `--collection` to narrow) shows where the project's extracted content uses it, so a retirement is sized before it is decided.
 
 </TabItem>
 </Tabs>
 
 ## Try it
 
-The in-browser build pre-seeds a terms store from the list above — inspect it, look up terms, then pseudo-translate and run `term-check` to see enforcement against a real backend:
+The in-browser build pre-seeds a terms store from the list above: inspect it, look up terms, then pseudo-translate and run `term-check` to see enforcement against a real backend:
 
 <KapiGuidedEmbed id="kapi-terminology-qa" />
 
 ## Next
 
-- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory) — the terms store guiding translation, not just checking it.
-- [Memory & terms storage](/kapi/recipes/memory-and-terms-storage) — the three places a terms store can live.
-- [Terminology](/framework/terminology) — how discovery and enforcement work.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory): the terms store guiding translation as well as checking it.
+- [Memory & terms storage](/kapi/recipes/memory-and-terms-storage): the three places a terms store can live.
+- [Terminology](/framework/terminology): how discovery and enforcement work.

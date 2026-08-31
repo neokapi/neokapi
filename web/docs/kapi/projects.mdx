@@ -1,17 +1,17 @@
 ---
 title: Projects
 slug: /kapi/projects
-description: The one working model behind every Kapi surface — run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project whose store accumulates your work. The mechanics underneath are a single source → flow → sink binding model.
-keywords: [kapi, project, ad-hoc, store, binding, source, sink, .kapi, .kpz, pack, content memory]
+description: "The one working model behind every Kapi surface: run ad-hoc on loose files when nothing needs remembering, or set up a kapi project whose store accumulates your work. The mechanics underneath are a single source → flow → sink binding model."
+keywords: [kapi, project, ad-hoc, store, binding, source, sink, kapi project, .kpz, pack, content memory]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Projects
 
-There are two ways to drive Kapi — and it's the **same commands** either way. What changes is whether Kapi **remembers** anything between runs.
+There are two ways to drive Kapi, and it's the **same commands** either way. What changes is whether Kapi **remembers** anything between runs.
 
-## Ad-hoc — one-off, nothing saved
+## Ad-hoc: one-off, nothing saved
 
 Run a tool or flow directly on the files you name. Nothing is kept; when it's done, it's done.
 
@@ -19,9 +19,9 @@ Run a tool or flow directly on the files you name. Nothing is kept; when it's do
 
 This is the quick path for a one-time job, a script, or a CI step. In the CLI you name the files with flags; in Kapi Desktop you pick them as **quick tools**.
 
-## Project — a recipe plus a memory
+## Project: a recipe plus a memory
 
-A **project** is a small `kapi.yaml` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and where each unit stands in review, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
+A **project** is a small `kapi.yaml` recipe file (which files count as content, the voice, terms and coordinates that govern them, your flows and defaults, and, if you translate, your languages) plus a store that **remembers your work**: translations, terminology, and where each unit stands in review, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
 
 > _Translate this whole repo every release, reusing everything translated last time._
 
@@ -30,14 +30,14 @@ A **project** is a small `kapi.yaml` recipe file (your languages, which files co
 | Setup | none | a `kapi.yaml` recipe (commit it) |
 | Memory | nothing saved | a store accumulates work (content memory, terms, approvals) |
 | Finds your files | you name them | discovered automatically |
-| The main verb | `kapi <tool> <file>` | `kapi up` — bring the project up to date |
+| The main verb | `kapi <tool> <file>` | `kapi up`, bring the project up to date |
 | Best for | one-offs, scripts, CI | a repo you work on repeatedly |
 
-Set one up: [your first project](/kapi/get-started/first-project). In a project, `kapi up` runs the default flow until every gated scope is shippable or parked for a human, `kapi status` shows standing, and `kapi check --ship` enforces the gates — the model behind those verbs is [the kapi loop](/kapi/convergence).
+Set one up: [your first project](/kapi/get-started/first-project). In a project, `kapi up` runs the default flow until every gated scope is shippable or parked for a human, `kapi status` shows standing, and `kapi check --ship` enforces the gates; the model behind those verbs is [the kapi loop](/kapi/convergence).
 
 ## The mechanics: source → flow → sink
 
-Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has one set of commands, and what changes is the **binding**: where content enters (the *source*) and where results go (the *sink*), resolved when you run.
+Kapi has one set of commands, and what changes between ad-hoc and project use is the **binding**: where content enters (the *source*) and where results go (the *sink*), resolved when you run.
 
 <PipelineDiagram
   stages={[
@@ -52,14 +52,14 @@ Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has o
 | Binding | As source | As sink |
 | --- | --- | --- |
 | `file` (default) | read + parse a file | write the file back (round-trip via skeleton) |
-| `store` | the project store (blocks + overlays) | commit overlays — **no file** |
+| `store` | the project store (blocks + overlays) | commit overlays, **no file** |
 | interchange | import XLIFF / PO / a bilingual `.kpz` | emit one for a translator |
-| `none` | — | discard (checks/analysis only) |
+| `none` | n/a | discard (checks/analysis only) |
 
-- **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
+- **Ad-hoc** = the `file` binding: you name `-i`/`-o`.
 - **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
 
-A process-only run persists only *working* output — target overlays in the block tables of `.kapi/work/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/state/`, not by a flow's sink. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
+A process-only run persists only *working* output: target overlays in the block tables of `.kapi/work/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/state/`, and a flow's sink never writes them. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
 
 `--explain` prints the resolved binding without running:
 
@@ -72,9 +72,9 @@ kapi run translate-qa -i app.json --explain          # inside a project
 
 ## Two project loops, both ending at `merge`
 
-**1 — The kapi loop** (the everyday one): `kapi up` runs the default flow over every locale short of its gate and materializes the translated files; what a machine can't finish parks for [review](/kapi/recipes/review-and-approve).
+**1. The kapi loop** (the everyday one): `kapi up` runs the default flow over every locale short of its gate and materializes the translated files; what a machine can't finish parks for [review](/kapi/recipes/review-and-approve).
 
-**2 — Interchange loop** (hand bilingual files to a translator or CAT tool):
+**2. Interchange loop** (hand bilingual files to a translator or CAT tool):
 
 <PipelineDiagram
   channelLabel=""
@@ -97,14 +97,14 @@ See the [bilingual workflow](/kapi/bilingual-workflow) for the interchange loop 
 
 ## The `.kpz` parcel: move work without a server
 
-A `.kpz` is a portable, single-file carrier — how you hand work between machines or people without a server. Two profiles:
+A `.kpz` is a portable, single-file carrier: how you hand work between machines or people without a server. Two profiles:
 
 ```bash
-# Whole-project snapshot — a runnable "project in a file"
+# Whole-project snapshot: a runnable "project in a file"
 kapi pack -o snapshot.kpz        # recipe + content + memory & terms
 kapi unpack snapshot.kpz         # rehydrate elsewhere
 
-# Bilingual interchange — for a kapi-equipped reviewer
+# Bilingual interchange: for a kapi-equipped reviewer
 kapi extract --format kpz --target-lang fr
 kapi merge bundle.fr.kpz
 ```
@@ -113,7 +113,7 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 
 ### What a snapshot carries
 
-`kapi info` answers this for the project you are standing in — before you pack it — and for an archive you have been handed. Both list the same parts:
+`kapi info` answers this for the project you are standing in (before you pack it) and for an archive you have been handed. Both list the same parts:
 
 | Part | What it is |
 | --- | --- |
@@ -125,7 +125,7 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 | `terms` | the authoritative terms (`.terms.json`) |
 | `history` | an advisory provenance chain (`--log`) |
 
-Deliberately **not** carried: `.kapi/work/cache/` (regenerable — parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is absent from the archive.
+Deliberately **not** carried: `.kapi/work/cache/` (regenerable: parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is absent from the archive.
 
 ```bash
 kapi info                        # this project: what a snapshot would capture
@@ -133,15 +133,15 @@ kapi info handoff.kpz            # this archive: what it holds
 kapi info --output-format json   # either form, machine-readable
 ```
 
-Each part reports whether it is present and how many items it holds, measured the way `pack` collects it — `sources` counts what the extraction manifests record, not what the recipe tracks, so a project that has never been extracted honestly reports none. A part that is absent says what would produce it.
+Each part reports whether it is present and how many items it holds, measured the way `pack` collects it: `sources` counts what the extraction manifests record rather than what the recipe tracks, so a project that has never been extracted reports none. A part that is absent says what would produce it.
 
-A *workspace* `.kpz` — the ad-hoc parcel with a shadow cache, not a project snapshot — answers a different question, so `kapi info work.kpz` on one reports its documents, locales and whether the cache holds work not yet packed back into the file.
+A *workspace* `.kpz` (the ad-hoc parcel with a shadow cache, rather than a project snapshot) answers a different question, so `kapi info work.kpz` on one reports its documents, locales and whether the cache holds work not yet packed back into the file.
 
-`pack` writes exactly the parts `info` lists and `unpack` restores exactly those parts: the content memory, the terms, the blocks and overlays, the skeletons, and — with `--with-source` — the raw source files, which `unpack` writes back into the tree without overwriting anything already there. Agreement between `kapi info` on a project and on its snapshot is therefore the round-trip check. `pack` refuses to write a content-less archive rather than hand over an empty file.
+`pack` writes exactly the parts `info` lists and `unpack` restores exactly those parts: the content memory, the terms, the blocks and overlays, the skeletons, and, with `--with-source`, the raw source files, which `unpack` writes back into the tree without overwriting anything already there. Agreement between `kapi info` on a project and on its snapshot is therefore the round-trip check. `pack` refuses to write a content-less archive rather than hand over an empty file.
 
 ## Do the modes mix?
 
-Yes — same commands, different bindings:
+Yes: same commands, different bindings:
 
 | You want… | Use |
 | --- | --- |
@@ -149,11 +149,11 @@ Yes — same commands, different bindings:
 | A repo you work on repeatedly (accumulating memory) | **project** (`add` / `up` / `merge`) |
 | To move work between machines/people | **`.kpz` parcel** (`pack` or `extract --format kpz`) |
 
-A tool run *inside* a project (`kapi translate src/app.json`) still picks up the project's defaults and content memory while working on one file. The one thing to avoid: two stateful stores over the same content — an ad-hoc `.kpz` workspace *and* a `.kapi` project for the same files. And inside a project, an explicit `-o` writes a file and skips the store — intentional; `--explain` shows which you got.
+A tool run *inside* a project (`kapi translate src/app.json`) still picks up the project's defaults and content memory while working on one file. The one thing to avoid: two stateful stores over the same content, an ad-hoc `.kpz` workspace *and* a kapi project for the same files. Inside a project, an explicit `-o` writes a file and skips the store on purpose; `--explain` shows which you got.
 
 ## See also
 
-- [The kapi loop](/kapi/convergence) — the derived-state model behind `up`, `status`, gates, and review.
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — enforce the gates with `kapi check --ship`.
-- [Flows](/framework/flows) — authoring composed flows and the source/sink ends.
-- [`kapi.yaml` project file](/reference/project-file) — the recipe format.
+- [The kapi loop](/kapi/convergence): the derived-state model behind `up`, `status`, gates, and review.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): enforce the gates with `kapi check --ship`.
+- [Flows](/framework/flows): authoring composed flows and the source/sink ends.
+- [`kapi.yaml` project file](/reference/project-file): the recipe format.

@@ -1,16 +1,16 @@
 ---
 sidebar_position: 8
 title: Voice profile
-description: The voice profile — a YAML document describing tone, style, vocabulary and worked examples, its three-rung resolution ladder, and the locale, channel and persona overrides.
+description: "The voice profile: a YAML document describing tone, style, vocabulary and worked examples, its three-rung resolution ladder, the pattern and term-rule fields, and the locale, channel and persona overrides."
 keywords:
   [
-    voice profile,
-    voice profile,
     voice profile,
     voice.yaml,
     tone,
     style,
     vocabulary,
+    term rules,
+    prohibited patterns,
     personas,
     channels,
   ]
@@ -30,7 +30,7 @@ Implemented in Go at
 
 ## Why YAML
 
-Every other format here is machine-produced — exported from a store, packed by
+Every other format here is machine-produced: exported from a store, packed by
 a command, canonicalized for hashing. A voice profile is the opposite: it is
 **authored and edited by a person**, and it is mostly prose. Tone descriptions,
 style rules, and the worked examples are multi-line English text.
@@ -38,23 +38,26 @@ style rules, and the worked examples are multi-line English text.
 YAML carries multi-line prose without escaping it, allows comments explaining
 *why* a rule exists, and diffs a reworded paragraph legibly. JSON does none of
 those well. The type also carries JSON tags, so the same profile serializes to
-JSON when it moves over an API or into a store — the YAML is the authoring
-form, not the only form.
+JSON when it moves over an API or into a store; the YAML is the authoring
+form.
 
 ## Resolution ladder
 
 When a command needs a profile and no `--profile`, `--profile-file`, or
 `--pack` flag is given, kapi resolves one in this order:
 
-1. **The recipe binding** — `defaults.voice` in `kapi.yaml`, which may
+1. **The recipe binding**: `defaults.voice` in `kapi.yaml`, which may
    name a `profile_file`, a `pack`, or a profile in the local voice store.
-2. `<project-root>/.kapi/voice.yaml` — the profile's home in the
+   A profile under `profiles:` binds its own `voice:` for the product it
+   governs, and its conventional `.kapi/profiles/<name>/voice.yaml` answers
+   before the project default does; see [Context](/kapi/context#how-a-point-resolves).
+2. `<project-root>/.kapi/voice.yaml`: the profile's home in the
    committed context graph, beside the terms and the content memory.
 3. `<project-root>/voice.yaml`
 
 The binding wins. Rungs 2 and 3 are conventions that make
-`kapi voice check DRAFT.md` work flag-free inside a project, not the primary
-mechanism — a project that has bound a profile never reaches them.
+`kapi voice check DRAFT.md` work flag-free inside a project; a project that has
+bound a profile never reaches them.
 
 `--profile`, `--profile-file`, and `--pack` are mutually exclusive; passing
 more than one is an error rather than a silent precedence.
@@ -66,36 +69,166 @@ more than one is an error rather than a silent precedence.
 | `name` | string | Required. |
 | `id` | string | Optional identity. |
 | `description` | string | Optional. |
-| `tone` | object | The tone profile. |
-| `style` | object | Style rules. |
-| `vocabulary` | object | Preferred, forbidden, and cautioned terms. |
-| `examples` | array | Worked examples of the voice. |
-| `locales` | map | Per-locale overrides, keyed by locale id. |
+| `tone` | object | The tone profile (see [Tone](#tone)). |
+| `style` | object | Style rules, including the prohibited and required patterns (see [Style and patterns](#style-and-patterns)). |
+| `vocabulary` | object | Preferred, forbidden, and competitor terms, each a list of term rules (see [Vocabulary and term rules](#vocabulary-and-term-rules)). |
+| `examples` | array | Worked examples of the voice (see [Examples](#examples)). |
+| `locales` | map | Per-locale overrides, keyed by locale id (see [Overrides](#overrides)). |
 | `channels` | map | Per-channel overrides. |
 | `personas` | map | Per-persona overrides. |
-| `autonomy` | object | How far automated steps may act on the profile. |
-| `min_score` | int | The compliance bar, 0–100. |
+| `autonomy` | object | How far automated steps may act on the profile (see [Autonomy](#autonomy)). |
+| `min_score` | int | The compliance bar, 0–100 (see [The compliance bar](#the-compliance-bar)). |
 | `version`, `version_note` | int, string | Profile revision and a note describing it. |
-| `created_at`, `updated_at`, `created_by` | — | Provenance. |
+| `created_at`, `updated_at`, `created_by` | timestamp, timestamp, string | Provenance. |
 | `workspace_id` | string | Set when the profile came from a workspace. |
+
+### Tone
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `personality` | string[] | Adjectives, e.g. `[friendly, knowledgeable, direct]`. |
+| `formality` | string | `casual`, `neutral`, `formal`, or `technical`. |
+| `emotion` | string | `warm`, `neutral`, or `authoritative`. |
+| `humor` | string | `none`, `light`, or `frequent`. |
+| `guidelines` | string | Free prose the guide renders and the model reads. Optional. |
+
+### Style and patterns
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `active_voice` | bool | Prefer the active voice. |
+| `sentence_length` | string | `short`, `medium`, or `varied`. |
+| `person_pov` | string | `first_plural`, `second`, or `third`. |
+| `contractions` | string | `always`, `sometimes`, or `never`. |
+| `prohibited_patterns` | Pattern[] | Regex rules whose match is a finding. |
+| `required_patterns` | Pattern[] | Regex rules whose absence is a finding. |
+
+#### Patterns
+
+Each entry under `prohibited_patterns` and `required_patterns` is a **Pattern**:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `regex` | string | The pattern, in Go regular-expression syntax. Required. |
+| `description` | string | What the rule is for; shown with the finding and rendered into the guide. |
+| `severity` | string | `minor`, `major`, or `critical`. Decides the score penalty and whether the finding fails a strict check. |
+| `rate` | object | A density ceiling instead of a ban: `max` matches allowed per `per_words` words (`per_words` defaults to 1,000). Under the ceiling nothing is reported; over it, every match is. A `max` of 0 is rejected at validation. Optional. |
+| `scope` | string | Where the rule applies: unset means everywhere; `prose` skips fenced blocks and inline code; `code` applies only inside them; `heading` applies only to headings. Optional. |
+
+```yaml
+style:
+  prohibited_patterns:
+    - regex: "—"
+      description: "Em dashes read as machine-written; one per thousand words is the ceiling."
+      severity: minor
+      rate: { max: 1, per_words: 1000 }
+      scope: prose
+```
+
+The allowance a rate grants is rounded up and never below `max`, so a
+300-word document under a "one per 1,000 words" rule allows one.
+
+### Vocabulary and term rules
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `preferred_terms` | TermRule[] | The spelling to use; a rule's `replacement` is the preferred form and its `term` the one to avoid. |
+| `forbidden_terms` | TermRule[] | Words the voice never uses, with what to say instead. |
+| `competitor_terms` | TermRule[] | Names of other products, flagged wherever they appear. |
+| `abbreviations` | map | Abbreviation to expansion, for the guide. |
+
+#### Term rules
+
+Each entry in those three lists is a **TermRule**. The same shape is what a
+flow step or `defaults.tools` accepts under `term_rules:` for `term-check`,
+`translate`, `recycle`, `dnt-check` and `pseudo-translate`, so a rule authored
+in a profile and a rule handed to a tool read identically.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `term` | string | The word or phrase the rule is about. Required. |
+| `replacement` | string | What to say instead. A rule with no replacement is skipped by the tools unless `do_not_translate` is set, because "say this instead" needs a this. |
+| `note` | string | Why, shown with the finding. Optional. |
+| `severity` | string | `minor`, `major`, or `critical`. `minor` warns; everything else, including unset, fails, because rules resolved from a terms store carry no severity and must not be silently downgraded. |
+| `concept_id` | string | The concept in the terms store and the graph this rule denotes. Set when a rule is promoted from a concept-backed correction; empty for a standalone profile. |
+| `do_not_translate` | bool | The term must survive verbatim into every target. Gives a bare term with no replacement its meaning. |
+| `forms` | string[] | The other surface shapes the term takes (inflections, declensions, conjugations), matched alongside `term`. Matching is exact, so the forms are declared rather than derived; `kapi voice expand` asks a model for them in the profile's language and writes them here as a diff. |
+| `case_sensitive` | bool | Match the term and its forms in their own casing. Off by default; on for a rule whose whole content is capitalisation (`term: Ripgrep`, `replacement: ripgrep`). |
+| `scope` | string | The same values a pattern's `scope` takes. Empty means everywhere. |
+
+```yaml
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor
+      forms: [utilizes, utilized, utilizing]
+      scope: prose
+  preferred_terms:
+    - term: log in
+      replacement: sign in
+      concept_id: c-sign-in
+```
+
+### Examples
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `before` | string | The wording to avoid. |
+| `after` | string | The wording in this voice. |
+| `explanation` | string | Why the second is better. Optional. |
+| `category` | string | `tone`, `style`, or `vocabulary`. Optional. |
 
 ### Overrides
 
 `locales`, `channels`, and `personas` each hold partial overrides layered onto
 the base profile at resolution time. A profile can therefore say "this is the
-voice" once and then vary it — terser in a push notification, more formal in
-`de-DE`, warmer for a particular persona — without duplicating the whole
+voice" once and then vary it (terser in a push notification, more formal in
+`de-DE`, warmer for a particular persona) without duplicating the whole
 document per variant.
 
 Resolution applies the requested locale, channel, and persona to produce one
 effective profile; the file itself stays the single authored source.
 
+A **locale override** (`locales.<locale>`) carries:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `formality`, `humor`, `person_pov` | string | Replace the base tone or style value for this language. |
+| `cultural_notes` | string | Guidance that holds for this language only. |
+| `vocabulary_overrides` | TermRule[] | Rules that hold for this language only. |
+| `example_overrides` | VoiceExample[] | Examples in this language. |
+
+A **channel override** (`channels.<channel>`) carries a `tone` and a `style`
+object, each optional, that replace the resolved tone or style wholesale. A
+collection's [channel](/kapi/context#the-context-space) selects the matching
+entry.
+
+A **persona override** (`personas.<name>`) layers an individual author's voice
+inside the profile's guardrails:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `tone`, `style` | object | Replace the resolved tone or style, as a channel override does. |
+| `preferred_terms` | TermRule[] | Terms the author leans on. A preferred term the profile forbids or lists as a competitor term is dropped rather than re-allowed. |
+| `avoided_terms` | TermRule[] | Terms the author steers clear of; added to the forbidden set. |
+
+A persona can only tighten vocabulary, never loosen it: the profile always
+wins, and the merge order enforces that rather than trusting the persona's
+author.
+
+### Autonomy
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `auto_promote_at_count` | int | Promote a candidate rule into the profile automatically once this many corrections stand behind it, with no human review. `0` (the default) keeps every promotion manual. |
+
 ### The compliance bar
 
 `min_score` is the minimum voice-compliance score a block must reach to count
-as compliant in roll-ups. When a profile does not set one, the default applies:
-a bar calibrated so that a single critical vocabulary hit already drops a block
-below it, while a handful of minor issues does not.
+as compliant in roll-ups. When a profile does not set one, the default of 80
+applies: a bar calibrated so that a single critical vocabulary hit already
+drops a block below it, while a handful of minor issues does not.
 
 A profile that cannot be read resolves to the default bar, so roll-ups over
 historical scores stay comparable.
@@ -103,13 +236,16 @@ historical scores stay comparable.
 ## What is deliberately not in it
 
 - **Scores and findings.** Those are check results computed against the
-  profile, stored with the content or the run — never written back here.
-- **The compiled voice store.** `brand.db` is derived; the profile is the
-  source.
-- **Locale-specific *content*.** Overrides adjust voice, not copy. Translated
+  profile, stored with the content or the run, and never written back here.
+- **The compiled voice store.** The store is derived (`voice.db` for a
+  standalone store; inside a project, the voice tables of the shared
+  `.kapi/work/store.db`); the profile is the source.
+- **Locale-specific *content*.** Overrides adjust voice, never copy. Translated
   strings belong in the deliverable.
 
 ## See also
 
-- [Overview](/reference/serialization/overview) — how this fits the wider family.
-- [Terms](/reference/serialization/terms) — the other authored, committed artifact.
+- [Overview](/reference/serialization/overview): how this fits the wider family.
+- [Terms](/reference/serialization/terms): the other authored, committed artifact.
+- [Voice profile](/framework/checks/voice): scoring, packs and the Go API.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): the how-to.

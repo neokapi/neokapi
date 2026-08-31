@@ -91,10 +91,10 @@ Before reaching for a command, judge whether this is a one-off or ongoing work:
 - **Project** — many files or a whole app; the same target locales repeatedly; a
   voice profile or terminology that must stay consistent; recurring work (CI,
   re-translate on change); content memory you want to reuse. Bind that
-  context **once** in a `.kapi` project, then issue plain requests — kapi applies
+  context **once** in a kapi project, then issue plain requests — kapi applies
   the project's locales, content, voice profile, and terms with no flags.
 
-If a `.kapi` project already exists (kapi walks up from the cwd to find it), use
+If a kapi project already exists (kapi walks up from the cwd to find it), use
 it. If the task is project-shaped and there's no project, offer to set one up;
 don't impose a project on a genuine one-off. See
 [references/project.md](references/project.md).

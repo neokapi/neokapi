@@ -13,22 +13,22 @@ import { PseudoTranslateWidget } from "@site/src/components/Lab";
 
 # Preview before you ship
 
-**Goal:** see how your interface holds up in another language before a single real translation exists. kapi fills every string with a longer, accented stand-in — load it into your UI and the labels that clip, the buttons that overflow, and the hard-coded strings (the ones that stay plain) are immediately visible. No API key, no waiting, no cost. Output defaults to the `qps` pseudo-locale, so no real target language is needed.
+**Goal:** see how your interface holds up in another language before a single real translation exists. kapi fills every string with a longer, accented stand-in; load it into your UI and the labels that clip, the buttons that overflow, and the hard-coded strings (the ones that stay plain) are immediately visible. No API key, no waiting, no cost. Output defaults to the `qps` pseudo-locale, so no real target language is needed.
 
-Try it right here — drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate` in your browser:
+Try it right here: drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate` in your browser:
 
 <PseudoTranslateWidget />
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Pseudo-translation is a **quick tool** — no project needed:
+Pseudo-translation is a **quick tool**, so no project is needed:
 
-1. Open **Toolbox**, pick the pseudo-translate tool, and choose your source catalog.
-2. Adjust the shape in the config form — prefix/suffix markers and expansion padding to simulate how much longer real translations run.
+1. Open **Toolbox → Tools**, pick the pseudo-translate tool, and choose your source catalog.
+2. Adjust the shape in the config form: prefix/suffix markers and expansion padding to simulate how much longer real translations run.
 3. Run it and load the output file into your UI; anything un-accented was hard-coded instead of pulled from the catalog.
 
-In a project, add `qps` as a target locale and pseudo-translation rides the normal flow — output lands on the language path like any locale.
+In a project, add `qps` as a target locale and pseudo-translation rides the normal flow; output lands on the language path like any locale.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -37,7 +37,7 @@ Fold it into the layout question you actually have:
 
 > Pseudo-translate our locale catalog and check which strings exceed 40 characters after expansion.
 
-The assistant runs the tool, then sizes the result (`kapi check --max-chars`, `kapi stats`) and reports the strings likely to clip — a layout-risk review, not just a file transform.
+The assistant runs the tool, then sizes the result (`kapi check --max-chars`, `kapi stats`) and reports the strings likely to clip, a layout-risk review on top of the file transform.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -48,12 +48,12 @@ One command; the output path is a name you choose:
 kapi pseudo-translate messages.json -o messages.pseudo.json
 ```
 
-Tune with `--prefix`, `--suffix`, and `--expansion-percent` — the full flags are in the [`pseudo-translate` reference](/reference/commands/pseudo-translate). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage — see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
+To tune the markers and the padding, run the tool directly: `kapi exec pseudo-translate` takes `--prefix`, `--suffix`, and `--expansion-percent`, and the full flags are in the [`exec pseudo-translate` reference](/reference/commands/exec-pseudo-translate). The same keys go under a flow step's `config:` (`expansionPercent: 30`). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
 
 </TabItem>
 </Tabs>
 
 ## Next
 
-- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory) — pseudo-translation as the visible-gap step.
-- [Quality checks](/framework/checks/qa-checks) — the broader check families.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory): pseudo-translation as the visible-gap step.
+- [Quality checks](/framework/checks/qa-checks): the broader check families.

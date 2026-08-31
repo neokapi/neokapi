@@ -3,7 +3,7 @@ id: ship-gates-and-ci
 title: "Ship gates & CI"
 sidebar_label: "Ship gates & CI"
 sidebar_position: 7
-description: "Enforce a project's ship gates with kapi check --ship — locally, from your assistant, and on every pull request — failing the build only at the explicit release bar, never on ordinary target drift."
+description: "Enforce a project's ship gates with kapi check --ship (locally, from your assistant, and on every pull request), failing the build only at the explicit release bar and never on ordinary target drift."
 hide_table_of_contents: true
 ---
 
@@ -13,19 +13,19 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Ship gates & CI
 
-**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar — coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, QA, staleness). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift — a language that is behind is pending work; `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [`.kapi` project](/kapi/get-started/first-project).
+**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar: coverage thresholds over the translation lifecycle plus the bound quality gates (voice, terminology, QA, staleness). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift; a language that is behind is pending work, and `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [kapi project](/kapi/get-started/first-project).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The project view shows each locale's standing against its gate continuously — the same derivation `check --ship` enforces:
+The project view shows each locale's standing against its gate continuously: the same derivation `check --ship` enforces:
 
 1. **Read the gate cells.** Each locale row shows coverage per lifecycle rung (translated, reviewed, signed-off) and whether the scope clears its gate.
 2. **Close the gap.** **Bring up to date** produces what a machine can; a gate cell opens the [Review queue](/kapi/recipes/review-and-approve) for what needs a person.
 3. **Ship when green.** When every scope clears its gate, the CI check below passes by construction.
 
 <PendingMedia kind="screenshot" scene="harness/demos/kapi-desktop-projects/demo.yaml">
-  The coverage grid with per-locale ship-gate cells — one scope green, one
+  The coverage grid with per-locale ship-gate cells, one scope green, one
   pending with the unmet threshold named.
 </PendingMedia>
 
@@ -36,7 +36,7 @@ Ask for the standing, or for the fix:
 
 > Are we shippable in German? If not, get us there.
 
-The assistant reads `kapi status --json`, runs `kapi up` for what a machine can close, walks you through the review worklist for what it can't, and confirms with `kapi check --ship`. With the Claude Code plugin installed, the Stop hook runs the gate automatically when Claude tries to finish — a failing gate keeps it working with the findings. See [Use with Claude](/kapi/get-started/use-with-claude).
+The assistant reads `kapi status --json`, runs `kapi up` for what a machine can close, walks you through the review worklist for what it can't, and confirms with `kapi check --ship`. With the Claude Code plugin installed, the Stop hook runs the gate automatically when Claude tries to finish; a failing gate keeps it working with the findings. See [Use with Claude](/kapi/get-started/use-with-claude).
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -62,21 +62,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: neokapi/setup-kapi@v1
-      # Exits 3 — failing the job — when a voice, terminology, QA,
+      # Exits 3 (failing the job) when a voice, terminology, QA,
       # staleness or coverage gate is unmet.
       - run: kapi check --ship
 ```
 
-kapi finds the recipe by walking up from the working directory, so no project path is needed at the repo root. A `reviewed` threshold reads its decisions from the committed unit-state record under `.kapi/state/` (see [the project store](/kapi/project-store)) — **`kapi commit` those shards and include them in the PR**, or the runner sees no approvals and a `reviewed` gate can't pass. For a targeted, file-level gate on named files (no project), use plain [`kapi check`](/kapi/recipes/verify-content). If a CI job also *produces* translations (`kapi up` in a workflow), give it an API key via a secret env var — a Claude subscription sign-in is bound to your user and its usage window, so [CI always uses a key](/kapi/get-started/use-with-claude#let-kapi-run-claude).
+kapi finds the recipe by walking up from the working directory, so no project path is needed at the repo root. A `reviewed` threshold reads its decisions from the committed unit-state record under `.kapi/state/` (see [the project store](/kapi/project-store)): **`kapi commit` those shards and include them in the PR**, or the runner sees no approvals and a `reviewed` gate can't pass. For a targeted, file-level gate on named files (no project), use plain [`kapi check`](/kapi/recipes/verify-content). If a CI job also *produces* translations (`kapi up` in a workflow), give it an API key via a secret env var; a Claude subscription sign-in is bound to your user and its usage window, so [CI always uses a key](/kapi/get-started/use-with-claude#let-kapi-run-claude).
 
-On GitLab, the same gate is one include — the [`check` component](https://gitlab.com/neokapi/kapi-components) runs on merge-request pipelines, fails the pipeline on exit `3`, and posts one threaded MR note with the findings:
+On GitLab, the same gate is one include: the [`check` component](https://gitlab.com/neokapi/kapi-components) runs on merge-request pipelines, fails the pipeline on exit `3`, and posts one threaded MR note with the findings:
 
 ```yaml title=".gitlab-ci.yml"
 include:
   - component: gitlab.com/neokapi/kapi-components/check@0.1.0
 ```
 
-The full pipeline picture — catch up on a schedule, deliver a PR/MR, gate merges, report the cost of a change — is in [The kapi loop in CI](/kapi/convergence-in-ci).
+The full pipeline picture (catch up on a schedule, deliver a PR/MR, gate merges, report the cost of a change) is in [The kapi loop in CI](/kapi/convergence-in-ci).
 
 </TabItem>
 </Tabs>
@@ -84,8 +84,8 @@ The full pipeline picture — catch up on a schedule, deliver a PR/MR, gate merg
 ## File checks vs project gates
 
 Two bars, one command. A bare `kapi check <files>` gates the **files you
-name** — a checkset over their content, findings and a severity gate, no
-project needed: the test runner. `kapi check --ship` gates the **project** —
+name**: a checkset over their content, findings and a severity gate, no
+project needed; the test runner. `kapi check --ship` gates the **project**:
 coverage against the recipe's [`ship_gates:`](/reference/project-file#ship-gates)
 plus the bound quality gates, across every target language: the release bar.
 Use the first while content is being written, the second before it ships; see
@@ -94,7 +94,7 @@ half.
 
 ## Next
 
-- [The kapi loop](/kapi/convergence) — gates, ladders, and the derived-state model.
-- [Tier gates per market](/kapi/recipes/machine-ship-strategy) — different review bars per locale, one enforcement job.
-- [Review & approve](/kapi/recipes/review-and-approve) — raising the `reviewed` coverage a gate measures.
-- [Check content like tests](/kapi/recipes/verify-content) — the file-level checkset and Report.
+- [The kapi loop](/kapi/convergence): gates, ladders, and the derived-state model.
+- [Tier gates per market](/kapi/recipes/machine-ship-strategy): different review bars per locale, one enforcement job.
+- [Review & approve](/kapi/recipes/review-and-approve): raising the `reviewed` coverage a gate measures.
+- [Check content like tests](/kapi/recipes/verify-content): the file-level checkset and Report.

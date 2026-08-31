@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: The kapi loop
-description: How kapi keeps a project caught up — kapi up produces, review promotes, the gate releases. One loop, two halves — get the source right, then get every language caught up; the same kapi up runs on your machine or on a connected server. Formally, the model is called convergence.
+description: "How kapi keeps a project caught up: kapi up produces, review promotes, the gate releases. One loop, two halves: get the source right, then get every language caught up; the same kapi up runs on your machine or on a connected server. Formally, the model is called convergence."
 keywords: [kapi, kapi loop, kapi up, convergence, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
@@ -11,35 +11,35 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 # The kapi loop
 
 Your source content changed. Its translations, its terminology, its voice
-conformance are now behind — and that is normal, not an error. Kapi treats
+conformance are now behind, and that is normal. Kapi treats
 catching up as the everyday state of a shipping project, and gives it one
 verb: **`kapi up`**.
 
 `kapi up` runs **the kapi loop**, and the loop has two halves with a gate
-between them. First get the source right — the voice and terminology checks on
-what you wrote — and hold there until it clears its bar. Only then get every
+between them. First get the source right (the voice and terminology checks on
+what you wrote) and hold there until it clears its bar. Only then get every
 language caught up to it: reuse what you've translated before, AI-translate the
 rest, check everything produced. Settling the source first is deliberate: every
 defect in the source would otherwise multiply across each target language. What
 a machine cannot decide **parks** for a person; the loop never blocks the
 author. A monolingual project stops after the first half.
 
-The recipe declares what *caught up* means — the languages the project
+The recipe declares what *caught up* means: the languages the project
 targets, the flow that produces them, the gates that decide *shippable*. Every
 run measures the working tree against that declaration and closes what it can.
 
 Three roles, kept separate:
 
-- **The loop produces** — `kapi up` drives each unit as far up its lifecycle
+- **The loop produces**: `kapi up` drives each unit as far up its lifecycle
   as a flow can take it unaided (typically to *translated*).
-- **Review promotes** — a person advances a unit past what a machine can decide
+- **Review promotes**: a person advances a unit past what a machine can decide
   (*translated → reviewed*).
-- **The gate releases** — it drives nothing; it answers one question, *is this
+- **The gate releases**: it drives nothing and answers one question, *is this
   scope shippable?*
 
 :::note[The formal name]
-The model behind the loop — derived state, the lifecycle ladders, coverage
-gates — is called **convergence**: each `kapi up` pass converges the working
+The model behind the loop (derived state, the lifecycle ladders, coverage
+gates) is called **convergence**: each `kapi up` pass converges the working
 tree on the state the recipe declares, the way `terraform apply` converges
 infrastructure on a program. The
 [architecture pages](/contribute/architecture/context/c-04-unit-state-and-decisions), the
@@ -47,9 +47,9 @@ run's event stream, and the `--json` output keep that vocabulary; these pages
 say *the loop*.
 :::
 
-## State is derived, not tracked
+## State is derived
 
-Kapi stores no workflow state — no "in progress" flags, no cursors. Every command
+Kapi stores no workflow state: no "in progress" flags, no cursors. Every command
 **recomputes** a unit's state from the content on disk and the project's assets,
 the way `git status` recomputes from the working tree. Run a command twice with
 no changes and you get the same answer; change a source file and the affected
@@ -59,21 +59,21 @@ The unit of state is a **target**: one translatable block in one locale.
 
 ## The lifecycle ladders
 
-A target climbs a monotone ladder — each rung implies the ones below it. An
+A target climbs a monotone ladder: each rung implies the ones below it. An
 absent target sits below the lowest rung; a present, non-empty target is at least
 *translated*.
 
 <AxisLadderDiagram
   rungs={[
-    { grade: "1", name: "draft", gloss: "machine placeholder or fuzzy leverage" },
+    { grade: "1", name: "draft", gloss: "a machine placeholder, or a target whose source has moved" },
     { grade: "2", name: "translated", gloss: "a real translation exists" },
     { grade: "3", name: "reviewed", gloss: "a person approved this exact pair" },
     { grade: "4", name: "signed-off", gloss: "final" },
   ]}
-  caption="Target lifecycle — how far a translation has progressed."
+  caption="Target lifecycle: how far a translation has progressed."
 />
 
-Source content has its own, symmetric ladder — what keeps the author *in check*
+Source content has its own, symmetric ladder, what keeps the author *in check*
 before anything is translated:
 
 <AxisLadderDiagram
@@ -82,7 +82,7 @@ before anything is translated:
     { grade: "2", name: "checked", gloss: "clears its voice & terminology checks" },
     { grade: "3", name: "approved", gloss: "a person signed off on the source" },
   ]}
-  caption="Source authoring readiness — the source-side counterpart."
+  caption="Source authoring readiness: the source-side counterpart."
 />
 
 Where state is recorded depends on the carrier. A plain target file (JSON, an
@@ -90,9 +90,9 @@ XLIFF, …) records presence only, so a file-based project reads a present targe
 as *translated*. The higher rungs ride a carrier that can hold them: *reviewed*
 comes from an approval recorded in the project's
 [unit-state record](#review-the-state-record) (below), and a
-`.kbf.json` parcel carries the full status across a hand-off.
+`.kpz` parcel carries the full status across a hand-off.
 
-## The gate — coverage thresholds
+## The gate: coverage thresholds
 
 A **gate** is a set of coverage thresholds over the ladder: a state name to a
 minimum percent. A scope clears a gate when, for every threshold, at least that
@@ -103,7 +103,7 @@ percent of its units have reached that rung or higher.
 ship_gate: { translated: 100, reviewed: 80 }
 ```
 
-This reads *"every unit translated, and the important 80% reviewed — ship the long
+This reads *"every unit translated, and the important 80% reviewed; ship the long
 tail machine-translated."* A bare `100% reviewed` is the degenerate case.
 
 Gates can be selected by rule, so different collections or locales answer to
@@ -117,30 +117,30 @@ ship_gates:
 ```
 
 The source ladder has its own optional bar, `source_gate` (e.g.
-`{ checked: 100 }`) — the source-side counterpart of `ship_gate`.
+`{ checked: 100 }`), the source-side counterpart of `ship_gate`.
 
-A gate never fails an ordinary build. Target-language drift is expected work, not
-a break; a gate is a **release** check you opt into (see below).
+A gate never fails an ordinary build. Target-language drift is expected work,
+and a gate is a **release** check you opt into (see below).
 
 ### Approver classes: who counts as a reviewer {#approver-classes}
 
-*Reviewed* and *signed-off* are approval rungs — someone approved this exact
+*Reviewed* and *signed-off* are approval rungs: someone approved this exact
 translation. A threshold's **approver class** (`by`, in the extended form
 `reviewed: { pct: 100, by: human }`) decides whose approvals count toward it.
 The default is `human`: only an approval made by a person, or an agent acting
-for one, satisfies the threshold — and the short form (`reviewed: 80`) always
-means `by: human`. `by: any` also counts autonomous AI approvals — those
+for one, satisfies the threshold, and the short form (`reviewed: 80`) always
+means `by: human`. `by: any` also counts autonomous AI approvals, those
 recorded under an `ai/…` identity, such as an AI pre-review that auto-approves
 what it scores clean. An AI-approved unit reads as reviewed in `kapi status`
 (with an `(ai)` qualifier) but does not satisfy a human threshold: an
 autonomous AI approving its own work never silently ships a gate that was
-written when *reviewed* could only mean a person. The default is policy, not a
-fixed rule — a recipe opts a scope in explicitly, so tiers coexist:
+written when *reviewed* could only mean a person. The default is a policy a
+recipe can override per scope, so tiers coexist:
 
 ```yaml
 gates:
   contractual: { translated: 100, reviewed: { pct: 100, by: human } }
-  standard: { translated: 100, reviewed: 80 } # short form — by: human implied
+  standard: { translated: 100, reviewed: 80 } # short form: by: human implied
   machine: { translated: 100, reviewed: { pct: 100, by: any } }
 
 ship_gates:
@@ -151,15 +151,15 @@ ship_gates:
   - gate: machine # the long tail: autonomous AI review counts
 ```
 
-The full schema — threshold forms, rule selection, the named registry — is in
+The full schema (threshold forms, rule selection, the named registry) is in
 the [project-file reference](/reference/project-file#ship-gates); a worked
 per-market strategy is
 [Tier gates per market](/kapi/recipes/machine-ship-strategy).
 
 ## Source first: settle, gate, then translate {#source-first}
 
-The two ladders are not run in parallel — they run in order, with the **source
-ship-gate** between them. Source content is shared across every locale, so a
+The two ladders run in order, with the **source ship-gate** between them.
+Source content is shared across every locale, so a
 term left unresolved or a sentence left off-brand would be paid for once per
 language, then paid for again when the source is fixed and everything
 retranslates. The loop settles the source *once* and holds the fan-out until it
@@ -177,7 +177,7 @@ is ready.
       kind: "gate",
       label: "source ship-gate",
       sub: "source_gate",
-      hold: "hold — settle your source first",
+      hold: "hold: settle your source first",
     },
     {
       kind: "phase",
@@ -189,11 +189,11 @@ is ready.
       kind: "gate",
       label: "target ship-gate",
       sub: "ship_gate",
-      hold: "park — needs review",
+      hold: "park: needs review",
     },
     { kind: "done", label: "converged" },
   ]}
-  caption="Settle the source, clear its gate, then translate the approved source per locale — each gate holds work that is not ready rather than shipping it."
+  caption="Settle the source, clear its gate, then translate the approved source per locale; each gate holds work that is not ready rather than shipping it."
 />
 
 Read the loop left to right:
@@ -203,24 +203,26 @@ Read the loop left to right:
    authoring ladder (*authored → checked → approved*).
 2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
    `{ checked: 100 }`) is the source-side counterpart of `ship_gate`. Source
-   that has not cleared its bar **holds** — the honest, cheap outcome is *settle
-   your source first*, not a machine translation of content you are about to
-   change.
+   that has not cleared its bar **holds**: settling the source first is cheaper
+   than a machine translation of content you are about to change.
 3. **Translate the approved source.** Only settled source fans out per locale,
    memory-first: recycle what you have already translated, AI-translate the
-   remainder, check what was produced. The protected terms stay protected.
+   remainder, check what was produced. Where a source was edited, its previously
+   approved translation goes into the prompt as reference, under the same
+   governing context, so the redraft keeps wording a person already accepted
+   where it still fits. The protected terms stay protected.
 4. **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
    shippable; whatever a machine cannot decide **parks** for review rather than
    shipping under-reviewed.
 
-A gate never *fails*: it holds work and routes it to a person — a source-review
-worklist, or the target review queue — and the command still exits zero. Editing
+A gate never *fails*: it holds work and routes it to a person (a source-review
+worklist, or the target review queue) and the command still exits zero. Editing
 a source unit re-opens the source gate for only the changed segments, so a fix
 re-settles and re-translates just those, never the whole corpus.
 
 ## Seeing it: `status` and `check`
 
-`kapi status` is the derived dashboard — coverage per locale and each scope's
+`kapi status` is the derived dashboard: coverage per locale and each scope's
 standing against its gate, recomputed on every run:
 
 ```bash
@@ -235,7 +237,7 @@ kapi status
 ```
 
 A project connected to a convergence venue gets two more lines, and they are two
-different questions. **Content** is a position — what is here and not there —
+different questions. **Content** is a position (what is here and what is there)
 and a transfer resolves it. **Governance** is an identity: which context, terms
 and decisions are in force. Two identity hashes that differ carry no distance
 and no direction, so the line says a component moved and never how far behind
@@ -249,12 +251,12 @@ kapi status
 #             run `kapi pull` to take down the governance that moved
 ```
 
-`kapi check --ship` is the enforcing counterpart — the pre-release bar. It runs
+`kapi check --ship` is the enforcing counterpart, the pre-release bar. It runs
 the project's bound quality gates (voice, terminology, QA, staleness) together
 with the ship and source coverage gates over the project's content, and exits non-zero when any
 gate is unmet (for a release tag or a `main` check). Target drift never blocks an
 ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare
-`kapi check <files>` runs a checkset over the files you name — the content-first
+`kapi check <files>` runs a checkset over the files you name, the content-first
 counterpart to a test runner.) See
 [Check translations in CI](/kapi/recipes/ship-gates-and-ci).
 
@@ -270,9 +272,12 @@ defaults:
   flow: translate-and-check   # a flow defined under flows:
 ```
 
-Without `defaults.flow`, `up` runs the built-in default flow — content-memory
-reuse (recycle) followed by AI translate — so a recipe needs no flow YAML at all
-to catch up.
+Without `defaults.flow`, `up` runs the built-in default flow (content-memory
+reuse, then AI translate) so a recipe needs no flow YAML at all to catch up.
+The translate step reads the content memory too: with `reuse: prior` (its
+default), a block whose source was edited gets its previously approved
+translation as reference, offered only when the same governing context is in
+force. `reuse: none` turns that read off for a cheap run.
 
 ```bash
 kapi up                # loop the default flow until every gated scope ships or parks
@@ -285,19 +290,19 @@ kapi up --materialize  # also write the translated files for the shippable local
   nodes={[
     {
       label: "produce",
-      sub: "kapi up — default flow over pending units",
+      sub: "kapi up: default flow over pending units",
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
-    { label: "promote", sub: "kapi apply — review approves a unit", role: "annotate", edge: "a person / agent" },
-    { label: "release", sub: "kapi check --ship — the gate", role: "qa", edge: "gate met" },
+    { label: "promote", sub: "kapi apply: review approves a unit", role: "annotate", edge: "a person / agent" },
+    { label: "release", sub: "kapi check --ship: the gate", role: "qa", edge: "gate met" },
   ]}
   caption="Produce loops to the gate; review promotes what a machine can't decide; the gate releases."
 />
 
 Each pass re-derives coverage from the working tree, runs the flow only for the
 locales still short of their gate, then runs the project's bound checks over what
-was produced — a unit with failing findings (dropped placeholders, terminology
+was produced: a unit with failing findings (dropped placeholders, terminology
 violations) still counts as *translated*, because it is, and the finding holds
 its locale out of shipping until it is fixed. The percentages describe the
 content; the verdict is what a guardrail withholds, and `kapi status` and
@@ -306,7 +311,7 @@ stops when every gated scope is shippable, a
 pass makes no progress, or the pass cap (default 5, `--passes N`) is reached.
 Whatever cannot be advanced unaided **parks**: it is reported as awaiting a human
 and the command still exits zero. `up` never blocks the author, and it never
-fails the build on target drift — parked work is the review queue, not an error.
+fails the build on target drift; parked work is the review queue.
 
 Before each pass, `up` re-syncs the project block store with the working tree:
 edited source files, a store written by another kapi version, or a missing store
@@ -315,16 +320,16 @@ checks in the loop.
 
 ### The run is live
 
-`up` starts by printing a one-line **plan** — the units the pass will work on,
+`up` starts by printing a one-line **plan** (the units the pass will work on,
 exact content-memory leverage, remaining AI work, a token estimate, and the
-provider it will use — so cost is visible before any tokens burn (preview before
+provider it will use) so cost is visible before any tokens burn (preview before
 apply; `--plan` alone is the full dry-run table). It then renders progress as the
 loop runs: one line per locale, repainted in place on a terminal, a line per
 event on a plain stream.
 
 The plan asks what the pass asks, of the flow the pass would run. A pass reads
 the source documents, fills from the content memory where the flow recycles, and
-drafts the remainder where the flow drafts — so a unit costs a provider call
+drafts the remainder where the flow drafts, so a unit costs a provider call
 when the corpus has no answer for its source *and* the configured flow reaches a
 provider, whatever a target file happens to hold. A flow that recycles and
 nothing else leaves the units the corpus cannot answer **out of reach**: they are
@@ -348,7 +353,7 @@ Up to date in 2 passes · 3 locales shippable · de-DE parked: 2 units need revi
   → kapi status --review
 ```
 
-Locales are independent within a pass, so `up` catches them up **concurrently** —
+Locales are independent within a pass, so `up` catches them up **concurrently**:
 `--jobs N` sets how many run at once (default 4; recipe override `defaults.jobs`;
 `--jobs 1` restores serial execution). The pass barrier stays: coverage is
 re-derived, checks run, and parking is decided once per pass, over all locales
@@ -363,13 +368,13 @@ together.
   caption="Within one pass, kapi up fans out per locale (--jobs); the pass barrier re-derives coverage and decides parking once all workers finish."
 />
 
-For agents and CI, `--json` streams the run as NDJSON — one convergence event
+For agents and CI, `--json` streams the run as NDJSON, one convergence event
 per line (plan, pass, per-locale progress, checks, parked/converged), with the
 structured result as the final record. The same events feed the Kapi Desktop
 passes view.
 
 
-`kapi run <flow>` remains the escape hatch for a **custom** pipeline — one named
+`kapi run <flow>` remains the escape hatch for a **custom** pipeline: one named
 flow, one pass, no gate loop. Reach for it when you want a specific composition;
 reach for `kapi up` for the daily catch-up.
 
@@ -385,7 +390,7 @@ kapi status
 # de        42   100%        100%      100%         0%   ██████████ 100%  ready
 ```
 
-Edit one source string. Nothing flags the change and no state is written — the
+Edit one source string. Nothing flags the change and no state is written; the
 next derivation reads the working tree and compares each decision against
 the source it blessed. The edited unit's basis no longer matches, so it reads as
 *stale*: it holds a target, so it sits at *draft*, but that target translates a
@@ -401,10 +406,10 @@ kapi status
 # They do not ship — re-review them with `kapi status --review`.
 ```
 
-One pass closes what a machine can close. A stale unit is **work**, not only a
-report: the loop re-drafts it against the source the project has now — content
-memory first, then AI for the remainder, exactly as it produces a unit that has
-no translation at all — and the plan quotes that work before any tokens burn:
+One pass closes what a machine can close. A stale unit is **work**: the loop
+re-drafts it against the source the project has now (content memory first, then
+AI for the remainder, exactly as it produces a unit that has no translation at
+all) and the plan quotes that work before any tokens burn:
 
 ```bash
 kapi up --plan
@@ -424,27 +429,27 @@ kapi status
 ```
 
 The re-draft holds however the unit is identified. Where the edit re-keys the
-unit — a prose paragraph, whose identity is its wording — the old translation no
-longer pairs with it at all. Where the unit keeps its key — a catalog entry,
-whose identity is its name — the old translation is still sitting beside the
+unit (a prose paragraph, whose identity is its wording), the old translation no
+longer pairs with it at all. Where the unit keeps its key (a catalog entry,
+whose identity is its name), the old translation is still sitting beside the
 rewritten sentence, and the loop declines to read that adjacency as a
 translation of it: the earlier wording is kept in the content memory under the
-sentence it *does* translate, where a later fuzzy match can still recycle it,
-and the entry itself is drafted afresh.
+sentence it *does* translate, where the redraft reads it as reference, and the
+entry itself is drafted afresh.
 
-That holds **in every language**, not only where someone had reviewed the unit.
+That holds **in every language**, whether or not someone had reviewed the unit.
 A rewrite is a fact about the source, so every locale's translation of the old
 sentence is a translation of a sentence the project no longer has. Each is kept
-under its own wording and each is drafted again — the languages with a decision
+under its own wording and each is drafted again; the languages with a decision
 say so on the `stale` axis above, and the rest come back as pending work.
 A translation edited in the same commit as its source is the exception it should
-be: that pairing was authored, not left behind, so it is kept as it stands.
+be: that pairing was authored rather than left behind, so it is kept as it stands.
 
-What the loop does not do is decide. Producing a translation is not approving
-one, so the re-drafted unit comes back at *draft*, in the review worklist, with
-the earlier approval **not** restored — the scope does not ship until a person
-reviews the new pairing. That is the property that matters on both sides: drift
-is never converged over, and it is never left un-worked either.
+The loop produces and never decides. Producing a translation is a different act
+from approving one, so the re-drafted unit comes back at *draft*, in the review
+worklist, with the earlier approval **not** restored; the scope does not ship
+until a person reviews the new pairing. Drift is never converged over, and it is
+never left un-worked either.
 
 ## One verb, two venues
 
@@ -458,21 +463,21 @@ surface:
     { title: "The loop", sub: "kapi up", role: "translate", steps: ["drift → plan", "produce → check", "loop or park"] },
     { title: "Venue", sub: "local | server", role: "qa", steps: ["your machine + keys", "or a connected server", "same events either way"] },
   ]}
-  caption="Transport moves state, the loop produces work, venue is where it runs — three orthogonal concerns."
+  caption="Transport moves state, the loop produces work, venue is where it runs: three orthogonal concerns."
 />
 
-- **Transport** — `kapi push` and `kapi pull` make a local checkout and a server
+- **Transport**: `kapi push` and `kapi pull` make a local checkout and a server
   replica consistent. Pure data movement (Merkle diff, conflicts, terminology
   hand-off); they never produce translations. The analogy is `git push` /
   `git fetch`.
-- **The loop** — `kapi up`, the one verb that produces work toward the gates.
-- **Venue** — *where* `up`'s compute executes: your machine (your AI
+- **The loop**: `kapi up`, the one verb that produces work toward the gates.
+- **Venue**: *where* `up`'s compute executes: your machine (your AI
   subscription or keys) or a connected server (the org's keys, shared content
   memory and terminology, always-on).
 
-In a **file-only** project the loop runs locally — this is the whole story
+In a **file-only** project the loop runs locally; this is the whole story
 for the open-source `kapi` binary, which carries no server code. In a
-**server-connected** project — a recipe that declares a server venue — the same
+**server-connected** project (a recipe that declares a server venue) the same
 `kapi up` runs on the server by default: it pushes the drift, the server runs
 the loop on the org's keys and shared assets, progress streams back live into
 the same terminal view, results pull down, and parked units land in the *team's*
@@ -491,15 +496,15 @@ explicit, per-project policy the way `git push` triggering CI is a repository
 policy, not a property of `git`.
 
 :::note
-The server venue — the platform's recipe block, `kapi push`/`pull`/`up --local`, the
-continuous catch-up policy, and the server-side Runs surface — is provided by
-the connected platform, not the open-source `kapi` binary. See the platform
+The server venue (the platform's recipe block, `kapi push`/`pull`/`up --local`, the
+continuous catch-up policy, and the server-side Runs surface) is provided by
+the connected platform's plugin rather than the open-source `kapi` binary. See the platform
 documentation for setting up a connected project and *convergence as a service*.
 :::
 
 One default flow can still vary by locale. `defaults.locales.<lang>.tools`
-overrides a tool's config for that target language only — merged on top of the
-project-wide `defaults.tools` and under a flow step's own config — so a single
+overrides a tool's config for that target language only (merged on top of the
+project-wide `defaults.tools` and under a flow step's own config) so a single
 flow turns an advanced step on where a locale needs it:
 
 ```yaml
@@ -514,13 +519,13 @@ defaults:
 ## Review: the state record {#review-the-state-record}
 
 A machine takes a unit to *translated*; a person takes it to *reviewed*. That
-approval is authored **unit state** — who signed off on which exact translation —
+approval is authored **unit state** (who signed off on which exact translation),
 so it lands in the [project store](/kapi/project-store)'s working set, and
 `kapi commit` publishes it to the committed unit-state record under `.kapi/state/`.
-Not in the content memory.
+The content memory holds none of it.
 
-`kapi status --review` is the worklist — every translated unit not yet approved,
-the derived counterpart of the loop's *parked* outcome — and you approve a unit
+`kapi status --review` is the worklist (every translated unit not yet approved,
+the derived counterpart of the loop's *parked* outcome) and you approve a unit
 with the one write verb, `kapi apply`, as a `review` change-set addressed by the
 unit's `file` / `id` / `locale` exactly as the worklist lists them:
 
@@ -529,8 +534,8 @@ kapi status --review        # the worklist: file, id, locale per pending unit
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-An approval is not about a translation; it is about a **pairing** — this
-rendering, *of this source*. The record binds both halves by content hash: the
+An approval is about a **pairing**: this rendering, *of this source*. The
+record binds both halves by content hash: the
 translation it blesses, and the **basis**, the source wording it blessed that
 translation for. Editing either afterwards drops the unit back below *reviewed*,
 so an approval can't silently outlive the text it approved on either side. Once
@@ -540,15 +545,15 @@ recorded, coverage reads the unit as *reviewed*, `reviewed%` climbs, and a
 A unit whose **source** moved reads as *stale*: it holds a target, so it sits at
 *draft* rather than below the ladder, but it is not a translation of the source
 the project has now. `kapi status` counts it, the review worklist takes it back,
-and the scope does not ship — whether or not a ship gate was declared, because no
+and the scope does not ship, whether or not a ship gate was declared, because no
 coverage threshold makes a translation of a rewritten sentence shippable. The
 next `kapi up` re-drafts it against the current source (priced in `--plan`, and
 reported as a re-draft in the run summary) and leaves it un-approved for review.
 Restore the source *before* that run and it converges back on the decision
 already recorded; nobody re-reviews anything.
 
-Decisions recorded before the basis was tracked carry none. That is *unknown*,
-not drift: such a unit keeps its rung and ships as before, and `kapi status`
+Decisions recorded before the basis was tracked carry none. Such a unit is
+*unknown* rather than stale: it keeps its rung and ships as before, and `kapi status`
 reports how many there are so the assumption is visible. Deciding the unit again
 records a basis.
 
@@ -569,7 +574,7 @@ records a basis.
       loop: ["re-approve with kapi apply", "binds to the new pairing"],
     },
   ]}
-  caption="An approval binds to the pairing it blesses — the translation, and the source it was approved for: edit either and the unit falls below reviewed until someone approves the new pair."
+  caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the unit falls below reviewed until someone approves the new pair."
 />
 
 The shards are committed with your sources, so the record travels
@@ -578,16 +583,16 @@ where parked units enter the team's assignment and review queue).
 
 This is distinct from the content memory: `kapi apply` with `kind:"memory"` adds a
 source→target pair to the **recycle** corpus (`defaults.memory_source`) for future
-leverage — it does **not** promote a unit to *reviewed*.
+leverage and never promotes a unit to *reviewed*.
 
-Run the loop yourself — this is the real kapi compiled to WebAssembly, working on
+Run the loop yourself: this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,
 `status --review` lists the worklist, `apply` records the unit state in the
 project store, and the closing `status` shows *reviewed* climb:
 
 <KapiGuidedEmbed id="kapi-review-and-approve" />
 
-A second, optional human gate sits above review: *signed-off* — a final approval
+A second, optional human gate sits above review: *signed-off*, a final approval
 for content that needs it (a contractual locale, a regulated string). It is the
 same correction with a `signed-off` review state, the top rung a
 `{ signed-off: … }` gate measures:

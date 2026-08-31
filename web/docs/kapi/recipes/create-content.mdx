@@ -2,7 +2,7 @@
 id: create-content
 title: "Create content with kapi as the checker"
 sidebar_label: "Create content"
-description: "Author content from scratch with kapi as the checker — parse it back as the first check, gate it on voice profile and terminology, and revise, landing the content fix and the rule behind it in one change-set."
+description: "Author content from scratch with kapi as the checker: parse it back as the first check, gate it on voice profile and terminology, and revise, landing the content fix and the rule behind it in one change-set."
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Create content with kapi as the checker
 
-**Goal:** when you are **authoring** new content — there is no frozen source to edit, you are writing the document — use kapi as the checker. You write; kapi parses what you wrote, holds it to the voice profile and terminology, and tells you what to fix. No AI provider is involved. This is the **author → parse → check** loop — the create-side counterpart of [Edit content](/kapi/recipes/rewrite-content), where the source is fixed and you edit existing blocks.
+**Goal:** when you are **authoring** new content (there is no frozen source to edit; you are writing the document), use kapi as the checker. You write; kapi parses what you wrote, holds it to the voice profile and terminology, and tells you what to fix. No AI provider is involved. This is the **author → parse → check** loop, the create-side counterpart of [Edit content](/kapi/recipes/rewrite-content), where the source is fixed and you edit existing blocks.
 
 <PendingMedia
   kind="video"
@@ -28,30 +28,30 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 Write in your own editor; the desktop is the checker beside it.
 
-1. **Track the draft.** Add the file to a project collection (or push it through a **quick tool** for a one-off) — the collection card shows the format kapi detected for it.
+1. **Track the draft.** Add the file to a project collection (or push it through a **quick tool** for a one-off); the collection card shows the format kapi detected for it.
 2. **Parse it as the first check.** Open it: **Preview** renders the document as the engine reads it; **Blocks** lists what you actually wrote, block by block. A missing or merged block means the source needs fixing.
-3. **Gate on voice and terminology.** The **Checks** view runs the project's bound rules — each finding names its rule and block, with the suggested wording.
-4. **Revise and re-run** until the findings clear. A clean check, not a saved file, is the finish line.
+3. **Gate on voice and terminology.** The **Checks** view runs the project's bound rules; each finding names its rule and block, with the suggested wording.
+4. **Revise and re-run** until the findings clear. A clean check is the finish line.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
 With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the author and kapi stays the checker:
 
-> Draft a release-notes page for the export feature — on brand, using our approved terms.
+> Draft a release-notes page for the export feature, on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi voice guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the term rule in one `apply`.
+It loads the voice and wording first (`kapi voice guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together): the content fix and the term rule in one `apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-Author in a **generative** format — one kapi can produce from content alone (Markdown, HTML, JSON, YAML, …):
+Author in a **generative** format, one kapi can produce from content alone (Markdown, HTML, JSON, YAML, …):
 
 ```bash
 kapi formats --json | jq -r '.formats[] | select(.generative) | .name'
 ```
 
-Binary office formats (`.docx`, `.pptx`, `.xlsx`) are editable but not generative — start from an existing file and [edit it in place](/kapi/recipes/rewrite-content) instead. Parse the draft back as the first verification that it is well-formed and says what you intend, then gate it:
+Binary office formats (`.docx`, `.pptx`, `.xlsx`) are editable but not generative: start from an existing file and [edit it in place](/kapi/recipes/rewrite-content) instead. Parse the draft back as the first verification that it is well-formed and says what you intend, then gate it:
 
 ```bash
 kapi stats draft.md --json                            # size and structure survey
@@ -67,14 +67,14 @@ kapi voice guide                          # the voice to follow (no flag inside 
 kapi terms lookup "dashboard" -t en    # the approved term
 ```
 
-Fix what the check flags — edit the source directly, or route the fix through `kapi apply` when you want the round-trip and drift guards ([Edit content](/kapi/recipes/rewrite-content)) — and re-check until green.
+Fix what the check flags (edit the source directly, or route the fix through `kapi apply` when you want the round-trip and drift guards; see [Edit content](/kapi/recipes/rewrite-content)) and re-check until green.
 
 </TabItem>
 </Tabs>
 
 ## Close the loop: fix the content and the rule together
 
-When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are typed entries in one `kapi apply` change-set (requires a [`.kapi` project](/kapi/get-started/first-project)), landing atomically through the single write verb:
+When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are typed entries in one `kapi apply` change-set (requires a [kapi project](/kapi/get-started/first-project)), landing atomically through the single write verb:
 
 ```jsonl
 {"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
@@ -85,10 +85,10 @@ When a check flags a term, the durable fix is two changes: correct **this draft*
 kapi apply changeset.jsonl
 ```
 
-The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed terms source the recipe binds with `defaults.terms_source` (a `.terms.json` bundle) and compiled into the [project store](/kapi/project-store)'s terms tables. `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `memory`, `brand`, and `recipe` asset kinds — see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `brand` entry.
+The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed terms source the recipe binds with `defaults.terms_source` (a `.terms.json` bundle) and compiled into the [project store](/kapi/project-store)'s terms tables. `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `memory`, `voice`, and `recipe` asset kinds; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `voice` entry.
 
 ## Next
 
-- [Edit content](/kapi/recipes/rewrite-content) — the edit-existing loop and the full `content`-entry shape with its guards.
-- [Keep source on brand](/kapi/recipes/keep-source-on-brand) — the voice check and the vocabulary-rule entry.
-- [Checks](/framework/checks) — the `kapi.check/v1` report model and the gate exit codes.
+- [Edit content](/kapi/recipes/rewrite-content): the edit-existing loop and the full `content`-entry shape with its guards.
+- [Keep source on brand](/kapi/recipes/keep-source-on-brand): the voice check and the vocabulary-rule entry.
+- [Checks](/framework/checks): the `kapi.check/v1` report model and the gate exit codes.
