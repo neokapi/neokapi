@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Implementing Formats
-description: Implementation note for E-02 — step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts.
+description: "Implementation note for E-02: step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts."
 keywords: [implementing formats, format reader, format writer, Okapi migration, DataFormatReader, neokapi]
 ---
 
@@ -63,7 +63,7 @@ func (c *Config) FormatName() string { return "<name>" }
 
 func (c *Config) Reset() {
     *c = Config{
-        // Set defaults here. Use zero values intentionally —
+        // Set defaults here. Use zero values intentionally:
         // bool defaults to false, so use "nonFoo" naming when
         // you want the default behavior to be "foo".
     }
@@ -126,7 +126,7 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 ```
 
 `BaseFormatReader` supplies `Name`/`DisplayName`/`Config`/`SetConfig`. You must
-still implement the three methods it does **not** provide — `Signature`, `Open`,
+still implement the three methods it does **not** provide: `Signature`, `Open`,
 and `Close`:
 
 ```go
@@ -244,11 +244,11 @@ child silently fails to reach the file when it is skipped.
 **Write a skeleton ref for it.** A delegated span is a range like any other
 block's: emit `layer:<id>` where the member's bytes were. A reader that emits
 the child layer and no ref produces a translated sub-document that the writer
-then drops — the exit code is 0, the file is written, and the work is only in
+then drops: the exit code is 0, the file is written, and the work is only in
 the store, so a later merge reports it done.
 
 **Delegate what the format actually is.** Sub-filtering is for content in
-*another* format — HTML inside a JSON string, XHTML in an EPUB spine. Handing a
+*another* format (HTML inside a JSON string, XHTML in an EPUB spine). Handing a
 format its own markup to a generic reader of the same family discards the
 format's extraction rules and its config along with them, and there is nothing
 the writer side can do to repair that. Upstream Okapi draws the same line:
@@ -258,7 +258,7 @@ the writer side can do to repair that. Upstream Okapi draws the same line:
 **Put the child back in the carrier it came out of.** The sub-reader is handed
 *decoded* content, so how the parent spelled it is not recoverable from the
 child's output. Record the carrier on the child layer as the reader sees it and
-have the writer honour it — for XML, a CDATA section returns as a CDATA section
+have the writer honour it: for XML, a CDATA section returns as a CDATA section
 with its delimiters left in the skeleton and the child written between them
 verbatim, and escaped character data returns escaped. XML 1.0 §2.7 makes the
 two the same content, so converting either into the other would rewrite every
@@ -271,7 +271,7 @@ a PCDATA one (`AbstractMarkupFilter.handleCdataSection` /
 
 A member nothing translated should go back as the member. The sub-writer
 serializes from the content model, so putting an untouched member through it
-rewrites markup no run had reason to change — which is why the EPUB writer
+rewrites markup no run had reason to change, which is why the EPUB writer
 splices into the entry's original bytes and the XML writer returns the member's
 own content when no block in the child layer holds a target.
 
@@ -386,7 +386,7 @@ that every writer follows instead:
    two writers (attribute order, namespace decls, self-closing vs
    open/close, insignificant whitespace) are cancelled by the shared
    `XMLCanonical` normalizer (`cli/parity/roundtrip/normalizers.go`), applied
-   to **both** `got` and `ref`. Reaching the `canon` tier — not `byte` — is
+   to **both** `got` and `ref`. Reaching the `canon` tier rather than `byte` is
    the norm and is sufficient.
 3. **Structural merges as canonicalization, not write-side rewriting.**
    "Merge adjacent equivalent elements" belongs in the normalizer (applied
@@ -409,16 +409,15 @@ opaque to the comparator it cannot be cancelled on both sides. A writer that
 keeps such a transform MUST document the Okapi class/method it mirrors, so a
 reader can tell reproduction from compensation.
 
-> The WordprocessingML side does **not** qualify: native is faithful and
-> emits source `<w:rPr>` inline with no synthesised paragraph styles. The
-> former Word Style Optimisation (WSO) post-pass that mimicked Okapi's compact
-> pStyle form has been deleted; equivalence with Okapi's compact output is
-> instead proved by an effective-rPr normalizer in the parity comparator.
+> The WordprocessingML side does not qualify: native is faithful and emits
+> source `<w:rPr>` inline with no synthesised paragraph styles. Equivalence
+> with Okapi's compact `pStyle` output is proved by an effective-rPr normalizer
+> in the parity comparator, never by a write-side post-pass.
 
-Formats already converted to this convention: html (DOM `setAttr` instead of
-lang regex), the regex format (prefix/capture/suffix assembly), wiki (stored
-header level), and openxml (structural `<w:r>` envelope emission + byte-splice
-run merges replacing the post-serialization fuse regexes). When a structural
+Formats that follow this convention: html (the `lang` attribute retargeted
+through the typed `SkeletonLang` entry in skeleton mode and structurally on the
+DOM in re-parse mode) and openxml (structural `<w:r>` envelope emission and
+byte-splice run merges). When a structural
 fix is genuinely impractical, prefer a documented `div`-tier divergence or a
 tracked follow-up issue over a new write-side regex.
 
@@ -426,7 +425,7 @@ tracked follow-up issue over a new write-side regex.
 
 The SkeletonStore (`core/format/skeleton.go`) enables byte-exact roundtrip of
 documents. The reader writes skeleton entries as it parses; the writer reads
-them to reconstruct the output. Tools in between only see blocks — they never
+them to reconstruct the output. Tools in between only see blocks; they never
 touch the skeleton.
 
 See [Skeleton Store](/contribute/implementation/engine/skeleton-store) for binary format and API
@@ -488,7 +487,7 @@ content is surfaced for LLM/RAG ingestion instead of being buried in skeleton.
 The body still rides a skeleton **Ref** so the round-trip stays byte-exact and
 the writer re-emits it from the (non-translatable) block; MT skips it because
 `Translatable` is false. With the flag off, these rows collapse back to plain
-skeleton `Text` — the configuration parity pins
+skeleton `Text`, which the configuration parity pins
 ([A-02](/contribute/architecture/assurance/a-02-parity)). See
 [Content-Fidelity Surfacing](/contribute/implementation/engine/content-fidelity) for the
 implementation recipe. Translatable prose embedded *inside* an opaque payload
@@ -504,14 +503,14 @@ format's encoding (e.g., JSON string escaping).
 Always implement a fallback for when no skeleton store is wired (e.g., when
 the format is used outside the flow executor):
 
-1. **Skeleton store** — byte-exact reconstruction (preferred)
-2. **Re-parse original** — re-tokenize from saved original content, substitute
+1. **Skeleton store**: byte-exact reconstruction (preferred)
+2. **Re-parse original**: re-tokenize from saved original content, substitute
    blocks by path (good fidelity, requires holding original in memory)
-3. **Build from blocks** — reconstruct from blocks alone (lowest fidelity,
+3. **Build from blocks**: reconstruct from blocks alone (lowest fidelity,
    always works)
 
-The JSON writer implements all three. The HTML writer implements skeleton +
-re-parse. Simpler formats may only need skeleton + build-from-blocks.
+The JSON and HTML writers implement all three. Simpler formats may only need
+skeleton + build-from-blocks.
 
 ## Registration
 
@@ -632,9 +631,9 @@ Okapi test patterns map to neokapi as:
 
 Before submitting a new format:
 
-- [ ] `config.go` — Config with `Reset()`, `Validate()`, `ApplyMap()`
-- [ ] `reader.go` — Embeds `BaseFormatReader`, implements `SkeletonStoreEmitter`
-- [ ] `writer.go` — Embeds `BaseFormatWriter`, implements `SkeletonStoreConsumer`
+- [ ] `config.go`, Config with `Reset()`, `Validate()`, `ApplyMap()`
+- [ ] `reader.go`, Embeds `BaseFormatReader`, implements `SkeletonStoreEmitter`
+- [ ] `writer.go`, Embeds `BaseFormatWriter`, implements `SkeletonStoreConsumer`
 - [ ] Reader emits `PartLayerStart` → blocks/data → `PartLayerEnd`
 - [ ] Skeleton store: coalescing buffer in reader, `writeFromSkeleton` in writer
 - [ ] Writer fallback chain (skeleton → re-parse or build-from-blocks)

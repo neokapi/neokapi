@@ -15,16 +15,16 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 A tool is a single stage in a processing pipeline. It reads Parts from an input
 channel and writes Parts to an output channel. Tools compose into flows; flows
 are executed by the pipeline engine ([E-01](e-01-processing-engine.md)). The
-`BaseTool` struct with optional handler fields — a capability-typed block handler
-(`Annotate` / `Produce` / `Transform`) plus untyped handlers for other Part types
-— lets most tools implement only the handler for the Part type they care about;
+`BaseTool` struct with optional handler fields (a capability-typed block handler,
+`Annotate` / `Produce` / `Transform`, plus untyped handlers for other Part types)
+lets most tools implement only the handler for the Part type they care about;
 everything else passes through unchanged. The block handler a tool sets also
 declares what it may write. Tools declare parameter schemas via
 `SchemaProvider`, which drives CLI flag generation, flow-editor config panels,
 and validation. An IO contract on `ToolMeta` declares locale cardinality, the
 stand-off layers a tool produces, and its side effects, so the runner can infer
 locale iteration and the flow editor can show data flow. A tool whose behaviour
-comes from one of several interchangeable backends is a **tool group** — it
+comes from one of several interchangeable backends is a **tool group**: it
 registers self-describing members with a default, and the user selects and
 configures one member at a time.
 
@@ -57,7 +57,7 @@ type Tool interface {
 ```
 
 `BaseTool` provides a standard dispatch shell. The block handler is one of three
-capability-typed fields — the tool sets exactly one, and the parameter type
+capability-typed fields; the tool sets exactly one, and the parameter type
 bounds what it may write:
 
 ```go
@@ -78,14 +78,14 @@ type BaseTool struct {
 whichever capability-typed handler is set (and other Part types to their
 `Handle*Fn`), and passes unhandled Part types through unchanged. Concrete tools
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
-stream — batching, 1→N fan-out, cross-block state — overrides `Process` directly;
+stream (batching, 1→N fan-out, cross-block state) overrides `Process` directly;
 it may reuse a typed handler over a held block via `tool.NewBlockView` /
 `tool.NewVariantView`.
 
 ### SessionTool extension
 
 The channel-based `Tool.Process` is a forward-only transform. Some tools need
-random access to the project's block state — lookup by content hash, reading
+random access to the project's block state: lookup by content hash, reading
 prior overlays (memory matches, check findings, previously-produced targets) to
 skip work that is already done, or writing annotations that downstream tools in
 the same or a later run will consult. Those tools opt into the `SessionTool`
@@ -138,8 +138,9 @@ UI:
 ### IO model
 
 Each tool declares an IO contract in its `ToolMeta` (package `core/schema`). The
-contract is expressed over **`IOPort`s** — typed stand-off layers of a Block
-([F-02](../foundations/f-02-content-model.md)) — not over coarse part-type names:
+contract is expressed over **`IOPort`s** (typed stand-off layers of a Block,
+[F-02](../foundations/f-02-content-model.md)) rather than over coarse part-type
+names:
 `Consumes` lists the ports a tool reads upstream and `Produces` the ports it
 writes. An `IOPort`'s `Type` names an overlay type (`term`, `qa`, …), a
 block-annotation type (`voice`, …), or a pseudo-port (`PortTarget` /
@@ -169,8 +170,13 @@ type ToolMeta struct {
     Tags        []string
 
     // Requires declares external resources the tool needs at runtime:
-    // "target-language", "source-language", "memory", "terms", "credentials".
+    // "target-language", "source-language", "memory", "terms", "credentials",
+    // "retryable". A tool that declares one and does not get it cannot run.
     Requires []string
+
+    // Accepts declares optional resources the tool uses when the run has them
+    // ("memory"). A tool that declares one and does not get it still runs.
+    Accepts []string
 
     // Cardinality declares how many locales the tool operates on per execution.
     Cardinality LocaleCardinality
@@ -200,16 +206,27 @@ type ToolMeta struct {
 For example `recycle` optionally consumes source segmentation and produces a
 memory-match annotation, an alternative translation, and `target`; `qa` requires
 a `target` and produces the `qa` overlay. The flow loader uses these contracts
-for data-flow validation — a flow whose tool needs a port that no upstream tool
+for data-flow validation: a flow whose tool needs a port that no upstream tool
 or the source binding supplies is rejected at build
 ([E-04](e-04-flows-and-io-binding.md)).
 
-`Requires` is also a construction hook, not only documentation. When a tool
-declares `terms`, the runner opens the project's terms store and appends the term
-lookup and enforcement stages around it; when it declares `memory`, a
-content-memory provider is injected from `--memory` or the project's own store.
-Those stages are therefore not separately named tools a user selects — they are
-how a `Requires` declaration is honoured.
+`Requires` is also a construction hook. When a tool declares `terms`, the runner
+opens the project's terms store and brackets the tool with the term stages:
+`term-lookup` (package `terms`) runs `terms.Locate`, the one pass over the terms
+store and the recipe's `term_rules:`, and records where declared terms are used
+without grading them; enforcement then grades the uses by the gate's own policy.
+When a tool declares `memory`, a content-memory provider is injected from
+`--memory` or the project's own store; `Accepts: memory` asks for the same
+provider without failing when there is none. These stages are built by the
+runner rather than registered, so they do not appear in `kapi tools`; they are
+how a declaration is honoured.
+
+Every governed step takes its terminology under one recipe key, `term_rules:`,
+as a list of `profile.TermRule`: one term, what to use instead, how hard it
+bites, and an optional concept id that ties it to the terms store and the graph.
+`profile.TermRuleMap` is the single projection into the map a prompt or a check
+consumes, and that map feeds the context fingerprint a target's `Origin` records
+([F-02](../foundations/f-02-content-model.md)).
 
 #### Locale cardinality
 
@@ -219,19 +236,19 @@ Tools declare how many locales they operate on per execution:
 type LocaleCardinality string
 
 const (
-    // Monolingual — operates on a single locale.
+    // Monolingual: operates on a single locale.
     Monolingual LocaleCardinality = "monolingual"
 
-    // Bilingual — operates on exactly two locales, provided as a pair.
+    // Bilingual: operates on exactly two locales, provided as a pair.
     Bilingual LocaleCardinality = "bilingual"
 
-    // Multilingual — operates on N locales simultaneously.
+    // Multilingual: operates on N locales simultaneously.
     Multilingual LocaleCardinality = "multilingual"
 )
 ```
 
 Cardinality describes **how many** locales a tool needs. **Which** locales are
-provided at runtime by the runner or flow configuration — never hardcoded in the
+provided at runtime by the runner or flow configuration, never hardcoded in the
 tool.
 
 #### Uniform locale access
@@ -239,7 +256,7 @@ tool.
 Blocks carry one source locale and N target locales. The source locale is
 structurally distinct because it anchors the document skeleton and inline code
 positions, but tools should not need to know whether a locale is source or
-target — they just need text for a given locale:
+target; they just need text for a given locale:
 
 ```go
 // Text returns the plain text for a locale: the source text if the
@@ -255,9 +272,40 @@ func (b *Block) HasLocale(locale LocaleID) bool
 ```
 
 A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
-`block.Text("de")` — identical code whether `fr` is source or target.
+`block.Text("de")`: identical code whether `fr` is source or target.
 `SourceText()` and `TargetText(locale)` remain available when a tool specifically
 needs the source-anchored skeleton.
+
+#### Units: one iterator over segmented and unsegmented blocks
+
+A segment is a span in the segmentation overlay rather than a structural type
+([F-02](../foundations/f-02-content-model.md)), so a tool that works per segment
+would otherwise repeat the same branch: iterate the spans when a segmentation
+overlay exists, treat the whole block as one unit when none does, and map each
+per-unit write back into the right run range. The tool views (`core/tool/view.go`)
+carry that branch once:
+
+```go
+type BlockView interface {
+    // SourceUnits yields the source units of the given segmentation layer
+    // (LayerPrimary = primary), or one whole-block unit when none is present.
+    SourceUnits(layer string) iter.Seq[Unit]
+}
+
+type VariantView interface {
+    BlockView
+    // TargetUnits yields writable per-unit target production over the source
+    // segmentation of the given layer, splicing each unit's runs back into the
+    // block at the unit's range and preserving ignorable spans verbatim.
+    TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
+}
+```
+
+Reads reuse `Anchor.ExtractRuns`; writes use the inverse splice, which respects
+half-open ranges and `Span.Ignorable()`. A tool that wants the whole block keeps
+using `SourceRuns()`; a tool that wants units opts into `SourceUnits("")`, on any
+side and any named layer, and pairs naturally with the `alignment` overlay for
+source-to-target unit correspondence.
 
 #### Stand-off types and the payload registry
 
@@ -270,7 +318,7 @@ and plugins register additional types and their constructors via one payload
 registry (`model.RegisterPayload` / `model.NewPayload`):
 
 ```go
-// Positional layers (Block.Overlays) — core/model/overlay.go
+// Positional layers (Block.Overlays): core/model/overlay.go
 const (
     OverlaySegmentation  OverlayType = "segmentation"
     OverlayTerm          OverlayType = "term"
@@ -280,7 +328,7 @@ const (
     OverlayTermCandidate OverlayType = "term-candidate"
 )
 
-// Block-scoped metadata (Block.Annotations) — core/model/annotation_access.go
+// Block-scoped metadata (Block.Annotations): core/model/annotation_access.go
 const (
     AnnoNote           = "note"
     AnnoAltTranslation = "alt-translation"
@@ -292,13 +340,13 @@ const (
 )
 ```
 
-A handful of these string values — `"tm-match"` above, and the memory and terms
-side effects below — keep spellings the prose no longer uses. That is
-deliberate: annotation keys and side-effect ids are a wire and storage boundary,
-where renaming a value splits a record rather than moving it. The Go identifiers
-carry the current vocabulary; the strings behind them do not change.
+A handful of these string values (`"tm-match"` above, and the memory and terms
+side effects below) keep spellings the prose no longer uses. Annotation keys and
+side-effect ids are a wire and storage boundary, where renaming a value splits a
+record rather than moving it. The Go identifiers carry the current vocabulary;
+the strings behind them do not change.
 
-Every checker — terminology, do-not-translate, placeholder, quality, voice —
+Every checker (terminology, do-not-translate, placeholder, quality, voice)
 writes the same `qa` overlay (a `core/check.FindingsAnnotation` payload carrying
 a `[]check.Finding` plus a rolled-up score), so one scoring, annotation, and
 governance path serves them all.
@@ -306,6 +354,18 @@ governance path serves them all.
 A tool's `Consumes`/`Produces` name these overlay and annotation types, or a
 pseudo-port, so the same registry that discriminates a payload's concrete type on
 the wire is the vocabulary the flow validator checks the IO contract against.
+
+Three consequences follow from validating on the declared contract. A wrong
+`Consumes`/`Produces` on a built-in tool breaks a real flow, so each tool's
+declaration is audited against its actual reads and writes, with an end-to-end
+test per built-in flow as the guardrail. Plugin tools
+([E-05](e-05-plugin-system.md)) declare the same metadata over gRPC, and the
+overlay and annotation vocabulary is open to them through `model.RegisterPayload`:
+a plugin-defined type crosses the bridge by type name and JSON, and rehydrates
+to its concrete type wherever the payload constructor is registered. Alignment
+is the one relational overlay: it links a source span to a target span, so its
+payload carries the counterpart range while the `Overlay` shape stays
+single-sided.
 
 #### Side effects
 
@@ -323,20 +383,20 @@ const (
     SideEffectAnalytics   SideEffect = "analytics"
 
     // RemoteSourceEgress marks a tool that sends source content to a remote
-    // system — deliberately distinct from APICall: a local detector, terms, or
+    // system, distinct from APICall: a local detector, terms, or
     // content-memory lookup must not carry it, every cloud-provider call must.
     SideEffectRemoteSourceEgress SideEffect = "remote-source-egress"
 )
 ```
 
 Most side-effect declarations are informational metadata for the flow editor and
-the documentation. They are not enforced at runtime — a tool declaring a memory
+the documentation. They are not enforced at runtime: a tool declaring a memory
 write still runs normally with no content memory configured; it skips the
 write. This keeps the tool interface simple while giving the UI enough
 information to warn meaningfully. The one exception is `RemoteSourceEgress`: the
 transformer placement pass keys a hard build error off it, and a tool whose
-remoteness depends on configuration — a model tool pointed at a local runtime or
-the offline demo provider — refines it away through its contract resolver.
+remoteness depends on configuration (a model tool pointed at a local runtime or
+the offline demo provider) refines it away through its contract resolver.
 
 #### Flow locale inference
 
@@ -345,7 +405,7 @@ locales to process. This is the single applicability-based answer to "which
 locales does this flow run for": the CLI's project flow-run and the desktop
 runner both resolve their locale passes through it, so the two surfaces cannot
 disagree. Convergence (`kapi up`) intentionally answers a different question with
-a need-based selection — only the locales still short of their ship gate run a
+a need-based selection: only the locales still short of their ship gate run a
 pass.
 
 ```go
@@ -361,7 +421,7 @@ The runner passes the flow's `*StepsSpec` plus a map from `registry.ToolID` to
 `registry.ToolInfo`, which carries each tool's cardinality and default-locale
 metadata.
 
-Resolution returns a slice of locale sets — one set per execution pass:
+Resolution returns a slice of locale sets, one set per execution pass:
 
 | Flow               | Tools                                         | Passes                                 |
 | ------------------ | --------------------------------------------- | -------------------------------------- |
@@ -418,14 +478,14 @@ The `ToolRegistry` stores schemas alongside factories via
 `RegisterWithSchema(name, factory, schema)`. All built-in tools register
 auto-generated schemas. Schema-driven features:
 
-- **CLI flags** — `cli.RegisterSchemaFlags()` auto-generates Cobra flags from the
+- **CLI flags**: `cli.RegisterSchemaFlags()` auto-generates Cobra flags from the
   schema, mapping camelCase properties to kebab-case flags.
-- **Flow editor** — schema-driven config panels for tool nodes, reusing the same
+- **Flow editor**: schema-driven config panels for tool nodes, reusing the same
   editor component that drives format configuration.
-- **Validation** — `ComponentSchema.Validate()` checks parameter values against
+- **Validation**: `ComponentSchema.Validate()` checks parameter values against
   the schema.
-- **JSON export** — `kapi tools schema <name>` prints the schema for any tool.
-- **MCP exposure** — `host/mcp_tools.go` registers every CLI-visible tool on the
+- **JSON export**: `kapi tools schema <name>` prints the schema for any tool.
+- **MCP exposure**: `host/mcp_tools.go` registers every CLI-visible tool on the
   `kapi mcp` stdio server, projecting the tool's schema plus a `text` input into
   the MCP input schema and running the tool over the supplied text. The exposed
   set is **scoped by mode**, mirroring the desktop's project/ad-hoc split: inside
@@ -479,7 +539,7 @@ has a sensible default.
 A **tool group** models this: a tool whose behaviour is provided by one of
 several self-describing **members**, selected by a discriminator field, with a
 default member and common config. The user picks a member and configures only
-that one — the group never merges members' parameters together.
+that one; the group never merges members' parameters together.
 
 ```go
 reg.RegisterGroup(registry.ToolGroupDef{
@@ -492,7 +552,7 @@ reg.RegisterGroup(registry.ToolGroupDef{
 })
 ```
 
-Members are not separately-registered tools — they belong to the group, and the
+Members are not separately-registered tools; they belong to the group, and the
 candidate members already exist as domain sub-registries: segmentation engines
 ([M-02](../multilingual/m-02-segmentation.md)) and model providers
 ([E-07](e-07-model-providers.md)).
@@ -500,7 +560,7 @@ candidate members already exist as domain sub-registries: segmentation engines
 A member may carry its **own factory** (`ToolGroupMember.Factory`). The group's
 registered `ConfigFactory` dispatches on the discriminator: a member with a
 factory is built directly, the rest fall through to the group's factory. This is
-the seam for **runtime-contributed members** — `RegisterGroup` defines the
+the seam for **runtime-contributed members**: `RegisterGroup` defines the
 built-in members, and `AddGroupMember(group, member)` appends one later
 (recomposing the flat schema, `MemberSchema`, the `ToolInfo.Group` metadata, and
 the dispatcher), so a source outside the group's own package can extend it
@@ -509,11 +569,10 @@ whether it is built-in or contributed.
 
 For **plugin-contributed members**, segmentation wires its engines from the
 manifest `segmenters[]` capability into the segmentation engine sub-registry over
-a dedicated `Segment` RPC ([E-05](e-05-plugin-system.md)) — segmentation members
+a dedicated `Segment` RPC ([E-05](e-05-plugin-system.md)); segmentation members
 are narrow sub-components (text → boundaries), not full tools. The other groups'
 members are full block-processing tools; a manifest and daemon transport for
-contributing those is **not yet built** (the `AddGroupMember` seam above is the
-registry-side foundation it would build on).
+contributing those is **not yet built**.
 
 A group is a single registry entry, so flat consumers are unaffected; it serves
 two renderings from one definition:
@@ -523,15 +582,15 @@ two renderings from one definition:
   the common fields plus a member selector plus only the selected member's own
   schema. Nothing is merged or hidden.
 - **Flat projection** (CLI flags, MCP input, and the registry's `Schema(id)`) is
-  inherently flat — cobra flags and a single input schema cannot be selected into
-  at parse time — so the group projects to one schema via
+  inherently flat (cobra flags and a single input schema cannot be selected into
+  at parse time), so the group projects to one schema via
   `schema.ComposeVariants`: a discriminator `select` plus each member's fields,
   grouped and gated to their member. `ComposeVariants` is therefore a projection
   of a group, not the model.
 
 The discriminator carries a default, so the bare tool works with no
-configuration. Where a tool can infer its backend from another field — `qa` from
-whether a provider is set — that inference is the fallback when the discriminator
+configuration. Where a tool can infer its backend from another field (`qa` from
+whether a provider is set), that inference is the fallback when the discriminator
 is unset.
 
 ### Annotation-based communication
@@ -567,12 +626,12 @@ model-backed ones register from `core/ai/tools` and `core/mt/tools`. The
 authoritative list with every parameter is the generated
 [Tool Reference](/tools); the categories below are the shape of it.
 
-**Translation** — produce target content: `translate` (a model provider),
+**Translation** (produce target content): `translate` (a model provider),
 `recycle` (content memory, exact and fuzzy), `diff-leverage` (reuse from a
 previous document version), `pseudo-translate` (deterministic
 translation-readiness testing), `source-gate`.
 
-**Quality** — validate without rewriting content: `qa` (rule-based, or an LLM
+**Quality** (validate without rewriting content): `qa` (rule-based, or an LLM
 judge when a provider is set), `review` (per-translation score, assessment and
 suggestion), `term-check`, `dnt-check` (alias `dnt`), `placeholder-check`,
 `voice-check`, `voice-vocab-check`, `xml-validation`.
@@ -582,10 +641,10 @@ and word limits), invalid or forbidden characters and charset conformance, regex
 pattern rules (required and forbidden), and cross-block translation consistency,
 rather than splitting each rule family into its own tool.
 
-**Analysis** — read-only metrics and reports: `entity-extract`, `term-extract`,
+**Analysis** (read-only metrics and reports): `entity-extract`, `term-extract`,
 `voice-infer`, `encoding-detect`.
 
-**Text processing** — rewrite, segment, or redact: `case-transform`,
+**Text processing** (rewrite, segment, or redact): `case-transform`,
 `search-replace`, `whitespace-correct`, `inline-codes-remove`, `span-classify`,
 `tag-protect`, `properties-set`, `create-target`, `remove-target`,
 `segmentation`, `media-refine`, `redact`, `unredact`, plus the stream-shaping
@@ -598,7 +657,7 @@ format's config and every writer applies them as a shared post-encode step
 
 `external-command` and `script` are the **exec class**: their job is to run code
 the configuration names, rather than to transform content with code kapi ships.
-They are ordinary tools on the command line — `kapi exec` runs both — but a
+They are ordinary tools on the command line (`kapi exec` runs both), but a
 recipe cannot arm one silently. Which surfaces may name them, and how a recipe
 asks, is [E-06](e-06-execution-trust.md).
 
@@ -649,11 +708,11 @@ step lets authors drop in custom JavaScript when no existing tool fits.
 Tools modify Blocks in place as they flow through channels. This is a deliberate
 trade-off:
 
-- **Performance** — no copying or delta accumulation for high-volume streaming;
+- **Performance**: no copying or delta accumulation for high-volume streaming;
   zero allocation per tool for pass-through Part types.
-- **Simplicity** — tools read and write fields on the same Block. No immutable
+- **Simplicity**: tools read and write fields on the same Block. No immutable
   builders, lenses, or patch application.
-- **Proven pattern** — the Okapi Framework, the Java content and translation
+- **Proven pattern**: the Okapi Framework, the Java content and translation
   framework neokapi reimagines, uses the same mutable-event model across
   thousands of production workflows.
 
@@ -663,10 +722,9 @@ right trade-off.
 
 #### Content immutability by capability
 
-Mutable-in-place does not mean anything goes. A tool's write surface is a
-compile-time property: it declares what it may write by which block handler it
-sets on `BaseTool`, and the handler's parameter type makes the wrong writes
-unrepresentable.
+A tool's write surface is a compile-time property: it declares what it may
+write by which block handler it sets on `BaseTool`, and the handler's parameter
+type makes the wrong writes unrepresentable.
 
 | Handler | View | May write |
 | --- | --- | --- |
@@ -676,19 +734,19 @@ unrepresentable.
 
 - **Analysis and check** tools (`qa`, `term-check`, `entity-extract`, the
   segmenter) set `Annotate`. `BlockView` exposes no source or target setter, so
-  they *cannot* mutate content — they emit overlays, annotations, and properties.
+  they *cannot* mutate content; they emit overlays, annotations, and properties.
 - **Target-producing** tools (`translate`, `recycle`, `create-target`) set
   `Produce` and write `Block.Targets`; source stays read-only.
 - **Transformers** (redaction, normalization, case and encoding conversion) are
   the only tools that rewrite `Block.Source`, and they never do so directly. A
   transformer is a read-only **edit producer**: it inspects the block and returns
-  an *edit plan* — a set of structured `model.RunEdit`s (a span → replacement
+  an *edit plan*: a set of structured `model.RunEdit`s (a span → replacement
   map), any originals to vault (recoverable transformers such as redaction), or
   an opaque whole-block replacement for rewrites with no derivable mapping. A
   single framework-owned **applier** is the one place that mutates the block: it
   applies the edits, **rebases** the surviving run-anchored overlays once
   (`model.RemapOverlays`) so segmentation, terms, and entities follow the
-  rewrite, vaults any secrets, and bounds-checks the result — atomically. Because
+  rewrite, vaults any secrets, and bounds-checks the result, all atomically. Because
   tool code holds no source setter, a transformer cannot corrupt run-anchoring or
   leak a secret; an opaque whole-block replacement drops the overlays it cannot
   rebase. Recoverable transformers keep the original in a block annotation or a
@@ -705,8 +763,8 @@ opts in per context with `tool.WithImmutabilityCheck`, and the tool, tools, and
 flow test suites turn it on for every test. The applier likewise asserts that
 every *surviving* source overlay span still anchors **in bounds** against the
 rewritten runs (`Block.SourceOverlaysInBounds`), so a rebase that left an overlay
-dangling is rejected — that check is unconditional. A tool that genuinely needs
-the maximal surface — `script`, which runs arbitrary JavaScript — overrides
+dangling is rejected; that check is unconditional. A tool that genuinely needs
+the maximal surface (`script`, which runs arbitrary JavaScript) overrides
 `Process` instead and self-gates source mutation behind its own flag.
 
 #### Transformer placement
@@ -714,22 +772,22 @@ the maximal surface — `script`, which runs arbitrary JavaScript — overrides
 Transformers and analyzers are ordinary steps in one ordered tool list; there is
 no separate structural stage. Because the applier mutates inline and in order,
 each transformer settles the source before later steps observe it, so analysis
-that depends on a transform — segmentation over normalized text, an annotator
-feeding a redactor (`entity-extract` → `redact`) — sees the applied result.
+that depends on a transform (segmentation over normalized text, or an annotator
+feeding a redactor such as `entity-extract` → `redact`) sees the applied result.
 
 Ordering safety is a **placement pass** that runs beside the data-flow contract,
 using the capability and `SideEffects` a tool already declares:
 
 | Severity | Rule | Rationale |
 | --- | --- | --- |
-| Error | a transformer must not follow a step that produces a committed target — unless it produces the target port itself (`unredact` rewrites both sides coherently) | rewriting source orphans the targets, which anchor to it |
-| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink — except the step or steps producing an input its config-resolved contract *requires* | otherwise unprotected source leaks before redaction applies; a cloud NER feeding entity-driven redaction is the documented detection trade-off ([C-10](../context/c-10-redaction.md)) |
+| Error | a transformer must not follow a step that produces a committed target, unless it produces the target port itself (`unredact` rewrites both sides coherently) | rewriting source orphans the targets, which anchor to it |
+| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink, except the step or steps producing an input its config-resolved contract *requires* | otherwise unprotected source leaks before redaction applies; a cloud NER feeding entity-driven redaction is the documented detection trade-off ([C-10](../context/c-10-redaction.md)) |
 | Warning | a transformer placed later than its earliest valid slot (after its last required input) | every overlay present at apply time must be rebased; an earlier slot avoids the work |
 
 The remote-egress rule keys off a *remote source egress* side effect, distinct
 from a plain API call, so a local detector or term lookup does not trip it while
 a cloud-provider call does. The effect itself is config-refined: a model tool
-pointed at a local provider carries no remote egress. Tools — including plugins —
+pointed at a local provider carries no remote egress. Tools, including plugins,
 contribute their own placement diagnostics through the same config-derived
 contract hook that resolves a tool's required inputs from its configuration. For
 example redaction requires an upstream `entity` overlay only when entity
@@ -766,10 +824,10 @@ rejected.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — Blocks, overlays, annotations, and Fragment projections
-- [E-01: The processing engine](e-01-processing-engine.md) — how tools compose into flows
-- [E-02: The format system](e-02-format-system.md) — readers and writers bracket the tool chain
-- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md) — a flow is composition only; tool = unit, binding = the ends
-- [E-05: The plugin system](e-05-plugin-system.md) — plugin tools
-- [E-06: Execution trust](e-06-execution-trust.md) — the exec class and how a recipe arms it
-- [E-07: Model and translation providers](e-07-model-providers.md) — provider injection into model-backed tools
+- [F-02: The content model](../foundations/f-02-content-model.md): Blocks, overlays, annotations, and Fragment projections
+- [E-01: The processing engine](e-01-processing-engine.md): how tools compose into flows
+- [E-02: The format system](e-02-format-system.md): readers and writers bracket the tool chain
+- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): a flow is composition only; tool = unit, binding = the ends
+- [E-05: The plugin system](e-05-plugin-system.md): plugin tools
+- [E-06: Execution trust](e-06-execution-trust.md): the exec class and how a recipe arms it
+- [E-07: Model and translation providers](e-07-model-providers.md): provider injection into model-backed tools

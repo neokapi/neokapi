@@ -2,7 +2,7 @@
 id: e-08-document-structure-tiers
 sidebar_position: 8
 title: "E-08: Document structure tiers"
-description: "Where a format carries no reliable logical structure, it is recovered through a tiered model — the document's own tags where they exist, geometric inference otherwise, and an ML layout tier above both — with PDF read out-of-core by PDFium through a native plugin and a browser WASM bridge."
+description: "Where a format carries no reliable logical structure, it is recovered through a tiered model (the document's own tags where they exist, geometric inference otherwise, and an ML layout tier above both), with PDF read out-of-core by PDFium through a native plugin and a browser WASM bridge."
 keywords: [neokapi, architecture decision, document structure, PDF, PDFium, geometry, glyphs, tagged structure, table detection, WebAssembly, plugin]
 ---
 
@@ -12,7 +12,7 @@ keywords: [neokapi, architecture decision, document structure, PDF, PDFium, geom
 
 Some formats state their own logical structure; some only imply it. Where a
 format carries headings, paragraphs, and tables as markup, the reader reads them.
-Where it does not — PDF is the archetype — structure is recovered through a
+Where it does not (PDF is the archetype), structure is recovered through a
 **tiered model**, in decreasing order of authority: the document's own tagged
 structure tree where it exists, geometric inference from positions otherwise, and
 an ML layout model above both for what geometry cannot reach. Each tier falls
@@ -21,11 +21,11 @@ through cleanly to the one below, so a document always parses.
 PDF is read **out-of-core** by [PDFium](https://pdfium.googlesource.com/pdfium/),
 through two backends that share their content-producing logic:
 
-- **Native** — `kapi-pdfium`, a first-party Mode-C plugin
+- **Native**: `kapi-pdfium`, a first-party Mode-C plugin
   ([E-05](e-05-plugin-system.md)) linking PDFium via cgo and running as an
   isolated daemon, so a malformed-PDF crash dies with the subprocess rather than
   with `kapi`.
-- **Browser** — a `WasmReader` (build-tagged `js`) that bridges Go-WASM to a
+- **Browser**: a `WasmReader` (build-tagged `js`) that bridges Go-WASM to a
   PDFium **WebAssembly** module loaded by the web app, giving the in-browser Lab
   the same extraction without a server.
 
@@ -44,7 +44,7 @@ that engine, but it is a large C++ codebase with two consequences the framework
 must contain:
 
 - **Native weight.** Linking PDFium via cgo defeats pure-Go cross-compilation and
-  inflates every `kapi` install for a capability many invocations never use — the
+  inflates every `kapi` install for a capability many invocations never use: the
   same isolation rationale as the Okapi bridge and the ML segmenter
   ([M-02](../multilingual/m-02-segmentation.md)). PDF therefore lives in a
   plugin, not in the framework.
@@ -53,8 +53,8 @@ must contain:
 
 Beyond text, the visual editor ([S-06](../surfaces/s-06-visual-editor.md)) and
 the browser Lab need each text fragment's **position on the page**, and
-downstream processing wants **document structure** — which lines are headings,
-which blocks form a table — so that a translated document can be reflowed and so
+downstream processing wants **document structure** (which lines are headings,
+which blocks form a table), so that a translated document can be reflowed and so
 that table cells are translated as cells. PDF carries none of this uniformly:
 some PDFs are *tagged* with an explicit logical structure tree; most are not, and
 structure must be inferred from geometry.
@@ -89,8 +89,8 @@ plugins/pdfium/
     └── structtree.go              tier-1 tagged struct tree (build-tag-free; runtime-gated)
 ```
 
-Both backends produce an identical `Part` stream — a document `Layer`, per-page
-`Layer`s, and Blocks — and share two pieces of framework logic so the native and
+Both backends produce an identical `Part` stream (a document `Layer`, per-page
+`Layer`s, and Blocks) and share two pieces of framework logic so the native and
 browser results match:
 
 - **`core/formats/pdf.GroupRuns`** merges PDFium's per-rect fragments (it emits a
@@ -104,11 +104,11 @@ browser results match:
 The reader has two granularities, selected by the `geometry` config flag
 (`formats/pdf/schema.json`):
 
-- **Fast path** (`geometry=false`, the default) — one plain-text Block per page.
+- **Fast path** (`geometry=false`, the default): one plain-text Block per page.
   Fewest allocations, no positional work; the right choice for batch text
   operations such as word counts, memory leverage, and the toolbox utilities
   ([S-04](../surfaces/s-04-toolbox.md)).
-- **Geometry path** (`geometry=true`) — one Block per positioned text run, each
+- **Geometry path** (`geometry=true`): one Block per positioned text run, each
   carrying a `GeometryAnnotation`. With `glyphs=true` (which implies geometry)
   each Block additionally carries per-character boxes for character-precise
   highlighting.
@@ -117,7 +117,7 @@ Independent of the mode, the reader maps the PDF **Info dictionary** onto the
 content model through the shared `core/docmeta` helper: `Title`, `Subject`, and
 `Keywords` become translatable Blocks on the metadata plane, while `Author`,
 `Creator`, `Producer`, `CreationDate`, and `ModDate` are recorded as
-`pdf:`-namespaced properties on the document layer — never translated, kept for
+`pdf:`-namespaced properties on the document layer, never translated, kept for
 inspection. This is the same metadata mechanism the image reader uses
 ([M-07](../multilingual/m-07-metadata-i18n.md)).
 
@@ -128,8 +128,8 @@ increases upward. neokapi's content and editor model use a **top-left** origin (
 increases downward), matching screen and most document coordinate systems. Every
 box is flipped once, at extraction, when the page height is known:
 `Y_top-left = pageHeight − Y_upper`. The flip is implemented identically at all
-three sites — the native fast and geometry reader, the native tagged-tree reader,
-and the browser bridge — and each stamps `Origin: "top-left"`, or falls back to
+three sites (the native fast and geometry reader, the native tagged-tree reader,
+and the browser bridge), and each stamps `Origin: "top-left"`, or falls back to
 `"bottom-left"` when the page height is unavailable. `GeometryAnnotation` carries
 the page number, the union bounding box, the origin, and the optional per-glyph
 boxes (text plus box per character).
@@ -141,14 +141,14 @@ authority:
 
 | Tier | Source | Where it runs | Authority |
 |---|---|---|---|
-| **1 — Tagged struct tree** | The document's own logical structure tree (Document › H1 › P › Table › TR › TH/TD …) | Native plugin only | Authoritative — the author's own tags |
-| **2 — Geometric inference** | Block positions: row clustering, column alignment, relative line height | Native **and** browser | Heuristic |
-| **3 — ML layout** | A vision model over the rendered page | Native plugin + host | Heuristic, highest recall |
+| **1: Tagged struct tree** | The document's own logical structure tree (Document › H1 › P › Table › TR › TH/TD …) | Native plugin only | Authoritative: the author's own tags |
+| **2: Geometric inference** | Block positions: row clustering, column alignment, relative line height | Native **and** browser | Heuristic |
+| **3: ML layout** | A vision model over the rendered page | Native plugin + host | Heuristic, highest recall |
 
 **Tier 1** (`internal/pdfreader/structtree.go`) reads a tagged PDF's structure
 tree directly: it builds a marked-content-ID → text and bounds map from the
 page's text objects, walks the struct tree, and maps elements onto the content
-model — `Table` becomes a table group of rows and cells (TH → header, TD → cell),
+model: `Table` becomes a table group of rows and cells (TH → header, TD → cell),
 `H1`–`H6` become headings, `P` and its relatives become paragraphs. The
 marked-content accessors are PDFium *experimental* APIs that the Go binding wires
 only under the `pdfium_experimental` build tag, and the bundled library exports
@@ -168,23 +168,23 @@ their fallback, and because it operates on geometry rather than on PDF, any
 format that can produce positioned blocks gets it.
 
 **Tier 3** runs a layout model over the rendered page for the cases geometry
-cannot reach — borderless tables, multi-column reading order, scanned pages,
-figure and caption association. It is deliberately *not* part of the PDF format:
+cannot reach: borderless tables, multi-column reading order, scanned pages,
+figure and caption association. It is not part of the PDF format:
 it operates on a page raster plus blocks, and so applies to any format that can
 produce them ([M-03](../multilingual/m-03-multimodal-content.md)). Enabled with
-the `tier3` option, the plugin renders each page to a PNG at 72 DPI — so PDF
-points map 1:1 to raster pixels and the text geometry aligns — and emits it as a
+the `tier3` option, the plugin renders each page to a PNG at 72 DPI (so PDF
+points map 1:1 to raster pixels and the text geometry aligns) and emits it as a
 Media part marked `vision.PageRasterProperty` alongside the page's raw positioned
 blocks, applying *no* structure of its own. A host-side reader decorator
 (`host/pluginhost/tier3_reader.go`, wrapping every plugin reader as a pass-through
 until `tier3` is requested) runs the vision layout model over the raster via
 `vision.StructureFromLayout`: the model's regions and reading order are
 authoritative, the blocks' own text fills them
-(`vision.OCRResultFromBlocks` — more accurate than re-running OCR over a vector
+(`vision.OCRResultFromBlocks`, more accurate than re-running OCR over a vector
 PDF), and `table` regions are reconstructed into row and column cells. The
 decorator deletes the rendered raster afterwards and, when the vision plugin is
 not installed, strips the request so the plugin falls back to the geometric tier
-2 — so tier 3 degrades cleanly to tier 2, never worse. Browser builds have no
+2, so tier 3 degrades cleanly to tier 2, never worse. Browser builds have no
 native vision engine, so tier 3 is native-only.
 
 A consequence of this design is a **native/browser asymmetry**: the browser
@@ -193,19 +193,36 @@ always uses tier 2 even for a tagged PDF, while a native `kapi` run uses tier 1.
 The structure of a tagged PDF can therefore differ between the Lab and the CLI;
 this is documented at the call site.
 
+### Structure from an external converter
+
+A document converter that has already recovered layout can hand its result to
+the framework instead of the raw file. Two readers take that route: `docling`
+reads DoclingDocument JSON, the lossless serialization Docling emits, and
+`doclang` reads DocLang XML. Each walks the converter's reading order and maps
+its items onto the same content model the tiers above produce: a normalized
+role on the `structure` annotation, the provenance box on a
+`GeometryAnnotation`, page headers and footers on the furniture layout layer,
+tables as a group of row groups of cell blocks, captions as caption-role blocks.
+Both readers are read-only; the converter owns its file, and the framework
+re-emits structure through the DocLang writer or projects it to Markdown or
+HTML. This is the file-based way to consume a converter: run it, save its
+output, read the output.
+
 ### Distribution
 
 `kapi-pdfium` bundles the PDFium **shared** library at `lib/<name>` beside the
 binary in the release tarball, found via an rpath baked into the binary
-(`@loader_path/lib` on macOS, `$ORIGIN/lib` on Linux, same directory on Windows)
-— the same bundling shape as the ML segmenter plugin's ONNX runtime
-([M-02](../multilingual/m-02-segmentation.md)), not a static link. Tarballs are
+(`@loader_path/lib` on macOS, `$ORIGIN/lib` on Linux, same directory on Windows):
+the same bundling shape as the ML segmenter plugin's ONNX runtime
+([M-02](../multilingual/m-02-segmentation.md)) rather than a static link. Tarballs are
 built per platform on native runners (cgo, `-tags pdfium_experimental`, PDFium
 pinned to a release build), cosign-signed, and indexed in the registry, so
 `kapi plugin install pdfium` verifies the download like any other plugin
-([E-05](e-05-plugin-system.md)). The plugin is bundled with the kapi CLI, and the
-desktop app installs it on demand the first time a PDF is opened; the browser
-self-hosts PDFium's WASM next to the kapi WASM.
+([E-05](e-05-plugin-system.md)). The CLI's Homebrew formula depends on the
+plugin's, so a `brew install` brings it along; any other install adds it with
+`kapi plugin install pdfium`; the desktop app installs it on demand the first
+time a PDF is opened; and the browser self-hosts PDFium's WASM next to the kapi
+WASM.
 
 ## Consequences
 
@@ -216,7 +233,7 @@ self-hosts PDFium's WASM next to the kapi WASM.
   share `GroupRuns` and `structure.Analyze`/`ToParts`; the only intended
   divergence is tier-1 structure, which the browser cannot see.
 - Geometry is available for the visual editor and the Lab without changing the
-  content model — it rides on the stand-off `GeometryAnnotation`, off by default
+  content model: it rides on the stand-off `GeometryAnnotation`, off by default
   so batch text work pays nothing for it.
 - Tagged documents get author-fidelity structure for free; untagged ones get a
   best-effort geometric reconstruction; the ML tier sits above both without
@@ -226,10 +243,10 @@ self-hosts PDFium's WASM next to the kapi WASM.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — Blocks, stand-off annotations, table groups, and the structure stream `ToParts` emits
-- [E-02: The format system](e-02-format-system.md) — how the `pdf` format registers and detects
-- [E-05: The plugin system](e-05-plugin-system.md) — Mode-C daemon discovery, native-stack isolation, signed registry distribution
-- [M-02: Segmentation](../multilingual/m-02-segmentation.md) — the precedent for isolating a native stack in a bundled-shared-library plugin
-- [M-03: Multimodal content](../multilingual/m-03-multimodal-content.md) — the vision layout model tier 3 calls, and the raster contract it runs on
-- [S-06: The visual editor](../surfaces/s-06-visual-editor.md) — how the editor consumes geometry and structure
-- [`plugins/pdfium/`](https://github.com/neokapi/neokapi/tree/main/plugins/pdfium) — plugin module, readers, and README
+- [F-02: The content model](../foundations/f-02-content-model.md): Blocks, stand-off annotations, table groups, and the structure stream `ToParts` emits
+- [E-02: The format system](e-02-format-system.md): how the `pdf` format registers and detects
+- [E-05: The plugin system](e-05-plugin-system.md): Mode-C daemon discovery, native-stack isolation, signed registry distribution
+- [M-02: Segmentation](../multilingual/m-02-segmentation.md): the precedent for isolating a native stack in a bundled-shared-library plugin
+- [M-03: Multimodal content](../multilingual/m-03-multimodal-content.md): the vision layout model tier 3 calls, and the raster contract it runs on
+- [S-06: The visual editor](../surfaces/s-06-visual-editor.md): how the editor consumes geometry and structure
+- [`plugins/pdfium/`](https://github.com/neokapi/neokapi/tree/main/plugins/pdfium): plugin module, readers, and README

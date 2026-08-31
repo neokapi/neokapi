@@ -9,13 +9,12 @@
 # open the door to bowrain mentions anywhere else. bowrain is otherwise a
 # strictly DOWNSTREAM product (F-01); its docs live in bowrain/web/docs/.
 #
-# The architecture corpus is held to the same zero: it describes the framework
-# and nothing downstream of it, so it is swept below alongside the user-facing
-# trees. A second, separate exception survives only under
-# web/docs/contribute/implementation/, where genuine cross-module facts may name
-# bowrain — e.g. kapi-desktop's blank-import of bowrain/plugin/schema and the
-# module tree. That directory is not in the user_facing sweep below, so it's
-# untouched by either check here.
+# The architecture corpus and the implementation notes are held to the same
+# zero: they describe the framework and nothing downstream of it, and no Apache
+# module reaches a package under bowrain/ (asserted by make check-module-
+# boundaries), so no cross-module fact needs the name. The one carve-out is
+# web/docs/contribute/implementation/repo/, whose notes describe this
+# monorepo's own build and publishing and may name its bowrain/ directory.
 #
 # Everything else user-facing (framework/kapi/react/reference/toolbox and the
 # docs home page, which is also the product landing page) must not mention
@@ -46,6 +45,7 @@ fail=0
 #    by convention.
 user_facing=(
   web/docs/contribute/architecture
+  web/docs/contribute/implementation
   web/docs/framework
   web/docs/kapi
   web/docs/react
@@ -76,7 +76,8 @@ while IFS= read -r -d '' f; do
   if file_hits=$(mask_callouts "$f" | grep -inE 'bowrain'); then
     hits="${hits}${f}:"$'\n'"${file_hits}"$'\n'
   fi
-done < <(find "${user_facing[@]}" -type f ! -name '_*.json' -print0 2>/dev/null)
+done < <(find "${user_facing[@]}" -type f ! -name '_*.json' \
+  ! -path 'web/docs/contribute/implementation/repo/*' -print0 2>/dev/null)
 
 if [ -n "$hits" ]; then
   echo "✖ bowrain reference(s) found in user-facing neokapi docs outside a sanctioned 'Works with Bowrain' callout (must be zero):"
@@ -102,8 +103,8 @@ fi
 if [ "$fail" -ne 0 ]; then
   echo ""
   echo "The neokapi docs site is downstream-clean by contract. Move bowrain content to bowrain/web/docs/."
-  echo "Genuine cross-module facts may reference bowrain ONLY under web/docs/contribute/,"
-  echo "or — capped at ${MAX_SANCTIONED_CALLOUTS} repo-wide (R9) — inside a '${CALLOUT_MARKER}' callout."
+  echo "Only web/docs/contribute/implementation/repo/ (this monorepo's own build notes) may name bowrain,"
+  echo "or, capped at ${MAX_SANCTIONED_CALLOUTS} repo-wide (R9), a '${CALLOUT_MARKER}' callout."
   exit 1
 fi
 

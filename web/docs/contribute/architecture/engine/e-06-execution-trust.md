@@ -15,9 +15,9 @@ a subprocess from its own config, and `script` evaluates recipe-supplied
 JavaScript. So does one format: `exec` reads content by shelling out. Together
 they are the **exec class**.
 
-Every surface that can name an exec-class tool answers one question — *did a
-person choose this?* — and the answer is a property of the surface, not of the
-tool:
+Every surface that can name an exec-class tool answers one question, *did a
+person choose this?*, and the answer is a property of the surface rather than
+of the tool:
 
 | Surface | Where the argv comes from | Answer |
 | --- | --- | --- |
@@ -37,24 +37,24 @@ a legitimate reason to say yes. The rest have a fixed answer, so they do not ask
 `core/project.ResolveLayout` finds a project by walking up from the working
 directory, the way `git` finds a repository. This is the right behaviour for a
 tool people run inside checkouts, and it means **entering a directory is enough
-to bind its recipe**. A recipe is therefore not something the user opened; it is
-something they stood next to.
+to bind its recipe**. A recipe is therefore something the user stood next to rather
+than something they opened.
 
-Most of what a recipe declares is inert — languages, content globs, gates,
+Most of what a recipe declares is inert: languages, content globs, gates,
 per-tool settings. The exec class is not: a flow step names a program and the
 framework would run it, with the user's privileges and the user's whole
 environment. That environment includes provider API keys, which resolve from
 conventional variables by design.
 
-This is the `npm postinstall` threat model. The distinguishing feature of that
-model is not that code runs — build tooling runs code constantly — but that
-running it was never surfaced as a decision.
+This is the `npm postinstall` threat model. What distinguishes that model is
+that running the code was never surfaced as a decision; build tooling runs code
+constantly.
 
 ### The same classification, applied on every surface
 
 Two surfaces can refuse outright, because neither has a user to ask:
 
-- **MCP** withholds both tools from the agent surface, and deliberately does not
+- **MCP** withholds both tools from the agent surface, and does not
   fold them into `--all-tools`, because *"show me every tool"* and *"let a caller
   execute arbitrary commands"* are different requests
   ([S-03](../surfaces/s-03-agent-surfaces.md)).
@@ -75,7 +75,7 @@ one arm that asks.
 
 The gate lives in `host.LoadProjectInteractive`, the wrapper every project-aware
 command already routes through, so every command inherits it at once.
-`core/project.ExecSurface` enumerates the exec-class sites in a loaded recipe —
+`core/project.ExecSurface` enumerates the exec-class sites in a loaded recipe:
 flow steps including nested `parallel:` branches, the `defaults.tools` and
 `defaults.locales.*.tools` presets, and format bindings on content collections
 and their items. An empty surface, which is every recipe in this repository and
@@ -91,29 +91,28 @@ The stored record answers *what was approved*, not *which project was trusted*:
 
 - **It is keyed by absolute recipe path**, so a second checkout of the same
   project is a second decision. Approval does not travel with a copy.
-- **It carries a digest of the exec surface alone** (`ExecSurfaceDigest`) — each
-  site's location, kind, name, and canonical config — not of the whole file.
-  Adding a target language keeps the approval; adding an argument to the approved
+- **It carries a digest of the exec surface alone** (`ExecSurfaceDigest`), each
+  site's location, kind, name, and canonical config, rather than of the whole
+  file. Adding a target language keeps the approval; adding an argument to the approved
   command does not. This is what makes a sticky decision safe: it attaches to the
   argv a person read, so a recipe cannot be approved once and rewritten
   afterwards.
 - **It lives under `ConfigDir()`**, not in the project's `.kapi/`. The state
   directory is documented as safe to delete and regenerate, so a record there
-  would evaporate on a routine clean — and, worse, could ship inside the project
+  would evaporate on a routine clean, and could also ship inside the project
   for the next person to inherit. `ConfigDir()` honours `KAPI_CONFIG_DIR`, so a
   run isolated per the in-repo dogfood contract cannot read or write the
   developer's real decisions.
 
-Declines are remembered too, and a declined recipe says how to answer again.
-Re-asking a question already answered no is how a person is trained to answer
-yes.
+Declines are remembered too, and a declined recipe says how to answer again,
+so a person is never asked repeatedly for an answer they have already given.
 
 ### `--yes` does not grant execution trust
 
 `--yes` means *"do not stop for prompts I would obviously accept"*, and it is
 already passed by every unattended script that wants plugin auto-install. Reusing
 it as the key for this decision would mean every existing automation silently
-acquired the right to run whatever a checked-out recipe named — and automation
+acquired the right to run whatever a checked-out recipe named, and automation
 over untrusted checkouts is precisely the population the gate exists for. The
 flag would have granted the thing it was introduced to gate.
 
@@ -121,8 +120,8 @@ flag would have granted the thing it was introduced to gate.
 process-scoped and never written to the record: a container's config directory is
 not a place to persist a decision. Unlike `KAPI_NO_PROJECT` and
 `KAPI_PLUGINS_DIR_ONLY`, which treat any non-empty value as set, it requires an
-affirmative value — reading `KAPI_TRUST_EXEC=0` as "yes" is the wrong way for a
-switch like this to be wrong.
+affirmative value; reading `KAPI_TRUST_EXEC=0` as "yes" would be the wrong
+failure for a switch like this.
 
 With no terminal and no opt-in, kapi **refuses**, naming the recipe, the sites,
 and both ways to answer. Assuming yes when there is nobody to ask would make the
@@ -134,8 +133,8 @@ The prompt is the user experience; it is not the enforcement point. A handful of
 internal paths load a recipe directly rather than through
 `LoadProjectInteractive`, and whether a subprocess spawns should not depend on
 which of them got there first. `App.checkExecToolAllowed` therefore sits on
-`toolFromStep` and `buildToolByName` — the two chokepoints through which
-recipe-driven configuration becomes a tool — and refuses to build an exec-class
+`toolFromStep` and `buildToolByName` (the two chokepoints through which
+recipe-driven configuration becomes a tool) and refuses to build an exec-class
 tool with no decision behind it. It never prompts: by the time a flow is
 assembling steps there is no sensible place to stop and ask. It re-reads the
 record instead, so a project already approved keeps working on those paths.
@@ -165,8 +164,8 @@ user typed, which is the user's own intent rather than a file's.
 
 ## Related
 
-- [E-03: The tool system](e-03-tool-system.md) — `external-command` and `script` as ordinary tools
-- [E-02: The format system](e-02-format-system.md) — the `exec` format that reads by shelling out
-- [C-01: The project model](../context/c-01-project-model.md) — recipe discovery by upward walk, and the `.kapi/` state directory
-- [M-06: Content packages](../multilingual/m-06-content-packages.md) — `.kpz` ingest sanitisation
-- [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md) — why the MCP surface refuses, and why `--all-tools` does not change that
+- [E-03: The tool system](e-03-tool-system.md): `external-command` and `script` as ordinary tools
+- [E-02: The format system](e-02-format-system.md): the `exec` format that reads by shelling out
+- [C-01: The project model](../context/c-01-project-model.md): recipe discovery by upward walk, and the `.kapi/` state directory
+- [M-06: Content packages](../multilingual/m-06-content-packages.md): `.kpz` ingest sanitisation
+- [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md): why the MCP surface refuses, and why `--all-tools` does not change that

@@ -1,21 +1,19 @@
 ---
 sidebar_position: 4
 title: Content-Fidelity Surfacing
-description: Implementation note for E-02 — how a format author surfaces non-translatable contextual content (alt-text, code, formulas, comments, metadata) for ingestion while keeping the byte-exact round-trip and Okapi parity, via the inverted disableNonTranslatableContent toggle, the getter/setter/ApplyMap/schema trio, the duck-typed parity force-off, and the two surfacing channels (non-translatable Block vs Data/NoteAnnotation).
+description: "Implementation note for E-02: how a format author surfaces non-translatable contextual content (alt-text, code, formulas, comments, metadata) for ingestion while keeping the byte-exact round-trip and Okapi parity, via the inverted disableNonTranslatableContent toggle, the getter/setter/ApplyMap/schema quartet, the duck-typed parity force-off, and the two surfacing channels (non-translatable Block vs Data/NoteAnnotation)."
 keywords: [content fidelity, surfacing, non-translatable content, ExtractNonTranslatableContent, SemanticRole, skeleton, parity, format reader, neokapi]
 ---
 
 # Content-Fidelity Surfacing
 
-Tactical guide for a format author adding *content-fidelity surfacing* — making
+Tactical guide for a format author adding *content-fidelity surfacing*: making
 contextual content (image and shape alt-text, code blocks, captions, formulas,
 do-not-translate strings, config-excluded values, comments, document metadata)
 visible to ingestion and LLM/RAG consumers while machine translation skips it and
 the round-trip stays byte-exact. Parent AD:
-[E-02: Content-Fidelity Surfacing](/contribute/architecture/engine/e-02-format-system).
-For the surrounding format-system contracts see
-[E-02: Format System](/contribute/architecture/engine/e-02-format-system), the general
-port recipe in
+[E-02: The format system](/contribute/architecture/engine/e-02-format-system)
+(reader output policy). For the general port recipe see
 [Implementing Formats](/contribute/implementation/engine/implementing-formats), and the
 skeleton mechanics in
 [Skeleton Store and Streaming HTML](/contribute/implementation/engine/skeleton-store).
@@ -29,8 +27,8 @@ that would otherwise be carried only as skeleton bytes.
 
 A surfacing-capable config carries one boolean whose **zero value means
 surfacing is ON**. The field is private and inverted so the rich default falls
-out of `Config{}` without a `Reset()` assignment — the `nonFoo` convention
-documented in [Implementing Formats](/contribute/implementation/engine/implementing-formats)
+out of `Config{}` without a `Reset()` assignment (the `nonFoo` convention
+documented in [Implementing Formats](/contribute/implementation/engine/implementing-formats))
 ("`bool` defaults to `false`, so use `nonFoo` naming when you want the default
 behavior to be `foo`").
 
@@ -49,7 +47,7 @@ type Config struct {
 Naming the field `disableNonTranslatableContent` (rather than a positive
 `extractNonTranslatableContent bool` that `Reset()` must remember to set `true`)
 keeps the on-by-default behavior true even for a `Config{}` literal that never
-runs `Reset()` — for example a reader constructed in a test, or any caller that
+runs `Reset()`: a reader constructed in a test, or any caller that
 mutates one field and forgets the rest. `Reset()` still pins it explicitly for
 documentation value:
 
@@ -64,7 +62,7 @@ func (c *Config) Reset() {
 
 The private field is exposed through four coordinated surfaces. Keep the names
 and the public key (`extractNonTranslatableContent`, positive sense)
-byte-identical across all of them — the duck-typed parity hook (below) and the
+byte-identical across all of them; the duck-typed parity hook (below) and the
 generated reference both bind to them by name.
 
 **Getter and setter** (`core/formats/openxml/config.go`) present the positive
@@ -80,7 +78,7 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 }
 ```
 
-**ApplyMap key** (same file) decodes the positive public key — recipes, presets,
+**ApplyMap key** (same file) decodes the positive public key: recipes, presets,
 and the CLI speak `extractNonTranslatableContent`, never the private field:
 
 ```go
@@ -99,17 +97,17 @@ generated `/reference/formats` page and to schema-driven config UIs, with
     Title:   "Extract non-translatable content",
     Default: true,
     Description: "If true (default), non-translatable contextual content is " +
-        "surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as " +
+        "surfaced, image/shape alt-text (descr/title on docPr/cNvPr) as " +
         "content blocks (visible to ingestion/LLM consumers, skipped by " +
         "machine translation), and PowerPoint/Excel comment text as data " +
-        "parts — instead of being hidden in opaque skeleton. Disable to keep " +
+        "parts, instead of being hidden in opaque skeleton. Disable to keep " +
         "it opaque.",
 }),
 ```
 
 ## The duck-typed extension point
 
-There is no `format.DataFormatConfig` method for surfacing — it is an optional
+There is no `format.DataFormatConfig` method for surfacing; it is an optional
 capability discovered structurally. Any consumer that needs to force the toggle
 type-asserts the anonymous interface, so a config that lacks the setter is left
 at its own default:
@@ -126,23 +124,23 @@ if c := reader.Config(); c != nil {
 The parity runner uses this to force surfacing **off** for the head-to-head: the
 okapi-bridge has no notion of surfacing, so the native reader must reproduce the
 bridge's opaque-skeleton output when handed the matching semantic config. This
-is the concrete realization of the parity contract — *same semantic config →
-same results* — while letting native readers pick the richer default. Exposing
+is the concrete realization of the parity contract (*same semantic config →
+same results*), while letting native readers pick the richer default. Exposing
 exactly `SetExtractNonTranslatableContent(bool)` (no more, no less) is therefore
 the contract a new surfacing format must honor to participate in parity (see
 [A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity)).
 
-## Channel 1 — renderable content as a non-translatable Block
+## Channel 1: renderable content as a non-translatable Block
 
 Content that is *rendered* in the document but must not be translated (alt-text,
 code, captions, formulas, do-not-translate strings, config-excluded values) is
 surfaced as a `model.Block` with `Translatable: false`, tagged with a
 `SemanticRole`, and referenced from the skeleton so it round-trips by ID. Because
 the block holds the value, an untranslated read replays the original bytes and a
-translated one splices the new text in place — the structure is never disturbed.
+translated one splices the new text in place; the structure is never disturbed.
 
 ```go
-// core/formats/openxml/dml.go (emitDrawingProp) — image/shape alt-text
+// core/formats/openxml/dml.go (emitDrawingProp): image/shape alt-text
 block := &model.Block{
     ID:           id,
     Type:         "property",
@@ -169,7 +167,7 @@ type SkeletonRef struct {
 }
 ```
 
-Pick the closest existing role from `core/model/structure.go` —
+Pick the closest existing role from `core/model/structure.go`:
 `RoleCaption` for alt-text/object titles, `RoleCode` for code, `RoleFormula` for
 equations, and so on. Do not invent a role for a surfacing case; the role is the
 stable handle that semantic export, the editor, and ingestion use to recognize
@@ -184,20 +182,20 @@ equation is written back through a **sub-skeleton**. See
 [OMML Math Conversion](/contribute/implementation/multilingual/omml-math) for the
 formula-specific surfacing and its byte-exact splice.
 
-## Channel 2 — comments and metadata as Data or a note
+## Channel 2: comments and metadata as Data or a note
 
-Context that is *about* the content rather than rendered alongside it — authoring
-comments, reviewer notes, developer metadata — surfaces through the second
+Context that is *about* the content rather than rendered alongside it (authoring
+comments, reviewer notes, developer metadata) surfaces through the second
 channel and never becomes a translatable surface:
 
 - **`model.Data` (`PartData`)** for free-standing informational context whose
   source part is already captured verbatim in the skeleton, so the Data part is
   purely additive and cannot perturb the round-trip. OpenXML uses this for PPTX
   comment bodies (`<p:text>`) via `emitPPTXCommentData` in
-  `core/formats/openxml/dml.go` — the comment part is parsed verbatim for
-  skeleton, and the Data part is emitted on the side — and, per the config
+  `core/formats/openxml/dml.go`: the comment part is parsed verbatim for
+  skeleton, and the Data part is emitted on the side and, per the config
   documentation, for XLSX comment text (`<comment><text>`) the same way.
-- **`NoteAnnotation`** when the context is *anchored to a specific block* —
+- **`NoteAnnotation`** when the context is *anchored to a specific block*,
   attach it with `Block.AddNote` so it travels with that block (this is the
   natural home for PO-style translator/extracted comments):
 
@@ -234,7 +232,7 @@ through the same setter the parity runner uses:
 func (c *Config) applyToJSON(jc *jsonfmt.Config) {
     jc.Reset()
     // Design-token values are structured machine data (colours, dimensions,
-    // numbers), not contextual prose — do not surface the excluded values as
+    // numbers), not contextual prose, do not surface the excluded values as
     // non-translatable content blocks. (The JSON reader's default is to surface
     // them for ingestion.)
     jc.SetExtractNonTranslatableContent(false)
@@ -253,12 +251,12 @@ The canonical parity projection (`cli/parity/normalize.go`, `CanonicalPart` /
 `Canonicalize`) compares only part type, identity, `Translatable`, and rendered
 source/target text. It *omits* `SemanticRole`/structure annotations,
 `Properties`, block annotations (including notes), and the placeholder
-`Equiv`/`Disp` carriers — so attaching any of those to an existing part is
+`Equiv`/`Disp` carriers, so attaching any of those to an existing part is
 invisible to parity and needs no special handling. The thing that is **not** free
 is emitting a *new* part: a surfaced `Translatable:false` Block adds a `BlockID`
 row, and a comment `Data` part adds a `DataID` row, to the canonical stream and
 will diverge from the bridge. That divergence is exactly what the duck-typed
-force-off neutralizes — with surfacing off, the extra parts are not emitted and
+force-off neutralizes: with surfacing off, the extra parts are not emitted and
 the stream matches byte-for-byte. This is why a surfacing format *must* wire the
 setter rather than emitting unconditionally.
 
@@ -268,7 +266,7 @@ setter rather than emitting unconditionally.
    zero value (surfacing ON) and pin it in `Reset()` for documentation.
 2. Add the `ExtractNonTranslatableContent() bool` getter and
    `SetExtractNonTranslatableContent(bool)` setter (both absorbing the
-   inversion) — the exact setter signature is the parity contract.
+   inversion); the exact setter signature is the parity contract.
 3. Decode the positive public key `extractNonTranslatableContent` in
    `ApplyMap`.
 4. Declare a `schema.Prop` with `Default: true` and place the field in a
@@ -280,16 +278,15 @@ setter rather than emitting unconditionally.
 6. If the format composes another reader, call
    `SetExtractNonTranslatableContent(false)` on the inner config when its
    surfacing is wrong for your content (cf. Design Tokens → JSON).
-7. Add a `*noncontent*` test asserting (a) surfaced parts appear by default and
+7. Add a test asserting (a) surfaced parts appear by default and
    (b) `SetExtractNonTranslatableContent(false)` yields the opaque,
    bridge-identical stream.
 
 ## Related
 
-- [E-02: Content-Fidelity Surfacing](/contribute/architecture/engine/e-02-format-system) — the parent decision and rationale.
-- [E-02: Format System](/contribute/architecture/engine/e-02-format-system) — reader/writer contracts and skeleton strategies.
-- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — `Block`, `Translatable`, and the semantic-role taxonomy this note leans on.
-- [A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity) — the *same semantic config → same results* contract the duck-typed force-off honors.
-- [Implementing Formats](/contribute/implementation/engine/implementing-formats) — the `nonFoo` default convention and the general port recipe.
-- [Skeleton Store and Streaming HTML](/contribute/implementation/engine/skeleton-store) — how skeleton refs reconstruct documents byte-exactly.
-- [OMML Math Conversion](/contribute/implementation/multilingual/omml-math) — formula surfacing (`RoleFormula` blocks, placeholder renderings) and the sub-skeleton write-back for equation prose.
+- [E-02: The format system](/contribute/architecture/engine/e-02-format-system): the parent decision (reader output policy), the reader and writer contracts, and the skeleton store.
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model): `Block`, `Translatable`, and the semantic-role taxonomy this note leans on.
+- [A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity): the *same semantic config → same results* contract the duck-typed force-off honors.
+- [Implementing Formats](/contribute/implementation/engine/implementing-formats): the `nonFoo` default convention and the general port recipe.
+- [Skeleton store and streaming](/contribute/implementation/engine/skeleton-store): how skeleton refs reconstruct documents byte-exactly.
+- [OMML Math Conversion](/contribute/implementation/multilingual/omml-math): formula surfacing (`RoleFormula` blocks, placeholder renderings) and the sub-skeleton write-back for equation prose.
