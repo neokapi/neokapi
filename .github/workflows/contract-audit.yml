@@ -52,13 +52,11 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Okapi (upstream tests)
-        uses: actions/checkout@v7
-        with:
-          # Fetched from the GitHub mirror — adjust if the org/repo moves.
-          repository: okapi-framework/okapi
-          path: okapi-java
-          ref: ${{ env.OKAPI_REF }}
-          fetch-depth: 1
+        # Upstream Okapi is hosted on GitLab; actions/checkout only reaches
+        # GitHub, so this is a plain shallow clone of the requested tag.
+        run: |
+          git clone --depth 1 --branch "$OKAPI_REF" \
+            https://gitlab.com/okapiframework/Okapi.git okapi-java
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
