@@ -84,13 +84,12 @@ func TestFaceParity_DesktopChecksAgreeOnTheProfileFindings(t *testing.T) {
 		"the profile's vocabulary finding is the same finding at every face")
 }
 
-// The gap: the desktop runs its vocabulary gate with no terminology, so every
-// finding that comes from the project's own terms is missing from the panel and
-// present in `kapi check` and the check_file tool. Pinned rather than described,
-// so closing it fails this test and the assertion is tightened to the record.
+// The desktop runs its vocabulary gate against the vocabulary the project
+// decided, at the point each file sits at, so a term the project retired is a
+// finding in the panel exactly as it is at the terminal and over MCP.
 //
-// See #2264.
-func TestFaceParity_DesktopChecksMissTheTermsFindings(t *testing.T) {
+// Closed #2264.
+func TestFaceParity_DesktopChecksMatchTheRecord(t *testing.T) {
 	app, tab, p := openFixture(t)
 	want := facetest.Golden(t)
 
@@ -98,10 +97,7 @@ func TestFaceParity_DesktopChecksMissTheTermsFindings(t *testing.T) {
 	require.NoError(t, err)
 	got := desktopCheckFacts(t, res)
 
-	assert.NotEqual(t, want.Check, got,
-		"the desktop now agrees with the record: replace this test with the full comparison")
-	assert.Len(t, got.Findings, len(want.Findings())-1,
-		"the panel is short exactly the terms-store findings")
+	assert.Equal(t, want.Check, got, "the three faces answer one question one way")
 }
 
 // Status is the one question the faces answer from different places: `kapi

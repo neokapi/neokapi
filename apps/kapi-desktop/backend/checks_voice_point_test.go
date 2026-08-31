@@ -154,7 +154,7 @@ func TestVoiceResolverResolvesEachPointOnce(t *testing.T) {
 	tab, _ := newTwoPointProject(t, app)
 	op := app.getOpenProject(tab.ID)
 
-	v := app.newVoiceResolver(op, false)
+	v := app.newPointResolver(op, false)
 	require.NotNil(t, v)
 
 	first := v.at(t.Context(), "Docs", "docs/help.json")
@@ -163,15 +163,15 @@ func TestVoiceResolverResolvesEachPointOnce(t *testing.T) {
 
 	// A second file at the same point reuses the resolution rather than
 	// reading the profile again.
-	assert.Len(t, v.seen, 1)
+	assert.Len(t, v.voices, 1)
 	again := v.at(t.Context(), "Docs", "docs/help.json")
 	assert.Same(t, first, again)
-	assert.Len(t, v.seen, 1)
+	assert.Len(t, v.voices, 1)
 
 	other := v.at(t.Context(), "Promo", "promo/spring.json")
 	require.NotNil(t, other)
 	assert.Equal(t, "Promo Voice", other.Name)
-	assert.Len(t, v.seen, 2, "a different point is a different resolution")
+	assert.Len(t, v.voices, 2, "a different point is a different resolution")
 }
 
 func TestVoiceResolverFallsBackToTheProjectPoint(t *testing.T) {
@@ -179,7 +179,7 @@ func TestVoiceResolverFallsBackToTheProjectPoint(t *testing.T) {
 	tab, _ := newContextProject(t, app)
 	op := app.getOpenProject(tab.ID)
 
-	v := app.newVoiceResolver(op, false)
+	v := app.newPointResolver(op, false)
 	require.NotNil(t, v)
 
 	// App sits at the project's own point, so it is governed by the project's

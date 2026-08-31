@@ -261,7 +261,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 	}
 	// The overlays describe this file, so the voice is the one governing the
 	// point it sits at.
-	profile := a.newVoiceResolver(op, false).at(ctx, "", relPath)
+	profile := a.newPointResolver(op, false).at(ctx, "", relPath)
 
 	for _, b := range blocksFromParts(parts) {
 		if !b.Translatable {
