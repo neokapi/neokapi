@@ -106,7 +106,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 
 	assertCommittedUnits(t, root, 4, "every approval reaches the committed record")
 
-	nb, ok := locale(runStatusJSON(t), "nb")
+	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb.Pct["translated"], "reviewing does not un-translate anything")
 	assert.Equal(t, 100, nb.Pct["reviewed"], "all four decisions count")
@@ -159,7 +159,7 @@ func TestReview_ApprovalPromotesToReviewed(t *testing.T) {
 
 	// Before any approval: both units are translated (presence), none reviewed.
 	before := runStatusJSON(t)
-	nb, ok := locale(before, "nb")
+	nb, ok := localeCoverage(before, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb.Pct["translated"])
 	assert.Equal(t, 0, nb.Pct["reviewed"], "no approved corrections yet")
@@ -169,7 +169,7 @@ func TestReview_ApprovalPromotesToReviewed(t *testing.T) {
 	writeReviewedCorrection(t, root, "Apple", "Eple")
 
 	after := runStatusJSON(t)
-	nb2, ok := locale(after, "nb")
+	nb2, ok := localeCoverage(after, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb2.Pct["translated"], "still fully translated")
 	assert.Equal(t, 50, nb2.Pct["reviewed"], "1 of 2 units now approved in the state store")
@@ -212,7 +212,7 @@ func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
 	after := runStatusJSON(t)
-	nb, ok := locale(after, "nb")
+	nb, ok := localeCoverage(after, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 0, nb.Pct["reviewed"], "a tm correction is recycle leverage, not a review decision")
 	assert.False(t, nb.Shippable, "reviewed:50 is not met by a tm correction alone")
@@ -238,14 +238,14 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 
 	writeReviewedCorrection(t, root, "Apple", "Eple") // approve a→Eple
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
-	nb, ok := locale(runStatusJSON(t), "nb")
+	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 50, nb.Pct["reviewed"], "the approved unit counts as reviewed")
 
 	// Edit the approved translation — the decision no longer blesses this text.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
 		[]byte(`{"a":"Eple-EDITED","b":"Banan"}`), 0o644))
-	nb2, ok := locale(runStatusJSON(t), "nb")
+	nb2, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 0, nb2.Pct["reviewed"],
 		"editing the approved translation invalidates the review (targetHash link)")
@@ -278,7 +278,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 
-	nb, ok := locale(runStatusJSON(t), "nb")
+	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 50, nb.Pct["reviewed"], "a kind:review apply promotes via the state store")
 

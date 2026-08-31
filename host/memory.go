@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/memory"
@@ -217,7 +218,9 @@ func ParseLocaleList(raw string) []model.LocaleID {
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {
-			out = append(out, model.LocaleID(p))
+			// Canonical BCP-47, so `--locales nb_NO,pt_BR` names the same
+			// locales as `nb-NO,pt-BR` and keys the same store rows.
+			out = append(out, locale.Normalize(model.LocaleID(p)))
 		}
 	}
 	return out

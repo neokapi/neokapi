@@ -232,7 +232,7 @@ collections:
 
 	t.Chdir(root)
 	out := runStatusJSON(t) // must not error
-	nb, ok := locale(out, "nb")
+	nb, ok := localeCoverage(out, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 2, nb.Total)
 	assert.Equal(t, 100, nb.Pct["translated"], "a present but unreadable target counts by presence")
@@ -252,7 +252,7 @@ func runStatusJSON(t *testing.T) StatusOutput {
 	return parsed
 }
 
-func locale(o StatusOutput, loc string) (LocaleCoverage, bool) {
+func localeCoverage(o StatusOutput, loc string) (LocaleCoverage, bool) {
 	for _, lc := range o.Locales {
 		if lc.Locale == loc {
 			return lc, true
@@ -265,14 +265,14 @@ func TestStatus_Coverage(t *testing.T) {
 	t.Chdir(writeStatusProject(t))
 	out := runStatusJSON(t)
 
-	nb, ok := locale(out, "nb")
+	nb, ok := localeCoverage(out, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 3, nb.Total)
 	assert.Equal(t, 67, nb.Pct["translated"], "2 of 3 keys translated")
 	assert.True(t, nb.Gated)
 	assert.False(t, nb.Shippable, "default gate needs 100% translated + 80% reviewed")
 
-	ja, ok := locale(out, "ja")
+	ja, ok := localeCoverage(out, "ja")
 	require.True(t, ok)
 	assert.Equal(t, 3, ja.Total)
 	assert.Equal(t, 0, ja.Pct["translated"], "no ja file yet")
@@ -315,12 +315,12 @@ func TestStatus_VerifiedGate(t *testing.T) {
 	t.Chdir(writeVerifiedGateProject(t))
 	out := runStatusJSON(t)
 
-	nb, ok := locale(out, "nb")
+	nb, ok := localeCoverage(out, "nb")
 	require.True(t, ok)
 	assert.True(t, nb.Shippable, "trivial ship gate → shippable")
 	assert.True(t, nb.Verified, "fully translated clears verified_gate: {translated: 100}")
 
-	de, ok := locale(out, "de")
+	de, ok := localeCoverage(out, "de")
 	require.True(t, ok)
 	assert.True(t, de.Shippable, "ships under the translated:0 gate")
 	assert.False(t, de.Verified, "2 of 3 translated → not verified (the AI case)")

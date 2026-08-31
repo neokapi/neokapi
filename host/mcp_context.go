@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -209,9 +210,20 @@ func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, i
 	src, cleanup := a.ContextSearchSourcesFor(cmd, in.Terms, in.Memory)
 	defer cleanup()
 
+	// A locale narrows the search, so it has to be the tag the store holds
+	// rather than the one the caller happened to type.
+	var scope model.LocaleID
+	if in.Locale != "" {
+		id, lerr := locale.Canonical(in.Locale)
+		if lerr != nil {
+			return nil, nil, fmt.Errorf("locale: %w", lerr)
+		}
+		scope = id
+	}
+
 	res, err := SearchContext(ctx, src, ContextSearchRequest{
 		Query:  in.Query,
-		Locale: model.LocaleID(in.Locale),
+		Locale: scope,
 		Limit:  in.Limit,
 	})
 	if err != nil {

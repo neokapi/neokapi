@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	pluginmanifest "github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/preset"
@@ -415,11 +416,34 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		return nil, fmt.Errorf("create project directory: %w", err)
 	}
 
+	// The recipe this writes is a file a person will read and git will review,
+	// so the locales go into it canonically whatever the form filled them with,
+	// and a locale that names no language is refused before it is persisted.
+	source := model.LocaleID("")
+	if sourceLang != "" {
+		id, lerr := locale.Canonical(sourceLang)
+		if lerr != nil {
+			return nil, fmt.Errorf("source language: %w", lerr)
+		}
+		source = id
+	}
+	targets := make([]model.LocaleID, 0, len(targetLangs))
+	for _, l := range targetLangs {
+		if l == "" {
+			continue
+		}
+		id, lerr := locale.Canonical(l)
+		if lerr != nil {
+			return nil, fmt.Errorf("target language: %w", lerr)
+		}
+		targets = append(targets, id)
+	}
+
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
-			SourceLanguage:  model.LocaleID(sourceLang),
-			TargetLanguages: toLocaleIDs(targetLangs),
+			SourceLanguage:  source,
+			TargetLanguages: targets,
 		},
 		Flows: make(map[string]*flow.StepsSpec),
 	}
@@ -1732,12 +1756,4 @@ func defaultPluginDir() string {
 		return dir
 	}
 	return filepath.Join(kapiConfigDir(), "plugins")
-}
-
-func toLocaleIDs(ss []string) []model.LocaleID {
-	ids := make([]model.LocaleID, len(ss))
-	for i, s := range ss {
-		ids[i] = model.LocaleID(s)
-	}
-	return ids
 }

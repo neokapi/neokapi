@@ -169,7 +169,7 @@ func TestStatusJSONCarriesTheVerdict(t *testing.T) {
 	t.Chdir(writeStatusProject(t))
 	out := runStatusJSON(t)
 
-	nb, ok := locale(out, "nb")
+	nb, ok := localeCoverage(out, "nb")
 	require.True(t, ok)
 	assert.True(t, nb.Gated)
 	assert.False(t, nb.Shippable)
@@ -177,7 +177,7 @@ func TestStatusJSONCarriesTheVerdict(t *testing.T) {
 	assert.Greater(t, nb.ShipProgress, 0)
 	assert.Less(t, nb.ShipProgress, 100)
 
-	ja, ok := locale(out, "ja")
+	ja, ok := localeCoverage(out, "ja")
 	require.True(t, ok)
 	assert.Equal(t, "translated", ja.Blocking)
 	assert.Equal(t, 0, ja.ShipProgress, "no ja file at all")

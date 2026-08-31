@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -124,6 +125,13 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if lang == "" {
 			lang = "und"
 		}
+		// The bilingual checks key on this locale, so it is canonicalized
+		// before it becomes one: `nb_NO` and `nb-NO` name the same target.
+		id, lerr := locale.Canonical(lang)
+		if lerr != nil {
+			return nil, check.Report{}, fmt.Errorf("target_lang: %w", lerr)
+		}
+		lang = string(id)
 		unit := VerifyUnit{SourcePath: in.File, TargetPath: in.Target, Locale: lang, DisplayPath: in.Target}
 		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
 		if berr != nil {
