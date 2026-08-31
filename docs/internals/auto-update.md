@@ -36,38 +36,34 @@ Two hard constraints that recur everywhere:
 
 - **A self-replace must verify a signature before swapping the binary.** We
   already cosign-sign plugin tarballs and verify them in
-  `cli/pluginhost/registry` (`VerifyBundle`); the CLI self-updater reuses that
+  `host/pluginhost/registry` (`VerifyBundle`); the CLI self-updater reuses that
   exact path rather than introducing GPG.
 - **Compare against the version of the channel the user actually installed
   from**, never a global "latest". The cask `version` lags the GitHub release;
   comparing to the wrong number is the #1 false-"update available" bug.
 
-## Where we are today (baseline, 2026-06)
+## Plugins set the pattern
 
-- **CLI** (`kapi` + `kapi-bowrain` plugin): Homebrew tap formulae (hand-bumped by
-  `release.yml`), raw tarballs/zips on GitHub Releases. **No** winget, **no**
-  deb/rpm, **no** version-check, **no** self-update.
-- **Desktops** (Kapi / Bowrain, Wails v3): signed+notarized DMG via cask,
-  NSIS+jsign zip on Windows, bare tarball on Linux. **No** in-app updater of any
-  kind (Wails v3 ships one; we don't use it). Casks have **no** `auto_updates`.
-- **Plugins** (pdfium/vision/sat/bowrain): already good — cosign keyless-signed
-  tarballs, a registry, signature verification in `pluginhost`, and
-  `kapi plugin install/update`. **Reuse this infrastructure for the CLI itself.**
+Plugins (pdfium, vision, sat, bowrain, and the rest of the registry) ship as
+cosign keyless-signed tarballs, indexed in a registry, verified by
+`host/pluginhost/registry` on install, and updated with
+`kapi plugin install/update`. The CLI self-updater reuses that infrastructure
+rather than adding a second signing path.
 
 ## Release channels: `stable` + `beta` (tag-driven, beta is a superset)
 
-Two channels, selected purely by how a release is **tagged** — no promotion step:
+Two channels, selected purely by how a release is **tagged**, with no promotion step:
 
 - **`stable`** ← a full tag `vX.Y.Z`. The curated track; the default for fresh
   installs and for `kapi update` / the notifier.
 - **`beta`** ← the **fast ring**. It carries every prerelease **and** every final
-  — a strict superset of stable — so a beta user is always at least as current as
+  (a strict superset of stable), so a beta user is always at least as current as
   stable and **never falls behind** between prereleases.
 
 This superset shape is the key design choice. The alternative (beta = prereleases
 only) strands beta users on the last `-rc` when a final/patch ships to stable; the
 superset avoids that, at the cost of beta builds sometimes running a *final*
-(non-prerelease) version — which the sticky channel below handles.
+(non-prerelease) version, which the sticky channel below handles.
 
 **Publishing (`release.yml` + `scripts/publish-appcast.sh`).** Driven by the tag:
 
@@ -82,7 +78,7 @@ So a final reaches beta users on every install method (Homebrew formula, tarball
 self-update via `cli.json`, and the desktop cask/appcast).
 
 - **Homebrew naming**: the beta CLI is `kapi-cli-beta` / `bowrain-cli-beta` (class
-  `KapiCliBeta`), **not** `@beta` — `Formulary.class_s` only rewrites `@`→`AT`
+  `KapiCliBeta`), **not** `@beta`: `Formulary.class_s` only rewrites `@`→`AT`
   before a digit, so an `@beta` formula expects the invalid class `KapiCli@beta`
   and can never load. The desktop apps are **casks**, where `@beta` *is* a legal
   token, so the beta desktop is `kapi@beta` / `bowrain@beta`. The `-beta` formula
@@ -90,7 +86,7 @@ self-update via `cli.json`, and the desktop cask/appcast).
   binary / same `.app`), so a user is on one channel at a time. `brew install
   neokapi/tap/kapi-cli-beta` / `--cask neokapi/tap/kapi@beta` opts in.
 
-**Client selection — sticky, shared (`core/channel`).** All apps (the CLI and both
+**Client selection: sticky, shared (`core/channel`).** All apps (the CLI and both
 desktops) resolve the channel through `core/channel`, a Viper-free framework
 package so the bowrain desktop can use it too. Precedence:
 
@@ -104,7 +100,7 @@ The persisted preference is what makes beta **sticky**: a fresh prerelease build
 pins `beta` on first run (`channel.EnsurePinned`), so when it later updates to a
 *final* version (which alone would infer `stable`) it **stays on beta**. Because
 the preference lives in one shared file, the CLI and both desktops follow one
-channel per machine. The notifier is channel-aware — a beta Homebrew user is told
+channel per machine. The notifier is channel-aware: a beta Homebrew user is told
 `brew upgrade kapi-cli-beta`.
 
 > Caveat: only Homebrew publishes `-beta`/`@beta` variants today. winget/scoop
@@ -114,7 +110,7 @@ channel per machine. The notifier is channel-aware — a beta Homebrew user is t
 
 | Surface | Primary update path | Discoverability mirrors | Background auto-update? |
 |---|---|---|---|
-| `kapi` CLI | `kapi update` (self-replace on tarball install; nudge on managed) | brew (Mac+Linux), winget, deb/rpm | No — by design (nudge) |
+| `kapi` CLI | `kapi update` (self-replace on tarball install; nudge on managed) | brew (Mac+Linux), winget, deb/rpm | No, by design (nudge) |
 | Kapi/Bowrain desktop (macOS) | Sparkle appcast + `auto_updates true` cask | Homebrew cask | **Yes** |
 | Desktop (Windows) | Wails v3 updater / NSIS poller vs signed manifest | winget | Yes (app-driven) |
 | Desktop (Linux) | AppImage+zsync **or** Flatpak | Flathub | Flatpak: yes; AppImage: app-driven |
@@ -124,7 +120,7 @@ channel per machine. The notifier is channel-aware — a beta Homebrew user is t
 
 - **winget has no native background auto-update.** `winget upgrade --all` is
   manual; the third-party Winget-AutoUpdate (WAU) fills the gap. So winget buys
-  discoverability + a one-command upgrade we can nudge toward — not push updates.
+  discoverability + a one-command upgrade we can nudge toward, not push updates.
 - **True background updates on Linux = Flatpak or Snap only.** AppImage, bare
   deb, and tarball are manual unless we build an updater (AppImageUpdate/zsync) or
   the user enables unattended-upgrades.
@@ -140,7 +136,7 @@ channel per machine. The notifier is channel-aware — a beta Homebrew user is t
 
 ## Phased plan
 
-### Phase 1 — CLI update story (implemented; CI-side verified only on next release)
+### Phase 1: CLI update story (implemented; CI-side verified only on next release)
 
 Highest value, lowest risk; reuses existing cosign infra. Mirrors claude-code.
 
@@ -173,9 +169,9 @@ Highest value, lowest risk; reuses existing cosign infra. Mirrors claude-code.
 - [x] `release.yml`: cosign-sign the `kapi-cli_*.tar.gz` archives and publish the
       signed `cli.json` index (via `registry-update --plugin kapi --registry
       cli.json`) so tarball self-update can verify. **Only runnable on a real
-      tagged release** — not exercised in this environment.
+      tagged release**, not exercised in this environment.
 
-**Design note — why the shared CLI archive is *not* stamped with InstallSource.**
+**Design note: why the shared CLI archive is *not* stamped with InstallSource.**
 One built binary per platform is consumed by Homebrew, winget, **and** raw
 download. If we baked `InstallSource=tarball` into it, a brew/winget install
 would wrongly self-replace and corrupt the package manager's state. So the
@@ -191,11 +187,11 @@ winget-only build) added in Phase 3.
   Add the signed Windows zip to the index to enable `kapi update` self-replace
   on direct-download Windows installs.
 
-### Phase 2 — desktop in-app updates (implemented; needs on-device validation)
+### Phase 2: desktop in-app updates (implemented; needs on-device validation)
 
-**Chose the Wails v3 native updater over go-sparkle.** Wails v3 (already our
-pinned `alpha.96`) ships `pkg/updater` with a Sparkle-`appcast` provider — pure
-Go, **no cgo, no `Sparkle.framework` bundling, no nested-helper codesigning**,
+**Chose the Wails v3 native updater over go-sparkle.** The pinned Wails v3
+(`apps/kapi-desktop/go.mod`) ships `pkg/updater` with a Sparkle-`appcast`
+provider: pure Go, **no cgo, no `Sparkle.framework` bundling, no nested-helper codesigning**,
 cross-platform (also sets up Phase 4's Windows/Linux desktop updates), and
 native `Config.Channel` filtering that maps onto our stable/beta split. It
 reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
@@ -208,10 +204,10 @@ reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
 - [x] channel from `KAPI_UPDATE_CHANNEL` (default stable), per-channel feeds
       (`appcast-<app>-<os>-<arch>[-beta].xml`) so a stable build is never
       offered a beta item, and each platform/arch fetches its own feed.
-- [x] `scripts/mkappcast` — the signed-appcast generator + `keygen`. **Crucial
+- [x] `scripts/mkappcast`: the signed-appcast generator + `keygen`. **Crucial
       detail:** the Wails `ed25519` verifier checks `ed25519.Verify(pub,
       sha256(file), sig)`, i.e. the signature is over the artifact's SHA-256
-      *digest* — which Sparkle's own `generate_appcast`/`sign_update` do **not**
+      *digest*, which Sparkle's own `generate_appcast`/`sign_update` do **not**
       produce (they sign the raw file). So `mkappcast` signs the digest itself;
       a unit test reproduces the exact verifier path to guarantee compatibility.
 - [x] `scripts/publish-appcast.sh` + `release.yml` (both desktop jobs): zip the
@@ -219,30 +215,25 @@ reuses the Sparkle *appcast* vocabulary, so the feed format is standard.
       zip to the release, and publish the feed to the registry repo
       (`neokapi.github.io/registry/appcast-*.xml`). No-ops until the signing key
       + `REGISTRY_TOKEN` are set.
-- [ ] **Gate — validate on a real notarized build before flipping casks.** The
+- [ ] **Gate: validate on a real notarized build before flipping casks.** The
       native updater's swap helper renames the `.app` in place; Gatekeeper /
       quarantine correctness on a notarized build must be confirmed on-device
       (it is the one thing Sparkle's signed XPC installer would handle for us).
 - [ ] add `auto_updates true` to the `kapi` / `bowrain` **casks** (generated by
       the "Update kapi/bowrain cask" heredocs in `release.yml`) so `brew upgrade
-      --cask` defers to the in-app updater. **Hold until the gate above passes** —
+      --cask` defers to the in-app updater. **Hold until the gate above passes**;
       flipping it early while the updater can't yet self-update would strand
       cask users.
 
 #### One-time setup runbook (Phase 2)
 
-1. **Generate the updater signing key** (once for both apps):
-   ```bash
-   go run ./scripts/mkappcast keygen
-   ```
-   - Commit the printed **public** key (base64) to both
-     `apps/kapi-desktop/backend/update-ed25519.pub` and
-     `bowrain/apps/bowrain/backend/update-ed25519.pub` (replacing the
-     `REPLACE_WITH_…` placeholder — until then the apps fail closed on signed
-     releases).
-   - Store the **private** key as the `UPDATE_ED25519_PRIVATE_KEY` GitHub secret
-     (never commit it).
-2. Ensure `REGISTRY_TOKEN` (write access to `neokapi/registry`) is set — it
+1. **The updater signing key** was generated once for both apps with
+   `go run ./scripts/mkappcast keygen`. The **public** key (base64) is committed
+   at `apps/kapi-desktop/backend/update-ed25519.pub` and
+   `bowrain/apps/bowrain/backend/update-ed25519.pub`; the **private** key is the
+   `UPDATE_ED25519_PRIVATE_KEY` GitHub secret and is never committed. Rotating
+   it means re-running `keygen`, replacing both files and the secret together.
+2. Ensure `REGISTRY_TOKEN` (write access to `neokapi/registry`) is set; it
    already is for the CLI `cli.json` publish.
 3. Cut a normal release (`vX.Y.Z` → stable feed, `vX.Y.Z-rc.N` → beta feed).
    `release.yml` publishes the per-platform feeds
@@ -266,14 +257,14 @@ Asset names mirror the Homebrew names so the channels are consistent:
 | Bowrain desktop | cask `bowrain` | `bowrain-<ver>-…` |
 
 So the toolchain is the `kapi-cli` / `kapi-*` family and the apps are plain
-`kapi` / `bowrain`. winget mirrors this: `Neokapi.KapiCLI` (CLI),
+`kapi` / `bowrain`. winget mirrors this: `Neokapi.KapiCli` (CLI),
 `Neokapi.Kapi` (desktop). The CLI's `cli.json` self-update index key stays
 `kapi` (what the binary looks itself up as) even though its archive is
 `kapi-cli_*`. The desktop appcast feeds are `appcast-kapi-<os>-<arch>.xml`. The Go module
-dirs (`apps/kapi-desktop`, the `kapi-desktop` artifact label) are unchanged —
+dirs (`apps/kapi-desktop`, the `kapi-desktop` artifact label) are unchanged;
 only user-facing asset names follow this scheme.
 
-### Phase 3 — winget + Linux packaging (discoverability + Linux update paths)
+### Phase 3: winget + Linux packaging (discoverability + Linux update paths)
 
 - [x] **winget already wired** (`.github/workflows/winget.yml`): `winget-releaser`
       submits `Neokapi.KapiCli` (CLI, portable zip) and `Neokapi.Kapi` (desktop,
@@ -283,7 +274,7 @@ only user-facing asset names follow this scheme.
 - [x] nfpm-built `.deb`/`.rpm` for the kapi CLI (`packaging/nfpm.yaml` +
       `release.yml`): `kapi-cli_<ver>_<arch>.deb` / `.rpm` with the kapi binary +
       toolbox symlinks, attached to the release and listed in `checksums.txt`.
-      Direct-download packages (apt/dnf own updates) — not in `cli.json`.
+      Direct-download packages (apt/dnf own updates), not in `cli.json`.
 - [x] **Self-hosted apt + yum repos** (`scripts/publish-packages.sh` +
       `release.yml`, stable channel only) served at
       `https://neokapi.github.io/packages/`. apt is a flat repo
@@ -326,7 +317,7 @@ checksums; per-package rpm signing is a possible later hardening.)
 
 1. Create the **`neokapi/packages`** repo (a README is enough) and enable
    GitHub Pages (serve `main` / root) → `https://neokapi.github.io/packages/`.
-2. Generate an **RSA-4096** GPG signing key — **not ed25519**; rpm/dnf cannot
+2. Generate an **RSA-4096** GPG signing key, **not ed25519**; rpm/dnf cannot
    verify ed25519 repomd signatures (apt accepts either):
    ```bash
    gpg --batch --gen-key <<EOF
@@ -342,27 +333,27 @@ checksums; per-package rpm signing is a possible later hardening.)
    ```
 3. Set secrets: `PACKAGES_GPG_PRIVATE_KEY` (armored private key) and
    `PACKAGES_TOKEN` (PAT with write to `neokapi/packages`).
-4. Cut a stable release — `release.yml` publishes the `.deb`/`.rpm` into the repo.
+4. Cut a stable release; `release.yml` publishes the `.deb`/`.rpm` into the repo.
 - [ ] Possible later hardening: per-package `.deb`/`.rpm` GPG signing, a beta
       apt component, and a branded domain (CNAME on the Pages repo).
 
-### Phase 4 — Windows/Linux desktop updaters (investigated; design locked)
+### Phase 4: Windows/Linux desktop updaters (investigated; design locked)
 
-The Wails native updater is the **same mechanism** as macOS — it works on all
+The Wails native updater is the **same mechanism** as macOS: it works on all
 three OSes because the appcast provider filters items by `sparkle:os`
 (`macos`→darwin, `windows`, `linux`). Verified against the Wails v3 source. So
 this phase is *additive*: produce Windows + Linux update artifacts and add their
 enclosures to the feeds. Key facts from reading `v3/pkg/updater`:
 
 - **It swaps exactly one on-disk target** (`os.Executable()`) by renaming a
-  single extracted top-level entry into place — **it cannot run an installer**
+  single extracted top-level entry into place; **it cannot run an installer**
   (`.msi`/`.pkg`/`-setup.exe` unsupported in v1). So every update artifact is a
   one-entry archive (the binary/app), which is exactly what we already build.
-- **No arch matching** — items are filtered by OS only. Multi-arch needs
+- **No arch matching**: items are filtered by OS only. Multi-arch needs
   **per-(os,arch) feeds** (`appcast-<app>-<os>-<arch>[-beta].xml`); the app
   picks its URL from `runtime.GOOS`/`GOARCH`. (macOS is arm64-only → one feed.)
 
-**Windows** — artifact = a `.zip` containing exactly one signed `Kapi.exe`
+**Windows**: artifact = a `.zip` containing exactly one signed `Kapi.exe`
 (this is the `kapi-<ver>-windows-<arch>.zip` we already produce). Caveats:
 - The swap helper has **no UAC elevation**, so the in-app swap only works for a
   **per-user** install (`%LOCALAPPDATA%`); a Program Files install can't
@@ -372,13 +363,13 @@ enclosures to the feeds. Key facts from reading `v3/pkg/updater`:
   in-app zip-swap; managed/Program-Files → winget's `-setup.exe` with the
   in-app updater disabled.
 
-**Linux** — artifact = a `.tar.gz` with one top-level binary (this is the
+**Linux**: artifact = a `.tar.gz` with one top-level binary (this is the
 `kapi-<ver>-linux-<arch>.tar.gz` we already produce). The Unix swap is
 `RemoveAll`+`Rename`, which works **only if the binary lives in a user-writable
-dir** (`~/.local/bin`, `~/Applications`) — document that. AppImage+zsync is a
+dir** (`~/.local/bin`, `~/Applications`); document that. AppImage+zsync is a
 nicer UX but a **separate** updater path (inside an AppImage, `os.Executable()`
 is the read-only FUSE mount, so the Wails swap can't write it); reach for it
-only if delta downloads matter. **Flatpak: not an in-app updater — skip.**
+only if delta downloads matter. **Flatpak: not an in-app updater; skip.**
 
 - [x] `mkappcast gen --os macos|windows|linux`; `publish-appcast.sh <… os arch>`
       emits per-(os,arch) feeds (`appcast-<name>-<os>-<arch>[-beta].xml`),
@@ -394,7 +385,7 @@ only if delta downloads matter. **Flatpak: not an in-app updater — skip.**
       validate swap+relaunch on per-user Windows and a writable-dir Linux
       install (mirror of the macOS Gatekeeper gate). AppImage+zsync optional.
 
-### Phase 5 — revisit Velopack
+### Phase 5: revisit Velopack
 
 - [ ] If/when a Go binding ships, evaluate collapsing Phases 2–4 onto one
       cross-platform framework.
@@ -413,7 +404,7 @@ only if delta downloads matter. **Flatpak: not an in-app updater — skip.**
   "run the package manager's upgrade for me" flag; a "disable the background
   check only" flag; and a "disable all update paths" flag for managed/enterprise
   fleets.
-- **Signing reuse**: `cli/pluginhost/registry.VerifyBundle(ctx, bundleURL,
+- **Signing reuse**: `host/pluginhost/registry.VerifyBundle(ctx, bundleURL,
   sha256Hex, certIdentity, certIssuer, opts)` already verifies a Sigstore bundle
   against the public-good trusted root with the same policy as `cosign
   verify-blob`. The CLI self-updater binds the release archive's SHA-256 to a

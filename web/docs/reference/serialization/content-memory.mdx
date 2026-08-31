@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Content memory
-description: The .memory.json content-memory bundle — envelope, entries, entity mappings, origins and import sessions, why it is JSON rather than JSON Lines, and what TMX cannot carry.
+description: "The .memory.json content-memory bundle: envelope, entries, entity mappings, origins and import sessions, why it is JSON rather than JSON Lines, and what TMX cannot carry."
 keywords:
   [
     content memory,
@@ -21,9 +21,12 @@ A content-memory bundle is the portable, lossless serialization of a project's
 content memory: the multilingual entries kapi reuses to avoid re-translating
 text it has already seen, together with where each entry came from.
 
-It is a **bundle**, not a store. The working store is SQLite — `tm.db`, under
-the gitignored `.kapi/` state directory — and a bundle is what you get when you
-export that store into a single reviewable, hashable file. See the
+It is a **bundle** rather than a store. The working store is SQLite: inside a
+project, the memory tables of the shared `.kapi/work/store.db` (`.kapi/` is
+committed; `.kapi/work/` is ignored), and `memory.db` for a standalone store. A
+bundle is what you get when you export that store into a single reviewable,
+hashable file, and the bundle the recipe binds with `defaults.memory_source` is
+the committed record the store is compiled from. See the
 [overview](/reference/serialization/overview) for why kapi keeps that
 distinction.
 
@@ -32,8 +35,8 @@ Implemented in Go at
 
 ## When kapi writes one
 
-- `kapi memory export --format bundle` — the explicit export.
-- `kapi pack` — as the `memory.json` member inside a
+- `kapi memory export --format bundle`: the explicit export.
+- `kapi pack`: as the `memory.json` member inside a
   [`.kpz`](/reference/serialization/project-archive).
 
 `--format` accepts `tmx` or `bundle` on both `kapi memory export` and
@@ -58,7 +61,7 @@ file's extension.
 | `schemaVersion` | string | `MAJOR.MINOR`. A reader rejects an unknown major and accepts unknown minors of a known major. |
 | `kind` | string | Always `kapi-memory`. Also the sniffing marker used to detect the format by content. |
 | `created` | string | RFC 3339. Optional. |
-| `generator` | object | `{id, version}` — the tool that produced the file. Optional. |
+| `generator` | object | `{id, version}`, the tool that produced the file. Optional. |
 | `entries` | array | The content-memory entries. Always present. |
 | `importSessions` | array | Per-file import metadata referenced by `Origin.sessionId`. Optional. |
 
@@ -68,7 +71,7 @@ An entry is **multilingual**, and this is the design decision that most
 separates it from TMX. There is no authoritative source language at this layer:
 `variants` is a map of locale to run sequence, and the locales are peers.
 `hintSrcLang` records which locale the entry was originally authored in, as a
-hint for matching, not as a privileged field.
+hint for matching rather than a privileged field.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -89,8 +92,8 @@ round trip unchanged rather than being flattened to a string.
 
 ### Entity mappings
 
-An `EntityMapping` tracks one named entity across every variant of the entry —
-a product name, a number, a date — and can cross-link it to a terms concept.
+An `EntityMapping` tracks one named entity across every variant of the entry
+(a product name, a number, a date) and can cross-link it to a terms concept.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -100,14 +103,14 @@ a product name, a number, a date — and can cross-link it to a terms concept.
 | `conceptId` | string | Cross-link into a [terms](/reference/serialization/terms) concept. |
 
 `values` positions are offsets within that locale's variant, so an entity is
-locatable, not merely named.
+locatable as well as named.
 
 ### Origins and import sessions
 
 `origins` records provenance per entry (`source`, `key`, `reference`,
 `addedAt`, `addedBy`, `sessionId`). Where an entry arrived through a file
 import, `sessionId` points at an `importSessions` record holding the
-per-file metadata captured once at import time — `fileKey`, `fileHash`,
+per-file metadata captured once at import time: `fileKey`, `fileHash`,
 `fileSizeBytes`, `importedAt`, `importedBy`, `toolName`, `toolVersion`,
 `segType`, `adminLang`, `srcLang`, `dataType`, `originalFormat`,
 `originalEncoding`, `entryCount`, and a `properties` map.
@@ -122,13 +125,13 @@ Overlays ship in both `.overlays.json` and `.overlays.jsonl`; content memory has
 no line-delimited form.
 
 `kapi memory export` re-serializes the whole store and **canonicalizes** it on
-every write — entries sorted by id, timestamps normalized, deterministic
-formatting — so the bytes are stable for hashing and diff cleanly under git.
+every write (entries sorted by id, timestamps normalized, deterministic
+formatting) so the bytes are stable for hashing and diff cleanly under git.
 There is no append path to optimize for, and an append-only file would defeat
 exactly the byte-stability that makes the bundle hashable as a unit.
 
-The shape is also not a flat record stream. A bundle is an envelope plus two
-correlated arrays — `entries` and the `importSessions` they reference by id —
+The shape is also more than a flat record stream. A bundle is an envelope plus
+two correlated arrays (`entries` and the `importSessions` they reference by id)
 and JSON expresses that directly. JSON Lines would mean inventing a framing
 convention to say which line is the envelope and how the two record types
 interleave.
@@ -137,9 +140,9 @@ interleave.
 
 - **The SQLite store's indexes.** FTS5 and fuzzy-match side tables are derived;
   `kapi memory import` rebuilds them after a bulk load.
-- **A privileged source language.** Deliberate — see above.
+- **A privileged source language.** Deliberate; see above.
 - **Fuzzy-match scores or thresholds.** Matching is a runtime concern driven by
-  the recipe, not a property of stored content.
+  the recipe rather than a property of stored content.
 
 ## Relationship to TMX
 
@@ -155,6 +158,6 @@ trade-off in full.
 
 ## See also
 
-- [Overview](/reference/serialization/overview) — store, bundle, and committed state.
-- [Terms](/reference/serialization/terms) — the terminology bundle and its lookup ladder.
-- [Project archive](/reference/serialization/project-archive) — the `.kpz` that carries a memory bundle as a member.
+- [Overview](/reference/serialization/overview): store, bundle, and committed state.
+- [Terms](/reference/serialization/terms): the terminology bundle and its lookup ladder.
+- [Project archive](/reference/serialization/project-archive): the `.kpz` that carries a memory bundle as a member.

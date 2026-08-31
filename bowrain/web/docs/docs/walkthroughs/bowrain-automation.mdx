@@ -1,19 +1,19 @@
 ---
 id: bowrain-automation
-title: "Automate translation sync with local rules + CI"
+title: "Automate sync with local rules + CI"
 sidebar_label: "Automation"
 description: "Two layers of automation: local automations on the .kapi recipe + a CI pipeline or the server's converge-on-push policy."
 ---
 
 import { PendingMedia } from "@neokapi/docs-shared";
 
-# Automate translation sync with local rules + CI
+# Automate sync with local rules + CI
 
 Bowrain has two layers of automation: **local rules** declared on the `kapi.yaml`
 recipe (top-level `automations:`) that run on the developer machine
-(e.g. pre-push QA), and the **server side** — the project's converge-on-push
-policy and CI pipelines. Together they make translation sync fully automated —
-code lands, translations follow.
+(for example pre-push QA), and the **server side**: the project's converge-on-push
+policy and CI pipelines. Together they make sync fully automated:
+code lands, results follow.
 
 ## Local rules
 
@@ -21,26 +21,26 @@ Declare `automations:` at the top level of the `kapi.yaml` recipe. A
 pre-push QA rule, for example, fires before `kapi push` completes, so source
 never reaches the server without passing your checks. Local rules give a
 developer guardrails on their own machine. (The recipe also accepts a `hooks:`
-block, but hooks are schema-only today — [not yet executed](/cli/flows/hooks);
+block, but hooks are schema-only, [not executed](/cli/flows/hooks);
 use `automations:`.)
 
 ## The server side
 
 With `bowrain.converge: on-push` (the default), the server runs
-[a server run](/the-loop) after every push — no workflow file needed. For
+[a server run](/the-loop) after every push, with no workflow file needed. For
 explicit pipelines, [The loop in CI](/cli/ci/overview) covers GitHub Actions,
 GitLab CI, and the Bowrain GitHub App; the simplest GitHub workflow runs
 `kapi up` on every push to `main`, so the moment code lands the server catches
 up on the new source and completed work flows back.
 
-Every run — from a push, from CI, or started manually — lands in the project's
+Every run, from a push, from CI, or started manually, lands in the project's
 **Runs** view in the web and desktop app:
 
 <PendingMedia kind="video" scene="harness/demos/bowrain-desktop-automations/demo.yaml">
   The desktop app's project Automations and Runs views: automation rules that
-  run the loop on the server on every push, and the run history — each run's
+  run the loop on the server on every push, and the run history (each run's
   state (Running, Up to date, Parked), its trigger, pass count, and per-locale
-  summary — with a Run now button to start one by hand.
+  summary) with a Run now button to start one by hand.
 </PendingMedia>
 
 ## Next

@@ -9,8 +9,8 @@ keywords: [formatting, dates, numbers, currency, ICU, Intl API, date-fns, Luxon,
 
 There are two places formatting happens, and the split matters:
 
-- **Inside a translated string** — `You have {n, number} unread messages`. The runtime formats the value through `Intl`, in the active locale, as part of resolving the string. The translator controls it; no code change.
-- **Outside a translated string** — a price in a table cell, a timestamp in a log view. That's your code's job. neokapi-i18n gives you the locale; you bring the formatter.
+- **Inside a translated string**: `You have {n, number} unread messages`. The runtime formats the value through `Intl`, in the active locale, as part of resolving the string. The translator controls it; no code change.
+- **Outside a translated string**: a price in a table cell, a timestamp in a log view. That's your code's job. neokapi-i18n gives you the locale; you bring the formatter.
 
 ## Formatting inside translated strings
 
@@ -20,7 +20,7 @@ A placeholder can carry an ICU format, and the runtime resolves it against the a
 <p>You have {count} unread messages.</p>
 ```
 
-The extracted template is `You have {count} unread messages.` — a bare placeholder, interpolated verbatim. But a translator can *upgrade* it in the target, because the format lives in the string, not the source:
+The extracted template is `You have {count} unread messages.`, a bare placeholder, interpolated verbatim. But a translator can *upgrade* it in the target, because the format lives in the string, not the source:
 
 ```
 Du hast {count, number} ungelesene Nachrichten.
@@ -39,19 +39,19 @@ Now `1234` renders as `1.234` in German and `1,234` in English, and nobody touch
 | `{t, time}`               | a `Date`      | `2:30:00 PM` | `14:30:00`   |
 | `{t, time, short\|medium\|long\|full}` | a `Date` | `2:30 PM` … | `14:30` …    |
 
-Inside a `<Plural>` branch, `#` is the count, formatted the same way — `#` in German gives `1.234`, not `1234`.
+Inside a `<Plural>` branch, `#` is the count, formatted the same way: `#` in German gives `1.234`.
 
 Pass `Date` objects and numbers through as-is; the runtime does the conversion:
 
 ```tsx
-<p>Last synced {when} — {count} items.</p>   // when: Date, count: number
+<p>Last synced {when}, {count} items.</p>   // when: Date, count: number
 ```
 
 This costs no extra bundle: it's the same `Intl` the plural resolver already uses.
 
-## Formatting outside translated strings — the integration surface
+## Formatting outside translated strings: the integration surface
 
-Every locale-aware library on the platform takes a BCP-47 locale string — the same shape neokapi-i18n tracks internally. Pull it out reactively via `useNeokapi()`:
+Every locale-aware library on the platform takes a BCP-47 locale string, the same shape neokapi-i18n tracks internally. Pull it out reactively via `useNeokapi()`:
 
 ```tsx
 import { useNeokapi } from "@neokapi/i18n-react/runtime";
@@ -64,7 +64,7 @@ function Price({ amount, currency }: { amount: number; currency: string }) {
 }
 ```
 
-When `loadTranslations()` swaps the dict, `useNeokapi()` fires a re-render with the new locale string. Formatters pick it up on the next render. You don't need to plumb locale through props or context — the hook is the boundary.
+When `loadTranslations()` swaps the dict, `useNeokapi()` fires a re-render with the new locale string. Formatters pick it up on the next render. You don't need to plumb locale through props or context; the hook is the boundary.
 
 ## Start with native `Intl`
 
@@ -110,13 +110,13 @@ new Intl.NumberFormat(locale, { notation: "compact", compactDisplay: "short" }).
 
 Three Intl APIs that matter for other subsystems:
 
-- **`Intl.PluralRules`** — already used internally by neokapi-i18n's [`<Plural>`](./plurals-and-select) component. You don't need a third-party pluralizer.
-- **`Intl.Collator`** — locale-correct string comparison. Use for sorting lists of translated names (`items.sort((a, b) => new Intl.Collator(locale).compare(a.name, b.name))`).
-- **`Intl.Segmenter`** — word / sentence / grapheme boundaries (useful when you want to cut a label mid-word correctly in CJK).
+- **`Intl.PluralRules`**: already used internally by neokapi-i18n's [`<Plural>`](./plurals-and-select) component. You don't need a third-party pluralizer.
+- **`Intl.Collator`**: locale-correct string comparison. Use for sorting lists of translated names (`items.sort((a, b) => new Intl.Collator(locale).compare(a.name, b.name))`).
+- **`Intl.Segmenter`**: word / sentence / grapheme boundaries (useful when you want to cut a label mid-word correctly in CJK).
 
 ## Reusable formatter hooks
 
-Re-creating formatters on every render is fine (they're cheap), but memoizing is cleaner — and lets you share configuration across components. A tiny wrapper:
+Re-creating formatters on every render is fine (they're cheap), but memoizing is cleaner, and lets you share configuration across components. A tiny wrapper:
 
 ```tsx
 import { useMemo } from "react";
@@ -222,7 +222,7 @@ Side-effect imports register locale data; one per locale you ship.
 
 ### FormatJS / react-intl
 
-FormatJS is a full-featured ICU MessageFormat stack. If you're already on it, neokapi-i18n and FormatJS can coexist — use FormatJS for formatting and neokapi-i18n for extraction + translation. But you'll have two systems tracking locale: wire `currentLocale` into FormatJS's `IntlProvider`:
+FormatJS is a full-featured ICU MessageFormat stack. If you're already on it, neokapi-i18n and FormatJS can coexist: use FormatJS for formatting and neokapi-i18n for extraction + translation. But you'll have two systems tracking locale: wire `currentLocale` into FormatJS's `IntlProvider`:
 
 ```tsx
 import { IntlProvider } from "react-intl";
@@ -238,7 +238,7 @@ function I18nRoot({ children }) {
 }
 ```
 
-For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features neokapi-i18n already handles (plurals, select, message interpolation, and number/date/time formatting inside strings) plus a bunch it doesn't (but which Intl often covers).
+For greenfield apps: stick with Intl. FormatJS ships its own runtime for features neokapi-i18n already handles (plurals, select, message interpolation, and number/date/time formatting inside strings) plus some it doesn't (which Intl often covers).
 
 ## Library picker
 
@@ -247,22 +247,22 @@ For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features neokapi-
 | Currency, percent, date, time, relative time, list, unit, compact numbers | `Intl.*`                                                               | Already in the runtime. No imports.                                               |
 | Pluralization (count-aware copy)                                          | neokapi-i18n's [`<Plural>`](./plurals-and-select)                        | Uses `Intl.PluralRules`. No extra library.                                        |
 | Sorting translated names                                                  | `Intl.Collator`                                                        | `list.sort((a,b) => col.compare(a,b))`                                            |
-| Timezone-aware dates, heavy date math                                     | Luxon or date-fns(-tz)                                                 | Luxon is Intl-based; date-fns is older but lighter.                               |
+| Timezone-aware dates, heavy date math                                     | Luxon or date-fns(-tz)                                                 | Luxon is Intl-based; date-fns imports per function.                               |
 | Duration formatting ("3h 12m")                                            | Luxon `Duration.toHuman()` or `@formatjs/intl-durationformat` polyfill | `Intl.DurationFormat` exists in newer runtimes but isn't universally shipped yet. |
-| Legacy moment.js codebase                                                 | migrate incrementally                                                  | moment.js is maintenance-mode; Luxon is its successor from the same author.       |
-| Number/date/time **inside** a translated string                            | ICU in the string — `{n, number}`, `{d, date, long}`                   | Built in; see the top of this page. No library.                                    |
+| Legacy moment.js codebase                                                 | migrate incrementally                                                  | moment.js is in maintenance mode; Luxon and date-fns are the usual migration targets. |
+| Number/date/time **inside** a translated string                            | ICU in the string: `{n, number}`, `{d, date, long}`                    | Built in; see the top of this page. No library.                                    |
 | ICU MessageFormat beyond that subset (ordinals, unit skeletons, …)         | `@formatjs/intl-messageformat` standalone                              | Just the formatter, not the whole react-intl stack.                               |
 
 ## Initial render and SSR
 
-All of the above read the locale at render time. On first paint — before `loadTranslations()` resolves — `useNeokapi()` returns the default locale (`""` unless you pre-called `setTranslations`). That usually maps to English fallback formatting, which matches the English source text the app renders before translations arrive. If the flicker matters, seed the locale on the server side:
+All of the above read the locale at render time. On first paint (before `loadTranslations()` resolves), `useNeokapi()` returns the default locale (`""` unless you pre-called `setTranslations`). That usually maps to English fallback formatting, which matches the English source text the app renders before translations arrive. If the flicker matters, seed the locale on the server side:
 
 ```tsx
 // On the server, before hydration
 setTranslations(cookieLocale, {}); // empty dict; locale alone is enough
 ```
 
-Now the first client render happens with the right locale, Intl formatters match, and the dict swap only changes _strings_ — not formatting.
+Now the first client render happens with the right locale, Intl formatters match, and the dict swap changes _strings_ only and leaves formatting alone.
 
 See also [Configuration → HTML `lang` and `dir` attributes](./configuration#html-lang-and-dir-attributes) for keeping the document locale in sync on first paint.
 
@@ -272,10 +272,10 @@ See also [Configuration → HTML `lang` and `dir` attributes](./configuration#ht
 - **Unit conversion.** Intl formats "1 km"; converting 1 km to miles is your app's responsibility.
 - **Address / phone / postal code formatting.** Use a specialized library (`libphonenumber-js`, `libpostal`).
 
-These aren't i18n concerns so much as data normalization — they need domain logic neokapi-i18n has no business in.
+These aren't i18n concerns so much as data normalization: they need domain logic neokapi-i18n has no business in.
 
 ## Next
 
-- [Plurals and select](./plurals-and-select) — the one formatting case neokapi-i18n _does_ own, because it's intertwined with the translated string itself.
-- [`t()` escape hatch](./t-escape-hatch) — feeding formatted values into translated copy via placeholders: `t("Price: {price}", { price: currencyFormatter.format(amount) })`.
-- [Configuration](./configuration) — runtime options, including the `<html lang>` / `dir` sync.
+- [Plurals and select](./plurals-and-select): the one formatting case neokapi-i18n _does_ own, because it's intertwined with the translated string itself.
+- [`t()` escape hatch](./t-escape-hatch): feeding formatted values into translated copy via placeholders: `t("Price: {price}", { price: currencyFormatter.format(amount) })`.
+- [Configuration](./configuration): runtime options, including the `<html lang>` / `dir` sync.

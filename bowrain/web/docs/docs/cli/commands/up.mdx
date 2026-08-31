@@ -7,7 +7,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # kapi up
 
-Catch the project up to its ship gates — the verb that runs
+Catch the project up to its ship gates: the verb that runs
 [the kapi loop](/the-loop). `kapi up`
 treats the recipe as the desired state and runs the project's default flow over
 all content across every target language, looping until every gated scope is
@@ -15,12 +15,12 @@ shippable or parks for a human.
 
 On a **server-connected** project (the recipe declares a `bowrain:` block), `kapi
 up` runs the loop **on the Bowrain server** by default: it pushes drift, the
-server runs the loop on the organization's keys and shared content memory and terminology,
+server runs the loop on the organization's keys and shared content memory and terms,
 progress streams back live, results pull down, and parked units enter the team's
-review queue. `kapi up --local` runs the loop on this machine and pushes the
+review session. `kapi up --local` runs the loop on this machine and pushes the
 results instead.
 
-`kapi push` and `kapi pull` remain as pure transport — they move project state
+`kapi push` and `kapi pull` remain as pure transport: they move project state
 and never translate. There is no `kapi sync`; a connected `kapi up` *is* push →
 catch up → pull.
 
@@ -36,7 +36,7 @@ kapi up [flags]
 # Catch the project up on the server (connected project), streaming progress
 kapi up
 
-# Dry run: pending work, memory reuse, and a token estimate per locale — no writes
+# Dry run: pending work, memory reuse, and a token estimate per locale; no writes
 kapi up --plan
 
 # Catch up on this machine (your AI keys), then push the results
@@ -53,7 +53,7 @@ kapi up --passes 1
 
 | Flag           | Description                                                                 | Default        |
 | -------------- | --------------------------------------------------------------------------- | -------------- |
-| `--plan`       | Dry run: report pending work, memory reuse, and a token estimate — no writes | `false`        |
+| `--plan`       | Dry run: report pending work, memory reuse, and a token estimate; no writes  | `false`        |
 | `--local`      | Catch up on this machine, then push the results (override the server venue)  | `false`        |
 | `--server`     | Require the server venue: fail rather than fall back to a local run          | `false`        |
 | `--timeout`    | Server venue: maximum time to wait for the server run before pulling available results | `15m` |
@@ -70,7 +70,7 @@ Each pass re-derives coverage from the working tree, runs the flow only for the
 locales still short of their gate, then runs the project's bound checks over what
 was produced. The loop stops when every gated scope is shippable, a pass makes no
 progress, or the pass cap is reached. Whatever cannot be advanced unaided
-**parks** — reported as awaiting a human, exit 0. `kapi up` never fails the build
+**parks**: reported as awaiting a human, exit 0. `kapi up` never fails the build
 on target drift.
 
 Locales are caught up concurrently within a pass (`--jobs`, default 4). Before
@@ -86,7 +86,7 @@ either way.
 <PipelineDiagram
   channelLabel=""
   stages={[
-    { label: "push", sub: "transport (Merkle diff)", role: "io" },
+    { label: "push", sub: "transport (declared tree)", role: "io" },
     { label: "catch up", sub: "server run · org keys · gates", role: "translate" },
     { label: "stream", sub: "SSE → live per-locale progress" },
     { label: "pull", sub: "results into local files", role: "io" },
@@ -95,25 +95,25 @@ either way.
 
 ## Exit Codes
 
-- `0` — Caught up, or parked work reported (target drift is never a failure)
-- `1` — Error (network, auth, load)
+- `0`: caught up, or parked work reported (target drift is never a failure)
+- `1`: error (network, auth, load)
 
 ## Related Commands
 
-- [`kapi push`](/cli/commands/push) — transport: send source changes to the server
-- [`kapi pull`](/cli/commands/pull) — transport: fetch translations from the server
-- [`kapi status`](/cli/commands/status) — standing: coverage, gates, and what's pending
+- [`kapi push`](/cli/commands/push): transport: send source changes to the server
+- [`kapi pull`](/cli/commands/pull): transport: fetch results from the server
+- [`kapi status`](/cli/commands/status): standing: coverage, gates, and what's pending
 
 ## When to Use
 
-Use `kapi up` for the daily reconcile — bringing every locale up to date against
+Use `kapi up` for the daily reconcile, bringing every locale up to date against
 the project's gates, locally or on the server:
 
-- **CI/CD pipelines** — `kapi up --json` from a workflow to catch up on push and
+- **CI/CD pipelines**: `kapi up --json` from a workflow to catch up on push and
   fail only on an explicit `kapi check --ship` gate; see
   [The loop in CI](/cli/ci/overview) for the ready-made surfaces.
-- **Developer workflows** — update source content, then `kapi up` to get
-  translations back and see what still needs a human.
+- **Developer workflows**: update source content, then `kapi up` to get
+  results back and see what still needs a human.
 
 For a *custom* one-off pipeline (one named flow, one pass, no gate loop), use
 [`kapi run <flow>`](/cli/flows/overview) instead.

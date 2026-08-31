@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: YAML Flow Authoring
-description: How to write neokapi flows as YAML — the steps-based human-authored format, sequential and parallel branches, tool configuration, and how the YAML compiles to the internal nodes-and-edges graph.
+description: "How to write neokapi flows as YAML: the steps-based human-authored format, sequential and parallel branches, tool configuration, and how the YAML compiles to the internal nodes-and-edges graph."
 keywords: [flow authoring, YAML flows, steps format, parallel steps, pipeline YAML, neokapi, flow definition]
 ---
 
@@ -17,17 +17,21 @@ A flow is a list of sequential steps. Each step references a tool by name and op
 steps:
   - tool: pseudo-translate
     config:
-      targetLocale: fr
       expansionPercent: 30
       prefix: "["
       suffix: "]"
 ```
 
+The target locale is not part of the flow. The run supplies it to every step
+(`--target-lang` at the CLI, or the project's declared targets under `kapi
+run` / `kapi up`), so one flow serves every locale; a `targetLocale` written
+into a step's config is outranked by the run's language.
+
 ### Source and sink
 
 A flow carries only its steps. Where content enters and leaves are **bindings**
-resolved when the flow runs — a file, the project store, a `.kpz` workspace, an
-interchange import/export, or `none` — not fields of the flow document. A flow
+resolved when the flow runs (a file, the project store, a `.kpz` workspace, an
+interchange import/export, or `none`) rather than fields of the flow document. A flow
 declares a binding only when it is intrinsic to the flow (e.g. a check flow that
 produces no document sets `sink: none`), and never a path:
 
@@ -51,7 +55,7 @@ steps:
   - tool: pseudo-translate
     label: Generate test translations
     config:
-      targetLocale: fr
+      expansionPercent: 30
 ```
 
 ## Sequential steps
@@ -62,7 +66,6 @@ Steps execute in order. The output channel of one tool feeds into the input chan
 steps:
   - tool: create-target
     config:
-      targetLocale: fr
       copySource: true
 
   - tool: search-replace
@@ -73,8 +76,6 @@ steps:
       target: true
 
   - tool: qa
-    config:
-      targetLocale: fr
 ```
 
 This creates a three-step pipeline: create the target, clean up placeholder text, then run quality checks.
@@ -87,18 +88,13 @@ Use `parallel:` to run multiple tools concurrently on the same stream of Parts. 
 steps:
   - tool: create-target
     config:
-      targetLocale: fr
       copySource: true
 
   - parallel:
       - tool: qa
         label: Quality checks
-        config:
-          targetLocale: fr
       - tool: term-check
         label: Terminology checks
-        config:
-          targetLocale: fr
       - tool: xml-validation
         label: XML validation
 ```
@@ -107,8 +103,8 @@ All three check tools run at the same time, each in its own goroutine.
 
 ## Transformers
 
-Tools that rewrite the source — redaction, whitespace/markup normalization, a
-source-mutating `script` — are ordinary steps in the same ordered list as
+Tools that rewrite the source (redaction, whitespace/markup normalization, a
+source-mutating `script`) are ordinary steps in the same ordered list as
 everything else. A transformer returns an edit plan; the framework applier
 performs the rewrite inline and in order, rebasing surviving run-anchored
 overlays (segmentation, terms) onto the new runs, so each transformer settles
@@ -122,23 +118,21 @@ steps:
       rulesPath: redaction-rules.yaml
 
   - tool: translate
-    config:
-      targetLocale: fr
 ```
 
 A **placement pass** (`core/flow/placement.go`) validates transformer
 positions beside data-flow validation at every flow build and load:
 
-- **Error** — a transformer follows a step that produces a committed target
+- **Error**: a transformer follows a step that produces a committed target
   (rewriting source orphans the targets). A transformer that produces targets
   itself, such as `unredact`, is exempt.
-- **Error** — a recoverable transformer (`redact`) follows a step with the
+- **Error**: a recoverable transformer (`redact`) follows a step with the
   remote-source-egress side effect, except a step producing an input the
   transformer's config-resolved contract requires (a cloud NER step feeding
   entity-driven redaction is the documented detection trade-off,
   [C-10](/contribute/architecture/context/c-10-redaction)). AI tools configured with
   a local provider (ollama, demo) carry no egress effect.
-- **Warning** — a transformer placed later than its earliest valid slot, since
+- **Warning**: a transformer placed later than its earliest valid slot, since
   every overlay present at apply time must be rebased.
 
 A flow that declares the removed `source_transforms:` field is rejected at
@@ -157,7 +151,7 @@ The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `Flow
 The graph is tool nodes only. The flow's source and sink are bindings supplied at
 run time ([E-04](architecture/engine/e-04-flows-and-io-binding)), not nodes in the graph.
 
-The resulting graph is what the `Executor` runs -- each node becomes a goroutine connected by buffered channels.
+The resulting graph is what the `Executor` runs: each node becomes a goroutine connected by buffered channels.
 
 ## Example flows
 
@@ -169,25 +163,27 @@ A typical translation flow with content-memory leverage, AI translation for new 
 steps:
   - tool: create-target
     config:
-      targetLocale: fr
       copySource: false
 
   - tool: recycle
     label: Apply memory matches
     config:
-      targetLocale: fr
       fuzzyThreshold: 75
 
   - tool: translate
     label: Translate remaining
     config:
-      targetLocale: fr
       provider: anthropic
 
   - tool: qa
     label: Quality checks
-    config:
-      targetLocale: fr
+```
+
+Run it for each locale you ship:
+
+```bash
+kapi run my-translate -i input.xliff --target-lang fr
+kapi run my-translate -i input.xliff --target-lang de
 ```
 
 ### Fan-out analysis
@@ -198,18 +194,18 @@ Run multiple analysis tools in parallel after pseudo-translation:
 steps:
   - tool: pseudo-translate
     config:
-      targetLocale: qps-ploc
       expansionPercent: 30
 
   - parallel:
       - tool: term-check
-        config:
-          targetLocale: qps-ploc
       - tool: qa
         config:
-          targetLocale: qps-ploc
           checkAbsoluteMaxCharLength: true
           absoluteMaxCharLength: 200
+```
+
+```bash
+kapi run fan-out -i input.json --target-lang qps
 ```
 
 ### Script filtering
@@ -230,8 +226,6 @@ steps:
         }
 
   - tool: pseudo-translate
-    config:
-      targetLocale: fr
 ```
 
 ## Running flows
@@ -242,14 +236,17 @@ steps:
 # Run a built-in composed flow
 kapi run translate-qa -i input.xliff --target-lang fr
 
-# Run a flow defined in a .kapi project file
-kapi run my-flow -p kapi.yaml -i input.json
+# Run a flow defined in a kapi.yaml project file
+kapi run my-flow -p kapi.yaml -i input.json --target-lang fr
 
 # List available flows
 kapi flows
 ```
 
 ### Programmatically
+
+An ad-hoc programmatic run has no `--target-lang` to inherit, so the locale is
+passed in each step's config:
 
 ```go
 spec := &flow.StepsSpec{

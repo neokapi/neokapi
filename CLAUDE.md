@@ -222,9 +222,10 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
   See [CDN assets](web/docs/contribute/implementation/repo/cdn-assets.md).
 
 Recordings and screenshots run against **real** neokapi infrastructure — real
-Keycloak OIDC via `compose.yaml`, the real `bowrain-server` binary, a real
-SQLite database. Never mock the auth flow or the API. Third-party services
-outside this project (MT providers, external LLM APIs) may be mocked.
+Keycloak OIDC via `bowrain/compose.yaml`, the real `bowrain-server` binary, a
+real PostgreSQL database (the server accepts no other). Never mock the auth
+flow or the API. Third-party services outside this project (MT providers,
+external LLM APIs) may be mocked.
 
 Runbooks: [regenerating docs assets](docs/internals/regenerating-docs-assets.md),
 [video revision](docs/internals/video-revision-runbook.md).

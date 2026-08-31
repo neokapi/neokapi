@@ -1,22 +1,22 @@
 ---
 sidebar_position: 8
 id: plugin-model
-title: "Note: Plugin model — the in-process registry contract"
-description: Implementation note covering the in-process registry mechanism — how plugin packages blank-imported into a binary wire features into cli.App via init() registration (commands, MCP tools, recipe schema), and how kapi discovers and dispatches to plugin binaries.
+title: "Note: Plugin model (the in-process registry contract)"
+description: Implementation note covering the in-process registry mechanism, how plugin packages blank-imported into a binary wire features into cli.App via init() registration (commands, MCP tools, recipe schema), and how kapi discovers and dispatches to plugin binaries.
 keywords: [plugin model, in-process registry, cli.App, init registration, blank import, plugin binary, implementation note]
 ---
 
-# Plugin model — the in-process registry contract
+# Plugin model: the in-process registry contract
 
-This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App` (an alias of the host module's `host.App` — the cobra-free application runtime the `cli` shell wraps). Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls — no gRPC, no dynamic loading inside the binary.
+This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App` (an alias of the host module's `host.App`, the cobra-free application runtime the `cli` shell wraps). Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls: no gRPC, no dynamic loading inside the binary.
 
-This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [E-05: Plugin System](../../architecture/engine/e-05-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary — in the worked example below, that's `kapi-gitlab` (built from `gitlab-plugin/cmd/kapi-gitlab/`).
+This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [E-05: Plugin System](../../architecture/engine/e-05-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary; in the worked example below that is `kapi-gitlab` (built from `gitlab-plugin/cmd/kapi-gitlab/`).
 
 This note is the reference for: how the registries work, how to write the Go side of a new plugin, and when to use the schema-only registry vs. the heavier ones.
 
 ## When to use which registry
 
-The framework, the host module, and the shared CLI module expose four registries. A plugin can use any subset. (`cli.RegisterMCPToolFactory` is a re-export of `host.RegisterMCPToolFactory` — MCP tools are cobra-free and live in the host module; the two command-facing registries are cli-native.)
+The framework, the host module, and the shared CLI module expose four registries. A plugin can use any subset. (`cli.RegisterMCPToolFactory` is a re-export of `host.RegisterMCPToolFactory`. MCP tools are cobra-free and live in the host module; the two command-facing registries are cli-native.)
 
 | Registry                         | Lives in          | Plugin extends with                                              |
 | -------------------------------- | ----------------- | ---------------------------------------------------------------- |
@@ -25,7 +25,7 @@ The framework, the host module, and the shared CLI module expose four registries
 | `cli.RegisterAppInitializer`     | shared CLI module | Mutates `*cli.App` after construction (sets fields, wires hooks) |
 | `cli.RegisterMCPToolFactory`     | shared CLI module | MCP tools served by the shared `mcp` subcommand                  |
 
-A plugin that only declares schema can be a tiny module with just one decoder file and no CLI deps — that's how a schema-only plugin module (just a `schema/` package) is structured. A plugin that adds full UX (commands, MCP tools, source connector) layers more on top, but the schema part can ship independently.
+A plugin that only declares schema can be a tiny module with just one decoder file and no CLI deps; that is how a schema-only plugin module (just a `schema/` package) is structured. A plugin that adds full UX (commands, MCP tools, source connector) layers more on top, but the schema part can ship independently.
 
 ## The schema registry
 
@@ -52,24 +52,24 @@ func HasExtensionGroup(group string) bool
 
 `Scope` decides which `Extras` map a key is matched against:
 
-- `ScopeProject` — top-level keys on the recipe (e.g. `bowrain:`, `hooks:`)
-- `ScopeDefaults` — keys nested under `defaults:`
-- `ScopeCollection` — keys on a `Collection` (named-collection wrapper or bare entry)
-- `ScopeItem` — keys on a `ContentItem` (per-item fields)
+- `ScopeProject`: top-level keys on the recipe (a plugin's own key, such as `gitlab:`)
+- `ScopeDefaults`: keys nested under `defaults:`
+- `ScopeCollection`: keys on a `Collection` (named-collection wrapper or bare entry)
+- `ScopeItem`: keys on a `ContentItem` (per-item fields)
 
-Re-registering the same `(Scope, Name)` pair panics — competing init functions are almost always a bug. Pure-name matches across scopes don't conflict (`collection` at `ScopeItem` and `ScopeDefaults` are distinct).
+Re-registering the same `(Scope, Name)` pair panics: competing init functions are almost always a bug. Pure-name matches across scopes don't conflict (`collection` at `ScopeItem` and `ScopeDefaults` are distinct).
 
-`Group` lets a recipe declare `requires: { gitlab: "*" }` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without that plugin's behavior — `gitlab-push` won't work without the gitlab plugin installed, so a recipe using the `gitlab:` block typically declares `requires: { gitlab: "*" }`. The map form is mandatory: each entry maps a plugin name to a semver constraint, with `"*"` meaning any version. The bare-list form (`requires: [gitlab]`) is rejected with an actionable error.
+`Group` lets a recipe declare `requires: { gitlab: "*" }` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without that plugin's behavior: `gitlab-push` won't work without the gitlab plugin installed, so a recipe using the `gitlab:` block typically declares `requires: { gitlab: "*" }`. The map form is mandatory: each entry maps a plugin name to a semver constraint, with `"*"` meaning any version. The bare-list form (`requires: [gitlab]`) is rejected with an actionable error.
 
 `HasExtensionGroup` is consulted by `KapiProject.Validate()` to enforce `requires:`. Plugins typically don't need to call it directly.
 
-`DependsOn` names a sibling key at the same scope that must be present for this one to have any effect — bowrain's `hooks:`/`automations:` depend on `bowrain:`. A recipe that sets the dependent key without its dependency parses fine; the host reports the field as inert rather than failing the load.
+`DependsOn` names a sibling key at the same scope that must be present for this one to have any effect: a plugin's dependent keys depend on its own top-level key. A recipe that sets the dependent key without its dependency parses fine; the host reports the field as inert rather than failing the load.
 
-`Venue: true` marks the key as the recipe's binding to a remote convergence venue. The framework reads `url:` and `converge:` out of it through `KapiProject.Venue()` and asks the registry which extension holds the flag rather than looking for a key by name — `kapi` links no platform, and a key it cannot name is a key it cannot grow an opinion about. `VenueKey()` answers the same question with no recipe in hand, so a message about an absent block can still name the block to add. At most one key across all installed plugins should claim it.
+`Venue: true` marks the key as the recipe's binding to a remote convergence venue. The framework reads `url:` and `converge:` out of it through `KapiProject.Venue()` and asks the registry which extension holds the flag rather than looking for a key by name: `kapi` links no platform and holds no opinion about a key it cannot name. `VenueKey()` answers the same question with no recipe in hand, so a message about an absent block can still name the block to add. At most one key across all installed plugins should claim it.
 
 ### Forward compatibility
 
-A recipe with an unknown extension key (no decoder registered for `(scope, key)`) loads successfully; the value sits in `Extras` and round-trips through `Save`. This is intentional — a kapi binary built without a given plugin can still load a recipe that uses it (it just can't validate or act on it). The `requires:` declaration is the recipe author's opt-in for "fail loudly if the extension is missing."
+A recipe with an unknown extension key (no decoder registered for `(scope, key)`) loads successfully; the value sits in `Extras` and round-trips through `Save`. This is intentional: a kapi binary built without a given plugin can still load a recipe that uses it (it just can't validate or act on it). The `requires:` declaration is the recipe author's opt-in for "fail loudly if the extension is missing."
 
 ## The CLI registries
 
@@ -233,7 +233,7 @@ import _ "example.com/gitlab-plugin"
 
 ## Packaging and the license boundary
 
-A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no plugin's code, while a plugin binary (e.g. `kapi-gitlab`) carries that plugin's packages under its own license. The independence runs both ways — a plugin may be licensed more restrictively than `kapi` without affecting it, and a plugin that is *not* is still a separate binary reached the same way. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and plugins are something you install into it.
+A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no plugin's code, while a plugin binary (e.g. `kapi-gitlab`) carries that plugin's packages under its own license. The independence runs both ways: a plugin may be licensed more restrictively than `kapi` without affecting it, and a plugin that is *not* is still a separate binary reached the same way. There is no `-tags pure` / `kapi-pure` split: `kapi` is always plugin-free, and plugins are something you install into it.
 
 See [E-05: Plugin System](../../architecture/engine/e-05-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugin install <name>`, Homebrew), and the A/B/C transport modes.
 
@@ -241,17 +241,17 @@ See [E-05: Plugin System](../../architecture/engine/e-05-plugin-system) for the 
 
 Within one Go binary:
 
-1. All `init()` functions run during binary startup, in package import order. Cross-package init order is undefined — the registries are append-only, so order shouldn't matter for correctness.
+1. All `init()` functions run during binary startup, in package import order. Cross-package init order is undefined; the registries are append-only, so order shouldn't matter for correctness.
 2. The binary's `main()` constructs `*cli.App`, calls `app.InitRegistries()` (built-in formats/tools).
 3. Cobra's `init()` builds the command tree; the host calls `cli.ApplyCommandFactories(root, app)` after.
 4. `cobra.Execute()` runs. `PersistentPreRun` calls `app.Init()` then `cli.ApplyAppInitializers(app)`.
 5. The chosen subcommand's `RunE` runs.
 
-`AppInitializer` runs _after_ `Init`, so plugins can rely on the registries (FormatReg, ToolReg, Credentials, Config) being populated. `CommandFactory` runs at `init()`-time of the host's main package — registries must be ready by then, which is why `InitRegistries` runs at cobra init too.
+`AppInitializer` runs _after_ `Init`, so plugins can rely on the registries (FormatReg, ToolReg, Credentials, Config) being populated. `CommandFactory` runs at `init()`-time of the host's main package; registries must be ready by then, which is why `InitRegistries` runs at cobra init too.
 
 ## Goroutines and async work
 
-Plugins that need their own background goroutines can spawn them inside their commands or connectors — the registries don't impose any model. A source connector, for example, can run concurrent block uploads via `errgroup` inside its `Push`. Nothing in the plugin contract requires the plugin to expose its async work to the host.
+Plugins that need their own background goroutines can spawn them inside their commands or connectors; the registries impose no model. A source connector, for example, can run concurrent block uploads via `errgroup` inside its `Push`. Nothing in the plugin contract requires the plugin to expose its async work to the host.
 
 ## Testing plugins
 
@@ -271,6 +271,6 @@ Tests that mutate the global registries should call `coreproj.ResetExtensionsFor
 
 ## Relationship to runtime dispatch
 
-The registries on this page are purely in-process: they assemble the command tree, MCP tools, and recipe schema _inside_ a single plugin binary. They say nothing about how that binary is found or invoked — that is the runtime concern owned by [E-05: Plugin System](../../architecture/engine/e-05-plugin-system): `manifest.json` discovery and the A/B/C transport modes (one-shot command exec, an MCP-over-stdio session, and the gRPC daemon used by formats/tools/source connectors, including the Java Okapi bridge).
+The registries on this page are purely in-process: they assemble the command tree, MCP tools, and recipe schema _inside_ a single plugin binary. They say nothing about how that binary is found or invoked; that is the runtime concern owned by [E-05: Plugin System](../../architecture/engine/e-05-plugin-system): `manifest.json` discovery and the A/B/C transport modes (one-shot command exec, an MCP-over-stdio session, and the gRPC daemon used by formats/tools/source connectors, including the Java Okapi bridge).
 
 In short: this note is the contract for the Go _inside_ a plugin; E-05 is the contract for the process _around_ it.

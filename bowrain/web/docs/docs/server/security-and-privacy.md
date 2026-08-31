@@ -1,7 +1,7 @@
 ---
 title: Security and privacy
 sidebar_position: 20
-description: How Bowrain handles authentication, access control, the audit log, data residency, analytics, and your content — the facts a team lead needs before signing up.
+description: How Bowrain handles authentication, access control, the audit log, data residency, analytics, and your content. The facts a team lead needs before signing up.
 ---
 
 # Security and privacy
@@ -17,7 +17,7 @@ the code, it is marked as such.
 Bowrain authenticates through OpenID Connect (OIDC). After a successful sign-in,
 the server issues a short-lived JSON Web Token (JWT) for the session and a
 longer-lived refresh token. Refresh tokens rotate on every use, and the server
-stores only a SHA-256 hash of each one — never the token itself. Reuse of an
+stores only a SHA-256 hash of each one, never the token itself. Reuse of an
 already-rotated refresh token invalidates the entire session family, so a stolen
 refresh token is single-use and detectable.
 
@@ -26,8 +26,8 @@ service. You do not run, configure, or patch an identity provider yourself.
 
 **Self-hosted deployments** bring their own OIDC provider. The server is
 provider-neutral: it uses standard OIDC discovery to resolve the authorization
-and token endpoints from the issuer, so any OIDC-compliant provider works —
-Keycloak, Auth0, Okta, Google, Azure AD, Dex, and others. You point the server at
+and token endpoints from the issuer, so any OIDC-compliant provider works, such
+as Keycloak, Auth0, Okta, Google, Azure AD, or Dex. You point the server at
 your issuer with `BOWRAIN_OIDC_ISSUER_URL` and supply the client credentials. See
 [Self-hosting](/server/self-hosting) for the full configuration surface.
 
@@ -36,7 +36,7 @@ does not compromise the others:
 
 | Client       | Where the session token lives                                             |
 | ------------ | ------------------------------------------------------------------------- |
-| Web app      | HttpOnly, Secure, SameSite cookies — JavaScript in the page cannot read them |
+| Web app      | HttpOnly, Secure, SameSite cookies; JavaScript in the page cannot read them |
 | Desktop app  | The operating-system keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service) |
 | CLI (kapi)   | The same operating-system keychain; only non-secret metadata is written to disk, scoped by file permissions |
 
@@ -63,10 +63,11 @@ Each workspace member holds a role that sets a ceiling on what they can do:
 | Member | Create and edit content, run flows, push and pull                 |
 | Viewer | Read-only access                                                  |
 
-A project membership can narrow a member's workspace role further — by role
-template and by language scope — so a translator can be granted edit rights to
-French only, on one project, without gaining them workspace-wide. See
-[Workspaces](/server/workspaces).
+A project membership can narrow a member's workspace role further, by role
+template, by language, and by a point in the context space, so a reviewer can
+be granted rights to French only, or to one brand's support channel only, on
+one project, without gaining them workspace-wide. See
+[Members and roles](/server/members-and-roles).
 
 ### Administrative governance
 
@@ -74,15 +75,15 @@ Beyond the base roles, a workspace owner or admin can shape permissions with
 three mechanisms, all managed per workspace and all themselves recorded in the
 audit log:
 
-- **Groups** — named teams. A group grants a project role (optionally scoped to a
+- **Groups**: named teams. A group grants a project role (optionally scoped to a
   language) to all of its members at once, so team access does not require
   per-person, per-project rows.
-- **Deny rules** — subtractive rules that remove a set of permissions from a
+- **Deny rules**: subtractive rules that remove a set of permissions from a
   user, a role, or a group. A deny always wins: it is applied after grants are
   resolved, so it cannot be overridden by a later grant. This is how you express
   "this person keeps everything except the ability to publish" once, rather than
   by editing every role they hold.
-- **Role overrides** — retune the default permissions of a built-in workspace
+- **Role overrides**: retune the default permissions of a built-in workspace
   role for one workspace, for example making the `member` role read-only.
 
 ### Content-status gating and separation of duties
@@ -91,9 +92,10 @@ Edits are also gated by the workflow status of the content itself. A block that 
 in review requires the review permission to change; a published block requires the
 project-management permission to reopen. Publishing is treated as an approval
 step, and Bowrain can enforce **separation of duties** so that the person who
-translated a block is not the person who approves it. The workspace chooses the
+wrote a block is not the person who approves it. The workspace chooses the
 mode: off, warn (the self-approval is recorded but allowed), or block (the
-self-approval is rejected).
+self-approval is rejected). Drafts a run produced carry machine authorship, so
+the rule never stops a solo reviewer from approving them.
 
 ## The audit log
 
@@ -125,12 +127,12 @@ deployments run wherever you run them.
 
 The web app and the server can send product-analytics events to PostHog. The
 default ingestion host is PostHog's EU host (`eu.i.posthog.com`), and analytics
-are only active when an analytics key is configured — a deployment with no key
+are only active when an analytics key is configured; a deployment with no key
 configured sends no events. Server-side events cover product usage and
 conversion: workspace, project, and membership lifecycle; flow runs; content
 sync and connector publishes; review decisions; and the subscription funnel.
-Events carry identifiers, outcomes, and bucketed counts — never your content,
-file paths, or source text — and billing and access decisions themselves run
+Events carry identifiers, outcomes, and bucketed counts, never your content,
+file paths, or source text, and billing and access decisions themselves run
 entirely on the server, outside analytics. A self-hosted deployment that does
 not configure a key collects no product analytics.
 
@@ -141,31 +143,31 @@ events go to the EU ingestion host.
 
 ## Your content: ownership and export
 
-Bowrain stores your content, content memory, and terminology so a team can
-share them; it does not lock them in. Content is held in the platform's content
-store and round-trips back to the source formats you brought it in as. Content
-memory and terminology export to open, standard interchange formats through the
-kapi CLI:
+Bowrain stores your content, content memory, and terms so a team can share
+them; it does not lock them in. Content is held in the platform's content store
+and round-trips back to the source formats you brought it in as. Content memory
+and terms export to open, standard interchange formats through the kapi CLI:
 
-- `kapi memory export` writes **TMX 1.4** (the standard translation-memory
-  interchange format).
+- `kapi memory export` writes **TMX 1.4**, the standard interchange format for
+  content memory.
 - `kapi terms export` writes **TBX**, **CSV**, or **JSON**.
 
-The web app's terminology view also exports the terms store as JSON. Combined with
-the non-destructive history above, this means your linguistic assets are portable
-at any time. If you leave, you take your content and your memory with you.
+The web app's terms explorer also exports the terms store as JSON. Combined with
+the non-destructive history above, this means your assets are portable at any
+time. If you leave, you take your content and your memory with you.
 
 ## Bring-your-own AI keys
 
-A workspace can configure its own AI provider key. When it does, translation and
-check operations run against the customer's own provider account, and that traffic
-does not pass through a shared platform key. Runs on a bring-your-own key are not
-metered against Bowrain credits (usage is still counted internally for abuse
-protection). See the [FAQ](/server/faq) for how this interacts with credits.
+A workspace can configure its own AI provider key. When it does, drafting and
+check operations run against the customer's own provider account, and that
+traffic does not pass through a shared platform key. Runs on a bring-your-own
+key are not metered against Bowrain credits (usage is still counted internally
+for abuse protection). See the [FAQ](/server/faq) for how this interacts with
+credits.
 
 ## Compliance and questions
 
 Bowrain does not currently hold formal third-party certifications such as SOC 2 or
 ISO 27001, and this page does not claim any. For security, compliance, or data-
-processing questions — including a current description of the managed deployment's
-controls — contact **hello@bowrain.cloud**.
+processing questions, including a current description of the managed deployment's
+controls, contact **hello@bowrain.cloud**.

@@ -5,9 +5,9 @@ title: MCP Server
 
 # Using the bowrain plugin with AI assistants
 
-kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull translations, and manage flows — all through structured tool calls.
+kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull, manage flows, and consult the workspace's context graph, all through structured tool calls.
 
-## Quick Start
+## Quick start
 
 Start the MCP server:
 
@@ -15,10 +15,10 @@ Start the MCP server:
 kapi mcp
 ```
 
-This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `kapi.yaml` recipe, like git).
+This launches a JSON-RPC server on stdio. You don't run it manually; your AI tool starts it as a subprocess. With the bowrain plugin installed, the server's tool set includes the project and context tools below. It requires a `.kapi` project (it walks upward looking for a `kapi.yaml` recipe, like git).
 
 :::tip
-For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/reference/mcp) instead.
+For ad-hoc file processing without a project, the same `kapi mcp` serves the [kapi MCP tools](https://neokapi.github.io/reference/mcp).
 :::
 
 ## Setup
@@ -30,32 +30,15 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```json
 {
   "mcpServers": {
-    "bowrain": {
-      "command": "kapi",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Restart Claude Desktop. The bowrain plugin's tools will appear in the tool picker.
-
-**Using both servers together:** You can register kapi and bowrain side by side. Use kapi for standalone file operations and bowrain for project workflows:
-
-```json
-{
-  "mcpServers": {
     "kapi": {
       "command": "kapi",
       "args": ["mcp"]
-    },
-    "bowrain": {
-      "command": "kapi",
-      "args": ["mcp"]
     }
   }
 }
 ```
+
+Restart Claude Desktop. The tools appear in the tool picker.
 
 ### Claude Code
 
@@ -64,7 +47,7 @@ Add to your project's `.mcp.json` file (or create it at the repository root):
 ```json
 {
   "mcpServers": {
-    "bowrain": {
+    "kapi": {
       "command": "kapi",
       "args": ["mcp"]
     }
@@ -72,7 +55,7 @@ Add to your project's `.mcp.json` file (or create it at the repository root):
 }
 ```
 
-Claude Code will automatically discover and connect to the bowrain MCP server.
+Claude Code discovers and connects to the server automatically.
 
 ### VS Code (GitHub Copilot / Copilot Chat)
 
@@ -81,7 +64,7 @@ Add to `.vscode/mcp.json` in your project:
 ```json
 {
   "servers": {
-    "bowrain": {
+    "kapi": {
       "command": "kapi",
       "args": ["mcp"]
     }
@@ -95,7 +78,7 @@ Or add to your VS Code settings (`.vscode/settings.json`):
 {
   "mcp": {
     "servers": {
-      "bowrain": {
+      "kapi": {
         "command": "kapi",
         "args": ["mcp"]
       }
@@ -111,7 +94,7 @@ Add to your Cursor MCP config (`~/.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "bowrain": {
+    "kapi": {
       "command": "kapi",
       "args": ["mcp"]
     }
@@ -126,7 +109,7 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "bowrain": {
+    "kapi": {
       "command": "kapi",
       "args": ["mcp"]
     }
@@ -135,34 +118,34 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 ```
 
 :::tip
-If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/local/bin/kapi` or `$HOME/go/bin/kapi`).
+If `kapi` is not in your `$PATH`, use the full path to the binary (for example `/usr/local/bin/kapi` or `$HOME/go/bin/kapi`).
 :::
 
-## Available Tools
+## Available tools
 
 Once connected, your AI assistant can call these tools:
 
 | Tool                | What it does                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------- |
-| `project_config`    | Read project configuration from the `kapi.yaml` recipe                                    |
-| `project_status`    | Show sync status — pending push/pull counts, server connection                        |
+| `project_config`    | Read project configuration from the `kapi.yaml` recipe                                |
+| `project_status`    | Show sync status: pending push/pull counts, server connection                         |
 | `project_ls`        | List tracked files with optional stats (word counts, dirty detection)                 |
 | `project_push`      | Upload local changes to Bowrain Server                                                |
-| `project_pull`      | Download translations from Bowrain Server                                             |
+| `project_pull`      | Download results from Bowrain Server                                                  |
 | `list_flows`        | List available flows (built-in and project-defined)                                   |
-| `concept_search`    | Search the workspace brand knowledge graph for governed concepts                      |
+| `concept_search`    | Search the workspace context graph for governed concepts                              |
 | `concept_story`     | Show the chronological timeline of a governed concept                                 |
-| `experiment_status` | Report brand knowledge-graph change-sets, with detail and blast radius for one change-set |
+| `experiment_status` | Report context-graph change-sets, with detail and blast radius for one change-set     |
 
-The three concept tools read the workspace [brand knowledge graph](/server/context); they require a project connected to a workspace on a Bowrain server.
+The three concept tools read the workspace [context graph](/server/context); they require a project connected to a workspace on a Bowrain server.
 
-## Example Conversations
+## Example conversations
 
 ### "What's the state of my project?"
 
 Ask your AI assistant:
 
-> What's the translation status of this project?
+> What's the status of this project?
 
 The assistant calls `project_status` and returns a summary: how many files, words, and blocks are tracked, how many changes are pending push or pull, and whether the project is synced with the server.
 
@@ -174,7 +157,7 @@ The assistant calls `project_ls` with `dirty: true` and returns only files with 
 
 ### "How big is this project?"
 
-> How many words and files are in this translation project?
+> How many words and files are in this project?
 
 The assistant calls `project_ls` with `stats: true` and returns a breakdown of every tracked file with block counts, word counts, and totals.
 
@@ -186,13 +169,13 @@ The assistant calls `project_config` and returns the project name, source locale
 
 ### "Push my changes"
 
-> Push the latest translation changes to the server
+> Push the latest changes to the server
 
 The assistant calls `project_push` and returns how many blocks were uploaded, the word count, and how many files were scanned.
 
-### "Pull latest translations"
+### "Pull latest results"
 
-> Pull the latest French and German translations from the server
+> Pull the latest French and German results from the server
 
 The assistant calls `project_pull` with `locales: ["fr", "de"]` and returns how many blocks were downloaded and files were updated.
 
@@ -202,7 +185,13 @@ The assistant calls `project_pull` with `locales: ["fr", "de"]` and returns how 
 
 The assistant calls `project_push` with `dry_run: true` and shows what would be uploaded without making any changes.
 
-## Tool Reference
+### "Is this term allowed here?"
+
+> Is "e-shop" a term we still use?
+
+The assistant calls `concept_search` with the query and reads the concept's status, and `concept_story` for how it got there.
+
+## Tool reference
 
 ### project_status
 
@@ -238,11 +227,11 @@ Upload local changes to Bowrain Server.
 
 ### project_pull
 
-Download translations from Bowrain Server.
+Download results from Bowrain Server.
 
 | Parameter | Type     | Required | Description                                  |
 | --------- | -------- | -------- | -------------------------------------------- |
-| `locales` | string[] | no       | Languages to download (e.g. `["fr", "de"]`)  |
+| `locales` | string[] | no       | Languages to download (for example `["fr", "de"]`) |
 | `force`   | bool     | no       | Re-download everything even if unchanged     |
 | `dry_run` | bool     | no       | Show what would change without writing files |
 
@@ -254,7 +243,7 @@ No parameters.
 
 ### concept_search
 
-Search the workspace [brand knowledge graph](/server/context) for governed concepts (terms, status, domain) matching a query.
+Search the workspace [context graph](/server/context) for governed concepts (terms, status, domain) matching a query.
 
 | Parameter | Type   | Required | Description                                                              |
 | --------- | ------ | -------- | ------------------------------------------------------------------------ |
@@ -266,7 +255,7 @@ Search the workspace [brand knowledge graph](/server/context) for governed conce
 
 ### concept_story
 
-Show the chronological timeline of a governed concept — revisions, observations, comments, and change-sets.
+Show the chronological timeline of a governed concept: revisions, observations, comments, and change-sets.
 
 | Parameter    | Type   | Required | Description                          |
 | ------------ | ------ | -------- | ------------------------------------ |
@@ -274,20 +263,20 @@ Show the chronological timeline of a governed concept — revisions, observation
 
 ### experiment_status
 
-Report brand knowledge-graph change-sets. With a `changeset_id`, returns that change-set's detail and a blast-radius summary (affected blocks, new violations, resolved violations, words); without one, lists the workspace's change-sets.
+Report context-graph change-sets. With a `changeset_id`, returns that change-set's detail and a blast-radius summary (affected blocks, new violations, resolved violations, words); without one, lists the workspace's change-sets.
 
 | Parameter      | Type   | Required | Description                                                            |
 | -------------- | ------ | -------- | ---------------------------------------------------------------------- |
 | `changeset_id` | string | no       | A change-set ID to detail; omit to list all change-sets                |
 | `status`       | string | no       | When listing, filter by status (draft, in_review, approved, merged, abandoned) |
 
-## How It Works
+## How it works
 
-No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does — by walking up the directory tree to find the nearest `kapi.yaml` recipe.
+No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does, by walking up the directory tree to find the nearest `kapi.yaml` recipe.
 
 ## Related
 
 - [CLI Overview](/cli/overview)
 - [Project Model](/cli/project-model)
 - [Commands Reference](/cli/commands/init)
-- [kapi MCP Server](https://neokapi.github.io/reference/mcp) — for standalone file processing
+- [kapi MCP Server](https://neokapi.github.io/reference/mcp): the file-processing and context tools

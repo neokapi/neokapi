@@ -1,14 +1,14 @@
 ---
 sidebar_position: 3
 title: "WASM Engine ABI"
-description: The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package — the global function set, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges.
+description: "The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package: the global function set, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges."
 keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, "@neokapi/engine", browser engine, reverse bridge, implementation note]
 ---
 
 # WASM Engine ABI
 
 The browser build of kapi (`kapi/cmd/kapi-wasm-cli`) registers a set of global
-JS functions at boot. That set is a versioned contract — the ABI consumed by
+JS functions at boot. That set is a versioned contract, the ABI consumed by
 the `@neokapi/engine` npm package (`packages/engine`), which wraps it in the
 typed `KapiRuntime` facade.
 
@@ -18,7 +18,7 @@ typed `KapiRuntime` facade.
   `engineExports` table in `kapi/cmd/kapi-wasm-cli/main.go` and installed on
   `globalThis` from there. Nothing else registers engine globals.
 - **Feature detection.** `kapiEngineABI()` returns
-  `{abi, version, functions}` — the ABI major version, the kapi build version,
+  `{abi, version, functions}`: the ABI major version, the kapi build version,
   and the list of registered global names. A build without `kapiEngineABI`
   predates the descriptor and is treated as abi 0 (probe individual globals).
 - **Additive within a version.** For one `abi` value, changes are strictly
@@ -45,8 +45,8 @@ second contract alongside the global function set: which verbs it answers.
 - **One declaration.** `cli.BrowserCommandSet` is the browser build's command
   set, mirroring `cli.KapiCommandSet` (the native binary's) verb for verb.
   `kapi/cmd/kapi-wasm-cli` registers it wholesale and declares nothing itself.
-- **No missing verbs.** A verb the browser cannot run — one needing a
-  subprocess, the OS keychain, the network, or a socket — is recorded in
+- **No missing verbs.** A verb the browser cannot run (one needing a
+  subprocess, the OS keychain, the network, or a socket) is recorded in
   `cli.browserGaps` with the facility it needs, and registers a command that
   reports it. `unknown command` therefore means the verb does not exist in kapi
   at all, never that the browser omitted it. `--help` still works on those
@@ -60,7 +60,7 @@ second contract alongside the global function set: which verbs it answers.
   (`scripts/verify-snippets/command-surface-smoke.ts`) boots the real wasm in
   Node, sweeps every reachable verb for `unknown command`, asserts each gap's
   message, and replays the argv the lab explorers themselves use. It runs in the
-  Docs — Verify Snippets workflow.
+  docs snippet-verification workflow (`docs-verify-snippets.yml`).
 - **Capture strips ANSI.** The engine boots with `CLICOLOR_FORCE=1` so the
   playground terminal renders kapi's real styling; `runCapture` hands output to
   program code instead, and strips the escapes so a `--json` payload parses.

@@ -2,7 +2,7 @@
 sidebar_position: 3
 title: Keeping content caught up
 slug: /the-loop
-description: How a Bowrain project stays current — a connector sync, a push, or a developer's command starts a server run that drafts, checks, and gates; review promotes what needs a person; the ship gate releases. Formally, the model is convergence.
+description: How a Bowrain project stays current. A connector sync, a push, or a developer's command starts a server run that drafts, checks, and gates; review promotes what needs a person; the ship gate releases. Formally, the model is convergence.
 keywords: [convergence, catch up, bowrain, server run, converge on push, ship gate, review, runs, parked, connectors]
 ---
 
@@ -10,21 +10,21 @@ import { PhaseFlow, LanesDiagram, GatedLoopDiagram, ThemedVideo, KapiLink } from
 
 # Keeping content caught up
 
-Source content changed. Its other languages, its vocabulary, its brand
-conformance are now behind — and that is normal, not an error. Bowrain treats
+Source content changed. Its other languages, its vocabulary, its voice
+conformance are now behind, and that is normal, not an error. Bowrain treats
 catching up as the everyday state of a live project: reuse what the workspace
 already remembers, draft the rest, check everything produced, and **park** what
 a machine cannot decide for a person.
 
 A **run** is one pass of that work. Runs execute on the server, on the
-organization's AI keys and the workspace's shared memory, vocabulary, and brand
-checks — so what a run parks lands in the team's review queue rather than a solo
+organization's AI keys and the workspace's shared memory, vocabulary, and voice
+checks, so what a run parks lands in the team's review queue rather than a solo
 worklist. Content that never touches a checkout is treated identically: a
 [connector](/server/connectors) fetches it server-side, and a run catches it up
 where it lives.
 
-This page covers what happens on the server. The model itself — the lifecycle
-ladders, coverage gates, and approver classes — is documented once, on the kapi
+This page covers what happens on the server. The model itself, the lifecycle
+ladders, coverage gates, and approver classes, is documented once, on the kapi
 site, where it is called *the kapi loop*:
 <KapiLink to="/kapi/convergence">The kapi loop</KapiLink>.
 
@@ -36,7 +36,7 @@ Producing, promoting, and releasing stay separate. Each role has a home:
   nodes={[
     {
       label: "produce",
-      sub: "connector sync · on push · a developer's command — a run on the server",
+      sub: "connector sync · on push · a developer's command: a run on the server",
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
@@ -57,18 +57,18 @@ Producing, promoting, and releasing stay separate. Each role has a home:
 />
 
 - **A run produces.** A server-side flow over connector content, a push under
-  the `bowrain.converge` policy, or a developer's `kapi up` — each drives every
+  the `bowrain.converge` policy, or a developer's `kapi up`: each drives every
   unit as far up its lifecycle as a flow can take it unaided.
 - **Review promotes.** What a run parks appears in the project's
-  [Review surface](/server/review), where a person (or several — decisions are
+  [review session](/server/review), where a person (or several; decisions are
   shared) advances a unit past what a machine can decide.
 - **The gate releases.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
-  answers one question — *is this scope shippable?* — and is the explicit,
+  answers one question, *is this scope shippable?*, and is the explicit,
   opt-in enforcement point for a release in a pipeline. Language drift never
   fails an ordinary build.
 
 :::note[The formal name]
-The model behind this — derived state, lifecycle ladders, coverage gates — is
+The model behind this (derived state, lifecycle ladders, coverage gates) is
 formally called **convergence**; the server-side runs are *convergence as a
 service*. The REST API, the run event stream, and `--json` output use that
 vocabulary. On the kapi site the same model is named *the kapi loop*.
@@ -79,7 +79,7 @@ vocabulary. On the kapi site the same model is named *the kapi loop*.
 A run **settles the source first**, holds at a source ship-gate until the source
 is ready, and only then produces the *approved* source per language. Source
 content is shared across every language, so a term left unresolved or a sentence
-left off-brand is paid for once per language — and paid for again when the
+left off-voice is paid for once per language, and paid for again when the
 source is fixed and everything is regenerated. Settling once, in front of the
 fan-out, is the seam between the automatic pass and governed review: the
 source-readiness gate is where a person signs off before the per-language cost
@@ -97,7 +97,7 @@ is incurred.
       kind: "gate",
       label: "source ship-gate",
       sub: "source_gate",
-      hold: "hold — source review",
+      hold: "hold: source review",
     },
     {
       kind: "phase",
@@ -109,27 +109,27 @@ is incurred.
       kind: "gate",
       label: "target ship-gate",
       sub: "ship_gate",
-      hold: "park — review queue",
+      hold: "park: review queue",
     },
     { kind: "done", label: "converged" },
   ]}
-  caption="A server run settles the source, holds at the source ship-gate until it clears, then translates the approved source per locale — each gate routes work it can't ship to a person rather than shipping it."
+  caption="A server run settles the source, holds at the source ship-gate until it clears, then translates the approved source per locale. Each gate routes work it can't ship to a person rather than shipping it."
 />
 
 - **Settle the source.** A server run's first pass runs the source stage over the
-  source locale only — source checks, do-not-translate terms marked and
-  **protected** so translation can never touch them, source QA — and stamps each
+  source locale only (source checks, do-not-translate terms marked and
+  **protected** so translation can never touch them, source QA) and stamps each
   unit's source status up the authoring ladder (*authored → checked → approved*).
 - **Hold at the source ship-gate.** The project's `source_gate`
   (`defaults.source_gate`, default `checked`) is the source-side counterpart of
   the ship gate. Source that
   has not cleared its bar **holds**: the run parks with the reason
   `source_not_ready`, opens a **source-review task** in the team's queue (see
-  [Review](/server/review)), and reports how many blocks are blocked on source —
-  it never burns AI translating content you are about to change. A project that
+  [Review](/server/review)), and reports how many blocks are blocked on source.
+  It never burns AI translating content you are about to change. A project that
   genuinely wants raw fan-out sets `source_gate: none` to opt out.
 - **Translate only the approved source.** Settled source fans out per locale,
-  Memory-first — recycle what the shared memory already has, AI-translate the
+  memory first: recycle what the shared memory already has, AI-translate the
   remainder, check what was produced. Protected terms stay protected through the
   model.
 - **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
@@ -139,13 +139,13 @@ is incurred.
 Gating on source readiness before the fan-out is what keeps the per-language
 cost proportionate to settled source. Editing a source unit re-opens the source
 gate for only the changed segments, so a fix re-settles and regenerates just
-those, never the whole corpus. The model itself — the ladders and gate
-thresholds — is documented once on the kapi site:
+those, never the whole corpus. The model itself, the ladders and gate
+thresholds, is documented once on the kapi site:
 <KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.
 
 ## Who starts a run
 
-Three starters, one server-side run — each suits a different way of working:
+Three starters, one server-side run; each suits a different way of working:
 
 <LanesDiagram
   lanes={[
@@ -171,22 +171,22 @@ Three starters, one server-side run — each suits a different way of working:
   caption="The same server-side run, started by a connector, a push policy, or a developer's command."
 />
 
-- **From a connector, with no checkout.** Content connected server-side — a
-  content platform, a design tool — catches up where it lives when a
+- **From a connector, with no checkout.** Content connected server-side (a
+  content platform, a design tool) catches up where it lives when a
   [server-side flow](/server/flows) or automation rule runs over it, and
   publishes back to where it came from. A
   [repository connector](/server/connectors/github) turns a push webhook into a
   run and delivers the results as a pull request, with no pipeline in the
   repository at all.
 - **From a push policy.** With `bowrain.converge: on-push` on the recipe's
-  `bowrain:` block, every push triggers a server-side run — the project stays
+  `bowrain:` block, every push triggers a server-side run: the project stays
   continuously current without anyone running a command. The policy is explicit
   and per-project, the way `git push` triggering CI is a repository policy. See
   [Automation](/server/automation).
 - **From a developer's terminal or CI.** [`kapi up`](/cli/commands/up) on a
   connected project prints its resolved venue first (*server*), pushes the
   drift, streams the run's progress live into the same terminal view, and pulls
-  the results down. `kapi up --local` overrides the venue for one run — the work
+  the results down. `kapi up --local` overrides the venue for one run: the work
   executes on that machine and those keys, and the results are pushed so the
   server is never left stale. `kapi up --server` requires the server venue,
   failing rather than falling back (for CI that must never spend local keys).
@@ -198,16 +198,16 @@ Three starters, one server-side run — each suits a different way of working:
 Every surface reads the same derived state:
 
 - **In the web and desktop app**, a project's **Runs** view lists the
-  server-side runs — *Running*, *Up to date*, *Parked*, with the trigger
+  server-side runs (*Running*, *Up to date*, *Parked*) with the trigger
   (*Manual*, *kapi up*, *On push*), the pass count, and a per-language summary
   such as "3 shippable · 1 parked". A **Run now** button starts a run from the
   app, and an in-flight run can be canceled.
 - **In the terminal**, [`kapi status`](/cli/commands/status) shows the
   per-language coverage grid, the server standing, and the effective venue and
   `bowrain.converge` policy.
-- **In the review queue**, parked units are the worklist: a run reports them as
-  awaiting a person and still exits zero. Parked work is pending review, not an
-  error.
+- **In the review session**, parked units are the worklist: a run reports them
+  as awaiting a person and still exits zero. Parked work is pending review, not
+  an error.
 
 A run started from the app and a run started from a terminal emit the same event
 stream, so progress rendered in the Runs view, the CLI, and `--json` for agents
@@ -215,7 +215,7 @@ never disagree.
 
 ## See it run
 
-The developer route end to end — connect a repository, push, and bring it up to
+The developer route end to end: connect a repository, push, and bring it up to
 date on the server:
 
 <ThemedVideo
@@ -228,8 +228,8 @@ date on the server:
 
 ## What's next
 
-- [Connectors](/server/connectors) — every route into a workspace
-- [Quick start](/quickstart) — get content in, from your systems or from a codebase
-- [Review](/server/review) — where parked work gets promoted
-- [The loop in CI](/cli/ci/overview) — pipelines and the ship gate
-- <KapiLink to="/kapi/convergence">The full model on the kapi site</KapiLink> — ladders, gates, approver classes
+- [Connectors](/server/connectors): every route into a workspace
+- [Quick start](/quickstart): get content in, from your systems or from a codebase
+- [Review](/server/review): where parked work gets promoted
+- [The loop in CI](/cli/ci/overview): pipelines and the ship gate
+- <KapiLink to="/kapi/convergence">The full model on the kapi site</KapiLink>: ladders, gates, approver classes

@@ -1,137 +1,152 @@
 ---
 sidebar_position: 2
-title: First login and translation
-sidebar_label: First login and translation
-description: A step-by-step guide to your first login, creating a workspace, and translating your first file in Bowrain from the browser.
+title: First login and first project
+sidebar_label: First login and first project
+description: A step-by-step guide to your first login, creating a workspace, establishing the context, and bringing a first project's content in from the browser.
 ---
 
-# First login and translation
+# First login and first project
 
-This guide walks you through first login, workspace creation, and translating
-your first file in Bowrain. The steps below use the browser; the
-[desktop app](/server/desktop-app) follows the same flow after its own
-[first sign-in](/server/desktop-app#first-sign-in).
+This guide walks you through first login, workspace creation, establishing the
+context your content is written in, and a first project. The steps below use
+the browser; the [desktop app](/server/desktop-app) follows the same flow after
+its own [first sign-in](/server/desktop-app#first-sign-in).
 
 ## Prerequisites
 
-You need access to a Bowrain server — a hosted workspace at
+You need access to a Bowrain server: a hosted workspace at
 [app.bowrain.cloud](https://app.bowrain.cloud) or one your team runs. Open
 your server URL in a browser to begin. (Running your own server? See
-[For developers → Self-hosting](/server/installation).)
+[For developers: self-hosting](/server/installation).)
 
-## Logging In
+## Logging in
 
-The web UI redirects you to your configured identity provider for authentication. Depending on your provider configuration, you will see options like:
+The web UI redirects you to the identity provider for authentication. On the
+hosted service that is a managed sign-in; a self-hosted server uses whatever
+OIDC provider it is configured with, so you may see a username and password
+form, self-registration, or social sign-in.
 
-- **Username & password** — sign in with your account
-- **Self-registration** — create a new account (if enabled in your identity provider)
-- **Social login** — GitHub, Google, LDAP, or other configured identity providers
+After authenticating, you are redirected back to the Bowrain web UI with an
+active session.
 
-After authenticating, you are redirected back to the Bowrain web UI with an active session.
+## Personal workspace
 
-## Personal Workspace
+After your first login, a **personal workspace** is created for you. It is
+named after your display name and is ready to use immediately.
 
-After your first login, a **personal workspace** is automatically created for you. This workspace is named after your display name and is ready to use immediately — no manual workspace creation needed.
-
-## Creating a Team Workspace
+## Creating a team workspace
 
 To collaborate with others, create an additional workspace:
 
 1. Click the **+** button in the workspace rail (left edge of the screen)
-2. Enter a **Name** (e.g., "My Team") — the slug is auto-generated
+2. Enter a **Name** (for example "My Team"); the slug is derived from it
 3. Adjust the **Slug** if needed (URL-safe identifier)
 4. Click **Create**
 
-You are automatically added as the workspace **owner** and switched to the new workspace.
+You are added as the workspace **owner** and switched to the new workspace.
 
-## Creating a Project
+## Establishing the context
 
-1. From the **Translate** view (the default), click **New Project**
-2. Enter the **Project name** (e.g., "Website Translation")
-3. Select the **Source language** (e.g., English)
-4. Select one or more **Target languages** (e.g., French, German, Japanese)
+Before any content arrives, give the workspace something to govern it with.
+Open **Context** in the sidebar.
+
+1. **Scan what you already publish.** A [context scan](/server/context-scan)
+   reads pasted copy, public pages, uploaded documents or a public repository,
+   and proposes the axes your content varies along, a voice profile draft, and
+   term candidates, each with the evidence behind it. Nothing it proposes is
+   enforced until you approve it.
+2. **Approve the axes.** An approved axis such as `brand` or `mode` becomes a
+   coordinate the workspace's content can sit at. For a project connected from
+   a checkout, the approval is delivered by `kapi pull` as an edit to
+   `defaults.coordinates` in `kapi.yaml`, for review in git.
+3. **Adopt the voice and the terms.** Save the edited voice profile at the
+   point it governs, and promote the term candidates you want into concepts.
+   Most workspaces call their default profile *brand*; a workspace with several
+   audiences carries several profiles.
+
+A thin profile is enough to start. The rules you actually need surface as
+people correct real output, and every correction feeds the
+[learning loop](/server/context-voice).
+
+## Creating a project
+
+1. From the project list, click **New Project**
+2. Enter the **Project name**
+3. Select the **Source language** (for example English)
+4. Optionally select **Target languages**. A project with none is source-only:
+   runs read it, check it against the context, and write nothing back. Add a
+   language later when you ship in one; it is one more coordinate, not a
+   second project.
 5. Click **Create**
 
 The project opens in the project view.
 
-## Uploading Files
+## Bringing content in
 
-1. **Drag and drop** files onto the upload zone in the project view, or click **Add Files** to browse
-2. The server auto-detects the file format (HTML, XML, JSON, YAML, PO, Markdown, XLIFF, and more)
-3. Files appear in the file list with format icon, block count, and word count
+Content reaches a project through a [connector](/server/connectors), or by
+upload:
 
-Supported formats include all formats registered in the neokapi format registry. See [Formats](https://neokapi.github.io/formats) for the complete list.
+1. **Drag and drop** files onto the upload zone in the project view, or click
+   **Add Files** to browse. The server detects the format; the
+   [format reference](https://neokapi.github.io/formats) lists what it reads.
+2. Or open the project's **Connectors** view and connect the system the content
+   already lives in, so source flows in and published results flow back.
 
-## Opening the Editor
+Files appear in the file list with a format icon, block count, word count and
+the collection they sit in.
 
-Click any file name in the project view to open it in the translation editor. The editor loads all translatable blocks from the file and displays them in a source/target grid.
+## Drafting and checking
 
-## Translating
+Content that arrived is caught up by a [run](/the-loop): start one from the
+project's **Runs** view with **Run now**, or let the project's push policy
+start one. A run checks the source against the context, drafts any target
+languages with AI steered by the voice and the terms in force at each point,
+checks what it produced, and parks what a person has to decide.
 
-### Manual Translation
+To work on one file, open it from the project view. The
+[editor](/server/translation-editor) shows the source, the target if there is
+one, and beside each block the checks, the memory matches and the terms in
+force. Press **Enter** on a block to edit it, **Enter** again to save and
+advance, **Escape** to cancel. **AI draft** in the toolbar drafts a file's
+targets on demand; **Pseudo** generates pseudo-translations for layout testing.
 
-1. Click a target cell or press **Enter** on the selected row to start editing
-2. Type the translation
-3. Press **Enter** to save and advance to the next block, or **Escape** to cancel
+## Reviewing
 
-### AI Translation
+What a run parks lands in the project's [review session](/server/review).
+Approve, reject or edit each block, or approve everything that passes the
+checks and the voice bar in one action. Approving the last pending block starts
+the run that delivers. The per-locale [ship state](/server/review#ship-states)
+on the dashboard tells you what can go out today.
 
-1. Configure an AI provider in the backend (Anthropic, OpenAI, or Ollama)
-2. Click **AI Translate** in the toolbar to translate the entire file
-3. Review and edit the AI-generated translations as needed
+## Publishing and exporting
 
-### Machine Translation
+Click **Export** in the editor toolbar to download a file in its original
+format with its translations applied, or **Publish** on the project's
+connector to write approved results back to the system they came from.
 
-1. Configure an MT provider (DeepL, Google, Microsoft, ModernMT, or MyMemory)
-2. Select the provider from the toolbar dropdown
-3. Click **AI Translate** to translate the file using the selected MT engine
+## Inviting team members
 
-### Reuse from content memory
-
-1. In [Pre-process](/server/pre-process), choose **Recycle from memory** to
-   pre-fill targets across the whole file
-2. Exact and high-confidence fuzzy matches land as drafts; the editor's context
-   panel shows the per-block matches with their scores
-3. In [Review](/server/review), **Apply exact Memory** fills the selected blocks
-   from exact matches only
-
-See [Content memory](/server/translation-memory) for the entry browser and how
-matching works.
-
-### Pseudo-Translation
-
-Click **Pseudo** in the toolbar to generate pseudo-translations — useful for testing layout and character handling before starting real translation.
-
-## Exporting
-
-Click the **Export** button in the toolbar to download the translated file in its original format with all translations applied.
-
-## Inviting Team Members
-
-Invite colleagues to your workspace using the invitation system:
+Invite colleagues to your workspace:
 
 1. Go to **Settings** in the sidebar
-2. Scroll to the **Invitations** section
+2. Open the **Invitations** section
 3. Enter the email address of the person to invite
 4. Select a role:
-   - **Admin** — manage projects and members
-   - **Member** — translate and review content
-   - **Viewer** — read-only access
+   - **Admin**: manage projects and members
+   - **Member**: contribute and review content
+   - **Viewer**: read-only access
 5. Click **Invite**
 
-This creates an invite link. You can:
+This creates an invite link. Copy it and share it directly, or, if email is
+configured, the invite is also sent automatically. The invited person signs in
+or registers and is added to the workspace with the assigned role. Members are
+never metered, so invite everyone who might notice what a rule missed.
 
-- **Copy the link** and share it directly (via Slack, email, etc.)
-- If SMTP is configured, the invite is also sent by email automatically
+Pending invitations are listed in Settings, where you can see their usage and
+revoke the ones no longer needed. Per-project roles, bound to a language or a
+point, are covered in [Members and roles](/server/members-and-roles).
 
-When the invited person clicks the link, they are directed to authenticate
-with the identity provider. After signing in (or registering), they are
-added to the workspace with the assigned role.
-
-You can manage pending invitations in the Settings page — view active
-invites, see usage counts, and revoke invites that are no longer needed.
-
-## CLI Connection
+## CLI connection
 
 Connect kapi to your server for command-line workflows:
 
@@ -144,11 +159,11 @@ This starts a [device authorization flow](https://www.rfc-editor.org/rfc/rfc8628
 1. The CLI displays a URL and a one-time code
 2. Open the URL in your browser
 3. Enter the code to authorize the CLI
-4. The CLI receives a token and stores it locally
+4. The CLI receives a token and stores it in the operating-system keychain
 
-After login, CLI commands automatically authenticate with the server.
+After login, CLI commands authenticate with the server automatically.
 
-### Claiming Anonymous Projects
+### Claiming anonymous projects
 
 If you started with `kapi init` locally (without a server connection), you
 can claim that project into your server workspace:
@@ -160,9 +175,9 @@ kapi auth claim
 This transfers the anonymous local project into your personal workspace on
 the server, preserving all files and translations.
 
-## What's Next
+## What's next
 
-- [Translation Editor](./translation-editor.mdx) — Visual and Table views, toolbar, keyboard shortcuts, context panel
-- [Content memory](./translation-memory.mdx) — browse, search, and edit the workspace's memory entries
-- [Terminology](./terminology.mdx) — term management and enforcement
-- [Walkthroughs](./walkthroughs.md) — step-by-step workflows
+- [Context](/server/context): the hub, profiles per point, and governance
+- [Review](/server/review): the session, bulk approval, and ship states
+- [The editor](/server/translation-editor): Visual and Table views, toolbar, keyboard shortcuts, context panel
+- [Walkthroughs](/server/walkthroughs): step-by-step workflows

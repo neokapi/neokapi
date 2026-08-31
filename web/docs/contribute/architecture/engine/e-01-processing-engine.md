@@ -15,9 +15,9 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 Content is processed by a channel-based streaming pipeline. Each tool runs in
 its own goroutine; tools are connected by buffered channels that provide
 automatic backpressure. An `errgroup.Group` coordinates errors and propagates
-context cancellation. Four independent concurrency layers — intra-tool block
+context cancellation. Four independent concurrency layers (intra-tool block
 parallelism, batch file concurrency, document-level concurrency, and streaming
-observation — compose without interference. Flows are declared as either a
+observation) compose without interference. Flows are declared as either a
 graph of nodes and edges or a sequential list of steps (with explicit
 `parallel:` blocks for fan-out), both compiled to the same executable
 representation.
@@ -118,7 +118,7 @@ Media, Layer) pass through the inner tool sequentially. A min-heap reassembly
 buffer collects results and emits them in strict sequence order, so downstream
 tools see the same Part ordering regardless of which worker finished first.
 
-Auto-parallelism is a **tool** property, not a flow property. Each tool declares
+Auto-parallelism is a **tool** property. Each tool declares
 `ToolMeta.DefaultParallelBlocks` ([E-03](e-03-tool-system.md)); the runner takes
 the maximum across the flow's tools and wraps every tool at that width. A
 project may pin its own value, and `--parallel-blocks N` overrides both
@@ -159,8 +159,8 @@ Four independent concurrency layers compose without interference:
 ### Collectors and streaming collectors
 
 Collectors aggregate results across documents (word counts, check reports, term
-lists). They implement `Collect(ctx, item, parts)` — called after each document
-completes — and `Result()` for the final aggregate. Collectors must be
+lists). They implement `Collect(ctx, item, parts)`, called after each document
+completes, and `Result()` for the final aggregate. Collectors must be
 thread-safe since multiple documents may complete concurrently.
 
 `StreamingCollector` extends `Collector` with `Observe(part)` for inline
@@ -176,15 +176,29 @@ without buffering the entire result set.
 with Part snapshots. The `--trace path/to/trace.json` flag on `kapi run` enables
 tracing. The output is a `FlowTrace` JSON file containing:
 
-- **Nodes** — the tool chain with concurrency metadata
-- **Events** — timestamped enter/exit events per Part
-- **Part snapshots** — Part state before and after each node
-- **Duration** — total flow execution time in microseconds
+- **Nodes**: the tool chain with concurrency metadata
+- **Events**: timestamped enter/exit events per Part
+- **Part snapshots**: Part state before and after each node
+- **Duration**: total flow execution time in microseconds
 
 A browser-based visualization renders the trace as an animated flow diagram with
 particles moving through nodes, channel fill indicators, and worker lane
 separation for parallel tools. The playback engine supports variable-speed replay
 and seeking.
+
+### Observation seam
+
+Tracing to a file is one consumer of a more general seam. `core/observe`
+defines a `Tracer` / `Span` interface with a no-op default and no dependency on
+any telemetry library, so it costs nothing until a host registers a tracer at
+startup; `kapi` and the desktop register none. `flow.WrapWithSpans` wraps each
+tool in a chain so that one span opens per tool invocation (`flow.tool`), and
+the file runner opens one per format read and write (`format.read`,
+`format.write`). A `SessionTool` keeps its session path through the wrapper, so
+a resumable run still resumes. Model provider calls carry their own span through
+the same seam ([E-07](e-07-model-providers.md)). One span per tool rather than
+per Part keeps the cost proportional to the handful of tools a flow has, not the
+thousands of Parts it moves.
 
 ### Flow definitions
 
@@ -195,16 +209,19 @@ runtime execution.
 
 Each `FlowNode` has:
 
-- **ID** — unique identifier within the definition
-- **Type** — `flow.NodeTool` for a processing step
-- **Name** — the registered name of the tool (e.g. `"pseudo-translate"`)
-- **Label** — optional display label for UI rendering
-- **Config** — optional key-value configuration map
-- **Position** — x/y coordinates for visual layout in the flow editor
+- **ID**: unique identifier within the definition
+- **Type**: `flow.NodeTool` for a processing step. `NodeReader` and
+  `NodeWriter` remain in the `NodeType` vocabulary for the editor's graph, but
+  every built-in and steps-compiled flow carries tool nodes only, because the
+  ends are bindings ([E-04](e-04-flows-and-io-binding.md))
+- **Name**: the registered name of the tool (e.g. `"pseudo-translate"`)
+- **Label**: optional display label for UI rendering
+- **Config**: optional key-value configuration map
+- **Position**: x/y coordinates for visual layout in the flow editor
 
 > **Bindings ([E-04](e-04-flows-and-io-binding.md)).** A flow's source and sink
-> are bindings resolved from invocation context — file, the project store, a
-> `.kpz`, interchange import/export, or none — so the same flow runs over any
+> are bindings resolved from invocation context (file, the project store, a
+> `.kpz`, interchange import/export, or none), so the same flow runs over any
 > origin. Every built-in flow graph carries tool nodes only. The graph is
 > composition; a single tool is invoked directly, not wrapped in a one-tool flow.
 
@@ -224,9 +241,11 @@ single-tool definitions are surfaced as top-level tool commands rather than as
 flows. `host/flowdef.FlowStore` persists user-created flow definitions as JSON
 files on disk, distinguished by source:
 
-- `built-in` — ships with neokapi, immutable
-- `user` — created by the user, stored in the user's config directory
-- `project` — stored within a project directory
+- `built-in`: ships with neokapi, immutable
+- `user`: created by the user, stored in the user's config directory
+
+A project's own named flows are declared in its recipe's `flows:` block rather
+than stored as files ([E-04](e-04-flows-and-io-binding.md)).
 
 ### Steps-based YAML format
 
@@ -252,8 +271,8 @@ auto-detects the shape (steps vs graph) and compiles steps to nodes and edges.
 Both produce the same runnable executor.
 
 The steps carry only the composition. A flow's source and sink are bindings
-resolved at invocation — file, the project store, a `.kpz`, interchange, or none
-([E-04](e-04-flows-and-io-binding.md)) — not fields of the flow document.
+resolved at invocation (file, the project store, a `.kpz`, interchange, or none;
+[E-04](e-04-flows-and-io-binding.md)) rather than fields of the flow document.
 
 ### Fan-out and batching
 
@@ -268,7 +287,7 @@ LLM prompts that benefit from multiple inputs per request
 The `script` tool runs user-provided JavaScript (ES5) via the goja runtime. Each
 tool instance owns its own `goja.Runtime`, which is safe because `ToolFactory`
 gives one instance per goroutine. The JS API exposes `part`, `emit()`, `skip()`,
-and `log()` for filtering and transforming parts — lightweight custom
+and `log()` for filtering and transforming parts: lightweight custom
 transformations without Go code. `script` is in the **exec class**: a recipe
 cannot arm it silently ([E-06](e-06-execution-trust.md)).
 
@@ -316,8 +335,8 @@ as follows:
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — the Part types that stream
-- [E-02: The format system](e-02-format-system.md) — readers that emit Parts, writers that consume them
-- [E-03: The tool system](e-03-tool-system.md) — the tools that make up a flow
-- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md) — reader/writer become source/sink bindings; a flow is composition only
-- [E-05: The plugin system](e-05-plugin-system.md) — plugin tools use the same executor contract
+- [F-02: The content model](../foundations/f-02-content-model.md): the Part types that stream
+- [E-02: The format system](e-02-format-system.md): readers that emit Parts, writers that consume them
+- [E-03: The tool system](e-03-tool-system.md): the tools that make up a flow
+- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): reader/writer become source/sink bindings; a flow is composition only
+- [E-05: The plugin system](e-05-plugin-system.md): plugin tools use the same executor contract

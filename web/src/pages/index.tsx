@@ -29,7 +29,7 @@ function HomepageHeader() {
           </Heading>
           <p className={styles.heroSubtitle}>
             <Translate id="home.hero.subtitle.lead">
-              kapi holds your project’s context — its terms, its voice, the rules it goes by — and
+              kapi holds your project’s context (its terms, its voice, the rules it goes by) and
               applies it inside your real files. Any format in,
             </Translate>{" "}
             <strong>
@@ -91,7 +91,7 @@ const Tiers: Tier[] = [
     description: translate({
       id: "home.tiers.engine.description",
       message:
-        "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+        "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools; embed it directly in your own Go programs.",
     }),
     link: "/framework/go-quickstart",
     linkText: translate({
@@ -106,12 +106,12 @@ const Tiers: Tier[] = [
     }),
     title: translate({
       id: "home.tiers.kapi.title",
-      message: "kapi — binary, agent skill, MCP server",
+      message: "kapi: binary, agent skill, MCP server",
     }),
     description: translate({
       id: "home.tiers.kapi.description",
       message:
-        "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
+        "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here, to your checks, to you, and to whichever AI you already use. Free forever.",
     }),
     link: "/kapi/overview",
     linkText: translate({
@@ -150,7 +150,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.model.description",
       message:
-        "kapi reads your real files — JSON, Markdown, HTML, config, .docx — into one unified content model, and writes the originals back unchanged except for the text you touched.",
+        "kapi reads your real files (JSON, Markdown, HTML, config, .docx) into one unified content model, and writes the originals back unchanged except for the text you touched.",
     }),
     link: "/framework/formats",
     linkText: translate({
@@ -166,7 +166,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.context.description",
       message:
-        "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content — the same answer for your checks, your AI agent, and you.",
+        "A legal notice and a help article call for different words. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content: the same answer for your checks, your AI agent, and you.",
     }),
     link: "/kapi/overview",
     linkText: translate({
@@ -182,7 +182,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.edit.description",
       message:
-        "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there — tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
+        "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there: tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
     }),
     link: "/framework/checks",
     linkText: translate({
@@ -198,7 +198,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.langs.description",
       message:
-        "One command — kapi up — catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+        "One command, kapi up, catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
     }),
     link: "/kapi/get-started/add-languages",
     linkText: translate({
@@ -209,12 +209,12 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: translate({
       id: "home.feat.measured.title",
-      message: "Measured, not asserted",
+      message: "Measured",
     }),
     description: translate({
       id: "home.feat.measured.description",
       message:
-        "We don't claim format support — we measure it. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
+        "Format support is measured rather than claimed. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
     }),
     link: "/format-maturity",
     linkText: translate({
@@ -230,7 +230,7 @@ const NeokapiFeatures: ProductItem[] = [
     description: translate({
       id: "home.feat.oss.description",
       message:
-        "Open source, Apache-2.0, written in Go. Format-agnostic and headless — a content layer a person or an agent can drive.",
+        "Open source, Apache-2.0, written in Go. Format-agnostic and headless: a content layer a person or an agent can drive.",
     }),
     link: "/framework/architecture",
     linkText: translate({
@@ -262,7 +262,7 @@ function HomepageFeatures() {
           </Heading>
           <p className={styles.sectionSubtitle}>
             <Translate id="home.section.engine.subtitle">
-              One engine, end to end — in one language or twenty.
+              One engine, end to end, in one language or twenty.
             </Translate>
           </p>
         </div>
@@ -281,7 +281,7 @@ function HomepageFeatures() {
             </Translate>{" "}
             <strong>kapi</strong>{" "}
             <Translate id="home.section.waysIn.subtitle.tail">
-              — the CLI and desktop app built on it.
+              , the CLI and desktop app built on it.
             </Translate>
           </p>
         </div>
@@ -300,7 +300,7 @@ function HomepageFeatures() {
                 <span className={styles.reactCalloutText}>
                   <strong>neokapi-i18n</strong>{" "}
                   <Translate id="home.family.i18n">
-                    — a zero-config i18n library for React. Its own framework, powered by neokapi
+                    , a zero-config i18n library for React. Its own framework, powered by neokapi
                     under the hood for build-time string extraction and catalog compilation.
                   </Translate>
                 </span>
@@ -316,7 +316,7 @@ function HomepageFeatures() {
                   <Translate id="home.family.badge2">In the family</Translate>
                 </span>
                 <span className={styles.reactCalloutText}>
-                  <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
+                  <strong>CLI Tools</strong>: <code>kgrep</code>, <code>ksed</code>,{" "}
                   <code>kcat</code>:{" "}
                   <Translate id="home.family.tools">
                     format-aware grep, sed and cat that read and rewrite the text inside office
@@ -343,7 +343,7 @@ export default function Home() {
       description={translate({
         id: "home.meta.description",
         message:
-          "An open-source, format-aware content engine in Go. It holds a project's content context — its terms, voice and rules — and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty.",
+          "An open-source, format-aware content engine in Go. It holds a project's content context (its terms, voice and rules) and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty.",
       })}
     >
       <StructuredData />

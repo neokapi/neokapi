@@ -2,7 +2,7 @@
 id: m-02-segmentation
 sidebar_position: 2
 title: "M-02: Segmentation"
-description: "A segment is a run-anchored stand-off overlay over a block's existing runs, produced by an engine selected from a registry — rule-based SRX, the Unicode baseline, an LLM chunker, or a plugin-declared ML segmenter driven over the daemon transport."
+description: "A segment is a run-anchored stand-off overlay over a block's existing runs, produced by an engine selected from a registry: rule-based SRX, the Unicode baseline, an LLM chunker, or a plugin-declared ML segmenter driven over the daemon transport."
 keywords: [neokapi, architecture decision, segmentation, SRX, UAX-29, SaT, overlay, sentence boundary, segment engine]
 ---
 
@@ -12,9 +12,9 @@ import { StreamDiagram, PipelineDiagram } from "@neokapi/docs-shared";
 
 ## Summary
 
-Segmentation is a **means**, not an end: it is what makes prior translations
+Segmentation is a means to two ends: it is what makes prior translations
 reusable and what lets translation and checks operate on a unit small enough to
-be right about. In neokapi it is a **run-anchored stand-off overlay** — the
+be right about. In neokapi it is a **run-anchored stand-off overlay**. The
 boundaries are recorded as spans over a block's existing runs, and the runs are
 never rewritten.
 
@@ -32,8 +32,8 @@ failing a build.
 A block's content is a flat `[]Run` per locale
 ([F-02](../foundations/f-02-content-model.md)). Every interpretation *of* that
 content is a typed overlay layered over the runs. Segmentation is one such
-overlay: an ordered, non-overlapping list of spans, each anchored by a
-`Anchor` — a start and end run position, each a rune offset into the text run
+overlay: an ordered, non-overlapping list of spans, each anchored by an
+`Anchor`, a start and end run position, each a rune offset into the text run
 at each end, half-open.
 
 <StreamDiagram
@@ -53,7 +53,7 @@ Three properties follow from choosing an overlay over a structural split:
 - **Reversible.** Removing the overlay restores the block. A structural split
   forces the choice at parse time and makes re-joining fiddly.
 - **Multi-layer.** `Overlay.Layer` names a granularity, so several coexist over
-  the same runs. The empty string is the **primary sentence** layer — the one
+  the same runs. The empty string is the **primary sentence** layer, the one
   bilingual formats project to and from; named layers (`llm-chunk`, `clause`)
   are additional on-demand interpretations.
 - **Identity-preserving.** The block content hash is computed over the runs
@@ -63,8 +63,8 @@ Three properties follow from choosing an overlay over a structural split:
   ([M-01](m-01-bilingual-interop.md)).
 
 Runs that no span covers are implicit inter-segment material. A span can also be
-marked **ignorable** — non-content structural material such as inter-sentence
-whitespace or a plural selector — in which case a bilingual round trip preserves
+marked **ignorable** (non-content structural material such as inter-sentence
+whitespace or a plural selector), in which case a bilingual round trip preserves
 its target verbatim instead of translating it, while the span still occupies its
 range so neighbouring positions stay aligned.
 
@@ -82,8 +82,8 @@ the shared `BaseConfig` plus the subset of the config map that engine
 understands.
 
 That split is what keeps the umbrella `segmentation` tool free of
-engine-specific knowledge. Shared concerns — how inline codes are masked before
-boundary detection, how a break adjacent to a code resolves, a locale override —
+engine-specific knowledge. Shared concerns (how inline codes are masked before
+boundary detection, how a break adjacent to a code resolves, a locale override)
 live in `BaseConfig`. Everything else (an SRX ruleset path, an LLM provider, a
 model name and threshold) belongs to the engine and travels through its own
 schema, so an engine can evolve its parameters without touching the tool.
@@ -111,7 +111,7 @@ Building an engine that no linked package registered returns
 
 SRX (Segmentation Rules eXchange) is the standard rule format: an ordered list
 of break and no-break rules, scoped by language. neokapi ships a pure-Go SRX 2.0
-engine, so the default runs everywhere with no native dependency — including in
+engine, so the default runs everywhere with no native dependency, including in
 the browser.
 
 SRX in practice is a **hybrid**. The default ruleset is overwhelmingly no-break
@@ -123,7 +123,7 @@ asks the registry at runtime whether one is available.
 
 - **With a base breaker** (every shipped native binary, and a browser page that
   has loaded the ICU4X bridge), `srx` loads the full ruleset and runs the base +
-  exception hybrid — a break rule adds a boundary, a no-break rule suppresses
+  exception hybrid: a break rule adds a boundary, a no-break rule suppresses
   one, and the first rule to decide at a position wins.
 - **Without one** (a pure-Go build with no ICU, a browser page without the
   bridge), the same engine falls back to a reduced self-contained ruleset with
@@ -182,7 +182,7 @@ which engine to run, which overlay layer to write, whether to segment the source
 side, the target side, or both, whether to overwrite an existing overlay, and
 how boundaries treat isolated inline codes and surrounding whitespace. Segments
 are trimmed of leading and trailing whitespace by default, so a segment is the
-clean sentence and the inter-sentence whitespace is left uncovered — which keeps
+clean sentence and the inter-sentence whitespace is left uncovered, which keeps
 memory keys stable regardless of which engine ran.
 
 Selection happens at three altitudes, each narrower than the last:
@@ -192,7 +192,7 @@ Selection happens at three altitudes, each narrower than the last:
   translation.
 - **A project** pins per-tool defaults under `defaults.tools`, so a recipe can
   fix the engine and its parameters once for every flow in the project.
-- **A single invocation** overrides both — `kapi exec segmentation <file>
+- **A single invocation** overrides both: `kapi exec segmentation <file>
   --engine srx --rules-path .kapi/rules.srx`.
 
 Separately, `defaults.segmentation` in the recipe is the **extract-side toggle**
@@ -206,7 +206,7 @@ rule or two, a real SRX file is the portable form.
 
 ## A plugin-declared engine
 
-A plugin declares its segmenters in `capabilities.segmenters` in its manifest —
+A plugin declares its segmenters in `capabilities.segmenters` in its manifest:
 a name, a display name and description for the engine selector, an ordering, and
 a path to a JSON parameter schema relative to the plugin directory. The host
 walks every daemon-transport plugin it discovered, registers each declared
@@ -216,7 +216,7 @@ routes it to a generic bridge segmenter.
 **There is no per-plugin code in the host.** The bridge flattens the runs under
 the shared mask options, sends the masked text and the config parameters to the
 plugin's `Segment` RPC, and projects the returned interior boundaries back to
-run-anchored spans through the same flattening it used on the way out — exactly
+run-anchored spans through the same flattening it used on the way out, exactly
 what an in-process engine does. The engine name, the plugin route and the
 parameters are all data captured at registration. Adding a segmenter plugin
 requires a manifest entry and, optionally, a schema file.
@@ -231,7 +231,7 @@ to get wrong.
 
 `kapi-sat` is the reference implementation: it runs the
 [SaT / wtpsplit](https://github.com/segment-any-text/wtpsplit) *Segment any
-Text* models — XLM-RoBERTa-based ONNX models that segment any language the
+Text* models, XLM-RoBERTa-based ONNX models that segment any language the
 tokenizer covers without per-language rules. It is the right choice for text
 rule engines handle poorly: languages without reliable sentence punctuation,
 transcribed or user-generated text, mixed-script content.
@@ -248,8 +248,8 @@ ones that put the Okapi bridge there
   segmenter's runtime concern, not the CLI's.
 - **A warm process.** Loading an ONNX session per block is prohibitively slow;
   the model must load once and stay resident across a run. The daemon transport
-  already provides exactly that — a pooled, long-lived subprocess with an idle
-  timeout — which is why the segmenter uses it rather than a bespoke protocol.
+  already provides exactly that, a pooled, long-lived subprocess with an idle
+  timeout, which is why the segmenter uses it rather than a bespoke protocol.
 
 The plugin is its own Go module, isolated so its native dependencies never enter
 another module's build graph, and it builds two ways from one source tree. The
@@ -258,8 +258,8 @@ daemon still serves, the handshake and capability probing still answer, and a
 segment request reports the build limitation instead of crashing. The **ONNX
 build** links the tokenizer archive and loads the ONNX Runtime shared library at
 runtime; that is the configuration shipped in release archives. Because the
-inference algorithm — the block/recombine windowing, the half-precision
-conversion, the rune mapping — is pure Go, its tests build and run with no
+inference algorithm (the block/recombine windowing, the half-precision
+conversion, the rune mapping) is pure Go, its tests build and run with no
 native dependency.
 
 Models are **not bundled**. The manifest pins each model's files by URL and
@@ -269,7 +269,7 @@ ONNX Runtime shared library *is* shipped beside the binary and resolved from
 there, so an installed plugin needs no environment configuration.
 
 The manifest also sets `capabilities.selfcheck`, which advertises the standard
-self-check that `kapi plugins doctor` runs: it constructs the engine and lists
+self-check that `kapi plugin doctor` runs: it constructs the engine and lists
 the models it supports, so "installed but no working ONNX backend" is a
 diagnosable state rather than a mystery at the first segment.
 
@@ -287,11 +287,11 @@ diagnosable state rather than a mystery at the first segment.
 
 ## Related
 
-- [F-02: The content model](../foundations/f-02-content-model.md) — overlays, spans, and run ranges
-- [F-03: Identity](../foundations/f-03-identity.md) — why a segmentation toggle does not move a block's hash
-- [E-03: The tool system](../engine/e-03-tool-system.md) — the `segmentation` tool and its composed schema
-- [E-05: The plugin system](../engine/e-05-plugin-system.md) — manifest capabilities, the daemon transport, signed distribution
-- [E-07: Model and translation providers](../engine/e-07-model-providers.md) — the registry pattern the engine registry mirrors
-- [M-01: Bilingual format interop](m-01-bilingual-interop.md) — how spans project into a bilingual file and back
-- [C-09: Content memory](../context/c-09-content-memory.md) — per-segment lookup, the reason segmentation exists
-- [Segmentation](/framework/segmentation) — the configuration guide, with flags and worked recipes
+- [F-02: The content model](../foundations/f-02-content-model.md): overlays, spans, and run ranges
+- [F-03: Identity](../foundations/f-03-identity.md): why a segmentation toggle does not move a block's hash
+- [E-03: The tool system](../engine/e-03-tool-system.md): the `segmentation` tool and its composed schema
+- [E-05: The plugin system](../engine/e-05-plugin-system.md): manifest capabilities, the daemon transport, signed distribution
+- [E-07: Model and translation providers](../engine/e-07-model-providers.md): the registry pattern the engine registry mirrors
+- [M-01: Bilingual format interop](m-01-bilingual-interop.md): how spans project into a bilingual file and back
+- [C-09: Content memory](../context/c-09-content-memory.md): per-segment lookup, the reason segmentation exists
+- [Segmentation](/framework/segmentation): the configuration guide, with flags and worked recipes

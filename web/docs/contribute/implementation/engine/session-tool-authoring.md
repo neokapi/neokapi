@@ -1,14 +1,14 @@
 ---
 sidebar_position: 6
 title: SessionTool Authoring Guide
-description: Implementation note — how to implement a SessionTool that needs random access to the project's block state (lookups by hash, overlay reads and writes) on top of the standard streaming Tool contract.
+description: "Implementation note: how to implement a SessionTool that needs random access to the project's block state (lookups by hash, overlay reads and writes) on top of the standard streaming Tool contract."
 keywords: [SessionTool, block state, overlay, hash lookup, authoring, implementation note, neokapi]
 ---
 
 # SessionTool authoring guide
 
 A `tool.SessionTool` is any tool that wants random access to the
-project's block state — block lookups by hash, overlay reads for
+project's block state: block lookups by hash, overlay reads for
 "skip if already done", overlay writes for cross-run annotations.
 The existing `tool.Tool` streaming contract is unchanged;
 `SessionTool` is additive.
@@ -22,7 +22,7 @@ the design rationale.
 Implement `SessionTool` when your tool:
 
 - **Can skip expensive work** if a prior run already produced the
-  output for a block. Canonical case: AI translation — re-calling
+  output for a block. Canonical case: AI translation; re-calling
   the LLM for a block whose target is already cached is wasted
   money and latency.
 - **Writes annotations** that a downstream tool (same flow or next
@@ -35,7 +35,7 @@ Do **not** implement it when your tool:
 - Is a pure stream transform (filter, identity, encoding convert,
   format read/write). The stream contract already gives you what
   you need.
-- Produces output that's cheap to recompute — no caching benefit.
+- Produces output that is cheap to recompute, so caching gains nothing.
 - Writes output exclusively to the in-flight `model.Block` and has
   no persistent state story.
 
@@ -142,7 +142,7 @@ annotation. A `<name>` the payload registry knows (`note`,
 `quality.findings`, …) means the body has to match that
 annotation's schema; anything else is kept verbatim and comes back
 to your tool exactly as written. `skeletons/<format>` and any other
-prefix stay opaque — they name no annotation and no store reads
+prefix stay opaque: they name no annotation and no store reads
 them but the tool that wrote them.
 
 ## Read-only stores
@@ -150,7 +150,7 @@ them but the tool that wrote them.
 The `FormatReaderStore` wraps a raw XLIFF / JSON / etc. file as a
 read-only `blockstore.Store`. Its `PutOverlay` returns
 `blockstore.ErrReadOnly`. Tools should ignore this error on the
-overlay-write path — the in-flight `*model.Block` already carries
+overlay-write path: the in-flight `*model.Block` already carries
 the result, and caching is best-effort for the _next_ run. See the
 pattern in `core/tools/pseudo.go` and
 `core/ai/tools/translate.go`.
@@ -169,13 +169,18 @@ The providers are plain constructors in `core/blockstore`, not string-keyed
 entries declared in a recipe. The caller (CLI, project runner, executor)
 constructs the one it wants and hands it to the executor:
 
-- `NewMemoryStore()` — the default when no store is passed. Snapshot-per-session,
+- `NewMemoryStore()`: the default when no store is passed. Snapshot-per-session,
   last-writer-wins on commit. Capabilities: RandomAccess + Concurrent + Writable;
   not Persistent.
-- `NewCacheStore(path)` — SQLite-backed store, in a kapi project the block-cache
-  tables of `.kapi/work/store.db`. The default for kapi projects. Full ACID,
-  persistent across runs.
-- `NewFormatReaderStore(factory)` — wraps a `format.DataFormatReader` factory as
+- `sqlitestore.New(path)` / `sqlitestore.NewFromDB(db, …)`
+  (`core/blockstore/sqlitestore`): the SQLite-backed store, in a kapi project the
+  block-cache tables of `.kapi/work/store.db`. The default for kapi projects.
+  Full ACID, persistent across runs.
+- `NewPersistentMemoryStore()`: a memory store that advertises `Persistent` and
+  whose `Close` is a no-op, so it survives repeated open and close across
+  commands in one process. It stands in for the SQLite cache on the wasm build,
+  where SQLite is unavailable.
+- `NewFormatReaderStore(factory)`: wraps a `format.DataFormatReader` factory as
   a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i
   file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns
   `blockstore.ErrReadOnly`.

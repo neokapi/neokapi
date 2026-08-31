@@ -1,7 +1,7 @@
 ---
 sidebar_position: 13
 title: Segmentation
-description: Segmentation is the means that makes content-memory reuse work and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model) — never a destructive split.
+description: "Segmentation is the means that makes content-memory reuse work and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model), never a destructive split."
 keywords: [segmentation, SRX, UAX-29, sentence boundary, SaT, wtpsplit, overlay, content memory, reuse]
 ---
 
@@ -9,25 +9,25 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 
 # Segmentation
 
-Segmentation is a **means, not an end**: authors don't set out "to segment," they
+Segmentation is a **means**: authors don't set out "to segment," they
 want their past translations reused and each sentence translated and checked on
-its own. Segmentation is what makes both possible —
+its own. Segmentation is what makes both possible:
 [content memory](/framework/content-memory) is a store of *segment*
 pairs, so boundaries are what let prior sentences match, and per-segment
 translation and [checks](/framework/checks) keep each unit small and a finding
 pinned to the sentence that broke. This page is the engine reference for the
 framework users who configure that behavior.
 
-It divides a block's source into the units a translator or model works on —
+It divides a block's source into the units a translator or model works on,
 usually sentences. In neokapi segmentation is a **run-anchored stand-off
-overlay**, not a structural split: the boundaries are recorded as spans over the
+overlay** rather than a structural split: the boundaries are recorded as spans over the
 existing runs, and the source runs themselves are never rewritten
 ([F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)). A block
 can carry several segmentation layers at once, and removing the overlay restores
 the unsegmented block exactly.
 
 <StreamDiagram
-  title="segment (overlay only — source runs unchanged)"
+  title="segment (overlay only; source runs unchanged)"
   items={[
     { kind: "Block source", detail: '"Dr. Smith arrived. He was late."', role: "block" },
     { kind: "segmentation overlay", role: "meta", note: "anchored to run-index ranges" },
@@ -66,7 +66,7 @@ what they cost to run.
 
 | Engine | Boundary source | Needs | Use it when |
 | --- | --- | --- | --- |
-| `srx` (default) | SRX 2.0 rules — the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries — the industry-standard rule format. |
+| `srx` (default) | SRX 2.0 rules: the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries, the industry-standard rule format. |
 | `uax29` | Unicode UAX-29 sentence rules (ICU) | cgo + ICU | You want the bare Unicode baseline with no exception rules and ICU is available. |
 | `llm` | An LLM asked to chunk semantically | an [LLM provider](/framework/translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
 | `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need robust multilingual or unpunctuated-text segmentation that rules handle poorly. |
@@ -75,34 +75,34 @@ what they cost to run.
 `llm-chunk` layer. Leave `--layer` empty to accept the engine's natural layer, or
 set it to keep several layers side by side.
 
-### SRX — the default
+### SRX: the default
 
 SRX (Segmentation Rules eXchange) is the GALA/LISA standard for sentence
 segmentation: an ordered list of break and no-break rules, scoped by language.
 neokapi ships a faithful pure-Go SRX 2.0 rule engine, so it runs everywhere with
-no native dependencies — including in the browser.
+no native dependencies, including in the browser.
 
 #### Hybrid by default, pure-Go everywhere
 
 SRX segmentation in practice is a **hybrid**: ICU's UAX-29 breaker proposes the
-sentence boundaries and the SRX ruleset is applied on top as *exceptions* — the
+sentence boundaries and the SRX ruleset is applied on top as *exceptions*: the
 default ruleset is overwhelmingly no-break rules, scoped per language, with only
 a handful of break rules. neokapi implements this hybrid directly:
 
-- **Where ICU is linked** (every shipped native binary — CLI, desktop, server),
+- **Where ICU is linked** (every shipped native binary: CLI, desktop, server),
   the `srx` default loads the full default ruleset and runs the ICU-base +
   SRX-exception hybrid, verified against a per-language golden corpus.
 - **Where ICU is not linked** (the browser/WASM build, pure-Go source builds),
   the same `srx` engine falls back to a reduced, self-contained ruleset with
-  explicit break rules — no ICU needed. It is lighter than the full set but
+  explicit break rules, with no ICU needed. It is lighter than the full set but
   still handles the common abbreviations, decimals, and initials, and it is the
   only segmenter that runs in the browser.
 
-You don't choose between these — the `srx` engine picks the right path for the
+You don't choose between these: the `srx` engine picks the right path for the
 build. The result is full-fidelity SRX segmentation where ICU is available, and
 a pure-Go approximation everywhere else.
 
-To tune boundaries — protect a domain abbreviation, split on a custom marker —
+To tune boundaries (protect a domain abbreviation, split on a custom marker),
 point the engine at your own SRX file (an explicit `--rules-path` overrides the
 adaptive default in either mode):
 
@@ -119,18 +119,19 @@ its config (break / no-break regex pairs); an inline list overrides the engine
 selection. For anything beyond a rule or two, prefer a real SRX file with
 `--rules-path`, so the rules are portable and shareable.
 
-### SaT — the ML segmenter
+### SaT: the ML segmenter
 
 The `sat` engine runs wtpsplit *Segment any Text* models (XLM-RoBERTa-based ONNX)
 through the out-of-process `kapi-sat` plugin, so its native ML stack never enters
 the `kapi` binary. It is the right choice for text that rule engines segment
 poorly: languages without reliable sentence punctuation, user-generated or
-transcribed text, and mixed-script content. Select a model with `--sat-model`
-(e.g. `sat-3l-sm` for speed, `sat-12l-sm` for accuracy) and tune `--threshold`
-to make boundaries more or less eager. See
+transcribed text, and mixed-script content. The plugin must be installed
+(`kapi plugin install kapi-sat`) before the engine is available; once it is,
+the plugin's own options appear on `kapi exec segmentation`: `--sat-model`
+selects a model (e.g. `sat-3l-sm` for speed, `sat-12l-sm` for accuracy) and
+`--threshold` makes boundaries more or less eager. See
 [M-02: SaT Segmenter Plugin](/contribute/architecture/multilingual/m-02-segmentation)
-for the protocol and isolation design. The plugin must be installed
-(`kapi plugins`) before the engine is available.
+for the protocol and isolation design.
 
 ## CLI usage
 
@@ -146,14 +147,14 @@ kapi exec segmentation README.md --engine srx --rules-path .kapi/rules.srx
 # Semantic chunks via an LLM provider
 kapi exec segmentation docs/guide.md --engine llm --provider anthropic
 
-# ML segmentation with SaT
+# ML segmentation with SaT (options supplied by the kapi-sat plugin)
 kapi exec segmentation transcript.txt --engine sat --sat-model sat-3l-sm
 ```
 
 Useful flags: `--segment-source` (default true) / `--segment-target` to choose
 which side to segment, and `--overwrite-segmentation` to re-segment blocks that
 already carry an overlay. Each segment is **trimmed of leading/trailing
-whitespace by default** — so a segment is the clean sentence and the
+whitespace by default**, so a segment is the clean sentence and the
 inter-sentence whitespace is left uncovered (keeping memory keys stable, regardless
 of which engine ran); pass `--trim-leading-whitespace=false` /
 `--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
@@ -181,21 +182,21 @@ project's content memory.
 
 ## How segmentation feeds the rest of the pipeline
 
-- **Content memory** — memory is a store of *segment* pairs, so segmentation is
+- **Content memory**: memory is a store of *segment* pairs, so segmentation is
   what makes prior sentence translations reusable. Segment, then
   [`recycle`](/framework/content-memory) matches **sentence by sentence**:
   when a block carries a multi-segment overlay, each sentence is looked up
-  against memory and the block target is assembled from the per-segment matches —
+  against memory and the block target is assembled from the per-segment matches,
   so a paragraph whose sentences were translated before is leveraged even though
   the paragraph as a whole was never a single entry.
-- **AI / MT translation** — translating per segment keeps each unit small and
+- **AI translation**: translating per segment keeps each unit small and
   self-contained, which improves consistency and lets partial matches and
   full-segment matches coexist in one block.
-- **Checks** — length, consistency, and other [QA checks](/framework/checks)
+- **Checks**: length, consistency, and other [QA checks](/framework/checks)
   operate per segment when an overlay is present, so a finding points at the
   offending sentence rather than the whole block.
 
 Segmentation and [terminology](/framework/terminology) are run-anchored overlays
-that prepare a source for translation — see
+that prepare a source for translation; see
 [Content preparation](/framework/content-preparation) for how they compose into
 one authoring pass.

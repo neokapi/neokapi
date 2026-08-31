@@ -2,7 +2,7 @@
 id: rewrite-content
 title: "Edit content in any format, faithfully"
 sidebar_label: "Edit content"
-description: "Read a file's blocks, rewrite the text yourself, and write it back with kapi apply — the format, structure, and non-text elements stay byte-for-byte intact, and no model is involved."
+description: "Read a file's blocks, rewrite the text yourself, and write it back with kapi apply; the format, structure, and non-text elements stay byte-for-byte intact, and no model is involved."
 hide_table_of_contents: true
 ---
 
@@ -12,14 +12,14 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Edit content in any format, faithfully
 
-**Goal:** edit the text inside a file without touching its structure — a Word document, a JSON catalog, a Markdown guide, or any other format kapi reads. The result is the same file — same keys, same styles, same inline codes — with only the prose changed. You (or your assistant) do the rewriting; kapi parses the format, enforces a faithful round-trip, and writes the result back. kapi never sends content to a model to rewrite it, and no project, provider, or credential is needed.
+**Goal:** edit the text inside a file without touching its structure (a Word document, a JSON catalog, a Markdown guide, or any other format kapi reads). The result is the same file (same keys, same styles, same inline codes) with only the prose changed. You (or your assistant) do the rewriting; kapi parses the format, enforces a faithful round-trip, and writes the result back. kapi never sends content to a model to rewrite it, and no project, provider, or credential is needed.
 
 <PendingMedia
   kind="video"
   scene="web/walkthroughs/kapi-rewrite-content.scene.yaml"
 >
   A short walkthrough inspecting a file's blocks, previewing an edit as a diff,
-  applying it in place, and verifying the result with a check — showing how only
+  applying it in place, and verifying the result with a check, showing how only
   the leaf text changes while the format round-trips.
 </PendingMedia>
 
@@ -28,8 +28,8 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 The desktop shows the blocks and verifies the result; the write itself is the CLI's or an assistant's `apply`.
 
-1. **Read the blocks.** Open the file in your project — **Blocks** lists each text block as the engine reads it; **Preview** shows the rendered document with the source ↔ target toggle.
-2. **Edit translated text in Review.** For target-language units the edit surface is the [Review queue](/kapi/recipes/review-and-approve): edit, then approve — the write lands through the same faithful round-trip.
+1. **Read the blocks.** Open the file in your project: **Blocks** lists each text block as the engine reads it; **Preview** shows the rendered document with the source ↔ target toggle.
+2. **Edit translated text in Review.** For target-language units the edit surface is the [Review queue](/kapi/recipes/review-and-approve): edit, then approve; the write lands through the same faithful round-trip.
 3. **Run source rewrites through `apply`.** Drive the inspect → `apply` loop from the CLI tab or a [connected assistant](/kapi/get-started/use-with-claude); then reopen **Preview** to see that headings, styles, and inline codes survived, and re-run the **Checks** view to confirm the gate.
 
 </TabItem>
@@ -37,20 +37,20 @@ The desktop shows the blocks and verifies the result; the write itself is the CL
 
 With kapi wired as an [MCP server](/reference/mcp) or through the [Agent Skill](/kapi/get-started/use-with-claude), ask:
 
-> Simplify the setup section of `guide.md` — shorter sentences, same meaning, keep every link.
+> Simplify the setup section of `guide.md`: shorter sentences, same meaning, keep every link.
 
-The assistant drives the loop through structured calls — `extract_content` to read blocks, `apply_edits` to write the change-set back, `check_file` to confirm the gate. The assistant is the writer; kapi enforces the round-trip, drift-checks each edit by `content_hash`, and rejects an edit that would corrupt inline markup. No model is called for the write itself.
+The assistant drives the loop through structured calls: `extract_content` to read blocks, `apply_edits` to write the change-set back, `check_file` to confirm the gate. The assistant is the writer; kapi enforces the round-trip, drift-checks each edit by `content_hash`, and rejects an edit that would corrupt inline markup. No model is called for the write itself.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-**Read the blocks.** `kapi inspect` returns one record per content block — the `text`, the block's structural role, a stable `id`, and a `content_hash`:
+**Read the blocks.** `kapi inspect` returns one record per content block: the `text`, the block's structural role, a stable `id`, and a `content_hash`:
 
 ```bash
 kapi inspect guide.md --jsonl        # one JSON object per line
 ```
 
-Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens — keep every token in your edited text; a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`. **`content_hash`** is the block's identity — send it back so kapi can tell the block is still the one you read.
+Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read.
 
 **Edit, then apply.** Produce one `content` entry per changed block; `kapi apply` is the one write verb:
 
@@ -66,14 +66,14 @@ Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` to
 
 ```bash
 kapi inspect guide.md --jsonl > blocks.jsonl
-# rewrite the "text" of the blocks you want changed — keeping every <x id="…"/>
-# token — and save them as content entries to edits.jsonl (you do this; no command)
+# rewrite the "text" of the blocks you want changed (keeping every <x id="…"/>
+# token) and save them as content entries to edits.jsonl (you do this; no command)
 kapi apply edits.jsonl --diff             # preview as a unified diff, write nothing
 kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
 
-**Verify.** `kapi check` confirms the result meets your content rules — deterministic, read-only, exit `0` pass and `3` on gate failure:
+**Verify.** `kapi check` confirms the result meets your content rules: deterministic, read-only, exit `0` pass and `3` on gate failure:
 
 ```bash
 kapi check guide.md --max-chars 500 --forbid "utilize"
@@ -86,21 +86,21 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 
 `apply` writes a block only when both guards pass; a blocked edit leaves that block untouched and is reported, so nothing is silently corrupted:
 
-- **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it — the edit is marked **stale** and skipped.
+- **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it; the edit is marked **stale** and skipped.
 - **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup.
 
-Either outcome exits on the gate code (`3`), distinct from an operational error — re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a voice rule — see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)) — one write verb, different `kind`s.
+Either outcome exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a voice rule; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
 
 ## What "faithfully" means
 
-Only the extracted prose changes; everything outside it — `.docx` character styles and table borders, JSON keys and non-string values, Markdown headings and fences — is reproduced byte for byte. This is what makes editing binary office formats (`.docx`, `.pptx`) safe; `kapi formats` marks such formats `faithful` in its Edit column.
+Only the extracted prose changes; everything outside it (`.docx` character styles and table borders, JSON keys and non-string values, Markdown headings and fences) is reproduced byte for byte. This is what makes editing binary office formats (`.docx`, `.pptx`) safe; `kapi formats` marks such formats `faithful` in its Edit column.
 
 ## In a project
 
-In a [`.kapi` project](/kapi/get-started/first-project), `kapi inspect` and `kapi check` run against the recipe's declared content with no file argument, and `kapi apply` lands edits against the named files.
+In a [kapi project](/kapi/get-started/first-project), `kapi inspect` and `kapi check` run against the recipe's declared content with no file argument, and `kapi apply` lands edits against the named files.
 
 ## Next
 
-- [Checks](/framework/checks) — rule families, profiles, scoring, and the gate exit codes.
-- [Create content](/kapi/recipes/create-content) — the author → parse → check loop and the mixed change-set.
-- [Feed content to your AI](/kapi/recipes/ingest-for-ai) — the same anchored blocks as an ingestion stream.
+- [Checks](/framework/checks): rule families, profiles, scoring, and the gate exit codes.
+- [Create content](/kapi/recipes/create-content): the author → parse → check loop and the mixed change-set.
+- [Feed content to your AI](/kapi/recipes/ingest-for-ai): the same anchored blocks as an ingestion stream.

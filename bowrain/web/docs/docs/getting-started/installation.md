@@ -2,17 +2,17 @@
 sidebar_position: 5
 title: Installation
 slug: /installation
-description: Bowrain runs as a server your team connects to — use the hosted service at bowrain.cloud or run your own. Most routes into a workspace need nothing installed locally.
+description: Bowrain runs as a server your team connects to. Use the hosted service at bowrain.cloud or run your own. Most routes into a workspace need nothing installed locally.
 ---
 
 # Installation
 
 Bowrain runs as a **server** your team connects to. Use the hosted service at
 [bowrain.cloud](https://bowrain.cloud), or run your own (see
-[For developers → Self-hosting](/server/installation)).
+[For developers: self-hosting](/server/installation)).
 
 Most routes into a workspace need **nothing installed**: content in a content
-platform, a design tool, or a repository connects server-side — see
+platform, a design tool, or a repository connects server-side; see
 [Connectors](/server/connectors). This page covers the pieces you do install:
 the desktop app, and the kapi CLI for the [developer
 route](/server/connectors/kapi).
@@ -20,18 +20,18 @@ route](/server/connectors/kapi).
 :::tip[Beta channel]
 During a release-candidate phase the **beta channel** carries the freshest
 build. The beta and stable packages install the same binary on different
-update tracks — pick one; they are mutually exclusive.
+update tracks. Pick one; they are mutually exclusive.
 :::
 
 ## The web app
 
-The web editor is served by your Bowrain server — there is nothing to install.
+The web app is served by your Bowrain server; there is nothing to install.
 Open [app.bowrain.cloud](https://app.bowrain.cloud) (or your own server's URL)
 in a browser and sign in.
 
 ## Bowrain Desktop
 
-A native cross-platform editor that connects to the same server, with offline
+A native cross-platform client that connects to the same server, with offline
 support.
 
 ### Homebrew (macOS)
@@ -65,11 +65,12 @@ Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/r
 
 ## The kapi CLI (the developer route)
 
-To sync a local codebase, install the bowrain plugin for the
+To connect a local codebase, install the bowrain plugin for the
 [`kapi`](https://neokapi.github.io/kapi/get-started/installation)
-CLI — there is no separate `bowrain` binary. Once installed, run every bowrain
-command as `kapi <command>` (e.g. `kapi init`, `kapi push`, `kapi up`). This is
-the local-files/git connector — one of several ways content reaches Bowrain.
+CLI; there is no separate `bowrain` binary. Once installed, run every bowrain
+command as `kapi <command>` (for example `kapi init`, `kapi push`, `kapi up`).
+This is the [kapi connector](/server/connectors/kapi), one of several ways
+content reaches Bowrain.
 
 ### Homebrew (macOS/Linux)
 
@@ -97,7 +98,7 @@ kapi plugin install bowrain
 
 Plugin builds are attached to the same GitHub release and indexed in the plugin
 registry; kapi verifies their signatures on install. To pin a specific plugin
-version — in CI, or to hold a project on a known build — install by version or
+version, in CI or to hold a project on a known build, install by version or
 pin it in the recipe's `plugins:` map (see
 [plugins](/cli/commands/plugins)):
 
@@ -109,7 +110,7 @@ kapi plugin install bowrain@<version>
 
 ```bash
 kapi version
-kapi plugins list
+kapi plugin list
 ```
 
 ## Self-hosting
@@ -117,12 +118,12 @@ kapi plugins list
 Prefer to run Bowrain yourself instead of using the hosted service? Installing
 the server, the Docker images (`ghcr.io/neokapi/bowrain-server`, `-worker`,
 `-web`), building from source, and configuration all live under
-[For developers → Self-hosting](/server/installation). Keep the server, worker,
+[For developers: self-hosting](/server/installation). Keep the server, worker,
 and web images on the **same version tag**.
 
 ## Next steps
 
-- [Quick start](/quickstart) — get content in, from your systems or from a codebase
-- [Keeping content caught up](/the-loop) — how a project stays current
-- [Connectors](/server/connectors) — sync a CMS, design tool, or git host
-- [Walkthrough](/walkthroughs/bowrain-getting-started) — the kapi developer path
+- [Quick start](/quickstart): get content in, from your systems or from a codebase
+- [Keeping content caught up](/the-loop): how a project stays current
+- [Connectors](/server/connectors): sync a CMS, design tool, or git host
+- [Walkthrough](/walkthroughs/bowrain-getting-started): the kapi developer path

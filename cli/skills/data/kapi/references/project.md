@@ -1,9 +1,9 @@
 # Use a kapi project for standing context
 
-A `.kapi` project binds the things that don't change between requests — source and
-target locales, which files are content, the voice profile, and the terms store — so
-that ordinary requests need no flags. kapi finds the project by walking up from the
-current directory, like git.
+A kapi project binds the things that don't change between requests (which files
+are content, the voice profile, the terms store, the declared coordinates, and
+the source and target locales) so that ordinary requests need no flags. kapi
+finds the project by walking up from the current directory, like git.
 
 ## When to set one up
 
@@ -20,28 +20,28 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 ```
 
 This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
-committed** — it is the project's context, not scratch space. Git it like source.
+committed**: it is the project's context rather than scratch space. Git it like source.
 
-- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,
+- **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
   `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
   primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
   the unit-state record (one shard per document). `kapi commit` publishes staged
   unit state into `state/`; then `git add` it like any other source file.
-- **`.kapi/work/`** — everything derived, and the only gitignored path.
+- **`.kapi/work/`**: everything derived, and the only gitignored path.
   `store.db` is the local index over the recipe, the context sources and the
   content files. Never read or write it directly and never commit it; go through
   kapi commands, which are what keep it consistent with the sources.
 
-The ignore rule `kapi init` writes is two lines — `/.kapi/work/` and
-`/.kapi/filters.local.json` (a developer's personal reader settings). If you see
+The ignore rule `kapi init` writes is `.kapi/.gitignore` with two lines, `work/`
+and `filters.local.json` (a developer's personal reader settings). If you see
 a project ignoring more of `.kapi/` than that, it is stale.
 
 Deleting:
 
-- `rm -rf .kapi/work/cache` is **always** safe — everything under it rebuilds on
+- `rm -rf .kapi/work/cache` is **always** safe; everything under it rebuilds on
   the next run.
 - `rm -rf .kapi/work` costs two things. Review unit state staged since the last
-  `kapi commit` live only in `store.db` — run `kapi commit` first. And if the
+  `kapi commit` live only in `store.db`; run `kapi commit` first. And if the
   project uses redaction, `.kapi/work/vault/` holds the withheld originals, which
   are local-only by design and rebuild from nothing: merge any batch that is out
   with a translator before clearing it.
@@ -58,17 +58,24 @@ defaults:
     profile_file: .kapi/voice.yaml   # or: profile: <store name> | pack: marketing-blog
   terms_source: .kapi/terms.json    # the committed terms source
   memory_source: .kapi/memory/memory.json  # the committed content memory
+  coordinates:
+    brand: my-app                   # a declared axis; product/channel are never written here
 collections:
   - path: src/locales/en.json
     format: json
     target: src/locales/{lang}.json
+  - name: package-copy              # read and checked, never written back
+    source_only: true
+    content:
+      - path: deploy/homebrew/*.rb
+        format: { name: sourcecode, config: { language: ruby, nodePathPatterns: [desc, caveats] } }
 ```
 
-- **Voice profile** — bind it under `defaults.voice`, or just keep a
+- **Voice profile**: bind it under `defaults.voice`, or just keep a
   `.kapi/voice.yaml` (or a `voice.yaml` at the project root); `kapi
   voice check <file>`, `voice rewrite`, and `voice guide` then resolve it with no
   flag.
-- **More than one voice in one repo** — declare one profile per product under
+- **More than one voice in one repo**: declare one profile per product under
   `profiles:`, list the channels that product ships on, and bind each *named*
   collection to one of them with `channel:`. Runs split per distinct resolution,
   so each product's content is translated and checked under its own voice and
@@ -81,7 +88,7 @@ collections:
       voice: .kapi/voice.yaml
     platform:                        # .kapi/profiles/platform/voice.yaml and
       channels: [docs, landing]      # terms.json answer by convention; bind
-                                     # `voice:`/`terms:` only to override them
+                                     # `voice:`/`termstore:` only to override them
 
   collections:
     - name: platform-docs
@@ -99,23 +106,38 @@ collections:
   The channel additionally picks the override inside the selected profile's
   voice, so a landing register lives beside the voice it varies rather than in a
   second file. A channel no profile declares, and a bare channel two profiles
-  declare, both fail the load — kapi will not quietly translate that content in
+  declare, both fail the load; kapi will not quietly translate that content in
   the wrong voice.
 
   The recipe is the authoring surface for governance. A push carries every
   collection, its point and the governing voice, so a connected project resolves
-  the same voice on the server. A profile's `terms:` is the exception — it names
+  the same voice on the server. A profile's `termstore:` is the exception: it names
   a local path, so a project binding terms per profile and also bound to a server
   warns on every run that the binding applies to local runs only.
-- **Terms** — import terms into the project terms store
+- **Declared axes**: `defaults.coordinates` names the axes the project varies
+  along beyond product and channel (`brand`, `mode`), inherited by every
+  collection; a collection that sits elsewhere sets the one axis it differs on
+  in its own `coordinates:`. `product` and `channel` are derived from `channel:`
+  and rejected here. `kapi context <path>` prints the point a file resolved to
+  and everything governing it; `kapi context search <query>` asks every bound
+  store at once.
+- **Source-only collections**: `source_only: true` declares content kapi reads
+  and checks but never writes back (package descriptions, installer strings);
+  `kapi up` skips it and target-coverage gates exclude it. A collection that
+  also names a target fails to load.
+- **Terms**: import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
-  the translation flow then enforce it with no `--termstore` flag.
-- **Locales + content** — `kapi run <flow>`, `kapi extract`, and `kapi merge`
+  the translation flow then enforce it with no `--termstore` flag. Rules without
+  a store go under a flow step's `term_rules:` (one `term`, its `replacement`,
+  a `severity`, optionally a `concept_id`), the same shape a voice profile's
+  vocabulary uses; `term-check`, `translate`, `recycle`, `dnt-check` and
+  `pseudo-translate` all take it.
+- **Locales + content**: `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.
 
 ## Translate within the project (you are the translator)
 
-You don't need a separate translation model — kapi extracts the text and the
+You don't need a separate translation model: kapi extracts the text and the
 guardrails, you translate, kapi merges it back and checks it. Route it through
 kapi rather than editing the target file by hand, so terminology, placeholders,
 and format stay enforced:
@@ -137,20 +159,20 @@ kapi merge -i out/*.xliff            # writes translations into the target files
 ## Verify, and fix until it passes
 
 Treat your output as a draft until kapi passes it. `kapi check --ship` runs the project's
-gates together — voice profile score, terminology against the bound terms store, and
-translation QA (placeholders preserved, nothing left untranslated) — and reports
+gates together (voice profile score, terminology against the bound terms store, and
+translation QA: placeholders preserved, nothing left untranslated) and reports
 the exact findings:
 
 ```bash
 kapi check --ship --json --no-fail         # report: read `pass` + findings; always exits 0
 ```
 
-Exit 3 from `kapi check --ship` means "not on-spec yet", not a crash — it's the gate giving
+Exit 3 from `kapi check --ship` means "not on-spec yet" rather than a crash; it's the gate giving
 you findings to act on. While you're iterating, pass `--no-fail` so it always exits 0
 and you read the `pass` field; drop `--no-fail` in CI, where the non-zero exit blocks
-the build. Read the findings, fix them, and run it again — loop until it passes. This is the
+the build. Read the findings, fix them, and run it again; loop until it passes. This is the
 gate that makes the result trustworthy regardless of how you produced it.
 
 For unattended runs (CI, no assistant), `kapi translate` / `kapi run translate-qa`
-call a configured provider instead — the project's voice profile and terms still apply,
+call a configured provider instead; the project's voice profile and terms still apply,
 and `kapi check --ship` is the same gate in the pipeline.

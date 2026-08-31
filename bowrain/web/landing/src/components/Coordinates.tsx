@@ -11,7 +11,7 @@ import { markEngaged } from "../sectionSignals";
 //
 // The rename above proved that where the words sit decides the rule. This
 // section says what "where" is made of, and then shows the answer a real tool
-// gives — the three examples below are the three rows of that table, resolved.
+// gives: the three examples below are the three rows of that table, resolved.
 // The example switcher is the comprehension signal: a reader who compares two
 // points has understood that a point is a thing you can compare.
 
@@ -39,7 +39,7 @@ const POINTS: Point[] = [
     collection: "help-centre",
     voice: t("end-user help"),
     rule: t("Use the new name."),
-    term: t("Workspace — preferred. The old name is discouraged here."),
+    term: t("Workspace: preferred. The old name is discouraged here."),
   },
   {
     point: "docs/migration",
@@ -50,7 +50,7 @@ const POINTS: Point[] = [
     collection: "migration-guide",
     voice: t("end-user help"),
     rule: t("Both names are permitted, side by side."),
-    term: t("Workspace — preferred. Project — permitted until 2027-01-01."),
+    term: t("Workspace: preferred. Project: permitted until 2027-01-01."),
   },
   {
     point: "product/api",
@@ -61,7 +61,7 @@ const POINTS: Point[] = [
     collection: "api-reference",
     voice: t("developer reference"),
     rule: t("The old name must not change."),
-    term: t("project — required; it is the wire field, not a word."),
+    term: t("project: required; it is the wire field, not a word."),
   },
 ];
 
@@ -75,21 +75,21 @@ const AXES = [
 
 const LADDER = [
   {
+    scope: t("A project"),
+    body: t(
+      "The recipe declares the axes every collection inherits: the brand, the kind of document, whatever else the content varies along. Declared once, at the broadest scope that is true.",
+    ),
+  },
+  {
     scope: t("A collection"),
     body: t(
-      "This folder is the help centre; that one is the API reference. The collection carries the profile for everything inside it, which is where almost every coordinate is declared.",
+      "This folder is the help centre; that one is the API reference. The collection carries the profile for everything inside it, overriding the project on the one axis it differs on and inheriting the rest.",
     ),
   },
   {
-    scope: t("A file"),
+    scope: t("An exception"),
     body: t(
-      "One document that belongs to the collection but not to its register — a deprecation notice inside the help centre — overrides its collection and nothing else.",
-    ),
-  },
-  {
-    scope: t("A passage"),
-    body: t(
-      "The old name is permitted here, in these two paragraphs, and nowhere else. Nobody tags a paragraph unless a paragraph is genuinely the exception.",
+      "One document that belongs to the folder but not to its register, a deprecation notice inside the help centre, is given a collection of its own. Nobody carves out an exception unless it genuinely is one.",
     ),
   },
 ];
@@ -124,7 +124,7 @@ export function Coordinates() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "A profile is a named bundle of coordinates — who the content is for, where it appears, in what register, for which market, and from when until when. Bind a profile to a place and everything in that place is governed from there.",
+              "A profile is a named bundle of coordinates: who the content is for, where it appears, in what register, for which market, and from when until when. Bind a profile to a place and everything in that place is governed from there.",
             )}
           </p>
         </div>

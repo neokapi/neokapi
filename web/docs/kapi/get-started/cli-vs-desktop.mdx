@@ -3,39 +3,42 @@ id: cli-vs-desktop
 title: "Kapi CLI or Kapi Desktop?"
 sidebar_label: "CLI or Desktop?"
 sidebar_position: 1
-description: "Kapi comes two ways that share one engine — the kapi command-line tool and the Kapi Desktop app. This page helps you pick the one that fits how you work."
-keywords: [kapi CLI, Kapi Desktop, which to use, automation, visual editor]
+description: "Kapi comes two ways that share one engine, the kapi command-line tool and the Kapi Desktop app. This page helps you pick the one that fits how you work."
+keywords: [kapi CLI, Kapi Desktop, which to use, automation, context, review]
 ---
 
 # Kapi CLI or Kapi Desktop?
 
-Both run the **same engine** on the **same `.kapi` projects, flows, and tools** — a
-workflow you build in one runs in the other, and you can switch any time. The only
-question is how _you_ like to work.
+Both run the **same engine** on the **same kapi projects, flows, and tools**: a
+project you set up in one opens in the other, and you can switch any time. The
+only question is how _you_ like to work.
 
-## Kapi CLI — the command-line tool
+## Kapi CLI, the command-line tool
 
 A single binary that operates directly on your files. Reach for it when you want to:
 
-- **automate** — scripts, `make` targets, CI gates that fail a PR on a bad check;
-- **stay in the terminal** — flags, pipes, `--json` output you can feed to other tools;
-- **work offline or at scale** — batch a whole directory, no server, no GUI;
-- **drive it from your AI assistant** — over [MCP](/kapi/get-started/use-with-claude) or
+- **automate**: scripts, `make` targets, CI gates that fail a PR on a bad check;
+- **stay in the terminal**: flags, pipes, `--json` output you can feed to other tools;
+- **work offline or at scale**: batch a whole directory, no server, no GUI;
+- **drive it from your AI assistant**: over [MCP](/kapi/get-started/use-with-claude) or
   the [Agent Skills](/kapi/get-started/use-with-claude), Claude calls `kapi` to read,
   check, and fix your content.
 
-Start with the **[Kapi CLI recipes](/kapi/cli)**.
+Start with the **[Kapi CLI guides](/kapi/cli)**.
 
-## Kapi Desktop — the visual app
+## Kapi Desktop, the visual app
 
-A native app that wraps the same tools and flows in a visual interface — no YAML,
-no flags. Reach for it when you want to:
+A native app where a person reads and edits the context a project goes by, with
+no YAML and no flags. Reach for it when you want to:
 
-- **build flows on a canvas** — drag tools, configure them in a form, run them live;
-- **see your project** — content collections, matched files, detected formats, and
-  content memory laid out visually;
-- **install plugins and store credentials** through a UI rather than the keychain
-  and config files.
+- **read and edit the context**: the voice profile in force at a point, the
+  terms, the content memory, and what applies at a given file;
+- **see where the project stands**: content and governance on two axes, and a
+  point map of what sits where;
+- **work the Checks and Review surfaces**: a finding leads to the rule that
+  fired, and the review queue puts source and target side by side;
+- **run tools and flows from the Toolbox**, and manage plugins and AI models
+  through a UI rather than config files.
 
 Start with the **[Kapi Desktop overview](/kapi/desktop/overview)**.
 
@@ -44,16 +47,15 @@ Start with the **[Kapi Desktop overview](/kapi/desktop/overview)**.
 | If you… | Reach for |
 | --- | --- |
 | live in a terminal and want to script or gate things | **Kapi CLI** |
-| are vibe-coding with Claude and want it to translate for you | **Kapi CLI** over [MCP](/kapi/get-started/use-with-claude) — Claude drives it |
-| prefer clicking to typing, and want to _see_ the flow | **Kapi Desktop** |
-| are setting up a repo's languages and gates once, to commit and share | **Kapi CLI** ([your first project](/kapi/get-started/first-project)) |
-| are reviewing translations and browsing memory and terms day to day | **Kapi Desktop** |
+| write with Claude and want it to check and translate for you | **Kapi CLI** over [MCP](/kapi/get-started/use-with-claude); Claude drives it |
+| prefer clicking to typing, and want to _see_ what governs a file | **Kapi Desktop** |
+| are setting up a repo's governance and gates once, to commit and share | **Kapi CLI** ([your first project](/kapi/get-started/first-project)) |
+| are editing the voice and terms, or reviewing translations, day to day | **Kapi Desktop** |
 
 You don't have to choose permanently. The `kapi.yaml` recipe a teammate authors in the
-CLI opens in Desktop, and vice versa — same project, same results.
+CLI opens in Desktop, and vice versa: same project, same results.
 
 ## Next
 
-- [Installation](/kapi/get-started/installation) — install either (or both).
-- [Projects](/kapi/projects) — the one model both
-  surfaces share.
+- [Installation](/kapi/get-started/installation): install either (or both).
+- [Projects](/kapi/projects): the one model both surfaces share.

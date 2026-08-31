@@ -21,10 +21,11 @@
 #
 #   THEME (--with-theme)
 #     navbar, footer, code.json, current.json. These come from
-#     `docusaurus write-translations`, which needs the site's own node_modules —
-#     and bowrain/web/docs is deliberately outside the pnpm workspace (PR #425),
-#     so the l10n CI job cannot install them. Run this by hand when navbar or
-#     footer items change; they change rarely and are committed.
+#     `docusaurus write-translations`, which needs the site's own node_modules,
+#     and bowrain/web/docs is deliberately outside the pnpm workspace, so the
+#     l10n CI job cannot install them. The docs workflows run this tier before
+#     each site build; run it by hand for a local preview. Everything it writes
+#     under the site's i18n/qps/ tree is gitignored and never committed.
 #
 # The theme tier also needs a fix-up: a Docusaurus translation file is
 # {"key": {"message": …, "description": …}} and only `message` is shown to a

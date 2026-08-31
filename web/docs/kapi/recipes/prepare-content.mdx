@@ -3,7 +3,7 @@ id: prepare-content
 title: "What gets translated"
 sidebar_label: "Prepare content"
 sidebar_position: 6
-description: "Get a source ready so translation is cheaper, safer, and consistent — protect sensitive content, reuse past translations, and keep terminology and quality in check, in one repeatable pass."
+description: "Get a source ready so translation is cheaper, safer, and consistent: protect sensitive content, reuse past translations, and keep terminology and quality in check, in one repeatable pass."
 hide_table_of_contents: true
 ---
 
@@ -12,40 +12,40 @@ import TabItem from "@theme/TabItem";
 
 # What gets translated
 
-**Goal:** decide what actually needs translating before anything goes out in another language. Three outcomes, one pass: sensitive material stays on your machine ([Redaction](/framework/redaction)), anything you've already translated comes back for free ([Content memory](/framework/content-memory)), and every language is held to the same bar as the source ([Checks](/framework/checks)). Each job runs ad-hoc on any file; a [`.kapi` project](/kapi/get-started/first-project) makes the pass repeatable and lets reuse accumulate in a project-local content memory and terms store.
+**Goal:** decide what actually needs translating before anything goes out in another language. Three outcomes, one pass: sensitive material stays on your machine ([Redaction](/framework/redaction)), anything you've already translated comes back for free ([Content memory](/framework/content-memory)), and every language is held to the same bar as the source ([Checks](/framework/checks)). Each job runs ad-hoc on any file; a [kapi project](/kapi/get-started/first-project) makes the pass repeatable and lets reuse accumulate in a project-local content memory and terms store.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-1. **See what goes out.** Open a file from a content collection — the **Blocks** view is exactly the text a translation run works on; everything else is structure the round-trip preserves. What isn't a block doesn't get translated.
-2. **Protect and reuse.** In the **Toolbox**'s Flows tab, put `redact` and `recycle` steps ahead of `translate` in the project's flow: sensitive spans become placeholders before any provider is called, and memory matches fill first, so a run pays only for what's new.
-3. **Hold every language to the bar.** Import the term list in the **Terms** view and bind the voice profile in project settings; the **Checks** view then reports terminology and quality findings per block, and a locale doesn't reach its ship gate past a failing check.
+1. **See what goes out.** Open a file from a content collection: the **Blocks** view is exactly the text a translation run works on; everything else is structure the round-trip preserves. Only blocks are translated.
+2. **Protect and reuse.** Under **Toolbox → Flows**, put `redact` and `recycle` steps ahead of `translate` in the project's flow: sensitive spans become placeholders before any provider is called, and memory matches fill first, so a run pays only for what's new.
+3. **Hold every language to the bar.** Bind the voice profile in **Project Settings** and commit the term list the recipe binds (`kapi terms import` writes it; **Context → Terms** shows it); the **Checks** view then reports terminology and quality findings per block, and a locale doesn't reach its ship gate past a failing check.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcomes, not the machinery:
+With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcomes:
 
-> Prepare this catalog for French — protect names, reuse what we've already translated, enforce our terms.
+> Prepare this catalog for French: protect names, reuse what we've already translated, enforce our terms.
 
-The assistant runs the same pass through kapi: the `secure-translate` flow for protection, `recycle` for reuse, `check` for the bar — then reports what was redacted, what came back from memory, and what still needs a person.
+The assistant runs the same pass through kapi: the `secure-translate` flow for protection, `recycle` for reuse, `check` for the bar, then reports what was redacted, what came back from memory, and what still needs a person.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-**Protect sensitive content** — redact, translate against placeholders, restore locally:
+**Protect sensitive content**: redact, translate against placeholders, restore locally:
 
 ```bash
 kapi run secure-translate -i src/locales/en.json --target-lang fr
 ```
 
-**Reuse past translations** — fill from content memory first, translate only what's left ([the deterministic version](/kapi/recipes/pre-translate-from-memory)):
+**Reuse past translations**: fill from content memory first, translate only what's left ([the deterministic version](/kapi/recipes/pre-translate-from-memory)):
 
 ```bash
 kapi exec recycle src/locales/en.json --target-lang fr
 ```
 
-**Keep terminology and quality consistent** — import the term list once, then gate:
+**Keep terminology and quality consistent**: import the term list once, then gate:
 
 ```bash
 kapi terms import terms.json --name product-terms
@@ -54,15 +54,16 @@ kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 
 When a check flags a block, fix it through the inspect → apply loop ([Edit content](/kapi/recipes/rewrite-content)) and re-check. To make the pass one repeatable verb, name it as a flow in your project:
 
-```yaml
-# .kapi/flows/prepare.yaml
-steps:
-  - tool: redact # protect sensitive content
-  - tool: segmentation # per-sentence units, so reuse and checks land precisely
-  - tool: entity-extract # detect names so memory reuse generalizes over them
-  - tool: recycle # reuse past translations
-  - tool: translate # translate the remainder
-  - tool: qa # gate on findings
+```yaml title="kapi.yaml"
+flows:
+  prepare:
+    steps:
+      - tool: redact # protect sensitive content
+      - tool: segmentation # per-sentence units, so reuse and checks land precisely
+      - tool: entity-extract # detect names so memory reuse generalizes over them
+      - tool: recycle # reuse past translations
+      - tool: translate # translate the remainder
+      - tool: qa # gate on findings
 ```
 
 ```bash
@@ -74,10 +75,10 @@ kapi run prepare -i src/locales/en.json --target-lang fr
 
 ## In a project
 
-In a [`.kapi` project](/kapi/get-started/first-project) the same pass runs against the recipe's declared content and locales — `kapi run prepare` with no file argument resolves the sources from the project, and the content memory and terms store it builds are the project's own. For the model behind this — each step a non-destructive overlay on one settled source — see [Content preparation](/framework/content-preparation).
+In a [kapi project](/kapi/get-started/first-project) the same pass runs against the recipe's declared content and locales: `kapi run prepare` with no file argument resolves the sources from the project, and the content memory and terms store it builds are the project's own. For the model behind this (each step a non-destructive overlay on one settled source) see [Content preparation](/framework/content-preparation).
 
 ## Next
 
-- [Redaction](/framework/redaction) — rules files, entity detection, and the extract/merge path for human translators.
-- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory) — the content-memory pass end to end.
-- [Keep terms consistent](/kapi/recipes/terminology-qa) — terminology enforcement in full.
+- [Redaction](/framework/redaction): rules files, entity detection, and the extract/merge path for human translators.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory): the content-memory pass end to end.
+- [Keep terms consistent](/kapi/recipes/terminology-qa): terminology enforcement in full.

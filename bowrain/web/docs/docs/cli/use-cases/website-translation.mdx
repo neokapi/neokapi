@@ -3,25 +3,28 @@ title: Website Translation
 sidebar_label: Website Translation
 ---
 
-# Use Case: Translating a Website
+# Use case: a website in several languages
 
-This guide walks through a complete workflow for translating website content using kapi (with the bowrain plugin) and the Bowrain web editor.
+This guide walks through carrying a website's content into several languages
+with kapi (with the bowrain plugin) and, optionally, a Bowrain workspace for
+review. A language is one more coordinate: the same context that governs the
+source governs each target.
 
 ## Overview
 
-1. **CLI**: Initialize a Bowrain project and map your website's files
-2. **CLI**: Converge with `kapi up` — AI drafting, content-memory recycling, and QA against your terms and voice
-3. **Bowrain**: Open the local project in the visual editor for review
-4. **CLI**: Push to Bowrain Server for team collaboration (optional)
+1. **CLI**: initialize a project and map your website's files
+2. **CLI**: converge with `kapi up`: AI drafting, content-memory recycling, and checks against your terms and voice
+3. **CLI**: review locally, or push to a workspace and review in the session
+4. **CLI**: keep the project in step with the workspace
 
-## Step 1: Initialize Project
+## Step 1: initialize the project
 
-Create a Bowrain project in your website repository:
+Create a project in your website repository:
 
 ```bash
-# Initialize project with source and target locales
+# Initialize the project with source and target locales
 cd my-website/
-kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --name "Website" --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Check project status and coverage
 kapi status
@@ -34,11 +37,13 @@ Example `kapi.yaml`:
 
 ```yaml
 version: v1
-name: Website Translation
+name: Website
 
 defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, ja-JP]
+  voice: .kapi/voice.yaml
+  terms_source: .kapi/terms.json
 
 collections:
   - path: content/**/*.md
@@ -48,9 +53,9 @@ collections:
     format: json
 ```
 
-## Step 2: Converge with `kapi up`
+## Step 2: converge with `kapi up`
 
-`kapi up` is the convergence verb: it brings every target language up to date against the current source — drafting with AI, recycling from content memory, and running QA checks — and is safe to re-run whenever the source changes.
+`kapi up` is the convergence verb: it brings every target language up to date against the current source, drafting with AI, recycling from content memory, and running the checks, and is safe to re-run whenever the source changes.
 
 ```bash
 # Bring every target language up to date against the source
@@ -71,67 +76,62 @@ A custom flow composes tools into a pipeline. `.kapi/flows/translate-website.yam
 
 ```yaml
 name: translate-website
-description: Translate website content with AI and QA
+description: Draft website content with AI and check it
 steps:
+  - tool: recycle
   - tool: translate
     config:
       provider: anthropic
-      model: claude-sonnet-4.5
+      model: claude-sonnet-5
+  - tool: term-check
   - tool: qa
-  - tool: term-enforce
 ```
 
-### Tools and Flows
+### Tools and flows
 
 kapi tools and flows are composable pipelines that run on your local files:
 
-- **`kapi exec translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
-- **`kapi exec recycle`**: Pre-fill translations from content memory
-- **`kapi exec qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
-- **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
+- **`kapi exec translate`**: draft with an AI provider
+- **`kapi exec recycle`**: pre-fill targets from content memory
+- **`kapi exec qa`**: rule-based quality checks (whitespace, punctuation, placeholders)
+- **`kapi exec term-check`**: check the terms in force at each block's point
+- **`kapi run <flow>`**: execute a composed or custom multi-tool flow
 
 Tools and flows automatically process all files matching your recipe's `collections:`.
 
-## Step 3: Review in Bowrain (Optional)
+## Step 3: review
 
-For visual review and manual edits, open your project in the Bowrain desktop app or web UI.
+Locally, `kapi status --review` lists the translated units awaiting a
+decision, and `kapi apply` records one; `kapi commit` publishes the decisions
+into the committed record under `.kapi/state/`.
 
-```bash
-# Launch Bowrain desktop app (if installed)
-open -a Bowrain .
-```
+For a reviewer who works in a browser, connect the project to a workspace
+(step 4) and use the [review session](/server/review): source and draft side
+by side, the checks and the terms inline, bulk approval of everything that
+passes, and a per-locale ship state that says what can go out today.
 
-### Editor Views
+### Using terms
 
-Bowrain's editor offers two views for different translation tasks:
+1. Import terms (TBX, CSV, JSON) with `kapi terms import`; they land in the project's terms store
+2. Bind the store with `defaults.terms_source` so every run and check reads it
+3. Add `term-check` to your flow to check each target against the terms in force
+4. In a workspace, the editor's context panel shows matched terms per block
 
-| View       | Best For                                                    |
-| ---------- | ----------------------------------------------------------- |
-| **Visual** | In-context translation — an inline card over a live preview |
-| **Table**  | Overview, scanning, and batch operations across many blocks |
+## Step 4: sync with a Bowrain workspace (optional)
 
-### Using Terminology
-
-1. Import terms (TBX, CSV, JSON) — they are stored in the project terms store
-2. Add `term-lookup` to your flow to show terminology suggestions
-3. Add `term-enforce` to validate required terms are used correctly
-4. The Context panel in Bowrain shows matched terms per block
-
-## Step 4: Sync with Bowrain Server (Optional)
-
-For team collaboration, connect your project to a Bowrain Server instance:
+For team collaboration, connect your project to a Bowrain workspace:
 
 ```bash
-# Connect to server
+# Connect to a workspace
 kapi init --server https://app.bowrain.cloud --project abc123
 
-# Check sync status
+# Check standing
 kapi status
 
-# Push translations to server
+# Send local changes up
 kapi push
 
-# Pull translations from teammates
+# Fetch results and reviewers' decisions
 kapi pull
 ```
 
@@ -144,17 +144,17 @@ The push/pull workflow is similar to git:
 | `git pull`   | `kapi pull`   |
 | `git push`   | `kapi push`   |
 
-kapi uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
+kapi declares its tree on every push, so only changed blocks transfer over the network. On a connected project, `kapi up` runs the loop on the server and does push, catch up and pull in one command.
 
 ## Tips
 
 - **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and a committed `.kapi/` directory
-- **Define custom flows** in `.kapi/flows/` for your specific translation workflow
-- **Use `kapi exec recycle`** to auto-fill translations from content memory
-- **Import terminology** into the project terms store and add `term-lookup` to your flow
+- **Bind a voice profile and a terms store** in `defaults:` so drafts and checks read the same context
+- **Define custom flows** in `.kapi/flows/` for your specific workflow
+- **Put `recycle` before `translate`** to reuse approved wording before spending credits
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
-- **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `kapi.yaml` and `.kapi/`** to git — the context graph belongs in review; only `.kapi/work/` is gitignored
+- **Use local automations** to run the checks before pushing to a workspace
+- **Commit `kapi.yaml` and `.kapi/`** to git; the context graph belongs in review, and only `.kapi/work/` is gitignored
 - **Check `kapi status`** before pushing to see what changed
 
 ## Related

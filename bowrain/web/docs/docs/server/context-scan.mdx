@@ -1,21 +1,23 @@
 ---
 title: Context scan
 sidebar_label: Context scan
-description: A context scan reads a corpus of existing material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a voice profile and candidate terms for review before you adopt them.
-keywords: [context scan, onboarding, voice profile, brand voice, terms, terminology, corpus, inference, bowrain]
+description: A context scan reads a corpus of existing material, pasted text, web pages, uploaded documents, or a public git repository, and proposes the axes the content varies along, a voice profile draft, and candidate terms, each approved separately before it governs anything.
+keywords: [context scan, context discovery, onboarding, axes, coordinates, voice profile, terms, corpus, inference, bowrain]
 ---
 
 import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
 # Context scan
 
-Adopting a voice profile from scratch means transcribing rules a team already
-follows but has rarely written down. A **context scan** shortens that first step:
-it reads a corpus of material the team has already written and drafts a
-[voice profile](/server/context-voice) and candidate terms, which you review and
-edit before saving. It is an onboarding aid, not an authority — nothing it
-produces is enforced until you adopt it through the ordinary
-[Context](/server/context) surfaces.
+An empty context is worth nothing, and nobody writes one from a blank page. A
+**context scan** reads a corpus of material the team has already written and
+proposes three things: the **axes** the content varies along, a
+[voice profile](/server/context-voice) draft, and candidate **terms**. You
+review and correct a first draft instead of authoring one. A scan is an
+onboarding aid, not an authority: nothing it proposes is enforced until you
+approve it through the ordinary [Context](/server/context) surfaces, and the
+same correction loop that keeps the context current afterwards is what you use
+to review it.
 
 A scan runs before any bring-your-own provider key exists, so it always uses
 platform AI credits. The [credits](#credits-and-quota) it spends are reported on
@@ -23,25 +25,26 @@ the job as it runs.
 
 ## The flow
 
-A scan reads the sources you give it, assembles them into one corpus, drafts a
-voice profile from that corpus, and extracts term candidates — then hands
-back a draft for review.
+A scan reads the sources you give it, assembles them into one corpus, and
+proposes what it found: the axes, a voice profile drafted from the corpus, and
+extracted term candidates. Each proposal is approved on its own.
 
 <PhaseFlow
   nodes={[
     { label: "Sources", sub: "paste, URL, upload, git repo" },
     { label: "Corpus", sub: "assembled + source-tagged", edge: "read sources" },
+    { label: "Axes", sub: "the dimensions content varies along", edge: "propose" },
     { label: "Voice profile draft", sub: "tone, style, vocabulary, examples", edge: "infer" },
     { label: "Term candidates", sub: "term + definition + domain", edge: "extract terms" },
-    { label: "Review", sub: "edit, test, then adopt", edge: "return draft" },
+    { label: "Review", sub: "approve each, then it governs", edge: "return proposals" },
   ]}
-  caption="A scan reads sources into one corpus, infers a voice profile, extracts term candidates, and returns a draft to review. Nothing is saved to the graph until you adopt it."
+  caption="A scan reads sources into one corpus and proposes axes, a voice profile and term candidates. Nothing governs until a person approves it."
 />
 
 The scan runs asynchronously. Creating one returns a job id; poll the scan until
-it reports `completed` and read the draft it carries. The lifecycle is `queued`
-→ `processing` → `completed` (or `failed`), and while processing the job reports
-a progress percentage and a phase label — reading sources, assembling the
+it reports `completed` and read the proposals it carries. The lifecycle is
+`queued` → `processing` → `completed` (or `failed`), and while processing the job
+reports a progress percentage and a phase label: reading sources, assembling the
 corpus, drafting the voice, extracting terms.
 
 ## Sources
@@ -49,32 +52,46 @@ corpus, drafting the voice, extracting terms.
 A scan accepts any combination of four source kinds, assembled into a single
 source-tagged corpus:
 
-- **Paste** — brand copy or a style guide pasted directly as text.
-- **URL** — public web pages the scan fetches and reads as text. URL fetching is
+- **Paste**: copy or a style guide pasted directly as text.
+- **URL**: public web pages the scan fetches and reads as text. URL fetching is
   restricted to `https` and refuses private, loopback, and link-local addresses,
   re-checking on every redirect, so a scan cannot be pointed at internal
   infrastructure.
-- **Upload** — documents uploaded ahead of the scan. Uploads are validated
-  against an allowlist of text-bearing formats (Markdown, HTML, plain text, CSV
-  and TSV, DOCX, XLSX, ODF, EPUB, XML, JSON, and YAML) before any bytes are
-  stored; unsupported files are reported back rather than silently dropped. PDF
-  and PowerPoint are not yet supported and are rejected with an explanatory
-  message. Per-file and per-batch size limits apply, and stored uploads are
-  swept after a retention window so a "regenerate" during review can reuse the
-  same files.
-- **Git repository** — a public `https` git repository, shallow-cloned; the scan
+- **Upload**: documents uploaded ahead of the scan. Uploads are validated
+  against an allowlist of text-bearing formats before any bytes are stored;
+  unsupported files are reported back rather than silently dropped. Per-file
+  and per-batch size limits apply, and stored uploads are swept after a
+  retention window so a "regenerate" during review can reuse the same files.
+- **Git repository**: a public `https` git repository, shallow-cloned; the scan
   reads its Markdown files.
 
 The corpus is bounded: sources are read up to a total budget, and a scan reports
 which sources it read and which it skipped, so a corpus that was trimmed to fit
 is visible rather than silent.
 
-## What a scan drafts
+## What a scan proposes
+
+### Axes
+
+A scan proposes the dimensions the corpus's content varies along: a `brand`, a
+`mode` (tutorial, how-to, reference, explanation), a market, or another axis the
+project has not yet named. An axis changes the shape of the context space, so
+it is approved separately from anything that sits on it.
+
+An approved axis is recorded as a pending recipe change; it does not declare
+anything by itself. On a project connected from a checkout, the next
+[`kapi pull`](/cli/commands/pull) writes `defaults.coordinates.<axis>` into
+`kapi.yaml`, where git reviews it, and the axis exists once that lands and a
+push carries content at it. A structural axis, a product or a channel, is
+approved against a particular collection, because a scan reads a corpus rather
+than a project's collections and cannot know which one it meant; it lands as
+that collection's `channel:`. The recipe remains the only thing that mints a
+coordinate.
 
 ### Voice profile
 
 The scan drafts a [voice profile](/server/context-voice) with the same shape a
-hand-authored one has — tone (personality, formality, emotion, humour), style
+hand-authored one has: tone (personality, formality, emotion, humour), style
 rules (active voice, sentence length, point of view, contractions, prohibited
 patterns), vocabulary (preferred, forbidden, and competitor terms), and
 before/after examples. The draft is named to signal it needs review before it is
@@ -88,58 +105,61 @@ profile still round-trips through the ordinary profile format.
 
 ### Term candidates
 
-Alongside the voice profile, the scan extracts **term candidates** — terms
+Alongside the voice profile, the scan extracts **term candidates**: terms
 found in the corpus, each with an optional definition and domain, deduplicated
 and merged with the profile's preferred terms. These are candidates for the
-[terminology](/server/terminology) hub, not governed concepts; adopting them is
+[terms explorer](/server/terminology), not governed concepts; adopting them is
 a separate, deliberate step.
 
-## Review, then adopt
+## Review, then approve
 
-A scan never writes to the graph on its own. It produces a draft; adopting it is
-a deliberate second action, so the [separation between curation and
-governance](/server/context#tiered-governance) holds from the very first profile.
+A scan never writes to the graph on its own. It produces proposals; approving
+each is a deliberate second action, so the [separation between curation and
+governance](/server/context#tiered-governance) holds from the very first
+profile.
 
 <SwimlaneDiagram
   actors={[
-    { label: "You", sub: "manage_brand", role: "io" },
+    { label: "You", sub: "manage_voice", role: "io" },
     { label: "Context scan", sub: "async job", role: "qa" },
-    { label: "Context", sub: "profiles + terminology" },
+    { label: "Context", sub: "axes + profiles + terms" },
   ]}
   messages={[
     { from: 0, to: 1, label: "create scan from sources" },
-    { from: 1, to: 1, label: "read → infer → extract", detail: "spends platform credits" },
-    { from: 1, to: 0, label: "return draft + evidence" },
+    { from: 1, to: 1, label: "read → propose → infer → extract", detail: "spends platform credits" },
+    { from: 1, to: 0, label: "return proposals + evidence" },
+    { from: 0, to: 2, label: "approve an axis", detail: "a recipe change, delivered by pull" },
     { from: 0, to: 1, label: "test edited draft against sample text", detail: "no AI cost" },
-    { from: 0, to: 2, label: "adopt: save profile, promote terms" },
+    { from: 0, to: 2, label: "adopt: save profile at its point, promote terms" },
   ]}
-  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes term candidates through the ordinary Context surfaces."
+  caption="A scan returns proposals you review. An approved axis reaches the recipe through pull; an adopted profile is bound at its point; promoted terms become concepts."
 />
 
 While reviewing, you can **test a draft** against a sample of your own text: the
 scan scores the sample against the (possibly edited) draft profile using the
-deterministic vocabulary matcher — no AI call, no credit cost — so you can adjust
-the draft and see the effect before committing to it.
+deterministic vocabulary matcher, with no AI call and no credit cost, so you can
+adjust the draft and see the effect before committing to it.
 
-When the draft is ready, you adopt it through the ordinary surfaces: the edited
-voice profile is saved as a [voice profile](/server/context-voice), and the
-term candidates are promoted through [terminology](/server/terminology). The
-scan itself creates neither — it only hands you a draft to carry forward.
+When the draft is ready, you approve it through the ordinary surfaces: the
+edited voice profile is saved as a [voice profile](/server/context-voice) bound
+at the point it governs, and the term candidates are promoted through the
+[terms explorer](/server/terminology). The scan itself creates none of these;
+it hands you proposals to carry forward.
 
 ## Credits and quota
 
 Because onboarding happens before a workspace has configured a
-bring-your-own provider key, a scan always runs on **platform AI credits** — the
-same [hybrid credits model](/server/billing-and-credits) that governs the rest of
+bring-your-own provider key, a scan always runs on **platform AI credits**, the
+same [credits model](/server/billing-and-credits) that governs the rest of
 the platform's AI operations. A scan is refused up front
 if the workspace has no spendable credits, and the credits it spends
 (one credit per token) are metered per phase and reported on the job as
 `tokens_used`. On a self-hosted deployment with billing disabled, no credits are
-deducted.
+deducted. Approving an axis never costs anything.
 
 ## Under the hood
 
-- [The Context hub](/server/context) — the surfaces a scan feeds into.
-- [Voice & corrections](/server/context-voice) — the profile a scan drafts,
+- [The Context hub](/server/context): the surfaces a scan feeds into.
+- [Voice and corrections](/server/context-voice): the profile a scan drafts,
   and how a saved profile is enforced.
-- [Billing and credits](/server/billing-and-credits) — the credits a scan spends.
+- [Billing and credits](/server/billing-and-credits): the credits a scan spends.

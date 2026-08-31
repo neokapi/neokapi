@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	// Blank-import the lightweight bowrain schema package so the desktop
-	// app validates bowrain recipes (server, hooks, automations, assets,
-	// brand_voice, per-item collection/base/assets/asset_max_size). This
-	// pulls in extension decoders only — no heavy CLI / connector code.
+	// Blank-import the venue schema package so a recipe carrying its extension
+	// keys validates in the desktop app: the project-level `bowrain`, `hooks`,
+	// `automations`, `assets` and `brand_voice` blocks, the per-item and
+	// defaults-level `collection`, the per-item `assets` and `asset_max_size`,
+	// and the per-collection `collection` and `preview`. The package holds the
+	// extension decoders and their spec types only.
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/core/version"

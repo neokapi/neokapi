@@ -152,7 +152,7 @@ dataset is all a build sees, and the date on it is the real currency.
 
 ```bash
 make skill-eval             # does the skill fire (cheap, 4-turn cap, 3 repeats)
-make mcp-eval               # does an agent pick the right tool of nineteen
+make mcp-eval               # does an agent pick the right MCP tool
 make skill-eval-completion  # does it finish the job (slow, 40-turn floor)
 ```
 
@@ -262,7 +262,7 @@ and it is not the cheaper route to the ones it can.
 
 `/evals` is the answer, and it is generated, so it does not go stale here.
 
-Building the last four evals turned up five bugs, all since fixed, and they are
+Building the last four evals turned up five bugs, four of them since fixed, and they are
 worth keeping here because in each case the eval's first result was about kapi
 rather than about the thing the eval set out to measure:
 
@@ -293,8 +293,8 @@ rather than about the thing the eval set out to measure:
 - **The engine benchmark wrote 844 files where nobody looked for them.** A
   repo-relative `-output` resolved against each engine's scratch `cmd.Dir`, so
   every file scored "no output written" and the run reported 0/844 with real
-  timings ([#2221](https://github.com/neokapi/neokapi/issues/2221), fixed in
-  #2220).
+  timings ([#2221](https://github.com/neokapi/neokapi/issues/2221) tracks the
+  republished dataset).
 
 Four of the five are the same shape: a surface reporting a refusal, or an empty
 result, so quietly that the caller reads it as success. An eval is the only

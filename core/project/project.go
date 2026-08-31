@@ -595,8 +595,9 @@ type Collection struct {
 	Base string `yaml:"base,omitempty" json:"base,omitempty"`
 
 	// Channel places this collection's content at a point in the project's
-	// context space: `profile/channel`, or a bare `channel` when exactly one
-	// profile declares it. The point selects the profile whose governance —
+	// context space, written as the qualified `profile/channel`. A bare channel
+	// name is rejected, and the error spells out the qualified form(s) to write
+	// (ResolveChannel). The point selects the profile whose governance —
 	// voice, terms — a run carries over this content, and the channel then
 	// selects the matching override inside that voice. Empty means the
 	// project's default point governs it. Named collections only: a point is

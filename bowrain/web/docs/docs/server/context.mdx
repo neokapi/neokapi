@@ -1,8 +1,8 @@
 ---
 title: Context
 sidebar_label: Context
-description: The Context hub is Bowrain's front door to the graph a workspace is governed by — a concept list, a per-concept dashboard with terms, geography, constraints, relations, and a timeline, voice and corrections, change-sets with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
-keywords: [context graph, voice profile, concepts, terminology, relations, markets, change-sets, blast radius, pilots, governance, observations, bowrain]
+description: The Context hub is Bowrain's front door to the graph a workspace is governed by. It holds one profile per point, who holds each point, the concepts with their terms, geography, constraints, relations and story, voice and corrections, change-sets with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
+keywords: [context graph, voice profile, concepts, terms, relations, markets, change-sets, blast radius, pilots, governance, custodians, observations, bowrain]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -11,19 +11,20 @@ import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 # Context
 
 The **Context** hub is where a team curates the language its content is written
-in. It gathers the terminology, the voice rules, the discussions, the history,
+in. It gathers the terms, the voice rules, the discussions, the history,
 and the consequences of a change onto one surface, so a single page can tell the
 whole story of a term: where it came from, what it replaced, where it is banned,
 how it is said in each market, and what it would cost to change. Brand is the
-common case — the label most workspaces give their default profile — not the
-name of the mechanism.
+common case, the label most workspaces give their default profile, and one axis
+among several rather than the name of the mechanism.
 
 The hub is the front door. The deeper pages on
-[voice & corrections](/server/context-voice) and
-[terminology](/server/terminology) cover their corners in detail; this page
+[voice and corrections](/server/context-voice) and
+[terms](/server/terminology) cover their corners in detail; this page
 explains how they fit together and the governance that holds them. Starting from
 existing material rather than a blank hub, a [context scan](/server/context-scan)
-reads a corpus and drafts a voice profile and term candidates to review.
+reads a corpus and proposes the axes, a voice profile and term candidates to
+review.
 
 <ThemedVideo
   sources={{
@@ -36,17 +37,17 @@ reads a corpus and drafts a voice profile and term candidates to review.
 ## Profiles
 
 The hub opens on **Profiles**: one card per point the workspace's content sits
-at. A point is a coordinate — a product, a channel, a market — and a profile is
-what governs it. The workspace's own point, where content that declares no
-coordinates sits, is labelled **Brand**.
+at. A point is a coordinate, a product, a channel, a brand, a market, and a
+profile is what governs it. The workspace's own point, where content that
+declares no coordinates sits, is labelled **Brand**.
 
-Each card answers the same four questions about its point: which voice governs
-it and how large that voice is; how much vocabulary is in force — the workspace's
-concepts, plus the rules the point's own voice adds; what the stored checks say,
-as a score over the blocks checked and the findings they raised; and what is
-waiting in review. A point nothing has checked says so rather than showing a
-zero. Opening a card gives the same four as sections, plus the collections
-sitting at the point and which project declared each.
+Each card answers the same five questions about its point: which voice governs
+it and how large that voice is; how much vocabulary is in force, the workspace's
+concepts plus the rules the point's own voice adds; what the stored checks say,
+as a score over the blocks checked and the findings they raised; what is
+waiting in review; and who holds the point. A point nothing has checked says so
+rather than showing a zero. Opening a card gives the same five as sections, plus
+the collections sitting at the point and which project declared each.
 
 Check standing is scoped by the **voice**, not by the point: a stored check
 records the voice it resolved through, which is the narrowest coordinate the
@@ -56,17 +57,42 @@ and the card says as much.
 A profile is derived, never stored. A [`kapi push`](/cli/commands/push) declares
 each collection's coordinates and the voice they resolved to; grouping the
 collections by point recovers the profiles. A recipe's own `profiles:` regions
-never cross the wire — the project resolves them and sends the outcome — so one
-broad profile governing two points reads here as the two points it governs.
+never cross the wire, since the project resolves them and sends the outcome, so
+one broad profile governing two points reads here as the two points it governs.
+
+### Who holds a point
+
+The fifth question on a card is custody: the members whose `manage_voice` or
+`manage_terms` grant is bound to this point or one above it, with the region
+their membership names. A point nobody holds is listed as such. The list is one
+derivation with three readers: the operator's queue (who do we still need), the
+buyer's exposure (here is the content nobody governs), and the unit the plan
+counts as a custodian seat. It reports and never blocks: an ungoverned point is
+an org-chart gap, not a content defect. See
+[Members and roles](/server/members-and-roles#custodians-and-points).
+
+### Axes
+
+The axes a workspace's content varies along are declared by its projects'
+recipes, never by the server. When a [context scan](/server/context-scan)
+proposes an axis and a person approves it, the approval is recorded as a
+pending recipe change; the next `kapi pull` on a connected project writes it
+into `kapi.yaml` as `defaults.coordinates.<axis>`, where git reviews it, and the
+axis exists once that lands and a push carries content at it. A structural axis,
+a product or a channel, is approved against a particular collection and lands as
+that collection's `channel:`. The server refuses content at a point whose axis
+no recipe declares, so the recipe remains the only thing that mints a
+coordinate.
 
 ### Channel names
 
 Two projects can spell one channel differently, and neither can see it: a recipe
 declares its own channels and resolves them offline, and nothing inside it knows
 what the workspace's other project called the same surface. The workspace can
-see it, so it says so — the pair, and why the two look alike — and stops there.
+see it, so it says so, naming the pair and why the two look alike, and stops
+there.
 
-Accepting records that the two names one channel; dismissing records that they
+Accepting records that the two name one channel; dismissing records that they
 do not, and that is what keeps the next push from raising the pair again.
 Neither rewrites a slug in any recipe. A project must resolve its coordinates
 the same way whether or not it has ever been connected, so the workspace owns
@@ -74,16 +100,16 @@ equivalence and the recipe keeps resolution.
 
 ## Concepts
 
-The unit the hub curates is the **concept** — the language-neutral notion
-Bowrain already uses for [terminology](/server/terminology): each carries terms
+The unit the hub curates is the **concept**, the language-neutral notion
+Bowrain already uses for [terms](/server/terminology): each carries terms
 across locales, every term with a lifecycle status, plus a domain and a
-definition. A forbidden term is not a separate kind of object; it is a concept
-whose term carries the `forbidden` status. Voice vocabulary rules reference the
-same concepts, so terminology and voice cannot drift apart.
+definition. A forbidden term is a concept whose term carries the `forbidden`
+status rather than a separate kind of object. Voice vocabulary rules reference
+the same concepts, so terms and voice cannot drift apart.
 
 The **Concepts** section opens on a searchable **list**: filter by term status,
 domain, market, and locale to find the concept you care about. Selecting a
-concept opens its **dashboard** — a single page that gathers everything known
+concept opens its **dashboard**, a single page that gathers everything known
 about it:
 
 - its **terms**, per locale, each with its lifecycle status;
@@ -95,17 +121,17 @@ about it:
 - and, on the platform, the **observations** and **discussion** attached to it.
 
 You read the graph one concept at a time, from the concept you care about
-outward — there is no whole-graph canvas to navigate.
+outward; there is no whole-graph canvas to navigate.
 
 ## Relations
 
 Concepts connect to one another through typed **relations**, drawn from the
-framework's SKOS-aligned vocabulary. They fall into a few families — hierarchy (a
+framework's SKOS-aligned vocabulary. They fall into a few families: hierarchy (a
 concept is broader than, narrower than, or part of another), succession (one
 concept is replaced by another), guidance (use this one instead of that one),
-cross-scheme equivalence, and brand stance (this concept is a competitor's). The
-exact label set is defined by the framework's terminology model; see the
-[framework terminology reference](https://neokapi.github.io/framework/terminology)
+cross-scheme equivalence, and stance (this concept is a competitor's). The
+exact label set is defined by the framework's terms model; see the
+[framework terms reference](https://neokapi.github.io/framework/terminology)
 for the canonical list.
 
 <PhaseFlow
@@ -114,11 +140,11 @@ for the canonical list.
     { label: "Store", sub: "preferred term", edge: "replaced_by" },
     { label: "Commerce", sub: "broader concept", edge: "broader" },
   ]}
-  caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which in turn sits under a broader domain concept — broader points to the parent, so the preferred term is narrower-than Commerce. Guidance (use_instead) and brand-stance (competitor) relations connect concepts the same way."
+  caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which in turn sits under a broader domain concept. Guidance (use_instead) and stance (competitor) relations connect concepts the same way."
 />
 
-A concept's dashboard shows its **direct relations** — this concept plus the
-concepts one hop away — grouped by family. A family with many members collapses to
+A concept's dashboard shows its **direct relations**, this concept plus the
+concepts one hop away, grouped by family. A family with many members collapses to
 an "N related" summary so the widget stays readable, and selecting a related
 concept navigates to its dashboard. Relations are edited **inline** on the
 dashboard: add a relation to another concept, or remove one. An ordinary relation
@@ -134,7 +160,7 @@ chosen market.
 
 ## Markets
 
-A **market** is a workspace-defined scope — a name plus the locales it covers
+A **market** is a workspace-defined scope, a name plus the locales it covers
 (for example a `dach` market covering `de-DE`, `de-AT`, and `de-CH`). Markets give
 the free validity tags a stable vocabulary: a term or relation scoped with
 `market: dach` is interpreted, filtered, and rendered consistently everywhere. A
@@ -142,8 +168,9 @@ term's status can differ per market, and the concept dashboard's **geography**
 panel shows the per-market truth side by side, so "banned in Germany, fine
 elsewhere" is a state the hub can represent rather than a footnote someone has to
 remember. The dashboard's **constraints** panel reads the same per-market
-statuses and validity windows back as a plain summary — which term is banned or
-preferred where, and for how long.
+statuses and validity windows back as a plain summary: which term is banned or
+preferred where, and for how long. Markets are also the headline number a plan
+bounds; see [Billing and credits](/server/billing-and-credits#markets-and-brands).
 
 ## The concept story
 
@@ -153,56 +180,56 @@ immutable snapshot with a human-readable summary, which is where term-status
 transitions and relation changes are recorded), the **observations** recorded
 against it, its **comment** threads, and the **change-sets** that touched it. The
 story answers "how did this term get here" without archaeology across systems.
-Compliance scores are not part of the story — those are reported per project and
+Compliance scores are not part of the story; those are reported per project and
 locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
 concept.
 
-### Observations — what others say
+### Observations: what others say
 
 An **observation** attaches external evidence to a concept: a competitor's
 phrasing, customer language from a support ticket, a style-guide citation, a
 regulatory requirement. Observations carry a kind, a quote, a source, and an
-optional locale and market. They are evidence, not rules — they inform proposals
-and appear in the story, but they enforce nothing.
+optional locale and market. They are evidence rather than rules: they inform
+proposals and appear in the story, and they enforce nothing.
 
 ### Comments
 
 Concepts carry threaded comments with @mentions, reusing the platform's
-mention-notification machinery. Discussion lives where the decision will be made —
-on the concept, or on the change-set under review — and resolved threads remain
-part of the story.
+mention-notification machinery. Discussion lives where the decision will be
+made, on the concept or on the change-set under review, and resolved threads
+remain part of the story.
 
 ## Voice and corrections
 
 The hub's **Voice** section is the team's voice profiles and the
 correction-learning loop: correct content once and the rule that prevents the
 mistake from recurring is authored, versioned, and enforced. On the platform,
-every promoted rule is **concept-backed** — a promotion references the concept its
+every promoted rule is **concept-backed**: a promotion references the concept its
 term denotes, so a rule and the term it governs share one identity. The loop, its
 blast-radius preview, and progressive autonomy are covered in full on
-[Voice & corrections](/server/context-voice).
+[Voice and corrections](/server/context-voice).
 
 ## Experiments: change-sets and pilots
 
 Some changes are too consequential to make in place. The hub's **Experiments**
 section turns them into reviewable drafts.
 
-A **change-set** is a named draft of edits to the graph and to brand vocabulary:
+A **change-set** is a named draft of edits to the graph and to the vocabulary:
 create or update concepts, add or remove terms, change a term's status, add or
 remove relations, add or remove concept-backed voice rules. Operations accumulate
 in the draft; nothing touches the live graph until the change-set merges. Two
 capabilities make a change-set an experiment rather than paperwork:
 
-- **Blast radius — a what-if you can see.** At any point the platform evaluates
+- **Blast radius: a what-if you can see.** At any point the platform evaluates
   the draft against stored content across the workspace and reports which blocks,
   in which projects, collections, streams, and locales, would be newly flagged or
   resolved, with a source word count as a proxy for re-translation effort and a
   sample of affected blocks to inspect. Nothing is persisted by the preview; it
   is a measurement, not a change.
-- **Pilots — a what-if you can run.** A change-set can be bound to one or more
+- **Pilots: a what-if you can run.** A change-set can be bound to one or more
   content [streams](/server/workspaces) as a pilot. While the pilot is active,
-  term lookups, enforcement, and brand checks in those streams resolve through the
-  draft — a stream-scoped shadow over the workspace graph — so real content and
+  term lookups, term checks, and voice checks in those streams resolve through
+  the draft, a stream-scoped shadow over the workspace graph, so real content and
   real checks exercise the proposal before anyone commits to it. Merging applies
   the operations and retires the shadows; abandoning retires the shadows
   untouched.
@@ -212,22 +239,22 @@ capabilities make a change-set an experiment rather than paperwork:
 Not every edit needs review, and the hub does not pretend otherwise. Edits are
 classified as **ordinary** or **governed**.
 
-**Ordinary edits** — definitions, notes, observations, comments, proposed terms,
-non-status term metadata — apply directly, produce a revision, and land in the
-audit trail. This is most curation, and it stays fast.
+**Ordinary edits**, such as definitions, notes, observations, comments, proposed
+terms and non-status term metadata, apply directly, produce a revision, and land
+in the audit trail. This is most curation, and it stays fast.
 
-**Governed edits** — setting a term's status to `forbidden` or `preferred`,
-removing such a status, succession (`replaced_by`) relations, concept-backed voice
-rule changes, and merging any change-set — travel through a change-set and require
-at least one approval from **someone other than the author** (separation of
-duties). Term-status transitions are additionally checked against the framework's
-status-transition policy, so a forbidden term cannot quietly return to preferred
-without passing through a governed transition.
+**Governed edits**, such as setting a term's status to `forbidden` or
+`preferred`, removing such a status, succession (`replaced_by`) relations,
+concept-backed voice rule changes, and merging any change-set, travel through a
+change-set and require at least one approval from **someone other than the
+author** (separation of duties). Term-status transitions are additionally
+checked against the framework's status-transition policy, so a forbidden term
+cannot quietly return to preferred without passing through a governed transition.
 
 <SwimlaneDiagram
   actors={[
     { label: "Author", sub: "manage_terms", role: "io" },
-    { label: "Reviewer", sub: "manage_brand", role: "qa" },
+    { label: "Reviewer", sub: "manage_voice", role: "qa" },
     { label: "Workspace graph", sub: "system of record" },
   ]}
   messages={[
@@ -268,42 +295,41 @@ case:
 
 The **Dashboard** rolls the hub up into the questions a steward asks daily:
 aggregate compliance, drift, coverage, and the pending decisions. The decision
-inbox is deliberately plain — a list of proposals, each with a human-readable
-summary, its blast radius, and an approve-or-reject choice. That simplicity is the
-contract a future lightweight stakeholder-review surface would consume.
+inbox is deliberately plain: a list of proposals, each with a human-readable
+summary, its blast radius, and an approve-or-reject choice.
 
-The **Activity** section is the brand-scoped event timeline: concepts created and
-updated, statuses changed, relations gained and lost, observations and comments
-added, change-sets submitted, approved, merged, and abandoned, pilots started and
-stopped. It is the workspace-wide counterpart to a single concept's story.
+The **Activity** section is the workspace-scoped event timeline: concepts
+created and updated, statuses changed, relations gained and lost, observations
+and comments added, change-sets submitted, approved, merged, and abandoned,
+pilots started and stopped. It is the workspace-wide counterpart to a single
+concept's story.
 
 ## One hub, many surfaces
 
 The Context hub is the same in the web app and the desktop app. The desktop app
-remains a working copy of the server — it proxies the same REST surface, and its
-views stay fresh through React Query's stale-time and refetch-on-focus; concepts
-and relations are edited inline in the hub against the server, never authored
+remains a working copy of the server: it reads the same API, and concepts and
+relations are edited inline in the hub against the server, never authored
 offline.
 
-Terminology also reaches a project's local files and CI through ordinary sync. A
+Terms also reach a project's local files and CI through ordinary sync. A
 [`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
 their relations into the project's local terms store, and
-[`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
-against exactly the terminology the hub shows — the pattern documented in
-[Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci). A
-[`kapi push`](/cli/commands/push) sends local terminology edits back: ordinary
+[`kapi check --ship`](/cli/use-cases/brand-terminology-ci) then gates offline
+against exactly the terms the hub shows, the pattern documented in
+[Gate governed terms in CI](/cli/use-cases/brand-terminology-ci). A
+[`kapi push`](/cli/commands/push) sends local term edits back: ordinary
 edits apply directly, while governed edits become a submitted change-set
 proposal, so the same separation of duties holds whether an edit is made in the
 hub or from a project.
 
 AI assistants read the same governed truth through the bowrain plugin's
-[MCP](/cli/mcp) tools — concept search, a concept's story, and change-set status —
-so an assistant consults the hub's terminology rather than guessing.
+[MCP](/cli/mcp) tools, concept search, a concept's story, and change-set status,
+so an assistant consults the hub's terms rather than guessing.
 
 ## Under the hood
 
-- [The context graph](/getting-started/the-context-graph) — the model the hub is a
+- [The context graph](/getting-started/the-context-graph): the model the hub is a
   view onto.
-- [Voice & corrections](/server/context-voice) — the loop that feeds Voice.
-- [Security and privacy](/server/security-and-privacy) — the separation-of-duties
+- [Voice and corrections](/server/context-voice): the loop that feeds Voice.
+- [Security and privacy](/server/security-and-privacy): the separation-of-duties
   machinery governance reuses.

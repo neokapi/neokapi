@@ -15,10 +15,10 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 There are two ways to take a media file into another language, usable together on the same file:
 
-- **Translate the text inside it** — speech in audio, dialogue and on-screen text in video, words in an image. kapi recognizes the text, translates it, and writes a subtitle file or a translated caption.
-- **Replace the whole file** — when the file itself is the deliverable, supply a translated version per language and kapi carries it through as that language's asset (no text-to-speech, no re-encoding — you provide the file).
+- **Translate the text inside it**: speech in audio, dialogue and on-screen text in video, words in an image. kapi recognizes the text, translates it, and writes a subtitle file or a translated caption.
+- **Replace the whole file**: when the file itself is the deliverable, supply a translated version per language and kapi carries it through as that language's asset (no text-to-speech, no re-encoding; you provide the file).
 
-Recognition runs on your machine; try it with no install in the [in-browser labs](/lab/media). The translating model is the one you already configured — see [Choose a translation model](/kapi/recipes/choose-a-translation-provider).
+Recognition runs on your machine; try it with no install in the [in-browser labs](/lab/media). The translating model is the one you already configured; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider).
 
 <PipelineDiagram
   stages={[
@@ -32,7 +32,7 @@ Recognition runs on your machine; try it with no install in the [in-browser labs
 <TabItem value="desktop" label="Desktop" default>
 
 1. **Install the engines.** In **Plugins**, install what you need: `asr` (speech), `av` (video), `vision` (text in images and frames). The replace-the-file path needs none of them.
-2. **Run the flow.** The media flows appear alongside the others once their plugin is installed — pick the flow, the file, and a target language, and run with live progress.
+2. **Run the flow.** The media flows appear alongside the others once their plugin is installed: pick the flow, the file, and a target language, and run with live progress.
 3. **Whole-file assets** ride the project: put the translated file beside the source on the language path (for example `assets/fr/promo.mp4`) and kapi picks it up as that language's asset, as-is.
 
 </TabItem>
@@ -47,7 +47,7 @@ The assistant runs the recognition flow, translates the cues through kapi (so th
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-Install the engines once, then each job is one flow run — the subtitle format follows the extension you give:
+Install the engines once, then each job is one flow run; the subtitle format follows the extension you give:
 
 ```bash
 kapi plugin install asr                  # speech; also: av (video), vision (image text)
@@ -63,5 +63,5 @@ In a project, the flows run without `-i` across the declared content, and output
 
 ## Next
 
-- [In-browser labs](/lab/media) — the same recognition, client-side, nothing to install.
-- [Keep terms consistent](/kapi/recipes/terminology-qa) — terminology enforcement on subtitle output.
+- [In-browser labs](/lab/media): the same recognition, client-side, nothing to install.
+- [Keep terms consistent](/kapi/recipes/terminology-qa): terminology enforcement on subtitle output.

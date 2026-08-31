@@ -13,7 +13,7 @@ import (
 // TestExecutionToolsAreNeverAgentFacing is the one that matters most. "Show me
 // every tool" and "let a caller run arbitrary commands and JavaScript" are
 // different classes of decision; if the second ever rides on the first, someone
-// enables KAPI_MCP_ALL_TOOLS to get a pipeline step back and silently grants
+// passes --all-tools to get a pipeline step back and silently grants
 // shell and JS execution to any MCP client.
 func TestExecutionToolsAreNeverAgentFacing(t *testing.T) {
 	for _, name := range []string{"external-command", "script"} {

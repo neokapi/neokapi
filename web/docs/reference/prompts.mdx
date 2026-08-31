@@ -11,30 +11,37 @@ import PromptReference from "@site/src/components/reference/PromptReference";
 Every prompt kapi sends to a language model on your behalf, with each section
 attributed to the thing that produced it.
 
-This page is **generated from the code**, not written alongside it. It is built
-from the same prompt builders the binary uses, and a CI drift gate fails the
-build if the two disagree — so it cannot describe a prompt kapi does not send.
-(The previous, hand-written description of prompts claimed they included
-surrounding blocks and content-memory matches. Neither was ever true.)
+This page is **generated from the code**: it is built from the same prompt
+builders the binary uses, and a CI drift gate fails the build if the two
+disagree, so it cannot describe a prompt kapi does not send.
 
-The sections below carry an owner:
+Each section carries a **kind** and an **origin**. The kinds group by who owns
+them:
 
-- **framework** — the `task` and the `constraint`s. These are what keep output
+- **framework**: the `task` and the `constraint`s. These are what keep output
   usable: a translation that drops a placeholder or mangles an inline tag cannot
   be written back into your file. Not a configuration surface.
-- **you** — `instruction`, `voice` and `preferred_terms`. The steering surface,
+- **you**: `instruction`, `voice` and `preferred_terms`. The steering surface,
   declared with `--instruction`, a [voice profile](/framework/checks/voice) and
   a [terms store](/framework/terminology). (The `preferred_terms` section is
   where terms from that store are pinned.)
-- **your document** — the `content`. Data, never instruction.
+- **your document**: the `content`, and any `context`. Data, never instruction.
+
+Beyond the block itself, a prompt can carry the block's key or its neighbouring
+source blocks (`--context key`, the default, or `--context neighbours`), the
+block's own previously approved translation as reference (`reuse: prior`, the
+default), your voice profile, and your term rules. The prompts below are
+rendered with a representative input, so a section that appears only when you
+supply an instruction, a prior version or a profile is absent from them;
+`--explain-prompts` shows every section a real run carries.
 
 Placeholders like `<your content>` mark where your text is substituted.
 
-The `media.refine.*` prompts also carry an **attachment** — a cropped image, a
-speech clip, a video frame. It is named rather than shown: it is your data, not
+The `media.refine.*` prompts also carry an **attachment** (a cropped image, a
+speech clip, a video frame). It is named rather than shown: it is your data, not
 prompt text, and rendering it as text would misrepresent what was sent.
 
-For the exact prompt of a real run — with your terms and voice guide in place
-— use `--explain-prompts`. See [Prompts](/framework/prompts).
+For the exact prompt of a real run, with your terms and voice guide in place,
+use `--explain-prompts`. See [Prompts](/framework/prompts).
 
 <PromptReference />

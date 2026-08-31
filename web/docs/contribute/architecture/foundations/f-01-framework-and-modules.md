@@ -2,7 +2,7 @@
 id: f-01-framework-and-modules
 sidebar_position: 1
 title: "F-01: The framework and its modules"
-description: "neokapi is an Apache-2.0 Go content and language intelligence framework shipped as independent modules — framework, the cobra-free host runtime, the Cobra shell, the kapi CLI, the desktop app, and the out-of-process plugins — with each module's dependency footprint declared in its own go.mod and enforced by GOWORK=off builds."
+description: "neokapi is an Apache-2.0 Go content and language intelligence framework shipped as independent modules (the framework, the cobra-free host runtime, the Cobra shell, the kapi CLI, the desktop app, and the out-of-process plugins), with each module's dependency footprint declared in its own go.mod and enforced by GOWORK=off builds."
 keywords: [neokapi, architecture decision, Go modules, go.work, multi-module, module boundary, Apache-2.0]
 ---
 
@@ -13,27 +13,28 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 neokapi is an open content and language intelligence framework in Go,
-distributed under Apache-2.0. It ships as independent Go modules — the framework
+distributed under Apache-2.0. It ships as independent Go modules: the framework
 itself, the cobra-free host runtime, the thin Cobra shell, the `kapi` binary, the
 desktop app, and one module per out-of-process plugin. The first five are
-coordinated by a `go.work` file; the plugin modules deliberately sit outside it.
-Every module declares its own dependency footprint, and CI proves the declaration
-is real by building each module with `GOWORK=off` under `make audit-modules`.
+coordinated by a `go.work` file, together with the build-support modules under
+`scripts/` and the separately-licensed modules that build on the framework; the
+plugin modules sit outside it. Every module declares its own dependency
+footprint, and a `GOWORK=off` build of each module proves the declaration is
+real.
 
 ## Context
 
 One codebase has to serve several deployment targets: a standalone
 file-processing CLI for engineers, a visual desktop app for content and language
 specialists, and a library that larger systems embed. Each target has a different
-dependency profile — Wails for the desktop app, keychain access for credentials,
-SQLite for local stores, ONNX runtimes for ML plugins — and forcing every binary
+dependency profile (Wails for the desktop app, keychain access for credentials,
+SQLite for local stores, ONNX runtimes for ML plugins), and forcing every binary
 to link every dependency produces slow builds and bloated artifacts.
 
 The framework is also the Apache-2.0 base of a broader ecosystem.
 Separately-licensed layers built on top of it must consume framework interfaces
-without pushing their dependencies down into the framework. That boundary has to
-be structural rather than conventional: if it is only a rule people remember, it
-is a rule that erodes.
+without pushing their dependencies down into the framework. That boundary is
+enforced by the build rather than by convention.
 
 ## Decision
 
@@ -42,7 +43,7 @@ is a rule that erodes.
 neokapi provides format-aware document parsing into one content model, a
 channel-based concurrent processing engine, faithful write-back, and composable
 tools that edit, check, and translate the content inside. Everything is a library
-and a toolkit — no database, no server, no authentication. The framework is the
+and a toolkit: it runs no server and holds no accounts. The framework is the
 vehicle for open extension in format support, processing tools, and AI
 integration.
 
@@ -69,8 +70,8 @@ Five design principles shape the module layout:
 
 | Module | Import path | Directory | Role |
 | --- | --- | --- | --- |
-| Framework | `github.com/neokapi/neokapi` | `.` | Content model, formats, tools, flows, plugin host, content memory, terms, model providers |
-| Host | `github.com/neokapi/neokapi/host` | `host/` | Cobra-free application runtime and services: app config, credentials, plugin host, flow / convergence / check services |
+| Framework | `github.com/neokapi/neokapi` | `.` | Content model, formats, tools, flows, the plugin manifest and protocol, content memory, terms, model providers |
+| Host | `github.com/neokapi/neokapi/host` | `host/` | Cobra-free application runtime and services: app config, credentials, the plugin host (discovery, install, dispatch, daemon pool), flow / convergence / check services |
 | CLI | `github.com/neokapi/neokapi/cli` | `cli/` | Thin Cobra shell over host: command factories, flag registration, dispatch |
 | Kapi | `github.com/neokapi/neokapi/kapi` | `kapi/` | The `kapi` binary |
 | Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app |
@@ -103,29 +104,30 @@ is the reason the runtime and the command shell are separate modules at all:
   because the local stores and credential storage are framework concerns rather
   than application ones.
 - **Host** depends only on the framework, and **must not import Cobra**. Command
-  threading is the `host.Command` interface — a context, a `*pflag.FlagSet`, and
-  the three IO streams — which `*cobra.Command` satisfies natively. Embedded runs
+  threading is the `host.Command` interface (a context, a `*pflag.FlagSet`, and
+  the three IO streams), which `*cobra.Command` satisfies natively. Embedded runs
   (the desktop, MCP tools, internal orchestrators) pass a `host.EnvCommand`
   instead.
 - **CLI** depends on framework + host. Cobra lives here and nowhere below.
 - **Kapi** depends on framework + host + CLI.
-- **Kapi Desktop** depends on framework + host — **not** on the cli module and
-  **not** on Cobra. Recipe vocabulary for an extension reaches it through host:
-  a package there registers the extension's recipe keys with the framework's
+- **Kapi Desktop** depends on framework + host, and on neither the cli module
+  nor Cobra. Recipe vocabulary for an extension reaches it through host: a
+  package there registers the extension's recipe keys with the framework's
   project registry, which is how the desktop reads a recipe's declared run venue
-  without depending on the extension's implementation. Wails v3 is exactly why
-  the desktop is a separate module at all: the CLI build stays small.
+  without depending on the extension's implementation. The desktop is a separate
+  module so that Wails v3 stays out of the CLI build.
 - **Plugin modules** depend on the framework only. Each builds a standalone
   binary that kapi discovers at runtime and dispatches as a subprocess, so no
-  plugin's dependencies — ONNX runtimes, cgo raster libraries, media codecs —
+  plugin's dependencies (ONNX runtimes, cgo raster libraries, media codecs)
   reach the portable `kapi` binary. See
   [E-05: The plugin system](../engine/e-05-plugin-system.md).
 
 ### How the rules are enforced
 
-`make audit-modules` is the gate. For each isolated module it runs a `GOWORK=off`
-build, so the module resolves against its own `go.mod` rather than the workspace
-overlay that would otherwise hide a boundary violation:
+`make audit-modules`, run by `make pre-push`, builds every workspace module
+except the build-support ones with `GOWORK=off`, so each module resolves against
+its own `go.mod` rather than the workspace overlay that would otherwise hide a
+boundary violation:
 
 ```bash
 GOWORK=off go build ./...                                            # framework
@@ -140,16 +142,19 @@ dependency declared in that module's `go.mod`. The desktop build is scoped to
 `./backend/...` because the module's top-level package embeds `frontend/dist`,
 which does not exist until the frontend has been built; an unscoped `./...` fails
 on the missing embed before it ever typechecks. `go mod tidy` still resolves the
-whole module graph — embeds do not affect dependency resolution — so the boundary
+whole module graph (embeds do not affect dependency resolution), so the boundary
 contract holds.
 
-Three further assertions run on top of the builds:
+Three further assertions run on top of the builds, and CI runs them on every
+change through two targets: `make check-module-boundaries` (the
+`module-boundaries` job) carries the import assertions, and `make ci-tidy` (the
+tidy-check job) carries tidiness.
 
 - `go mod tidy` must be a no-op per module. A stale require, a missing one, or a
   require that pulls in a forbidden module all leave a diff.
 - The desktop backend's transitive package list (`go list -deps ./backend/...`)
   must contain neither Cobra nor the cli module. Matching on *packages* rather
-  than modules is deliberate: a transitive dependency cannot dodge it.
+  than modules means a transitive dependency cannot dodge it.
 - No Apache-2.0 module may reach a package under a separately-licensed tree.
   There is no exception, and adding one is the failure mode this assertion
   exists to prevent: a type both sides need belongs below the line, not on an
@@ -161,8 +166,9 @@ workspace modules, so a module no ordinary job builds still cannot rot.
 
 ### License posture
 
-The framework and every binary built from it — framework, host, cli, kapi,
-kapi-desktop — are Apache-2.0 end to end and import no code licensed otherwise.
+The framework and every binary built from it (framework, host, cli, kapi,
+kapi-desktop, and the plugin modules under `plugins/`) are Apache-2.0 end to end
+and import no code licensed otherwise.
 Separately-licensed layers attach through the extension mechanism and the plugin
 registries: they consume framework interfaces (content model, tools, flows,
 formats) and are discovered at runtime as subprocesses, never linked in. The
@@ -172,9 +178,9 @@ accidental upward edge is a build failure rather than a review finding.
 A source file carries no license header: its license is a function of the
 nearest `LICENSE` file above it in the tree, and of nothing else. Two things
 follow. Moving a file between subtrees *is* relicensing it, with no metadata to
-keep in step — and equally, nothing in a file says what license it is under, so
-the import assertions above are the only thing standing between that property
-and an accident.
+keep in step. And nothing in a file says what license it is under, so the import
+assertions above are the only thing standing between that property and an
+accident.
 
 ### Framework package layout
 
@@ -194,7 +200,7 @@ core/
     tools/            Built-in tools
     ai/               Model-backed pipeline tools, prompts, NER
     mt/               Translation-provider pipeline tools
-    plugin/           Plugin system: gRPC host, loader, registry, protoconvert
+    plugin/           Plugin manifest types, protocol, protoconvert, conformance suite
     proto/            Canonical content-model, engine, and sync protobuf schemas
     blockstore/       Block-addressed, append-only overlay store
     projectdb/        The project's local store handle
@@ -224,9 +230,10 @@ core/
     safeio/           Resource-bounding parse primitives
 memory/               Content memory (interface, in-memory, SQLite, matching)
 terms/                Terms (interface, in-memory, SQLite, import/export)
+kpz/                  The .kpz project package: recipe sanitisation, packing
 providers/
-    ai/               package aiprovider — model providers
-    mt/               package mtprovider — translation providers
+    ai/               package aiprovider: model providers
+    mt/               package mtprovider: translation providers
 ```
 
 ### Workspace and versioning
@@ -238,10 +245,12 @@ without publishing. `go mod tidy` does not respect `go.work`, so each child
 module's `go.mod` carries a `replace` directive pointing at the parent modules it
 depends on.
 
-Only the framework module is tagged, using flat semver tags (`vX.Y.Z`). Go's
-conventions would allow per-module tags such as `cli/v0.1.0`, but the workspace
-relies on `go.work` plus `replace` directives rather than published per-module
-versions. All modules target Go 1.26 or later.
+The framework module is tagged with flat semver tags (`vX.Y.Z`). Host, cli,
+kapi and the desktop are never tagged separately: the workspace relies on
+`go.work` plus `replace` directives rather than published per-module versions.
+Each plugin module releases on its own prefixed tag (`<plugin>-vX.Y.Z`), which
+drives that plugin's release workflow ([E-05](../engine/e-05-plugin-system.md)).
+All modules target Go 1.26 or later.
 
 `make help` is the authoritative catalog of build, test, vet, and lint targets;
 it is self-documenting and current.
@@ -251,7 +260,7 @@ it is self-documenting and current.
 Layered application configuration lives in `host/config`, built on
 [Viper](https://github.com/spf13/viper). Precedence, highest first:
 
-1. **Command flags** — one-off overrides.
+1. **Command flags**: one-off overrides.
 2. **Environment variables** (`KAPI_` prefix, dots replaced by underscores, so
    `plugins.directory` reads from `KAPI_PLUGINS_DIRECTORY`).
 3. **The global config file**, pinned to one path rather than resolved through a
@@ -259,12 +268,12 @@ Layered application configuration lives in `host/config`, built on
 4. **Legacy config locations** (`$HOME/.config/kapi/kapi.yaml`,
    `/etc/kapi/kapi.yaml`), merged underneath so an existing installation keeps
    working. Precedence between these layers is per top-level block, not per leaf.
-5. **Code defaults** — zero-config behavior.
+5. **Code defaults**: zero-config behavior.
 
 A project recipe is **not** an application-config layer. `kapi.yaml` in a working
 directory is a recipe describing what to converge, resolved by an upward walk
-from the current directory, and it is deliberately absent from the config search
-path — the two share a filename and nothing else. See
+from the current directory, and it is absent from the config search
+path: the two share a filename and nothing else. See
 [C-01: The project model](../context/c-01-project-model.md).
 
 ### Locale handling
@@ -274,16 +283,26 @@ path — the two share a filename and nothing else. See
 display-name resolution:
 
 ```go
+func Canonical(s string) (model.LocaleID, error)
+func CanonicalAll(in []model.LocaleID) ([]model.LocaleID, error)
 func Parse(s string) (model.LocaleID, error)
 func MustParse(s string) model.LocaleID
 func DisplayName(id model.LocaleID) string
 func WellKnownLocales() []LocaleInfo
 ```
 
-Validation delegates to `golang.org/x/text/language`, which handles subtag
-parsing, script inference, and canonicalization. Format readers, content-memory
-entries, terms, and command flags all validate locale codes at their boundaries,
-so an invalid code never propagates silently.
+`Canonical` is the one normalization every locale crosses on its way in. It
+accepts what people and file formats write (POSIX separators such as `nb_NO`, a
+codeset or modifier suffix such as `en_US.UTF-8`, any case) and returns the
+canonical BCP-47 form; it rejects a tag whose primary subtag names no language,
+and keeps a well-formed tag whose other subtags CLDR does not know (`qps-Ploc`)
+whole rather than truncating it. `Parse` is stricter about CLDR membership and
+serves code that already holds a canonical tag. Both delegate to
+`golang.org/x/text/language` for subtag parsing, script inference, and
+canonicalization. Format readers, content-memory entries, terms, recipe fields
+and command flags all call `Canonical` at their boundaries, so an invalid code
+never propagates silently and the rest of the system compares locales as plain
+strings.
 
 ## Consequences
 
@@ -297,20 +316,20 @@ so an invalid code never propagates silently.
   handles multi-module builds.
 - The license gradient is enforced by import topology rather than by convention,
   so a violation is a build failure.
-- The shared CLI base lets the CLI and the desktop expose the same commands
-  without duplicating command logic.
+- The shared host runtime lets the CLI and the desktop expose the same
+  operations without duplicating command logic.
 - The same content model and tool chain serve a solo developer running one
   command on local files and a team driving a full project through the desktop
   app.
 
 ## See also
 
-- [F-02: The content model](f-02-content-model.md) — the Part/Block/Run types every module shares
-- [F-03: Identity](f-03-identity.md) — hashes, reconciliation, and the store key
-- [F-04: The content-model wire schema](f-04-wire-schema.md) — the one canonical serialization
-- [E-01: The processing engine](../engine/e-01-processing-engine.md) — the streaming pipeline
-- [E-02: The format system](../engine/e-02-format-system.md) — readers, writers, and detection
-- [E-03: The tool system](../engine/e-03-tool-system.md) — the tool interface and IO contracts
-- [E-05: The plugin system](../engine/e-05-plugin-system.md) — how out-of-process modules attach
-- [S-01: The kapi CLI](../surfaces/s-01-kapi-cli.md) — the command surface over host
-- [S-02: Kapi Desktop](../surfaces/s-02-kapi-desktop.md) — the Wails app over host
+- [F-02: The content model](f-02-content-model.md): the Part/Block/Run types every module shares
+- [F-03: Identity](f-03-identity.md): hashes, reconciliation, and the store key
+- [F-04: The content-model wire schema](f-04-wire-schema.md): the one canonical serialization
+- [E-01: The processing engine](../engine/e-01-processing-engine.md): the streaming pipeline
+- [E-02: The format system](../engine/e-02-format-system.md): readers, writers, and detection
+- [E-03: The tool system](../engine/e-03-tool-system.md): the tool interface and IO contracts
+- [E-05: The plugin system](../engine/e-05-plugin-system.md): how out-of-process modules attach
+- [S-01: The kapi CLI](../surfaces/s-01-kapi-cli.md): the command surface over host
+- [S-02: Kapi Desktop](../surfaces/s-02-kapi-desktop.md): the Wails app over host

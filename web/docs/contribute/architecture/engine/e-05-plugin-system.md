@@ -11,30 +11,31 @@ keywords: [neokapi, architecture decision, plugin system, manifest, gRPC, protoc
 ## Summary
 
 Plugins are manifest-driven, signed, out-of-process executables. Every plugin
-ships a `manifest.json` declaring everything it provides — commands, MCP tools,
-format readers and writers, flow tools, segmenters, source connectors, self-check
-probes, recipe schema extensions, and command contributions. kapi reads all
+ships a `manifest.json` declaring everything it provides: commands, MCP tools,
+format readers and writers, flow tools, segmenters, source connectors, recipe
+schema extensions, config namespaces, command contributions, and whether it
+answers the standard self-check. kapi reads all
 manifests at startup and builds dispatch tables from them; there is no name
 fall-through. Plugins are discovered structurally by location
-(`$KAPI_PLUGINS_DIR` > `$XDG_DATA_HOME/kapi/plugins/` > system roots), not by
-`$PATH`. Each capability picks its transport:
+(`$KAPI_PLUGINS_DIR` > `$XDG_DATA_HOME/kapi/plugins/` > system roots); `$PATH`
+is never consulted. Each capability picks its transport:
 
-- **Mode A** — one-shot subprocess (commands)
-- **Mode B** — long-lived stdio subprocess (MCP tools)
-- **Mode C** — long-lived daemon over a Unix socket + gRPC (formats, tools,
+- **Mode A**: one-shot subprocess (commands)
+- **Mode B**: long-lived stdio subprocess (MCP tools)
+- **Mode C**: long-lived daemon over a Unix socket + gRPC (formats, tools,
   segmenters, source connectors)
 
 Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi plugin
 install` verifies SHA-256 plus the Sigstore JSON bundle against a
 registry-pinned certificate identity before unpacking. First-party and
 third-party plugins all use the same model. The default `kapi` binary is
-Apache-2.0 and contains no plugin's code — a plugin is a separate executable,
+Apache-2.0 and contains no plugin's code: a plugin is a separate executable,
 reached through its manifest and run as a subprocess, so no plugin's licence or
 dependency set reaches the binary.
 
 The contract is **versioned** and **independently verifiable**: the protocol is
 specified in [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1), and
-`core/plugin/conformance` is that specification in executable form — a consumable
+`core/plugin/conformance` is that specification in executable form: a consumable
 Go package a plugin repository imports from a released kapi to self-report
 conformance in its own CI.
 
@@ -48,12 +49,12 @@ independently of the framework. Key requirements:
   terms. The plugin model must let vendors ship their own binaries on their own
   licence terms without re-licensing kapi.
 - **Discoverability and consent.** A teammate's recipe declaring `requires: {
-  myplugin: "^1.0" }` should produce a clear, one-step path to install — not a
+  myplugin: "^1.0" }` should produce a clear, one-step path to install rather than a
   cryptic "extension group not registered" error.
 - **Security.** Plugins run with full user privileges; signature verification
   raises the bar against tampering and supply-chain attacks. This is
   supply-chain signing (cosign / Sigstore), distinct from OS code signing and
-  notarization — see
+  notarization; see
   [Plugin signing vs. OS notarization](#plugin-signing-vs-os-notarization).
 - **Performance for format-heavy workloads.** A format plugin may process large
   binary documents at high throughput while paying a runtime startup cost of
@@ -65,7 +66,7 @@ independently of the framework. Key requirements:
   Go reference plugin ships in `examples/plugins/hello/`.
 - **Verifiable from outside the repository.** A plugin is not obliged to live
   here to be trusted. The contract must be checkable by a plugin repository that
-  depends only on a *released* kapi — otherwise "does this plugin still work?" is
+  depends only on a *released* kapi; otherwise "does this plugin still work?" is
   answerable only by tests inside this repository, which re-couples every plugin
   to this repository's release cycle.
 
@@ -94,7 +95,8 @@ Every plugin's directory contains a `manifest.json` declaring its identity
     "segmenters": [],
     "source_connectors": [],
     "schema_extensions": [],
-    "selfcheck": []
+    "config_namespaces": [],
+    "selfcheck": true
   },
   "daemon": {
     "idle_timeout_seconds": 300,
@@ -108,8 +110,8 @@ the `daemon` block is present only for plugins that declare any formats, tools,
 segmenters, or source connectors (Mode C). `manifest.SupportedVersions` names the
 manifest-document revisions a kapi binary accepts. The full schema is embedded at
 `core/plugin/manifest/schema.json`; canonical Go types live in
-`core/plugin/manifest/manifest.go`. The wire contract — every manifest rule, all
-three transports, the Mode-C gRPC surface, and the conformance suite — is
+`core/plugin/manifest/manifest.go`. The wire contract (every manifest rule, all
+three transports, the Mode-C gRPC surface, and the conformance suite) is
 specified in [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1).
 
 ### Discovery
@@ -120,21 +122,23 @@ kapi scans this fixed list of locations in precedence order:
 | ----------- | ----------------------------------------------------------------------- | ---------------------------- |
 | 1 (highest) | `$KAPI_PLUGINS_DIR` (`:`-separated; `;` on Windows)                     | Dev / CI / sandbox           |
 | 2           | `$XDG_DATA_HOME/kapi/plugins/` (default `~/.local/share/kapi/plugins/`) | `kapi plugin install` target |
-| 3           | `/opt/homebrew/share/kapi/plugins/` (macOS Homebrew)                    | OS package manager           |
-| 3           | `/usr/local/share/kapi/plugins/`                                        | OS package manager           |
-| 3           | `/usr/share/kapi/plugins/` (distro)                                     | OS package manager           |
+| 3           | `/opt/homebrew/share/kapi/plugins/` (macOS, Homebrew)                   | OS package manager           |
+| 3           | `/usr/local/share/kapi/plugins/` (macOS and Linux)                      | OS package manager           |
+| 3           | `/usr/share/kapi/plugins/` (Linux distributions)                        | OS package manager           |
 
 Within each location, every direct entry that resolves to a directory containing
 a `manifest.json` is a plugin. Symlinks are followed: a package manager installs
-the plugin inside its own package prefix and links it into the shared root — a
+the plugin inside its own package prefix and links it into the shared root: a
 Homebrew formula stages `share/kapi/plugins/<plugin>` in its keg, and `brew link`
-publishes it at `/opt/homebrew/share/kapi/plugins/<plugin>` — so a name-only or
+publishes it at `/opt/homebrew/share/kapi/plugins/<plugin>`, so a name-only or
 link-skipping scan would find nothing there. First match wins on plugin name.
 Conflicting capabilities between two different plugins are an error: kapi prints
 both manifests and refuses to dispatch the conflicting capability.
+`KAPI_PLUGINS_DIR_ONLY` restricts discovery to the first root, which is how an
+in-repo kapi stays isolated from the developer's installed plugins.
 
 **Precedence over built-ins.** A plugin capability that collides with a
-*built-in* one — a plugin reader for a format the framework also ships natively —
+*built-in* one (a plugin reader for a format the framework also ships natively)
 **overrides the built-in**, because installing a plugin for a format is an
 explicit signal to prefer it. Built-ins remain the fallback when the plugin is
 absent, so behaviour degrades gracefully. Plugin-versus-plugin collisions still
@@ -142,7 +146,8 @@ error; plugin-versus-built-in is resolved in the plugin's favour via the format
 registry's source and priority (`SetFormatSource` assigns
 `format.DefaultPluginPriority` = 100 over `format.DefaultBuiltInPriority` = 50).
 
-A consolidated dispatch cache at `$XDG_CACHE_HOME/kapi/plugins-cache.json` holds
+A consolidated dispatch cache at `$XDG_CACHE_HOME/kapi/plugins-cache.json`
+(`KAPI_PLUGIN_CACHE` overrides the path) holds
 parsed manifests plus pre-compiled JSON Schema validators. The cache is
 invalidated by an mtime check on each discovery root: if none of the roots
 changed since the last write, kapi loads the cache and skips manifest parsing
@@ -153,7 +158,7 @@ entirely.
 A plugin declares one or more capability sections in its manifest. kapi picks the
 right transport per capability type.
 
-#### Mode A — one-shot subprocess
+#### Mode A: one-shot subprocess
 
 Used for `commands`. kapi forks and execs the plugin once per invocation:
 
@@ -163,7 +168,7 @@ Used for `commands`. kapi forks and execs the plugin once per invocation:
 
 stdin, stdout, and stderr are inherited; the env block carries
 `KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, and `KAPI_PLUGIN_VERSION`, and inherits
-kapi's environment **except** the provider API-key variables — installing a
+kapi's environment **except** the provider API-key variables: installing a
 plugin is not a decision to hand it the user's model credentials. The exit code
 is propagated. The plugin keeps no state across calls.
 
@@ -181,9 +186,9 @@ extends `git`. Concretely:
   built-in rather than typed by users. Hidden commands stay routable but are
   omitted from `--help` and completion.
 - A plugin that needs to participate in a core verb uses a `command_contribution`
-  or hidden plumbing the built-in dispatches — never a same-name command.
+  or hidden plumbing the built-in dispatches, never a same-name command.
 
-#### Mode B — session subprocess
+#### Mode B: session subprocess
 
 Used for `mcp_tools`. kapi spawns one plugin process per `kapi mcp` session and
 proxies tool calls over MCP-over-stdio:
@@ -192,7 +197,7 @@ proxies tool calls over MCP-over-stdio:
 <binary> mcp-server
 ```
 
-#### Mode C — daemon over a Unix socket
+#### Mode C: daemon over a Unix socket
 
 Used for `formats`, `tools`, `segmenters`, and `source_connectors`. kapi spawns a
 long-lived plugin process; the plugin binds a Unix-domain socket, prints one JSON
@@ -254,8 +259,8 @@ error pointing at `kapi plugin install`. The bare-list form
 ### The venue extension
 
 A `schema_extensions` entry may set `"venue": true`. That marks the key as the
-recipe's binding to a remote convergence venue — a server that holds the content
-memory, runs the loop on organization keys, and carries a review queue — and it
+recipe's binding to a remote convergence venue (a server that holds the content
+memory, runs the loop on organization keys, and carries a review queue), and it
 is how kapi finds the binding without knowing the key's name. The framework reads
 exactly two fields out of the block, `url:` and `converge:`, to decide where
 `kapi up` runs; everything else under it is the plugin's own schema. At most one
@@ -265,9 +270,8 @@ key across all installed plugins should claim the flag.
 {"name": "myvenue", "scope": "project", "group": "myvenue", "venue": true}
 ```
 
-`kapi` links no platform, and a recipe key it cannot name is a key it cannot grow
-an opinion about — so an unregistered key of the same name, in a binary without
-the plugin, reports no venue and no opinion.
+`kapi` links no platform, so an unregistered key of the same name, in a binary
+without the plugin, reports no venue.
 
 ### Missing-plugin verbs
 
@@ -281,7 +285,7 @@ provides is not in the command tree when the plugin is not installed, so cobra
 rejects it as an unknown command and names neither the cause nor the fix. kapi
 closes it with the same treatment `requires:` gets. When the typed verb belongs
 to a plugin, no installed plugin routes it, and the recipe declares that plugin's
-key, kapi explains the situation and offers the install — prompting on a
+key, kapi explains the situation and offers the install: prompting on a
 terminal, installing under `--yes`, then running the verb the user typed. In CI,
 behind a pipe, or under `--quiet` it prints both install routes (`kapi plugin
 install <name>` and the Homebrew formula) and exits `ExitUsage`. A mistyped verb
@@ -289,7 +293,7 @@ that no plugin claims keeps cobra's error and its suggestions.
 
 Deciding this needs one thing kapi cannot read from a manifest it does not have:
 which verbs the plugin provides. A compiled-in `host.PluginHint` table carries
-them — the plugin name, the recipe key it owns, its non-colliding top-level
+them: the plugin name, the recipe key it owns, its non-colliding top-level
 verbs, and its Homebrew formula. It is consulted **only** to compose this
 message, never for dispatch, which stays manifest-driven; and a drift test in the
 plugin's own module pins each entry to that plugin's real manifest, so adding or
@@ -374,13 +378,13 @@ questions:
 | Layer | Question | Mechanism | Triggered by |
 | ----- | -------- | --------- | ------------ |
 | **Supply chain** | Is this the genuine, untampered plugin? | cosign / Sigstore bundle + SHA-256, verified at install | every `kapi plugin install` |
-| **OS Gatekeeper / SmartScreen** | Will the OS let the binary run without a warning? | Apple Developer ID + notarization (macOS); Authenticode (Windows) | the `com.apple.quarantine` xattr — set only by browser and mail downloads |
+| **OS Gatekeeper / SmartScreen** | Will the OS let the binary run without a warning? | Apple Developer ID + notarization (macOS); Authenticode (Windows) | the `com.apple.quarantine` xattr, set only by browser and mail downloads |
 
 Plugins rely on the **supply-chain** layer only. `kapi plugin install` fetches
 tarballs over HTTPS using Go's HTTP client, which does **not** set the quarantine
 attribute, and unpacks them under the data directory. The extracted binary is
 therefore never quarantined, so macOS Gatekeeper and Windows SmartScreen never
-engage on it — no Apple notarization or Authenticode signature is required for a
+engage on it; no Apple notarization or Authenticode signature is required for a
 plugin to run. The cosign signature plus the SHA-256 check is the meaningful
 integrity guarantee, and it is enforced on every platform.
 
@@ -389,12 +393,12 @@ Developer-ID-signed and notarized (macOS) and Authenticode-signed (Windows):
 users fetch those through a browser, so they arrive quarantined and must clear
 Gatekeeper or SmartScreen on first launch.
 
-The reasoning holds even for a plugin that is genuine native code — a JVM
+The reasoning holds even for a plugin that is genuine native code, a JVM
 app-image with a bundled runtime, say. Installed unquarantined via `kapi plugin
 install` and verified by cosign plus SHA-256, it runs without OS-level signing.
 Deep-signing and notarizing such a plugin (the launcher plus every bundled
-dynamic library, across each version × OS × architecture) is deliberately **not**
-done, because it buys nothing for the programmatic install path. A plugin would
+dynamic library, across each version × OS × architecture) is not done, because
+it buys nothing for the programmatic install path. A plugin would
 need OS code signing only if it were also distributed as a **direct browser
 download**, which is out of scope for the registry-driven model.
 
@@ -425,9 +429,9 @@ conformance checks may be added, but an existing rule does not change and a chec
 ID is never renamed or repurposed. A change that would break a conforming plugin
 is a new protocol version.
 
-There is deliberately **no protocol-version handshake on the wire**. The manifest
+There is **no protocol-version handshake on the wire**. The manifest
 is read from disk before any process is launched, so incompatibility is detected
-structurally rather than negotiated at runtime — which is also what keeps
+structurally rather than negotiated at runtime, which is also what keeps
 discovery free of subprocess launches.
 
 `core/plugin/conformance` is the specification in executable form: a black-box
@@ -437,7 +441,7 @@ properties make it usable from outside this repository, and each one is a
 constraint on where it may live:
 
 - **Framework-layer, so it is cheap to import.** It sits in the framework module
-  and depends only on `core/plugin/manifest`, `core/plugin/proto`, and gRPC — no
+  and depends only on `core/plugin/manifest`, `core/plugin/proto`, and gRPC: no
   host module, no CLI, no cobra tree, nothing under a copyleft licence. A plugin
   repository adds one `require` on a released `github.com/neokapi/neokapi`.
 - **Black-box, so it is language-neutral.** It reads no plugin source and spawns
@@ -460,15 +464,27 @@ conformance; nothing about it builds, tests, or gates anything here.
 
 ### First-party plugins
 
+The first-party plugins live under `plugins/`, one module each, and are indexed
+in the [registry](https://github.com/neokapi/registry) like any third-party
+plugin. They cover the capability kinds the framework keeps out of its own
+binary: native-library formats (PDF through PDFium, source code through
+tree-sitter), ML segmentation, speech and media recognition, vision layout, and
+the embedding model behind the similarity checks. Two are described here because
+they shape the format system; the others are described where their capability
+is ([M-02](../multilingual/m-02-segmentation.md),
+[M-03](../multilingual/m-03-multimodal-content.md),
+[E-08](e-08-document-structure-tiers.md)).
+
 **kapi-pdfium** (`plugins/pdfium/`) is a first-party Mode-C format plugin
 providing a high-fidelity `pdf` reader backed by Google's PDFium (via cgo). It
-extracts correct text — including CID/Type0 fonts and CJK — per-block and
+extracts correct text, including CID/Type0 fonts and CJK, per-block and
 per-glyph geometry, and document structure, and it runs as an isolated daemon so
-a malformed-PDF crash dies with the subprocess rather than with kapi. It is
-bundled with both the CLI distribution and the desktop app, both hosting it over
-the same discovery and daemon pool, so there is one engine rather than one per
-host. The full PDF subsystem is described in
-[E-08](e-08-document-structure-tiers.md).
+a malformed-PDF crash dies with the subprocess rather than with kapi. The CLI's
+Homebrew formula depends on the plugin's, so a `brew install` brings it along;
+any other install adds it with `kapi plugin install pdfium`, and the desktop app
+installs it on demand the first time a PDF is opened. Both host it over the same
+discovery and daemon pool, so there is one engine rather than one per host. The
+full PDF subsystem is described in [E-08](e-08-document-structure-tiers.md).
 
 **kapi-sourcecode** (`plugins/sourcecode/`) is a first-party Mode-C format
 plugin providing a `sourcecode` reader over tree-sitter grammars. It answers a
@@ -507,29 +523,42 @@ The framework module keeps the parts a plugin author needs:
 `core/plugin/proto` (the gRPC service definitions a Mode-C daemon implements),
 `core/plugin/protoconvert` (Part ↔ proto translation), and
 `core/plugin/conformance` (the protocol conformance suite). Those four are
-deliberately importable on their own: an out-of-tree plugin repository depends on
+importable on their own: an out-of-tree plugin repository depends on
 a released framework module and nothing else.
 
-The host-side runtime — discovery, dispatch, the daemon pool, the registry
-client, cosign verification, and the Mode-C format client — lives in
+The host-side runtime (discovery, dispatch, the daemon pool, the registry
+client, cosign verification, and the Mode-C format client) lives in
 `host/pluginhost/`.
 
 Native binaries ship for `linux/amd64`, `linux/arm64`, `darwin/arm64`, and
-`windows/amd64`. `darwin/amd64` is intentionally not in the release matrix —
+`windows/amd64`. `darwin/amd64` is not in the release matrix:
 Apple has dropped Intel from new product lines and macos-13 runners on GitHub
 Actions are scarce. Intel users can run the arm64 binary under Rosetta.
 
+### Release shape
+
+A plugin releases on its own tag, `<plugin>-vX.Y.Z`, through its own workflow
+(`.github/workflows/release-<plugin>.yml`). The release builds one tarball per
+platform with the plugin directory at its top level (`manifest.json`, the
+binary, any schemas and bundled libraries) and the plugin's `LICENSE` text
+beside them, so a tarball carries the terms of the work it contains; a plugin
+that bundles a third-party runtime ships that runtime's licence text too. The
+GitHub release is published as not-latest, so a tool resolving the repository's
+latest release still finds kapi, and the same run writes the plugin's registry
+entry and renders its Homebrew formula from one set of checksums, so the two
+install channels move on one tag.
+
 ## Related
 
-- [E-02: The format system](e-02-format-system.md) — how plugin and bridge formats register into the one registry
-- [E-03: The tool system](e-03-tool-system.md) — plugin tools and plugin-contributed tool-group members
-- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md) — the `source_connectors` capability as a provider binding
-- [E-08: Document structure tiers](e-08-document-structure-tiers.md) — the first-party PDF plugin in detail
-- [C-01: The project model](../context/c-01-project-model.md) — `requires:` and the recipe schema extensions plugins own
-- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the versioned, language-neutral specification
-- [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest) — Go types and embedded JSON Schema
-- [`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
-- [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello) — minimal Go reference plugin
-- [`core/plugin/conformance/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/conformance) — the protocol conformance suite, importable from a released kapi
-- [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) — a third-party plugin in a non-Go language (a JVM Mode-C daemon exposing the Okapi Framework's filters); it consumes released kapi versions and reports conformance on its own schedule
-- [neokapi/registry](https://github.com/neokapi/registry) — the published plugin index
+- [E-02: The format system](e-02-format-system.md): how plugin and bridge formats register into the one registry
+- [E-03: The tool system](e-03-tool-system.md): plugin tools and plugin-contributed tool-group members
+- [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): the `source_connectors` capability as a provider binding
+- [E-08: Document structure tiers](e-08-document-structure-tiers.md): the first-party PDF plugin in detail
+- [C-01: The project model](../context/c-01-project-model.md): `requires:` and the recipe schema extensions plugins own
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1): the versioned, language-neutral specification
+- [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest): Go types and embedded JSON Schema
+- [`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost): host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
+- [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello): minimal Go reference plugin
+- [`core/plugin/conformance/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/conformance): the protocol conformance suite, importable from a released kapi
+- [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge): a third-party plugin in a non-Go language (a JVM Mode-C daemon exposing the Okapi Framework's filters); it consumes released kapi versions and reports conformance on its own schedule
+- [neokapi/registry](https://github.com/neokapi/registry): the published plugin index

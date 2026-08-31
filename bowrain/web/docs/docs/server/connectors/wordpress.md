@@ -1,22 +1,22 @@
 ---
 title: WordPress
 sidebar_position: 1
-description: The WordPress connector reads posts from a WordPress site over the REST API, delivers them to Bowrain for translation, and writes approved text back to the same posts.
+description: The WordPress connector reads posts from a WordPress site over the REST API, delivers them to Bowrain, and writes approved text back to the same posts.
 ---
 
 # WordPress connector
 
 The WordPress connector is a CMS connector. It reads posts from a WordPress
-site over the REST API, delivers them to Bowrain for translation, and writes
-approved text back to the same posts.
+site over the REST API, delivers them to Bowrain, and writes approved text
+back to the same posts.
 
 :::note
 
 This connector is added in a project's **Connectors** view in the web app, or
 through the workspace **connectors API** described below. Saved credentials are
-write-only — used for sync, never displayed again. All connector operations
+write-only: used for sync, never displayed again. All connector operations
 require the **manage connectors** permission. It is one route into a workspace
-among several — see [Connectors](/server/connectors) for the full row.
+among several; see [Connectors](/server/connectors) for the full row.
 
 :::
 
@@ -36,7 +36,8 @@ and custom fields are not included.
 ## Prerequisites and credentials
 
 You need a WordPress site whose REST API is reachable from Bowrain Server, and,
-for publishing, an account that may edit the posts you intend to translate.
+for publishing, an account that may edit the posts you intend to route through
+Bowrain.
 
 The connector accepts the following configuration keys:
 
@@ -75,8 +76,8 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you fetch or publish — **Fetch now**
-and **Publish** in the Connectors view, or the endpoints below. The connector
+Sync is explicit: content moves only when you fetch or publish (**Fetch now**
+and **Publish** in the Connectors view, or the endpoints below). The connector
 does not poll the site on a schedule and does not receive WordPress webhooks.
 
 **Fetch** requests the first 100 posts from the site and stores their title,
@@ -88,8 +89,8 @@ content, and excerpt as blocks on the target project's main content stream. Call
 ```
 
 The response reports how many items were fetched. Fetching stores source
-content; it does not itself start translation. Translate the fetched content
-the way you would any project content — for example by running a flow or by
+content; it does not itself start a run. Catch the fetched content up
+the way you would any project content, for example by starting a run or by
 letting the project's `bowrain.converge` policy produce and review targets.
 
 **Publish** sends the project's stored block text back to the matching posts.

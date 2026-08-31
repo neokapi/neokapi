@@ -1,7 +1,7 @@
 ---
 title: Real-time collaboration
 sidebar_label: Real-time collaboration
-description: A team translates together in Bowrain — see who is on which block, watch edits and reviews appear live, hand off review, and work offline on the desktop — with the web and desktop apps as equal real-time clients of the same server.
+description: A team works together in Bowrain. See who is on which block, watch edits and reviews appear live, hand off review, and work offline on the desktop, with the web and desktop apps as equal real-time clients of the same server.
 keywords: [collaboration, presence, real-time, co-editing, review, offline, web, desktop, bowrain]
 ---
 
@@ -9,12 +9,14 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Real-time collaboration
 
-Kapi is a single-user toolchain: one person, one checkout, files they own.
+kapi holds one project's graph for one person working from one checkout.
 Bowrain is where a **team** works on the same content at the same time. The web
 app and the desktop app are equal clients of one server, so a project is a
 shared, live workspace rather than a file each person edits alone.
 
-A workspace is shared by a team: invite teammates with roles, and keep parallel work apart on streams that merge back when ready.
+A workspace is shared by a team: invite teammates with roles, bound to a
+language or a point where that fits, and keep parallel work apart on streams
+that merge back when ready.
 
 <ThemedVideo
   sources={{
@@ -24,36 +26,36 @@ A workspace is shared by a team: invite teammates with roles, and keep parallel 
   outdated="wording"
 />
 
-## Presence — see who is here
+## Presence: see who is here
 
 Open a project and you see your teammates: their names and avatars appear on the
 blocks they are editing, and move with them as they navigate. You always know
 who is on block 42 before you start typing there, and you watch a colleague work
 through a file in real time. Presence is broadcast by the server to every client
-watching the same project — whether they are in the browser or the desktop app.
+watching the same project, in the browser or in the desktop app.
 
 ## Live updates
 
-Edits propagate as they happen. When a teammate translates a block, reviews one,
+Edits propagate as they happen. When a teammate edits a block, reviews one,
 or updates a term, your views update without a manual refresh and the progress
 bar moves as the team works. The web app subscribes to a server event stream and
 the desktop app to a project event stream, so a change one person saves shows up
-for everyone watching the project — no one is looking at a stale view.
+for everyone watching the project.
 
 Content itself is saved over the server's REST API, which is authoritative:
 editing is block-level, and if two people save the same block the last write
-wins — there is no character-by-character co-editing of a single block (live
-cursors and the roster are presence only). The model is the same in the browser
+wins. There is no character-by-character co-editing of a single block; live
+cursors and the roster are presence only. The model is the same in the browser
 and on the desktop.
 
 ## Review handoff
 
-Translation and review are different jobs, and Bowrain routes them. Work is
-assigned as **tasks** (translate, review, review terms, fix quality); a task
-shows up in the assignee's activity feed, they claim it, do the work, and mark it
-done, and the next person sees the handoff live. A reviewer marking a block
-reviewed is a presence-and-progress event everyone watching the project sees,
-not a silent state change discovered later. Corrections a reviewer makes feed the
+Drafting and review are different jobs, and Bowrain routes them. Work is
+assigned as **tasks** (translate, review, review source, fix quality); a task
+shows up in the assignee's activity feed, they claim it, do the work in the
+[review session](/server/review), and mark it done, and the next person sees
+the handoff live. A reviewer marking a block reviewed is a presence-and-progress
+event everyone watching the project sees. Corrections a reviewer makes feed the
 [voice correction loop](/server/context-voice), so a fix made once becomes a
 check that protects the whole project.
 
@@ -64,38 +66,38 @@ a matter of where you work, not what you can do:
 
 | | **Web** | **Desktop** |
 | --- | --- | --- |
-| Install | Nothing — open a URL | Native app (macOS / Linux / Windows) |
+| Install | Nothing; open a URL | Native app (macOS / Linux / Windows) |
 | Real-time presence & live updates | Yes | Yes |
-| Brand, terminology & memory context | Yes | Yes |
-| Works offline | No (always online) | **Yes** — edit on a flight; changes queue and sync on reconnect |
-| Local footprint | Browser session | **Cache only** — a content cache, an offline edit queue, and memory and terms mirrors |
-| Best for | Quick access, reviewers, occasional contributors | Daily translators, large files, unreliable connectivity |
+| Voice, terms & memory context | Yes | Yes |
+| Works offline | No (always online) | **Yes**: edit on a flight; changes queue and sync on reconnect |
+| Local footprint | Browser session | **Cache only**: a content cache, an offline edit queue, and memory and terms mirrors |
+| Best for | Quick access, reviewers, occasional contributors | Daily contributors, large files, unreliable connectivity |
 
 Both are real-time clients of the same server, so presence, edits, reviews,
-content memory, and terminology are shared and consistent across them — a
-reviewer in the browser and a translator in the desktop app see each other's
-presence, and each change one saves appears in the other's view without a
-refresh.
+content memory, and terms are shared and consistent across them: a reviewer in
+the browser and a contributor in the desktop app see each other's presence, and
+each change one saves appears in the other's view without a refresh.
 
 The desktop app's local store is a **working copy of the server, never a source
 of truth**: it speeds up editing and lets you work offline, but the
 authoritative state lives on the server. Authoring local files and project
-configuration — the `kapi.yaml` recipe with its content, flows, plugins, languages,
-and brand — is [kapi's job](/getting-started/kapi-vs-bowrain), not the desktop
-app's. Sourcing content from a filesystem or a git checkout happens server-side
-through [connectors](/server/connectors).
+configuration, the `kapi.yaml` recipe with its content, flows, plugins,
+languages, coordinates and voice binding, is
+[kapi's job](/getting-started/kapi-vs-bowrain), not the desktop app's. Sourcing
+content from a filesystem or a git checkout happens server-side through
+[connectors](/server/connectors).
 
 ## Offline on the desktop
 
-The desktop app keeps a local cache of the project, so you can keep translating
-when the network drops — on a flight, in a tunnel, or during server maintenance.
-Edits, reviews, and memory updates made offline queue locally and replay in order
-the moment you reconnect, then rejoin the live session. You never lose work to a
-dropped connection, and you do not have to think about sync — it happens on
-reconnect.
+The desktop app keeps a local cache of the project, so you can keep working
+when the network drops: on a flight, in a tunnel, or during server maintenance.
+Edits, reviews, and memory updates made offline queue locally and replay in
+order the moment you reconnect, then rejoin the live session. You never lose
+work to a dropped connection, and you do not have to think about sync; it
+happens on reconnect.
 
 ## See it
 
-- [Translation editor](/server/translation-editor) — the editing surface presence and live updates appear in
-- [Workspaces & members](/server/workspaces) — invite teammates and assign roles
-- [Voice & corrections](/server/context-voice) — how a reviewer's correction becomes a shared check
+- [The editor](/server/translation-editor): the editing surface presence and live updates appear in
+- [Workspaces & members](/server/workspaces): invite teammates and assign roles
+- [Voice and corrections](/server/context-voice): how a reviewer's correction becomes a shared check

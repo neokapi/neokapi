@@ -2,7 +2,7 @@
 id: review-and-approve
 title: "Review & approve"
 sidebar_label: "Review & approve"
-description: "The human half of the loop: work the review queue in Kapi Desktop — inspect, edit, approve, reject, sign off — or drive the same worklist from the CLI or your assistant. Approvals land in the committed unit-state record and raise the coverage a ship gate measures."
+description: "The human half of the loop: work the review queue in Kapi Desktop (inspect, edit, approve, reject, sign off) or drive the same worklist from the CLI or your assistant. Approvals land in the committed unit-state record and raise the coverage a ship gate measures."
 hide_table_of_contents: true
 ---
 
@@ -12,11 +12,11 @@ import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces — it brings every unit to *translated* and parks the rest; a person promotes — *reviewed*, then optionally *signed-off*. Each review lands in the project's committed unit-state record, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every unit to *translated* and parks the rest. A person promotes: *reviewed*, then optionally *signed-off*. Each review lands in the project's committed unit-state record, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 
-The loop has a gate before the target work: `kapi up` **settles your source and holds there until it clears its bar**, so an un-checked, off-brand, or empty source is never translated into every language only to be redone when you fix it. A block whose source has not settled is *held* — its translations are not produced — and the run says so plainly rather than spending AI on it.
+The loop has a gate before the target work: `kapi up` **settles your source and holds there until it clears its bar**, so an un-checked, off-brand, or empty source is never translated into every language only to be redone when you fix it. A block whose source has not settled is *held* (its translations are not produced) and the run says so plainly rather than spending AI on it.
 
 <GatedLoopDiagram
   nodes={[
@@ -30,7 +30,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
       kind: "gate",
       label: "source gate",
       sub: "defaults.source_gate",
-      hold: "hold — settle your source first",
+      hold: "hold: settle your source first",
     },
     {
       kind: "phase",
@@ -40,14 +40,14 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
     },
     { kind: "done", label: "caught up" },
   ]}
-  caption="kapi up settles the source, holds any block below defaults.source_gate, and translates only the blocks that cleared it — the held ones wait for you to settle them."
+  caption="kapi up settles the source, holds any block below defaults.source_gate, and translates only the blocks that cleared it; the held ones wait for you to settle them."
 />
 
 The local source-settle loop, end to end:
 
-1. **Run.** `kapi up` settles each source block (terminology, voice, source QA), stamps its authoring status (*authored → checked → approved*), and holds any block below the gate. Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* — never a silent skip.
+1. **Run.** `kapi up` settles each source block (terminology, voice, source QA), stamps its authoring status (*authored → checked → approved*), and holds any block below the gate. Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
 2. **See what's held.** `kapi status` shows source readiness alongside coverage; `kapi check --ship` enforces the same source bar and lists the blocks that fail it.
-3. **Settle.** Fix the flagged terms, voice findings, or source text — through the round-trip (`kapi apply`) or your editor — so the next check clears them. An explicit source sign-off is a `kind:"review"` entry on the source, for the strict `approved` gate.
+3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. An explicit source sign-off is a `kind:"review"` entry on the source, for the strict `approved` gate.
 4. **Re-run.** `kapi up` re-settles only the blocks whose source changed and translates the newly-cleared ones. Repeat until nothing is held.
 
 The gate level is `defaults.source_gate` in the recipe:
@@ -58,24 +58,24 @@ defaults:
                          # terminology + voice + source-QA checks before translating
 ```
 
-`checked` is the default when unset — the same bar the server holds to, with no human bottleneck. `approved` additionally requires a human source sign-off (voice-critical or regulated content). `none` disables the gate entirely — the deliberate "draft freely, raw MT" opt-out for single-player work that wants translations regardless of source state:
+`checked` is the default when unset: the same bar the server holds to, with no human bottleneck. `approved` additionally requires a human source sign-off (voice-critical or regulated content). `none` disables the gate entirely, the deliberate "draft freely, raw MT" opt-out for single-player work that wants translations regardless of source state:
 
 ```yaml
 defaults:
   source_gate: none      # opt out: translate every block, settled or not
 ```
 
-Then the person's half of the loop — promoting the translations themselves — is the rest of this page.
+Then the person's half of the loop (promoting the translations themselves) is the rest of this page.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 The **Review** surface is a queue you work through, keyboard-first:
 
-1. **Enter from a gate cell.** Click a ship-gate cell on the project view (or open **Review** from the sidebar) — the queue narrows to that collection and locale, ordered findings-first so the risky units come up first.
+1. **Enter from a gate cell.** Click a ship-gate cell on the project view (or open **Review** from the sidebar); the queue narrows to that collection and locale, ordered findings-first so the risky units come up first.
 2. **Inspect.** Each unit shows source and target side by side, with its check findings, provenance, and memory match below.
-3. **Decide.** `a` approves, `r` rejects (with a note — the unit drops back to draft for the next `up` pass to redo), `s` signs off, `space` skips, `j`/`k` move. Edit the target text first when it needs a touch-up — save, then approve; the record binds to the edited text.
-4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings — you read the exceptions, not the bulk.
+3. **Decide.** `a` approves, `r` rejects (with a note; the unit drops back to draft for the next `up` pass to redo), `s` signs off, `space` skips, `j`/`k` move. Edit the target text first when it needs a touch-up: save, then approve; the record binds to the edited text.
+4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings, so you read the exceptions rather than the bulk.
 5. **Let the AI read first.** **AI pre-review…** scores the pending units with your model before you look; each unit then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
 
 Approvals raise `reviewed` coverage immediately; the gate cell you entered from goes green when its threshold clears.
@@ -89,11 +89,11 @@ Approvals raise `reviewed` coverage immediately; the gate cell you entered from 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-Review conversationally — useful when you're the reviewer but not at the desktop:
+Review conversationally; useful when you're the reviewer but not at the desktop:
 
 > What's awaiting review in French? Show me the ones with findings first.
 
-The assistant reads `kapi status --review --json`, presents each unit with its findings, and records your verdicts with `kapi apply` (`kind:"review"`). You say "approve", "reject — the tone is off", or "fix the term and approve"; for the last one it edits the target through the round-trip first, then records the approval against the new hash.
+The assistant reads `kapi status --review --json`, presents each unit with its findings, and records your verdicts with `kapi apply` (`kind:"review"`). You say "approve", "reject: the tone is off", or "fix the term and approve"; for the last one it edits the target through the round-trip first, then records the approval against the new hash.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -113,17 +113,17 @@ kapi commit                 # → .kapi/state/*.jsonl
 git add .kapi/state/
 ```
 
-Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different — it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
+Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different: it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
 
 </TabItem>
 </Tabs>
 
 :::note[Works with Bowrain]
-This recipe's worklist lives in your checkout and its unit state in the committed record — one reviewer, one working copy at a time. When several reviewers (or a reviewer alongside an agent) need one shared queue — assignments, live presence, per-block history — that is what connecting the project to a Bowrain server adds. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+This recipe's worklist lives in your checkout and its unit state in the committed record: one reviewer, one working copy at a time. When several reviewers (or a reviewer alongside an agent) need one shared queue, with assignments, live presence and per-block history, that is what connecting the project to a Bowrain server adds. See the [Bowrain documentation](https://bowrain.cloud/docs/).
 :::
 
 ## Next
 
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the `reviewed` thresholds this state satisfies.
-- [The kapi loop](/kapi/convergence) — produce / promote / release, kept separate.
-- [The project store](/kapi/project-store) — why the unit-state record is the committed half and `store.db` the derived one.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `reviewed` thresholds this state satisfies.
+- [The kapi loop](/kapi/convergence): produce / promote / release, kept separate.
+- [The project store](/kapi/project-store): why the unit-state record is the committed half and `store.db` the derived one.

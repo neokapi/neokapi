@@ -5,16 +5,10 @@ sidebar_position: 4
 
 # kapi pull
 
-Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
-transfer only blocks that changed since the last pull.
-
-When the project is claimed into a workspace, pull also snapshots the
-workspace's governed concepts and their relations into the project's terms
-store and records a baseline, so a later
-[`kapi push`](/cli/commands/push) can diff local terminology edits against it
-and [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) gates offline
-against the same governed vocabulary. See
-[Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
+Fetch the server's changes into the working tree. `kapi pull` is pure
+transport: it moves the results of runs and review, the workspace's governed
+terms, and the recipe changes an approval decided on, and never drafts
+anything.
 
 ## Usage
 
@@ -25,77 +19,97 @@ kapi pull [flags]
 ## Examples
 
 ```bash
-# Pull all changes from server
+# Pull everything that changed on the server
 kapi pull
 
-# Pull only French translations
+# Pull only French results
 kapi pull --locale fr
 
-# Pull multiple locales
+# Pull several locales
 kapi pull --locale fr --locale de
 
-# Show what would be pulled without making changes
+# Show what would be pulled without changing files
 kapi pull --dry-run
 
-# Force pull from beginning (ignore sync cursor)
+# Re-download everything, unchanged blocks included
 kapi pull --force
+
+# Refresh only the workspace's governed terms into the local terms store
+kapi pull --concepts
 
 # Example output:
 # Pulled 12 blocks for 2 locales
+# Updated 4 file(s)
 ```
 
 ## Options
 
-| Flag        | Description                                      | Default |
-| ----------- | ------------------------------------------------ | ------- |
-| `--locale`  | Target locales to pull (repeatable)              | all     |
-| `--force`   | Pull from beginning, ignoring sync cursor        | `false` |
-| `--dry-run` | Show what would be pulled without changing files | `false` |
-| `--concepts` | Sync only the workspace terminology (concepts + relations) into the local terms store — no content transport, no hooks | `false` |
+| Flag         | Description                                                                 | Default |
+| ------------ | --------------------------------------------------------------------------- | ------- |
+| `--locale`   | Target locales to pull (repeatable)                                         | all     |
+| `--force`    | Re-download everything, ignoring what the tree already holds                | `false` |
+| `--dry-run`  | Show what would be pulled without changing files                            | `false` |
+| `--concepts` | Sync only the workspace terms (concepts + relations) into the local terms store; no content transport, no automations | `false` |
 
-## What Happens
+## What pull writes
 
-1. **Read sync cursor** from `.kapi/work/cache/sync-cache.json`
-2. **Query server** via `GET /api/v1/projects/:id/sync/pull?cursor=X&locales=...`
-   - Server returns only changes since the cursor (O(changes), not O(total))
-   - Paginated: follows `has_more` until all changes are consumed
-3. **Update `.kapi/work/cache/sync-cache.json`** with new cursor
+A pull reads the server's tree and the changes since the ref the client last
+committed or pulled (the protocol is described once, on
+[`kapi push`](/cli/commands/push)), and writes several things into the tree:
 
-## Locale Scoping
+- **Recipe changes**, first. When a person approved an axis a
+  [context scan](/server/context-scan) proposed, the approval is waiting as a
+  pending recipe change. Pull writes it into `kapi.yaml` as
+  `defaults.coordinates.<axis>` and settles it with the server. A value the
+  recipe already holds is taken as applied; a value that disagrees with what
+  the recipe says is reported as a conflict and left for you to resolve. The
+  recipe is a decision waiting to be reviewed in git, so a failure here never
+  fails the pull.
+- **Content.** Targets produced by runs and promoted by review land in the
+  target files the recipe's `collections:` name, with the format's own writer.
+  A file whose targets did not change is left untouched.
+- **Decisions.** Review decisions made on the server are staged into the
+  project's working store; `kapi commit` publishes them into the committed
+  record under `.kapi/state/`.
+- **Governed terms.** When the project is claimed into a workspace, pull
+  snapshots the workspace's concepts and their relations into the project's
+  terms store and records a baseline, so a later
+  [`kapi push`](/cli/commands/push) can diff local terms edits against it and
+  [`kapi check --ship`](/cli/use-cases/brand-terminology-ci) gates offline
+  against the same governed vocabulary.
 
-Pull supports locale-scoped queries — fetch translations for specific languages
-without downloading everything:
+Pull also reports what it deliberately did not apply:
 
-```bash
-# Only French
-kapi pull --locale fr
+- **Retired items.** An item the server still streams whose source is gone
+  from this checkout is skipped rather than resurrected.
+- **Governance divergence.** Pull reports the collections the server holds and
+  how it governs them. For a collection this recipe declares, `kapi.yaml` is
+  the authority, so a point, channel or voice that differs on the server is
+  reported and resolved in git rather than pulled down over the local
+  governance.
 
-# French and German
-kapi pull --locale fr --locale de
-```
+## Exit codes
 
-This is efficient because the server's change log is indexed by locale.
+- `0`: success (changes pulled or already up to date)
+- `1`: error (server unavailable, auth failed, and so on)
 
-## Exit Codes
+## Related commands
 
-- `0` — Success (changes pulled or already up to date)
-- `1` — Error (server unavailable, auth failed, etc.)
+- [`kapi push`](/cli/commands/push): the protocol, and what a push declares
+- [`kapi status`](/cli/commands/status): coverage, ship standing, and what is pending
+- [`kapi diff`](/cli/commands/diff): the changed blocks, per file
+- [`kapi up`](/cli/commands/up): push, run on the server, pull
 
-## Related Commands
-
-- [`kapi push`](/cli/commands/push) — Send local changes to server
-- [`kapi status`](/cli/commands/status) — Show sync state
-- [`kapi diff`](/cli/commands/diff) — Show detailed changes
-
-## When to Use
+## When to use
 
 Pull from Bowrain Server to:
 
-- **Fetch translations** completed by team members
-- **Get AI/MT suggestions** generated on the server
-- **Sync governed terminology** — the workspace's concepts and relations into
-  the local terms store, so [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci)
-  can gate offline
+- **Fetch results** of runs and review completed by teammates
+- **Take an approved axis** into the recipe, for review in git
+- **Sync governed terms**, so `kapi check --ship` gates offline
 - **Update source content** that entered Bowrain through another connector
 
-Source content can originate from a server-side connector — a CMS, a design tool, or a git host — not only from your local files. `kapi pull` brings those upstream changes down, so kapi is the local mirror of content that may have entered Bowrain elsewhere. Think of it as `git pull` for content.
+Source content can originate from a server-side connector, a content platform,
+a design tool, or a git host, not only from your local files. `kapi pull`
+brings those upstream changes down, so the checkout is the local mirror of
+content that may have entered Bowrain elsewhere.

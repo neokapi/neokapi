@@ -15,12 +15,12 @@
 
 ## Principles
 
-1. **Every format and tool has tests** — No format reader/writer or tool ships without tests.
-2. **Roundtrip is the gold standard** — For formats: read → write → compare with original.
-3. **Port Okapi test data** — Use Okapi's test resource files as the source of truth.
-4. **Table-driven tests** — Go's table-driven pattern for covering multiple inputs.
-5. **Test at the interface boundary** — Test against `DataFormatReader`/`Tool` interfaces, not internals.
-6. **Deterministic AI tests** — AI tools use mock providers in CI; real providers in manual integration tests.
+1. **Every format and tool has tests**: No format reader/writer or tool ships without tests.
+2. **Roundtrip is the gold standard**: For formats: read → write → compare with original.
+3. **Port Okapi test data**: Use Okapi's test resource files as the source of truth.
+4. **Table-driven tests**: Go's table-driven pattern for covering multiple inputs.
+5. **Test at the interface boundary**: Test against `DataFormatReader`/`Tool` interfaces, not internals.
+6. **Deterministic AI tests**: AI tools use mock providers in CI; real providers in manual integration tests.
 
 ---
 
@@ -58,11 +58,13 @@ neokapi/                              ── Framework Module Tests (repo root) 
 ├── memory/                         # content memory tests (in-memory + SQLite, matching)
 ├── terms/                         # Terminology tests (in-memory + SQLite, import/export)
 ├── providers/
-│   ├── ai/                           # package aiprovider — provider + AI tool tests (demo provider for CI)
-│   └── mt/                           # package mtprovider — provider + MT tool tests
+│   ├── ai/                           # package aiprovider: provider + AI tool tests (demo provider for CI)
+│   └── mt/                           # package mtprovider: provider + MT tool tests
 │
-├── cli/                              ── CLI Module Tests ──
+├── host/                             ── Host Module Tests ──
 │   └── pluginhost/                   # Manifest discovery, dispatch, daemon-pool tests
+├── cli/                              ── CLI Module Tests ──
+│   └── *_test.go                     # Cobra command wiring, flag surfaces
 ├── kapi/                             ── Kapi Module Tests ──
 │   ├── cmd/kapi/                     # Root command + MCP tool wiring tests
 │   └── e2e/                          # CLI end-to-end tests (isolated config/data/cache)
@@ -78,7 +80,7 @@ neokapi/                              ── Framework Module Tests (repo root) 
 
 The Okapi Java bridge has no Go package in this repo. It lives in the separate
 [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository, ships as a
-plugin binary, and is exercised through `cli/pluginhost` (see
+plugin binary, and is exercised through `host/pluginhost` (see
 [Plugin protocol v1](../../web/docs/contribute/implementation/engine/plugin-protocol-v1.md)).
 
 ---
@@ -130,8 +132,8 @@ Tests are organized by what they exercise:
 **Pure utilities** (no React, no mocking):
 
 ```
-src/__tests__/codedText.test.ts      — Unicode marker parsing, segment roundtripping
-src/__tests__/tagSemantics.test.ts   — Tag classification, pair building, validation, HTML preview
+src/__tests__/codedText.test.ts: Unicode marker parsing, segment roundtripping
+src/__tests__/tagSemantics.test.ts: Tag classification, pair building, validation, HTML preview
 ```
 
 These are the highest-value tests: pure logic, fast, no dependencies.
@@ -139,10 +141,10 @@ These are the highest-value tests: pure logic, fast, no dependencies.
 **Context providers** (React, lightweight mocking):
 
 ```
-src/__tests__/ThemeContext.test.tsx      — Theme persistence, system preference, DOM attributes
-src/__tests__/AuthContext.test.tsx       — Authentication state transitions
-src/__tests__/WorkspaceContext.test.tsx  — Workspace state management
-src/__tests__/ApiContext.test.tsx        — Adapter injection
+src/__tests__/ThemeContext.test.tsx: Theme persistence, system preference, DOM attributes
+src/__tests__/AuthContext.test.tsx: Authentication state transitions
+src/__tests__/WorkspaceContext.test.tsx: Workspace state management
+src/__tests__/ApiContext.test.tsx: Adapter injection
 ```
 
 Each context test uses a small helper component that exposes the context value through `data-testid` elements, then asserts on DOM text content after `act()` interactions.
@@ -150,28 +152,28 @@ Each context test uses a small helper component that exposes the context value t
 **Components** (React, render + interact):
 
 ```
-src/__tests__/MainSidebar.test.tsx      — Navigation, collapse, theme toggle
-src/__tests__/WorkspaceIcon.test.tsx    — Letter rendering, color hashing, active state
-src/__tests__/WorkspaceRail.test.tsx    — Workspace list, selection, create button, avatar
-src/__tests__/AccountMenu.test.tsx      — Dropdown open/close, sign-out callback
-src/__tests__/TagValidationBar.test.tsx — Error/warning display, null handling
+src/__tests__/AppShellNavigation.test.tsx: App-shell rail and navigation
+src/__tests__/WorkspaceIcon.test.tsx: Letter rendering, color hashing, active state
+src/__tests__/WorkspaceRail.test.tsx: Workspace list, selection, create button, avatar
+src/__tests__/AccountMenu.test.tsx: Dropdown open/close, sign-out callback
+src/__tests__/TagValidationBar.test.tsx: Error/warning display, null handling
 ```
 
 **Hooks** (React, mock API adapter):
 
 ```
-src/__tests__/useLocales.test.tsx       — API fetch, loading state, display name resolution
+src/__tests__/useLocales.test.tsx: API fetch, loading state, display name resolution
 ```
 
 #### What NOT to Unit Test
 
-- **TranslationEditor** and **TargetCellEditor** — These integrate Lexical (rich text editor) which requires significant DOM infrastructure. Covered by E2E tests instead.
-- **App shells** (`bowrain/apps/web/src/App.tsx`, etc.) — Thin wrappers that compose providers and route views. E2E tests cover the assembled behavior.
-- **Semantic/status colors** — Hardcoded palette values in `tagSemantics.ts` and `WorkspaceIcon.tsx` are intentionally stable across themes. Visual correctness is verified by E2E screenshots.
+- **TranslationEditor** and **TargetCellEditor**: These integrate Lexical (rich text editor) which requires significant DOM infrastructure. Covered by E2E tests instead.
+- **App shells** (`bowrain/apps/web/src/App.tsx`, etc.): Thin wrappers that compose providers and route views. E2E tests cover the assembled behavior.
+- **Semantic/status colors**: Hardcoded palette values in `tagSemantics.ts` and `WorkspaceIcon.tsx` are intentionally stable across themes. Visual correctness is verified by E2E screenshots.
 
 #### Unit Test Patterns
 
-**Helper component pattern** — Expose hook/context state through testable elements:
+**Helper component pattern**: Expose hook/context state through testable elements:
 
 ```tsx
 function ThemeDisplay() {
@@ -188,7 +190,7 @@ function ThemeDisplay() {
 }
 ```
 
-**Mock API adapter** — For hooks that depend on `useApi()`, create a mock adapter with `vi.fn()` stubs:
+**Mock API adapter**: For hooks that depend on `useApi()`, create a mock adapter with `vi.fn()` stubs:
 
 ```tsx
 const adapter = { getKnownLocales: vi.fn().mockResolvedValue(mockLocales), ... };
@@ -196,7 +198,7 @@ render(<ApiProvider adapter={adapter}><Component /></ApiProvider>);
 await waitFor(() => expect(...));
 ```
 
-**DOM attribute assertions** — Theme tests verify side effects on the real DOM:
+**DOM attribute assertions**: Theme tests verify side effects on the real DOM:
 
 ```tsx
 act(() => screen.getByTestId("set-dark").click());
@@ -219,19 +221,19 @@ Each app has its own Playwright setup for integration-level testing against a ru
 #### Bowrain Desktop
 
 Specs live under `bowrain/apps/bowrain/frontend/e2e/`, one `*.spec.ts` per
-user flow — for example:
+user flow, for example:
 
 ```
 bowrain/apps/bowrain/frontend/e2e/
-├── connection-flow.spec.ts     — Server connect and sign-in gate
-├── context-panel.spec.ts       — content memory/term context panel in editor
-├── flow-builder.spec.ts        — Flow list and canvas, under a project's Automations
-├── memory-explorer.spec.ts     — Content memory CRUD
-├── offline-state.spec.ts       — Offline launch and retry
-├── project-dashboard.spec.ts   — Project creation and listing
-├── project-view.spec.ts        — File management, upload, stats
-├── settings.spec.ts            — Settings page, theme toggle
-└── term-explorer.spec.ts       — Terminology CRUD
+├── connection-flow.spec.ts: Server connect and sign-in gate
+├── context-panel.spec.ts: content memory/term context panel in editor
+├── flow-builder.spec.ts: Flow list and canvas, under a project's Automations
+├── memory-explorer.spec.ts: Content memory CRUD
+├── offline-state.spec.ts: Offline launch and retry
+├── project-dashboard.spec.ts: Project creation and listing
+├── project-view.spec.ts: File management, upload, stats
+├── settings.spec.ts: Settings page, theme toggle
+└── term-explorer.spec.ts: Terminology CRUD
 ```
 
 The editor flows this suite once covered are asserted against a real server by
@@ -248,27 +250,28 @@ vpx playwright test                    # all specs
 vpx playwright test e2e/settings.spec.ts  # single spec
 ```
 
-**Configuration:** `playwright.config.ts` — uses Vite dev server with mock API routes. Tests seed data via `page.route()` interception, requiring no backend.
+**Configuration:** `playwright.config.ts` uses the Vite dev server with mock API routes. Tests seed data via `page.route()` interception, requiring no backend.
 
 #### Web App (`bowrain/apps/web`)
 
-```
-bowrain/apps/web/e2e/
-├── screenshots.spec.ts   — Dual-theme screenshots (dark + light)
-├── recordings.spec.ts    — Dual-theme screencast recordings
-└── helpers/
-    └── api-client.ts     — Authentication, workspace/project creation, seeding
-```
+One `*.spec.ts` per user flow (editor happy path, routing, layout scroll,
+context onboarding and scan, translation dashboard, claim flow, open-in-desktop,
+the bravo panel), plus `helpers/api-client.ts` (authentication, workspace and
+project creation, seeding), `helpers/cursor-helper.ts` and `seed/`.
 
 **Running:**
 
 ```bash
 cd bowrain/apps/web
-vp run e2e:screenshots   # requires Docker backend (bowrain-server)
-vp run e2e:recordings    # requires Docker backend
+vp run e2e:tests         # requires a running bowrain-server
 ```
 
-**Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed content-memory entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
+**Configuration:** `playwright.e2e.config.ts` connects to the real backend
+(defaults to `http://localhost:8080`, overridable via the `BOWRAIN_URL` env
+var). Tests authenticate via the device auth flow, create workspaces and
+projects, and seed content-memory entries and terminology through the API.
+Documentation screenshots and screencasts are the harness's job (see
+[regenerating docs assets](regenerating-docs-assets.md)).
 
 #### neokapi-i18n (`packages/i18n-react`)
 
@@ -308,11 +311,11 @@ The unit tests in `bowrain/packages/ui` are designed to be the **primary fast fe
 cd packages/ui && vp test
 cd packages/i18n-react && vp test
 
-# E2E — Bowrain (mock API, no backend)
+# E2E: Bowrain Desktop (mock API, no backend)
 cd bowrain/apps/bowrain/frontend && vpx playwright test
 
-# E2E — web (requires Docker backend)
-cd bowrain/apps/web && vp run e2e:screenshots
+# E2E: web (requires a running bowrain-server)
+cd bowrain/apps/web && vp run e2e:tests
 ```
 
 ---
@@ -321,16 +324,15 @@ cd bowrain/apps/web && vp run e2e:screenshots
 
 ### Source of Test Data
 
-Okapi's test resources are in its Git repository:
-
-```bash
-git clone https://gitlab.com/okapiframework/Okapi.git /tmp/okapi-tests
-```
+Okapi's test resources are in its Git repository, checked out at
+`$NEOKAPI_OKAPI_DIR` (see [workspace paths](workspace-paths.md)); the parity
+harness additionally downloads the released `okapi-testdata` corpus into the
+parity sandbox (`make parity-sandbox`).
 
 Test resources per filter:
 
 ```
-Okapi/filters/<format>/src/test/resources/
+$NEOKAPI_OKAPI_DIR/okapi/filters/<format>/src/test/resources/
 ```
 
 ### Porting Process
@@ -339,7 +341,7 @@ For each format:
 
 1. **Identify test files**: Find representative test resource files in the Okapi filter's `src/test/resources/` directory.
 
-2. **Copy test data**: Copy relevant files to `formats/<name>/testdata/` or `testdata/<name>/`.
+2. **Copy test data**: Copy relevant files to `core/formats/<name>/testdata/`.
 
 3. **Translate assertions**: Convert Java JUnit assertions to Go `testing` + `testify` assertions.
 
@@ -501,8 +503,8 @@ func TestInlineCodePreservation(t *testing.T) {
     runs := blocks[0].SourceRuns()
     assert.Equal(t, "Click here for info", model.RunsText(runs))
 
-    // Inline markup is carried as non-text (inline-code) runs — here two
-    // paired codes (<b>…</b>, <a>…</a>) — never baked into the text.
+    // Inline markup is carried as non-text (inline-code) runs, here two
+    // paired codes (<b>…</b>, <a>…</a>), never baked into the text.
     var inline []model.Run
     for _, r := range runs {
         if r.Text == nil {
@@ -519,7 +521,11 @@ func TestInlineCodePreservation(t *testing.T) {
 
 ### Flow Execution Test
 
-Verify tools chain correctly in a Flow.
+Verify tools chain correctly in a Flow. The mock-tool helpers below are
+sketches; the real tests build a `tool.BaseTool` inline per test (see
+`passThroughTool`, `uppercaseTool` and `countingTool` in
+`core/flow/executor_test.go`), and the shared helpers are the ones in
+`core/internal/testutil/helpers.go`.
 
 ```go
 func TestFlowExecution(t *testing.T) {
@@ -626,7 +632,7 @@ func TestEndToEndHTML(t *testing.T) {
 ### Plugin Discovery and Dispatch
 
 Plugins are out-of-process binaries discovered from on-disk `manifest.json`
-files; the host-side runtime lives in `cli/pluginhost`. `Discover` reads the
+files; the host-side runtime lives in `host/pluginhost`. `Discover` reads the
 manifests under each plugin root (no subprocess is launched to enumerate),
 and `NewHost` folds them into dispatch tables for commands, MCP tools,
 formats, and recipe-schema extensions. Tests point discovery at a temp root
@@ -659,9 +665,9 @@ for discovery and the A/B/C transport modes.
 ### Okapi Java bridge
 
 The Okapi Java bridge is a Mode-C plugin daemon hosted in the separate
-[okapi-bridge](https://github.com/neokapi/okapi-bridge) repository — there is
+[okapi-bridge](https://github.com/neokapi/okapi-bridge) repository; there is
 no `bridge.NewJavaBridgeReader` and no Java package in this repo. The host
-side (`cli/pluginhost`) spawns the daemon, connects over a Unix-socket gRPC
+side (`host/pluginhost`) spawns the daemon, connects over a Unix-socket gRPC
 `BridgeService`, and converts between neokapi Parts and Okapi Events via
 `core/plugin/protoconvert`. Bridge format tests exercise it through the same
 discovery/dispatch path as any other plugin; the wire protocol is documented
@@ -712,7 +718,7 @@ func BenchmarkFlowThroughput(b *testing.B) {
 ### Native vs. Java bridge
 
 Compares a native Go reader against the same format served by the Okapi bridge
-plugin (a Mode-C daemon — the bridge path pays JVM/gRPC cost, amortized by the
+plugin (a Mode-C daemon: the bridge path pays JVM/gRPC cost, amortized by the
 long-lived daemon pool).
 
 ```go
@@ -736,10 +742,11 @@ func BenchmarkNativeVsBridge(b *testing.B) {
 
 ### GitHub Actions (`ci.yml`)
 
-The real `ci.yml` runs one test job per module (framework, cli, kapi,
-kapi-desktop, bowrain, bowrain/core, bowrain/plugin) plus
-frontend and lint jobs. It pins Go `1.26.0` and additionally tries `stable` on
-pushes. The shape below is illustrative:
+The real `ci.yml` runs one test job per module (framework, platform core,
+cli, kapi, kapi-desktop, bowrain desktop, bowrain, bowrain/plugin, the in-repo
+plugins) plus frontend and lint jobs, each path-filtered by a `changes` job. It
+pins Go `1.26.0`; the forward-compatibility `stable` leg runs in `nightly.yml`,
+not per commit. The shape below is illustrative:
 
 ```yaml
 name: CI
@@ -750,12 +757,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.26.0", "stable"]
+        go-version: ["1.26.0"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
 
       - name: Framework tests
         run: go test ./... -race
@@ -763,10 +768,8 @@ jobs:
   test-bowrain:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
       - name: Bowrain tests
         run: cd bowrain && go test ./... -race
 
@@ -777,10 +780,8 @@ jobs:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
       - name: Build kapi
         env:
           GOOS: ${{ matrix.goos }}
@@ -788,7 +789,7 @@ jobs:
         run: cd kapi && go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
 ```
 
-The Okapi Java bridge is **not** built in this CI — it is a separate repo
+The Okapi Java bridge is **not** built in this CI; it is a separate repo
 ([okapi-bridge](https://github.com/neokapi/okapi-bridge)) released as a plugin
 binary, so no `setup-java` / `mvn package` step exists here.
 
@@ -797,8 +798,11 @@ binary, so no `setup-java` / `mvn package` step exists here.
 | Tag           | Purpose                         | Command                                            |
 | ------------- | ------------------------------- | -------------------------------------------------- |
 | (none)        | Unit tests only                 | `go test ./...` (per module)                       |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration`                  |
-| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"`             |
+| `integration` | + the bowrain migration suite against PostgreSQL | `go test ./... -tags=integration` (`make test-integration`) |
+| `parity`      | + the Okapi parity and round-trip harness | `make parity-test`                       |
 
-Some packages need build tags for native dependencies — for example `fts5`
-for SQLite full-text search (used by the kapi e2e suite).
+Some packages need build tags for native dependencies, for example `fts5`
+for SQLite full-text search (used by the kapi e2e suite) and `onnx`/`pdfium`
+for the plugins that link a native runtime. Real AI providers are never
+exercised in CI; the evals that call a model run by hand and commit their
+datasets (see [evals](evals.md)).

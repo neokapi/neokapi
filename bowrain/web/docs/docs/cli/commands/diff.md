@@ -5,11 +5,10 @@ sidebar_position: 3
 
 # kapi diff
 
-Show the translation blocks that changed locally relative to the last sync —
-like `git diff --stat`, but for content. For each file it reports how many
-blocks were added, changed, or removed locally versus the last-synced server
-state, and (when a server is configured) the number of remote changes available
-to pull.
+Show the blocks that changed locally relative to the tree the project last
+declared to the server: like `git diff --stat`, for content. For each file it
+reports how many blocks were added, changed, or removed locally, and (when a
+server is configured) the number of remote changes available to pull.
 
 Without a server, `kapi diff` still works: it compares against the local sync
 cache, so it stays useful offline.
@@ -23,7 +22,7 @@ kapi diff [paths...] [flags]
 ## Examples
 
 ```bash
-# Summarize all local changes since the last sync
+# Summarize all local changes since the last push or pull
 kapi diff
 
 # Limit to a directory
@@ -66,10 +65,10 @@ Output format and color come from the shared global flags:
 
 1. Resolve the project by walking up from the current directory to the `kapi.yaml`
    recipe (run `kapi init` first if none is found).
-2. Read local files via the format registry, respecting the recipe's `collections:`
-   collections.
-3. Compare block-level content against the local sync cache to compute added,
-   changed, and removed blocks.
+2. Read local files via the format registry, respecting the recipe's `collections:`.
+3. Compare block-level content against the tree recorded in the local sync
+   cache to compute added, changed, and removed blocks. The tree and the cache
+   are described on [`kapi push`](/cli/commands/push).
 4. When a server is configured, query it for the count of pending remote
    changes.
 
@@ -78,11 +77,11 @@ genuinely changed blocks are reported.
 
 ## Exit codes
 
-- `0` — the diff was produced (whether or not changes were found).
-- `1` — an error occurred (no project, server unavailable, etc.).
+- `0`: the diff was produced (whether or not changes were found).
+- `1`: an error occurred (no project, server unavailable, and so on).
 
 ## Related commands
 
-- [`kapi status`](/cli/commands/status) — higher-level sync summary.
-- [`kapi pull`](/cli/commands/pull) — fetch remote changes.
-- [`kapi push`](/cli/commands/push) — send local changes.
+- [`kapi status`](/cli/commands/status): coverage, ship standing, and the server delta.
+- [`kapi pull`](/cli/commands/pull): fetch remote changes.
+- [`kapi push`](/cli/commands/push): send local changes.

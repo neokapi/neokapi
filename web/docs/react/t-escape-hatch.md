@@ -2,13 +2,13 @@
 sidebar_position: 4
 title: The t() Escape Hatch
 sidebar_label: The t() escape hatch
-description: Use the t() function in neokapi-i18n to mark strings for extraction when they live outside JSX — in arrays, reducers, refs, or any expression the plugin cannot walk statically.
+description: "Use the t() function in neokapi-i18n to mark strings for extraction when they live outside JSX: in arrays, reducers, refs, or any expression the plugin cannot walk statically."
 keywords: [t(), escape hatch, extraction, non-JSX strings, neokapi-i18n, i18n, React]
 ---
 
 # The `t()` escape hatch
 
-Some strings don't live in JSX. A button-label array fed into a `.map`, an error message returned from a reducer, a tooltip stored in a ref — the extractor can't see strings hidden behind expressions.
+Some strings don't live in JSX. A button-label array fed into a `.map`, an error message returned from a reducer, a tooltip stored in a ref; the extractor can't see strings hidden behind expressions.
 
 Use `t()` to mark them for extraction without leaving the translator's flow.
 
@@ -43,13 +43,13 @@ t("English");
 __t("aB3xZ", "English");
 ```
 
-In dev mode (plugin not active) `t` is a no-op that returns the source text verbatim, with `{name}` substitutions applied. So you can use it unconditionally — tests, SSR, storybook, dev server: all fine.
+In dev mode (plugin not active) `t` is a no-op that returns the source text verbatim, with `{name}` substitutions applied. So you can use it unconditionally (tests, SSR, storybook, dev server).
 
 ## Why a separate marker?
 
-neokapi-i18n's promise is zero wrappers for JSX. JS data structures are different — the extractor has no AST-level signal that `label: "English"` is a translatable string rather than an ID, an enum value, a CSS class, or anything else.
+neokapi-i18n's promise is zero wrappers for JSX. JS data structures are different: the extractor has no AST-level signal that `label: "English"` is a translatable string rather than an ID, an enum value, a CSS class, or anything else.
 
-`t()` is the explicit "treat this as translatable" marker for that context. It's the minimum necessary handoff — one function call per string — and it keeps the JSX story wrapper-free.
+`t()` is the explicit "treat this as translatable" marker for that context. It's the minimum necessary handoff (one function call per string), and it keeps the JSX story wrapper-free.
 
 ## Parameters
 
@@ -61,7 +61,7 @@ t("Hello, {name}!", { name: "Alice" });
 
 Parameter syntax mirrors what the JSX extractor uses (`{name}`), so a translator editing an entry sees the same placeholder shape whether it came from JSX or `t()`.
 
-## Context — disambiguating identical source strings
+## Context: disambiguating identical source strings
 
 Some strings are spelled the same in English but mean different things. A CAT tool showing "State" out of nowhere gives a translator no way to know whether it means a US state, a workflow status, or a physics state.
 
@@ -81,7 +81,7 @@ With params, context comes first:
 t("Hello, {name}!", "greeting", { name: user.name });
 ```
 
-Context only affects the hash at extract / transform time. It's stripped from the emitted `__t()` call and never ships to the runtime — the hash already encodes the disambiguation.
+Context only affects the hash at extract / transform time. It's stripped from the emitted `__t()` call and never ships to the runtime; the hash already encodes the disambiguation.
 
 Context mirrors gettext's `msgctxt` for teams familiar with the pattern.
 
@@ -114,12 +114,12 @@ const label = tr("Hello"); // ← rewritten
 hash = hashKey(text, "t\x1F" + context)   // context is "" when you pass none
 ```
 
-A JSX block's descriptor is its element (`"button"`, `"p"`); a `t()` call's is the literal `t`. So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's intentional: they are different surfaces, and a translator may well want German "Speichern" for the button and "Gespeichert!" for a toast's `t("Saved")`. Separating the channels lets them diverge. Two `t()` calls with the same text collapse to one key unless you distinguish them with the second argument — `t("Open", "verb")` vs `t("Open", "adjective")` — the same `msgctxt` model gettext uses.
+A JSX block's descriptor is its element (`"button"`, `"p"`); a `t()` call's is the literal `t`. So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's intentional: they are different surfaces, and a translator may well want German "Speichern" for the button and "Gespeichert!" for a toast's `t("Saved")`. Separating the channels lets them diverge. Two `t()` calls with the same text collapse to one key unless you distinguish them with the second argument (`t("Open", "verb")` vs `t("Open", "adjective")`), the same `msgctxt` model gettext uses.
 
 ## Module-level `t()` gotcha
 
 `t()` reads the active dictionary **at call time**. A module-level
-const evaluates once, at import — typically _before_ the app has
+const evaluates once, at import, typically _before_ the app has
 finished calling `loadTranslations()`. The const freezes at the
 fallback language forever:
 
@@ -163,7 +163,7 @@ subtree. See [Writing components → Double-translation](./writing-components#do
 ## Ternary children with string literals
 
 neokapi-i18n treats the _whole_ `JSXExpressionContainer` as one
-placeholder — it never looks inside a ternary at its branches:
+placeholder; it never looks inside a ternary at its branches:
 
 ```tsx
 // ✗ Neither "Saving..." nor "Save" gets extracted.
@@ -189,8 +189,8 @@ Template literals with static copy inside: same treatment.
 ```
 
 Purely-format templates (no alphabetic text: `` `${pct}%` ``,
-`` `v${version}` ``) don't need `t()` — they're code-level
-formatting, not UI copy — and the lint rule
+`` `v${version}` ``) don't need `t()` (they're code-level
+formatting rather than UI copy), and the lint rule
 [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child)
 knows not to flag them.
 
@@ -230,13 +230,13 @@ In dev (plugin not active), `t(text, params)` does:
 1. Substitute `{name}` tokens in the source text.
 2. Return it.
 
-Both return a `string`. No ReactNode result — for that you need the JSX path.
+Both return a `string`. For a ReactNode result you need the JSX path.
 
 ## ESLint / oxlint: keep `t()` honest
 
-`t(someVariable)` defeats the point — the extractor has no text to hash. Install [`@neokapi/i18n-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
+`t(someVariable)` defeats the point: the extractor has no text to hash. Install [`@neokapi/i18n-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
 
 ## Next
 
-- [Plurals and select](./plurals-and-select) — the other pattern where you need explicit markers (for the plural/case authoring components).
-- [Pipeline](./pipeline) — how `t()` blocks flow through extract/translate/compile alongside JSX blocks.
+- [Plurals and select](./plurals-and-select): the other pattern where you need explicit markers (for the plural/case authoring components).
+- [Pipeline](./pipeline): how `t()` blocks flow through extract/translate/compile alongside JSX blocks.

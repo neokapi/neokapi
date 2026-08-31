@@ -11,14 +11,14 @@ keywords: [neokapi, architecture decision, flow, source, sink, binding, block st
 ## Summary
 
 Three nouns divide the work cleanly: a **tool** is the unit of work, a **flow**
-is a named reusable *composition* of tools, and a **binding** is an end — where
+is a named reusable *composition* of tools, and a **binding** is an end: where
 content enters and leaves. A flow is a **pure transformation over a stream of
 Blocks** backed by a block-store session: it owns no I/O, and a single tool is
 not a flow. *Where content enters* (the **source binding**) and *where results
 go* (the **sink binding**) are resolved from invocation context, not encoded in
 the flow graph. The same flow definition runs whether its content comes from a
 file, a `.kpz` workspace, the project block store, or an imported interchange
-file — and whether its results are written to a file, committed as overlays to
+file, and whether its results are written to a file, committed as overlays to
 the store, or both.
 
 A sink is **optional**. A *process-only* run lands its work as overlays in the
@@ -28,8 +28,8 @@ first-class shape: `extract` (source → store), `run` / transform (store → st
 `merge` (store → file).
 
 A source can also **fan out**: an archive path expands to one `file` run per
-inner entry — so a packaged format nested inside an archive round-trips
-faithfully — and the matching sink repacks, copying untouched members
+inner entry (so a packaged format nested inside an archive round-trips
+faithfully), and the matching sink repacks, copying untouched members
 byte-for-byte. The same enumerate → process → write-back shape generalizes from
 files to **remote providers**, which is the contract a source-connector plugin
 implements.
@@ -40,9 +40,9 @@ and *round-trip-paired brackets* (redact … unredact) that are part of a **run'
 source/sink wiring.
 
 Bindings are named by one scheme vocabulary across the CLI, the flow document,
-and the existing resource URIs. A concrete binding resolves by precedence —
-explicit flag, then project or `.kpz` context, then the flow's intent, then
-auto-detection — and `kapi run --explain` always shows the resolved
+and the existing resource URIs. A concrete binding resolves by precedence
+(explicit flag, then project or `.kpz` context, then the flow's intent, then
+auto-detection), and `kapi run --explain` always shows the resolved
 `source → sink` so nothing is hidden. A flow declares only *intrinsic intent*
 (`sink: none` for an analysis flow), never a path.
 
@@ -52,13 +52,13 @@ A pipeline runs at many origins and destinations. The same translation flow
 processes a loose file on a laptop, the blocks already held in a project's store,
 a `.kpz` workspace, or content imported from an interchange file; and its results
 land in a translated file, as overlays committed to the store, or in an
-interchange file bound for a translator. The work the flow does — leverage,
-translate, check — is the same in every case; only where the content enters and
+interchange file bound for a translator. The work the flow does (leverage,
+translate, check) is the same in every case; only where the content enters and
 leaves differs.
 
 The processing engine is built around that fact. `flow.DefaultExecutor`
 orchestrates tools over a `blockstore.Session` and has no notion of files,
-readers, or writers — I/O lives at the edges, outside the flow. This AD names
+readers, or writers; I/O lives at the edges, outside the flow. This AD names
 those edges and settles two questions:
 
 1. The flow's shape is `source → {flow} → sink`: the ends are context-wired
@@ -72,13 +72,13 @@ those edges and settles two questions:
 
 I/O sits outside the flow, leaving three concepts, each with exactly one job:
 
-- **Tool** — the unit of work. A single capability-typed transformation over the
-  Part stream — `Annotate`, `Produce`, or `Transform`
+- **Tool**: the unit of work. A single capability-typed transformation over the
+  Part stream: `Annotate`, `Produce`, or `Transform`
   ([E-03](e-03-tool-system.md)). A tool runs on its own; it needs no flow.
-- **Flow** — a named, reusable **composition** of tools. A flow carries the
+- **Flow**: a named, reusable **composition** of tools. A flow carries the
   ordering, the branching (`parallel:`, tee, batch), and the per-tool
-  configuration — and nothing else. It is *the recipe*.
-- **Binding** — the ends. Where content enters (source) and where results leave
+  configuration, and nothing else. It is *the recipe*.
+- **Binding**: the ends. Where content enters (source) and where results leave
   (sink). A binding belongs to neither the tool nor the flow; it is supplied by
   the invocation and the project.
 
@@ -87,18 +87,18 @@ tool is not a flow: a lone tool is invoked directly as a tool command, and
 `kapi flows` lists only the compositions. The flow noun earns its place by
 carrying the four things a flat list of tool names cannot:
 
-- **Configuration** — a flow pins each tool's settings, so it is a *configured*
+- **Configuration**: a flow pins each tool's settings, so it is a *configured*
   recipe (`recycle{fuzzy:75}` → `translate{provider:anthropic}` → `qa`), not
   merely an ordered set of tool names.
-- **Topology** — a flow is a DAG. `parallel:` fan-out, tee, and batch are graph
+- **Topology**: a flow is a DAG. `parallel:` fan-out, tee, and batch are graph
   shapes a sequence cannot express.
-- **Identity and reuse** — a flow has a name and a source (built-in, user,
+- **Identity and reuse**: a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,
   versioned with the recipe and shared like any other artifact. A flow is
   portable, declarative intent and owns no I/O, so it travels in a project's
   portable twin, the `.kpz` package
   ([M-06](../multilingual/m-06-content-packages.md)), like any other recipe field.
-- **Transformer roles** — ingest-time settlers and the round-trip brackets (§4)
+- **Transformer roles**: ingest-time settlers and the round-trip brackets (§4)
   are distinct transformer roles, validated by the placement pass
   ([E-03](e-03-tool-system.md)), not a flat run of tools.
 
@@ -115,23 +115,23 @@ invocation context:
 | Binding | Source role (in) | Sink role (out) |
 | --- | --- | --- |
 | `file` | `DataFormatReader` over file bytes | `DataFormatWriter` + skeleton round-trip ([E-02](e-02-format-system.md)) |
-| `store` (also spelled `kpz`) | existing blocks + overlays from a persistent store | commit overlays — no materialization |
+| `store` (also spelled `kpz`) | existing blocks + overlays from a persistent store | commit overlays; no materialization |
 | `interchange` (`xliff`, `po`, `tmx`, `tbx`) | overlays landed from an interchange file ([M-01](../multilingual/m-01-bilingual-interop.md)) | emit interchange |
-| `none` | — | discard (observation and metrics only) |
+| `none` | none | discard (observation and metrics only) |
 
 An archive path is not a fifth kind: it **fans out** to one `file` binding per
 inner entry (§6).
 
 The defining property: **a flow definition is identical across bindings.** The
 same `translate-qa` flow runs in the file CLI, against a `.kpz` workspace, and
-against a project — only the binding differs.
+against a project; only the binding differs.
 
 Each binding also advertises the **ports** it provides
 ([F-02](../foundations/f-02-content-model.md),
 [E-03](e-03-tool-system.md)): a plain `file` source carries source content only;
 a bilingual interchange source adds a committed `target`, segmentation, and
 alignment; the content store adds every persisted stand-off layer. The flow
-loader uses this to validate the contract end to end — a flow whose first tool
+loader uses this to validate the contract end to end: a flow whose first tool
 needs a port the source cannot supply, with no upstream tool to produce it, is
 rejected at build (`FlowDefinition.ValidateDataFlow`). So `qa`, which requires a
 `target`, is valid against a bilingual source or after a translate step, but
@@ -164,14 +164,14 @@ spec:
 
 A run whose `sink` is `store`, or absent, commits its overlays to the project or
 `.kpz` block store and **emits no file**. Materialization is a distinct sink
-operation — `merge` (store → file via skeleton), `export` (store → interchange),
+operation: `merge` (store → file via skeleton), `export` (store → interchange),
 or `pack` (store → `.kpz`). This separates *doing the work* from *handing it
 out*, and gives the workspace lifecycle its natural grain:
 
 | Command | Source | Sink | |
 | --- | --- | --- | --- |
 | `extract` | file | store | ingest sources into the store |
-| `run` / transform | store | store | **process-only** — commit overlays, emit nothing |
+| `run` / transform | store | store | **process-only**: commit overlays, emit nothing |
 | `merge` | store | file | materialize via the skeleton |
 
 Because the block store is append-only and content-addressed, a process-only run
@@ -186,18 +186,18 @@ framework applier rewrites the source inline, so each transformer settles the
 model before the steps that follow it, and the placement pass validates the
 ordering. At the binding level their two uses are distinct:
 
-- **Ingest-time settlers** — *idempotent, model-settling* transforms
+- **Ingest-time settlers**: *idempotent, model-settling* transforms
   (segmentation, normalization) belong to **bringing content into the store**,
   not to each flow. They run **once at ingest** and persist as overlays; later
   flows see the settled model and never recompute it. This avoids redundant
   per-run work and the drift hazard of re-settling the canonical model on every
   run.
-- **Run brackets** — *paired, policy-bearing* transforms (redact … unredact,
+- **Run brackets**: *paired, policy-bearing* transforms (redact … unredact,
   [C-10](../context/c-10-redaction.md)) bracket a single run and may vary per run
   or provider. They are part of the **run's** source/sink wiring: the opening
   step redacts what the source binding produced, and the closing step restores
-  before the sink binding writes. The built-in `secure-translate` flow — redact ·
-  translate · unredact — is exactly this shape.
+  before the sink binding writes. The built-in `secure-translate` flow (redact ·
+  translate · unredact) is exactly this shape.
 
 A transform that is genuinely both, idempotent *and* recoverable, may be declared
 at ingest; the run-bracket form is for transforms whose restore must happen
@@ -205,8 +205,8 @@ inside the run.
 
 ### 5. Resolving a binding across the CLI and flow surfaces
 
-A binding is named by the same small scheme vocabulary (§1) on every surface —
-the CLI, the flow document, and the resource URIs the tool resolver understands:
+A binding is named by the same small scheme vocabulary (§1) on every surface
+(the CLI, the flow document, and the resource URIs the tool resolver understands):
 the content memory (`memory:`), the terms store (`terms:`), and segmentation
 rules (`srx:`), all resolved in `core/flow/resolve.go`. This follows two
 conventions a user already knows: *detect-by-extension with an explicit override*
@@ -220,7 +220,7 @@ declared intent, then auto-detection. `kapi run --explain` prints the resolved
 
 **The CLI carries the locator; bare paths are detected, schemes are explicit.**
 `-i` / `-o` accept either a plain path or a `scheme:` locator. A plain path is
-bound by detection — its extension or kind decides it (`.kpz` → the workspace
+bound by detection: its extension or kind decides it (`.kpz` → the workspace
 store, `.xliff` / `.po` → interchange, a plain document → `file`). A `scheme:`
 locator forces the binding and removes any ambiguity: `-o store:` is the block
 store, while `-o locales/` is a directory of files. `file:` forces a path that
@@ -244,7 +244,7 @@ imply; `run` is the general form. All resolve through the same precedence and
 report the same `--explain` line.
 
 **The flow declares intent, never a location.** A flow document carries a binding
-only when it is *intrinsic to what the flow is*, and then only the *kind* — never
+only when it is *intrinsic to what the flow is*, and then only the *kind*, never
 a path or a concrete store. A translation flow materializes, so it leaves its
 sink unset and lets the invocation place the result; an analysis or check flow
 produces no document, so it declares `sink: none`; a flow that only makes sense
@@ -281,16 +281,16 @@ reuses the overlays already present and recomputes only what changed
 ### 6. Archives: a source that fans out, a sink that repacks
 
 Some inputs are not one document but a **namespace of documents**: a ZIP, a TAR,
-a `.tar.gz`. These are **not formats** — a format is the implementation of the
+a `.tar.gz`. These are **not formats**: a format is the implementation of the
 `file` binding for a *single* document ([E-02](e-02-format-system.md)). An
 archive is a *binding shape*: it decides where content enters and leaves, and it
 expands to many `file` bindings.
 
-This is the same shape as `kapi extract src/*.json -o work.kpz` —
-`file(glob) → store`, a source that fans out to N documents. An archive source is
+This is the same shape as `kapi extract src/*.json -o work.kpz`
+(`file(glob) → store`), a source that fans out to N documents. An archive source is
 that pattern with the namespace *inside* a container instead of on the
 filesystem. The decisive property follows for free: **each inner entry is a real,
-standalone `file` run**, so it inherits the whole file machinery — per-entry
+standalone `file` run**, so it inherits the whole file machinery: per-entry
 format detection, per-entry configuration, and the `file` sink's **skeleton
 round-trip**. A packaged, skeleton-bound format (OpenXML, EPUB, ODF) *inside* the
 archive therefore round-trips faithfully, because it is processed by its own
@@ -299,21 +299,21 @@ reader and writer, not flattened into a parent document.
 - **Source (fan-out).** Enumerate the archive's regular-file entries; each is
   resolved and run as its own `file` source. An entry whose format is binary
   (image, audio, video), a bilingual interchange file, a nested archive, or
-  unrecognised is **not** processed — it is carried to the sink untouched.
+  unrecognised is **not** processed; it is carried to the sink untouched.
   Enumeration is bounded by the shared zip-bomb, size, and entry-count guards.
 - **Sink (barrier repack).** Unlike a folder sink, which writes N independent
   files, an archive sink must emit **one valid container atomically**. It is a
   *barrier*: it buffers the processed entries, then rebuilds the container from
   the **original bytes**, splicing in only the entries that were processed and
-  copying every other member — structure, entry order, metadata, compression,
-  binaries — byte-for-byte.
+  copying every other member (structure, entry order, metadata, compression,
+  binaries) byte-for-byte.
 
 The fan-out and repack are a small, provider-agnostic substrate (`core/container`:
 `Walk` for an in-memory container, `Transform` for a streaming one, `OpenEntry`
 for a single entry) with no dependency on the format registry or the flow engine;
 the per-entry *processing* is injected by the caller. A read-only `archive`
-reader is kept as the **inspection** face only — it surfaces each entry's content
-so `kapi inspect bundle.zip` shows what is inside — but it has no writer, because
+reader is kept as the **inspection** face only: it surfaces each entry's content
+so `kapi inspect bundle.zip` shows what is inside; it has no writer, because
 processing an archive is the binding shape above, not a format round-trip.
 
 **Memory: the whole archive is never loaded.** `Transform` opens a ZIP with
@@ -322,30 +322,30 @@ visits one entry at a time, materialises an entry's bytes only when the processo
 actually reads it (so untouched members are raw-copied for ZIP and piped through
 for TAR, never buffered), and writes the output container incrementally. Peak
 memory is a single entry, never the archive and never the full set of entries or
-results. Each entry runs through `FileRunner.RunStream` — bytes in, bytes out,
+results. Each entry runs through `FileRunner.RunStream` (bytes in, bytes out),
 with **no per-entry temp file** staged on disk. For a **streaming-capable** inner
 format ([E-02](e-02-format-system.md)) the entry is not even buffered whole: it
 is read and written as a stream. A whole-document inner format is still buffered
-for the duration of its own processing — that is the format engine's
-whole-document contract — but only one entry is held at once. The inspection read
+for the duration of its own processing (that is the format engine's
+whole-document contract), but only one entry is held at once. The inspection read
 path is the one exception: the engine hands a format reader the buffered
 document, so the read-only `archive` reader receives the archive bytes up front,
 though it still streams entries one at a time via `Walk`.
 
 **Addressing.** An archive fits the locator vocabulary (§5): a bare `.zip` /
 `.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner entry
-is addressed with the JAR-style bang separator — `release.zip!docs/x.md`. The
+is addressed with the JAR-style bang separator: `release.zip!docs/x.md`. The
 split is single-level and requires the left side to be an existing container
 file, so a real filename containing `!` is never mistaken for a locator, and
 nested-archive addressing is out of scope. No new URL scheme is introduced: kapi
 inputs stay paths, so a scheme prefix is reserved for genuine remote endpoints
 (§7).
 
-Reads honour the locator by opening just that entry (`container.OpenEntry` —
+Reads honour the locator by opening just that entry (`container.OpenEntry`:
 random access for ZIP, scan for TAR; the archive is not loaded whole), so
 `kapi inspect release.zip!docs/x.md` and the toolbox utilities on one inner file
 work. Inner content is attributed back as `<archive>!<entry>` everywhere a source
-is shown — `kapi inspect` records, `kapi stats` rows, toolbox match prefixes —
+is shown (`kapi inspect` records, `kapi stats` rows, toolbox match prefixes),
 via a `container.entry` property the archive reader stamps on every block. Writes
 follow the binding: editing a single entry splices just that entry back through
 the barrier sink, leaving every other member byte-for-byte; editing a whole
@@ -360,8 +360,8 @@ language.
 
 ### 7. Beyond files: provider sources and sinks
 
-The archive shape — *enumerate a collection into independent items, process each,
-write the results back as a batch* — is not specific to archives. It is the same
+The archive shape (*enumerate a collection into independent items, process each,
+write the results back as a batch*) is not specific to archives. It is the same
 shape a **remote provider** has: a CMS, a headless API, or a SaaS service exposes
 a *collection* (a space, a project, a content type) whose *items* are individual
 documents. A plugin declares one with the `source_connectors` capability
@@ -385,12 +385,12 @@ binding contract:
    rebuilt wholesale from original bytes; a remote sink writes each item back
    through the provider's API, item by item, and "everything else preserved" is
    the provider's responsibility, not a byte copy. So a provider sink is an
-   *incremental* barrier — write each processed item, leave the rest — rather
+   *incremental* barrier (write each processed item, leave the rest) rather
    than a *whole-artifact* one.
 2. **Identity is provider-defined and must support resume.** An archive entry is
    addressed by path; a remote item by a stable id plus a revision or etag. This
-   is exactly what the `store` binding already wants — content-addressed,
-   resumable, process-only overlays — so the natural pattern is **provider source
+   is exactly what the `store` binding already wants (content-addressed,
+   resumable, process-only overlays), so the natural pattern is **provider source
    → store** (extract once, resumable) and a later **store → provider** publish,
    mirroring `extract` / `merge` for files.
 
@@ -399,7 +399,7 @@ abstraction: it reuses the enumerate → process → write-back contract and the
 `store` binding for incremental state, and supplies enumeration, per-item format,
 item identity, and write-back. The `core/container` substrate is the file
 instance; a connector is the remote instance. What is **not** shared is the
-byte-exact whole-artifact repack — that is a property of a self-contained file,
+byte-exact whole-artifact repack: that is a property of a self-contained file,
 and a remote provider substitutes its own API write-back.
 
 ## Consequences
@@ -411,7 +411,7 @@ and a remote provider substitutes its own API write-back.
   bindings, not special cases.
 - Process-only runs make incremental, resumable workflows the default; a file is
   materialized only when a sink asks for it.
-- `kapi run <flow> -i file.json -o out.json` is the `file` binding on both ends —
+- `kapi run <flow> -i file.json -o out.json` is the `file` binding on both ends:
   the zero-ceremony common case.
 - Ingest-time settling avoids per-run segmentation and normalization
   recomputation and keeps the canonical model stable across a project's lifetime.
@@ -422,8 +422,8 @@ and a remote provider substitutes its own API write-back.
 - The executor binds nothing: it orchestrates tools over a session, and the
   bindings sit outside it.
 - An archive is a fan-out over the `file` binding, not a format: per-entry
-  detection, config, and skeleton round-trip come for free — a packaged format
-  *inside* an archive round-trips faithfully — and a barrier sink repacks,
+  detection, config, and skeleton round-trip come for free (a packaged format
+  *inside* an archive round-trips faithfully), and a barrier sink repacks,
   preserving untouched members byte-for-byte. The fan-out and repack are a
   provider-agnostic substrate; a read-only `archive` reader remains only as the
   inspection face.
@@ -431,23 +431,22 @@ and a remote provider substitutes its own API write-back.
   (§7), which reuse the `store` binding for resumable state. The byte-exact
   whole-artifact repack is the file-only specialization.
 - The flow noun means *composition*: with I/O at the edges, a flow carries
-  configuration, topology, identity, and phase structure. A single tool is a
-  tool, not a flow — the concept is load-bearing where it is used and absent
-  where it would be overkill.
+  configuration, topology, identity, and phase structure. A single tool stays a
+  tool.
 - One scheme vocabulary spans the CLI locator, the flow document, and the tool
   resolver, so a binding reads the same wherever it appears. Bare paths keep the
   zero-ceremony common case; `scheme:` is the unambiguous escape hatch.
 - A documented precedence plus `--explain` keeps the resolved binding visible, so
-  layered defaults — flow intent under project context under an explicit flag —
+  layered defaults (flow intent under project context under an explicit flag)
   are never hidden configuration.
 
 ## Related
 
-- [E-01: The processing engine](e-01-processing-engine.md) — the executor is the pure middle; this AD names its endpoints
-- [E-02: The format system](e-02-format-system.md) — readers and writers are the `file` binding's implementation; skeleton round-trip is a sink concern
-- [E-03: The tool system](e-03-tool-system.md) — tools, the IO contract, and the transformer placement pass
-- [E-05: The plugin system](e-05-plugin-system.md) — the `source_connectors` capability behind a provider binding
-- [C-01: The project model](../context/c-01-project-model.md) — the project block store as a source and a sink
-- [M-06: Content packages](../multilingual/m-06-content-packages.md) — the `.kpz` workspace; process-only = the `store` sink; content-derived cached resume
-- [C-10: Redaction and clearance](../context/c-10-redaction.md) — redact/unredact as run brackets rather than ingest settlers
-- [F-02: The content model](../foundations/f-02-content-model.md) — overlays are the unit a sink commits and a source rehydrates
+- [E-01: The processing engine](e-01-processing-engine.md): the executor is the pure middle; this AD names its endpoints
+- [E-02: The format system](e-02-format-system.md): readers and writers are the `file` binding's implementation; skeleton round-trip is a sink concern
+- [E-03: The tool system](e-03-tool-system.md): tools, the IO contract, and the transformer placement pass
+- [E-05: The plugin system](e-05-plugin-system.md): the `source_connectors` capability behind a provider binding
+- [C-01: The project model](../context/c-01-project-model.md): the project block store as a source and a sink
+- [M-06: Content packages](../multilingual/m-06-content-packages.md): the `.kpz` workspace; process-only = the `store` sink; content-derived cached resume
+- [C-10: Redaction and clearance](../context/c-10-redaction.md): redact/unredact as run brackets rather than ingest settlers
+- [F-02: The content model](../foundations/f-02-content-model.md): overlays are the unit a sink commits and a source rehydrates

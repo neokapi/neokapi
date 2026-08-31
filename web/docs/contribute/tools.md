@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Implementing a Tool
-description: How to build a neokapi Tool — embedding BaseTool, setting handler functions for the Part types you care about, and passing unhandled Parts through the pipeline unchanged.
+description: "How to build a neokapi Tool: embedding BaseTool, setting handler functions for the Part types you care about, and passing unhandled Parts through the pipeline unchanged."
 keywords: [tool implementation, BaseTool, Part, handler, pipeline, Go, neokapi, processing]
 ---
 
@@ -15,15 +15,15 @@ Build a `tool.BaseTool` and set handler function fields for the Part types you
 want to process. Parts you don't handle pass through unchanged. There are two
 families of handler.
 
-For **Block** parts, set exactly ONE capability-typed handler — the parameter
+For **Block** parts, set exactly ONE capability-typed handler: the parameter
 type bounds what the tool may write (immutability model, E-03):
 
-- `Annotate(tool.BlockView) error` — read-only; writes only overlays,
+- `Annotate(tool.BlockView) error`: read-only; writes only overlays,
   annotations, and properties.
-- `Translate(tool.VariantView) error` — reads source, writes target.
-- `Transform(tool.BlockView) (tool.EditPlan, error)` — a read-only edit
+- `Produce(tool.VariantView) error`: reads source, writes target.
+- `Transform(tool.BlockView) (tool.EditPlan, error)`: a read-only edit
   producer: returns an edit plan, and the framework applier rewrites the
-  source — rebasing surviving overlays, vaulting secrets, and bounds-checking,
+  source, rebasing surviving overlays, vaulting secrets, and bounds-checking,
   atomically. The flow's placement pass validates where a transformer may sit.
 
 For the non-Block parts (Data, Media, Layer/Group start/end), set the untyped
@@ -46,7 +46,7 @@ func NewUppercaseTool() *tool.BaseTool {
         ToolName:        "uppercase",
         ToolDescription: "Converts source text to uppercase",
     }
-    // Writes a target, so it sets Translate (the view bounds it to target writes).
+    // Writes a target, so it sets Produce (the view bounds it to target writes).
     t.Produce = func(v tool.VariantView) error {
         if !v.Translatable() {
             return nil
@@ -105,14 +105,15 @@ reg.Register("uppercase", func() tool.Tool {
 })
 ```
 
-Use `RegisterWithSchema` instead to attach a parameter schema — see
+Use `RegisterWithSchema` instead to attach a parameter schema, and
+`SetConfigFactory` so a YAML step's `config:` reaches the tool; see
 [Tool Authoring](/contribute/tool-authoring).
 
 ## Built-in Tools
 
 The framework's built-in tools are registered with their parameter schemas. The
-authoritative, generated list of what ships in the current build — every tool's
-name, description, and parameters — is the [Tool Reference](/tools), rendered
+authoritative, generated list of what ships in the current build (every tool's
+name, description, and parameters) is the [Tool Reference](/tools), rendered
 from those schemas so it always matches the build. This guide deliberately does
 not restate it; for how the built-ins map to the kinds of work above, see
 [Tools](/framework/tools).
@@ -143,30 +144,33 @@ Individual tools can also be constructed directly. Each takes a config struct
 // Segmentation with default SRX-like rules
 segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 
-// QA check — configured via per-rule flags on QACheckConfig
+// QA check: configured via per-rule flags on QACheckConfig
 qaTool := tools.NewQACheckTool(tools.NewQACheckConfig(model.LocaleID("fr")))
 
 // Content-memory leverage with a custom fuzzy threshold and a memory provider
 memoryTool := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
     TargetLocale:   "fr",
     FuzzyThreshold: 80, // 0-100
-    Provider:       memoryProvider,
+    Memory:         memoryProvider,
 })
 ```
 
-The terminology tools live in the `terms` package and take a `Terminology`
-alongside their config:
+The `terms` package offers two library tools for embedding in Go, each taking a
+`Terminology` alongside its config. Neither is a registered flow tool: the tool a
+YAML flow or `kapi exec` names is `term-check`, and when a tool's schema
+declares that it requires a terms store, the runner appends `term-lookup` and
+`term-enforce` after it with the run's locales.
 
 ```go
 import "github.com/neokapi/neokapi/terms"
 
-// Term lookup — scans source text and attaches terminology annotations
+// Term lookup: scans source text and attaches terminology annotations
 termLookupTool := terms.NewTermLookupTool(tb, terms.TermLookupConfig{
     SourceLocale: "en",
     TargetLocale: "fr",
 })
 
-// Term enforce — verifies translations use the preferred terminology
+// Term enforce: verifies translations use the preferred terminology
 termEnforceTool := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
     SourceLocale: "en",
     TargetLocale: "fr",

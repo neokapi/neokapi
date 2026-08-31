@@ -2,7 +2,7 @@
 id: translate-content
 title: "Translate with your AI"
 sidebar_label: "Translate with your AI"
-description: "Get your content into other languages with the AI you already have — kapi up catches a project up to its ship gates; kapi translate handles a single file — while every format round-trips back intact."
+description: "Get your content into other languages with the AI you already have (kapi up catches a project up to its ship gates; kapi translate handles a single file) while every format round-trips back intact."
 hide_table_of_contents: true
 ---
 
@@ -12,18 +12,18 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Translate with your AI
 
-**Goal:** the same content in other languages — only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
+**Goal:** the same content in other languages: only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
 
-The loop settles the **source** before it fans out: content below the project's `source_gate` holds (`source_not_ready`) for a source review rather than being translated into every language, so a defect in the source is fixed once, not once per locale — see [Source first](/kapi/convergence#source-first).
+The loop settles the **source** before it fans out: content below the project's `source_gate` holds (`source_not_ready`) for a source review rather than being translated into every language, so a defect in the source is fixed once rather than once per locale; see [Source first](/kapi/convergence#source-first).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Open your project — the coverage panel shows one row per locale against its ship gate.
+Open your project: the coverage panel shows one row per locale against its ship gate.
 
 1. **Bring up to date.** Click **Bring up to date**: kapi runs the project's default flow over every locale short of its gate, looping until each scope ships or parks. Progress is per-file and live.
 2. **Watch coverage climb.** Rows move toward their gate as translations land; anything a machine can't decide parks for review.
-3. **Review the parked units.** Open the **Review** queue from a ship-gate cell — see [Review & approve](/kapi/recipes/review-and-approve).
+3. **Review the parked units.** Open the **Review** queue from a ship-gate cell; see [Review & approve](/kapi/recipes/review-and-approve).
 
 For a one-off file with no project, use a **quick tool**: pick the translate tool, a file, and a target language.
 
@@ -39,36 +39,36 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask:
 
 > Translate `src/locales/en.json` into French and German, keep the placeholders intact, and fix anything QA flags.
 
-The assistant routes the work **through kapi** so the guardrails apply — approved terms from the terms store, voice profile in the prompt, placeholder integrity checked after. In a project it runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
+The assistant routes the work **through kapi** so the guardrails apply: approved terms from the terms store, voice profile in the prompt, placeholder integrity checked after. In a project it runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-**In a project** — the recipe declares the languages and content, so the whole job is one verb:
+**In a project**: the recipe declares the languages and content, so the whole job is one verb:
 
 ```bash
 kapi up                # catch every locale up to its ship gate; park the rest
 kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
-kapi status            # coverage per locale — informational, never fails
+kapi status            # coverage per locale: informational, never fails
 ```
 
-`up` re-derives coverage from the working tree each pass and runs the flow only for the locales still short of their gate. The project store reuses what you've already translated, so a run only touches what changed — see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
+`up` re-derives coverage from the working tree each pass and runs the flow only for the locales still short of their gate. The project store reuses what you've already translated, so a run only touches what changed; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
 
-**Ad-hoc** — one file, one language, flags for everything:
+**Ad-hoc**: one file, one language, flags for everything:
 
 ```bash
 kapi translate -i src/locales/en.json --target-lang fr -o src/locales/fr.json
 kapi translate -i guide.md --target-lang de        # documents work the same way
 ```
 
-The default engine is an LLM; `kapi models setup` detects what you already have — a Claude Code sign-in, an API key in the environment, or a local Ollama model — and saves it as the default ([Choose a translation model](/kapi/recipes/choose-a-translation-provider)).
+The default engine is an LLM; `kapi models setup` detects what you already have (a Claude Code sign-in, an API key in the environment, or a local Ollama model) and saves it as the default ([Choose a translation model](/kapi/recipes/choose-a-translation-provider)).
 
 </TabItem>
 </Tabs>
 
 ## Next
 
-- [Add languages](/kapi/get-started/add-languages) — the full on-ramp: locales → `up` → review → gates.
-- [Estimate a run's cost](/kapi/recipes/estimate-cost) — size the job first.
-- [Keep terms consistent](/kapi/recipes/terminology-qa) — enforce your approved terms.
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — `kapi check --ship` before a release.
+- [Add languages](/kapi/get-started/add-languages): the full on-ramp: locales → `up` → review → gates.
+- [Estimate a run's cost](/kapi/recipes/estimate-cost): size the job first.
+- [Keep terms consistent](/kapi/recipes/terminology-qa): enforce your approved terms.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): `kapi check --ship` before a release.

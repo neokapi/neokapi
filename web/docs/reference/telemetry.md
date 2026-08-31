@@ -8,8 +8,8 @@ keywords: [telemetry, privacy, analytics, opt out, DO_NOT_TRACK, KAPI_TELEMETRY,
 # Telemetry
 
 Release builds of the kapi CLI collect a small amount of anonymous usage
-telemetry — which built-in commands are run, how long they take (in coarse
-buckets), and whether they succeed — to guide development priorities. This
+telemetry (which built-in commands are run, how long they take, in coarse
+buckets, and whether they succeed) to guide development priorities. This
 page is the complete inventory: every event, every property, the privacy
 invariants, and every mechanism for turning it off.
 
@@ -32,23 +32,23 @@ Common properties on every event: `app_version` (the kapi version),
 
 Property values are restricted to fixed vocabularies:
 
-- **`command`** — the name of the command that ran, but only for kapi's
+- **`command`**: the name of the command that ran, but only for kapi's
   built-in verbs (for subcommands, the dotted path, e.g. `memory.import`).
   A command contributed by a plugin is reported as the literal string
   `plugin`; a verb that matched nothing is reported as `other`; a bare
   `kapi` invocation is reported as `root`. Plugin and unknown verb names
   are never transmitted.
-- **`duration_bucket`** — one of `<100ms`, `<1s`, `<10s`, `<60s`, `>=60s`.
+- **`duration_bucket`**: one of `<100ms`, `<1s`, `<10s`, `<60s`, `>=60s`.
   The exact duration is not reported.
-- **`exit_class`** — `ok`, `error`, or `usage`.
+- **`exit_class`**: `ok`, `error`, or `usage`.
 
 Events are keyed by a single identifier: a random UUID generated on the
 machine the first time telemetry is eligible to run, stored under the
-`telemetry.machine_id` key in the app configuration file — `kapi.yaml` in the
+`telemetry.machine_id` key in the app configuration file (`kapi.yaml` in the
 user config directory (`~/.config/kapi` on Linux,
 `~/Library/Application Support/kapi` on macOS). `kapi config path` prints the
-resolved location. It encodes nothing — not the hostname, not the username, not
-any hardware identifier — and deleting it causes a new random one to be
+resolved location. It encodes nothing (neither the hostname, the username, nor
+any hardware identifier), and deleting it causes a new random one to be
 generated.
 
 `kapi telemetry status` prints the current state, the reason when disabled,
@@ -70,7 +70,7 @@ the `kapi telemetry` command group itself is never reported.
 
 ## Turning it off
 
-Telemetry is disabled when **any** of the following holds — the switches
+Telemetry is disabled when **any** of the following holds; the switches
 compose as a lattice where any single one wins:
 
 | Switch | Scope |
@@ -78,9 +78,9 @@ compose as a lattice where any single one wins:
 | `kapi telemetry off` | Persisted in the kapi configuration file; `kapi telemetry on` reverses it |
 | `KAPI_TELEMETRY=0` (or `false`) | Environment, per invocation or exported |
 | `DO_NOT_TRACK=1` (any non-empty value other than `0`) | The cross-tool console convention |
-| `CI` set in the environment | Automatic — CI runs never report |
+| `CI` set in the environment | Automatic; CI runs never report |
 | Built with `-tags notelemetry` | Compile-time: the entire client is excluded from the binary |
-| No reporting key in the build | Automatic — source builds and development builds send nothing |
+| No reporting key in the build | Automatic; source builds and development builds send nothing |
 
 Disabled means disabled: no events are sent, no first-run notice is shown,
 and no identifier is generated.
@@ -99,5 +99,5 @@ The first time an eligible command runs in an enabled build, kapi prints a
 short notice to stderr stating what is collected, what never is, the
 opt-out switches, and a link to this page. It is printed exactly once and
 recorded in the configuration file (`telemetry.notice_shown`). Ineligible
-runs — help, completion, or any run with telemetry disabled — neither show
+runs (help, completion, or any run with telemetry disabled) neither show
 the notice nor consume it.

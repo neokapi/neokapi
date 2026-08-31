@@ -10,38 +10,38 @@ import TabItem from "@theme/TabItem";
 
 # Feed content to your AI
 
-**Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of clean, anchored content blocks an AI assistant or RAG pipeline can read without knowing anything about the source format. No translation is involved. Every block carries a stable `content_hash` anchor — a retrieval key derived from the block's text, not its position — so an edit produced later can be written back to the same block with the surrounding markup intact. Concepts: [Content model](/framework/content-model), [Checks](/framework/checks).
+**Goal:** turn any document (Word, PDF, JSON, Markdown, HTML) into a stream of clean, anchored content blocks an AI assistant or RAG pipeline can read without knowing anything about the source format. No translation is involved. Every block carries a stable `content_hash` anchor (a retrieval key derived from the block's text rather than its position) so an edit produced later can be written back to the same block with the surrounding markup intact. Concepts: [Content model](/framework/content-model), [Checks](/framework/checks).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Ingestion is a pipeline job, so the desktop's role here is inspection, not export:
+Ingestion is a pipeline job, so the desktop's role here is inspection:
 
-1. **See what your AI will see.** Open a file in your project — the **Blocks** view is the same record stream `kapi inspect` emits: the text and its structural role, with the surrounding markup stripped away.
-2. **Judge the parse before you index.** **Preview** — plus **Structure** and **Layout** where the format carries them — shows whether headings, tables, and reading order came through; cheaper to catch here than in retrieval quality later.
+1. **See what your AI will see.** Open a file in your project: the **Blocks** view is the same record stream `kapi inspect` emits: the text and its structural role, with the surrounding markup stripped away.
+2. **Judge the parse before you index.** **Preview** (plus **Structure** and **Layout** where the format carries them) shows whether headings, tables, and reading order came through; cheaper to catch here than in retrieval quality later.
 3. **Then stream.** The feed itself is `kapi inspect --jsonl` (CLI tab), or a connected assistant reading blocks directly (Agent tab).
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-A [connected assistant](/kapi/get-started/use-with-claude) needs no export step — the [MCP tools](/reference/mcp) are the feed:
+A [connected assistant](/kapi/get-started/use-with-claude) needs no export step: the [MCP tools](/reference/mcp) are the feed:
 
 - `extract_content` streams the anchored blocks of any file it is pointed at;
 - `check_file` returns the structured `kapi.check/v1` Report, one finding per block;
 - `apply_edits` writes revisions back through the round-trip, drift-guarded by `content_hash`.
 
-You describe the outcome — "read the contract and flag every clause that mentions liability" — and the assistant reads blocks, not bytes.
+You describe the outcome ("read the contract and flag every clause that mentions liability") and the assistant reads blocks rather than bytes.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-**Survey first.** `kapi stats` sizes the job — blocks, words, characters, a breakdown by structural role — to estimate token budget and decide how to chunk:
+**Survey first.** `kapi stats` sizes the job (blocks, words, characters, a breakdown by structural role) to estimate token budget and decide how to chunk:
 
 ```bash
 kapi stats --json report.docx docs/*.md | jq '.total.words'
 ```
 
-**Extract blocks with anchors.** `kapi inspect` emits one record per block — the plain `text`, a stable `content_hash`, the structural `role`, the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
+**Extract blocks with anchors.** `kapi inspect` emits one record per block: the plain `text`, a stable `content_hash`, the structural `role`, the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
 
 ```bash
 kapi inspect --jsonl report.docx docs/*.md | \
@@ -56,17 +56,17 @@ kapi apply edits.jsonl --diff             # review before writing
 kapi check report.docx --max-chars 300 --forbid "TODO"
 ```
 
-An edit that drifted (the file changed since you read it) or would corrupt an inline code is rejected rather than written — [Edit content](/kapi/recipes/rewrite-content) documents the entry shape and the guards.
+An edit that drifted (the file changed since you read it) or would corrupt an inline code is rejected rather than written; [Edit content](/kapi/recipes/rewrite-content) documents the entry shape and the guards.
 
 </TabItem>
 </Tabs>
 
 ## In a project
 
-In a [`.kapi` project](/kapi/get-started/first-project), `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every source the recipe declares — and the same `content_hash` anchors stay stable across runs, so an assistant indexing your project can retrieve and rewrite the same blocks over time.
+In a [kapi project](/kapi/get-started/first-project), `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every source the recipe declares, and the same `content_hash` anchors stay stable across runs, so an assistant indexing your project can retrieve and rewrite the same blocks over time.
 
 ## Further reading
 
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply` loop and the preservation contract.
-- [MCP server](/reference/mcp) — every structured tool behind the same loop.
-- [What gets translated](/kapi/recipes/prepare-content) — if your goal is translation rather than AI ingestion.
+- [Edit content](/kapi/recipes/rewrite-content): the inspect → edit → `apply` loop and the preservation contract.
+- [MCP server](/reference/mcp): every structured tool behind the same loop.
+- [What gets translated](/kapi/recipes/prepare-content): if your goal is translation rather than AI ingestion.
