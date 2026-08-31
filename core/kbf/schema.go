@@ -59,6 +59,10 @@ type (
 	PluralRun      = model.PluralRun
 	SelectRun      = model.SelectRun
 	Run            = model.Run
+	// TargetOrigin is the model's own provenance record, re-exported so a
+	// bundle carries exactly what a producer stamped rather than a projection
+	// of it that could drift.
+	TargetOrigin = model.Origin
 
 	Placeholder       = model.Placeholder
 	BlockProperties   = model.BlockProperties
@@ -102,9 +106,19 @@ type Block struct {
 	Type         BlockType          `json:"type"`
 	Source       []Run              `json:"source"`
 	Targets      map[LocaleID][]Run `json:"targets,omitempty"`
-	Placeholders []Placeholder      `json:"placeholders"`
-	Properties   BlockProperties    `json:"properties"`
-	Preview      *BlockPreviewHints `json:"preview,omitempty"`
+	// TargetOrigins is how each target was produced, keyed the same way as
+	// Targets. It is carried separately rather than folded into the target
+	// value so an older bundle, and an older reader, are both still valid: a
+	// bundle without it simply records no provenance.
+	//
+	// Without it a target's runs survive a write and its provenance does not,
+	// so an answer re-seeded from a bundle arrives with no governing context
+	// recorded — which reads identically to an answer produced under no
+	// governance at all, and cannot be judged.
+	TargetOrigins map[LocaleID]TargetOrigin `json:"targetOrigins,omitempty"`
+	Placeholders  []Placeholder             `json:"placeholders"`
+	Properties    BlockProperties           `json:"properties"`
+	Preview       *BlockPreviewHints        `json:"preview,omitempty"`
 }
 
 // DocumentType discriminates the source format of a document.

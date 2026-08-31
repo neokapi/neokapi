@@ -550,6 +550,13 @@ func (a *App) ContextSearch(tabID, query, locale string, limit int) (*ContextSea
 	if strings.TrimSpace(query) == "" {
 		return nil, errors.New("empty query")
 	}
+	var loc model.LocaleID
+	if strings.TrimSpace(locale) != "" {
+		var lerr error
+		if loc, lerr = canonicalLocale(locale); lerr != nil {
+			return nil, lerr
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextExplorerTimeout)
 	defer cancel()
 
@@ -561,7 +568,7 @@ func (a *App) ContextSearch(tabID, query, locale string, limit int) (*ContextSea
 
 	answer, err := host.SearchContext(ctx, src, host.ContextSearchRequest{
 		Query:  query,
-		Locale: model.LocaleID(locale),
+		Locale: loc,
 		Limit:  limit,
 	})
 	if err != nil {

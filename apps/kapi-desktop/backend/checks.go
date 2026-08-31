@@ -82,6 +82,11 @@ type CheckRunResult struct {
 // (WithDocumentCache) so unchanged files replay instead of re-parsing —
 // exactly the `kapi check` semantics: the gate fails on any critical finding.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
+	langs, lerr := canonicalLocales(filter.Languages)
+	if lerr != nil {
+		return nil, lerr
+	}
+	filter.Languages = langs
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("tab %q not found", tabID)
