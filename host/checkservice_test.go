@@ -371,3 +371,50 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		assert.True(t, os.IsNotExist(statErr), "a missing store must not be created by a lookup")
 	})
 }
+
+// A target's provenance is what makes an approved answer judgeable rather than
+// merely retrievable: the record absorber reads the governing context off the
+// overlaid block, and a zero Origin reads the same as "produced under no
+// governance". The overlay carries how the target was produced, not only what
+// it says (#2278).
+func TestOverlayTargets_CarriesTargetProvenance(t *testing.T) {
+	src := []*model.Block{{ID: "1", Name: "a", Translatable: true}}
+	src[0].SetSourceText("Sign in")
+
+	tgt := []*model.Block{{ID: "9", Name: "a", Translatable: true}}
+	tgt[0].SetTargetRuns("nb", []model.Run{{Text: &model.TextRun{Text: "Logg inn"}}})
+	tgt[0].StampTargetProvenance("nb", model.TargetStatusTranslated, model.Origin{
+		Kind:               "ai",
+		Profile:            "northsea",
+		ProfileVersion:     "3",
+		ContextFingerprint: "cfp-abc123",
+	})
+
+	OverlayTargets(src, tgt, "nb")
+
+	got := src[0].Target("nb")
+	require.NotNil(t, got)
+	assert.Equal(t, "Logg inn", src[0].TargetText("nb"))
+	assert.Equal(t, "cfp-abc123", got.Origin.ContextFingerprint,
+		"the fingerprint the absorber reads survives the overlay")
+	assert.Equal(t, "northsea", got.Origin.Profile)
+	assert.Equal(t, "ai", got.Origin.Kind)
+	assert.Equal(t, model.TargetStatusTranslated, got.Status)
+}
+
+// A monolingual target file carries the translation as its own source, so there
+// is no Origin to carry and the overlay must not invent one.
+func TestOverlayTargets_MonolingualTargetHasNoProvenance(t *testing.T) {
+	src := []*model.Block{{ID: "1", Name: "a", Translatable: true}}
+	src[0].SetSourceText("Sign in")
+
+	tgt := []*model.Block{{ID: "9", Name: "a", Translatable: true}}
+	tgt[0].SetSourceText("Logg inn")
+
+	OverlayTargets(src, tgt, "nb")
+
+	got := src[0].Target("nb")
+	require.NotNil(t, got)
+	assert.Equal(t, "Logg inn", src[0].TargetText("nb"))
+	assert.Equal(t, model.Origin{}, got.Origin)
+}

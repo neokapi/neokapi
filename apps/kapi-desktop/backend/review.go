@@ -215,6 +215,12 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		return nil, errors.New("project has no recipe loaded")
 	}
 
+	loc, err := requireLocale(locale)
+	if err != nil {
+		return nil, err
+	}
+	locale = string(loc)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -231,7 +237,6 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		return nil, fmt.Errorf("unit %q not found in %s", key, file)
 	}
 
-	loc := model.LocaleID(locale)
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
 	targetText := b.TargetText(loc)
 
@@ -398,6 +403,11 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 	if op == nil {
 		return fmt.Errorf("project tab %q not found", tabID)
 	}
+	loc, lerr := requireLocale(locale)
+	if lerr != nil {
+		return lerr
+	}
+	locale = string(loc)
 	if op.Project == nil || op.Path == "" {
 		return errors.New("project has no recipe loaded")
 	}
@@ -428,6 +438,11 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return errors.New("the edited translation is empty — reject the unit instead to send it back to draft")
 	}
+	loc, lerr := requireLocale(locale)
+	if lerr != nil {
+		return lerr
+	}
+	locale = string(loc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -116,6 +116,21 @@ func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.Loca
 		} else {
 			sb.SetTargetText(locale, tb.SourceText())
 		}
+		// The overlay carries how the target was produced, not only what it
+		// says. A reader that restores provenance loses it again here
+		// otherwise, because the setters above build a fresh Target: every
+		// caller downstream — the record absorber most of all — then reads an
+		// answer with no governing context recorded, which is the same thing it
+		// reads for an answer produced under no governance.
+		if t := tb.Target(locale); t != nil {
+			if st := sb.Target(locale); st != nil {
+				status := st.Status
+				if t.Status != "" {
+					status = t.Status
+				}
+				sb.StampTargetProvenance(locale, status, t.Origin)
+			}
+		}
 	}
 }
 

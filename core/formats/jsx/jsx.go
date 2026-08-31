@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strings"
 
@@ -68,6 +69,10 @@ type KBFAnnotation struct {
 	// emits: the model.Block's targets are, because only those carry
 	// what the pipeline produced.
 	Targets map[kbf.LocaleID][]kbf.Run
+	// TargetOrigins maps locale → how that target was produced, as read. Same
+	// standing as Targets: the record of what the file said, beside the runs
+	// it said it about.
+	TargetOrigins map[kbf.LocaleID]kbf.TargetOrigin
 	// Placeholders carries the Block.placeholders list.
 	Placeholders []kbf.Placeholder
 	// Properties carries translator-facing context (file,
@@ -312,18 +317,27 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 		mb.Properties["hash"] = b.Hash
 	}
 	for locale, runs := range b.Targets {
-		mb.SetTargetRuns(model.LocaleID(locale), cloneRuns(runs))
+		loc := model.LocaleID(locale)
+		mb.SetTargetRuns(loc, cloneRuns(runs))
+		// The bundle is the truth about how its answers were produced, so the
+		// provenance it carries is restored beside the runs. Without this the
+		// target arrives with a zero Origin and reads as produced under no
+		// governance.
+		if origin, ok := b.TargetOrigins[locale]; ok {
+			mb.StampTargetProvenance(loc, mb.Target(loc).Status, origin)
+		}
 	}
 	ann := &KBFAnnotation{
-		Source:       cloneRuns(b.Source),
-		Targets:      cloneTargets(b.Targets),
-		Placeholders: append([]kbf.Placeholder(nil), b.Placeholders...),
-		Properties:   b.Properties,
-		Preview:      b.Preview,
-		Type:         b.Type,
-		Hash:         b.Hash,
-		DocumentID:   doc.ID,
-		DocumentPath: doc.Path,
+		Source:        cloneRuns(b.Source),
+		Targets:       cloneTargets(b.Targets),
+		TargetOrigins: cloneTargetOrigins(b.TargetOrigins),
+		Placeholders:  append([]kbf.Placeholder(nil), b.Placeholders...),
+		Properties:    b.Properties,
+		Preview:       b.Preview,
+		Type:          b.Type,
+		Hash:          b.Hash,
+		DocumentID:    doc.ID,
+		DocumentPath:  doc.Path,
 	}
 	mb.SetAnno(AnnotationType, ann)
 	return mb
@@ -332,6 +346,15 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 func cloneRuns(runs []kbf.Run) []kbf.Run {
 	out := make([]kbf.Run, len(runs))
 	copy(out, runs)
+	return out
+}
+
+func cloneTargetOrigins(in map[kbf.LocaleID]kbf.TargetOrigin) map[kbf.LocaleID]kbf.TargetOrigin {
+	if in == nil {
+		return nil
+	}
+	out := make(map[kbf.LocaleID]kbf.TargetOrigin, len(in))
+	maps.Copy(out, in)
 	return out
 }
 
@@ -485,10 +508,11 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 				// was re-emitted byte for byte. Every edit — a whitespace
 				// correction, a re-translation, an unredact, a removal —
 				// now reaches the file.
-				Targets:      targetsFromModel(mb),
-				Placeholders: append([]kbf.Placeholder(nil), ann.Placeholders...),
-				Properties:   ann.Properties,
-				Preview:      ann.Preview,
+				Targets:       targetsFromModel(mb),
+				TargetOrigins: targetOriginsFromModel(mb),
+				Placeholders:  append([]kbf.Placeholder(nil), ann.Placeholders...),
+				Properties:    ann.Properties,
+				Preview:       ann.Preview,
 			}
 			return b, ann.DocumentID, ann.DocumentPath
 		}
@@ -496,13 +520,14 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	// Synthesized fallback: minimal text-only block from whatever
 	// content the model.Block carries.
 	b := kbf.Block{
-		ID:           model.DocumentID(mb),
-		Hash:         mb.Properties["hash"],
-		Translatable: mb.Translatable,
-		Type:         kbf.BlockTypeJSXElement,
-		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},
-		Targets:      targetsFromModel(mb),
-		Properties:   kbf.BlockProperties{File: mb.Properties["file"], Component: mb.Properties["component"], Element: mb.Properties["element"]},
+		ID:            model.DocumentID(mb),
+		Hash:          mb.Properties["hash"],
+		Translatable:  mb.Translatable,
+		Type:          kbf.BlockTypeJSXElement,
+		Source:        []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},
+		Targets:       targetsFromModel(mb),
+		TargetOrigins: targetOriginsFromModel(mb),
+		Properties:    kbf.BlockProperties{File: mb.Properties["file"], Component: mb.Properties["component"], Element: mb.Properties["element"]},
 	}
 	return b, "synthesized", "synthesized"
 }
@@ -528,6 +553,31 @@ func targetsFromModel(mb *model.Block) map[kbf.LocaleID][]kbf.Run {
 			continue
 		}
 		out[kbf.LocaleID(key.Locale)] = runsFromModel(t.Runs)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// targetOriginsFromModel projects the provenance of each locale-only target,
+// keyed the way targetsFromModel keys its runs so the two travel together.
+//
+// A zero Origin is omitted rather than written: an empty record and no record
+// are the same fact, and writing one would grow every bundle for nothing.
+func targetOriginsFromModel(mb *model.Block) map[kbf.LocaleID]kbf.TargetOrigin {
+	if len(mb.Targets) == 0 {
+		return nil
+	}
+	out := make(map[kbf.LocaleID]kbf.TargetOrigin, len(mb.Targets))
+	for key, t := range mb.Targets {
+		if key.Tone != "" || key.Channel != "" {
+			continue
+		}
+		if t == nil || len(t.Runs) == 0 || t.Origin == (model.Origin{}) {
+			continue
+		}
+		out[kbf.LocaleID(key.Locale)] = t.Origin
 	}
 	if len(out) == 0 {
 		return nil
