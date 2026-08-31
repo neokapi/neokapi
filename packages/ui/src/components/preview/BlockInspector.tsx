@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { directionAttrs } from "../../lib/text-direction";
+import { DirectionalText, localeOfVariant } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
@@ -82,9 +82,9 @@ export default function BlockInspector({
         <span className="font-mono text-xs text-foreground/80">{node.id}</span>
         {node.type && <span className="text-[0.7rem] text-muted-foreground">{node.type}</span>}
         {!open && (
-          <span className="truncate text-muted-foreground">
+          <DirectionalText locale={node.sourceLocale} className="truncate text-muted-foreground">
             {runsPlainText(node.source) || "(structure)"}
-          </span>
+          </DirectionalText>
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {changed && (
@@ -107,9 +107,9 @@ export default function BlockInspector({
         <Separator />
         <div className="flex flex-col gap-3 px-3 py-2.5 text-sm">
           <Field label={`source${node.sourceLocale ? ` · ${node.sourceLocale}` : ""}`}>
-            <span {...directionAttrs(node.sourceLocale)}>
+            <DirectionalText locale={node.sourceLocale}>
               <RunSequence runs={node.source ?? []} segments={node.segments} />
-            </span>
+            </DirectionalText>
           </Field>
 
           {targetKeys.length > 0 && (
@@ -129,7 +129,7 @@ export default function BlockInspector({
             <Field label="overlays">
               <div className="flex flex-col gap-1.5">
                 {overlays.map((o, i) => (
-                  <OverlayRow key={i} overlay={o} />
+                  <OverlayRow key={i} overlay={o} sourceLocale={node.sourceLocale} />
                 ))}
               </div>
             </Field>
@@ -226,20 +226,24 @@ function TargetRow({
       {/* The variant key is the target locale (plus optional tone/channel), so
           it decides this row's writing direction — an Arabic target must read
           right-to-left even though the inspector chrome around it is LTR. */}
-      <span {...directionAttrs(localeOfVariant(variant))}>
+      <DirectionalText locale={localeOfVariant(variant)}>
         <RunSequence runs={runs} />
-      </span>
+      </DirectionalText>
     </div>
   );
 }
 
-/** The locale part of a variant key ("ar-EG", "ar-EG#formal" → "ar-EG"). */
-function localeOfVariant(variant: string): string {
-  const cut = variant.search(/[#|]/);
-  return cut === -1 ? variant : variant.slice(0, cut);
-}
-
-function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {
+function OverlayRow({
+  overlay,
+  sourceLocale,
+}: {
+  overlay: OverlayView;
+  sourceLocale?: string;
+}): React.ReactElement {
+  // A span's quoted text is source or target prose (never overlay chrome), so
+  // it carries its own side's locale — the same source/target split the block
+  // itself draws its direction from.
+  const spanLocale = overlay.side === "source" ? sourceLocale : localeOfVariant(overlay.side);
   return (
     <div className="rounded-md border bg-background/60 px-2 py-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -265,7 +269,11 @@ function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {
                 <span className="text-muted-foreground/70">
                   [{start.run}:{end.run}]
                 </span>
-                {s.text && <span className="text-foreground/90">“{s.text}”</span>}
+                {s.text && (
+                  <DirectionalText locale={spanLocale} className="text-foreground/90">
+                    “{s.text}”
+                  </DirectionalText>
+                )}
                 {s.ignorable && (
                   <Badge variant="ghost" className="text-muted-foreground">
                     ignorable

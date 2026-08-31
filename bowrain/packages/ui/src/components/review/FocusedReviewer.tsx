@@ -243,6 +243,7 @@ export function FocusedReviewer({
                 codedText={block.source_coded ?? block.source ?? ""}
                 spans={block.source_spans ?? []}
                 entities={entities}
+                locale={sourceLocale}
               />
             </div>
             {/* Marked entities. The document marks them where they occur; this

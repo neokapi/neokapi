@@ -351,6 +351,7 @@ export function VisualEditorLayout({
         <DocumentPreview
           projectId={project.id}
           itemName={fileName}
+          sourceLocale={project.default_source_language}
           targetLocale={targetLocale}
           selectedBlockId={currentBlock.id}
           onBlockSelect={handleBlockSelect}

@@ -90,6 +90,47 @@ describe("InlineCodeEditor — onChange wiring", () => {
   });
 });
 
+describe("InlineCodeEditor \u2014 writing direction", () => {
+  // The contenteditable is the actual surface a translator types into: get
+  // this wrong and the cursor and every keystroke behave as if they were
+  // typing English, regardless of what language the target locale is.
+  //
+  // Direction is asserted via the CSS `direction` property (element.style),
+  // not the `dir` attribute: Lexical's own reconciler manages `dir` on the
+  // root on every commit and silently strips whatever the `dir` prop set, so
+  // the fix (and this test) target the property Lexical never touches.
+  it("sets the contenteditable's CSS direction and lang for an RTL locale", () => {
+    const c = renderToContainer(
+      createElement(InlineCodeEditor, {
+        initialCodedText: "\u0645\u0631\u062D\u0628\u0627\u064B",
+        initialSpans: [],
+        sourceSpans: [],
+        onSave: vi.fn(),
+        onCancel: vi.fn(),
+        locale: "ar-EG",
+      }),
+    );
+    const editable = c.querySelector<HTMLElement>('[contenteditable="true"]');
+    expect(editable?.style.direction).toBe("rtl");
+    expect(editable?.getAttribute("lang")).toBe("ar-EG");
+  });
+
+  it("defaults to ltr with no lang asserted when no locale is given", () => {
+    const c = renderToContainer(
+      createElement(InlineCodeEditor, {
+        initialCodedText: "hello",
+        initialSpans: [],
+        sourceSpans: [],
+        onSave: vi.fn(),
+        onCancel: vi.fn(),
+      }),
+    );
+    const editable = c.querySelector<HTMLElement>('[contenteditable="true"]');
+    expect(editable?.style.direction).toBe("ltr");
+    expect(editable?.getAttribute("lang")).toBeNull();
+  });
+});
+
 describe("InlineCodeEditor \u2014 imperative insertText handle", () => {
   it("exposes insertText via handleRef and routes it through the Lexical selection", async () => {
     const handleRef: {

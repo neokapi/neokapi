@@ -1,4 +1,4 @@
-import { cn } from "@neokapi/ui-primitives";
+import { cn, DirectionalText } from "@neokapi/ui-primitives";
 import { VirtualList } from "@neokapi/editor-grid";
 import type { BlockInfo } from "../../types/api";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
@@ -13,6 +13,7 @@ import { getBlockStatus, statusDotClass, statusBorderClass } from "./blockStatus
 
 export interface TableViewProps {
   blocks: BlockInfo[];
+  sourceLocale: string;
   targetLocale: string;
   targetLocaleLabel: string;
   selectedIndex: number;
@@ -42,6 +43,7 @@ export interface TableViewProps {
  */
 export function TableView({
   blocks,
+  sourceLocale,
   targetLocale,
   targetLocaleLabel,
   selectedIndex,
@@ -108,9 +110,17 @@ export function TableView({
               data-testid={`status-dot-${index}`}
               title={status}
             />
-            <div className="flex-1 text-sm leading-relaxed pr-4 break-words">
+            <DirectionalText
+              as="div"
+              locale={sourceLocale}
+              className="flex-1 text-sm leading-relaxed pr-4 break-words"
+            >
               {block.has_spans && block.source_coded && block.source_spans ? (
-                <FormattedSourceDisplay codedText={block.source_coded} spans={block.source_spans} />
+                <FormattedSourceDisplay
+                  codedText={block.source_coded}
+                  spans={block.source_spans}
+                  locale={sourceLocale}
+                />
               ) : isSelected &&
                 (selectedTermMatches.length > 0 ||
                   (block.entities && block.entities.length > 0)) ? (
@@ -127,7 +137,7 @@ export function TableView({
                   non-translatable
                 </span>
               )}
-            </div>
+            </DirectionalText>
             <div
               className="flex-1 text-sm leading-relaxed break-words flex flex-col"
               data-testid={`target-cell-${index}`}

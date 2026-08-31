@@ -1,4 +1,12 @@
-import { Badge, Button, Tabs, TabsList, TabsTrigger, cn } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Button,
+  DirectionalText,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  cn,
+} from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
 import type {
   ProjectInfo,
@@ -315,7 +323,11 @@ export function VisualEditorCard({
               </button>
             )}
           </div>
-          <div className="text-sm leading-relaxed">
+          <DirectionalText
+            as="div"
+            locale={project.default_source_language}
+            className="text-sm leading-relaxed"
+          >
             {termMatches.length > 0 || (block.entities && block.entities.length > 0) ? (
               <HighlightedSource
                 text={block.source}
@@ -328,14 +340,19 @@ export function VisualEditorCard({
                   codedText={sourceCodedText}
                   spans={sourceSpans}
                   entities={block.entities}
+                  locale={project.default_source_language}
                 />
               ) : (
-                <FormattedSourceDisplay codedText={sourceCodedText} spans={sourceSpans} />
+                <FormattedSourceDisplay
+                  codedText={sourceCodedText}
+                  spans={sourceSpans}
+                  locale={project.default_source_language}
+                />
               )
             ) : (
               <span>{block.source}</span>
             )}
-          </div>
+          </DirectionalText>
         </div>
       </div>
 
@@ -372,7 +389,9 @@ export function VisualEditorCard({
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-2">
                   {refLocale}
                 </span>
-                <span className="text-xs text-muted-foreground">{refText}</span>
+                <DirectionalText locale={refLocale} className="text-xs text-muted-foreground">
+                  {refText}
+                </DirectionalText>
               </div>
             );
           })}
@@ -393,7 +412,9 @@ export function VisualEditorCard({
             handleRef={targetEditorRef}
           />
         ) : (
-          <div
+          <DirectionalText
+            as="div"
+            locale={targetLocale}
             className={cn(
               "text-sm leading-relaxed px-3 py-2 rounded-md border border-border bg-muted/30 min-h-[44px]",
               editorMode === "translate" &&
@@ -404,13 +425,17 @@ export function VisualEditorCard({
             data-testid="target-display"
           >
             {hasTargetSpans ? (
-              <FormattedSourceDisplay codedText={targetCodedText} spans={sourceSpans} />
+              <FormattedSourceDisplay
+                codedText={targetCodedText}
+                spans={sourceSpans}
+                locale={targetLocale}
+              />
             ) : targetText ? (
               <span>{targetText}</span>
             ) : (
               <span className="text-muted-foreground italic text-xs">Click to translate...</span>
             )}
-          </div>
+          </DirectionalText>
         )}
       </div>
 

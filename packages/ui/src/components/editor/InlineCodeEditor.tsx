@@ -23,6 +23,7 @@ import {
   type LexicalEditor,
 } from "lexical";
 import type { SpanInfo } from "../../types/span";
+import { directionAttrs } from "../../lib/text-direction";
 import { parseCodedSegments, segmentsToCodedText, type CodedSegment } from "./codedText";
 import { TagChipNode, $createTagChipNode, $isTagChipNode } from "./TagChipNode";
 import { isDeletable, isCloneable } from "./tagConstraints";
@@ -64,6 +65,12 @@ export interface InlineCodeEditorProps {
   onChange?: (codedText: string, spans: SpanInfo[]) => void;
   /** When true, hides the tag palette and preview for compact inline editing. */
   compact?: boolean;
+  /**
+   * The target locale being typed, so the editable surface itself lays out
+   * right-to-left for Arabic/Hebrew/… — without it the cursor and every
+   * keystroke behave as if the translator were typing English.
+   */
+  locale?: string;
   /** Optional ref receiving the imperative `InlineCodeEditorHandle`. */
   handleRef?: React.Ref<InlineCodeEditorHandle>;
 }
@@ -283,6 +290,7 @@ export function InlineCodeEditor({
   onCancel,
   onChange,
   compact,
+  locale,
   handleRef,
 }: InlineCodeEditorProps) {
   const editorRef = useRef<LexicalEditor | null>(null);
@@ -342,6 +350,15 @@ export function InlineCodeEditor({
     [onChange],
   );
 
+  // Lexical's own reconciler manages the contenteditable root's `dir`
+  // *attribute* on every commit (per-node auto-direction detection — see
+  // lexical's $getReconciledDirection), so a `dir` prop passed to
+  // ContentEditable is silently overwritten on mount. The CSS `direction`
+  // *property* is untouched by that reconciler, so it — not the attribute —
+  // is what actually keeps this editable right-to-left. `lang` has no such
+  // conflict and stays a plain attribute.
+  const dirProps = directionAttrs(locale);
+
   const initialConfig = {
     namespace: "InlineCodeEditor",
     onError: (error: Error) => console.error("Lexical error:", error),
@@ -368,7 +385,12 @@ export function InlineCodeEditor({
       <LexicalComposer initialConfig={initialConfig}>
         <EditorRefCapture editorRef={editorRef} />
         <RichTextPlugin
-          contentEditable={<ContentEditable style={editableStyle} />}
+          contentEditable={
+            <ContentEditable
+              style={{ ...editableStyle, direction: dirProps.dir }}
+              lang={dirProps.lang}
+            />
+          }
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
@@ -383,7 +405,9 @@ export function InlineCodeEditor({
         <TagPalette sourceSpans={sourceSpans} onInsert={handleInsertTag} usedSpans={currentSpans} />
       )}
       <TagValidationBar validation={validation} />
-      {!compact && <InlinePreview codedText={currentCodedText} spans={currentSpans} />}
+      {!compact && (
+        <InlinePreview codedText={currentCodedText} spans={currentSpans} locale={locale} />
+      )}
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import type { SpanInfo } from "../../types/span";
+import { DirectionalText } from "../../lib/text-direction";
 import { codedTextToHtml } from "./tagSemantics";
 
 interface InlinePreviewProps {
   codedText: string;
   spans: SpanInfo[];
+  /** The locale this text is written in — see InlineCodeEditor's `locale`. */
+  locale?: string;
 }
 
 /**
@@ -12,7 +15,7 @@ interface InlinePreviewProps {
  * codedTextToHtml only produces safe tags from the vocabulary
  * (b, i, u, a, br, etc.), never arbitrary user content.
  */
-export function InlinePreview({ codedText, spans }: InlinePreviewProps) {
+export function InlinePreview({ codedText, spans, locale }: InlinePreviewProps) {
   if (!codedText) return null;
 
   // codedTextToHtml produces sanitized output from the vocabulary whitelist.
@@ -21,7 +24,11 @@ export function InlinePreview({ codedText, spans }: InlinePreviewProps) {
   return (
     <div style={containerStyle}>
       <span style={labelStyle}>Preview:</span>
-      <span style={contentStyle} dangerouslySetInnerHTML={{ __html: html }} />
+      <DirectionalText
+        locale={locale}
+        style={contentStyle}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cn } from "@neokapi/ui-primitives";
+import { cn, DirectionalText } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
 import { validateTags, parsePluralFormForChips } from "@neokapi/ui-primitives";
 import type { BlockInfo, SpanInfo } from "../../types/api";
@@ -42,34 +42,44 @@ export function CollapsedTargetCell({
 
   if (pluralPreview) {
     return (
-      <span className="text-foreground" data-testid={testId} data-plural-preview="true">
-        <FormattedSourceDisplay codedText={pluralPreview.codedText} spans={pluralPreview.spans} />
+      <DirectionalText
+        locale={locale}
+        className="text-foreground"
+        data-testid={testId}
+        data-plural-preview="true"
+      >
+        <FormattedSourceDisplay
+          codedText={pluralPreview.codedText}
+          spans={pluralPreview.spans}
+          locale={locale}
+        />
         <span
           className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground"
           title={`Plural target — showing "${pluralPreview.shownForm}" of ${pluralPreview.availableForms.length} form(s)`}
         >
           plural · {pluralPreview.shownForm}
         </span>
-      </span>
+      </DirectionalText>
     );
   }
 
   if (block.has_spans && codedTarget) {
     return (
-      <span className="text-foreground" data-testid={testId}>
-        <FormattedSourceDisplay codedText={codedTarget} spans={sourceSpans} />
+      <DirectionalText locale={locale} className="text-foreground" data-testid={testId}>
+        <FormattedSourceDisplay codedText={codedTarget} spans={sourceSpans} locale={locale} />
         <RowTagWarning sourceSpans={sourceSpans} targetCodedText={codedTarget} />
-      </span>
+      </DirectionalText>
     );
   }
 
   return (
-    <span
+    <DirectionalText
+      locale={locale}
       className={cn(rawTarget ? "text-foreground" : "text-muted-foreground italic")}
       data-testid={testId}
     >
       {rawTarget || (block.translatable ? "Click to translate..." : "")}
-    </span>
+    </DirectionalText>
   );
 }
 

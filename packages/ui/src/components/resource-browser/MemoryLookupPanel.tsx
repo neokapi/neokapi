@@ -243,6 +243,7 @@ export function MemoryLookupPanel({
                     <CodedTextDisplay
                       text={src.text}
                       runs={src.runs}
+                      locale={src.locale}
                       className="text-[12px] text-foreground flex-1"
                     />
                     <LocalePill locale={src.locale} />
@@ -256,6 +257,7 @@ export function MemoryLookupPanel({
                     <CodedTextDisplay
                       text={tgt.text}
                       runs={tgt.runs}
+                      locale={tgt.locale}
                       className="text-[12px] text-muted-foreground flex-1"
                     />
                     <LocalePill locale={tgt.locale} />

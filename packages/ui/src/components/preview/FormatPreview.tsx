@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
-import { directionAttrs, type TextDirection } from "../../lib/text-direction";
+import { DirectionalText, type TextDirection } from "../../lib/text-direction";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { semanticLabel, semanticTooltip, tagColors } from "../editor/tagSemantics";
 import type {
@@ -139,13 +139,14 @@ function activeLocale(line: RenderLine | undefined, ctx: PreviewCtx): string | u
 }
 
 /**
- * `dir` / `lang` for a line's block element. Code is always laid out
- * left-to-right — source code has no RTL reading order even inside an RTL
- * document, and mirroring it would scramble brackets and indentation.
+ * {@link DirectionalText}'s `locale`/`dir` props for a line's block element.
+ * Code is always laid out left-to-right — source code has no RTL reading
+ * order even inside an RTL document, and mirroring it would scramble
+ * brackets and indentation.
  */
-function lineDirAttrs(line: RenderLine, ctx: PreviewCtx): { dir: TextDirection; lang?: string } {
+function lineDirProps(line: RenderLine, ctx: PreviewCtx): { locale?: string; dir?: TextDirection } {
   if (line.role === "code") return { dir: "ltr" };
-  return directionAttrs(activeLocale(line, ctx));
+  return { locale: activeLocale(line, ctx) };
 }
 
 // ── Block element: identity, host decoration, selection ─────────────────────
@@ -403,13 +404,12 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
     !!ctx.annotations &&
     (line.overlays?.some((o) => o.type === "tm" && o.side === ctx.side) ?? false);
 
-  // The rendered text's own direction. Stated on the inline span (not only on
-  // the block element) because several kinds — slides, sheet cells, entry rows —
-  // place LineText straight into a container the host owns. A `dir` attribute
-  // also makes the element a bidi *isolate* per HTML's suggested rendering, so
-  // an RTL cell can sit in an LTR table (or an LTR key beside an RTL value)
-  // without either reordering the other.
-  const attrs = lineDirAttrs(line, ctx);
+  // The rendered text's own direction. Stated on this inline span too (not
+  // only on the block element the host renders it into) because a `dir`
+  // attribute also makes the element a bidi *isolate* per HTML's suggested
+  // rendering, so an RTL cell can sit in an LTR table (or an LTR key beside
+  // an RTL value) without either reordering the other.
+  const dirProps = lineDirProps(line, ctx);
 
   // Slot roll: render the line via slot-text, starting from the previous value.
   // It rolls one string, so a line's inline codes are not shown while it rolls —
@@ -424,9 +424,9 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
       />
     );
     return (
-      <span {...attrs} className={cn(memoryLine && styles.memoryHit)}>
+      <DirectionalText {...dirProps} className={cn(memoryLine && styles.memoryHit)}>
         {roll}
-      </span>
+      </DirectionalText>
     );
   }
 
@@ -434,9 +434,9 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   const fadeKey = ctx.transition === "crossfade" ? cycle : undefined;
 
   return (
-    <span
+    <DirectionalText
       key={fadeKey}
-      {...attrs}
+      {...dirProps}
       className={cn(
         ctx.transition === "crossfade" && styles.fade,
         showCaret && styles.caret,
@@ -444,7 +444,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
       )}
     >
       {inlineNodes(segments, codes, visible.length, prev)}
-    </span>
+    </DirectionalText>
   );
 }
 
@@ -586,26 +586,24 @@ function DiffText({ text, prev }: { text: string; prev: string | undefined }): R
 // ── Structure renderers ──────────────────────────────────────────────────────
 
 function SlideTitle({ line }: { line: RenderLine }): React.ReactElement {
-  // dir/lang belong on this block-level element, not only on LineText's inline
-  // span: text-align and the direction the browser lays the line out in follow
-  // the nearest block/flex-item box's own `direction`, which an inline
-  // descendant's `dir` does not reach.
   const ctx = useCtx();
-  const attrs = lineDirAttrs(line, ctx);
   return (
-    <div {...attrs} {...useBlockProps(line.id, styles.slideTitle)}>
+    <DirectionalText
+      as="div"
+      {...lineDirProps(line, ctx)}
+      {...useBlockProps(line.id, styles.slideTitle)}
+    >
       <LineText line={line} seq={0} />
-    </div>
+    </DirectionalText>
   );
 }
 
 function SlideBullet({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
   const ctx = useCtx();
-  const attrs = lineDirAttrs(line, ctx);
   return (
-    <li {...attrs} {...useBlockProps(line.id)}>
+    <DirectionalText as="li" {...lineDirProps(line, ctx)} {...useBlockProps(line.id)}>
       <LineText line={line} seq={seq} />
-    </li>
+    </DirectionalText>
   );
 }
 
@@ -630,11 +628,10 @@ function Slides({ slides }: { slides: RenderSlide[] }): React.ReactElement {
 
 function Cell({ cell }: { cell: RenderCell }): React.ReactElement {
   const ctx = useCtx();
-  const attrs = lineDirAttrs(cell, ctx);
   return (
-    <td {...attrs} {...useBlockProps(cell.id, styles.cell)}>
+    <DirectionalText as="td" {...lineDirProps(cell, ctx)} {...useBlockProps(cell.id, styles.cell)}>
       <LineText line={cell} />
-    </td>
+    </DirectionalText>
   );
 }
 
@@ -685,7 +682,7 @@ function Sheet({
  */
 function Line({ line, index = 0 }: { line: RenderLine; index?: number }): React.ReactElement {
   const ctx = useCtx();
-  const attrs = lineDirAttrs(line, ctx);
+  const dirProps = lineDirProps(line, ctx);
   const ownClass =
     line.role === "code"
       ? styles.code
@@ -701,31 +698,36 @@ function Line({ line, index = 0 }: { line: RenderLine; index?: number }): React.
   // markers inside it are literal characters, and its whitespace is meaningful.
   if (line.role === "code") {
     return (
-      <pre {...attrs} {...blockProps} data-code-language={line.codeLanguage}>
+      <DirectionalText
+        as="pre"
+        {...dirProps}
+        {...blockProps}
+        data-code-language={line.codeLanguage}
+      >
         <code>{content}</code>
-      </pre>
+      </DirectionalText>
     );
   }
   if (line.role === "heading") {
     return (
-      <div {...attrs} {...blockProps}>
+      <DirectionalText as="div" {...dirProps} {...blockProps}>
         {content}
-      </div>
+      </DirectionalText>
     );
   }
   // The list is the typographic frame; the item is the block, so the selection
   // affordance sits on the <li> rather than the <ul> around it.
   if (line.role === "bullet") {
     return (
-      <ul {...attrs} className={styles.bulletList}>
+      <DirectionalText as="ul" {...dirProps} className={styles.bulletList}>
         <li {...blockProps}>{content}</li>
-      </ul>
+      </DirectionalText>
     );
   }
   return (
-    <p {...attrs} {...blockProps}>
+    <DirectionalText as="p" {...dirProps} {...blockProps}>
       {content}
-    </p>
+    </DirectionalText>
   );
 }
 
@@ -752,11 +754,6 @@ function Pages({ pages }: { pages: RenderPage[] }): React.ReactElement {
 
 function Entry({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
   const ctx = useCtx();
-  // dir/lang go on entryText, not the row (.entry is a flex row with the key
-  // pinned to a fixed-width column): dir on the row itself would reverse flex
-  // item order for an RTL value, swapping the always-LTR key to the far side
-  // instead of just right-aligning the value's own text.
-  const attrs = lineDirAttrs(line, ctx);
   return (
     <div {...useBlockProps(line.id, styles.entry)}>
       {line.key && (
@@ -766,9 +763,13 @@ function Entry({ line, seq }: { line: RenderLine; seq: number }): React.ReactEle
           {line.key}
         </bdi>
       )}
-      <span {...attrs} className={styles.entryText}>
+      {/* dir/lang go on entryText, not the row (.entry is a flex row with the
+          key pinned to a fixed-width column): dir on the row itself would
+          reverse flex item order for an RTL value, swapping the always-LTR
+          key to the far side instead of just right-aligning the value. */}
+      <DirectionalText {...lineDirProps(line, ctx)} className={styles.entryText}>
         <LineText line={line} seq={seq} />
-      </span>
+      </DirectionalText>
     </div>
   );
 }

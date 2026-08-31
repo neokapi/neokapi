@@ -1,5 +1,6 @@
 import type { Run } from "@neokapi/kapi-format";
 
+import { DirectionalText } from "../../lib/text-direction";
 import { runsToSegments } from "../editor/codedText";
 import { TagChipComponent } from "../editor/TagChipComponent";
 
@@ -10,6 +11,8 @@ interface CodedTextDisplayProps {
   text?: string;
   /** Additional CSS class. */
   className?: string;
+  /** The locale this text is written in — every caller should pass it. */
+  locale?: string;
 }
 
 /**
@@ -18,15 +21,19 @@ interface CodedTextDisplayProps {
  * render as inline code chips. Falls back to plain `text` when no
  * runs are present.
  */
-export function CodedTextDisplay({ runs, text, className }: CodedTextDisplayProps) {
+export function CodedTextDisplay({ runs, text, className, locale }: CodedTextDisplayProps) {
   if (!runs || runs.length === 0) {
-    return <span className={className}>{text ?? ""}</span>;
+    return (
+      <DirectionalText locale={locale} className={className}>
+        {text ?? ""}
+      </DirectionalText>
+    );
   }
 
   const segments = runsToSegments(runs);
 
   return (
-    <span className={className}>
+    <DirectionalText locale={locale} className={className}>
       {segments.map((seg, i) =>
         seg.type === "text" ? (
           <span key={i}>{seg.value}</span>
@@ -34,6 +41,6 @@ export function CodedTextDisplay({ runs, text, className }: CodedTextDisplayProp
           <TagChipComponent key={i} spanInfo={seg.spanInfo} index={i + 1} />
         ),
       )}
-    </span>
+    </DirectionalText>
   );
 }

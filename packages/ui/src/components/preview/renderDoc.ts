@@ -30,6 +30,7 @@
 // transitions without re-walking the tree.
 
 import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
+import { localeOfVariant } from "../../lib/text-direction";
 import type { SpanInfo } from "../../types/span";
 import type { AnnotationView, ContentNode, ContentTree, OverlayView, Run } from "./types";
 
@@ -218,6 +219,28 @@ export function runsText(runs: Run[] | undefined): string {
     if ("text" in piece) out += piece.text;
   }
   return out;
+}
+
+/**
+ * The text AND locale for one side of a node ("source", or a target variant
+ * key), paired so a caller can never show one side's text tagged with
+ * another's locale. A node with no committed value for `side` reads as its
+ * source — and that fallback applies to the locale too, not only the text:
+ * a `side` selector and a `sourceLocale` fallback computed by two separate
+ * bits of logic are two chances to disagree, which is how a Blocks/Structure/
+ * Layout/Subtitle row once rendered Arabic tagged `ltr`. This is the one
+ * place that side-selection happens; a caller passes the result straight to
+ * {@link DirectionalText}'s `locale` prop, never re-deriving it.
+ */
+export function blockSideText(
+  node: Pick<ContentNode, "source" | "sourceLocale" | "targets">,
+  side: string | undefined,
+): { text: string; locale: string | undefined } {
+  if (side && side !== "source") {
+    const t = node.targets?.[side];
+    if (t && t.length > 0) return { text: runsText(t), locale: localeOfVariant(side) };
+  }
+  return { text: runsText(node.source), locale: node.sourceLocale };
 }
 
 /**

@@ -33,7 +33,10 @@ export {
   isRTLLocale,
   directionAttrs,
   needsIsolation,
+  localeOfVariant,
+  DirectionalText,
   type TextDirection,
+  type DirectionalTextProps,
 } from "../../lib/text-direction";
 
 export { detectLang, tokenize } from "./highlight";

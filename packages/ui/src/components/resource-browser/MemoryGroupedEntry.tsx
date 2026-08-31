@@ -141,6 +141,7 @@ export function MemoryGroupedEntry({
             <CodedTextDisplay
               text={sourceText}
               runs={sourceRuns}
+              locale={sourceLocale}
               className="text-[14px] font-medium text-foreground flex-1"
             />
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-px rounded tabular-nums shrink-0">
@@ -173,6 +174,7 @@ export function MemoryGroupedEntry({
                       <CodedTextDisplay
                         text={variant.text}
                         runs={variant.runs}
+                        locale={variant.locale}
                         className="text-[13px] text-muted-foreground flex-1"
                       />
                       <span className="text-[10px] text-muted-foreground shrink-0">

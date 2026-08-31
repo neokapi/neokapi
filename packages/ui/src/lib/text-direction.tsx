@@ -14,6 +14,22 @@
 // Direction is derived from the tag, never from the content: a locale is the
 // authoritative signal, and content-sniffing ("first strong character") mislabels
 // an Arabic string that happens to start with a Latin product name.
+//
+// {@link DirectionalText} is how part 1 is applied: the one element a
+// neokapi Block/Run's own source or target text is ever rendered through.
+// `directionAttrs`/`localeDirection` below are its internals, exported for the
+// few sites (a `useMemo`d attrs object, a non-JSX consumer) that need the raw
+// pair — a new call site reaches for the component, not these.
+//
+// The element `dir`/`lang` land on matters as much as computing them
+// correctly: CSS `text-align` resolves against the nearest block or
+// (blockified) flex-item box, not an inline descendant, so a `<span>{text}</span>`
+// with the attributes one layer away — an inner span, a sibling, a wrapper the
+// text isn't actually inside — compiles and renders identically to correct
+// code until RTL content reaches it. Nothing short of never hand-writing that
+// element closes the gap; `DirectionalText` is that closure.
+
+import type React from "react";
 
 /** Writing direction of a text run. */
 export type TextDirection = "ltr" | "rtl";
@@ -179,6 +195,55 @@ export function directionAttrs(locale: string | undefined | null): {
   return lang ? { dir, lang } : { dir };
 }
 
+type DirectionalTextOwnProps = {
+  /**
+   * The BCP-47 locale this text is written in — direction and `lang` are
+   * derived from it. Omit for text of unknown locale (resolves to `ltr`,
+   * the safe default); never pass `dir`/`lang` yourselves instead, that is
+   * exactly the mistake this component exists to make unavailable.
+   */
+  locale?: string | null;
+  /**
+   * Force a direction regardless of `locale` — for content that is never
+   * prose in the surrounding language no matter what locale it's tagged
+   * with, such as source code or a raw identifier (always `"ltr"`).
+   */
+  dir?: TextDirection;
+};
+
+/** {@link DirectionalText}'s props: its own two, plus whatever `as`'s element accepts. */
+export type DirectionalTextProps<E extends React.ElementType> = DirectionalTextOwnProps & {
+  /** The element to render as — whichever tag would otherwise have carried the text. */
+  as?: E;
+} & Omit<React.ComponentPropsWithoutRef<E>, keyof DirectionalTextOwnProps | "as">;
+
+/**
+ * The element a neokapi Block's or Run's own source or target text is
+ * rendered through — see the module comment for why this exists rather than
+ * a `<span {...directionAttrs(locale)}>` written at the call site. Renders as
+ * `as` (default `"span"`; pass `"div"`/`"li"`/`"td"`/`"p"`/… to match
+ * whatever element the surrounding layout needs) with every other prop
+ * (`className`, `title`, `children`, event handlers, …) passed through
+ * unchanged — it is a direction-aware substitute for that element, not a
+ * wrapper around it.
+ *
+ * ```tsx
+ * <DirectionalText as="li" locale={line.sourceLocale} className={styles.bullet}>
+ *   {line.text}
+ * </DirectionalText>
+ * ```
+ */
+export function DirectionalText<E extends React.ElementType = "span">({
+  as,
+  locale,
+  dir,
+  ...rest
+}: DirectionalTextProps<E>): React.ReactElement {
+  const Tag = (as ?? "span") as React.ElementType;
+  const attrs = dir ? { dir } : directionAttrs(locale);
+  return <Tag {...attrs} {...rest} />;
+}
+
 /**
  * True when `inner` must be bidi-isolated from a surrounding run in `outer`.
  *
@@ -190,4 +255,15 @@ export function needsIsolation(
   inner: string | undefined | null,
 ): boolean {
   return localeDirection(outer) !== localeDirection(inner);
+}
+
+/**
+ * The locale part of a target variant key ("ar-EG", "ar-EG#formal",
+ * "ar-EG|social" → "ar-EG"): a variant key is the locale plus an optional
+ * `#tone` and/or `|channel` suffix (model.VariantKey), and only the locale
+ * part decides writing direction.
+ */
+export function localeOfVariant(variant: string): string {
+  const cut = variant.search(/[#|]/);
+  return cut === -1 ? variant : variant.slice(0, cut);
 }
