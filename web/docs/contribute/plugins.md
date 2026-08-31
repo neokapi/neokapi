@@ -11,12 +11,12 @@ neokapi plugins are **manifest-driven, signed, out-of-process executables**. The
 default `kapi` binary is Apache-2.0 and links no plugin's code: a plugin is
 discovered on disk through its manifest and dispatched as a subprocess, so what
 it depends on and what licence it carries stay its own. Everything beyond the
-core — cloud sync, the Okapi filter bridge, third-party formats — ships that
+core (cloud sync, the Okapi filter bridge, third-party formats) ships that
 way.
 
 This page is the developer-facing overview. [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system)
 holds the full design rationale; the [Plugin model note](/contribute/implementation/engine/plugin-model)
-covers the complementary in-process side — how the Go code _inside_ a plugin
+covers the complementary in-process side: how the Go code _inside_ a plugin
 binary wires its features into the shared `cli.App`.
 
 ## The manifest
@@ -54,7 +54,7 @@ connectors (the Mode-C transport, below). The canonical Go types live in
 and the embedded JSON Schema at `core/plugin/manifest/schema.json`.
 
 kapi reads every manifest at startup and builds dispatch tables from them. There
-is no name fall-through and no `$PATH` lookup — a capability dispatches only if a
+is no name fall-through and no `$PATH` lookup; a capability dispatches only if a
 manifest declares it.
 
 ## Discovery
@@ -67,13 +67,17 @@ Plugins are discovered structurally by location, in precedence order:
 | 2           | `$XDG_DATA_HOME/kapi/plugins/` (`~/.local/share/kapi/plugins/`) | `kapi plugin install` target  |
 | 3           | system roots (`/opt/homebrew/share/kapi/plugins/`, `/usr/local/share/kapi/plugins/`, `/usr/share/kapi/plugins/`) | OS package managers |
 
+Set `KAPI_PLUGINS_DIR_ONLY=1` to search `$KAPI_PLUGINS_DIR` alone (an empty
+value then means no plugins at all). An isolated test or CI run uses it to keep
+user-installed and Homebrew-installed plugins out of the picture.
+
 Within each location, every direct entry that resolves to a directory containing
-a `manifest.json` is a plugin — a symlink counts, which is what makes the system
+a `manifest.json` is a plugin; a symlink counts, which is what makes the system
 roots work: a package manager stages the plugin inside its own package prefix
 and links it into the shared root (Homebrew links
 `/opt/homebrew/share/kapi/plugins/<plugin>` to the formula's keg).
 First-match-wins on plugin name. Two different plugins declaring the same
-capability is an error — kapi prints both manifests and refuses to dispatch the
+capability is an error: kapi prints both manifests and refuses to dispatch the
 conflicting capability. A consolidated dispatch cache at
 `$XDG_CACHE_HOME/kapi/plugins-cache.json` skips manifest parsing when no
 discovery root has changed.
@@ -83,12 +87,12 @@ discovery root has changed.
 A plugin declares one or more capability sections; kapi picks the transport per
 capability type.
 
-- **Mode A — one-shot subprocess** (`commands`). kapi forks `<binary> command <name> [args]`
+- **Mode A: one-shot subprocess** (`commands`). kapi forks `<binary> command <name> [args]`
   once per invocation, inheriting stdio and propagating the exit code. No state
   survives across calls.
-- **Mode B — session subprocess** (`mcp_tools`). kapi spawns `<binary> mcp-server`
+- **Mode B: session subprocess** (`mcp_tools`). kapi spawns `<binary> mcp-server`
   once per `kapi mcp` session and proxies tool calls over MCP-over-stdio.
-- **Mode C — daemon over Unix socket** (`formats`, `tools`, `source_connectors`).
+- **Mode C: daemon over Unix socket** (`formats`, `tools`, `source_connectors`).
   kapi spawns `<binary> daemon`; the plugin binds a Unix-domain socket and prints
   one JSON handshake line on stdout, then serves gRPC on the socket:
 
@@ -101,12 +105,12 @@ capability type.
   default 5 min). Concurrent daemons are capped via `KAPI_MAX_DAEMONS` (default 8)
   with LRU eviction. Format and tool capabilities register into the standard
   `FormatRegistry` / `ToolRegistry` and are indistinguishable from native ones at
-  the API level. The Okapi bridge is the canonical Mode-C plugin — see
+  the API level. The Okapi bridge is the canonical Mode-C plugin; see
   [Standard plugins](#standard-plugins).
 
-The host-side runtime — discovery, dispatch, the daemon pool, the registry
-client, and signature verification — lives in
-[`cli/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/cli/pluginhost).
+The host-side runtime (discovery, dispatch, the daemon pool, the registry
+client, and signature verification) lives in
+[`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost).
 
 ## Declaring a plugin dependency
 
@@ -128,9 +132,9 @@ offers to install it and retries; in CI it prints an actionable error pointing a
 A recipe can also imply a plugin without naming it: declaring a top-level key
 that a plugin's `schema_extensions` own (`bowrain:`, from the platform plugin) is
 the declaration. Typing one of that plugin's verbs without it installed gets the
-same offer rather than an unknown-command error — prompt on a terminal, install
-under `--yes`, then run the verb; both install routes plus exit code 2 in CI or
-under `--quiet`. A mistyped verb is left alone, keeping cobra's suggestions. See
+same offer rather than an unknown-command error: a prompt on a terminal, an
+install under `--yes`, then the verb runs; in CI or under `--quiet` it exits
+with code 2. A mistyped verb is left alone, keeping cobra's suggestions. See
 [E-05](/contribute/architecture/engine/e-05-plugin-system#missing-plugin-verbs).
 
 A `schema_extensions` entry may also set `"venue": true`, marking its key as the
@@ -154,7 +158,7 @@ kapi plugin update-index               # refresh the cached registry index
 kapi plugin rebuild-cache              # force a rebuild of the plugin dispatch cache
 ```
 
-`kapi plugin install` resolves the plugin from a registry — a JSON index served
+`kapi plugin install` resolves the plugin from a registry: a JSON index served
 over HTTPS that maps plugin → versions → per-platform tarball URL, SHA-256, and a
 cosign certificate identity. Tarballs are cosign-signed via Sigstore keyless
 OIDC; install verifies the SHA-256 and the signing certificate against the
@@ -163,21 +167,20 @@ without `--unsafe`.
 
 ## Standard plugins
 
-- **A platform plugin** — cloud-server sync (`push` / `pull` / `auth`),
+- **A platform plugin**: cloud-server sync (`push` / `pull` / `auth`),
   distributed separately on its own license terms. It demonstrates how a
   separately-licensed plugin attaches over the manifest model without
   re-licensing `kapi`: installed via its own Homebrew formula, which drops its
   binary into `share/kapi/plugins/<plugin>/`.
-- **okapi-bridge** — a JVM-backed Mode-C daemon exposing the Okapi Framework's
+- **okapi-bridge**: a JVM-backed Mode-C daemon exposing the Okapi Framework's
   Java filter library to neokapi, developed in its own repository,
   [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge). It is not part
-  of the product surface. Its role is keeping the plugin protocol honest: it is
-  the reference implementation of a third-party kapi plugin in a non-Go language,
-  and its CI runs the
+  of the product surface. It is the reference implementation of a third-party
+  kapi plugin in a non-Go language, and its CI runs the
   [conformance suite](/contribute/implementation/engine/plugin-protocol-v1#conformance-suite)
   against released kapi versions. Any plugin repository can verify itself against
   the contract the same way.
-- **On-device ML sidecars** — cgo plugins that run native ML in their own
+- **On-device ML sidecars**: cgo plugins that run native ML in their own
   subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg,
   tree-sitter grammars) never enters the portable `kapi` binary: `kapi-sat`
   (segmentation), `kapi-vision` (OCR/layout), `kapi-asr` (speech-to-text),
@@ -187,7 +190,7 @@ without `--unsafe`.
 For on-device **LLM** text generation (translation, chat, QA, voice), kapi
 drives a local [Ollama](https://ollama.com) runtime rather than bundling an
 inference engine: Ollama already runs GGUF models on the GPU (Metal/CUDA) and is
-managed through `kapi models ollama` and `--provider ollama` — a free, private
+managed through `kapi models ollama` and `--provider ollama`, a free, private
 alternative to the paid cloud providers. In the browser, the
 [Core Framework lab](/lab) runs a local model via WebGPU instead, since a web
 page cannot reach a local daemon.
@@ -201,10 +204,10 @@ covers Mode A + B with no third-party dependencies.
 When a plugin is superseded (for example, `kapi-llm` was retired once the
 built-in Ollama provider replaced the bundled on-device engine), kapi marks it
 **retired** rather than silently breaking. Because a plugin binary installed from
-a previous version can still be sitting on disk — and the registry may be offline
-or pinned — retirement is signalled in two places:
+a previous version can still be sitting on disk (and the registry may be offline
+or pinned), retirement is signalled in two places:
 
-- **A compiled-in tombstone** (`cli/pluginhost/tombstones.go`) is the
+- **A compiled-in tombstone** (`host/pluginhost/tombstones.go`) is the
   offline-authoritative source. It records the plugin name, the kapi version that
   retired it, the reason, and the replacement. Its mere presence in a build is the
   version gate: an older kapi has no entry. This is what makes retirement
@@ -218,13 +221,13 @@ A retired plugin stays **listed but inert**: kapi registers none of its dispatch
 routes (commands, formats, segmenters), so it is never loaded or run, and it
 contributes no models to `kapi models`. `kapi plugins list` shows it as `retired`
 with the reason and replacement; `kapi plugins install` refuses to (re)install it.
-kapi never auto-deletes software on disk — instead, **`kapi plugins prune`**
+kapi never auto-deletes software on disk; instead, **`kapi plugins prune`**
 removes retired user installs after confirmation (`--yes`, `--dry-run`), prints
 the OS command for system (Homebrew) installs rather than touching them, and
 leaves downloaded model caches and configuration alone.
 
 ## See also
 
-- [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system) — full design rationale and the registry/signing model
-- [Plugin model note](/contribute/implementation/engine/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
-- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the language-neutral specification an out-of-tree plugin repository builds and verifies against
+- [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system): full design rationale and the registry/signing model
+- [Plugin model note](/contribute/implementation/engine/plugin-model): the in-process registry contract a plugin binary uses to wire features into `cli.App`
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1): the language-neutral specification an out-of-tree plugin repository builds and verifies against

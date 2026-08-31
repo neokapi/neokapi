@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: QA Checks
-description: Quality assurance in neokapi — deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages.
+description: "Quality assurance in neokapi: deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages."
 keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, multilingual content]
 ---
 
@@ -13,14 +13,15 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 Quality assurance in neokapi is a kind of [tool](/framework/tools): a QA check
 reads translated [blocks](/framework/content-model), inspects each one against a
 set of rules, and **reports findings without modifying the content**. Findings
-are attached to the block — recorded in its properties and surfaced to the CLI,
-an editor, or a downstream tool — so a QA pass slots into any
+are recorded as stand-off overlays on the block (see
+[Checks](/framework/checks#one-model-findings)) and surfaced to the CLI, an
+editor, or a downstream tool, so a QA pass slots into any
 [flow](/framework/flows) as an ordinary stage. neokapi offers two complementary
 approaches: fast, deterministic rule-based checks, and LLM-assisted review.
 
 Run as a gate, these checks behave like tests for AI output: deterministic and
 repeatable, they read translated content against its source and report exactly
-what broke — a dropped placeholder, a translated do-not-translate term, a term
+what broke: a dropped placeholder, a translated do-not-translate term, a term
 that drifts from the project's terms store. `kapi check` runs them over a file or a
 source/target pair and exits non-zero when the gate fails, so a regression is
 caught in CI, or in an assistant's fix-loop, the same way a failing test is.
@@ -35,7 +36,7 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 
 ## Rule-based checks
 
-By default — with no `--provider` — the `qa` tool runs a battery of
+By default, with no `--provider`, the `qa` tool runs a battery of
 deterministic rules over each block, comparing source and target. It needs no
 API key. It records each finding as a structured issue with a
 type and a severity (error or warning) and marks whether the block passed. The
@@ -51,7 +52,7 @@ checks span several concerns:
 | **Length**          | Target length outside an allowed ratio of the source, or over an absolute limit  |
 | **Repetition**      | Consecutive doubled words in the target                                          |
 
-Each check is individually configurable — every rule has a flag, and length
+Each check is individually configurable: every rule has a flag, and length
 checks have thresholds. Because the schema is declared on the tool's config
 struct, the available options and their defaults are generated into the
 [Tool Reference](/tools) rather than listed by hand here.
@@ -88,8 +89,8 @@ its own validator, `term-check`. The full set is in the
 
 Where rule-based checks catch the mechanical errors, running `qa` with an LLM
 `--provider` uses that [LLM provider](/framework/translation) to assess
-qualities a rule expresses poorly — fluency, accuracy against the source,
-and terminology appropriateness — and attaches its assessment to each block. It
+qualities a rule expresses poorly (fluency, accuracy against the source,
+and terminology appropriateness) and attaches its assessment to each block. It
 is the natural companion to `translate`: the built-in `translate-qa` flow runs
 translation and then this review in one pass.
 
@@ -99,17 +100,17 @@ kapi run translate-qa -i app.xliff --target-lang fr
 
 ## Findings travel with the block
 
-Both kinds of check use the [Block annotation system](/framework/content-model)
-rather than rewriting text. Rule-based findings are recorded in block properties;
-LLM findings are attached as an annotation. This is the same shared channel that
+Both kinds of check emit the same `core/check.Finding`, recorded as a stand-off
+overlay anchored to the offending runs, as described under
+[Checks](/framework/checks#one-model-findings). This is the same shared channel that
 [memory matches](/framework/content-memory),
 [terminology](/framework/terminology), and [voice](/framework/checks/voice)
-results use, so a single downstream consumer — a report, an editor view, a CI
-gate — can read every kind of finding from one place.
+results use, so a single downstream consumer (a report, an editor view, a CI
+gate) can read every kind of finding from one place.
 
 ## Related reading
 
-- [Tools](/framework/tools) — how a check fits the tool model.
-- [Tool Reference](/tools) — the generated list of QA tools and their parameters.
-- [Terminology](/framework/terminology) — terminology enforcement as a QA concern.
-- [Implementing a Tool](/contribute/tools) — writing a custom check.
+- [Tools](/framework/tools): how a check fits the tool model.
+- [Tool Reference](/tools): the generated list of QA tools and their parameters.
+- [Terminology](/framework/terminology): terminology enforcement as a QA concern.
+- [Implementing a Tool](/contribute/tools): writing a custom check.

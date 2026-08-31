@@ -1,7 +1,7 @@
 ---
 sidebar_position: 15
 title: Translation
-description: neokapi exposes translation as a single LLM-backed tool — Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama — selected with one --provider flag under a shared command, flag, and credential model. Plugins can add machine-translation engines.
+description: "neokapi exposes translation as a single LLM-backed tool (Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama) selected with one --provider flag under a shared command, flag, and credential model."
 keywords: [translation, LLM, AI translation, Anthropic, OpenAI, Gemini, Ollama, provider, machine translation, multilingual content]
 ---
 
@@ -11,13 +11,14 @@ neokapi exposes translation through a single `translate` tool. One `--provider`
 flag selects the backend, and the command, flags, and credential model are the
 same whichever backend you choose:
 
-- **LLM providers** — Anthropic, OpenAI, Google Gemini, Azure OpenAI, Ollama.
+- **LLM providers**: Anthropic, OpenAI, Google Gemini, Azure OpenAI, Ollama.
   Context-aware, full prompt control, and (with Ollama) fully on-device.
-- **The offline demo provider** — keyless, deterministic, clearly-marked
+- **The offline demo provider**: keyless, deterministic, clearly-marked
   illustrative output for trying flows without credentials.
-- **Plugin-hosted MT engines** — classic machine-translation engines (DeepL,
-  Google Translate, Microsoft Translator, and the like) are not built in; a
-  plugin can register one and it appears under the same `--provider` flag.
+
+The tool's `--engine` flag selects between the LLM engine (the default) and a
+machine-translation engine; no classic MT engine (DeepL, Google Translate,
+Microsoft Translator, and the like) ships in the core binary.
 
 The generated [Tool reference](/reference/tools/translate) lists the current
 parameters and default model for each provider.
@@ -25,7 +26,7 @@ parameters and default model for each provider.
 :::tip Configuring a provider is a task, not a concept
 Selecting a model, supplying credentials, and setting a default are walked
 step by step in the recipe
-**[Choose a translation model](/kapi/recipes/choose-a-translation-provider)** —
+**[Choose a translation model](/kapi/recipes/choose-a-translation-provider)**,
 including on-device translation with Ollama. This page covers what translation
 *is* and how it composes.
 :::
@@ -69,14 +70,14 @@ steps:
   - tool: qa
 ```
 
-Switching providers — `anthropic` to `ollama`, or vice versa — is a
+Switching providers (`anthropic` to `ollama`, or vice versa) is a
 configuration change; the surrounding steps are unchanged.
 
 ## Prompts
 
 Every prompt kapi sends is built in `core/ai/prompt/`, composed from framework
 rules (return only the translation; preserve placeholders and inline tags) plus
-the steering your project declares — an instruction, a
+the steering your project declares: an instruction, a
 [voice profile](/framework/checks/voice), and a
 [terms store](/framework/terminology). The prompt is the same for every provider;
 only the transport differs.
@@ -84,5 +85,11 @@ only the transport differs.
 You do not have to take that on trust: `--explain-prompts` prints the exact text
 sent to the model, attributed section by section. See [Prompts](/framework/prompts).
 
-[Memory matches](/framework/content-memory) are *not* part of the prompt —
-recycling is a separate deterministic step that runs before translation.
+[Content memory](/framework/content-memory) reaches the prompt in one bounded
+way. Fuzzy and exact matches are applied by `recycle`, a deterministic step that
+runs before translation and fills what it can; they are never offered to the
+model as examples. A block's own previously approved translation is different:
+when a block has been edited since it was last translated, `translate` sends
+that prior version as reference under `reuse: prior` (the default), gated by the
+governing context, so the model revises rather than starts over. `reuse: none`
+turns it off.

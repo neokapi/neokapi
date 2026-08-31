@@ -1,7 +1,7 @@
 ---
 sidebar_position: 16
 title: Prompts
-description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your voice profile, and your terminology; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
+description: "What the engine sends to a language model on your behalf: how a prompt is composed from framework rules, your voice profile, and your terminology; how to see the exact text with --explain-prompts; and how to steer it without replacing it."
 keywords:
   [
     prompt,
@@ -23,10 +23,11 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # Prompts
 
-Prompts belong to the **engine**, not to any one tool that drives it.
+Prompts belong to the **engine**; every tool that drives it sends the same one
+for the same block.
 
 When a translation tool needs a language model, the prompt it sends is built by
-the framework — the same builder, the same rules, the same bytes — whoever is
+the framework (the same builder, the same rules, the same bytes) whoever is
 asking. The kapi CLI, Kapi Desktop and an embedding Go program all send an
 identical prompt for an identical block. That is deliberate: a prompt that
 varied by caller could not be documented, fingerprinted, or trusted, and the
@@ -37,10 +38,9 @@ What differs by caller is only how you *look* at one. This page uses the kapi
 CLI's `--explain-prompts`, because it is the shortest path to seeing the real
 thing.
 
-So: this page says exactly what is in a prompt, where each part came from, and
-how to see it for yourself. Nothing here is inferred from documentation — every
-prompt the engine ships can be printed, on demand, from the binary you are
-running.
+This page says exactly what is in a prompt, where each part came from, and
+how to see it for yourself. Every prompt the engine ships can be printed, on
+demand, from the binary you are running.
 
 ## Show me
 
@@ -52,7 +52,7 @@ tokens spent.
 kapi translate messages.json --target-lang fr --explain-prompts
 ```
 
-Pair it with `--provider demo` — the built-in offline stub — to see the prompt a
+Pair it with `--provider demo` (the built-in offline stub) to see the prompt a
 paid provider _would_ receive, with no API key, no network, and no spend:
 
 <RunnableSnippet
@@ -99,10 +99,10 @@ can be diffed between runs or attached to a bug report.
 resolved source → sink bindings and does not run.
 :::
 
-## A prompt is composed, not written
+## How a prompt is composed
 
-A kapi prompt is not a chat message. It is a document assembled from sections
-that have **different owners**, and the distinction is the whole design:
+A kapi prompt is a document assembled from sections that have **different
+owners**, and the distinction is the whole design:
 
 <LanesDiagram
   lanes={[
@@ -111,9 +111,9 @@ that have **different owners**, and the distinction is the whole design:
       sub: "not configurable",
       role: "io",
       steps: [
-        "task — translate from X to Y, return only the translation",
-        "constraint — preserve placeholders",
-        "constraint — reproduce every inline tag exactly",
+        "task: translate from X to Y, return only the translation",
+        "constraint: preserve placeholders",
+        "constraint: reproduce every inline tag exactly",
       ],
     },
     {
@@ -121,9 +121,9 @@ that have **different owners**, and the distinction is the whole design:
       sub: "the steering surface",
       role: "translate",
       steps: [
-        "instruction — from --instruction or the recipe",
-        "voice profile — from your voice profile",
-        "terminology — from your terms store",
+        "instruction: from --instruction or the recipe",
+        "voice profile: from your voice profile",
+        "terminology: from your terms store",
       ],
     },
     {
@@ -131,8 +131,8 @@ that have **different owners**, and the distinction is the whole design:
       sub: "data, never instruction",
       role: "annotate",
       steps: [
-        "context — the block's key, and its neighbours",
-        "content — the source block itself",
+        "context: the block's key, its neighbours, its prior translation",
+        "content: the source block itself",
       ],
     },
   ]}
@@ -142,23 +142,23 @@ that have **different owners**, and the distinction is the whole design:
 
 **The framework owns the task and the constraints.** A translation that drops a
 placeholder or mangles an inline tag cannot be written back into the source
-file — it breaks the round-trip that makes kapi useful at all. These rules are
+file: it breaks the round-trip that makes kapi useful at all. These rules are
 not a configuration surface, and there is no flag to remove them.
 
 **Your project owns the steering.** The instruction, the voice profile and the
 pinned terms are what make the output _yours_ rather than merely correct. They are
 declared in the recipe, the [voice profile](/framework/checks/voice)
-and the [terms store](/framework/terminology) — never typed into a prompt.
+and the [terms store](/framework/terminology), never typed into a prompt.
 
-**Your document owns the content — and the context.** The source text is the
-entire user turn: data, never instruction. Its *key* and its *neighbours* travel
-separately, in the system turn, as reference the model reads but must not
-translate.
+**Your document owns the content and the context.** The source text is the
+entire user turn: data, never instruction. Its *key*, its *neighbours* and its
+*prior translation* travel separately, in the system turn, as reference the
+model reads but must not translate.
 
 ## Steering the model
 
 The supported way to change what the model does is to add to the steering
-sections — not to replace the prompt.
+sections rather than replace the prompt.
 
 | You want                              | You set                                                |
 | ------------------------------------- | ------------------------------------------------------ |
@@ -187,7 +187,7 @@ the model, this is how you find out.
 ## Prompts are provider-neutral
 
 kapi does not keep a different prompt per vendor. A prompt declares its turns
-semantically — a system turn and a user turn — and each provider is responsible
+semantically (a system turn and a user turn), and each provider is responsible
 for carrying them the way its API expects.
 
 <SwimlaneDiagram
@@ -220,7 +220,8 @@ What genuinely differs between providers is **capability, not wording**: how
 structured output is requested, whether images are accepted, how a system
 instruction is carried, and a sane batch size. That variance lives behind the
 provider interface, where it belongs. Switching `--provider anthropic` to
-`--provider ollama` changes the transport and the model — not the instructions.
+`--provider ollama` changes the transport and the model, and leaves the
+instructions as they are.
 
 ## Determinism, and why it matters for cost
 
@@ -228,7 +229,7 @@ The same inputs always render byte-identical prompt text. Terms in the
 terminology section are sorted rather than emitted in map order, and no timestamp, run id or
 machine detail is ever interpolated.
 
-This is not tidiness. kapi caches translations, and the cache key is derived
+kapi caches translations, and the cache key is derived
 **from the text the prompt actually renders**. Change your instruction, your
 voice profile, your terms, or the prompt itself, and the fingerprint moves, so
 the affected strings are re-translated instead of served from a cache that a
@@ -237,48 +238,55 @@ different prompt produced. Change nothing, and nothing is re-bought.
 ## Context: what the model is told about a block
 
 A block on its own is often not enough to translate it. `Save` is a coin flip
-between a verb and a noun — in German, between _Speichern_ and _Speicherung_ —
+between a verb and a noun (in German, between _Speichern_ and _Speicherung_),
 and no amount of model quality resolves a genuine ambiguity in the input.
 
 So the engine sends **reference material**: text the model reads but must not
 translate. This is a different thing from the blocks in a batch, and the
-difference matters more than it sounds. A batch is _co-workers_ — every segment
+difference matters more than it sounds. A batch is _co-workers_: every segment
 in it is a task competing for attention and a distractor for every other one.
-Reference material is _context_ — it disambiguates without adding work. Adding
+Reference material is _context_: it disambiguates without adding work. Adding
 co-workers degrades quality; adding context does not.
 
 | `context`    | What the model is told                          |
 | ------------ | ----------------------------------------------- |
 | `none`       | Only the text.                                  |
-| `key`        | **Default.** The block's key — `settings.save`. |
+| `key`        | **Default.** The block's key (`settings.save`). |
 | `neighbours` | The key, plus the surrounding source blocks.    |
 
 The **key** is the cheapest disambiguation there is: it is already in your
 document, it costs a handful of tokens, and it settles the `Save` question
-outright. It is also stable — a key travels with its block — so sending it can
+outright. It is also stable (a key travels with its block), so sending it can
 never make a cached translation wrong.
 
 **Neighbours** cost tokens, and they make a block's translation depend on text
 that is not the block. The engine handles that honestly: the neighbourhood is
 fingerprinted into the cache key, so editing one string re-translates the strings
 around it rather than serving them from a cache produced under a neighbourhood
-that no longer exists. That is correct, and it is not free — which is why it is
-opt-in.
+that no longer exists. That correctness costs tokens, which is why it is opt-in.
 
 ```bash
 kapi translate messages.json --target-lang fr --context neighbours
 ```
 
+A third piece of reference material comes from the content memory. When a block
+has been edited since it was last translated, `translate` sends the block's own
+previously approved translation alongside the new source (`reuse: prior`, the
+default), so the model revises a settled rendering rather than starting over.
+The prior version is offered only when the governing context (voice profile,
+term rules) is the one it was approved under; `reuse: none` turns it off.
+
 ## What the engine does not send
 
-Worth stating plainly, because prompts are easy to imagine bigger than they are:
+Prompts are easy to imagine bigger than they are. The engine does not send:
 
-- **No content-memory matches.** Memory reuse is a separate, deterministic step
-  (`recycle`) that runs _before_ translate and fills what it can. Matches are
-  not offered to the model as examples.
-- **No rolling document context.** Reference material is a bounded window around
-  the block, not the whole document.
-- **No telemetry.** Your content goes to the provider _you_ configured, and
+- **Fuzzy content-memory matches.** Memory reuse is a separate, deterministic
+  step (`recycle`) that runs _before_ translate and fills what it can. Matches
+  are never offered to the model as examples; the one thing the memory
+  contributes to a prompt is a block's own prior approved translation, above.
+- **A rolling document context.** Reference material is a bounded window around
+  the block, never the whole document.
+- **Telemetry.** Your content goes to the provider _you_ configured, and
   nowhere else.
 
 By default, `translate` batches several blocks into one call (`translate.batch`),
@@ -287,18 +295,18 @@ call is not the same as the model having context: those blocks are all being
 _translated_ at once, none of them is settled reference material, and blocks
 either side of the batch are in a different call entirely. A block is translated
 on its own (`translate.single`) when you set `batching: single`, or when the
-provider runs on-device — a small local model tends to ignore the "return JSON"
+provider runs on-device: a small local model tends to ignore the "return JSON"
 instruction on a large batch.
 
 How many blocks share a call is **not a number you set**. It depends on what your
 model can emit, on how long your segments happen to be, and on a
-quality-versus-batch-size curve that nobody has published — so kapi sizes each
+quality-versus-batch-size curve that nobody has published, so kapi sizes each
 call against the model's real output limit rather than asking you to guess. A
 fixed batch size would overrun that limit on anything longer than a UI string,
 producing a reply the model cannot finish. The choice you _do_ get is
 `batching: auto` or `batching: single`.
 
-How much more to send is still an open question — the evidence favours a large
+How much more to send is still an open question: the evidence favours a large
 non-translated context with a small translation unit, and `--context neighbours
 --batching single` is exactly that shape.
 
@@ -318,18 +326,18 @@ otherwise.
 What actually contains the damage is structural:
 
 - **The call has no tools, no filesystem and no network.** It is one request that
-  returns text. An injected instruction cannot act — at worst it produces a wrong
-  translation. That bounds the blast radius to content, not capability.
+  returns text. An injected instruction cannot act; at worst it produces a wrong
+  translation. That bounds the blast radius to content.
 - **The reply is constrained to a schema** by the provider's own grammar, so it
-  cannot escape its shape — only fill it.
+  cannot escape its shape, only fill it.
 - **kapi accepts only the segment ids it sent**, so an injected omission is caught
   and retried rather than silently shifting every translation after it.
-- **The payload is JSON**, so content cannot forge a segment boundary. This is not
-  only an attack: a block containing `[2]` is enough to break a delimiter-framed
-  payload, and a user documenting a numbered list writes one by accident.
+- **The payload is JSON**, so content cannot forge a segment boundary. A block
+  containing `[2]` is enough to break a delimiter-framed payload with no attacker
+  involved, and a user documenting a numbered list writes one by accident.
 
 The remaining exposure is that an injected instruction can corrupt _the text of a
-translation_ — which is what [checks](/framework/checks/qa-checks) and
+translation_, which is what [checks](/framework/checks/qa-checks) and
 [review](/kapi/recipes/review-and-approve) exist to catch.
 
 ## The prompts kapi ships
@@ -337,44 +345,45 @@ translation_ — which is what [checks](/framework/checks/qa-checks) and
 Every LLM call kapi makes carries a prompt id, so it can be named in
 `--explain-prompts` and cited in a bug report:
 
-| Prompt               | Sent by                                  |
-| -------------------- | ---------------------------------------- |
-| `translate.single`   | `translate`, one block at a time         |
-| `translate.batch`    | `translate`, several blocks in one call  |
-| `voice.check`        | `voice-check`                      |
-| `voice.infer`        | `voice-infer` (drafting a profile) |
-| `quality.check`      | `qa`, in AI mode                         |
-| `review`             | `review`                                 |
-| `term.extract`       | `term-extract`                           |
-| `entity.extract`     | `entity-extract`                         |
-| `media.refine.image` | `media-refine`, re-reading an image crop |
-| `media.refine.audio` | `media-refine`, re-hearing a speech clip |
-| `media.refine.video` | `media-refine`, re-reading a video frame |
-| `segment`            | `segment`, with the LLM engine           |
+| Prompt               | Sent by                                            |
+| -------------------- | -------------------------------------------------- |
+| `translate.single`   | `translate`, one block at a time                   |
+| `translate.batch`    | `translate`, several blocks in one call            |
+| `voice.check`        | `voice-check`                                      |
+| `voice.infer`        | `voice-infer` (drafting a profile)                 |
+| `term.forms`         | `voice-expand` (`kapi voice expand`), listing a term's inflected forms |
+| `quality.check`      | `qa`, in AI mode                                   |
+| `review`             | `review`                                           |
+| `term.extract`       | `term-extract`                                     |
+| `entity.extract`     | `entity-extract`                                   |
+| `axis.discover`      | `context-scan`, proposing the axes a corpus varies along |
+| `media.refine.image` | `media-refine`, re-reading an image crop           |
+| `media.refine.audio` | `media-refine`, re-hearing a speech clip           |
+| `media.refine.video` | `media-refine`, re-reading a video frame           |
+| `segment`            | `segment`, with the LLM engine                     |
 
 The three `media.refine.*` prompts are listed separately because they are
-separate prompts, and because each ships a different kind of your data — a
+separate prompts, and because each ships a different kind of your data: a
 cropped image, a clip of audio, a video frame. Collapsing them into one id would
 hide the distinction you are most likely to care about.
 
-If a call ever appears in `--explain-prompts` without an id, that is a bug —
+If a call ever appears in `--explain-prompts` without an id, that is a bug;
 report it. An unlabelled call is an undocumented use of your content.
 
 The full text of each is published in the
 [Prompt Reference](/reference/prompts), generated from the same builders the
-binary uses and drift-gated in CI — so it cannot describe a prompt kapi does not
+binary uses and drift-gated in CI, so it cannot describe a prompt kapi does not
 send.
 
 ## Watch a prompt get built
 
 Rather than take the sections above on trust, build one up a layer at a time and
-read the real output at each step. This runs kapi in your browser — the same
+read the real output at each step. This runs kapi in your browser: the same
 binary, the offline demo provider, no key and no network.
 
 <KapiGuidedEmbed id="kapi-explain-prompts" />
 
 Start bare and you get the framework's two sections plus your content. Add
 `--instruction` and a steering section appears, attributed to the flag. Translate
-a block that carries inline markup and the tag-fidelity constraint appears —
-which a plain string never sees, because constraints are earned rather than
-constant.
+a block that carries inline markup and the tag-fidelity constraint appears,
+which a plain string never sees.

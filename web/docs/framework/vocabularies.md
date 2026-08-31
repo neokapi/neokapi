@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: Vocabularies
-description: Vocabularies are the semantic type system that classifies inline codes — mapping format-specific markup like HTML bold, Markdown emphasis, and DOCX bold to a common set of types so every tool treats them identically.
+description: "Vocabularies are the semantic type system that classifies inline codes: mapping format-specific markup like HTML bold, Markdown emphasis, and DOCX bold to a common set of types so every tool treats them identically."
 keywords: [vocabularies, semantic types, inline codes, spans, fmt:bold, multilingual content, format-independent]
 ---
 
@@ -10,7 +10,7 @@ keywords: [vocabularies, semantic types, inline codes, spans, fmt:bold, multilin
 A **vocabulary** is the semantic type system that gives meaning to inline codes.
 When a [reader](/framework/formats) lifts an inline element out of the text into a
 [span](/framework/inline-formatting), it assigns that span a semantic type from a
-vocabulary — `fmt:bold`, `link:hyperlink`, `code:variable`, and so on. The
+vocabulary: `fmt:bold`, `link:hyperlink`, `code:variable`, and so on. The
 vocabulary entry says what the type means, how it should be rendered and labeled,
 and what a translator is allowed to do with it. This is the layer that makes
 inline handling format-independent: `<b>` (HTML), `**` (Markdown), and `<w:b/>`
@@ -35,16 +35,16 @@ Each type maps a span to a consistent set of metadata:
 The **constraints** are the part that matters most for correctness. They encode
 what a translator may do with a code:
 
-- **Deletable** — may the code be removed? Formatting like bold is deletable;
+- **Deletable**: may the code be removed? Formatting like bold is deletable;
   required elements like line breaks, variables, and placeholders are not.
-- **Cloneable** — may the code be duplicated? Bold can be applied to more text;
+- **Cloneable**: may the code be duplicated? Bold can be applied to more text;
   a variable must not be repeated.
-- **Reorderable** — may the code move relative to others? A variable can move to
+- **Reorderable**: may the code move relative to others? A variable can move to
   match target word order; a fixed structural code may not.
 
 Editors and [QA checks](/framework/checks/qa-checks) read these constraints to prevent
-invalid changes — blocking deletion of a required tag, flagging a duplicated
-variable, or warning about a missing code — without knowing anything about the
+invalid changes (blocking deletion of a required tag, flagging a duplicated
+variable, or warning about a missing code) without knowing anything about the
 source file format.
 
 ## Layered vocabularies
@@ -70,6 +70,6 @@ preview, validation, and reuse.
 
 ## Related reading
 
-- [Inline Formatting](/framework/inline-formatting) — how spans appear in the content model.
-- [Content Model](/framework/content-model) — where spans and fragments live.
-- [Authoring Vocabularies](/contribute/vocabularies) — the JSON file format, mapping native elements, and creating a custom vocabulary.
+- [Inline Formatting](/framework/inline-formatting): how spans appear in the content model.
+- [Content Model](/framework/content-model): where runs and overlays live.
+- [Authoring Vocabularies](/contribute/vocabularies): the JSON file format, mapping native elements, and creating a custom vocabulary.

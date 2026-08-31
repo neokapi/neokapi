@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Extract, Translate, Compile Pipeline
-description: The three-phase neokapi-i18n pipeline — extract JSX to a KBF archive, translate it with kapi (AI, MT, or content memory), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
+description: "The three-phase neokapi-i18n pipeline: extract JSX to a KBF archive, translate it with kapi (AI or content memory), compile locales back into runtime JSON. Includes an optional split phase for code-split apps."
 keywords: [extract, translate, compile, KBF, neokapi-i18n pipeline, code splitting, translation pipeline]
 ---
 
@@ -9,7 +9,7 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 
 # The extract → translate → compile pipeline
 
-Three phases, one contract: the KBF directory archive. A fourth optional phase — **split** — slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
+Three phases, one contract: the KBF directory archive. A fourth optional phase, **split**, slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
 
 <PhaseFlow
   nodes={[
@@ -34,9 +34,9 @@ Three phases, one contract: the KBF directory archive. A fourth optional phase �
   ]}
 />
 
-The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
+The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file, so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
 
-Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KBF contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
+Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KBF contract: human translators working in a CAT tool, AI translation, a pre-existing TMS.
 
 ## Phase 0: explain (optional)
 
@@ -58,10 +58,10 @@ Each line is the element's W3C ITS classification, the gate that decided its fat
 
 ## Phase 1: extract
 
-The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Two output modes:
+The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Plain `.ts` (and `.mts` / `.cts`) modules are parsed as TypeScript too, and their `t()` calls are extracted when the glob includes them (`--src "src/**/*.{ts,tsx,jsx}"`). A file that cannot be parsed is reported with a warning naming it, so nothing goes missing silently. Two output modes:
 
-- **Default** — per-file `.kbf.json` under `--out` (default `i18n/`). Human-readable, git-diffable.
-- **`--stream`** — NDJSON block records on stdout. File discovery happens via `--src` glob when stdin is a terminal; kapi's exec format can pipe NUL-separated paths to stdin for batch-controlled extraction.
+- **Default**: per-file `.kbf.json` under `--out` (default `i18n/`). Human-readable, git-diffable.
+- **`--stream`**: NDJSON block records on stdout. File discovery happens via `--src` glob when stdin is a terminal; kapi's exec format can pipe NUL-separated paths to stdin for batch-controlled extraction.
 
 ```bash
 # Default: write .kbf.json files for inspection / commit.
@@ -81,15 +81,15 @@ Flags:
 
 | Flag              | Default              | Purpose                                                     |
 | ----------------- | -------------------- | ----------------------------------------------------------- |
-| `--src`           | `src/**/*.{tsx,jsx}` | Glob of source files to scan.                               |
+| `--src`           | `src/**/*.{tsx,jsx}` | Glob of source files to scan (repeatable; add `.ts` to extract `t()` calls from plain modules). |
 | `--out`           | `i18n`               | Output directory for `.kbf.json` files.                          |
 | `--stream`        | off                  | Emit NDJSON blocks on stdout instead of writing `.kbf.json`.     |
-| `--ignore`        | —                    | Glob to exclude (repeatable) — fixtures, stories, tests.    |
+| `--ignore`        | (none)               | Glob to exclude (repeatable): fixtures, stories, tests.     |
 | `--strict`        | off                  | Exit non-zero if any warning was recorded (CI enforcement). |
-| `--config`        | —                    | Path to a JSON config file (componentMap, rules).           |
+| `--config`        | (none)               | Path to a JSON config file (componentMap, rules).           |
 | `--project`       | `app`                | Project id stamped into the file's `project` field.         |
 | `--source-locale` | `en`                 | Source locale in file metadata.                             |
-| `--target-locale` | —                    | Declared target locale (repeatable).                        |
+| `--target-locale` | (none)               | Declared target locale (repeatable).                        |
 
 The extractor also **prints warnings** for unmapped React components, so you know which ones to add to `componentMap` for hash stability:
 
@@ -111,7 +111,7 @@ Wire it into your package scripts and CI:
 }
 ```
 
-For full authoring-time coverage, pair this with [`@neokapi/i18n-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
+For full authoring-time coverage, pair this with [`@neokapi/i18n-react-lint`](./linting): editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
 
 ### What's in the KBF directory
 
@@ -119,8 +119,8 @@ A directory of per-file `.kbf.json` documents, mirroring your source tree
 (e.g. `src/App.tsx` → `i18n/src/App.kbf.json`). Each one is a self-contained KBF
 `File` carrying:
 
-- `project` — id, source locale, declared target locales.
-- `documents` — one document for the source file, holding its `Block`s.
+- `project`: id, source locale, declared target locales.
+- `documents`: one document for the source file, holding its `Block`s.
 - Optional targets / skeleton / annotation overlays (added by translators).
 
 See [C-01](/contribute/architecture/context/c-01-project-model) for the full schema.
@@ -134,10 +134,10 @@ See [C-01](/contribute/architecture/context/c-01-project-model) for the full sch
 
 Each block carries:
 
-- `hash` — stable id computed from the source text + the element's own tag.
-- `source` — typed runs (text, placeholders, inline element tokens, plural/select wrappers).
-- `placeholders` — metadata about each `{name}` / `{=mN}` in the source.
-- `properties` — file + line + component name + `element` (the resolved tag) + optional translator note.
+- `hash`: stable id computed from the source text + the element's own tag.
+- `source`: typed runs (text, placeholders, inline element tokens, plural/select wrappers).
+- `placeholders`: metadata about each `{name}` / `{=mN}` in the source.
+- `properties`: file + line + component name + `element` (the resolved tag) + optional translator note.
 
 ## Phase 2: translate
 
@@ -153,9 +153,9 @@ kapi translate i18n/ --target-lang de
 kapi translate i18n/ --target-lang ja
 ```
 
-Each run **accumulates** a target locale into the same `.kbf.json`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
+Each run **accumulates** a target locale into the same `.kbf.json`. The writer is locale-additive by design: existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
 
-`kapi` supports Anthropic, OpenAI, Azure OpenAI, Google Gemini, and Ollama. It preserves placeholders, inline element tokens, and plural/select structure — AI providers that mangle them are automatically wrapped with recovery logic.
+`kapi` supports Anthropic, OpenAI, Azure OpenAI, Google Gemini, and Ollama. It preserves placeholders, inline element tokens, and plural/select structure; AI providers that mangle them are automatically wrapped with recovery logic.
 
 ### Path B: Pseudo-translate
 
@@ -165,7 +165,7 @@ For UI-layout QA, pseudo-translation generates visibly-altered strings without a
 kapi pseudo-translate i18n/
 ```
 
-`Welcome` becomes `[Ŵéḷçőḿé]`, padded and accented. Missing translations stand out instantly, and strings that wrap too aggressively (or too narrowly) show up in layout testing.
+`Welcome` becomes `▒ Ŵéḷçőḿé ▒`, padded and accented. Missing translations stand out instantly, and strings that wrap too aggressively (or too narrowly) show up in layout testing.
 
 ### Path C: CAT tools / TMS / human translators
 
@@ -179,7 +179,7 @@ The context a block carries (its file and line, its element, the translator note
 
 ### In-place default vs. explicit redirect
 
-`kapi` tool commands default to in-place for KBF inputs — `kapi pseudo-translate i18n/` reads and writes the same files, since the KBF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
+`kapi` tool commands default to in-place for KBF inputs: `kapi pseudo-translate i18n/` reads and writes the same files, since the KBF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
 
 Non-KBF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
 
@@ -187,10 +187,10 @@ Non-KBF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new f
 
 Two layouts, both clean:
 
-- **Locale-additive** — one `i18n/` tree where each block carries every target locale, filled in place (the default for `kapi translate i18n/ --target-lang …`). Simplest to version; all translations stay together.
-- **Recipe-driven per-locale files** — the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.kbf.json` → `target: i18n/{lang}/{path}.kbf.json`). This is what `kapi init --framework neokapi-i18n` scaffolds.
+- **Locale-additive**: one `i18n/` tree where each block carries every target locale, filled in place (the default for `kapi translate i18n/ --target-lang …`). Simplest to version; all translations stay together.
+- **Recipe-driven per-locale files**: the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.kbf.json` → `target: i18n/{lang}/{path}.kbf.json`). This is what `kapi init --framework neokapi-i18n` scaffolds.
 
-Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets — so there is no need for sibling `i18n-<lang>/` trees. See [C-01](/contribute/architecture/context/c-01-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
+Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets, so there is no need for sibling `i18n-<lang>/` trees. See [C-01](/contribute/architecture/context/c-01-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
 
 ### Project-driven flow with `kapi.yaml`
 
@@ -214,15 +214,15 @@ collections:
 ```
 
 ```bash
-# 1. Extract — kapi runs the declared command for each collection,
+# 1. Extract: kapi runs the declared command for each collection and
 #    streams NDJSON blocks into the collection's block store.
 kapi extract -p kapi.yaml
 
-# 2. Translate — run a composed flow over the project for each target language.
+# 2. Translate: run a composed flow over the project for each target language.
 kapi run translate-qa -p kapi.yaml
 ```
 
-The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
+The `command` string picks the package manager (`vp`, `pnpm`, `npm`, `yarn`, or a direct binary path), so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
 
 ### Standalone pipe (no `kapi.yaml`)
 
@@ -234,7 +234,7 @@ kapi pseudo-translate i18n/
 vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Same underlying wire format (NDJSON on the extract stage, KBF from there on) — the declarative `kapi.yaml` form just factors the pipe into the project file.
+Same underlying wire format (NDJSON on the extract stage, KBF from there on); the declarative `kapi.yaml` form factors the pipe into the project file.
 
 ## Phase 3: compile
 
@@ -255,14 +255,16 @@ Compiled 1007 entries → public/translations/ja.json
 
 Each JSON file is a flat `{hash: renderedText}` map. The runtime `__t(hash, fallback, params)` looks up the hash; the renderer picks the plural / select form.
 
+A target that does not carry every placeholder its source has is left out of the dict, so the runtime falls back to the source text for that entry rather than rendering a sentence missing its count, name or link. The next translation pass fills it in once the target is sound.
+
 ## Phase 4: split (optional)
 
-For code-split apps, the compiled `{locale}.json` is one file per locale — the user downloads every string even for routes they never visit. The plugin + `neokapi-i18n split` divide that catalog along bundler chunk boundaries so each chunk lands its own translation subset alongside its JS.
+For code-split apps, the compiled `{locale}.json` is one file per locale; the user downloads every string even for routes they never visit. The plugin + `neokapi-i18n split` divide that catalog along bundler chunk boundaries so each chunk lands its own translation subset alongside its JS.
 
 Two inputs:
 
-- **`translations-manifest.json`** — emitted when `mode: "runtime"` by Vite, Rollup, webpack, Rspack, and esbuild (esbuild needs `metafile: true`). Maps each output chunk to the set of hashes its modules reference.
-- **`public/translations/{locale}.json`** — the compiled master dict from Phase 3.
+- **`translations-manifest.json`**: emitted when `mode: "runtime"` by Vite, Rollup, webpack, Rspack, and esbuild (esbuild needs `metafile: true`). Maps each output chunk to the set of hashes its modules reference.
+- **`public/translations/{locale}.json`**: the compiled master dict from Phase 3.
 
 ```bash
 vite build                                       # emits dist/translations-manifest.json
@@ -303,9 +305,9 @@ const routes = [
 ];
 ```
 
-`loadTranslationChunk` merges the subset into the active dict; concurrent calls for the same `(locale, url)` share a single fetch. Missing hashes fall back to the source text baked into each `__t` / `__tx` call at build time — a late-arriving chunk never breaks render. See [Runtime mode → Lazy loading per route](./modes#lazy-loading-per-route-code-splitting) for the full runtime contract.
+`loadTranslationChunk` merges the subset into the active dict; concurrent calls for the same `(locale, url)` share a single fetch. Missing hashes fall back to the source text baked into each `__t` / `__tx` call at build time, so a late-arriving chunk never breaks render. See [Runtime mode → Lazy loading per route](./modes#lazy-loading-per-route-code-splitting) for the full runtime contract.
 
-Apps that ship a single bundle don't need this phase at all — keep using `loadTranslations(locale, url)` against the compiled master dict.
+Apps that ship a single bundle don't need this phase at all; keep using `loadTranslations(locale, url)` against the compiled master dict.
 
 ## Round-trip in one diagram
 
@@ -356,14 +358,14 @@ The extract is deterministic, so CI can use the archive hash as a contract:
     }
 ```
 
-For apps with a translation backend, you'd instead push the archive to that backend and wait for translated deliverables — but the principle is the same: extract on every change, don't let translations drift from source.
+For apps with a translation backend, you'd instead push the archive to that backend and wait for translated deliverables. The principle is the same: extract on every change, and keep translations from drifting away from source.
 
 ## Incremental extracts
 
-The extractor is stateless — it always produces the same `.kbf.json` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
+The extractor is stateless: it always produces the same `.kbf.json` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
 
 ## Next
 
-- [Runtime vs. inline modes](./modes) — shipping one bundle with OTA dicts vs. one bundle per locale.
-- [Translating with kapi](./translating-with-kapi) — pseudo-translation, AI translation, QA.
-- [Configuration](./configuration) — componentMap, rules, Storybook, custom warning handlers.
+- [Runtime vs. inline modes](./modes): shipping one bundle with OTA dicts vs. one bundle per locale.
+- [Translating with kapi](./translating-with-kapi): pseudo-translation, AI translation, QA.
+- [Configuration](./configuration): componentMap, rules, Storybook, custom warning handlers.

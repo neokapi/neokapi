@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Writing Translatable React Components
-description: How to write React components for neokapi-i18n extraction — what the plugin picks up automatically, which patterns require t(), how inline elements become paired markers, and what to avoid.
+description: "How to write React components for neokapi-i18n extraction: what the plugin picks up automatically, which patterns require t(), how inline elements become paired markers, and what to avoid."
 keywords: [React components, JSX extraction, translatable, neokapi-i18n, inline markers, componentMap, i18n patterns]
 ---
 
@@ -16,8 +16,8 @@ Almost everything you already write is translatable. This page walks through the
 - **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
 - **Inline elements with children** (`<strong>foo</strong>`, `<a href="…">here</a>`, `<em>{name}</em>`) → captured as one translatable block; the inline element becomes a **paired marker** wrapping its inner content, so the translator sees the inner words and can move the wrapping around.
 - **Zero-children inline elements** (`<br/>`, `<Icon/>`, `<Spinner/>`, `<Badge/>`) → become **standalone markers** (`{=mN}` with no matching close) in the surrounding text.
-- **HTML and ARIA text attributes** — `alt`, `title`, `placeholder`, `aria-label`, … — on **any** element → extracted.
-- **React prop-name conventions** — `label`, `description`, `heading`, `helpText`, `tooltip`, … — on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
+- **HTML and ARIA text attributes** (`alt`, `title`, `placeholder`, `aria-label`, …) on **any** element → extracted.
+- **React prop-name conventions** (`label`, `description`, `heading`, `helpText`, `tooltip`, …) on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
@@ -26,7 +26,7 @@ Almost everything you already write is translatable. This page walks through the
 
 ### Translatable JSX text
 
-Headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, `<a>`, `<b>`, `<i>` — the whole set of elements the W3C HTML5 spec classifies as phrasing or translatable block content.
+Headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, `<a>`, `<b>`, `<i>`: the whole set of elements the W3C HTML5 spec classifies as phrasing or translatable block content.
 
 ```tsx
 <h1>Welcome</h1>                        // ✓ extracted
@@ -37,9 +37,9 @@ Headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, `<
 <option value="fr">French</option>      // ✓ extracted
 ```
 
-### Inline children — one block, paired markers
+### Inline children: one block, paired markers
 
-When an element mixes text with inline children, the whole thing becomes one translatable block. Each inline element with children becomes a **paired marker** in the parent's text — the translator sees the inner words and can move the wrapping around:
+When an element mixes text with inline children, the whole thing becomes one translatable block. Each inline element with children becomes a **paired marker** in the parent's text: the translator sees the inner words and can move the wrapping around:
 
 ```tsx
 <p>
@@ -47,9 +47,9 @@ When an element mixes text with inline children, the whole thing becomes one tra
 </p>
 ```
 
-The extractor stores this as `"Click {=m0}here{/=m0} to read the docs."`. A German translation reads `"Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen."` — the link wraps the right word, and a French translator can move it elsewhere in the sentence entirely.
+The extractor stores this as `"Click {=m0}here{/=m0} to read the docs."`. A German translation reads `"Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen."`: the link wraps the right word, and a French translator can move it elsewhere in the sentence entirely.
 
-Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`. (`<code>`, `<kbd>`, `<var>`, `<samp>` render code-as-code and are non-translatable — see below.)
+Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`. (`<code>`, `<kbd>`, `<var>`, `<samp>` render code-as-code and are non-translatable; see below.)
 
 The rule is uniform: **any inline element with at least one child → paired pair**, regardless of whether the inner content is text, an expression, an icon, or further nested elements. Empty inline elements become **standalone markers** instead. A few examples:
 
@@ -67,7 +67,7 @@ JSX-element tokens always read `{=m<N>}`; the runtime tells standalone from pair
 
 ### Empty inline elements as standalone markers
 
-Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — an icon component followed by text. Empty inline elements (zero children) become a single standalone marker, leaving the surrounding text to extract normally:
+Lots of real React UI looks like `<Button><Icon />Open File...</Button>`, an icon component followed by text. Empty inline elements (zero children) become a single standalone marker, leaving the surrounding text to extract normally:
 
 ```tsx
 <Button>
@@ -76,20 +76,20 @@ Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — an 
 </Button>
 ```
 
-Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element (standalone — no matching `{/=m0}` close). Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components — anything with no children.
+Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element (standalone, with no matching `{/=m0}` close). Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components: anything with no children.
 
-Unmapped React components with children are still treated as block-level by default (warning suggests a `componentMap` entry — see "Unknown components" below). The narrow rule for _zero-children_ unmapped components prevents false positives on custom block-level components like `<Panel><Heading>…</Heading></Panel>`.
+Unmapped React components with children are still treated as block-level by default (the warning suggests a `componentMap` entry; see "Unknown components" below). The narrow rule for _zero-children_ unmapped components prevents false positives on custom block-level components like `<Panel><Heading>…</Heading></Panel>`.
 
 ### Auto-promoted containers
 
-Strict W3C semantics would skip `<div>Hello</div>` — divs are classified as containers, not text. In real React codebases that's wrong: `<div>Label</div>`, `<section>Intro copy</section>` are everywhere.
+Strict W3C semantics would skip `<div>Hello</div>`: divs are classified as containers rather than text. In real React codebases that's wrong: `<div>Label</div>`, `<section>Intro copy</section>` are everywhere.
 
 neokapi-i18n **auto-promotes** container elements when they have:
 
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
 
-Promotion is silent — `<div>Label</div>` is the dominant idiom and warning on every occurrence would just be noise. (Unmapped React components still warn; see below.)
+Promotion is silent: `<div>Label</div>` is the dominant idiom and warning on every occurrence would just be noise. (Unmapped React components still warn; see below.)
 
 To opt out: `<div translate="no">...</div>` or a rule:
 
@@ -109,7 +109,7 @@ A fragment root with inline content extracts as one block, same as a promoted co
 </>
 ```
 
-The fragment has no tag of its own, so its descriptor is the literal `fragment` — meaning a fragment and a `<p>` carrying the same words hash apart, and moving content between them is a re-key. Prefer a real element when the content is a paragraph; fragments are for the cases where the surrounding markup genuinely can't take a wrapper.
+The fragment has no tag of its own, so its descriptor is the literal `fragment`, meaning a fragment and a `<p>` carrying the same words hash apart, and moving content between them is a re-key. Prefer a real element when the content is a paragraph; fragments are for the cases where the surrounding markup genuinely can't take a wrapper.
 
 ### Unknown components
 
@@ -138,7 +138,7 @@ neokapi({
 });
 ```
 
-**Why bother?** Because the hash is part of the translator's contract. If you later refactor by changing `TabsTrigger` → a different library's `Tab`, and the underlying HTML is still `button`, the hashes stay stable if you had the `componentMap` entry — translators don't need to re-review.
+**Why bother?** Because the hash is part of the translator's contract. If you later refactor by changing `TabsTrigger` → a different library's `Tab`, and the underlying HTML is still `button`, the hashes stay stable if you had the `componentMap` entry; translators don't need to re-review.
 
 ### Translatable attributes
 
@@ -150,7 +150,7 @@ Two buckets, with different scopes:
 | ARIA              | any element               | `aria-label`, `aria-description`, `aria-placeholder`, `aria-roledescription`, `aria-valuetext`                                                                      |
 | React conventions | **PascalCase components** | `subtitle`, `description`, `label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`, `tooltip`, `emptyMessage`, `emptyStateText`, `filterPlaceholder` |
 
-The HTML and ARIA names are standardised: wherever they appear, they carry user-visible text. The convention names are not — `label` on a `<Field>` is copy, but `label` on a `<div>` is far more often a DOM prop, an enum key, or a data-binding field. Scoping that bucket to PascalCase components is what keeps `<div label="draft-pending">` out of your translator's queue.
+The HTML and ARIA names are standardised: wherever they appear, they carry user-visible text. The convention names are not: `label` on a `<Field>` is copy, but `label` on a `<div>` is far more often a DOM prop, an enum key, or a data-binding field. Scoping that bucket to PascalCase components is what keeps `<div label="draft-pending">` out of your translator's queue.
 
 So these all work out of the box:
 
@@ -177,7 +177,7 @@ When a translatable attribute's value is a ternary with _both branches as plain 
 
 Both `"Project Flows"` and `"Flows"` get extracted (with `::0` / `::1` suffixes on the context to keep the hashes distinct). At runtime the transform rewrites each literal branch with its own `__t()` lookup; the condition still fires at render time.
 
-Mixed-shape ternaries (one literal, one computed, or both templates) _aren't_ statically extractable — the lint rule [`no-ternary-in-translatable-attr`](./linting#no-ternary-in-translatable-attr) flags them. Fix by wrapping both branches with `t()` so the t-call walker picks them up:
+Mixed-shape ternaries (one literal, one computed, or both templates) _aren't_ statically extractable; the lint rule [`no-ternary-in-translatable-attr`](./linting#no-ternary-in-translatable-attr) flags them. Fix by wrapping both branches with `t()` so the t-call walker picks them up:
 
 ```tsx
 // ✗ extractor can't see the template-literal branch
@@ -202,7 +202,7 @@ To flip one specific site: `<code translate="yes">...</code>`.
 
 ### Opting out with `translate="no"`
 
-Standard HTML — works on any element and its descendants:
+Standard HTML; it works on any element and its descendants:
 
 ```tsx
 <h1 translate="no">API_KEY_PREFIX</h1>         // ✗ not extracted
@@ -213,7 +213,7 @@ Standard HTML — works on any element and its descendants:
 </section>
 ```
 
-Both the extractor and every lint rule in `@neokapi/i18n-react-lint` walk up the ancestor chain looking for `translate="no"`. A single marker at the top of a subtree silences everything inside — no need to sprinkle it on every element.
+Both the extractor and every lint rule in `@neokapi/i18n-react-lint` walk up the ancestor chain looking for `translate="no"`. A single marker at the top of a subtree silences everything inside; there is no need to sprinkle it on every element.
 
 `translate="no"` is also the right answer when you're intentionally rendering an already-translated value (see "Module-level `t()` gotcha" below), or when your content is code-like and shouldn't be flagged as missing translation.
 
@@ -235,7 +235,7 @@ Selectors: plain tag (`code`), class (`.code-block`), attribute presence (`[data
 
 ## What still needs explicit handling
 
-The extractor can only see what it can statically reason about. These patterns slip through — each has a canonical fix.
+The extractor can only see what it can statically reason about. These patterns slip through; each has a canonical fix.
 
 ### Strings in JS data structures
 
@@ -279,7 +279,7 @@ Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data struct
 <Button>{saving ? "Saving..." : "Save"}</Button>
 ```
 
-neokapi-i18n treats the whole ternary as a single opaque placeholder — it never looks inside at the branches. Wrap each branch with `t()`:
+neokapi-i18n treats the whole ternary as a single opaque placeholder; it never looks inside at the branches. Wrap each branch with `t()`:
 
 ```tsx
 <Button>{saving ? t("Saving...") : t("Save")}</Button>
@@ -289,7 +289,7 @@ Caught by [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-
 
 ### Module-level `t()` gotcha
 
-`t()` reads the active dictionary **at call time**. A module-level const evaluates once, at import time — typically _before_ `loadTranslations()` has finished. The const freezes at the fallback language forever.
+`t()` reads the active dictionary **at call time**. A module-level const evaluates once, at import time, typically _before_ `loadTranslations()` has finished. The const freezes at the fallback language forever.
 
 ```tsx
 // ✗ "Utility" will still say "Utility" in pseudo.
@@ -321,7 +321,7 @@ function Chip({ cat }: { cat: string }) {
 
 ### Double-translation: already-translated values inside translatable blocks
 
-A subtle pattern that only shows up in pseudo. If you render a `t()`-resolved string as a child of an element the extractor also wraps as a block, pseudo-translation gets applied _twice_ — the inner `t()` adds its markers, and the outer element's translation wraps around them:
+A subtle pattern that only shows up in pseudo. If you render a `t()`-resolved string as a child of an element the extractor also wraps as a block, pseudo-translation gets applied _twice_: the inner `t()` adds its markers, and the outer element's translation wraps around them:
 
 ```tsx
 <Button>
@@ -339,7 +339,7 @@ Fix: mark the outer element `translate="no"` so the inner `t()` call owns the tr
 // Pseudo renders: ▒ Utility ▒ (32)       ← the inner t() wrap is the only one
 ```
 
-Alternative: lift the whole string into a single `t()` call with placeholders — but that's awkward when one half is a translated label and the other is a numeric count.
+Alternative: lift the whole string into a single `t()` call with placeholders, but that's awkward when one half is a translated label and the other is a numeric count.
 
 ## Translator notes
 
@@ -364,21 +364,21 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | `<>Hello <b>you</b></>`                   | yes        | fragment root; descriptor is `fragment`                                  |
 | `<Button><Icon/>Save</Button>`            | yes        | "Save" extracts with `{=m0}` standalone for the icon                     |
 | `<TabsTrigger>Hello</TabsTrigger>`        | yes        | warning suggests `componentMap`                                          |
-| `<PageHeader title="Hi" />`               | yes        | `title` is an HTML attribute — any element                              |
-| `<PageHeader title={cond ? "A" : "B"} />` | yes        | both branches — one block each                                           |
-| `<MyComp description="Hi" />`             | yes        | `description` is a convention prop — components only                     |
-| `<div label="draft-pending" />`           | no         | convention prop on a plain element — not copy                            |
+| `<PageHeader title="Hi" />`               | yes        | `title` is an HTML attribute; any element                                |
+| `<PageHeader title={cond ? "A" : "B"} />` | yes        | both branches; one block each                                            |
+| `<MyComp description="Hi" />`             | yes        | `description` is a convention prop; components only                      |
+| `<div label="draft-pending" />`           | no         | convention prop on a plain element; not copy                             |
 | `<p>Click <a>here</a></p>`                | yes        | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
 | `<code>foo</code>`                        | no         | non-translatable element                                                 |
 | `<h1 translate="no">X</h1>`               | no         | explicit opt-out (suppresses lint too)                                   |
-| `<button>{label}</button>`                | no         | bare expression — use `t()` on the source                                |
-| `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr` — wrap the source                   |
-| `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
-| `<div>{cond && 'Hi'}</div>`               | no         | expression — use `t()`                                                   |
+| `<button>{label}</button>`                | no         | bare expression; use `t()` on the source                                 |
+| `<button>{obj.label}</button>`            | no         | flagged by `prefer-t-for-label-expr`; wrap the source                    |
+| `<button>{cond ? "A" : "B"}</button>`     | no         | flagged by `no-ternary-literals-in-jsx-child`; wrap branches with `t()`  |
+| `<div>{cond && 'Hi'}</div>`               | no         | expression; use `t()`                                                    |
 
 ## Next
 
-- [`t()` escape hatch](./t-escape-hatch) — for the JS-data-string and ternary-in-JSX patterns.
-- [Plurals and select](./plurals-and-select) — count-aware and choice-based text.
-- [Linting](./linting) — editor squigglies for every anti-pattern on this page.
-- [Extract pipeline](./pipeline) — how the plugin ships this to translators.
+- [`t()` escape hatch](./t-escape-hatch): for the JS-data-string and ternary-in-JSX patterns.
+- [Plurals and select](./plurals-and-select): count-aware and choice-based text.
+- [Linting](./linting): editor squigglies for every anti-pattern on this page.
+- [Extract pipeline](./pipeline): how the plugin ships this to translators.

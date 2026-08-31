@@ -30,9 +30,14 @@ The graph store library (`core/graph/`) provides a backend-agnostic graph databa
   ]}
 />
 
+Inside a kapi project the `graph_nodes` / `graph_edges` tables live in the
+shared `.kapi/work/store.db` beside the content memory and the terms store (see
+[Project store](/kapi/project-store)); a standalone `graph.db` is the
+library example on this page.
+
 Two record types travel through that interface. A **node** carries an ID, a
 label, and a map of properties. An **edge** joins two nodes under a label and
-may carry a **validity** — a `ValidFrom`/`ValidTo` interval plus a set of tags —
+may carry a **validity** (a `ValidFrom`/`ValidTo` interval plus a set of tags),
 which is what lets a query ask the graph a question at a point in time and
 within a scope. Both are defined in [Key Types](#key-types) below.
 
@@ -180,29 +185,29 @@ Labels are aligned with W3C SKOS vocabulary for terminology interoperability:
 
 ```go
 // Hierarchical (SKOS)
-graph.LabelBroader   // "BROADER"  — parent concept
-graph.LabelNarrower  // "NARROWER" — child concept
+graph.LabelBroader   // "BROADER":  parent concept
+graph.LabelNarrower  // "NARROWER": child concept
 
 // Associative (SKOS)
-graph.LabelRelated   // "RELATED"  — associative link
+graph.LabelRelated   // "RELATED":  associative link
 
 // Compositional
-graph.LabelPartOf    // "PART_OF"  — component of
-graph.LabelHasPart   // "HAS_PART" — contains component
+graph.LabelPartOf    // "PART_OF":  component of
+graph.LabelHasPart   // "HAS_PART": contains component
 
 // Terminological
-graph.LabelHasTerm     // "HAS_TERM"     — concept → term
-graph.LabelUseInstead  // "USE_INSTEAD"  — deprecated → preferred
-graph.LabelReplacedBy  // "REPLACED_BY"  — superseded → replacement
+graph.LabelHasTerm     // "HAS_TERM":     concept → term
+graph.LabelUseInstead  // "USE_INSTEAD":  deprecated → preferred
+graph.LabelReplacedBy  // "REPLACED_BY":  superseded → replacement
 
 // Equivalence (SKOS)
-graph.LabelExactMatch  // "EXACT_MATCH" — cross-scheme equivalence
-graph.LabelCloseMatch  // "CLOSE_MATCH" — approximate equivalence
+graph.LabelExactMatch  // "EXACT_MATCH": cross-scheme equivalence
+graph.LabelCloseMatch  // "CLOSE_MATCH": approximate equivalence
 
 // Voice profile
-graph.LabelForbidden   // "FORBIDDEN"  — voice → forbidden term
-graph.LabelPreferred   // "PREFERRED"  — voice → preferred term
-graph.LabelCompetitor  // "COMPETITOR" — voice → competitor term
+graph.LabelForbidden   // "FORBIDDEN":  voice → forbidden term
+graph.LabelPreferred   // "PREFERRED":  voice → preferred term
+graph.LabelCompetitor  // "COMPETITOR": voice → competitor term
 ```
 
 `InverseLabel()` returns the inverse of directional labels (e.g., `BROADER` -> `NARROWER`).
@@ -212,7 +217,7 @@ graph.LabelCompetitor  // "COMPETITOR" — voice → competitor term
 ```go
 import (
     "github.com/neokapi/neokapi/core/storage"
-    graphstore "github.com/neokapi/neokapi/cli/storage/graph"
+    graphstore "github.com/neokapi/neokapi/host/storage/graph"
 )
 
 db, _ := storage.Open("graph.db")
@@ -223,8 +228,6 @@ defer store.Close()
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
 
 The SQLite backend has no native Cypher support, so `CypherQuery` and `CypherExec` return the sentinel `graph.ErrCypherNotSupported`. A server-side deployment can supply a backend with native Cypher support behind the same interface.
-
-The `GraphStore` interface is designed for extension — server deployments can add their own backend behind the same interface.
 
 ## Usage Examples
 
@@ -271,7 +274,7 @@ store.CreateEdge(ctx, &graph.Edge{
     },
 })
 
-// Query with scope — only returns edges active at the given time with matching tags
+// Query with scope: only returns edges active at the given time with matching tags
 scope := graph.Scope{At: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), Tags: map[string]string{"market": "us"}}
 neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, graph.LabelReplacedBy)
 ```
