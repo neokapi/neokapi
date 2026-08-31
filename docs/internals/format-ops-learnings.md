@@ -10,7 +10,7 @@ section at the bottom, not deleted.
 ## Entry format
 
 ```markdown
-### YYYY-MM-DD — <one-line lesson> (<ritual or phase>)
+### YYYY-MM-DD: <one-line lesson> (<ritual or phase>)
 
 What happened, what it cost, and the mechanism that now prevents it.
 Evidence: file:line / TestName / transcript pointer / diff.
@@ -18,11 +18,11 @@ Evidence: file:line / TestName / transcript pointer / diff.
 
 ## Learnings
 
-### 2026-06-12 — Hand-edited registries need independent probes (design review, bootstrap)
+### 2026-06-12: Hand-edited registries need independent probes (design review, bootstrap)
 
 The design review of the Editor axis found that a committed, hand-edited
 integrations index is self-declaration, not measurement: the HEAD survey
-showed exactly this failure mode already live — `bowrain/connector/wordpress.go`
+showed exactly this failure mode already live: `bowrain/connector/wordpress.go`
 labels its content `Format: "html"` while the html DataFormat reader never
 runs, and figma's read-only-ness exists only as a runtime
 `errors.New("figma publish not yet supported…")` in `Publish`, not as a

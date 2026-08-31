@@ -25,19 +25,17 @@ package model
 type PartType int
 
 const (
-    PartLayerStart  PartType = iota // Start of a structural layer (document, section, embedded content)
-    PartLayerEnd                    // End of a structural layer
-    PartGroupStart                  // Start of a structural group within a layer
-    PartGroupEnd                    // End of a structural group
-    PartBlock                       // Translatable content
-    PartData                        // Non-translatable document structure
-    PartMedia                       // Binary/media content
-    _                               // reserved
-    _                               // reserved
-    _                               // reserved
-    _                               // reserved
-    PartRawDocument                 // Unprocessed document
-    PartCustom                      // Custom extension
+    PartUnknown     PartType = 0
+    PartLayerStart  PartType = 1  // Start of a structural layer (document, section, embedded content)
+    PartLayerEnd    PartType = 2  // End of a structural layer
+    PartGroupStart  PartType = 3  // Start of a structural group within a layer
+    PartGroupEnd    PartType = 4  // End of a structural group
+    PartBlock       PartType = 5  // Modifiable content
+    PartData        PartType = 6  // Non-content document structure
+    PartMedia       PartType = 7  // Binary/media content
+    // 8..11 reserved
+    PartRawDocument PartType = 12 // Unprocessed document
+    PartCustom      PartType = 13 // Custom extension
 )
 
 // Part is the fundamental unit of content flowing through a Flow.
@@ -64,7 +62,7 @@ type Resource interface {
 
 ```go
 // Layer is a top-level structural grouping: a document, a section, or embedded content.
-// Layers can nest — embedded content (HTML inside JSON, CDATA in XML) becomes
+// Layers can nest: embedded content (HTML inside JSON, CDATA in XML) becomes
 // a child Layer with its own DataFormat.
 //
 // This replaces Okapi's StartDocument, EndDocument, StartSubDocument, EndSubDocument,
@@ -80,6 +78,9 @@ type Layer struct {
     IsMultilingual bool
     ParentID       string   // ID of the parent Layer (empty for root)
     Properties     map[string]string
+    Overlays       []Overlay
+    Annotations    map[string]Annotation
+    HasBOM         bool
 }
 
 func (l *Layer) ResourceID() string { return l.ID }
@@ -162,8 +163,8 @@ func (b *Block) SourceSegmentCount() int { /* span count from SourceSegmentation
 func (b *Block) SourceSegmentRuns(i int) []Run { /* sub-slice from the span's Anchor */ }
 
 // SetSegmentation replaces the segmentation overlay for the given variant
-// (nil = source side). Segmentation is stored as a stand-off Overlay —
-// it does not alter the run sequence.
+// (nil = source side). Segmentation is stored as a stand-off Overlay and
+// leaves the run sequence untouched.
 func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* upserts Overlays */ }
 
 // VariantKey identifies a translation: locale plus optional tone and channel.
@@ -184,11 +185,12 @@ type Target struct {
     Score  float64
 }
 
-// Overlay is a typed stand-off layer over one side of a Block — the source
-// (Variant nil) or a target variant — anchoring Spans to run-index ranges.
+// Overlay is a typed stand-off layer over one side of a Block (the source,
+// Variant nil, or a target variant), anchoring Spans to run-index ranges.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
     Variant *VariantKey // nil = source side
+    Layer   string      // set when the overlay belongs to a Layer rather than a Block
     Spans   []Span
 }
 
@@ -198,6 +200,7 @@ type Span struct {
     ID    string
     Range Anchor
     Props map[string]string
+    Value string // type-specific payload (a term's concept, a QA finding, …)
 }
 
 // Anchor says where inside a block something is, and every producer records
@@ -224,7 +227,7 @@ type RunPos struct {
 ### Run (inline content)
 
 A block's `Source` (and each `Target.Runs`) is a flat `[]Run`. Each `Run` is a
-discriminated union — exactly one pointer field is set:
+discriminated union: exactly one pointer field is set:
 
 ```go
 // Run is one element of a flat inline-content sequence (core/model/run.go).
@@ -252,6 +255,7 @@ type PlaceholderRun struct {
     Data        string          // original markup verbatim (e.g., "<br/>")
     Equiv       string          // plain-text equivalent (e.g., "\n")
     Disp        string          // editor display label
+    Attrs       map[string]string
     Constraints *RunConstraints
 }
 
@@ -283,8 +287,11 @@ type Media struct {
     ID        string
     MimeType  string
     Data      []byte
+    BlobKey   string // Content-addressed key when the bytes live in a blob store
     URI       string // External reference if not inline
+    Filename  string
     AltText   string // Accessible alternative text
+    Size      int64
     Properties map[string]string
 }
 
@@ -360,7 +367,7 @@ func (sr *SkeletonRef) isSkeletonPart() {}
 //   type 0 = text (non-translatable raw bytes)
 //   type 1 = ref  (block ID as UTF-8)
 //
-// See docs/notes/skeleton-store.md for full details.
+// See web/docs/contribute/implementation/engine/skeleton-store.md for full details.
 type SkeletonStore struct {
     file   *os.File
     writer *bufio.Writer
@@ -399,11 +406,11 @@ type SkeletonStoreConsumer interface {
 }
 ```
 
-Flow executor wiring (in `cli/flow.go`, `cli/toolrun.go`, `kapi/cmd/kapi/mcp_tools.go`):
+Flow executor wiring (in `host/flow.go`, `host/toolrun.go`, `host/mcp_tools.go`):
 
 ```go
 // Wire skeleton store if both reader and writer support it.
-// Must be wired BEFORE reader.Read() — the reader writes entries during reading.
+// Must be wired BEFORE reader.Read(): the reader writes entries during reading.
 if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
     if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
         store, err := format.NewSkeletonStore()
@@ -429,6 +436,11 @@ const (
     LocaleJapanese LocaleID = "ja"
     LocaleSpanish  LocaleID = "es"
     LocaleChinese  LocaleID = "zh"
+    LocalePortuguese LocaleID = "pt"
+    LocaleItalian  LocaleID = "it"
+    LocaleKorean   LocaleID = "ko"
+    LocaleRussian  LocaleID = "ru"
+    LocaleArabic   LocaleID = "ar"
 )
 
 // Annotation is an extensible metadata attachment on Blocks.
@@ -622,7 +634,7 @@ type ToolConfig interface {
 `BaseTool` implements `Process` once and dispatches each Part to the matching
 handler. Embed it and set only the handlers you need; unset handlers pass the
 Part through unchanged. For Blocks, set exactly **one** capability-typed
-handler — the parameter type bounds what the tool may write (E-03):
+handler; the parameter type bounds what the tool may write (E-03):
 
 ```go
 // PartHandler handles a single non-block Part.
@@ -636,15 +648,15 @@ type BaseTool struct {
     Cfg             ToolConfig
     SchemaFn        func() *schema.ComponentSchema
 
-    // Block handlers — set exactly ONE:
-    //   Annotate  — read-only view (overlays, annotations, properties)
-    //   Translate — writes target; source is read-only
-    //   Transform — rewrites source (and may write target)
+    // Block handlers: set exactly ONE.
+    //   Annotate:  read-only view (overlays, annotations, properties)
+    //   Produce:   writes target; source is read-only
+    //   Transform: rewrites source (and may write target)
     Annotate  func(BlockView) error
     Produce func(VariantView) error
     Transform func(SourceView) error
 
-    // Other part-type handlers — all optional; unset = pass through.
+    // Other part-type handlers, all optional; unset = pass through.
     HandleDataFn       PartHandler
     HandleMediaFn      PartHandler
     HandleLayerStartFn PartHandler
@@ -671,7 +683,7 @@ type BaseTool struct {
 An annotation tool (read-only, produces a segmentation overlay):
 
 ```go
-// segmentation tool — sets Annotate because it only reads source runs
+// segmentation tool: sets Annotate because it only reads source runs
 // and writes a stand-off segmentation overlay; it does not alter source content.
 t := &tool.BaseTool{
     ToolName:        "segmentation",
@@ -690,7 +702,7 @@ t.Annotate = func(v tool.BlockView) error {
 A translation tool (writes target):
 
 ```go
-// translate — sets Translate because it writes Block.Targets; source is read-only.
+// translate: sets Produce because it writes Block.Targets; source is read-only.
 t := &tool.BaseTool{ToolName: "translate"}
 t.Produce = func(v tool.VariantView) error {
     translated, err := llm.Translate(ctx, v.SourceText(), targetLocale)
@@ -705,7 +717,7 @@ t.Produce = func(v tool.VariantView) error {
 A source-transform tool (rewrites source):
 
 ```go
-// redaction — sets Transform because it rewrites Block.Source.
+// redaction: sets Transform because it rewrites Block.Source.
 // Source-transform tools run in a flow's leading source-transform stage,
 // before any stand-off overlays are attached.
 t := &tool.BaseTool{ToolName: "redaction"}
@@ -845,7 +857,7 @@ func (fb *Builder) Build() *Flow {
 // executor.Execute(ctx, f, items)
 //
 // Usage (parallel, multiple documents with collector). A Collector aggregates
-// results across the fan-out — implement flow.Collector (Collect + Result):
+// results across the fan-out; implement flow.Collector (Collect + Result):
 //
 // type blockCountCollector struct{ blocks int }
 //
@@ -880,33 +892,24 @@ func (fb *Builder) Build() *Flow {
 
 ## Configuration
 
+The live implementation is `host/config` (`NewAppConfig` in
+`host/config/config.go`). The user config home is `os.UserConfigDir()/kapi`
+(`~/.config/kapi` on Linux, `~/Library/Application Support/kapi` on macOS),
+with `$HOME/.config/kapi/kapi.yaml` read as a lower-precedence legacy layer
+everywhere; `KAPI_CONFIG_DIR` overrides the home. The sketch below shows the
+shape of the lookup, not the code:
+
 ```go
 package config
 
-import "github.com/spf13/viper"
+// AppConfig holds application-level configuration.
+type AppConfig struct { /* … */ }
 
-// AppConfig holds application-level configuration loaded via Viper.
-type AppConfig struct {
-    v *viper.Viper
-}
+// NewAppConfig creates a config reader that searches for kapi.yaml in the
+// working directory, the user config home and the legacy $HOME/.config/kapi.
+func NewAppConfig() *AppConfig
 
-// NewAppConfig creates a config reader that searches for kapi.yaml
-// in standard locations.
-func NewAppConfig() *AppConfig {
-    v := viper.New()
-    v.SetConfigName("kapi")
-    v.SetConfigType("yaml")
-    v.AddConfigPath(".")
-    v.AddConfigPath("$HOME/.config/kapi")
-    v.AddConfigPath("/etc/kapi")
-    v.SetEnvPrefix("KAPI")
-    v.AutomaticEnv()
-    return &AppConfig{v: v}
-}
-
-func (c *AppConfig) Load() error {
-    return c.v.ReadInConfig()
-}
+func (c *AppConfig) Load() error
 
 // Example kapi.yaml:
 //
@@ -942,21 +945,21 @@ Plugins are out-of-process binaries, not in-process Go interfaces. A plugin
 ships as its own binary plus a `manifest.json` and is installed into a plugin
 directory; `kapi` itself links no plugin's code. There is no go-plugin
 handshake, no `MagicCookieKey`, and no in-process `DataFormatReaderPlugin` /
-`DataFormatWriterPlugin` / `ToolPlugin` gRPC services — those belonged to a
+`DataFormatWriterPlugin` / `ToolPlugin` gRPC services; those belonged to a
 retired layer. Two documents own the plugin contract:
 
-- The **in-process registry contract** — how a plugin binary wires its
+- The **in-process registry contract** (how a plugin binary wires its
   commands, MCP tools, formats, and recipe schema into the shared `cli.App`
-  via `init()` registration — is described in the
+  via `init()` registration) is described in the
   [plugin model](../../web/docs/contribute/implementation/engine/plugin-model.md)
   note.
-- The **runtime transport** — manifest discovery, dispatch, and the A/B/C
-  transport modes — is described in
+- The **runtime transport** (manifest discovery, dispatch, and the A/B/C
+  transport modes) is described in
   [E-05: Plugin system](../../web/docs/contribute/architecture/engine/e-05-plugin-system.md).
 
-### Discovery and dispatch (`cli/pluginhost`)
+### Discovery and dispatch (`host/pluginhost`)
 
-The host-side runtime lives in the shared CLI module under `cli/pluginhost`.
+The host-side runtime lives in the host module under `host/pluginhost`.
 `Discover` reads `manifest.json` from each plugin root (no subprocess is
 launched to enumerate), and `NewHost` folds the surviving plugins into
 dispatch tables for commands, MCP tools, formats, and recipe-schema
@@ -967,15 +970,15 @@ optional `daemon` block, and a `capabilities` block.
 
 A plugin is invoked through one of three modes, chosen per capability:
 
-- **Mode A — one-shot command exec.** The plugin binary is run once per
+- **Mode A: one-shot command exec.** The plugin binary is run once per
   command invocation (e.g. `kapi push` dispatched to `kapi-bowrain`).
-- **Mode B — MCP-over-stdio session.** The plugin serves MCP tools over a
+- **Mode B: MCP-over-stdio session.** The plugin serves MCP tools over a
   stdio session.
-- **Mode C — gRPC daemon.** Long-lived format/tool/source-connector plugins
+- **Mode C: gRPC daemon.** Long-lived format/tool/source-connector plugins
   (including the Okapi Java bridge) are served by a `DaemonPool` that lazily
   spawns one daemon subprocess per plugin and connects over a Unix-socket gRPC
   `BridgeService`. The service (`core/plugin/proto/v2/neokapi_bridge.proto`,
-  package `neokapi.bridge.v2`) exposes three RPCs:
+  package `neokapi.bridge.v2`) exposes four RPCs:
 
 ```protobuf
 service BridgeService {
@@ -984,6 +987,9 @@ service BridgeService {
 
   // ProcessStep runs a single Okapi pipeline step over a stream of parts.
   rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
+
+  // Segment runs the plugin's segmenter over one block.
+  rpc Segment(SegmentRequest) returns (SegmentResponse);
 
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
@@ -1072,8 +1078,8 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 
 > The registries above are sketches; the live API (`core/registry`) uses typed
 > IDs (`FormatID`, `ToolID`) and carries schema/metadata. There is **no**
-> `PluginManager` in the registry — external plugins are out-of-process binaries
-> discovered and dispatched by `cli/pluginhost` (see [Plugins](#plugins) above),
+> `PluginManager` in the registry; external plugins are out-of-process binaries
+> discovered and dispatched by `host/pluginhost` (see [Plugins](#plugins) above),
 > not loaded into the registry. Plugin-contributed formats and tools are folded
 > into the dispatch tables by `pluginhost.NewHost`, not registered through a
 > registry-level plugin manager.

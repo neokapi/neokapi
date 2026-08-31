@@ -1,6 +1,6 @@
 # Content checks: the verification engine
 
-This note describes how neokapi verifies content — the mechanism behind
+This note describes how neokapi verifies content, the mechanism behind
 "checks that act like tests for AI output." It is a framework concern; it makes
 no reference to any platform built on top of it.
 
@@ -14,7 +14,7 @@ checks do not make generation deterministic; they make it accountable.
 
 ## One finding model
 
-Every checker — a deterministic rule, a small ML model, or an LLM judge — emits
+Every checker (a deterministic rule, a small ML model, or an LLM judge) emits
 the same record, so one scoring, annotation, and review path serves terminology,
 do-not-translate, placeholder integrity, register, and voice profile alike.
 
@@ -27,6 +27,7 @@ type Finding struct {
     Suggestion   string            // optional remediation hint
     Position     model.Anchor      // run-anchored span in the source
     OriginalText string
+    Check        string            // the check that produced it (kapi check groups findings by it)
     Metadata     map[string]string // checker-specific detail (model, confidence, rule id)
 }
 ```
@@ -38,26 +39,26 @@ convenience and is honest only when calibrated (see *Scoring*, below).
 A checker is any type that implements `check.Checker` and writes its findings
 through `check.Annotate`, which attaches a single `FindingsAnnotation`
 (`quality.findings`) to the block. Checkers are read-only **Annotate** tools
-under the capability model (AD-006): they observe source and target and write
-overlays/annotations only — never content.
+under the capability model (E-03): they observe source and target and write
+overlays/annotations only, never content.
 
 ## The deterministic kernel
 
 The kernel is the set of checks a content owner keeps enabled because they
 are objective and high-confidence:
 
-- **Terminology** — preferred/forbidden term usage, matched on whole words with
+- **Terminology**: preferred/forbidden term usage, matched on whole words with
   Unicode word boundaries (`check.FindTerm`), so "use" never matches inside
   "user". This replaces substring matching, which is the usual source of false
   positives in lexical checks.
-- **Do-not-translate** — product names, trademarks, and code identifiers that
+- **Do-not-translate**: product names, trademarks, and code identifiers that
   must survive verbatim into the target; a translated do-not-translate term is
   critical.
-- **Placeholder and tag integrity** — every interpolation placeholder and
+- **Placeholder and tag integrity**: every interpolation placeholder and
   numbered tag in the source must survive, by count, into the target
   (`{name}`, `{{name}}`, `${name}`, `%s`/`%d`/`%1$s`/`%@`, `%(name)s`,
   `<0>…</0>`). A dropped placeholder breaks a translated build at runtime.
-- **Register** — formality requirements per locale (for example, formal forms in
+- **Register**: formality requirements per locale (for example, formal forms in
   de/ja). A lexical layer covers the cheap cases; a small model covers the rest.
 
 The value of the kernel compounds with volume, number of languages, and the
@@ -81,8 +82,8 @@ multilingual backbone; uniform quality is not claimed.
 per-category breakdown. By default it is `100 − Σ penalty`; passing
 `WithWordCount` length-normalizes it (a single nit in a long paragraph should
 not score like the same nit in a one-word string). A score is reported as
-"trusted" only against a labeled evaluation set; absent that, the findings — not
-the number — are the result a reader should act on.
+"trusted" only against a labeled evaluation set; absent that, the findings, not
+the number, are the result a reader should act on.
 
 ## Running checks
 
