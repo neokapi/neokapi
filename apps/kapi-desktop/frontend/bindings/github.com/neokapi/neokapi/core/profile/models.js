@@ -9,6 +9,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../../../time/models.js";
 
 /**
  * AutonomyConfig controls progressive autonomy — how far a workspace lets the
@@ -996,16 +999,16 @@ export class VoiceProfile {
         if (!("created_at" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {time$0.Time}
              */
-            this["created_at"] = "0001-01-01T00:00:00.000Z";
+            this["created_at"] = null;
         }
         if (!("updated_at" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {time$0.Time}
              */
-            this["updated_at"] = "0001-01-01T00:00:00.000Z";
+            this["updated_at"] = null;
         }
         if (/** @type {any} */(false)) {
             /**

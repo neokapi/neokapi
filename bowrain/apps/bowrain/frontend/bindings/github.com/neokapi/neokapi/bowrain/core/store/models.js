@@ -9,6 +9,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as model$0 from "../../../core/model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../../../../time/models.js";
 
 /**
  * Project represents a localization project in the store.
@@ -102,23 +105,23 @@ export class Project {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | null | undefined}
+             * @type {time$0.Time | null | undefined}
              */
             this["archived_at"] = undefined;
         }
         if (!("created_at" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {time$0.Time}
              */
-            this["created_at"] = "0001-01-01T00:00:00.000Z";
+            this["created_at"] = null;
         }
         if (!("updated_at" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {time$0.Time}
              */
-            this["updated_at"] = "0001-01-01T00:00:00.000Z";
+            this["updated_at"] = null;
         }
 
         Object.assign(this, $$source);
@@ -190,9 +193,9 @@ export class Version {
         if (!("created_at" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {time$0.Time}
              */
-            this["created_at"] = "0001-01-01T00:00:00.000Z";
+            this["created_at"] = null;
         }
 
         Object.assign(this, $$source);
