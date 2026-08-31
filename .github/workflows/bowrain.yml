@@ -17,7 +17,8 @@ jobs:
       matrix:
         build:
           - { platform: linux/amd64, os: ubuntu-latest }
-          - { platform: windows/amd64, os: windows-2025 }
+          # Windows ICU comes from MSYS2 (gcc MINGW64), as in release-bowrain.yml.
+          - { platform: windows/amd64, os: windows-2025, msystem: MINGW64, mtriple: x86_64, cc: gcc, cgo_ldflags: "-static -static-libgcc -static-libstdc++", mroot: /mingw64 }
           - { platform: darwin/universal, os: macos-latest }
     runs-on: ${{ matrix.build.os }}
     steps:
@@ -35,6 +36,43 @@ jobs:
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
+      # The framework's cgo packages (core/segment/uax29, core/storage) need
+      # ICU through pkg-config on every platform, the catalogs generator
+      # included. macOS and Windows provision it the way release-bowrain.yml
+      # does: a cached static ICU on macOS, the MSYS2 mingw toolchain on
+      # Windows.
+      - name: Cache static ICU
+        if: runner.os == 'macOS'
+        uses: actions/cache@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          brew install pkg-config
+          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
+          {
+            echo "PKG_CONFIG_PATH=${PCDIR}"
+            echo "CPPFLAGS=-I$HOME/icu-static/include"
+            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.build.msystem }}
+          path-type: inherit
+          install: >-
+            mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}
+            mingw-w64-${{ matrix.build.mtriple }}-icu
+            mingw-w64-${{ matrix.build.mtriple }}-pkg-config
+
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
@@ -45,8 +83,26 @@ jobs:
       # The app links core/i18n and host/i18n, whose embedded gettext catalogs
       # are build output compiled from the committed translated JSON.
       - name: Compile the embedded i18n catalogs
+        if: runner.os != 'Windows'
         run: go run ./core/i18n/gen/catalogs
 
       - name: Build Bowrain
+        if: runner.os != 'Windows'
         working-directory: bowrain/apps/bowrain
         run: wails3 build
+
+      - name: Compile the catalogs and build Bowrain (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        env:
+          CGO_ENABLED: "1"
+          CGO_LDFLAGS: ${{ matrix.build.cgo_ldflags }}
+          CC: ${{ matrix.build.cc }}
+          MROOT: ${{ matrix.build.mroot }}
+        run: |
+          set -euo pipefail
+          export CC
+          PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
+          export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
+          go run ./core/i18n/gen/catalogs
+          ( cd bowrain/apps/bowrain && wails3 build )
