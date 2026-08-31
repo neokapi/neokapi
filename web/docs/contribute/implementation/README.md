@@ -46,7 +46,7 @@ subsystem of the engine.
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | [kapi.yaml Project File](context/kapi-project-file.md)                    | [C-01](/contribute/architecture/context/c-01-project-model)        | `kapi.yaml` recipe schema and examples                                                           |
 | [Terminology Data Model](context/terminology-data-model.md)               | [C-08](/contribute/architecture/context/c-08-terms)                | Go structs, Terminology interface                                                                |
-| [Content Memory Matching Algorithm](context/memory-matching-algorithm.md) | [C-09](/contribute/architecture/context/c-09-content-memory)       | Tiered matching, TMX mapping                                                                     |
+| [Content Memory Matching Algorithm](context/memory-matching-algorithm.md) | [C-09](/contribute/architecture/context/c-09-content-memory)       | Tiered matching, version chains, TMX mapping                                                     |
 
 ## S — Surfaces
 
