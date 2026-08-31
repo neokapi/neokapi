@@ -1,15 +1,15 @@
 ---
 title: FAQ
 sidebar_position: 22
-description: Short, honest answers — when a platform is warranted, self-hosting, credits and bring-your-own keys, your data if you leave, supported formats, model training, review statuses, and MT providers.
+description: Short, honest answers. When a platform is warranted, self-hosting, credits and bring-your-own keys, your data if you leave, supported formats, model training, review statuses, and providers.
 ---
 
 # Frequently asked questions
 
 ## When do I need Bowrain, and when is kapi enough?
 
-kapi is the open-source, single-user toolchain: it reads and writes many
-content formats, runs checks, and draws on local memory — all from files you
+kapi holds the context graph for one project: it reads and writes many
+content formats, runs checks, and draws on local memory, all from files you
 own, with no server or account. Bowrain is the platform that holds voice profiles,
 vocabulary, and content memory once, across every project, surface, and
 teammate, and adds real-time collaboration, connectors, automation, versioned
@@ -32,7 +32,7 @@ runs without the billing pipeline: no credit limits, no plan gates. See
 
 ## Do bring-your-own-key runs consume credits?
 
-No. When a workspace configures its own AI provider key, translation and check
+No. When a workspace configures its own AI provider key, drafting and check
 operations run against that provider account, and those runs are not metered
 against Bowrain credits. (Usage is still counted internally, for abuse
 protection.) Credits are only spent when an operation uses the shared platform
@@ -41,7 +41,7 @@ provider. See [Security and privacy](/server/security-and-privacy#bring-your-own
 ## What happens to my data if I leave?
 
 You take it with you. Content round-trips back to the source formats you imported,
-and your linguistic assets export to open interchange formats through the kapi
+and your assets export to open interchange formats through the kapi
 CLI: `kapi memory export` writes TMX, and `kapi terms export` writes TBX, CSV, or
 JSON. A self-hosted deployment additionally keeps everything in a PostgreSQL
 database you can back up directly. There is no proprietary lock-in format holding
@@ -58,7 +58,7 @@ for the current, complete set.
 ## Does Bowrain train models on my content?
 
 No. Bowrain has no model-training pipeline. Your content is sent to an AI provider
-only to carry out an operation you initiated — a translation or a quality check —
+only to carry out an operation you initiated, a draft or a quality check,
 and, with a bring-your-own key, that request goes to your own provider account.
 The platform's analytics measure product usage, not content (see
 [Security and privacy](/server/security-and-privacy#analytics)).
@@ -67,18 +67,19 @@ The platform's analytics measure product usage, not content (see
 
 Review status is tracked per block and **per locale**, so reviewing the French
 target of a block never changes its German target. A block moves through four
-states — **Not Started**, **Draft**, **Translated**, and **Reviewed** — and you
-can filter a file by state to work through one stage at a time. In the Review
-surface, approving a block marks it Reviewed; rejecting it sends it back to Draft.
+states, **Not Started**, **Draft**, **Translated**, and **Reviewed**, and you
+can filter a file by state to work through one stage at a time. In the review
+session, approving a block marks it Reviewed; rejecting it sends it back to Draft.
 See [Review](/server/review).
 
 ## Can I use my own machine-translation provider?
 
-Bowrain translates with AI (large language model) providers, not dedicated
-machine-translation engines. You can bring your own AI provider key — Anthropic,
-OpenAI, Azure OpenAI, Google Gemini, or a local Ollama model — and translation
-runs against it. There is no separate machine-translation provider integration to
-configure: dedicated MT providers are not part of the product.
+Bowrain drafts with AI (large language model) providers, not dedicated
+machine-translation engines. You can bring your own key for any provider the
+engine's [translate tool](https://neokapi.github.io/reference/tools/translate)
+supports, including a locally hosted model, and drafting runs against it. There
+is no separate machine-translation provider integration to configure: dedicated
+MT providers are not part of the product.
 
 ## I have a question that is not here
 

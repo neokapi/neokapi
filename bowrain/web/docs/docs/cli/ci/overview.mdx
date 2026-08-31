@@ -1,7 +1,7 @@
 ---
 title: The loop in CI
-description: Every CI and delivery surface for a repository connected to a Bowrain server — GitHub Actions, GitLab CI, container runners, and the no-pipeline forge delivery — plus the exit-code contract and CI authentication.
-keywords: [kapi loop, CI, continuous translation, GitHub Actions, GitLab CI, GitHub App, forge, BOWRAIN_AUTH_TOKEN, ship gate]
+description: Every CI and delivery surface for a repository connected to a Bowrain server, GitHub Actions, GitLab CI, container runners, and the no-pipeline forge delivery, plus the exit-code contract and CI authentication.
+keywords: [kapi loop, CI, continuous convergence, GitHub Actions, GitLab CI, GitHub App, forge, BOWRAIN_AUTH_TOKEN, ship gate]
 ---
 
 import { LanesDiagram, KapiLink } from "@neokapi/docs-shared";
@@ -9,21 +9,21 @@ import { LanesDiagram, KapiLink } from "@neokapi/docs-shared";
 # The loop in CI
 
 CI is where drift is made: every merge changes source content and leaves its
-translations, terminology, and brand conformance behind. It is also the
+translations, terms, and voice conformance behind. It is also the
 natural place to catch up. [The kapi loop](/the-loop) runs on every change or
 on a schedule; what a machine cannot decide **parks** into the team's review
-queue on the server; and the ship gate protects releases without ever failing
+session on the server; and the ship gate protects releases without ever failing
 an ordinary build on target-language drift.
 
 On a project connected to a Bowrain server, a CI run of `kapi up` executes on
 the **server venue**: the job pushes the drift, the server runs the loop on
-the organization's AI keys, shared content memory, and terminology, and
+the organization's AI keys, shared content memory, and terms, and
 the results come back to the working tree. The runner holds a server token
 and no provider keys.
 
 This page maps the surfaces and the contract they share. The step-by-step
-generic walkthroughs — scheduling, gating, cost reporting on GitHub and
-GitLab — live on the kapi site:
+generic walkthroughs (scheduling, gating, cost reporting on GitHub and
+GitLab) live on the kapi site:
 <KapiLink to="/kapi/convergence-in-ci">The kapi loop in CI</KapiLink>.
 
 <LanesDiagram
@@ -34,7 +34,7 @@ GitLab — live on the kapi site:
       role: "translate",
       steps: [
         "a merge or a schedule tick",
-        "kapi up — the loop runs on the server",
+        "kapi up: the loop runs on the server",
         "a PR/MR with the run report",
       ],
     },
@@ -69,12 +69,12 @@ a pipeline needs:
 
 | Command | Role | Exit behavior |
 |---|---|---|
-| `kapi status` | **Observe** — per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
-| `kapi up` | **Produce** — runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
-| `kapi check --ship` | **Enforce** — the release bar | `0` pass, `3` gate unmet, `1` operational error |
+| `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
+| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
+| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `1` operational error |
 
 Parked work is pending review, not an error. The gate is the explicit,
-opt-in enforcement point — wire it into merge-request pipelines and a quality
+opt-in enforcement point: wire it into merge-request pipelines and a quality
 regression cannot merge, while day-to-day drift flows through review instead
 of breaking builds.
 
@@ -84,17 +84,17 @@ of breaking builds.
 |---|---|---|
 | GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) installs the CLI (the bowrain plugin included by default); [`kapi-action`](https://github.com/neokapi/kapi-action) runs `kapi up` and commits or opens a pull request. The reusable [`kapi-workflows`](https://github.com/neokapi/kapi-workflows) (`up.yml@v1`, `gate.yml@v1`) compose both into one-line jobs | [GitHub Actions](/cli/use-cases/github-actions) |
 | GitLab CI | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog: `up` delivers a merge request, `check` gates merge-request pipelines | [GitLab CI](/cli/ci/gitlab) |
-| Any container runner | `ghcr.io/neokapi/kapi` (cosign-signed; the server-sync plugin is preinstalled, so `kapi up` / `push` / `pull` work out of the box) and the CLI directly — the exit codes above are the contract | this page |
+| Any container runner | `ghcr.io/neokapi/kapi` (cosign-signed; the server-sync plugin is preinstalled, so `kapi up` / `push` / `pull` work out of the box) and the CLI directly; the exit codes above are the contract | this page |
 | No pipeline | The forge connector / Bowrain GitHub App: the server converges on every push to the tracked branch and delivers the results back as one PR/MR | [The Bowrain GitHub App](/cli/ci/github-app) |
 
 ## Which to use when
 
 If you own the repository's CI and want control over triggers, delivery, and
-gating, use `kapi-action` on GitHub or `kapi-components` on GitLab — each job
+gating, use `kapi-action` on GitHub or `kapi-components` on GitLab; each job
 is an ordinary pipeline step you can shape. For minimal setup on GitHub, the
 reusable workflows give you the whole produce-and-deliver or gate job as a
-single `uses:` line. When nobody owns the repository's CI — a docs,
-marketing, or content repository — or you want zero configuration in the
+single `uses:` line. When nobody owns the repository's CI (a docs,
+marketing, or content repository) or you want zero configuration in the
 repository at all, connect it server-side with the
 [forge connector or the Bowrain GitHub App](/cli/ci/github-app): the server
 converges on every push and delivers a pull request back on its own.
@@ -108,7 +108,7 @@ kapi auth login
 kapi auth token create --name "ci" --expire-days 90
 ```
 
-The token (`bwt_…`) is shown once — store it as a CI secret immediately. On
+The token (`bwt_…`) is shown once; store it as a CI secret immediately. On
 the runner, `BOWRAIN_AUTH_TOKEN` carries the credential, and the CLI checks
 it before any stored login:
 
@@ -127,21 +127,21 @@ tokens with `kapi auth token list` and `kapi auth token delete`.
 
 What a job needs beyond the server token depends on its venue:
 
-- **Server venue** (a connected project) — nothing. The server holds the AI
+- **Server venue** (a connected project): nothing. The server holds the AI
   keys; the job only pushes, watches, and pulls.
-- **Local venue** (`kapi up --local`, or a project with no `bowrain:` block) —
+- **Local venue** (`kapi up --local`, or a project with no `bowrain:` block):
   the loop runs inside the job and needs a provider key, for example
   `ANTHROPIC_API_KEY`, as a CI secret.
-- **Gate-only jobs** — `kapi check --ship` reads the working tree and needs
-  no AI keys; when the gate enforces governed terminology, the job runs
+- **Gate-only jobs**: `kapi check --ship` reads the working tree and needs
+  no AI keys; when the gate enforces governed terms, the job runs
   `kapi pull` first and needs the server token. See
-  [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
+  [Gate governed terms in CI](/cli/use-cases/brand-terminology-ci).
 
 ## Next
 
-- [GitHub Actions](/cli/use-cases/github-actions) — the deep guide: setup, catch-up, gates, sync, reusable workflows
-- [GitLab CI](/cli/ci/gitlab) — the `up` and `check` components against a Bowrain server
-- [The Bowrain GitHub App](/cli/ci/github-app) — forge delivery with no pipeline, GitLab included
-- [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci) — governed terminology as a merge gate
-- [Keeping content caught up](/the-loop) — the model behind produce, promote, release
-- <KapiLink to="/kapi/convergence-in-ci">The kapi loop in CI</KapiLink> — the full generic walkthroughs on the kapi site
+- [GitHub Actions](/cli/use-cases/github-actions): the deep guide: setup, catch-up, gates, sync, reusable workflows
+- [GitLab CI](/cli/ci/gitlab): the `up` and `check` components against a Bowrain server
+- [The Bowrain GitHub App](/cli/ci/github-app): forge delivery with no pipeline, GitLab included
+- [Gate governed terms in CI](/cli/use-cases/brand-terminology-ci): governed terms as a merge gate
+- [Keeping content caught up](/the-loop): the model behind produce, promote, release
+- <KapiLink to="/kapi/convergence-in-ci">The kapi loop in CI</KapiLink>: the full generic walkthroughs on the kapi site

@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # Source Language Preparation
 
-Quality translations start with quality source content. kapi provides tools to validate, clean, and prepare source-language content before the convergence loop carries it into every target language.
+Quality results start with quality source content. kapi provides tools to validate, clean, and prepare source-language content before the convergence loop carries it into every target language.
 
 ## Why Source-First Quality Matters
 
@@ -13,11 +13,11 @@ Issues in source content compound through translation. A misspelled term, an inc
 
 Common source problems:
 
-- **Inconsistent terminology** — the same concept called different things in different files
-- **Placeholder errors** — mismatched or malformed variables (e.g., `%s` vs `%d` mismatch)
-- **Whitespace issues** — trailing spaces, mixed line endings, zero-width characters
-- **Length problems** — strings too long for UI constraints
-- **Missing translations** — source strings without corresponding target entries
+- **Inconsistent terms**: the same concept called different things in different files
+- **Placeholder errors**: mismatched or malformed variables (for example `%s` vs `%d` mismatch)
+- **Whitespace issues**: trailing spaces, mixed line endings, zero-width characters
+- **Length problems**: strings too long for UI constraints
+- **Missing translations**: source strings without corresponding target entries
 
 ## QA on Source Content
 
@@ -27,7 +27,7 @@ Run quality checks directly on source files without any server connection:
 # Run QA checks on source content
 kapi exec qa -i src/locales/en/ --source-lang en
 
-# Check terminology consistency
+# Check term consistency
 kapi exec term-check -i src/locales/en/ --termstore terms.tbx
 
 # Validate XML/HTML structure in source strings
@@ -45,16 +45,16 @@ The `qa` tool validates:
 | `placeholders` | Placeholder format consistency and completeness                |
 | `terminology`  | Required terms present and correctly used                      |
 | `length`       | String length within configured limits                         |
-| `patterns`     | Custom regex patterns (e.g., brand name capitalization)        |
+| `patterns`     | Custom regex patterns (for example brand name capitalization)  |
 | `characters`   | Invalid or unexpected Unicode characters                       |
 
 ## Example Flows for Source Prep
 
-### Terminology Consistency Check
+### Term Consistency Check
 
 Create `.kapi/flows/source-qa.yaml`:
 
-Step config keys are the tool's own schema keys, in camelCase — see
+Step config keys are the tool's own schema keys, in camelCase; see
 [the tool reference](https://neokapi.github.io/reference/tools/qa).
 An unrecognized key is silently ignored, so a misspelling costs you the check
 rather than an error. The locale is not a config key either: it comes from the
@@ -81,7 +81,7 @@ steps:
       checkTargetInconsistency: true
 ```
 
-Run it, then gate on the findings — the flow annotates the content, and
+Run it, then gate on the findings: the flow annotates the content, and
 `kapi check` is what turns findings into an exit code:
 
 ```bash
@@ -92,7 +92,7 @@ kapi check src/locales/en/*.json --target src/locales/fr/app.json \
 
 ### Scoping and Content Stats
 
-Before starting a translation project, analyze the source content:
+Before starting a project, analyze the source content:
 
 ```bash
 # Content stats (blocks, words, characters) across all source files
@@ -105,7 +105,7 @@ kapi up --plan
 ### Cleanup
 
 `case-transform` normalizes the source; `whitespace-correct` tidies the target
-against it, so it runs after a target exists. Step config keys are camelCase —
+against it, so it runs after a target exists. Step config keys are camelCase,
 the same spelling as the tool's schema, which
 [the tool reference](https://neokapi.github.io/reference/tools/whitespace-correct)
 lists.
@@ -177,7 +177,7 @@ This catches source-language issues at the PR stage, before they propagate to tr
 
 ## Related
 
-- [Translation Flows](/cli/flows/overview) — available tools and flow configuration
-- [Terminology](https://neokapi.github.io/framework/terminology) — managing terms stores
-- [QA Checks](https://neokapi.github.io/framework/checks/qa-checks) — rule-based quality checks
-- [GitHub Actions](/cli/use-cases/github-actions) — CI/CD integration
+- [Flows](/cli/flows/overview): available tools and flow configuration
+- [Terms](https://neokapi.github.io/framework/terminology): managing terms stores
+- [QA Checks](https://neokapi.github.io/framework/checks/qa-checks): rule-based quality checks
+- [GitHub Actions](/cli/use-cases/github-actions): CI/CD integration

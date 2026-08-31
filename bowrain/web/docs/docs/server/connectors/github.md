@@ -1,7 +1,7 @@
 ---
 title: GitHub / GitLab
 sidebar_position: 4
-description: The forge connector turns a repository into a connected project with no CI configuration — a push webhook triggers the server, and results arrive as one open pull/merge request.
+description: The forge connector turns a repository into a connected project with no CI configuration. A push webhook triggers the server, and results arrive as one open pull/merge request.
 keywords: [github, gitlab, forge, connector, pull request, merge request, webhook, github app]
 ---
 
@@ -10,7 +10,7 @@ keywords: [github, gitlab, forge, connector, pull request, merge request, webhoo
 The `forge` connector is a code connector. It watches a repository branch, and
 when content changes it catches the repository up on the server and delivers the
 results as **one open pull/merge request** that every later delivery updates in
-place — never a direct push to the tracked branch.
+place, never a direct push to the tracked branch.
 
 This is the route for a team that wants a repository governed without anyone
 running a command. There is no pipeline in the repository, no CLI on anyone's
@@ -36,7 +36,7 @@ filename stem equal to the source language becomes the target language
 suffixed to the stem.
 
 When a run parks work for a person, the pull/merge request says so; approvals
-travel through the project's [review queue](/server/review) and arrive in a
+travel through the project's [review session](/server/review) and arrive in a
 later delivery.
 
 ## Setup with a token
@@ -61,17 +61,17 @@ curl -X POST "$SERVER/api/v1/$WORKSPACE/connectors" \
 ```
 
 Then add a **push webhook** in the repository settings pointing at
-`$SERVER/api/webhooks/forge/<connector-id>` with the same secret — GitHub signs
+`$SERVER/api/webhooks/forge/<connector-id>` with the same secret. GitHub signs
 the payload (secret field), GitLab sends it as the secret token. The token needs
 pull/merge-request write access: a GitHub fine-grained PAT with contents +
 pull-requests write, or a GitLab project access token with api scope.
 
 Optional config: `forge` (`github` | `gitlab`; default inferred from the repo
-host — self-managed GitLab included), `delivery_branch` (default
+host, self-managed GitLab included), `delivery_branch` (default
 `bowrain/translations`), `pr_title`, `pr_labels`.
 
 Credentials are sealed at rest like every connector secret. Pushes to branches
-other than the tracked one — including the delivery branch itself — are ignored,
+other than the tracked one, including the delivery branch itself, are ignored,
 so the connector's own deliveries never re-trigger a run.
 
 ## GitHub App mode (no tokens, no per-repo webhooks)
@@ -110,7 +110,7 @@ GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
 Installing the app on a repository is then the only per-repo step. GitHub
 redirects to the server's setup page (set the app's **Setup URL** to
 `$SERVER/github/setup`), which lists the installation's repositories and binds
-each to a project with one selection — no curl, no tokens. The setup page is a
+each to a project with one selection: no curl, no tokens. The setup page is a
 complete on-ramp: a visitor who arrives without a Bowrain account signs in or
 creates one (the installation is preserved through login), gets a workspace if
 they have none, and can create a project from the repository inline. The same
@@ -124,6 +124,6 @@ See [The Bowrain GitHub App](/cli/ci/github-app) for the end-to-end walkthrough.
 
 ## Related
 
-- [Connectors](/server/connectors) — the full connector row
-- [kapi connector](/server/connectors/kapi) — the same repository, driven by a developer
-- [Keeping content caught up](/the-loop) — what a delivery contains
+- [Connectors](/server/connectors): the full connector row
+- [kapi connector](/server/connectors/kapi): the same repository, driven by a developer
+- [Keeping content caught up](/the-loop): what a delivery contains
