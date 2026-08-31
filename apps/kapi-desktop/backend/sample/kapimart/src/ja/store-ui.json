@@ -1,0 +1,55 @@
+{
+  "navigation": {
+    "home": "ホーム",
+    "products": "商品",
+    "categories": "カテゴリー",
+    "shopping_cart": "ショッピングカート",
+    "wishlist": "ウィッシュリスト",
+    "my_account": "マイアカウント",
+    "order_history": "注文履歴",
+    "sign_in": "サインイン",
+    "sign_out": "サインアウト",
+    "register": "アカウントを作成"
+  },
+  "product": {
+    "add_to_cart": "カートに追加",
+    "buy_now": "今すぐ購入",
+    "out_of_stock": "在庫切れ",
+    "in_stock": "在庫あり",
+    "quantity": "数量",
+    "select_size": "サイズを選択",
+    "select_color": "色を選択",
+    "customer_reviews": "カスタマーレビュー",
+    "write_review": "レビューを書く",
+    "recently_viewed": "最近閲覧した商品",
+    "low_stock": "残り{count}点"
+  },
+  "cart": {
+    "empty_cart": "カートは空です。",
+    "continue_shopping": "買い物を続ける",
+    "cart_subtotal": "小計",
+    "order_total": "注文合計",
+    "remove_item": "削除",
+    "proceed_to_checkout": "レジに進む",
+    "discount_applied": "割引を適用しました: {code}",
+    "free_shipping_notice": "{amount}以上のご注文で送料無料"
+  },
+  "checkout": {
+    "shipping_address": "配送先住所",
+    "billing_address": "請求先住所",
+    "payment_method": "お支払い方法",
+    "credit_card": "クレジットカード",
+    "place_order": "注文する",
+    "standard_shipping": "通常配送（5〜7営業日）",
+    "express_shipping": "速達配送（2〜3営業日）"
+  },
+  "account": {
+    "order_tracking": "注文を追跡する",
+    "welcome_back": "おかえりなさい、{name}さん"
+  },
+  "messages": {
+    "added_to_cart": "商品がカートに追加されました！",
+    "session_expired": "セッションの有効期限が切れました。もう一度サインインしてください。",
+    "generic_error": "問題が発生しました。後でもう一度お試しください。"
+  }
+}

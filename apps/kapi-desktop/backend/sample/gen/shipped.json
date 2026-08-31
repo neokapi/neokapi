@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "The target files the sample ships, and the locales it ships them in.",
+    "",
+    "A file earns a place here when the historic translations cover enough of it",
+    "that it can be shipped in the target language alone. Both entries are",
+    "key-addressed catalogues, so a partly translated one is written with only",
+    "the keys that have an answer: the file carries no English standing in for",
+    "German, and the keys that are missing are honestly missing.",
+    "",
+    "Prose cannot be shipped that way — half a translated page is not a page —",
+    "so the documentation, the contracts and the campaign material stay",
+    "untranslated until someone translates them, which is the work the sample is",
+    "supposed to have in front of it."
+  ],
+  "locales": ["de", "fr", "ja", "nb", "ar"],
+  "catalogs": [
+    "src/{locale}/store-ui.json",
+    "src/{locale}/error-messages.properties"
+  ]
+}

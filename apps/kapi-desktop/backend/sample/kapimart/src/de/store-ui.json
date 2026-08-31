@@ -1,0 +1,55 @@
+{
+  "navigation": {
+    "home": "Startseite",
+    "products": "Produkte",
+    "categories": "Kategorien",
+    "shopping_cart": "Warenkorb",
+    "wishlist": "Wunschliste",
+    "my_account": "Mein Konto",
+    "order_history": "Bestellverlauf",
+    "sign_in": "Anmelden",
+    "sign_out": "Abmelden",
+    "register": "Konto erstellen"
+  },
+  "product": {
+    "add_to_cart": "In den Warenkorb",
+    "buy_now": "Jetzt kaufen",
+    "out_of_stock": "Nicht auf Lager",
+    "in_stock": "Auf Lager",
+    "quantity": "Menge",
+    "select_size": "Größe auswählen",
+    "select_color": "Farbe auswählen",
+    "customer_reviews": "Kundenbewertungen",
+    "write_review": "Bewertung schreiben",
+    "recently_viewed": "Zuletzt angesehen",
+    "low_stock": "Nur noch {count} auf Lager"
+  },
+  "cart": {
+    "empty_cart": "Ihr Warenkorb ist leer.",
+    "continue_shopping": "Weiter einkaufen",
+    "cart_subtotal": "Zwischensumme",
+    "order_total": "Bestellsumme",
+    "remove_item": "Entfernen",
+    "proceed_to_checkout": "Zur Kasse gehen",
+    "discount_applied": "Rabatt angewendet: {code}",
+    "free_shipping_notice": "Kostenloser Versand ab {amount}"
+  },
+  "checkout": {
+    "shipping_address": "Lieferadresse",
+    "billing_address": "Rechnungsadresse",
+    "payment_method": "Zahlungsmethode",
+    "credit_card": "Kreditkarte",
+    "place_order": "Bestellung aufgeben",
+    "standard_shipping": "Standardversand (5-7 Werktage)",
+    "express_shipping": "Expressversand (2-3 Werktage)"
+  },
+  "account": {
+    "order_tracking": "Bestellung verfolgen",
+    "welcome_back": "Willkommen zurück, {name}"
+  },
+  "messages": {
+    "added_to_cart": "Artikel wurde Ihrem Warenkorb hinzugefügt!",
+    "session_expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "generic_error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut."
+  }
+}

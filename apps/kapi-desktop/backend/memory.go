@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
@@ -71,8 +72,38 @@ type MemoryEntryDTO struct {
 	Properties  map[string]string     `json:"properties,omitempty"`
 	Note        string                `json:"note,omitempty"`
 	Origins     []OriginDTO           `json:"origins,omitempty"`
-	CreatedAt   string                `json:"created_at"`
-	UpdatedAt   string                `json:"updated_at"`
+	// Unit is the block this answer was approved for, and Point the coordinate
+	// it was approved at. An entry the whole project agrees on carries a unit
+	// and no point: a point is recorded when one source has been answered
+	// differently at two of them, which is the disagreement the field exists to
+	// keep straight.
+	Unit      string    `json:"unit,omitempty"`
+	Point     *PointDTO `json:"point,omitempty"`
+	CreatedAt string    `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
+}
+
+// PointDTO is a context point as its rungs, coarsest first.
+//
+// The stored form joins them with a unit separator and is opaque by design —
+// the corpus holds no recipe, so it cannot say how a point should read. Split
+// here rather than passed through, because a raw point rendered into a UI is a
+// string with control characters in it.
+type PointDTO struct {
+	Profile    string `json:"profile,omitempty"`
+	Channel    string `json:"channel,omitempty"`
+	Collection string `json:"collection,omitempty"`
+}
+
+func pointToDTO(point string) *PointDTO {
+	if point == "" {
+		return nil
+	}
+	return &PointDTO{
+		Profile:    memory.PointRung(point, 0),
+		Channel:    memory.PointRung(point, 1),
+		Collection: memory.PointRung(point, 2),
+	}
 }
 
 // MemorySearchResult is the paginated result from SearchMemoryEntries.
@@ -352,20 +383,61 @@ func memoryEntryToDTO(entry memory.Entry) MemoryEntryDTO {
 		Properties:  entry.Properties,
 		Note:        entry.Note,
 		Origins:     originsToDTO(entry.Origins),
+		Unit:        entry.Unit,
+		Point:       pointToDTO(entry.Point),
 		CreatedAt:   entry.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   entry.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID][]model.Run {
+// canonicalLocale turns a locale as the frontend spells it into the form the
+// stores key on.
+//
+// A locale arrives from a text field, a URL, a POSIX environment or another
+// tool, so "nb_NO", "NB-no" and "nb-NO" all name one language and only the last
+// one matches a stored variant. Canonicalizing at the method boundary is what
+// keeps a search for "nb_NO" from quietly finding nothing.
+//
+// An empty locale is a real answer — unscoped — rather than a bad one.
+func canonicalLocale(s string) (model.LocaleID, error) {
+	if s == "" {
+		return "", nil
+	}
+	return locale.Parse(s)
+}
+
+// canonicalSearchLocales canonicalizes the pair of locales a search or lookup
+// is scoped by, reporting false when either is not a locale.
+//
+// These methods answer with a result rather than an error, so a locale nothing
+// could name is answered the way an unknown handle is: with nothing found. The
+// alternative is searching for the literal string the caller typed, which finds
+// nothing anyway and says so less clearly.
+func canonicalSearchLocales(a, b string) (string, string, bool) {
+	first, err := canonicalLocale(a)
+	if err != nil {
+		return "", "", false
+	}
+	second, err := canonicalLocale(b)
+	if err != nil {
+		return "", "", false
+	}
+	return string(first), string(second), true
+}
+
+func variantsFromInput(in map[string]VariantInputDTO) (map[model.LocaleID][]model.Run, error) {
 	out := make(map[model.LocaleID][]model.Run, len(in))
 	for loc, v := range in {
 		if loc == "" {
 			continue
 		}
-		out[model.LocaleID(loc)] = runsFromVariantInput(v)
+		canonical, err := canonicalLocale(loc)
+		if err != nil {
+			return nil, err
+		}
+		out[canonical] = runsFromVariantInput(v)
 	}
-	return out
+	return out, nil
 }
 
 // --- Resource discovery ---
@@ -579,6 +651,10 @@ func (a *App) SearchMemoryEntries(handle, query, anyLocale, requireLocale string
 	if !ok {
 		return &MemorySearchResult{}
 	}
+	anyLocale, requireLocale, named := canonicalSearchLocales(anyLocale, requireLocale)
+	if !named {
+		return &MemorySearchResult{}
+	}
 	entries, total, err := tm.SearchEntries(context.Background(), memory.SearchParams{
 		Query:         query,
 		AnyLocale:     anyLocale,
@@ -600,6 +676,10 @@ func (a *App) SearchMemoryEntries(handle, query, anyLocale, requireLocale string
 func (a *App) SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLocale string, filter MemorySearchFilter, offset, limit int) *MemorySearchResult {
 	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
+		return &MemorySearchResult{}
+	}
+	anyLocale, requireLocale, named := canonicalSearchLocales(anyLocale, requireLocale)
+	if !named {
 		return &MemorySearchResult{}
 	}
 	entries, total, err := tm.SearchEntriesFiltered(context.Background(), memory.SearchParams{
@@ -640,12 +720,20 @@ func (a *App) AddMemoryEntry(handle string, req AddMemoryEntryRequest) error {
 	if !ok {
 		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
+	variants, err := variantsFromInput(req.Variants)
+	if err != nil {
+		return err
+	}
+	hint, err := canonicalLocale(req.HintSrcLang)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	entry := memory.Entry{
 		ID:          id.New(),
 		ProjectID:   req.ProjectID,
-		Variants:    variantsFromInput(req.Variants),
-		HintSrcLang: model.LocaleID(req.HintSrcLang),
+		Variants:    variants,
+		HintSrcLang: hint,
 		Note:        req.Note,
 		Origins:     originsFromDTO(req.Origins),
 		CreatedAt:   now,
@@ -672,7 +760,10 @@ func (a *App) UpdateMemoryEntry(handle string, req UpdateMemoryEntryRequest) err
 	// with no runs, which retires it. Handing the store only the surviving
 	// locales would leave the dropped one in place and the editor showing a
 	// language the user just deleted.
-	next := variantsFromInput(req.Variants)
+	next, err := variantsFromInput(req.Variants)
+	if err != nil {
+		return err
+	}
 	for locale := range existing.Variants {
 		if _, kept := next[locale]; !kept {
 			next[locale] = nil

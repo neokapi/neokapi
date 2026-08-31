@@ -1,0 +1,55 @@
+{
+  "navigation": {
+    "home": "الرئيسية",
+    "products": "المنتجات",
+    "categories": "الفئات",
+    "shopping_cart": "سلة التسوق",
+    "wishlist": "قائمة الأمنيات",
+    "my_account": "حسابي",
+    "order_history": "سجل الطلبات",
+    "sign_in": "تسجيل الدخول",
+    "sign_out": "تسجيل الخروج",
+    "register": "إنشاء حساب"
+  },
+  "product": {
+    "add_to_cart": "أضف إلى السلة",
+    "buy_now": "اشترِ الآن",
+    "out_of_stock": "غير متوفر",
+    "in_stock": "متوفر",
+    "quantity": "الكمية",
+    "select_size": "اختر المقاس",
+    "select_color": "اختر اللون",
+    "customer_reviews": "تقييمات العملاء",
+    "write_review": "كتابة تقييم",
+    "recently_viewed": "شوهد مؤخرًا",
+    "low_stock": "بقي {count} فقط في المخزون"
+  },
+  "cart": {
+    "empty_cart": "سلة التسوق فارغة.",
+    "continue_shopping": "متابعة التسوق",
+    "cart_subtotal": "المجموع الفرعي",
+    "order_total": "إجمالي الطلب",
+    "remove_item": "إزالة",
+    "proceed_to_checkout": "المتابعة إلى الدفع",
+    "discount_applied": "تم تطبيق الخصم: {code}",
+    "free_shipping_notice": "شحن مجاني للطلبات التي تزيد عن {amount}"
+  },
+  "checkout": {
+    "shipping_address": "عنوان الشحن",
+    "billing_address": "عنوان الفوترة",
+    "payment_method": "طريقة الدفع",
+    "credit_card": "بطاقة ائتمان",
+    "place_order": "تأكيد الطلب",
+    "standard_shipping": "الشحن القياسي (5-7 أيام عمل)",
+    "express_shipping": "الشحن السريع (2-3 أيام عمل)"
+  },
+  "account": {
+    "order_tracking": "تتبع طلبك",
+    "welcome_back": "مرحبًا بعودتك، {name}"
+  },
+  "messages": {
+    "added_to_cart": "تمت إضافة المنتج إلى سلتك!",
+    "session_expired": "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+    "generic_error": "حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقًا."
+  }
+}

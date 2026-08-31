@@ -1,0 +1,55 @@
+{
+  "navigation": {
+    "home": "Hjem",
+    "products": "Produkter",
+    "categories": "Kategorier",
+    "shopping_cart": "Handlekurv",
+    "wishlist": "Ønskeliste",
+    "my_account": "Min konto",
+    "order_history": "Ordrehistorikk",
+    "sign_in": "Logg inn",
+    "sign_out": "Logg ut",
+    "register": "Opprett konto"
+  },
+  "product": {
+    "add_to_cart": "Legg i handlekurv",
+    "buy_now": "Kjøp nå",
+    "out_of_stock": "Ikke på lager",
+    "in_stock": "På lager",
+    "quantity": "Antall",
+    "select_size": "Velg størrelse",
+    "select_color": "Velg farge",
+    "customer_reviews": "Kundeanmeldelser",
+    "write_review": "Skriv en anmeldelse",
+    "recently_viewed": "Nylig sett",
+    "low_stock": "Bare {count} igjen på lager"
+  },
+  "cart": {
+    "empty_cart": "Handlekurven din er tom.",
+    "continue_shopping": "Fortsett å handle",
+    "cart_subtotal": "Delsum",
+    "order_total": "Ordretotal",
+    "remove_item": "Fjern",
+    "proceed_to_checkout": "Gå til kassen",
+    "discount_applied": "Rabatt brukt: {code}",
+    "free_shipping_notice": "Gratis frakt på bestillinger over {amount}"
+  },
+  "checkout": {
+    "shipping_address": "Leveringsadresse",
+    "billing_address": "Fakturaadresse",
+    "payment_method": "Betalingsmetode",
+    "credit_card": "Kredittkort",
+    "place_order": "Legg inn bestilling",
+    "standard_shipping": "Standardfrakt (5–7 virkedager)",
+    "express_shipping": "Ekspressfrakt (2–3 virkedager)"
+  },
+  "account": {
+    "order_tracking": "Spor bestillingen din",
+    "welcome_back": "Velkommen tilbake, {name}"
+  },
+  "messages": {
+    "added_to_cart": "Varen er lagt i handlekurven!",
+    "session_expired": "Økten din har utløpt. Vennligst logg inn på nytt.",
+    "generic_error": "Noe gikk galt. Vennligst prøv igjen senere."
+  }
+}
