@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/contexteval
 
-go 1.26.0
+go 1.27.0
 
 // contexteval measures how well a model follows the context kapi injects —
 // glossary, brand voice, instruction — by translating an engineered corpus twice

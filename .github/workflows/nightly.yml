@@ -1,6 +1,6 @@
 name: Nightly
 
-# The full gate on the forward-compat Go toolchain. ci.yml pins Go 1.26.0 on
+# The full gate on the forward-compat Go toolchain. ci.yml pins Go 1.27.0 on
 # every PR and push (fast feedback); this nightly re-runs the heavier suites on
 # Go `stable` with the race detector, so a toolchain regression surfaces within
 # a day without taxing the per-commit path. The event is `schedule`, so the

@@ -198,7 +198,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
 
       - name: Install Wails system dependencies (Linux)
         uses: ./.github/actions/apt-install
@@ -291,7 +291,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
 
       # The Wails app backend links the GTK/WebKit runtime on Linux; these dev
       # packages also pull in libicu-dev that the framework's cgo build needs.
@@ -342,7 +342,7 @@ jobs:
         # coverage/artifacts were discarded anyway, so keeping it out of the
         # per-commit path removes a whole test leg (and its build cache) from
         # both PR and push.
-        go-version: ["1.26.0"]
+        go-version: ["1.27.0"]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
@@ -392,7 +392,7 @@ jobs:
 
       - name: Upload native test results
         uses: actions/upload-artifact@v7
-        if: always() && matrix.go-version == '1.26.0'
+        if: always() && matrix.go-version == '1.27.0'
         with:
           name: test-results-native
           path: test-results-framework.json
@@ -749,7 +749,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
       # No setup-go-modules: that action primes the go.work modules, and these
       # four are outside it. Each recipe runs GOWORK=off in its own module.
       - name: Test the pure-Go plugin modules
@@ -928,7 +928,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
 
       # The .golangci.yml build-tags include fts5, so golangci-lint must compile
       # the cgo ICU tokenizer / FTS5 path; that needs libicu-dev + pkg-config
@@ -982,7 +982,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
 
       - name: Create embed placeholders
         run: |
@@ -1128,7 +1128,7 @@ jobs:
       # Go file, so the check must not inherit that hole.
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
           cache: false
       - name: Guard — every tracked .go file is gofmt-clean
         run: make check-gofmt

@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.26.0"
+          go-version: "1.27.0"
 
       # Tarball signing is only needed for publishing (tag pushes). Skip on the
       # build-only workflow_dispatch.

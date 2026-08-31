@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/gen-contract-types
 
-go 1.26.0
+go 1.27.0
 
 // gen-contract-types emits the shared TypeScript contract types
 // (packages/contract-types) from the framework's Go source of truth

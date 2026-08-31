@@ -745,7 +745,7 @@ func BenchmarkNativeVsBridge(b *testing.B) {
 The real `ci.yml` runs one test job per module (framework, platform core,
 cli, kapi, kapi-desktop, bowrain desktop, bowrain, bowrain/plugin, the in-repo
 plugins) plus frontend and lint jobs, each path-filtered by a `changes` job. It
-pins Go `1.26.0`; the forward-compatibility `stable` leg runs in `nightly.yml`,
+pins Go `1.27.0`; the forward-compatibility `stable` leg runs in `nightly.yml`,
 not per commit. The shape below is illustrative:
 
 ```yaml
@@ -757,7 +757,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.26.0"]
+        go-version: ["1.27.0"]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules

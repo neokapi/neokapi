@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/plugins/pdfium
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/klippa-app/go-pdfium v1.19.4

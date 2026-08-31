@@ -250,7 +250,7 @@ kapi and the desktop are never tagged separately: the workspace relies on
 `go.work` plus `replace` directives rather than published per-module versions.
 Each plugin module releases on its own prefixed tag (`<plugin>-vX.Y.Z`), which
 drives that plugin's release workflow ([E-05](../engine/e-05-plugin-system.md)).
-All modules target Go 1.26 or later.
+All modules target Go 1.27 or later.
 
 `make help` is the authoritative catalog of build, test, vet, and lint targets;
 it is self-documenting and current.

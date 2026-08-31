@@ -7,7 +7,7 @@ inputs:
   go-version:
     description: Go version to install
     required: false
-    default: "1.26.0"
+    default: "1.27.0"
   cache-flavor:
     description: >
       Build-cache flavor. The Go build cache (GOCACHE) is keyed per flavor

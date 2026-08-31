@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/batcheval
 
-go 1.26.0
+go 1.27.0
 
 // batcheval sweeps the real models, including the one the Bowrain platform
 // actually runs on: AWS Bedrock. The Bedrock provider lives in the bowrain module

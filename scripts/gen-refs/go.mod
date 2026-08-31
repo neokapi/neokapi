@@ -1,6 +1,6 @@
 module github.com/neokapi/neokapi/scripts/gen-refs
 
-go 1.26.0
+go 1.27.0
 
 // gen-refs introspects the framework registries (formats/tools) and the kapi
 // CLI command tree (which lives in the cli module and pulls in Cobra). Keeping
