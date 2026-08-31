@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -58,10 +59,14 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
 		}
-		if proj.Defaults.SourceLanguage == model.LocaleID(v) {
+		next, err := canonicalField(path, v)
+		if err != nil {
+			return false, err
+		}
+		if proj.Defaults.SourceLanguage == next {
 			return false, nil
 		}
-		proj.Defaults.SourceLanguage = model.LocaleID(v)
+		proj.Defaults.SourceLanguage = next
 		return true, nil
 
 	case "defaults.target_languages":
@@ -71,7 +76,11 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 		}
 		next := make([]model.LocaleID, len(v))
 		for i, s := range v {
-			next[i] = model.LocaleID(s)
+			id, err := canonicalField(fmt.Sprintf("%s[%d]", path, i), s)
+			if err != nil {
+				return false, err
+			}
+			next[i] = id
 		}
 		if localesEqual(proj.Defaults.TargetLanguages, next) {
 			return false, nil
@@ -291,6 +300,25 @@ func decodeRecipeValue(path string, raw json.RawMessage, dst any) error {
 		return fmt.Errorf("recipe: %s: %w", path, err)
 	}
 	return nil
+}
+
+// canonicalField canonicalizes a locale on its way into the recipe.
+//
+// This is the one ingress that WRITES the value back to the user's file, so it
+// is the one that must canonicalize rather than merely normalize downstream.
+// Loading a recipe deliberately leaves a hand-written locale as the author
+// spelled it; a locale that arrives through `kapi set` or an applied change-set
+// was not hand-written, and persisting it verbatim would put a style into the
+// file that every later read has to undo.
+//
+// A locale that is not one is refused here rather than written and refused by
+// the next load.
+func canonicalField(field, v string) (model.LocaleID, error) {
+	id, err := locale.Canonical(v)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", field, err)
+	}
+	return id, nil
 }
 
 func localesEqual(a, b []model.LocaleID) bool {

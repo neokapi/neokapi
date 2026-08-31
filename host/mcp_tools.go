@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/i18n"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -215,6 +216,16 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
 			targetLang = defaultTargetLang
+		}
+		// An agent may spell a locale any way; the tool it drives is given the
+		// canonical tag, and a target_lang that names no language is refused
+		// rather than translated into.
+		if targetLang != "" {
+			id, err := locale.Canonical(targetLang)
+			if err != nil {
+				return nil, fmt.Errorf("target_lang: %w", err)
+			}
+			targetLang = string(id)
 		}
 
 		config := make(map[string]any, len(args))

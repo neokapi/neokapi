@@ -1,6 +1,7 @@
 package host
 
 import (
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/spf13/pflag"
 )
@@ -41,12 +42,18 @@ const sourceLangUsage = "source language (e.g. en, en-US; defaults to the projec
 // argument) wins, then the recipe's `defaults.source_language`, then
 // DefaultSourceLang. Either input is empty when its source is silent — a run
 // with no project passes an empty recipe.
+//
+// The answer is canonical BCP-47 whatever style it was named in, so a
+// `--source-lang nb_NO` on the command line and an `nb-NO` in the recipe are
+// the same source language to everything downstream. A tag that names no
+// language is left as typed: this resolution has no error to return, and the
+// command it feeds fails better than a locale helper can.
 func ResolveSourceLocale(named string, recipe model.LocaleID) string {
 	if named != "" {
-		return named
+		return string(locale.Normalize(model.LocaleID(named)))
 	}
 	if recipe != "" {
-		return string(recipe)
+		return string(locale.Normalize(recipe))
 	}
 	return DefaultSourceLang
 }
