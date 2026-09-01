@@ -666,12 +666,21 @@ export interface ReviewAIActionResult {
   exchanges?: AIActivityEntry[];
 }
 
-/** One message in an LLM exchange, as it went on the wire. */
+/** One content part of a message: text, or a media reference. */
+export interface AIContentPart {
+  kind: string;
+  text?: string;
+  media?: { mime?: string; path?: string };
+}
+
+/** One message in an LLM exchange, as it went on the wire. A message is always
+ *  a list of parts — there is no plain-string form. */
 export interface AIMessage {
   role: string;
-  content?: string;
-  /** Multimodal calls carry parts instead of a plain string. */
-  parts?: { type?: string; text?: string }[];
+  parts?: AIContentPart[];
+  /** Which prompt ingredient produced each piece of the text (framework rule,
+   *  voice profile, terms, the source block), when a prompt builder made it. */
+  sections?: { label?: string; text?: string }[];
 }
 
 /** One LLM call: what was sent, what constrained the output, what came back. */

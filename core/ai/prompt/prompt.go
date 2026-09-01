@@ -15,6 +15,11 @@
 // prompt in this package branches on the provider.
 package prompt
 
+import (
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
+)
+
 // Version is the declared revision of this prompt catalog. It is a label for
 // humans — shown by --explain, published in the prompt reference — so a prompt
 // can be cited ("translate.single v2") in a bug report or a changelog.
@@ -25,7 +30,29 @@ package prompt
 // and cached translations produced by a prompt that no longer exists get served
 // as current. (That happened during development of this package.) Bump Version
 // when the change is worth announcing; correctness does not depend on it.
-const Version = "v3"
+const Version = "v4"
+
+// LanguageName renders a locale for a model to read: the English language name
+// with the tag beside it, "Norwegian Bokmål (nb)".
+//
+// A bare BCP-47 tag is an identifier, and a model has to resolve it before it
+// can act on it. A large one usually does; a small one is not reliable. Asked to
+// translate "Order Confirmed!" from "en" to "nb", gemma4:e2b returns "Commande
+// confirmée !" every time at the sampling temperature kapi uses for local
+// models — French, confidently, for a Norwegian target. Told "Norwegian Bokmål
+// (nb)" it returns "Ordre bekreftet!". The tag stays because it disambiguates a
+// name that does not travel alone (Norwegian has two written standards, and
+// zh-Hans is not zh-Hant).
+//
+// An unnamed tag renders as itself rather than doubled: our pseudo locale qps
+// has no CLDR name, and "qps (qps)" tells a reader nothing twice.
+func LanguageName(id model.LocaleID) string {
+	name := locale.DisplayName(id)
+	if name == "" || name == string(id) {
+		return string(id)
+	}
+	return name + " (" + string(id) + ")"
+}
 
 // Role names a Turn's speaker. These mirror aiprovider's role constants; this
 // package deliberately does not import aiprovider, so that aiprovider can

@@ -201,7 +201,7 @@ func (p QualityCheck) Turns(source, target string) []Turn {
 			Kind:   KindContent,
 			Origin: "source and translation",
 			Text: fmt.Sprintf("Source (%s): %s\nTranslation (%s): %s",
-				p.SourceLocale, source, p.TargetLocale, target),
+				LanguageName(p.SourceLocale), source, LanguageName(p.TargetLocale), target),
 		}),
 	}
 }
@@ -226,7 +226,7 @@ func (p Review) Turns(source, target string) []Turn {
 			Kind:   KindContent,
 			Origin: "source and translation",
 			Text: fmt.Sprintf("Source (%s): %s\nTranslation (%s): %s",
-				p.SourceLocale, source, p.TargetLocale, target),
+				LanguageName(p.SourceLocale), source, LanguageName(p.TargetLocale), target),
 		}),
 	}
 }

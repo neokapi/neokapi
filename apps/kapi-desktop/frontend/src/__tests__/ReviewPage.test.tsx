@@ -314,9 +314,16 @@ describe("ReviewPage", () => {
           exchange: {
             provider: "anthropic",
             model: "claude-opus-5",
+            // The shape the Go side actually serializes: a message is a list of
+            // parts, never a plain string. The first version of this test
+            // invented a `content` field, so it passed while the panels it was
+            // meant to prove rendered empty against real backend output.
             messages: [
-              { role: "system", content: "You translate from en to de." },
-              { role: "user", content: "Hello {name}!\nInstruction: more informal" },
+              { role: "system", parts: [{ kind: "text", text: "You translate from en to de." }] },
+              {
+                role: "user",
+                parts: [{ kind: "text", text: "Hello {name}!\nInstruction: more informal" }],
+              },
             ],
             response: "Hallo {name}!",
             usage: { input_tokens: 120, output_tokens: 8 },

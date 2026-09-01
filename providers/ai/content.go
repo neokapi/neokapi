@@ -53,10 +53,16 @@ func (k ContentKind) Modality() (Modality, bool) {
 // BlobKey > URI > Data), never a bare []byte, so a large slice is never forced
 // into memory by the framework; resolveMediaBytes materializes it only here, at
 // the provider boundary.
+// The JSON names are lower-case to match every other field of the Exchange this
+// travels inside. Without them a part serialized as Kind/Text/Media while its
+// container used role/messages/response, and a reader following the container's
+// convention got an undefined text for every message: `kapi --explain-prompts`
+// wrote it, and the desktop's disclosure drew the system and user panels empty
+// while the reply beside them rendered.
 type ContentPart struct {
-	Kind  ContentKind
-	Text  string       // Kind == ContentText
-	Media *model.Media // otherwise — image/audio/video slice
+	Kind  ContentKind  `json:"kind"`
+	Text  string       `json:"text,omitempty"`  // Kind == ContentText
+	Media *model.Media `json:"media,omitempty"` // otherwise — image/audio/video slice
 }
 
 // TextPart builds a text content part.

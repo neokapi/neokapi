@@ -181,7 +181,7 @@ func (t Translate) task() Section {
 			linguistPersona+" Translate the user's text from %s to %s, rendering it "+
 				"as a specialist writing natively in that domain and language would. "+
 				"Return ONLY the translation, with no explanation, preamble or quoting.",
-			t.SourceLocale, t.TargetLocale,
+			LanguageName(t.SourceLocale), LanguageName(t.TargetLocale),
 		),
 	}
 }
@@ -329,7 +329,7 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 				"rendering each as a specialist writing natively in that domain and language would. "+
 				"Return one translation per segment, echoing each segment's id exactly. "+
 				"Return every id you were given, and no others.%s",
-			t.SourceLocale, t.TargetLocale, keyRule+priorRule,
+			LanguageName(t.SourceLocale), LanguageName(t.TargetLocale), keyRule+priorRule,
 		),
 	}}
 	system = append(system, t.constraints(true)...)
