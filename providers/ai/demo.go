@@ -63,14 +63,14 @@ func (p *DemoProvider) modelName() string {
 
 // Translate produces a deterministic demo translation of the source text.
 //
-// It goes through standardTranslate like every other provider, rather than
+// It goes through StandardTranslate like every other provider, rather than
 // short-circuiting on req.Source: that renders the real prompt and routes it
 // through Chat, so `--provider demo --explain` previews exactly the prompt a
 // paid provider would receive — with no API key, no network and no spend. The
 // reported confidence stays 0: a stub has no real confidence.
 func (p *DemoProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	noticeOnce()
-	return standardTranslate(ctx, p.Name(), p.Chat, req, 0)
+	return StandardTranslate(ctx, p.Name(), p.Chat, req, 0)
 }
 
 // Chat returns a deterministic demo reply. When the message looks like a

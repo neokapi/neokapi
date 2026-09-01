@@ -8,6 +8,9 @@ export {
 };
 
 export {
+    AIActivityEntry,
+    AIActivityResult,
+    AIActivityScope,
     AIDetectionResult,
     AIModelOption,
     AddConceptRequest,

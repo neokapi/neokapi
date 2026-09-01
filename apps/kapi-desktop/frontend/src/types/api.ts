@@ -661,6 +661,67 @@ export type ReviewAIActionKind = "fix-findings" | "retranslate" | "explain";
 export interface ReviewAIActionResult {
   proposed_target?: string;
   explanation?: string;
+  /** The LLM calls this action made, so the reviewer can read what was sent
+   *  before accepting what came back. */
+  exchanges?: AIActivityEntry[];
+}
+
+/** One message in an LLM exchange, as it went on the wire. */
+export interface AIMessage {
+  role: string;
+  content?: string;
+  /** Multimodal calls carry parts instead of a plain string. */
+  parts?: { type?: string; text?: string }[];
+}
+
+/** One LLM call: what was sent, what constrained the output, what came back. */
+export interface AIExchange {
+  prompt?: string;
+  prompt_version?: string;
+  provider: string;
+  model?: string;
+  messages: AIMessage[];
+  schema?: Record<string, unknown>;
+  response?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_tokens?: number;
+    cache_write_tokens?: number;
+  };
+  error?: string;
+}
+
+/** Which piece of work an LLM call was made for. */
+export interface AIActivityScope {
+  surface: string;
+  action?: string;
+  locale?: string;
+  file?: string;
+  key?: string;
+}
+
+/** One recorded LLM call in the session's activity log. */
+export interface AIActivityEntry {
+  id: number;
+  at: string;
+  scope: AIActivityScope;
+  provider: string;
+  model?: string;
+  prompt?: string;
+  prompt_version?: string;
+  error?: string;
+  exchange: AIExchange;
+}
+
+/** The session's AI activity log, newest first. */
+export interface AIActivityResult {
+  entries: AIActivityEntry[];
+  /** How many older entries the window evicted; non-zero means the list is
+   *  partial. */
+  dropped: number;
+  /** The window size. */
+  cap: number;
 }
 
 /** Narrowing for an AI pre-review run. */

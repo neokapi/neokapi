@@ -32,6 +32,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { VirtualList } from "@neokapi/editor-grid";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { AIExchangeDisclosure } from "./AIExchangeView";
 import type {
   DesktopFinding,
   PreReviewPolicy,
@@ -41,6 +42,7 @@ import type {
   ReviewAIActionResult,
   ReviewItem,
   ReviewUnitDetail,
+  AIActivityEntry,
 } from "../types/api";
 
 /** Initial queue narrowing handed in by an entry point (a ship-gate cell or a
@@ -158,6 +160,9 @@ export function ReviewPage({
   const [aiBusy, setAIBusy] = useState<ReviewAIActionKind | null>(null);
   const [aiProposal, setAIProposal] = useState<string | null>(null);
   const [aiExplanation, setAIExplanation] = useState<string | null>(null);
+  // The calls the last AI action made. Held beside its result so the disclosure
+  // under a proposal shows the prompt that produced THAT proposal.
+  const [aiExchanges, setAIExchanges] = useState<AIActivityEntry[]>([]);
   // AI pre-review modal state.
   const [preReviewOpen, setPreReviewOpen] = useState(false);
   const [preReviewAuto, setPreReviewAuto] = useState(false);
@@ -235,6 +240,7 @@ export function ReviewPage({
   useEffect(() => {
     setAIProposal(null);
     setAIExplanation(null);
+    setAIExchanges([]);
     if (!selected) {
       setUnit(null);
       setEditText("");
@@ -364,6 +370,7 @@ export function ReviewPage({
       }
       setAIBusy(action);
       setAIExplanation(null);
+      setAIExchanges([]);
       if (action !== "explain") setAIProposal(null);
       try {
         const run =
@@ -372,6 +379,7 @@ export function ReviewPage({
             api.reviewAIAction(tabID, it.locale, it.file, it.key, act, ins));
         const res = await run(selected, action, instruction);
         if (!res) return;
+        setAIExchanges(res.exchanges ?? []);
         if (action === "explain") {
           setAIExplanation(res.explanation ?? "");
         } else if (res.proposed_target) {
@@ -1122,6 +1130,7 @@ export function ReviewPage({
                           {t("Discard")}
                         </Button>
                       </div>
+                      <AIExchangeDisclosure entries={aiExchanges} />
                     </CardContent>
                   </Card>
                 )}
@@ -1139,6 +1148,7 @@ export function ReviewPage({
                         </Button>
                       </div>
                       <div className="whitespace-pre-wrap text-xs">{aiExplanation}</div>
+                      <AIExchangeDisclosure entries={aiExchanges} />
                     </CardContent>
                   </Card>
                 )}

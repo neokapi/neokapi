@@ -1,6 +1,7 @@
 package aiprovider
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -17,18 +18,18 @@ func recordAll(t *testing.T) *[]Exchange {
 
 	var mu sync.Mutex
 	var got []Exchange
-	SetRecorder(func(e Exchange) {
+	remove := AddRecorder(func(_ context.Context, e Exchange) {
 		mu.Lock()
 		defer mu.Unlock()
 		got = append(got, e)
 	})
-	t.Cleanup(func() { SetRecorder(nil) })
+	t.Cleanup(remove)
 	return &got
 }
 
 // Translate must be captured exactly once. A provider's Translate calls its own
 // Chat, bypassing the recording wrapper, so the exchange is recorded inside
-// standardTranslate — and the wrapper must not also record it.
+// StandardTranslate — and the wrapper must not also record it.
 func TestRecorderCapturesTranslateExactlyOnce(t *testing.T) {
 	got := recordAll(t)
 
@@ -96,11 +97,83 @@ func TestRecordingPreservesStreamingInterface(t *testing.T) {
 // With no recorder installed, providers are returned unwrapped — an ordinary run
 // pays nothing for the diagnostic.
 func TestNoRecorderLeavesProviderUnwrapped(t *testing.T) {
-	SetRecorder(nil)
-
 	p, err := NewProvider(Demo, Config{})
 	require.NoError(t, err)
 
 	_, wrapped := p.(*recordingStreamingProvider)
 	assert.False(t, wrapped)
+}
+
+// Two observers of the same calls. `kapi --explain-prompts` and a desktop
+// session's activity log both want every exchange, and a single slot meant
+// whichever registered second turned the first one off, leaving a transcript
+// that came back empty with nothing to say why.
+func TestTwoRecordersBothReceiveAndRemoveIndependently(t *testing.T) {
+	var mu sync.Mutex
+	var first, second []Exchange
+
+	removeFirst := AddRecorder(func(_ context.Context, e Exchange) {
+		mu.Lock()
+		defer mu.Unlock()
+		first = append(first, e)
+	})
+	removeSecond := AddRecorder(func(_ context.Context, e Exchange) {
+		mu.Lock()
+		defer mu.Unlock()
+		second = append(second, e)
+	})
+	t.Cleanup(removeSecond)
+
+	p, err := NewProvider(Demo, Config{})
+	require.NoError(t, err)
+
+	req := TranslateRequest{Source: "Save", SourceLanguage: "en", TargetLocale: "fr"}
+	_, err = p.Translate(t.Context(), req)
+	require.NoError(t, err)
+
+	mu.Lock()
+	assert.Len(t, first, 1)
+	assert.Len(t, second, 1)
+	mu.Unlock()
+
+	// Removing one leaves the other recording.
+	removeFirst()
+	_, err = p.Translate(t.Context(), req)
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Len(t, first, 1, "a removed recorder must stop receiving")
+	assert.Len(t, second, 2, "the remaining recorder must keep receiving")
+}
+
+// The context reaches the recorder, which is how a host attributes an exchange
+// to the work that made it (a review action, a convergence run) rather than
+// showing an undifferentiated list.
+func TestRecorderReceivesTheCallContext(t *testing.T) {
+	type scopeKey struct{}
+
+	var mu sync.Mutex
+	var seen []string
+	remove := AddRecorder(func(ctx context.Context, _ Exchange) {
+		mu.Lock()
+		defer mu.Unlock()
+		if v, ok := ctx.Value(scopeKey{}).(string); ok {
+			seen = append(seen, v)
+		}
+	})
+	t.Cleanup(remove)
+
+	p, err := NewProvider(Demo, Config{})
+	require.NoError(t, err)
+
+	ctx := context.WithValue(t.Context(), scopeKey{}, "review:fix-findings")
+	_, err = p.Translate(ctx, TranslateRequest{
+		Source: "Save", SourceLanguage: "en", TargetLocale: "fr",
+	})
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"review:fix-findings"}, seen)
 }

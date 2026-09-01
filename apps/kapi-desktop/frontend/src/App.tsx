@@ -11,6 +11,7 @@ import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
 import { ActiveFilterProvider } from "./context/ActiveFilterContext";
 import { IconSidebar } from "./components/IconSidebar";
 import { JobFeedButton } from "./components/JobFeedButton";
+import { AIActivityButton } from "./components/AIActivityButton";
 import { FilterMenu } from "./components/FilterMenu";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
@@ -301,6 +302,7 @@ function AppInner() {
                     }
                   }}
                 />
+                <AIActivityButton />
                 <ModeToggle mode={tm.mode} onChange={tm.switchMode} />
               </div>
             </div>
