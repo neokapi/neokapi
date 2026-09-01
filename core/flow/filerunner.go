@@ -125,6 +125,23 @@ type FileRunnerConfig struct {
 	// the writer's format id.
 	ConfigureWriter func(writer format.DataFormatWriter, formatName registry.FormatID) error
 
+	// SeedBlockState is an optional callback applied to each block as it leaves
+	// the reader and before any tool sees it. Use it to stamp workflow state a
+	// file does not carry.
+	//
+	// A source file records wording, never whether a person approved that
+	// wording; that lives in the project's state store, which the framework
+	// knows nothing about. Without this the source-gate stage re-derives
+	// readiness from the checks alone on every run, so a committed approval was
+	// invisible in-flow: `kapi status` reported a unit `approved` while the run
+	// beside it held the same unit below an `approved` gate, and the two
+	// disagreed with nothing to say why.
+	//
+	// It is a host-supplied function value like DetectFormat and
+	// ConfigureReader above, which is what keeps the state store on the host
+	// side of the line. The block is mutated in place; a nil hook costs nothing.
+	SeedBlockState func(sourcePath string, b *model.Block)
+
 	// Recorder, when non-nil, captures a flow trace: an initial snapshot of
 	// each Part as it leaves the reader plus reader-exit events, and
 	// writer enter/exit events. The caller is responsible for wrapping the
@@ -1117,6 +1134,40 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
+	// Seed committed workflow state onto each block before the first tool sees
+	// it. Interposed here rather than inside each feeder because there are two
+	// (buffered and streaming) and they must not diverge on this.
+	feedCh := inCh
+	seedDone := make(chan struct{})
+	if r.cfg.SeedBlockState != nil {
+		seeded := make(chan *model.Part, cap(inCh))
+		feedCh = seeded
+		go func() {
+			defer close(seedDone)
+			defer close(inCh)
+			for p := range seeded {
+				if p != nil && p.Type == model.PartBlock {
+					if b, ok := p.Resource.(*model.Block); ok && b != nil {
+						r.cfg.SeedBlockState(sourcePath, b)
+					}
+				}
+				select {
+				case inCh <- p:
+				case <-feedCtx.Done():
+					// The executor stopped early (a tool error). Drain the rest
+					// so the feeder is not left parked on a send, then finish:
+					// this relay owns close(inCh), so returning without draining
+					// would deadlock the feeder instead of leaking one goroutine.
+					for range seeded { //nolint:revive // intentional drain
+					}
+					return
+				}
+			}
+		}()
+	} else {
+		close(seedDone)
+	}
+
 	var feedErr error
 	feedDone := make(chan struct{})
 	go func() {
@@ -1132,7 +1183,7 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 			}
 		}()
 		// feed closes inCh itself so the writer/skeleton see EOF.
-		feed.Feed(feedCtx, inCh, &feedErr)
+		feed.Feed(feedCtx, feedCh, &feedErr)
 	}()
 
 	// The writer drains outCh (every DataFormatWriter loops
@@ -1176,6 +1227,7 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	// early on a tool error before reading every part).
 	feedCancel()
 	<-feedDone
+	<-seedDone
 	if waitErr != nil {
 		return fmt.Errorf("execute flow: %w", waitErr)
 	}

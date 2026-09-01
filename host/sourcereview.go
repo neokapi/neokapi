@@ -189,6 +189,38 @@ func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject,
 	return items, nil
 }
 
+// SourceStateSeeder returns the flow hook that stamps committed source
+// approvals onto blocks as they leave the reader, or nil when the project has
+// none (so an unapproved project pays nothing).
+//
+// It is what makes a run agree with the report. The in-flow source gate settles
+// readiness from the checks on every pass, which can only produce authored or
+// checked; without the committed approval on the block first, `kapi status`
+// would call a unit approved while the run beside it held that same unit below
+// an `approved` gate.
+//
+// The approvals are read once, when the run starts. A run is a snapshot of the
+// project anyway, and re-reading the store per block would put a query on the
+// hot path of every unit in the project.
+func (a *App) SourceStateSeeder(ctx context.Context, root, sourceLang string) (func(string, *model.Block), error) {
+	approvals, err := a.loadSourceApprovals(ctx, root, sourceLang)
+	if err != nil {
+		return nil, err
+	}
+	if len(approvals) == 0 {
+		return nil, nil
+	}
+	docs := a.documentIndexOrEmpty(ctx, root)
+	return func(sourcePath string, b *model.Block) {
+		if b == nil || !b.Translatable {
+			return
+		}
+		if approvals.approves(docs.Scope(root, sourcePath), blockKey(b), b.SourceText()) {
+			b.SourceStatus = model.SourceStatusApproved
+		}
+	}, nil
+}
+
 // SourceQueue is the public entry point onto computeSourceQueue: it loads the
 // project, resolves its source content and returns the units awaiting authoring
 // attention.

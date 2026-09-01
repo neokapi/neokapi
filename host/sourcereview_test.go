@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -120,4 +121,52 @@ func TestComputeSourceQueue_EmptyUnderTheCheckedGate(t *testing.T) {
 	queue, err := a.computeSourceQueue(t.Context(), proj, root, units)
 	require.NoError(t, err)
 	assert.Empty(t, queue)
+}
+
+// The report and the run have to agree about a unit. Before the seeder they did
+// not: settleSourceStates honoured a committed approval while the in-flow
+// source gate re-derived readiness from the checks alone, so `kapi status`
+// called a unit approved and the run beside it held that same unit below an
+// `approved` gate, with nothing on either surface to say why.
+func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
+	a, _, recipe, root := newSourceSettleProject(t, "approved")
+
+	// No approvals: no seeder, and nothing to pay for.
+	seed, err := a.SourceStateSeeder(t.Context(), root, "en")
+	require.NoError(t, err)
+	assert.Nil(t, seed, "a project with no approvals installs no hook")
+
+	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+		File: "src/en.json", Key: "greeting",
+	})
+	require.NoError(t, err)
+
+	seed, err = a.SourceStateSeeder(t.Context(), root, "en")
+	require.NoError(t, err)
+	require.NotNil(t, seed)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	units, err := a.UnitsFromProject(proj, root, "")
+	require.NoError(t, err)
+
+	blocks, err := a.readSource(t.Context(), units[0])
+	require.NoError(t, err)
+
+	var approved, other int
+	for _, b := range blocks {
+		if !b.Translatable {
+			continue
+		}
+		seed(units[0].SourcePath, b)
+		// The gate settles after the seed, exactly as the in-flow stage does.
+		check.SettleSourceStatus(t.Context(), b)
+		if b.SourceStatus == model.SourceStatusApproved {
+			approved++
+		} else {
+			other++
+		}
+	}
+	assert.Equal(t, 1, approved, "the approved unit clears an approved gate in-flow")
+	assert.Equal(t, 1, other, "the unapproved one still does not")
 }
