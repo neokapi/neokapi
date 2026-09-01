@@ -26,6 +26,10 @@ vi.mock("@wailsio/runtime", () => ({
   Call: vi.fn().mockRejectedValue(new Error("not in wails")),
   CancellablePromise: vi.fn(),
   Create: vi.fn(),
+  Clipboard: {
+    SetText: vi.fn().mockResolvedValue(undefined),
+    Text: vi.fn().mockResolvedValue(""),
+  },
   Events: {
     On: vi.fn(() => vi.fn()),
     Emit: vi.fn(),

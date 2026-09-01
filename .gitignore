@@ -275,6 +275,10 @@ platform/docker/traefik/certs
 # Throwaway kapi config/data/cache home for in-repo (non-dogfood) invocations — see Makefile KAPI_ISO_ENV
 .kapi-iso/
 
+# Reproducible plugin set for `make kapi-desktop-dev` — see Makefile kapi-desktop-dev.
+# Empty by default; place a plugin's install directory here to test with it in dev mode.
+apps/kapi-desktop/.dev-plugins/
+
 # Synthetic project stores written by scripts/contention-harness (removed on
 # exit unless it is run with -keep)
 .contention-harness/
