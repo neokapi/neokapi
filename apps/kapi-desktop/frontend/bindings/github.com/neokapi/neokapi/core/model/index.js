@@ -4,6 +4,7 @@
 
 export {
     LocaleID,
+    Media,
     Origin
 } from "./models.js";
 

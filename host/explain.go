@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,9 +45,10 @@ func ApplySourceLocale(sourceLang string, config map[string]any) map[string]any 
 type explainCollector struct {
 	mu        sync.Mutex
 	exchanges []aiprovider.Exchange
+	remove    func()
 }
 
-func (c *explainCollector) add(e aiprovider.Exchange) {
+func (c *explainCollector) add(_ context.Context, e aiprovider.Exchange) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.exchanges = append(c.exchanges, e)
@@ -66,7 +68,7 @@ func (a *App) StartExplain() {
 		return
 	}
 	a.explain = &explainCollector{}
-	aiprovider.SetRecorder(a.explain.add)
+	a.explain.remove = aiprovider.AddRecorder(a.explain.add)
 }
 
 // FlushExplain renders the captured exchanges. It is called at the end of a run.
@@ -76,7 +78,7 @@ func (a *App) FlushExplain() error {
 	if a.explain == nil {
 		return nil
 	}
-	aiprovider.SetRecorder(nil)
+	a.explain.remove()
 
 	exchanges := a.explain.all()
 	// Shutdown can run more than once; render exactly once.

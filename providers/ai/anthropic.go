@@ -46,7 +46,7 @@ func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 func (p *AnthropicProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
+	return StandardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 // Limits reports what the configured model can emit. Unknown models fall back to

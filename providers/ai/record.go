@@ -31,33 +31,80 @@ type Exchange struct {
 	Err      string     `json:"error,omitempty"`
 }
 
-// recorder is the process-wide observer of LLM calls. It is a diagnostic hook,
-// like tracing: set once when the user asks to see prompts, nil otherwise, so
-// an ordinary run pays nothing for it.
+// Recorder observes one LLM call. It receives the call's context, so a recorder
+// can read whatever the caller stamped there (a prompt id via prompt.Meta, or a
+// host's own scope) and attribute the exchange to the work that made it.
+type Recorder func(ctx context.Context, ex Exchange)
+
+// recorders are the process-wide observers of LLM calls. It is a diagnostic
+// hook, like tracing: empty on an ordinary run, which then pays nothing.
+//
+// A list rather than one slot, because two observers legitimately want the same
+// calls and neither may silently displace the other. `kapi --explain-prompts`
+// collects one run's exchanges and renders them at the end; a desktop session
+// keeps a rolling activity log for the whole time the app is open. A single slot
+// meant whichever started second turned the first one off, and the only symptom
+// was a transcript that came back empty.
 var (
 	recorderMu sync.RWMutex
-	recorder   func(Exchange)
+	recorders  []*Recorder
 )
 
-// SetRecorder installs (or clears, with nil) the process-wide LLM call recorder.
-// Every provider built through NewProvider is wrapped while one is set.
-func SetRecorder(fn func(Exchange)) {
+// AddRecorder registers an observer of every LLM call and returns the function
+// that removes it. Every provider built through NewProvider while at least one
+// recorder is registered is wrapped to feed them.
+//
+// A provider already constructed is NOT retroactively wrapped, so register
+// before the work starts.
+func AddRecorder(fn Recorder) (remove func()) {
+	if fn == nil {
+		return func() {}
+	}
+	handle := &fn
 	recorderMu.Lock()
-	defer recorderMu.Unlock()
-	recorder = fn
+	recorders = append(recorders, handle)
+	recorderMu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			recorderMu.Lock()
+			defer recorderMu.Unlock()
+			for i, h := range recorders {
+				if h == handle {
+					recorders = append(recorders[:i], recorders[i+1:]...)
+					return
+				}
+			}
+		})
+	}
 }
 
-// currentRecorder returns the installed recorder, or nil.
-func currentRecorder() func(Exchange) {
+// currentRecorders returns the registered observers.
+func currentRecorders() []Recorder {
 	recorderMu.RLock()
 	defer recorderMu.RUnlock()
-	return recorder
+	if len(recorders) == 0 {
+		return nil
+	}
+	out := make([]Recorder, 0, len(recorders))
+	for _, h := range recorders {
+		out = append(out, *h)
+	}
+	return out
 }
 
-// record emits an exchange when a recorder is installed.
+// recordersInstalled reports whether any observer is registered.
+func recordersInstalled() bool {
+	recorderMu.RLock()
+	defer recorderMu.RUnlock()
+	return len(recorders) > 0
+}
+
+// record emits an exchange to every registered observer.
 func record(ctx context.Context, providerName ProviderID, msgs []Message, schema *JSONSchema, resp *ChatResponse, err error) {
-	rec := currentRecorder()
-	if rec == nil {
+	recs := currentRecorders()
+	if len(recs) == 0 {
 		return
 	}
 
@@ -78,13 +125,15 @@ func record(ctx context.Context, providerName ProviderID, msgs []Message, schema
 	if err != nil {
 		ex.Err = err.Error()
 	}
-	rec(ex)
+	for _, rec := range recs {
+		rec(ctx, ex)
+	}
 }
 
 // recordingProvider captures every call made through it. It deliberately does
-// not override Translate: each provider implements Translate as standardTranslate
+// not override Translate: each provider implements Translate as StandardTranslate
 // over its own Chat, which would bypass this wrapper's Chat — so the Translate
-// exchange is recorded inside standardTranslate instead, and recording it here
+// exchange is recorded inside StandardTranslate instead, and recording it here
 // too would double-count it.
 type recordingProvider struct {
 	LLMProvider
@@ -120,6 +169,24 @@ func (w *recordingStreamingProvider) ChatStructuredStream(ctx context.Context, m
 	resp, err := w.streaming.ChatStructuredStream(ctx, messages, schema, onEvent)
 	record(ctx, w.Name(), messages, &schema, resp, err)
 	return resp, err
+}
+
+// Recording wraps a provider so every call it serves is reported to the
+// registered recorders, preserving streaming support.
+//
+// NewProvider applies this on its own while a recorder is registered, which
+// covers every provider the recipe or the config builds, plugin-contributed
+// ones included. Use it directly for a provider constructed some other way:
+// an embedded host that holds its own client, or a test that hands a tool a
+// mock and still wants the exchange observed.
+//
+// A decorator like Traced, and for the same reason: the behaviour is identical
+// for every backend, so one wrapper cannot drift between them.
+func Recording(p LLMProvider) LLMProvider {
+	if p == nil {
+		return nil
+	}
+	return withRecording(p)
 }
 
 // withRecording wraps p so its calls are captured, preserving streaming support.

@@ -31,6 +31,110 @@ export const LocaleID = {
 };
 
 /**
+ * Media holds binary or media content (images, embedded objects).
+ * 
+ * Three storage modes are supported, checked in priority order:
+ * BlobKey (server-managed blob storage) > URI (external reference) > Data (inline bytes).
+ */
+export class Media {
+    /**
+     * Creates a new Media instance.
+     * @param {Partial<Media>} [$$source = {}] - The source object to create the Media.
+     */
+    constructor($$source = {}) {
+        if (!("ID" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["ID"] = "";
+        }
+        if (!("MimeType" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["MimeType"] = "";
+        }
+        if (!("Data" in $$source)) {
+            /**
+             * Inline binary (small assets, pipeline-internal)
+             * @member
+             * @type {string}
+             */
+            this["Data"] = "";
+        }
+        if (!("BlobKey" in $$source)) {
+            /**
+             * Content-addressed key in BlobStore (large assets)
+             * @member
+             * @type {string}
+             */
+            this["BlobKey"] = "";
+        }
+        if (!("URI" in $$source)) {
+            /**
+             * External reference (CDN URL, SAS URL)
+             * @member
+             * @type {string}
+             */
+            this["URI"] = "";
+        }
+        if (!("Filename" in $$source)) {
+            /**
+             * Original filename
+             * @member
+             * @type {string}
+             */
+            this["Filename"] = "";
+        }
+        if (!("AltText" in $$source)) {
+            /**
+             * Accessible alternative text
+             * @member
+             * @type {string}
+             */
+            this["AltText"] = "";
+        }
+        if (!("Size" in $$source)) {
+            /**
+             * Size in bytes
+             * @member
+             * @type {number}
+             */
+            this["Size"] = 0;
+        }
+        if (!("Properties" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string }}
+             */
+            this["Properties"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Media instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Media}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $Create.ByteSlice;
+        const $$createField8_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Data" in $$parsedSource) {
+            $$parsedSource["Data"] = $$createField2_0($$parsedSource["Data"]);
+        }
+        if ("Properties" in $$parsedSource) {
+            $$parsedSource["Properties"] = $$createField8_0($$parsedSource["Properties"]);
+        }
+        return new Media(/** @type {Partial<Media>} */($$parsedSource));
+    }
+}
+
+/**
  * Origin records how content was produced, and under what context. On a Target
  * it records how the committed translation was made; on a Block's source it
  * records how a *recognized* source was extracted (ocr, asr) — source and target
@@ -163,3 +267,6 @@ export class Origin {
  * of the keys text, ph, pcOpen, pcClose, sub, plural, or select.
  * @typedef {any} Run
  */
+
+// Private type creation functions
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);

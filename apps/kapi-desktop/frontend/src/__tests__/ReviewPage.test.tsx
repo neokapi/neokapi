@@ -297,6 +297,56 @@ describe("ReviewPage", () => {
     );
   });
 
+  // A reviewer accepting a proposal is accepting an answer. The question has to
+  // be reachable, or the only basis for the decision is that the model said so.
+  it("discloses what was sent to the model behind an AI proposal", async () => {
+    vi.spyOn(window, "prompt").mockReturnValue("more informal");
+    const onAIAction = vi.fn(async () => ({
+      proposed_target: "Hallo {name}!",
+      exchanges: [
+        {
+          id: 1,
+          at: "2026-09-01T18:00:00Z",
+          scope: { surface: "review", action: "retranslate", locale: "de", key: "greeting" },
+          provider: "anthropic",
+          model: "claude-opus-5",
+          prompt: "translate.single",
+          exchange: {
+            provider: "anthropic",
+            model: "claude-opus-5",
+            messages: [
+              { role: "system", content: "You translate from en to de." },
+              { role: "user", content: "Hello {name}!\nInstruction: more informal" },
+            ],
+            response: "Hallo {name}!",
+            usage: { input_tokens: 120, output_tokens: 8 },
+          },
+        },
+      ],
+    }));
+    renderPage({ onAIAction });
+    await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ai-proposal']")).not.toBeNull(),
+    );
+
+    // Collapsed by default: the reviewer wants the proposal first.
+    const disclosure = document.querySelector("[data-slot='ai-exchange-disclosure']");
+    expect(disclosure).not.toBeNull();
+    expect(disclosure!.textContent).not.toContain("You translate from en to de.");
+
+    await userEvent.click(screen.getByRole("button", { name: /What was sent to the model/ }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='ai-exchange-disclosure']")!.textContent).toContain(
+        "You translate from en to de.",
+      ),
+    );
+    const text = document.querySelector("[data-slot='ai-exchange-disclosure']")!.textContent!;
+    expect(text).toContain("Instruction: more informal");
+    expect(text).toContain("claude-opus-5");
+    expect(text).toContain("Hallo {name}!");
+  });
+
   it("discarding an AI proposal writes nothing", async () => {
     vi.spyOn(window, "prompt").mockReturnValue("shorter");
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));

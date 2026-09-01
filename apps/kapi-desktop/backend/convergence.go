@@ -212,6 +212,11 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	start := time.Now()
 	a.emitRunEvent(RunEvent{Type: "state", FlowID: flowName, Message: "running"})
 
+	// Every model call this run makes is attributed to the run in the session's
+	// AI activity log. A run's calls carry no unit address: the loop translates
+	// in batches, so the exchange itself is where the content is.
+	ctx = withAIScope(ctx, AIActivityScope{Surface: "convergence", Action: flowName})
+
 	// Share the desktop's AI defaulting + credential resolution with the run's
 	// registries, exactly like the CLI's Init does — so the built-in default
 	// flow's translate step resolves the configured ai.provider/ai.model and

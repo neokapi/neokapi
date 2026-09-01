@@ -76,7 +76,7 @@ func (p *ClaudeCodeProvider) Name() ProviderID { return ClaudeCode }
 func (p *ClaudeCodeProvider) InputModalities() []Modality { return nil }
 
 func (p *ClaudeCodeProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
+	return StandardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 func (p *ClaudeCodeProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {

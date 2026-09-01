@@ -170,6 +170,9 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		a.runState.mu.Unlock()
 	}()
 
+	// Attribute this flow's model calls to it in the session's AI activity log.
+	ctx = withAIScope(ctx, AIActivityScope{Surface: "flow", Action: flowName})
+
 	capp := a.borrowEngine(&host.App{
 		FormatReg:   a.formatReg,
 		ToolReg:     a.toolReg,

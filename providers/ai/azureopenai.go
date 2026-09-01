@@ -74,7 +74,7 @@ func (p *AzureOpenAIProvider) Name() ProviderID { return AzureOpenAI }
 func (p *AzureOpenAIProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
+	return StandardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {

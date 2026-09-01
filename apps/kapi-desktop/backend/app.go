@@ -44,6 +44,7 @@ import (
 	cliI18n "github.com/neokapi/neokapi/host/i18n"
 	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/neokapi/neokapi/memory"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gopkg.in/yaml.v3"
@@ -80,6 +81,14 @@ type App struct {
 
 	// Flow runner
 	runState *runner
+
+	// aiActivity is the session's rolling record of what this app sent to a
+	// model and what came back. Registered as a provider recorder in NewApp, so
+	// every AI surface feeds it: review actions, AI pre-review, convergence
+	// runs, tools run from the toolbox.
+	aiActivity *aiActivityLog
+	// aiActivityStop deregisters the recorder on shutdown.
+	aiActivityStop func()
 
 	// aiToolFactory builds the AI tool a review AI action / pre-review uses.
 	// Nil in production (the default path resolves provider config exactly
@@ -185,7 +194,12 @@ func NewApp() *App {
 		settings:      newSettingsStore(),
 		aiConfig:      aiCfg,
 		logger:        logger,
+		aiActivity:    newAIActivityLog(),
 	}
+	// Register before any provider is constructed: NewProvider wraps a provider
+	// for recording at construction time, so one built earlier would never
+	// report. Nothing in this constructor builds one.
+	app.aiActivityStop = aiprovider.AddRecorder(app.aiActivity.add)
 	// Emit recent:changed whenever the recent-projects list mutates so the
 	// native File → Recent Projects menu can rebuild itself (the menu is built
 	// once at startup and otherwise never sees later opens — issue #3).
@@ -301,6 +315,9 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 // ServiceShutdown is called by Wails v3 during application shutdown.
 func (a *App) ServiceShutdown() error {
 	a.logger.Println("service shutting down")
+	if a.aiActivityStop != nil {
+		a.aiActivityStop()
+	}
 	a.memoryHandles.CloseAll()
 	a.tbHandles.CloseAll()
 	if a.watchCancel != nil {

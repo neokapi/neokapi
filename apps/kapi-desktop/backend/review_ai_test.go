@@ -25,6 +25,16 @@ func newAIReviewApp(t *testing.T, mock *aiprovider.MockProvider) *App {
 	t.Helper()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	app := NewApp()
+	t.Cleanup(func() {
+		if app.aiActivityStop != nil {
+			app.aiActivityStop()
+		}
+	})
+	// The production path builds its provider through aiprovider.NewProvider,
+	// which applies the recording wrapper itself. A factory that hands a tool a
+	// mock skips that, so wrap here: without it these tests would exercise the
+	// AI actions with the activity log silently switched off.
+	recorded := aiprovider.Recording(mock)
 	app.aiToolFactory = func(name string, cfg map[string]any, targetLang string) (tool.Tool, error) {
 		switch name {
 		case "translate":
@@ -36,9 +46,9 @@ func newAIReviewApp(t *testing.T, mock *aiprovider.MockProvider) *App {
 			if ins, _ := cfg["instruction"].(string); ins != "" {
 				c.Instruction = ins
 			}
-			return aitools.NewAITranslateTool(mock, c), nil
+			return aitools.NewAITranslateTool(recorded, c), nil
 		case "review":
-			return aitools.NewAIReviewTool(mock, aitools.AIReviewConfig{
+			return aitools.NewAIReviewTool(recorded, aitools.AIReviewConfig{
 				SourceLocale: "en-US",
 				TargetLocale: model.LocaleID(targetLang),
 			}), nil
