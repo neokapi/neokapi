@@ -1620,18 +1620,6 @@ export function SetApplication(app) {
 }
 
 /**
- * SetEventSink registers a function that receives every backend event in
- * addition to the Wails runtime. Used by the recording wbridge to forward
- * events to a browser over SSE (the Wails runtime is webview-only). Passing nil
- * clears it.
- * @param {any} fn
- * @returns {$CancellablePromise<void>}
- */
-export function SetEventSink(fn) {
-    return $Call.ByID(2609792707, fn);
-}
-
-/**
  * StartLogin begins an authorization code + PKCE flow against the server.
  * It starts a local HTTP server to receive the callback, generates PKCE
  * parameters, and opens the system browser to the server's desktop login

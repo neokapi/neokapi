@@ -173,7 +173,7 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := newTestApp(t)
 			var got []emittedEvent
-			app.SetEventSink(func(name string, data any) {
+			InjectEventSink(app, func(name string, data any) {
 				got = append(got, emittedEvent{name: name, data: data})
 			})
 			watcher := &ProjectWatcher{app: app}
@@ -197,7 +197,7 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 func TestHandleBlockChangeEmitsBlocksChanged(t *testing.T) {
 	app := newTestApp(t)
 	var got []emittedEvent
-	app.SetEventSink(func(name string, data any) {
+	InjectEventSink(app, func(name string, data any) {
 		got = append(got, emittedEvent{name: name, data: data})
 	})
 	watcher := &ProjectWatcher{app: app}
@@ -218,7 +218,7 @@ func TestHandleBlockChangeEmitsBlocksChanged(t *testing.T) {
 func TestHandlePresenceEmitsPresenceChanged(t *testing.T) {
 	app := newTestApp(t)
 	var got []emittedEvent
-	app.SetEventSink(func(name string, data any) {
+	InjectEventSink(app, func(name string, data any) {
 		got = append(got, emittedEvent{name: name, data: data})
 	})
 	watcher := &ProjectWatcher{app: app}

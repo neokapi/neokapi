@@ -237,7 +237,7 @@ func TestDisconnectEmitsStateChange(t *testing.T) {
 	app.mu.Unlock()
 
 	var events []ConnectionInfo
-	app.SetEventSink(func(name string, data any) {
+	InjectEventSink(app, func(name string, data any) {
 		if name == "connection-state-changed" {
 			if ci, ok := data.(ConnectionInfo); ok {
 				events = append(events, ci)

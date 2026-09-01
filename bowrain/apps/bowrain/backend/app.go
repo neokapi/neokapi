@@ -206,11 +206,16 @@ func (a *App) SetApplication(app *application.App) {
 	a.app = app
 }
 
-// SetEventSink registers a function that receives every backend event in
+// InjectEventSink registers a function that receives every backend event in
 // addition to the Wails runtime. Used by the recording wbridge to forward
 // events to a browser over SSE (the Wails runtime is webview-only). Passing nil
 // clears it.
-func (a *App) SetEventSink(fn func(name string, data any)) {
+//
+// A free function, not a method: Wails binds every exported App method as a
+// JS-callable RPC endpoint, and a raw func-typed parameter has no JSON
+// representation, so wails3 generate bindings warns about it. wbridge is the
+// only caller and it's plain Go, so this never needed a JS binding.
+func InjectEventSink(a *App, fn func(name string, data any)) {
 	a.eventSink = fn
 }
 

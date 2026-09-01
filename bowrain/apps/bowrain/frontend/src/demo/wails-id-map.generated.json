@@ -96,7 +96,6 @@
   "2559376511": "RemoveItem",
   "2593375276": "InitContentStore",
   "2593803262": "ImportTermsJSON",
-  "2609792707": "SetEventSink",
   "2634747220": "HandleDeepLink",
   "2672799444": "PublishContent",
   "2686951285": "RejectChangeset",

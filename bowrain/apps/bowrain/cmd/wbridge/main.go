@@ -137,7 +137,7 @@ func main() {
 	// connected browsers over SSE; real-main.tsx re-dispatches them into the
 	// Wails runtime.
 	hub := newEventHub()
-	app.SetEventSink(hub.publish)
+	backend.InjectEventSink(app, hub.publish)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/wbridge", func(w http.ResponseWriter, r *http.Request) {

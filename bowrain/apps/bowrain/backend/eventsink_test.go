@@ -27,7 +27,7 @@ func TestSetEventSink_ReceivesEvents(t *testing.T) {
 		data any
 	}
 	var got []rec
-	a.SetEventSink(func(name string, data any) {
+	InjectEventSink(a, func(name string, data any) {
 		got = append(got, rec{name, data})
 	})
 
@@ -51,11 +51,11 @@ func TestSetEventSink_ReceivesEvents(t *testing.T) {
 func TestSetEventSink_NilClearsDelivery(t *testing.T) {
 	a := &App{}
 	var count int
-	a.SetEventSink(func(string, any) { count++ })
+	InjectEventSink(a, func(string, any) { count++ })
 	a.emit("connection-state-changed", ConnectionInfo{})
 	require.Equal(t, 1, count)
 
-	a.SetEventSink(nil)
+	InjectEventSink(a, nil)
 	a.emit("connection-state-changed", ConnectionInfo{})
 	assert.Equal(t, 1, count, "no further events after the sink is cleared")
 }

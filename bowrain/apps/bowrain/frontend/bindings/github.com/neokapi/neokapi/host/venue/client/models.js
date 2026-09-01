@@ -9,9 +9,6 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as profile$0 from "../../../core/profile/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as time$0 from "../../../../../../time/models.js";
 
 /**
  * VoiceRollupEntry is one project's row in the workspace voice compliance
@@ -92,7 +89,7 @@ export class VoiceRollupEntry {
         if (!("last_scored_at" in $$source)) {
             /**
              * @member
-             * @type {time$0.Time | null}
+             * @type {string | null}
              */
             this["last_scored_at"] = null;
         }
