@@ -185,6 +185,7 @@ func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
 	require.Len(t, q.Pending, 2)
 	for _, it := range q.Pending {
 		assert.Equal(t, "nb", it.Locale)
+		assert.Equal(t, "en", it.SourceLocale, "queue items carry the project's source locale")
 	}
 
 	// Approve one; the queue shrinks to the other.

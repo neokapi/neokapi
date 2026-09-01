@@ -105,17 +105,17 @@ type Story = StoryObj<typeof ChecksPanel>;
 
 /** A clean run — everything passes. */
 export const Passing: Story = {
-  args: { tabID: "story", result: PASSING, targetLanguages: ["de", "fr"] },
+  args: { tabID: "story", result: PASSING },
 };
 
 /** A failing run with mixed severities and a couple of fixable findings. */
 export const Failing: Story = {
-  args: { tabID: "story", result: FAILING, targetLanguages: ["de", "fr"] },
+  args: { tabID: "story", result: FAILING },
 };
 
 /** The loading/skeleton state while a run is in flight. */
 export const Loading: Story = {
-  args: { tabID: "story", forceLoading: true, targetLanguages: ["de"] },
+  args: { tabID: "story", forceLoading: true },
 };
 
 /**
@@ -143,9 +143,7 @@ export const InteractiveFix: StoryObj<typeof ChecksPanel> = {
           return { pass: !critical, score, files };
         });
       };
-      return (
-        <ChecksPanel tabID="story" result={result} targetLanguages={["de"]} onApplyFix={applyFix} />
-      );
+      return <ChecksPanel tabID="story" result={result} onApplyFix={applyFix} />;
     }
     return <Wrapper />;
   },

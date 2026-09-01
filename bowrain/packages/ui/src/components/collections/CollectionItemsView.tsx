@@ -147,6 +147,7 @@ export function CollectionItemsView({
           format={previewItem?.format}
           sourcePath={previewItem?.source_path}
           targetLocales={preview.targetLocales ?? locales}
+          sourceLocale={preview.sourceLocale}
           onClose={preview.onClose}
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}

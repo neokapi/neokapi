@@ -621,6 +621,7 @@ export function ProjectView({
           format={previewItem?.format}
           sourcePath={previewItem?.source_path}
           targetLocales={preview.targetLocales ?? project.target_languages}
+          sourceLocale={preview.sourceLocale ?? project.default_source_language}
           onClose={preview.onClose}
           onOpenTranslate={preview.onOpenTranslate}
           onOpenReview={preview.onOpenReview}

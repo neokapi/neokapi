@@ -92,6 +92,28 @@ describe("ReviewPage", () => {
     expect(screen.getByText("locales/fr-FR.json")).toBeInTheDocument();
   });
 
+  it("renders the queue row's source preview in the item's own source locale", async () => {
+    const rtlItems: ReviewItem[] = [
+      {
+        locale: "de-DE",
+        file: "locales/de-DE.json",
+        key: "greeting",
+        collection: "App",
+        sourceLocale: "ar-EG",
+        source: "مرحبا",
+        target: "Hallo",
+        hasFindings: false,
+      },
+    ];
+    renderPage({ items: rtlItems, loadUnit: vi.fn(async (item) => unitFor(item)) });
+    await screen.findAllByText("مرحبا");
+    const row = document.querySelector("[data-slot='review-queue-item']");
+    const preview = row?.querySelector("[data-slot='tooltip-trigger']");
+    expect(preview).toHaveTextContent("مرحبا");
+    expect(preview).toHaveAttribute("dir", "rtl");
+    expect(preview).toHaveAttribute("lang", "ar-EG");
+  });
+
   it("selects the first unit and shows its source, target and findings", async () => {
     const { loadUnit } = renderPage();
     await waitFor(() => expect(loadUnit).toHaveBeenCalled());

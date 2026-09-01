@@ -249,6 +249,7 @@ export function TranslationDashboardRoute() {
     onOpen: (itemName) => setPreview(itemName),
     onClose: () => setPreview(undefined),
     targetLocales: project.target_languages,
+    sourceLocale: project.default_source_language,
     onOpenTranslate: (itemName) =>
       void navigate({
         to: "/$workspace/p/$projectId/s/$stream/translate/$",

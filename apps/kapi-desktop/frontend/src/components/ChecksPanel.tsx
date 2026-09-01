@@ -9,7 +9,15 @@ import {
   CheckCircle2,
   Compass,
 } from "lucide-react";
-import { Button, Badge, Card, CardContent, PageHeader, ScrollArea } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Badge,
+  Card,
+  CardContent,
+  PageHeader,
+  ScrollArea,
+  DirectionalText,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
@@ -306,12 +314,14 @@ export function ChecksPanel({
                               {finding.original_text && (
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Found:{" "}
-                                  <code
+                                  <DirectionalText
+                                    as="code"
+                                    locale={finding.locale}
                                     className="rounded bg-muted px-1 py-0.5 text-[11px]"
                                     translate="no"
                                   >
                                     {finding.original_text}
-                                  </code>
+                                  </DirectionalText>
                                 </p>
                               )}
                               {finding.suggestion && (

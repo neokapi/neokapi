@@ -569,6 +569,15 @@ export class ReviewItem {
              */
             this["collection"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * SourceLocale is the project's source language, so a review surface can
+             * render the source preview in its own writing direction.
+             * @member
+             * @type {string | undefined}
+             */
+            this["sourceLocale"] = undefined;
+        }
         if (!("source" in $$source)) {
             /**
              * short source preview

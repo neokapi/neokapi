@@ -14,7 +14,7 @@ func TestFindingNamesTheRuleThatFired(t *testing.T) {
 
 	// The checker states the rule outright.
 	named := toDesktopFinding(
-		check.Finding{Category: "voice", Check: "voice-vocab-check"}, block, "source",
+		check.Finding{Category: "voice", Check: "voice-vocab-check"}, block, "source", "en",
 		ContextPointDTO{},
 	)
 	assert.Equal(t, "voice-vocab-check", named.Rule)
@@ -22,19 +22,19 @@ func TestFindingNamesTheRuleThatFired(t *testing.T) {
 	// Where it does not, the term the rule is about identifies it.
 	byTerm := toDesktopFinding(
 		check.Finding{Category: "voice", Metadata: map[string]string{"term": "log in"}},
-		block, "source", ContextPointDTO{},
+		block, "source", "en", ContextPointDTO{},
 	)
 	assert.Equal(t, "log in", byTerm.Rule)
 
 	// Failing that, the text objected to, then the category. A finding that
 	// named nothing would leave a reader with a complaint and nowhere to go.
 	byText := toDesktopFinding(
-		check.Finding{Category: "placeholder", OriginalText: "{count}"}, block, "target",
+		check.Finding{Category: "placeholder", OriginalText: "{count}"}, block, "target", "de-DE",
 		ContextPointDTO{},
 	)
 	assert.Equal(t, "{count}", byText.Rule)
 
-	bare := toDesktopFinding(check.Finding{Category: "placeholder"}, block, "target", ContextPointDTO{})
+	bare := toDesktopFinding(check.Finding{Category: "placeholder"}, block, "target", "de-DE", ContextPointDTO{})
 	assert.Equal(t, "placeholder", bare.Rule)
 }
 
@@ -42,7 +42,7 @@ func TestFindingCarriesThePointItIsScopedTo(t *testing.T) {
 	block := &model.Block{ID: "b1"}
 
 	at := toDesktopFinding(
-		check.Finding{Category: "voice"}, block, "source",
+		check.Finding{Category: "voice"}, block, "source", "en",
 		ContextPointDTO{Profile: "support", Channel: "docs", Collection: "Docs"},
 	)
 	assert.Equal(t, "support/docs", at.Point)
@@ -50,7 +50,7 @@ func TestFindingCarriesThePointItIsScopedTo(t *testing.T) {
 
 	// The project's own point renders empty rather than as a guessed name.
 	def := toDesktopFinding(
-		check.Finding{Category: "voice"}, block, "source",
+		check.Finding{Category: "voice"}, block, "source", "en",
 		ContextPointDTO{Collection: "App", Default: true},
 	)
 	assert.Empty(t, def.Point)

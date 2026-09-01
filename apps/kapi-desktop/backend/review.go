@@ -150,7 +150,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // integrity was never verified. A synthetic blocking finding is honest at the
 // panel and fail-safe at the gate, and keeps the signature usable from the paths
 // that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
+func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang string, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	// The review surface addresses a unit, and carries its own scope in the
 	// queue rather than on each finding, so the point stays unset here.
@@ -171,7 +171,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		}
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 			for _, f := range ann.Findings {
-				findings = append(findings, toDesktopFinding(f, b, "source", point))
+				findings = append(findings, toDesktopFinding(f, b, "source", sourceLang, point))
 			}
 			b.DelAnno("voice")
 		}
@@ -182,7 +182,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		return fail("placeholder", err)
 	}
 	for _, f := range host.FindingsFromBlock(b, true) {
-		findings = append(findings, toDesktopFinding(f, b, "target", point))
+		findings = append(findings, toDesktopFinding(f, b, "target", string(locale), point))
 	}
 
 	if len(dntTerms) > 0 {
@@ -193,7 +193,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 			return fail("do-not-translate", err)
 		}
 		for _, f := range host.FindingsFromBlock(b, true) {
-			findings = append(findings, toDesktopFinding(f, b, "target", point))
+			findings = append(findings, toDesktopFinding(f, b, "target", string(locale), point))
 		}
 	}
 
@@ -260,7 +260,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	points := a.newPointResolver(op, false)
 	profile := points.at(ctx, rf.Collection, rf.Relative)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile,
+	detail.Findings = a.blockCheckFindings(ctx, b, sourceLang, loc, profile,
 		points.termsAt(ctx, rf.Collection, rf.Relative), dntTerms)
 
 	// Recorded decision + provenance from the project state store, when the
@@ -373,7 +373,7 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 			if !ok {
 				continue
 			}
-			has := len(a.blockCheckFindings(ctx, b, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
+			has := len(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
 			items[i].HasFindings = &has
 		}
 	}

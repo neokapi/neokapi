@@ -405,6 +405,7 @@ export function ProjectDetailRoute() {
           onOpen: (itemName) => setPreview(itemName),
           onClose: () => setPreview(undefined),
           targetLocales: project.target_languages,
+          sourceLocale: project.default_source_language,
           onOpenTranslate: openItemIn("/$workspace/p/$projectId/s/$stream/translate/$"),
           onOpenReview: openItemIn("/$workspace/p/$projectId/s/$stream/review/$"),
           onOpenPreProcess: openItemIn("/$workspace/p/$projectId/s/$stream/pre-process/$"),

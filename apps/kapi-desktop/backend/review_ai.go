@@ -188,7 +188,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	points := a.newPointResolver(op, false)
 	profile := points.at(ctx, collection, relPath)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, loc, profile,
+	for _, f := range a.blockCheckFindings(ctx, b, sourceLang, loc, profile,
 		points.termsAt(ctx, collection, relPath), dntTerms) {
 		line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
 		if f.Suggestion != "" {
@@ -462,7 +462,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 			res.Reviewed++
 
 			if policy.AutoApprove && score >= policy.MinScore &&
-				!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, model.LocaleID(k.locale), profile, tb, dntTerms)) {
+				!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(k.locale), profile, tb, dntTerms)) {
 				approvals = append(approvals, approval{item: it, score: score})
 			}
 		}

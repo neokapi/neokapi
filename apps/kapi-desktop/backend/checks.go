@@ -38,6 +38,10 @@ type DesktopFinding struct {
 	// Field is which side of the block the offending text lives on:
 	// "source" or "target".
 	Field string `json:"field,omitempty"`
+	// Locale is the language OriginalText is written in — the source locale for
+	// a source-side finding, the target locale for a target-side one — so the
+	// panel can render it with the right direction and lang attribute.
+	Locale string `json:"locale,omitempty"`
 	// Replacement is the structured fix text (e.g. a voice profile's preferred
 	// term). Empty when there is no safe automatic replacement.
 	Replacement string `json:"replacement,omitempty"`
@@ -190,7 +194,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					}
 					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 						for _, f := range ann.Findings {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", filePoint))
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", sourceLang, filePoint))
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -235,7 +239,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						break
 					}
 					for _, f := range host.FindingsFromBlock(b, true) {
-						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", filePoint))
+						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", lang, filePoint))
 						allFindings = append(allFindings, f)
 					}
 				}
@@ -251,7 +255,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 							break
 						}
 						for _, f := range host.FindingsFromBlock(b, true) {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", filePoint))
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target", lang, filePoint))
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -725,7 +729,7 @@ func dntConcept(props map[string]string) bool {
 // Rule and Point travel with it so a finding can be acted on: the C-series
 // promise is that a finding names the rule, the point and the fix, and a reader
 // who cannot see which rule fired cannot go and change it.
-func toDesktopFinding(f check.Finding, b *model.Block, field string, point ContextPointDTO) DesktopFinding {
+func toDesktopFinding(f check.Finding, b *model.Block, field string, locale string, point ContextPointDTO) DesktopFinding {
 	replacement := ""
 	if f.Metadata != nil {
 		replacement = f.Metadata["replacement"]
@@ -738,6 +742,7 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, point Conte
 		OriginalText: f.OriginalText,
 		BlockID:      b.ID,
 		Field:        field,
+		Locale:       locale,
 		Replacement:  replacement,
 		Rule:         findingRule(f),
 		Point:        pointRef(point),

@@ -77,9 +77,52 @@ func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	}
 	require.NotNil(t, vocab, "expected a finding on the forbidden term %q", "utilize")
 	assert.Equal(t, "source", vocab.Field)
+	assert.Equal(t, "en", vocab.Locale, "a source-side finding carries the project's source locale")
 	assert.Equal(t, "use", vocab.Replacement)
 	assert.True(t, vocab.Fixable, "a forbidden term with a replacement and a block id should be fixable")
 	assert.NotEmpty(t, vocab.BlockID)
+}
+
+func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "locales")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(srcDir, "en.json"),
+		[]byte(`{"greeting":"Hello {name}"}`), 0o644))
+	// The target drops the placeholder — a placeholder-integrity finding.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(srcDir, "de-DE.json"),
+		[]byte(`{"greeting":"Hallo"}`), 0o644))
+
+	proj := &project.KapiProject{
+		Version:  project.CurrentVersion,
+		Defaults: project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{
+			{Path: "locales/en.json", Target: "locales/{lang}.json"},
+		},
+	}
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, proj))
+
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	res, err := app.RunChecks(tab.ID, ProjectFilter{Languages: []string{"de-DE"}})
+	require.NoError(t, err)
+	require.Len(t, res.Files, 1)
+
+	var placeholder *DesktopFinding
+	for i := range res.Files[0].Findings {
+		if res.Files[0].Findings[i].Field == "target" {
+			placeholder = &res.Files[0].Findings[i]
+			break
+		}
+	}
+	require.NotNil(t, placeholder, "the de-DE translation dropped {name}")
+	assert.Equal(t, "de-DE", placeholder.Locale, "a target-side finding carries the checked target locale")
 }
 
 func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {

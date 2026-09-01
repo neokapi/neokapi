@@ -32,6 +32,8 @@ export interface ItemPreviewBinding {
   onClose: () => void;
   /** The project's target locales, in the order the project declares them. */
   targetLocales?: string[];
+  /** The project's source language, for the content-model preview's direction. */
+  sourceLocale?: string;
   onOpenTranslate?: (itemName: string) => void;
   onOpenReview?: (itemName: string) => void;
   onOpenPreProcess?: (itemName: string) => void;
@@ -55,6 +57,8 @@ export interface FilePreviewProps {
   sourcePath?: string;
   /** The project's target locales, in the order the project declares them. */
   targetLocales?: string[];
+  /** The project's source language, for the content-model preview's direction. */
+  sourceLocale?: string;
   /** Dismiss — Escape, the close button, or a click outside. */
   onClose: () => void;
   /** Open the item in the translation editor. */
@@ -116,6 +120,7 @@ export function FilePreview({
   format,
   sourcePath,
   targetLocales = [],
+  sourceLocale,
   onClose,
   onOpenTranslate,
   onOpenReview,
@@ -239,6 +244,7 @@ export function FilePreview({
                 key={itemName}
                 projectId={projectId}
                 itemName={itemName}
+                sourceLocale={sourceLocale}
                 targetLocale={locale}
                 previewContentMode={side}
                 onBlockSelect={() => {}}

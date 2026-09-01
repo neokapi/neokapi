@@ -47,7 +47,7 @@ const PASSING: CheckRunResult = {
 function renderPanel(props: Partial<React.ComponentProps<typeof ChecksPanel>> = {}) {
   return render(
     <ErrorProvider>
-      <ChecksPanel tabID="t1" targetLanguages={["de"]} {...props} />
+      <ChecksPanel tabID="t1" {...props} />
     </ErrorProvider>,
   );
 }
@@ -82,6 +82,34 @@ describe("ChecksPanel", () => {
     // Offending text + suggestion.
     expect(screen.getByText("utilize")).toBeInTheDocument();
     expect(screen.getByText('Use "use" instead')).toBeInTheDocument();
+  });
+
+  it("renders a finding's offending text in its own locale's direction", () => {
+    const RTL_FINDING: CheckRunResult = {
+      pass: false,
+      score: 80,
+      files: [
+        {
+          path: "src/locales/ar.json",
+          findings: [
+            {
+              category: "do-not-translate",
+              severity: "critical",
+              message: 'Do-not-translate term "Acme Cloud" is missing from the ar target',
+              original_text: "أكمي كلاود",
+              block_id: "blk-1",
+              field: "target",
+              locale: "ar-EG",
+              fixable: false,
+            },
+          ],
+        },
+      ],
+    };
+    renderPanel({ result: RTL_FINDING });
+    const found = screen.getByText("أكمي كلاود");
+    expect(found).toHaveAttribute("dir", "rtl");
+    expect(found).toHaveAttribute("lang", "ar-EG");
   });
 
   it("shows an Apply fix button only for fixable findings", () => {

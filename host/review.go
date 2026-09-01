@@ -83,12 +83,13 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 				continue
 			}
 			item := ReviewItem{
-				Locale:     u.Locale,
-				File:       u.DisplayPath,
-				Key:        blockKey(b),
-				Collection: u.Collection,
-				Source:     preview(b.SourceText()),
-				Target:     preview(b.TargetText(loc)),
+				Locale:       u.Locale,
+				File:         u.DisplayPath,
+				Key:          blockKey(b),
+				Collection:   u.Collection,
+				SourceLocale: string(proj.Defaults.SourceLanguage),
+				Source:       preview(b.SourceText()),
+				Target:       preview(b.TargetText(loc)),
 			}
 			// Surface a fresh AI pre-review annotation (score + model) so the
 			// queue can show it — read from the state store, never a provider
