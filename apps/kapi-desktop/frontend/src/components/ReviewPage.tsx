@@ -18,6 +18,7 @@ import {
   CardContent,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   LocalePill,
@@ -85,6 +86,17 @@ export interface ReviewPageProps {
 
 type Chip = "all" | "findings" | "clean";
 type Lane = "target" | "source";
+
+/** A one-field question the page asks before acting. */
+interface AskPrompt {
+  kind: "reject" | "retranslate";
+  title: string;
+  label: string;
+  placeholder: string;
+  confirm: string;
+  /** Reject accepts an empty note; retranslate needs an instruction. */
+  allowEmpty?: boolean;
+}
 
 const itemId = (it: ReviewItem) => `${it.locale}:${it.file}:${it.key}`;
 
@@ -177,6 +189,13 @@ export function ReviewPage({
   // convergence report and nothing rendered it, so the one number that explains
   // a stalled run sat in memory and off the screen.
   const [sourceQueue, setSourceQueue] = useState<SourceQueueItem[] | null>(null);
+  // window.prompt is a no-op in the app's webview: it returns null without ever
+  // showing anything, and both callers read null as "cancelled". Retranslate and
+  // Reject therefore did nothing at all, silently, with no error to explain it.
+  // These drive an in-app dialog instead, which is also the only version a test
+  // can drive.
+  const [askText, setAskText] = useState<AskPrompt | null>(null);
+  const [askValue, setAskValue] = useState("");
   const [aiProposal, setAIProposal] = useState<string | null>(null);
   const [aiExplanation, setAIExplanation] = useState<string | null>(null);
   // The calls the last AI action made. Held beside its result so the disclosure
@@ -348,10 +367,16 @@ export function ReviewPage({
 
   const reject = useCallback(() => {
     if (!selected || deciding) return;
-    const note = window.prompt(t("Send back to draft — why? (the note travels with the unit)"), "");
-    if (note === null) return; // cancelled
-    void decide(selected, "rejected", note);
-  }, [selected, deciding, decide]);
+    setAskValue("");
+    setAskText({
+      kind: "reject",
+      title: t("Send back to draft"),
+      label: t("Why? The note travels with the unit."),
+      placeholder: t("e.g. the tone is too formal for this surface"),
+      confirm: t("Send back"),
+      allowEmpty: true,
+    });
+  }, [selected, deciding]);
 
   const saveTarget = useCallback(async () => {
     if (!selected || !unit) return;
@@ -389,18 +414,19 @@ export function ReviewPage({
   // explain yields text. Nothing is written until Accept, which routes through
   // the same save-target path as a manual edit.
   const runAIAction = useCallback(
-    async (action: ReviewAIActionKind) => {
+    async (action: ReviewAIActionKind, instructionOverride?: string) => {
       if (!selected || aiBusy) return;
-      let instruction = "";
-      if (action === "retranslate") {
-        const answer = window.prompt(
-          t(
-            "Retranslate with AI — what should change? (e.g. “more informal”, “keep it under 40 characters”)",
-          ),
-          "",
-        );
-        if (answer === null || answer.trim() === "") return;
-        instruction = answer;
+      let instruction = instructionOverride ?? "";
+      if (action === "retranslate" && instruction.trim() === "") {
+        setAskValue("");
+        setAskText({
+          kind: "retranslate",
+          title: t("Retranslate with AI"),
+          label: t("What should change?"),
+          placeholder: t("e.g. more informal, or keep it under 40 characters"),
+          confirm: t("Retranslate"),
+        });
+        return;
       }
       setAIBusy(action);
       setAIExplanation(null);
@@ -427,6 +453,19 @@ export function ReviewPage({
     },
     [selected, aiBusy, tabID, onAIAction, showError],
   );
+
+  // Answer the pending question and run what it was asked for.
+  const submitAsk = useCallback(() => {
+    const ask = askText;
+    if (!ask || !selected) return;
+    const value = askValue;
+    setAskText(null);
+    if (ask.kind === "reject") {
+      void decide(selected, "rejected", value);
+      return;
+    }
+    void runAIAction("retranslate", value);
+  }, [askText, askValue, selected, decide, runAIAction]);
 
   // Accept the AI proposal: write it through the same path a manual edit takes
   // (UpdateReviewTarget), then re-load the unit so checks re-run and the next
@@ -879,6 +918,50 @@ export function ReviewPage({
         </DialogContent>
       </Dialog>
 
+      {/* The one-field question Reject and Retranslate ask. window.prompt does
+          not work in the app's webview, so this is the only version that runs
+          at all. */}
+      <Dialog open={askText !== null} onOpenChange={(o) => !o && setAskText(null)}>
+        <DialogContent
+          className="w-[26rem] max-w-[90vw] sm:max-w-[26rem]"
+          data-slot="review-ask-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">{askText?.title}</DialogTitle>
+          </DialogHeader>
+          <label className="space-y-1.5 text-xs">
+            <span className="text-muted-foreground">{askText?.label}</span>
+            <textarea
+              autoFocus
+              className="min-h-20 w-full resize-y rounded-md border bg-background p-2 text-sm"
+              value={askValue}
+              placeholder={askText?.placeholder}
+              onChange={(e) => setAskValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  submitAsk();
+                }
+              }}
+              data-slot="review-ask-input"
+            />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" size="xs" onClick={() => setAskText(null)}>
+              {t("Cancel")}
+            </Button>
+            <Button
+              size="xs"
+              onClick={submitAsk}
+              disabled={!askText?.allowEmpty && askValue.trim() === ""}
+              data-slot="review-ask-confirm"
+            >
+              {askText?.confirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {lane === "source" && (
         <SourceLane
           tabID={tabID}
@@ -1270,6 +1353,24 @@ export function ReviewPage({
                             <Badge variant="outline" className={severityBadgeClass(f.severity)}>
                               {f.severity}
                             </Badge>
+                            {/* Which side of the unit the finding is about. A
+                                voice or terminology finding is judged on the
+                                SOURCE, and unlabelled it reads as a defect in
+                                the translation: a reviewer saw `Forbidden term
+                                "cart"` on a Norwegian target containing no such
+                                word, with nothing to act on and no way to tell
+                                why. */}
+                            {f.field === "source" && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 text-[10px] text-muted-foreground"
+                                title={t(
+                                  "This finding is about the source text, not the translation.",
+                                )}
+                              >
+                                {t("source")}
+                              </Badge>
+                            )}
                             <span className="min-w-0">
                               <span>{f.message}</span>
                               {f.suggestion && (

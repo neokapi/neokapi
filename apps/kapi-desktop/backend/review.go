@@ -168,7 +168,12 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang
 	}
 
 	if profile != nil {
-		vocab := coretools.NewVoiceVocabCheckTool(profile, tb)
+		// InSourceLocale, like the Checks panel: the vocabulary lookup asks in
+		// the source language for a block carrying no locale of its own, which
+		// is most of them. Without it a term rule resolved from the terms store
+		// (which is keyed by language) matches nothing here while matching in
+		// Checks, and the two panels disagree about the same unit.
+		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(sourceLang))
 		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
 			return fail("voice vocabulary", err)
 		}
