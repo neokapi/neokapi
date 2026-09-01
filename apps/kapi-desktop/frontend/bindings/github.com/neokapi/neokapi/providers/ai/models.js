@@ -37,6 +37,12 @@ export const ContentKind = {
  * BlobKey > URI > Data), never a bare []byte, so a large slice is never forced
  * into memory by the framework; resolveMediaBytes materializes it only here, at
  * the provider boundary.
+ * The JSON names are lower-case to match every other field of the Exchange this
+ * travels inside. Without them a part serialized as Kind/Text/Media while its
+ * container used role/messages/response, and a reader following the container's
+ * convention got an undefined text for every message: `kapi --explain-prompts`
+ * wrote it, and the desktop's disclosure drew the system and user panels empty
+ * while the reply beside them rendered.
  */
 export class ContentPart {
     /**
@@ -44,28 +50,28 @@ export class ContentPart {
      * @param {Partial<ContentPart>} [$$source = {}] - The source object to create the ContentPart.
      */
     constructor($$source = {}) {
-        if (!("Kind" in $$source)) {
+        if (!("kind" in $$source)) {
             /**
              * @member
              * @type {ContentKind}
              */
-            this["Kind"] = ContentKind.$zero;
+            this["kind"] = ContentKind.$zero;
         }
-        if (!("Text" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
              * Kind == ContentText
              * @member
-             * @type {string}
+             * @type {string | undefined}
              */
-            this["Text"] = "";
+            this["text"] = undefined;
         }
-        if (!("Media" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
              * otherwise — image/audio/video slice
              * @member
-             * @type {model$0.Media | null}
+             * @type {model$0.Media | null | undefined}
              */
-            this["Media"] = null;
+            this["media"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -79,8 +85,8 @@ export class ContentPart {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("Media" in $$parsedSource) {
-            $$parsedSource["Media"] = $$createField2_0($$parsedSource["Media"]);
+        if ("media" in $$parsedSource) {
+            $$parsedSource["media"] = $$createField2_0($$parsedSource["media"]);
         }
         return new ContentPart(/** @type {Partial<ContentPart>} */($$parsedSource));
     }
