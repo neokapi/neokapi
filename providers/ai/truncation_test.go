@@ -122,7 +122,7 @@ func TestGeminiStreamReportsTruncation(t *testing.T) {
 	}
 }
 
-// The translate path reads TranslateResponse, not ChatResponse. standardTranslate
+// The translate path reads TranslateResponse, not ChatResponse. StandardTranslate
 // is the only bridge between the two for every provider that has one, so a
 // truncation dropped here is dropped for all of them at once.
 func TestStandardTranslateCarriesTruncation(t *testing.T) {

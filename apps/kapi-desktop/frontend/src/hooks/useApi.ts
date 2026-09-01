@@ -39,6 +39,7 @@ import type {
   ReviewAIActionKind,
   PreReviewScope,
   PreReviewPolicy,
+  AIActivityResult,
   PreReviewResult,
   AdoptFlowResult,
   ProjectHandles,
@@ -145,6 +146,8 @@ export const api = {
     instruction: string,
   ) => call<ReviewAIActionResult>("ReviewAIAction", tabID, locale, file, key, action, instruction),
   /** Batch AI pre-review over the pending queue for a locale. */
+  getAIActivity: (limit: number) => call<AIActivityResult>("GetAIActivity", limit),
+  clearAIActivity: () => call<void>("ClearAIActivity"),
   runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope, policy: PreReviewPolicy) =>
     call<PreReviewResult>("RunAIPreReview", tabID, locale, scope, policy),
 

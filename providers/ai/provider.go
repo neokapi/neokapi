@@ -506,7 +506,7 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 	p := factory(cfg)
 	// Wrapping here rather than at each call site gives --explain complete
 	// coverage, including providers contributed by plugins.
-	if currentRecorder() != nil {
+	if recordersInstalled() {
 		p = withRecording(p)
 	}
 	return p, nil
@@ -570,16 +570,18 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// standardTranslate renders the translate prompt and runs it through a
+// StandardTranslate renders the translate prompt and runs it through a
 // provider's Chat method. Every provider's Translate delegates here, differing
 // only in the confidence it reports — no provider carries a prompt of its own.
+// A provider written outside this package (a plugin's, a test's) delegates here
+// too, or it will diverge from the built-ins in both prompt and recording.
 //
 // It records the exchange itself: a provider's Translate calls that provider's
 // own Chat, which bypasses the recording wrapper, so this is the only point that
 // sees the call. (The wrapper still records direct Chat/ChatStructured calls —
 // batch translation, voice profile, entity extraction — and the two cannot
 // double-count, because the Chat reached from here is the unwrapped inner one.)
-func standardTranslate(
+func StandardTranslate(
 	ctx context.Context,
 	name ProviderID,
 	chat func(context.Context, []Message) (*ChatResponse, error),

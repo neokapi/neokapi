@@ -43,6 +43,11 @@ const (
 type ReviewAIActionResult struct {
 	ProposedTarget string `json:"proposed_target,omitempty"`
 	Explanation    string `json:"explanation,omitempty"`
+	// Exchanges are the LLM calls this action made: the messages sent, the
+	// schema constraining the output, the reply and the token usage. A reviewer
+	// asked to accept a proposed translation can see what the model was told
+	// before deciding, rather than judging an answer whose question is hidden.
+	Exchanges []AIActivityEntry `json:"exchanges,omitempty"`
 }
 
 // ReviewAIAction runs one AI action for a review-queue unit, addressed by
@@ -94,22 +99,36 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	root := filepath.Dir(op.Path)
 	scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
 
+	// Everything below runs under a scope, so the session's activity log can
+	// attribute each call to the unit it was about. The mark is taken before the
+	// call so this action can collect exactly its own exchanges afterwards.
+	ctx = withAIScope(ctx, AIActivityScope{
+		Surface: "review", Action: action, Locale: locale, File: file, Key: key,
+	})
+	mark := a.aiActivity.lastID()
+
+	var res *ReviewAIActionResult
 	switch action {
 	case ReviewAIExplain:
-		return a.reviewAIExplain(ctx, b, sourceLang, locale)
+		res, err = a.reviewAIExplain(ctx, b, sourceLang, locale)
 	case ReviewAIFixFindings:
 		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
 		instruction = fixFindingsInstruction(b.TargetText(loc), findings, instruction)
-		fallthrough
+		res, err = a.reviewAIPropose(ctx, b, sourceLang, locale, instruction)
 	case ReviewAIRetranslate:
-		if strings.TrimSpace(instruction) == "" && action == ReviewAIRetranslate {
+		if strings.TrimSpace(instruction) == "" {
 			return nil, errors.New("retranslate needs an instruction — tell the model what to change")
 		}
-		return a.reviewAIPropose(ctx, b, sourceLang, locale, instruction)
+		res, err = a.reviewAIPropose(ctx, b, sourceLang, locale, instruction)
 	default:
 		return nil, fmt.Errorf("unknown review AI action %q: want %s, %s, or %s",
 			action, ReviewAIFixFindings, ReviewAIRetranslate, ReviewAIExplain)
 	}
+	if err != nil {
+		return nil, err
+	}
+	res.Exchanges = a.aiActivity.since(mark)
+	return res, nil
 }
 
 // reviewAIPropose runs a one-block translate invocation and returns the
@@ -437,7 +456,10 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 				res.Skipped++
 				continue
 			}
-			if rerr := runReviewAITool(ctx, tl, b); rerr != nil {
+			unitCtx := withAIScope(ctx, AIActivityScope{
+				Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key,
+			})
+			if rerr := runReviewAITool(unitCtx, tl, b); rerr != nil {
 				return nil, fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, rerr)
 			}
 			scoreStr, hasScore := b.Properties["review-score"]

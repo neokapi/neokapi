@@ -61,7 +61,7 @@ func (p *OllamaProvider) Name() ProviderID { return Ollama }
 func (p *OllamaProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.7)
+	return StandardTranslate(ctx, p.Name(), p.Chat, req, 0.7)
 }
 
 func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
