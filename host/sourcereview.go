@@ -288,7 +288,7 @@ func (a *App) ApproveSourceUnit(ctx context.Context, projectPath, sourceLang str
 				return false, fmt.Errorf("source unit %s is empty — nothing to approve", ref.Key)
 			}
 			scope := a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath)
-			return a.recordSourceApproval(ctx, root, scope, blockKey(b), text, string(a.SourceLang))
+			return a.recordSourceApproval(ctx, root, scope, blockKey(b), text, a.SourceLang)
 		}
 	}
 	return false, fmt.Errorf("source unit %q not found in %s", ref.Key, ref.File)
