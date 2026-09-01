@@ -27,6 +27,7 @@ import {
 import {
   Badge,
   Button,
+  LocalePill,
   PageHeader,
   Separator,
   Skeleton,
@@ -558,7 +559,9 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                 <div className="space-y-3">
                   {Object.entries(profile.locales).map(([locale, override]) => (
                     <div key={locale} className="rounded-lg border px-3 py-2">
-                      <p className="text-sm font-medium">{locale}</p>
+                      <p className="text-sm font-medium">
+                        <LocalePill locale={locale} showName />
+                      </p>
                       <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
                         <Fact label={t("Formality")} value={override.formality} />
                         <Fact label={t("Humor")} value={override.humor} />

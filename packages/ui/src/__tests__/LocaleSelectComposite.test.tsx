@@ -7,12 +7,24 @@ import {
   MultiLocaleSelect,
   type LocaleInfo,
 } from "../components/composites/locale-select";
+import { LocalePill } from "../components/resource-browser/LocalePill";
+import { localeLabel, resolveLocaleName } from "../lib/locale-name";
 
 const locales: LocaleInfo[] = [
   { code: "en", displayName: "English" },
   { code: "fr", displayName: "French" },
   { code: "de", displayName: "German" },
 ];
+
+// cmdk measures its list and scrolls the active item into view. jsdom has
+// neither API, and only the tests that open the popover reach them.
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= NoopResizeObserver;
+Element.prototype.scrollIntoView ??= function scrollIntoView() {};
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -83,5 +95,64 @@ describe("MultiLocaleSelect (composite)", () => {
     render(<MultiLocaleSelect value={["en", "fr", "de"]} onChange={vi.fn()} locales={locales} />);
     expect(container!.querySelector("input")).toBeNull();
     expect(container!.textContent).toContain("All locales selected");
+  });
+});
+
+describe("locale names", () => {
+  it("names a major tag and a regional one", () => {
+    expect(resolveLocaleName("fr")).toBe("French");
+    expect(resolveLocaleName("pt-BR")).toBe("Brazilian Portuguese");
+  });
+
+  // qps is our pseudo locale; CLDR echoes the code back rather than naming it.
+  // Doubling that into "qps (qps)" is worse than the code alone.
+  it("returns an unnamed code once, not twice", () => {
+    expect(localeLabel("qps")).toBe("qps");
+    expect(localeLabel("fr")).toBe("French (fr)");
+  });
+});
+
+describe("LocalePill", () => {
+  it("keeps the name reachable from a bare pill", () => {
+    render(<LocalePill locale="ar" />);
+    expect(container!.textContent).toBe("ar");
+    expect(container!.querySelector("[title]")?.getAttribute("title")).toBe("Arabic (ar)");
+  });
+
+  it("puts the name on the page when asked", () => {
+    render(<LocalePill locale="ja" showName />);
+    expect(container!.textContent).toContain("Japanese");
+    expect(container!.textContent).toContain("ja");
+  });
+});
+
+describe("LocaleSelect as a filter", () => {
+  it("shows the clear label when nothing is selected", () => {
+    render(
+      <LocaleSelect value="" onChange={vi.fn()} locales={locales} clearLabel="All languages" />,
+    );
+    expect(container!.textContent).toContain("All languages");
+  });
+
+  // Without this the empty value is only a placeholder, and a reviewer who
+  // narrowed to French has no way back to every language.
+  it("returns to the empty value from the list", () => {
+    const onChange = vi.fn();
+    render(
+      <LocaleSelect value="fr" onChange={onChange} locales={locales} clearLabel="All languages" />,
+    );
+    act(() => {
+      container!
+        .querySelector('[role="combobox"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    const all = Array.from(document.querySelectorAll('[cmdk-item=""]')).find((el) =>
+      el.textContent?.includes("All languages"),
+    ) as HTMLElement | undefined;
+    expect(all).toBeTruthy();
+    act(() => {
+      all!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledWith("");
   });
 });

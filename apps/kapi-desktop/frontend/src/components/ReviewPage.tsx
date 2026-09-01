@@ -21,6 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
   LocalePill,
+  LocaleSelect,
+  localeLabel,
+  resolveLocaleName,
   ScrollArea,
   SimpleTooltip,
   directionAttrs,
@@ -190,6 +193,12 @@ export function ReviewPage({
   const locales = useMemo(
     () => Array.from(new Set((queue ?? []).map((it) => it.locale))).sort(),
     [queue],
+  );
+  // The picker takes names, not codes: a reviewer choosing between fr and ar
+  // reads "French" and "Arabic".
+  const localeOptions = useMemo(
+    () => locales.map((code) => ({ code, displayName: resolveLocaleName(code) })),
+    [locales],
   );
   const collections = useMemo(
     () =>
@@ -593,20 +602,16 @@ export function ReviewPage({
             ))}
           </div>
           {locales.length > 1 && (
-            <select
-              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
+            <LocaleSelect
               value={localeFilter}
-              onChange={(e) => setLocaleFilter(e.target.value)}
+              onChange={setLocaleFilter}
+              locales={localeOptions}
+              clearLabel={t("All languages")}
+              compact
+              className="h-7"
               aria-label={t("Filter by language")}
               data-slot="review-locale-filter"
-            >
-              <option value="">{t("All languages")}</option>
-              {locales.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
+            />
           )}
           {collections.length > 1 && (
             <select
@@ -683,7 +688,7 @@ export function ReviewPage({
               <div>
                 {t("Scope")}:{" "}
                 <span className="text-foreground">
-                  {localeFilter || t("all languages")}
+                  {localeFilter ? localeLabel(localeFilter) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
                 — {t("{count} pending units", { count: preReviewPending.length })}

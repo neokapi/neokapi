@@ -1044,6 +1044,8 @@ jobs:
         run: ./scripts/check-deploy-paths.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
+      - name: Guard — every language is shown by name, not by its code alone
+        run: ./scripts/check-locale-display.sh
       # The docs jobs build two sites in two locales and sit late in CI, so an
       # unresolvable doc id costs a full round trip to learn. This says it in a
       # second, on every PR, for both sidebars at once.
