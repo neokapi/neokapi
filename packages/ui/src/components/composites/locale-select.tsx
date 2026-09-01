@@ -30,6 +30,7 @@ import {
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { LocalePill } from "../resource-browser/LocalePill";
+import { resolveLocaleName } from "../../lib/locale-name";
 
 /** Locale info for display in selectors. */
 export interface LocaleInfo {
@@ -37,16 +38,9 @@ export interface LocaleInfo {
   displayName: string;
 }
 
-/** Resolve a locale code to a display name via the browser's Intl API. */
-let intlNames: Intl.DisplayNames | null = null;
-export function resolveLocaleName(code: string): string {
-  try {
-    if (!intlNames) intlNames = new Intl.DisplayNames("en", { type: "language" });
-    return intlNames.of(code) ?? code;
-  } catch {
-    return code;
-  }
-}
+// Re-exported so the many callers that reach for the name through this module
+// keep working; the implementation lives beside the pill that also uses it.
+export { resolveLocaleName, localeLabel } from "../../lib/locale-name";
 
 // --- Single locale selector ---
 
@@ -63,6 +57,17 @@ export interface LocaleSelectProps {
   id?: string;
   /** id of the element labelling this control (associates a `<Label>`). */
   "aria-labelledby"?: string;
+  /** Accessible name when the control has no visible label. */
+  "aria-label"?: string;
+  /** Test/query hook, mirroring the `data-slot` convention on the primitives. */
+  "data-slot"?: string;
+  /**
+   * Label for the "no locale selected" entry, which turns the selector into a
+   * filter: picking it calls `onChange("")`. A filter that offers every language
+   * needs a way back to all of them, and without this the empty value is only
+   * reachable as a placeholder nobody can choose.
+   */
+  clearLabel?: string;
 }
 
 /** Single-locale selector with search. */
@@ -76,6 +81,9 @@ export function LocaleSelect({
   compact = false,
   id,
   "aria-labelledby": ariaLabelledby,
+  "aria-label": ariaLabel,
+  "data-slot": dataSlot,
+  clearLabel,
 }: LocaleSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -95,6 +103,8 @@ export function LocaleSelect({
         <Button
           id={id}
           aria-labelledby={ariaLabelledby}
+          aria-label={ariaLabel}
+          data-slot={dataSlot}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -102,7 +112,7 @@ export function LocaleSelect({
           className={cn(
             "h-8 justify-between text-xs font-normal",
             compact ? "w-auto" : "w-full",
-            !selected && "text-muted-foreground",
+            !selected && !clearLabel && "text-muted-foreground",
             className,
           )}
         >
@@ -116,7 +126,7 @@ export function LocaleSelect({
               </span>
             )
           ) : (
-            <span className="truncate">{placeholder}</span>
+            <span className="truncate">{clearLabel ?? placeholder}</span>
           )}
           <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
         </Button>
@@ -127,6 +137,18 @@ export function LocaleSelect({
           <CommandList>
             <CommandEmpty>No matching locales.</CommandEmpty>
             <CommandGroup>
+              {clearLabel ? (
+                <CommandItem
+                  value={clearLabel}
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                  data-checked={value === ""}
+                >
+                  <span className="whitespace-nowrap">{clearLabel}</span>
+                </CommandItem>
+              ) : null}
               {locales.map((l) => (
                 <CommandItem
                   key={l.code}

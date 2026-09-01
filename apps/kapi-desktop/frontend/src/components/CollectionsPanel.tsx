@@ -30,6 +30,7 @@ import {
   FormatSelect,
   ConfirmDeleteButton,
   LocalePill,
+  localeLabel,
   Checkbox,
   DropdownMenu,
   DropdownMenuTrigger,
@@ -446,7 +447,9 @@ function LanguageTimeline({
                     onClick={onSelect ? () => onSelect(it.lang) : undefined}
                     role={onSelect ? "button" : undefined}
                     aria-label={
-                      onSelect ? t("Review {lang} translations", { lang: it.lang }) : undefined
+                      onSelect
+                        ? t("Review {lang} translations", { lang: localeLabel(it.lang) })
+                        : undefined
                     }
                     data-slot="timeline-lang-tag"
                   >
@@ -1660,8 +1663,8 @@ export function CollectionsPanel({
         return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
       }
       const cellTitle = onOpenReview
-        ? `${lang}: ${r.label} · ${r.pct}% translated — ${t("click to review")}`
-        : `${lang}: ${r.label} · ${r.pct}% translated`;
+        ? `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated — ${t("click to review")}`
+        : `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated`;
       const openReview = onOpenReview
         ? () =>
             onOpenReview({
@@ -1693,7 +1696,7 @@ export function CollectionsPanel({
           type="button"
           className="rounded-sm hover:bg-accent"
           onClick={openReview}
-          aria-label={t("Review {lang} in this collection", { lang })}
+          aria-label={t("Review {lang} in this collection", { lang: localeLabel(lang) })}
           data-slot="ship-gate-cell"
         >
           {cell}
@@ -1707,7 +1710,7 @@ export function CollectionsPanel({
       return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
     }
     return heatmap ? (
-      <SimpleTooltip content={`${lang}: ${p}%`}>
+      <SimpleTooltip content={`${localeLabel(lang)}: ${p}%`}>
         <span
           className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
           style={{
@@ -1719,7 +1722,7 @@ export function CollectionsPanel({
         </span>
       </SimpleTooltip>
     ) : (
-      <SimpleTooltip content={`${lang}: ${p}%`}>
+      <SimpleTooltip content={`${localeLabel(lang)}: ${p}%`}>
         <span className="flex flex-col items-center gap-1">
           <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
             <span className="block h-full rounded-full bg-primary" style={{ width: `${p}%` }} />
@@ -2060,7 +2063,14 @@ export function CollectionsPanel({
                 <span className="text-right">{t("Blocks")}</span>
                 {showCoverageCols ? (
                   columnLangs.map((l) => (
-                    <span key={l} className="text-center normal-case" translate="no">
+                    // A matrix column is the one place a bare code is right: there
+                    // is no room for a name. The title carries it.
+                    <span
+                      key={l}
+                      className="text-center normal-case"
+                      title={localeLabel(l)}
+                      translate="no"
+                    >
                       {heatmap ? l.split("-")[0] : l}
                     </span>
                   ))
