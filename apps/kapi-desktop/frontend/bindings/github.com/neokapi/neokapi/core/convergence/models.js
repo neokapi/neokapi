@@ -571,6 +571,19 @@ export class ReviewItem {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Relative is the SOURCE file's project-relative path. File is the target
+             * file, which is what a reviewer is looking at but not what a path filter
+             * is written against: a filter says `web/**` about the content, and the
+             * target of that content lives under a locale directory the filter never
+             * mentions. Both halves have to reach a surface for it to scope a queue the
+             * way it scopes everything else.
+             * @member
+             * @type {string | undefined}
+             */
+            this["relative"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * SourceLocale is the project's source language, so a review surface can
              * render the source preview in its own writing direction.
              * @member

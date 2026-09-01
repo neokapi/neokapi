@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -43,6 +45,21 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Approve a unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale) — the state record lands in the project store and the unit then counts as reviewed.")
 	return nil
+}
+
+// relativeToRoot renders a source path relative to the project root, so a path
+// filter written against the content ("web/**") can be matched against it. It
+// falls back to the path as given: a path outside the root is still an honest
+// answer, and an empty one would silently pass every filter.
+func relativeToRoot(root, path string) string {
+	if root == "" || path == "" {
+		return path
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return path
+	}
+	return filepath.ToSlash(rel)
 }
 
 // computeReviewQueue lists the translated units that are not yet approved — the
@@ -85,6 +102,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			item := ReviewItem{
 				Locale:       u.Locale,
 				File:         u.DisplayPath,
+				Relative:     relativeToRoot(root, u.SourcePath),
 				Key:          blockKey(b),
 				Collection:   u.Collection,
 				SourceLocale: string(proj.Defaults.SourceLanguage),

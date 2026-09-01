@@ -56,7 +56,7 @@ func TestSettleSourceStatesSurvivesAMissingReader(t *testing.T) {
 		{SourcePath: pluginOnly, SourceFormat: "sourcecode", Locale: "nb"},
 	}
 
-	states, _, unreadable, err := a.settleSourceStates(context.Background(), model.SourceGateNone, units)
+	states, _, unreadable, err := a.settleSourceStates(context.Background(), "", "en", model.SourceGateNone, units)
 	require.NoError(t, err, "a missing reader is a missing optional dependency, not a failure")
 	assert.Equal(t, []string{"sourcecode"}, unreadable, "the skip is reported by name")
 	assert.NotEmpty(t, states, "the collections that DO read are still measured")
@@ -73,6 +73,6 @@ func TestSettleSourceStatesStillFailsOnARealReadError(t *testing.T) {
 	a := appWithFormats()
 	units := []VerifyUnit{{SourcePath: missing, SourceFormat: "markdown", Locale: "nb"}}
 
-	_, _, _, err := a.settleSourceStates(context.Background(), model.SourceGateNone, units)
+	_, _, _, err := a.settleSourceStates(context.Background(), "", "en", model.SourceGateNone, units)
 	require.Error(t, err, "a file that does not exist is not a missing plugin")
 }

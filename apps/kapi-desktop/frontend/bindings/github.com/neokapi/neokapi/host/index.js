@@ -19,6 +19,7 @@ export {
     ConvergenceReport,
     ParkedScope,
     ReviewItem,
+    SourceQueueItem,
     UpPlanOutput,
     UpPlanScope
 } from "./models.js";

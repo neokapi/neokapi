@@ -112,6 +112,13 @@ type ReviewItem struct {
 	// Collection is the parent content-collection name (empty for a bare
 	// entry), so a review surface can filter the queue to one collection.
 	Collection string `json:"collection,omitempty"`
+	// Relative is the SOURCE file's project-relative path. File is the target
+	// file, which is what a reviewer is looking at but not what a path filter
+	// is written against: a filter says `web/**` about the content, and the
+	// target of that content lives under a locale directory the filter never
+	// mentions. Both halves have to reach a surface for it to scope a queue the
+	// way it scopes everything else.
+	Relative string `json:"relative,omitempty"`
 	// SourceLocale is the project's source language, so a review surface can
 	// render the source preview in its own writing direction.
 	SourceLocale string `json:"sourceLocale,omitempty"`

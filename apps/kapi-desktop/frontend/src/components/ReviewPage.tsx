@@ -33,6 +33,8 @@ import { VirtualList } from "@neokapi/editor-grid";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
+import { SourceLane } from "./SourceLane";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
   DesktopFinding,
   PreReviewPolicy,
@@ -43,6 +45,7 @@ import type {
   ReviewItem,
   ReviewUnitDetail,
   AIActivityEntry,
+  SourceQueueItem,
 } from "../types/api";
 
 /** Initial queue narrowing handed in by an entry point (a ship-gate cell or a
@@ -81,6 +84,7 @@ export interface ReviewPageProps {
 }
 
 type Chip = "all" | "findings" | "clean";
+type Lane = "target" | "source";
 
 const itemId = (it: ReviewItem) => `${it.locale}:${it.file}:${it.key}`;
 
@@ -158,6 +162,21 @@ export function ReviewPage({
   // shown as a diff (Accept routes through the save-target path), and the
   // explain text.
   const [aiBusy, setAIBusy] = useState<ReviewAIActionKind | null>(null);
+  // The queue is scoped by the project's Active Filter, the same control the
+  // Checks panel reads. The in-page dropdowns below narrow within that scope
+  // rather than replacing it, so a reviewer can jump between languages without
+  // editing the project-wide filter.
+  const { active: activeFilter } = useActiveFilter();
+  // The two lanes of one page. Target review asks whether a translation is right
+  // for its source; source review asks the question underneath it, once for
+  // every language rather than once per language.
+  const [lane, setLane] = useState<Lane>("target");
+  // Owned here rather than inside the lane, so the toggle can carry the count.
+  // A source hold is the reason a whole project's translations are not moving,
+  // and it was reaching the app already: SourceCoverage rides in every
+  // convergence report and nothing rendered it, so the one number that explains
+  // a stalled run sat in memory and off the screen.
+  const [sourceQueue, setSourceQueue] = useState<SourceQueueItem[] | null>(null);
   const [aiProposal, setAIProposal] = useState<string | null>(null);
   const [aiExplanation, setAIExplanation] = useState<string | null>(null);
   // The calls the last AI action made. Held beside its result so the disclosure
@@ -180,7 +199,7 @@ export function ReviewPage({
     }
     setLoadingQueue(true);
     try {
-      const items = await api.getReviewQueue(tabID);
+      const items = await api.getReviewQueue(tabID, activeFilter ?? { id: "", name: "" });
       setQueue(items ?? []);
     } catch (err) {
       showError("Failed to load the review queue", err);
@@ -188,11 +207,26 @@ export function ReviewPage({
     } finally {
       setLoadingQueue(false);
     }
-  }, [tabID, propItems, showError]);
+  }, [tabID, propItems, activeFilter, showError]);
 
   useEffect(() => {
     void refreshQueue();
   }, [refreshQueue]);
+
+  const refreshSourceQueue = useCallback(async () => {
+    if (propItems) return; // Storybook/tests drive the lane directly.
+    try {
+      setSourceQueue((await api.getSourceQueue(tabID, activeFilter ?? { id: "", name: "" })) ?? []);
+    } catch {
+      // The source lane is a second view of the same project. A failure to read
+      // it must not take down the target queue the reviewer came here for.
+      setSourceQueue([]);
+    }
+  }, [tabID, activeFilter, propItems]);
+
+  useEffect(() => {
+    void refreshSourceQueue();
+  }, [refreshSourceQueue]);
 
   // Filter options derived from the full queue.
   const locales = useMemo(
@@ -577,6 +611,23 @@ export function ReviewPage({
     return out;
   }, [visible]);
 
+  // What the Active Filter is holding back, said in the reviewer's terms. A
+  // queue that is quietly smaller than the project reads as a shorter queue,
+  // not a narrowed one, and the control that narrowed it is on another menu.
+  const filterNarrowing = useMemo(() => {
+    if (!activeFilter) return "";
+    const parts: string[] = [];
+    if (activeFilter.languages?.length) {
+      parts.push(activeFilter.languages.map(localeLabel).join(", "));
+    }
+    if (activeFilter.collections?.length) {
+      parts.push(activeFilter.collections.join(", "));
+    }
+    if (activeFilter.glob?.trim()) parts.push(activeFilter.glob.trim());
+    if (parts.length === 0) return "";
+    return `${activeFilter.name || t("the active filter")} — ${parts.join(" · ")}`;
+  }, [activeFilter]);
+
   const chips: Array<{ id: Chip; label: string }> = [
     { id: "all", label: t("All") },
     { id: "findings", label: t("With findings") },
@@ -594,9 +645,42 @@ export function ReviewPage({
               "Approve, edit, or send translations back — decisions bind to the exact text they judged.",
             )}
           </p>
+          {filterNarrowing && (
+            <p className="mt-1 text-xs text-muted-foreground" data-slot="review-filter-notice">
+              {t("Showing {scope}.", { scope: filterNarrowing })}{" "}
+              <span className="opacity-70">{t("Change it in the filter menu, top right.")}</span>
+            </p>
+          )}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1" data-slot="review-chips">
+          <div className="flex items-center gap-1" data-slot="review-lane-toggle">
+            {(
+              [
+                { id: "target", label: t("Target") },
+                {
+                  id: "source",
+                  label: sourceQueue?.length
+                    ? t("Source ({count})", { count: sourceQueue.length })
+                    : t("Source"),
+                },
+              ] as Array<{ id: Lane; label: string }>
+            ).map((l) => (
+              <Button
+                key={l.id}
+                variant={lane === l.id ? "default" : "outline"}
+                size="xs"
+                onClick={() => setLane(l.id)}
+                aria-pressed={lane === l.id}
+              >
+                {l.label}
+              </Button>
+            ))}
+          </div>
+          <div
+            className="flex items-center gap-1"
+            data-slot="review-chips"
+            hidden={lane !== "target"}
+          >
             {chips.map((c) => (
               <Button
                 key={c.id}
@@ -609,7 +693,7 @@ export function ReviewPage({
               </Button>
             ))}
           </div>
-          {locales.length > 1 && (
+          {lane === "target" && locales.length > 1 && (
             <LocaleSelect
               value={localeFilter}
               onChange={setLocaleFilter}
@@ -621,7 +705,7 @@ export function ReviewPage({
               data-slot="review-locale-filter"
             />
           )}
-          {collections.length > 1 && (
+          {lane === "target" && collections.length > 1 && (
             <select
               className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
               value={collectionFilter}
@@ -637,19 +721,21 @@ export function ReviewPage({
               ))}
             </select>
           )}
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => {
-              setPreReviewResult(null);
-              setPreReviewOpen(true);
-            }}
-            disabled={loadingQueue || (queue ?? []).length === 0}
-            data-slot="review-prereview-open"
-          >
-            <Sparkles size={12} />
-            {t("AI pre-review…")}
-          </Button>
+          {lane === "target" && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => {
+                setPreReviewResult(null);
+                setPreReviewOpen(true);
+              }}
+              disabled={loadingQueue || (queue ?? []).length === 0}
+              data-slot="review-prereview-open"
+            >
+              <Sparkles size={12} />
+              {t("AI pre-review…")}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="xs"
@@ -793,8 +879,17 @@ export function ReviewPage({
         </DialogContent>
       </Dialog>
 
+      {lane === "source" && (
+        <SourceLane
+          tabID={tabID}
+          filter={activeFilter ?? null}
+          items={sourceQueue ?? undefined}
+          onChanged={refreshSourceQueue}
+        />
+      )}
+
       {/* Batch bar (Phase 2): approve all clean units in the current filter. */}
-      {cleanVisible.length > 0 && (
+      {lane === "target" && cleanVisible.length > 0 && (
         <div
           className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
           data-slot="review-batch"
@@ -825,7 +920,7 @@ export function ReviewPage({
         </div>
       )}
 
-      {loadingQueue && !queue ? (
+      {lane !== "target" ? null : loadingQueue && !queue ? (
         <div className="p-4 text-sm text-muted-foreground">{t("Loading review queue…")}</div>
       ) : visible.length === 0 ? (
         <Card className="border-dashed" data-slot="review-empty">

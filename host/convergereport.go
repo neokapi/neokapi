@@ -65,7 +65,7 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}
-		src, err := a.computeSourceReadiness(ctx, proj, units)
+		src, err := a.computeSourceReadiness(ctx, proj, root, units)
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}

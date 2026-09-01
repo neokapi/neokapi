@@ -40,6 +40,7 @@ import type {
   PreReviewScope,
   PreReviewPolicy,
   AIActivityResult,
+  SourceQueueItem,
   PreReviewResult,
   AdoptFlowResult,
   ProjectHandles,
@@ -126,7 +127,8 @@ export const api = {
 
   // Review surface — queue with findings enrichment, per-unit detail, and the
   // decision verbs (all recorded through cli.ApplyReviewDecision).
-  getReviewQueue: (tabID: string) => call<ReviewItem[]>("GetReviewQueue", tabID),
+  getReviewQueue: (tabID: string, filter: ProjectFilter) =>
+    call<ReviewItem[]>("GetReviewQueue", tabID, filter),
   getReviewUnit: (tabID: string, locale: string, file: string, key: string) =>
     call<ReviewUnitDetail>("GetReviewUnit", tabID, locale, file, key),
   rejectReviewItem: (tabID: string, locale: string, file: string, key: string, note: string) =>
@@ -146,6 +148,12 @@ export const api = {
     instruction: string,
   ) => call<ReviewAIActionResult>("ReviewAIAction", tabID, locale, file, key, action, instruction),
   /** Batch AI pre-review over the pending queue for a locale. */
+  getSourceQueue: (tabID: string, filter: ProjectFilter) =>
+    call<SourceQueueItem[]>("GetSourceQueue", tabID, filter),
+  approveSourceUnit: (tabID: string, file: string, key: string) =>
+    call<void>("ApproveSourceUnit", tabID, file, key),
+  updateSourceText: (tabID: string, file: string, key: string, text: string) =>
+    call<string[]>("UpdateSourceText", tabID, file, key, text),
   getAIActivity: (limit: number) => call<AIActivityResult>("GetAIActivity", limit),
   clearAIActivity: () => call<void>("ClearAIActivity"),
   runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope, policy: PreReviewPolicy) =>

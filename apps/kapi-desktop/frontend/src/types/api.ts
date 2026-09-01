@@ -724,6 +724,23 @@ export interface AIActivityResult {
   cap: number;
 }
 
+/** One source unit awaiting authoring attention: it sits below the project's
+ *  source gate, or below `approved` when the gate asks for a human. */
+export interface SourceQueueItem {
+  file: string;
+  relative?: string;
+  key: string;
+  collection?: string;
+  sourceLocale?: string;
+  source: string;
+  /** The settled source rung: authored | checked | approved. */
+  status: string;
+  /** The loop is holding this unit's translations. */
+  held: boolean;
+  /** A committed approval still blesses this exact wording. */
+  approved: boolean;
+}
+
 /** Narrowing for an AI pre-review run. */
 export interface PreReviewScope {
   collection?: string;

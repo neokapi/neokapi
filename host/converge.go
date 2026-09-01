@@ -577,7 +577,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// (and hard-failed on) above.
 		var blockedOnSource, totalSource int
 		if sourceGate != model.SourceGateNone {
-			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, sourceGate, admissionUnits)
+			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, root, string(a.SourceLang), sourceGate, admissionUnits)
 			if herr != nil {
 				return fmt.Errorf("settle source for the %q gate: %w", sourceGate, herr)
 			}

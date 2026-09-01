@@ -20,13 +20,13 @@ import (
 // distinct source files and evaluates it against the optional source gate. It is
 // the source-side counterpart of ComputeShipCoverage; source content is shared
 // across locales, so files are deduped by path.
-func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProject, units []VerifyUnit) (SourceCoverage, error) {
+func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (SourceCoverage, error) {
 	g, err := proj.BuildSourceGate()
 	if err != nil {
 		return SourceCoverage{}, err
 	}
 
-	states, _, unreadable, err := a.settleSourceStates(ctx, model.SourceGateNone, units)
+	states, _, unreadable, err := a.settleSourceStates(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units)
 	if err != nil {
 		return SourceCoverage{}, err
 	}
@@ -87,7 +87,18 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 // progress, which is the failure this whole file exists to avoid. Every other
 // error still propagates, for the reasons host/converge.go states at the call
 // site.
-func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
+func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
+	// Committed approvals, seeded onto each block before it settles. Without
+	// this the settle derivation only ever produces `authored` or `checked`:
+	// check.NewSourceReadinessTool preserves an existing approval, but nothing
+	// put one there, so `approved` was a rung the ladder could not reach and
+	// `source_gate: approved` held a project's fan-out forever.
+	approvals, aerr := a.loadSourceApprovals(ctx, root, sourceLang)
+	if aerr != nil {
+		return nil, 0, nil, aerr
+	}
+	docs := a.documentIndexOrEmpty(ctx, root)
+
 	seen := map[string]bool{}
 	noReader := map[string]bool{}
 	for _, u := range units {
@@ -103,9 +114,13 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 			}
 			return nil, 0, nil, berr
 		}
+		scope := docs.Scope(root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
+			}
+			if approvals.approves(scope, blockKey(b), b.SourceText()) {
+				b.SourceStatus = model.SourceStatusApproved
 			}
 			check.SettleSourceStatus(ctx, b)
 			states = append(states, sourceUnitState(b))
@@ -124,11 +139,11 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 // same core.check settle derivation. A disabled gate (SourceGateNone) settles
 // nothing and holds nothing (the opt-out never pays the settlement cost). total
 // is how many translatable source blocks were considered.
-func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
+func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
 	if gateLevel == model.SourceGateNone {
 		return 0, 0, nil, nil
 	}
-	states, held, unreadable, err := a.settleSourceStates(ctx, gateLevel, units)
+	states, held, unreadable, err := a.settleSourceStates(ctx, root, sourceLang, gateLevel, units)
 	if err != nil {
 		return 0, 0, nil, err
 	}
