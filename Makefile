@@ -1307,8 +1307,18 @@ KAPI_DESKTOP_DIR := apps/kapi-desktop
 build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
 	cd $(KAPI_DESKTOP_DIR) && wails3 build
 
+# Only the plugin set is pinned — KAPI_NO_PROJECT stays unset, so dev mode
+# still opens real projects (and the sample projects) under your real config
+# and keychain, the way a real user would. Without this, the app picks up
+# whatever plugins happen to be installed on this machine (Homebrew, a stray
+# $KAPI_PLUGINS_DIR left over from something else, …), so what dev mode can
+# exercise varies by developer and by day. .dev-plugins/ starts empty
+# (gitignored); place a plugin's install directory in it to test against.
+KAPI_DESKTOP_DEV_PLUGINS_ENV := KAPI_PLUGINS_DIR_ONLY=1 KAPI_PLUGINS_DIR=$(CURDIR)/$(KAPI_DESKTOP_DIR)/.dev-plugins
+
 kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (hot reload)
-	cd $(KAPI_DESKTOP_DIR) && wails3 dev
+	@mkdir -p $(KAPI_DESKTOP_DIR)/.dev-plugins
+	cd $(KAPI_DESKTOP_DIR) && $(KAPI_DESKTOP_DEV_PLUGINS_ENV) wails3 dev
 
 regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (targets, content memory, unit-state ledger)
 	@./apps/kapi-desktop/backend/sample/gen/regenerate.sh

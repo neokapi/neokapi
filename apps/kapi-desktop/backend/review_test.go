@@ -79,6 +79,56 @@ func TestGetReviewUnit_SurfacesPlaceholderFinding(t *testing.T) {
 	assert.Equal(t, "de-DE", d.Findings[0].Locale, "a target-side finding carries the checked target locale")
 }
 
+// TestGetReviewUnit_DirectoryMirrorTarget guards a real bug: a collection
+// whose target is a bare directory mirror ("{lang}", no {filename}/{relpath}/*
+// token) — kapimart's "Contracts" collection (`base: legal`, `target: "{lang}"`)
+// is exactly this shape. findReviewSource used to reconstruct the target path
+// with a {lang}/* -only substitution that can't produce a directory-mirror
+// path at all, so opening the Review page on such a project failed with
+// `no content file resolves to target "legal/ar/pricing-schedule.json" (ar)`.
+func TestGetReviewUnit_DirectoryMirrorTarget(t *testing.T) {
+	app := NewApp()
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "legal", "en"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "legal", "ar"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "legal", "en", "pricing-schedule.json"),
+		[]byte(`{"clause":"Net 30 days"}`), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "legal", "ar", "pricing-schedule.json"),
+		[]byte(`{"clause":"صافي 30 يومًا"}`), 0o644))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Name:    "Contracts",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"ar"},
+		},
+		Collections: []project.Collection{{
+			Name: "Contracts",
+			Base: "legal",
+			Content: []project.ContentItem{{
+				Path:   "en/*.json",
+				Target: "{lang}",
+			}},
+		}},
+	}
+	path := filepath.Join(root, "project.kapi")
+	require.NoError(t, project.Save(path, proj))
+
+	tab, err := app.OpenProject(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	// Exactly the path a directory-mirror target resolves to, and exactly
+	// what the review queue's File field would list.
+	d, err := app.GetReviewUnit(tab.ID, "ar", filepath.Join("legal", "ar", "pricing-schedule.json"), "clause")
+	require.NoError(t, err)
+	assert.Equal(t, "Net 30 days", d.Source)
+	assert.Equal(t, "صافي 30 يومًا", d.Target)
+}
+
 func TestGetReviewUnit_NotFound(t *testing.T) {
 	app := NewApp()
 	tab, _ := newReviewProject(t, app)

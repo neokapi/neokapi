@@ -10,6 +10,7 @@ import {
 import { X, Copy } from "lucide-react";
 import { Button, ErrorNotice, parseAppError } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
+import { writeClipboardText } from "../lib/clipboard";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -142,7 +143,7 @@ function ErrorBannerItem({
     if (parsed.detail) parts.push(parsed.detail);
     if (parsed.raw) parts.push(parsed.raw);
     try {
-      await navigator.clipboard.writeText(parts.join("\n\n"));
+      await writeClipboardText(parts.join("\n\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {

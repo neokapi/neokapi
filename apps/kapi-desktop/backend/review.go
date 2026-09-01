@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/neokapi/neokapi/core/format"
 	"math"
 	"os"
 	"path/filepath"
@@ -67,14 +66,16 @@ type ReviewUnitDetail struct {
 	Editable bool `json:"editable"`
 }
 
-// expandReviewTargetPath mirrors host.expandTargetTemplate: {lang} → locale and
-// "*" → the source basename without extension, rooted at the project directory.
-// The review queue's File field is produced by that exact expansion (relative
-// to the root), so the desktop must expand identically to find the unit again.
-func expandReviewTargetPath(tmpl, sourceRel, locale, root string) string {
-	out := strings.ReplaceAll(tmpl, "{lang}", locale)
-	base := format.Stem(sourceRel)
-	out = strings.ReplaceAll(out, "*", base)
+// expandReviewTargetPath delegates to project.ResolveTargetPathIn — the same
+// resolver host.expandTargetTemplate uses, which is what produced the review
+// queue's File field in the first place — so the desktop finds the same target
+// path for the whole token set ({lang}, {path}, {relpath}, {dir}, {name},
+// {ext}, "*") including a directory-mirror target ("{lang}" alone, with no
+// filename token): a {lang}-and-* -only substitution can't reconstruct that
+// shape, since there is nothing in the template for it to replace the source's
+// relative path into.
+func expandReviewTargetPath(rf project.ResolvedFile, localeFormat, locale, root string) string {
+	out := project.ResolveTargetPathIn(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, locale, localeFormat)
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}
@@ -91,11 +92,12 @@ func (a *App) findReviewSource(op *openProject, locale, file string) (project.Re
 		return project.ResolvedFile{}, "", fmt.Errorf("resolve content: %w", err)
 	}
 	root := filepath.Dir(op.Path)
+	localeFormat := op.Project.Defaults.LocaleFormat
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
 		}
-		tgt := expandReviewTargetPath(rf.Item.Target, rf.Relative, locale, root)
+		tgt := expandReviewTargetPath(rf, localeFormat, locale, root)
 		rel, rerr := filepath.Rel(root, tgt)
 		if rerr != nil {
 			rel = tgt

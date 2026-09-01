@@ -35,6 +35,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { writeClipboardText } from "../lib/clipboard";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 
@@ -467,7 +468,7 @@ function ToolInvocation({ tool }: { tool: ToolInfo }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(command);
+      await writeClipboardText(command);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
