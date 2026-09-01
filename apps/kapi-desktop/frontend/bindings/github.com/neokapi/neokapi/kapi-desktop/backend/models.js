@@ -2113,6 +2113,16 @@ export class DesktopFinding {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Locale is the language OriginalText is written in — the source locale for
+             * a source-side finding, the target locale for a target-side one — so the
+             * panel can render it with the right direction and lang attribute.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Replacement is the structured fix text (e.g. a voice profile's preferred
              * term). Empty when there is no safe automatic replacement.
              * @member
