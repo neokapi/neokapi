@@ -903,7 +903,10 @@ export function ReviewPage({
                             )}
                           </span>
                           <SimpleTooltip content={it.source}>
-                            <span className="block truncate text-muted-foreground">
+                            <span
+                              className="block truncate text-muted-foreground"
+                              {...directionAttrs(it.sourceLocale)}
+                            >
                               {it.source}
                             </span>
                           </SimpleTooltip>

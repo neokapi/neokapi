@@ -1,6 +1,5 @@
 /* FormatPreview — structure-aware, annotation-aware document preview shared by
-   the DocumentViewer, FileBrowser, and the docs landing. Reuses the same accent
-   vocabulary as DocumentRender so the two read identically. */
+   the DocumentViewer, FileBrowser, and the docs landing. */
 
 .root {
   --doc-accent: var(--ifm-color-primary, #2e8b57);

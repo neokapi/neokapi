@@ -20,8 +20,6 @@ export { roleStyle } from "./roleStyle";
 export type { RoleStyle } from "./roleStyle";
 export { default as ContentTreeView, Stats as ContentStatsBar } from "./ContentTreeView";
 export type { ContentTreeViewProps } from "./ContentTreeView";
-export { default as DocumentRender } from "./DocumentRender";
-export type { DocumentRenderProps } from "./DocumentRender";
 export { default as RunSequence } from "./RunSequence";
 export { default as RenderedDocument } from "./RenderedDocument";
 export type { RenderedDocumentProps } from "./RenderedDocument";

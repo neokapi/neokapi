@@ -200,6 +200,8 @@ export interface DesktopFinding {
   block_id?: string;
   /** Which side of the block the offending text lives on. */
   field?: "source" | "target";
+  /** The language `original_text` is written in, for direction and lang attributes. */
+  locale?: string;
   /** Structured fix text (e.g. a voice profile's preferred term). */
   replacement?: string;
   /** Whether the panel may show a one-click "Apply fix" button. */
@@ -562,6 +564,8 @@ export interface ReviewItem {
   key: string;
   /** Parent content-collection name (empty/absent for a bare entry). */
   collection?: string;
+  /** The project's source language, for the source preview's direction. */
+  sourceLocale?: string;
   source: string;
   target?: string;
   /** Whether the unit currently trips a check — set by GetReviewQueue's

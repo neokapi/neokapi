@@ -76,6 +76,7 @@ func TestGetReviewUnit_SurfacesPlaceholderFinding(t *testing.T) {
 	assert.Equal(t, "Hallo", d.Target)
 	require.NotEmpty(t, d.Findings, "the de-DE translation dropped {name}")
 	assert.Equal(t, "target", d.Findings[0].Field)
+	assert.Equal(t, "de-DE", d.Findings[0].Locale, "a target-side finding carries the checked target locale")
 }
 
 func TestGetReviewUnit_NotFound(t *testing.T) {
@@ -104,6 +105,7 @@ func TestGetReviewQueue_MarksFindings(t *testing.T) {
 	de := byID["de-DE:greeting"]
 	require.NotNil(t, de.HasFindings, "queue items carry the findings marker")
 	assert.True(t, *de.HasFindings, "de-DE greeting dropped its placeholder")
+	assert.Equal(t, "en-US", de.SourceLocale, "items carry the project's source locale")
 	fr := byID["fr-FR:greeting"]
 	require.NotNil(t, fr.HasFindings)
 	assert.False(t, *fr.HasFindings, "fr-FR greeting is clean")
