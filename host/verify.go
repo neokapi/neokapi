@@ -389,7 +389,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 					return verifyOutput{}, fmt.Errorf("resolve source content: %w", err)
 				}
 			}
-			srcGate, err := a.verifySourceGate(CmdContext(cmd), proj, srcUnits)
+			srcGate, err := a.verifySourceGate(CmdContext(cmd), proj, root, srcUnits)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -404,8 +404,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 // author's content. It is the source-side counterpart of verifyShip: it gates
 // the source (authored → checked → approved), not the translations. Like the
 // ship gate it is opt-in (--ship) — source drift never blocks an ordinary build.
-func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, units []VerifyUnit) (verifyGateResult, error) {
-	sc, err := a.computeSourceReadiness(ctx, proj, units)
+func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
+	sc, err := a.computeSourceReadiness(ctx, proj, root, units)
 	if err != nil {
 		return verifyGateResult{}, err
 	}

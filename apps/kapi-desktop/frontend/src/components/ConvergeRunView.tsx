@@ -40,6 +40,9 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
               passes: result.passes,
               parkedScopes: result.parkedScopes,
               materializedFiles: result.materializedFiles,
+              blockedOnSource: result.blockedOnSource,
+              sourceGate: result.sourceGate,
+              stallReason: result.stallReason,
             }
           : undefined
       }

@@ -724,6 +724,23 @@ export interface AIActivityResult {
   cap: number;
 }
 
+/** One source unit awaiting authoring attention: it sits below the project's
+ *  source gate, or below `approved` when the gate asks for a human. */
+export interface SourceQueueItem {
+  file: string;
+  relative?: string;
+  key: string;
+  collection?: string;
+  sourceLocale?: string;
+  source: string;
+  /** The settled source rung: authored | checked | approved. */
+  status: string;
+  /** The loop is holding this unit's translations. */
+  held: boolean;
+  /** A committed approval still blesses this exact wording. */
+  approved: boolean;
+}
+
 /** Narrowing for an AI pre-review run. */
 export interface PreReviewScope {
   collection?: string;
@@ -849,6 +866,15 @@ export interface ConvergeOutput {
   locales: ConvergeLocaleResult[];
   parkedScopes?: ParkedScope[];
   materializedFiles?: number;
+  /** Translatable source blocks held below the source gate: their translations
+   *  were not produced because the source is unsettled. Source-scoped, so it is
+   *  one count for every language rather than one per language. */
+  blockedOnSource?: number;
+  /** The resolved source gate the run applied (authored|checked|approved). */
+  sourceGate?: string;
+  /** Why the run did not converge, when it did not. `source_not_ready` means
+   *  every pending locale had nothing producible. */
+  stallReason?: string;
 }
 
 /** One skipped file from an extraction request. */

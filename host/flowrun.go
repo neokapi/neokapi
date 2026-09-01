@@ -345,6 +345,20 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		}
 	}
 
+	// Committed source approvals, read once for the whole run and stamped onto
+	// each block as it leaves the reader. Without this the in-flow source gate
+	// re-derives readiness from the checks alone, so a run would hold a unit
+	// `kapi status` reports as approved.
+	seedSourceState, seedErr := a.SourceStateSeeder(ctx, pctx.ProjectDir, string(pctx.SourceLocale))
+	if seedErr != nil && !errors.Is(seedErr, context.Canceled) {
+		// A real read failure is fatal rather than silent: without the approvals
+		// the source gate would hold units the project has already signed off,
+		// and a run that quietly translated nothing would look like a converged
+		// one. Cancellation is not that — the run is being torn down, and the
+		// same convention governs the feeder's error below.
+		return nil, fmt.Errorf("read source approvals: %w", seedErr)
+	}
+
 	runPass := func(pass []string, group bindingGroup) error {
 		// Target locale is the second element of the pass (if present).
 		lang := ""
@@ -412,6 +426,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
 					return pctx.ConfigureWriterFor(writer, string(fmtName), item)
 				},
+				SeedBlockState: seedSourceState,
 			})
 			if err := runner.RunFile(ctx, opts.FlowName, tools, inputPath, outputPath, lang); err != nil {
 				// Final metrics snapshot so a UI preserves counts at failure.

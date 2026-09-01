@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -326,16 +327,28 @@ func targetEditable(b *model.Block, loc model.LocaleID) bool {
 }
 
 // GetReviewQueue returns the project's review queue (the same derivation
-// GetConvergence reports) with each item enriched with hasFindings — whether
-// the unit currently trips any registered checker — so the Review page can
-// order findings-first and offer a "clean only" batch. Enrichment is
-// best-effort: a file that cannot be measured leaves its items unmarked.
-func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
+// GetConvergence reports), narrowed to the project's Active Filter and with
+// each item enriched with hasFindings — whether the unit currently trips any
+// registered checker — so the Review page can order findings-first and offer a
+// "clean only" batch. Enrichment is best-effort: a file that cannot be measured
+// leaves its items unmarked.
+//
+// The filter is applied BEFORE enrichment, which is what makes it worth
+// threading twice over: enrichment runs every registered checker over every
+// item, and a project the size of the sample has thousands. A filter that only
+// hid rows afterwards would still pay for all of them.
+func (a *App) GetReviewQueue(tabID string, filter ProjectFilter) ([]host.ReviewItem, error) {
+	langs, lerr := canonicalLocales(filter.Languages)
+	if lerr != nil {
+		return nil, lerr
+	}
+	filter.Languages = langs
+
 	rep, err := a.GetConvergence(tabID)
 	if err != nil {
 		return nil, err
 	}
-	items := rep.Review
+	items := filterReviewItems(rep.Review, filter)
 	if len(items) == 0 {
 		return []host.ReviewItem{}, nil
 	}
@@ -380,6 +393,31 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 		}
 	}
 	return items, nil
+}
+
+// filterReviewItems narrows a review queue to the Active Filter: its languages,
+// its collections and its path glob. The glob is matched against the item's
+// SOURCE-relative path, because that is what a content filter is written about;
+// matching the target path would fail every filter that does not happen to name
+// a locale directory.
+//
+// An empty filter passes everything, so an unfiltered project is unaffected.
+func filterReviewItems(items []host.ReviewItem, filter ProjectFilter) []host.ReviewItem {
+	narrowsFiles := filter.FilesNarrowed()
+	if len(filter.Languages) == 0 && !narrowsFiles {
+		return items
+	}
+	out := make([]host.ReviewItem, 0, len(items))
+	for _, it := range items {
+		if len(filter.Languages) > 0 && !slices.Contains(filter.Languages, it.Locale) {
+			continue
+		}
+		if narrowsFiles && !filter.MatchesFile(it.Collection, it.Relative) {
+			continue
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 // RejectReviewItem sends one review-queue unit back to the work queue: it

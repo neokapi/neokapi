@@ -607,7 +607,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		if err != nil {
 			return fmt.Errorf("resolve source content: %w", err)
 		}
-		src, err := a.computeSourceReadiness(cmd.Context(), proj, srcUnits)
+		src, err := a.computeSourceReadiness(cmd.Context(), proj, root, srcUnits)
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}

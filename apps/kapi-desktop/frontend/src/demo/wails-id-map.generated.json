@@ -1,4 +1,5 @@
 {
+  "814170": "ApproveSourceUnit",
   "28274782": "SearchMemoryEntriesFiltered",
   "34587212": "SetAppMode",
   "68337910": "GetConvergePlan",
@@ -118,6 +119,7 @@
   "2429100394": "ListOutputs",
   "2429951734": "SetApplication",
   "2439877550": "SaveProjectDialog",
+  "2461793539": "UpdateSourceText",
   "2479776596": "DeleteMemoryEntries",
   "2482853599": "SaveFlowFileDialog",
   "2504531246": "IsArchive",
@@ -155,6 +157,7 @@
   "3282285205": "ValidateVoiceProfile",
   "3289924379": "CheckProjectPlugins",
   "3297526758": "GetAllLocales",
+  "3303346524": "GetSourceQueue",
   "3360875527": "GetReviewQueue",
   "3371737795": "CancelRun",
   "3380514462": "SetProviderDefault",

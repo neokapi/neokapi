@@ -282,6 +282,28 @@ function ConvergeOutcomeBlock({
           </ul>
         </div>
       )}
+      {(result.blockedOnSource ?? 0) > 0 && (
+        <div
+          className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5"
+          data-slot="convergence-source-hold"
+        >
+          <p className="text-[11px] text-amber-700 dark:text-amber-500">
+            {t("{count} segments need source review before translating.", {
+              count: result.blockedOnSource ?? 0,
+            })}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {result.stallReason === "source_not_ready"
+              ? t(
+                  "Nothing was produced for any language: the source has not reached the {gate} gate. Settle it in the Review page's source lane.",
+                  { gate: result.sourceGate || "source" },
+                )
+              : t(
+                  "Their translations were held in every language. Settle them in the Review page's source lane.",
+                )}
+          </p>
+        </div>
+      )}
       {(result.materializedFiles ?? 0) > 0 && (
         <p className="mt-1 text-[11px] text-muted-foreground">
           {t("Materialized {count} localized file(s) from the project store.", {

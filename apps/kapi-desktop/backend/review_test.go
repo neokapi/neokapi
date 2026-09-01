@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -144,7 +145,7 @@ func TestGetReviewQueue_MarksFindings(t *testing.T) {
 	app := NewApp()
 	tab, _ := newReviewProject(t, app)
 
-	items, err := app.GetReviewQueue(tab.ID)
+	items, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
 	require.Len(t, items, 4, "two units × two locales await review")
 
@@ -240,4 +241,46 @@ func TestUpdateReviewTarget_RefusesEmptyText(t *testing.T) {
 	tab, _ := newReviewProject(t, app)
 	err := app.UpdateReviewTarget(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"), "greeting", "   ")
 	require.Error(t, err)
+}
+
+// The menu-bar Active Filter governs the Checks panel; a Review queue that
+// ignored it left two controls that look alike behaving differently, and made
+// the page enrich (and run every checker over) thousands of units the user had
+// already narrowed away.
+func TestGetReviewQueue_HonoursTheActiveFilter(t *testing.T) {
+	app := newAIReviewApp(t, aiprovider.NewMockProvider())
+	tab, _ := newReviewProject(t, app)
+
+	all, err := app.GetReviewQueue(tab.ID, ProjectFilter{})
+	require.NoError(t, err)
+	require.NotEmpty(t, all)
+
+	locales := map[string]bool{}
+	for _, it := range all {
+		locales[it.Locale] = true
+	}
+	require.Greater(t, len(locales), 1, "the fixture needs more than one locale to narrow")
+
+	only, err := app.GetReviewQueue(tab.ID, ProjectFilter{Languages: []string{"fr-FR"}})
+	require.NoError(t, err)
+	require.NotEmpty(t, only)
+	for _, it := range only {
+		assert.Equal(t, "fr-FR", it.Locale)
+	}
+	assert.Less(t, len(only), len(all))
+
+	// A glob is written about the content, so it matches the SOURCE path.
+	for _, it := range all {
+		assert.Equal(t, "locales/en.json", it.Relative, "an item carries its source-relative path")
+	}
+	onSource, err := app.GetReviewQueue(tab.ID, ProjectFilter{Glob: "locales/en.json"})
+	require.NoError(t, err)
+	assert.Len(t, onSource, len(all), "a glob naming the source keeps every item")
+
+	// The same glob written against a TARGET path matches nothing. This is the
+	// assertion that distinguishes the two: locales/de-DE.json is a real file in
+	// this project, and a queue matching the target path would return its units.
+	onTarget, err := app.GetReviewQueue(tab.ID, ProjectFilter{Glob: "locales/de-DE.json"})
+	require.NoError(t, err)
+	assert.Empty(t, onTarget, "the glob is matched against the source, never the target")
 }

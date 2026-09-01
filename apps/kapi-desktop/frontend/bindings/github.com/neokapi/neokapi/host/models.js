@@ -1205,6 +1205,105 @@ export const ReviewItem = convergence$0.ReviewItem;
  */
 
 /**
+ * SourceQueueItem is one source unit a person is being asked to look at: it sits
+ * below the project's source gate, or below `approved` when the gate asks for a
+ * human.
+ */
+export class SourceQueueItem {
+    /**
+     * Creates a new SourceQueueItem instance.
+     * @param {Partial<SourceQueueItem>} [$$source = {}] - The source object to create the SourceQueueItem.
+     */
+    constructor($$source = {}) {
+        if (!("file" in $$source)) {
+            /**
+             * File is the source file as the project names it, and Relative its
+             * project-relative path. For source content the two are the same file, unlike
+             * the target queue where they are a target and its source.
+             * @member
+             * @type {string}
+             */
+            this["file"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["relative"] = undefined;
+        }
+        if (!("key" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sourceLocale"] = undefined;
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is the settled source rung (authored|checked|approved).
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (!("held" in $$source)) {
+            /**
+             * Held reports that this unit ranks below the project's source gate, so the
+             * loop is holding its translations. An unheld item is in the queue because
+             * the gate asks for approval and it has not been approved, which is work
+             * rather than a blockage.
+             * @member
+             * @type {boolean}
+             */
+            this["held"] = false;
+        }
+        if (!("approved" in $$source)) {
+            /**
+             * Approved reports a committed human approval that still blesses this exact
+             * wording.
+             * @member
+             * @type {boolean}
+             */
+            this["approved"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SourceQueueItem instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SourceQueueItem}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SourceQueueItem(/** @type {Partial<SourceQueueItem>} */($$parsedSource));
+    }
+}
+
+/**
  * UpPlanOutput is the structured result of `kapi up --plan`: the dry-run work
  * plan per (collection, locale), with totals. No provider calls are made and
  * nothing is written.

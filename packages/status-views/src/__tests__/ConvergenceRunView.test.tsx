@@ -134,3 +134,49 @@ describe("ConvergenceRunView — header + logs + done footer (bowrain)", () => {
     expect(screen.getByText("3 files written")).toBeInTheDocument();
   });
 });
+
+// A run held on source produced nothing, in any language, and said so nowhere:
+// the event carried blockedOnSource and the desktop dropped it, so the one
+// number explaining a stalled run was in memory and off the screen.
+describe("ConvergenceRunView — source hold", () => {
+  const model: ConvergenceRunModel = { live: true, passes: [] };
+
+  it("names the count and points at the source lane", () => {
+    render(
+      <ConvergenceRunView
+        model={model}
+        result={{
+          converged: false,
+          passes: 1,
+          blockedOnSource: 12,
+          sourceGate: "approved",
+          stallReason: "source_not_ready",
+        }}
+      />,
+    );
+    const hold = document.querySelector('[data-slot="convergence-source-hold"]');
+    expect(hold).not.toBeNull();
+    expect(hold!.textContent).toContain("12 segments need source review");
+    expect(hold!.textContent).toContain("approved");
+    expect(hold!.textContent).toContain("source lane");
+  });
+
+  // A run that produced work but held some of it is not a stalled run, and must
+  // not read like one.
+  it("does not claim nothing was produced when the run only held part", () => {
+    render(
+      <ConvergenceRunView
+        model={model}
+        result={{ converged: false, passes: 1, blockedOnSource: 3 }}
+      />,
+    );
+    const hold = document.querySelector('[data-slot="convergence-source-hold"]');
+    expect(hold!.textContent).toContain("3 segments need source review");
+    expect(hold!.textContent).not.toContain("Nothing was produced");
+  });
+
+  it("says nothing when the source is settled", () => {
+    render(<ConvergenceRunView model={model} result={{ converged: true, passes: 1 }} />);
+    expect(document.querySelector('[data-slot="convergence-source-hold"]')).toBeNull();
+  });
+});
