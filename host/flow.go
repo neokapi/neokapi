@@ -2322,9 +2322,10 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 	}
 	config = a.ApplyProjectBindings(step.Tool, toolSchema, config)
 
-	// The same grant the direct path makes, at the one place a flow step
-	// becomes a tool. It used to be a separate pass over the BUILT tools in
-	// flowrun, which could only reach the one config type it knew to assert.
+	// The grant happens here, on the config map, at the one place a flow step
+	// becomes a tool: a map takes the handle for any tool that declared it
+	// wants one, so the capability is not narrowed to the single concrete
+	// config type a pass over built tools would have to assert.
 	return a.grantMemory(step.Tool, config, cmd)
 }
 

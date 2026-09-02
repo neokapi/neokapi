@@ -21,11 +21,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Review's AI actions used to hand-write their tool config: a source locale, an
-// instruction, and nothing else. So a retranslation proposed in Review was
-// off-voice by construction while the checks card above it judged that same
-// unit against the voice, and the pre-review judge scored a bare pair. These
-// tests assert the config each action actually builds with.
+// Each Review AI action builds its tool through host.ToolConfigForUnit, so the
+// config it runs with carries the governance the flow runner gives translate at
+// that unit's point: the voice profile, the term rules and the recipe's tool
+// preset, with the action's own keys layered on top. These tests capture the
+// config each action is built with and assert exactly that.
 
 const reviewVoiceYAML = `id: house
 name: House Style
