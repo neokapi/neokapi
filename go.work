@@ -12,6 +12,7 @@ use (
 	./scripts/batcheval
 	./scripts/contexteval
 	./scripts/contract-audit
+	./scripts/emdashcheck
 	./scripts/gen-contract-types
 	./scripts/gen-refs
 	./scripts/mkappcast

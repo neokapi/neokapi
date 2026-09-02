@@ -1035,6 +1035,14 @@ jobs:
     # or gofmt drift (or a stale guard) can't merge and surface only post-merge.
     steps:
       - uses: actions/checkout@v7
+      # The em-dash matcher is a Go program (comments must not count, so it
+      # parses rather than greps). It is built from its own module with
+      # GOWORK=off and imports only the standard library, so this needs the
+      # toolchain and no module download.
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.0"
+          cache: false
       - name: Guard — neokapi docs must stay bowrain-clean
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
@@ -1050,6 +1058,14 @@ jobs:
         run: ./scripts/check-deploy-paths.sh
       - name: Guard — every run projection is declared, never hand-rolled
         run: ./scripts/check-run-projection.sh
+      # Two of the three parts run here. The catalogs part reads the extracted
+      # source catalogs, which are build artefacts `make l10n-extract` produces
+      # from JSX, so it runs in the l10n workflow instead, where that extract
+      # has just happened and pnpm is already installed.
+      - name: Guard — no em dash in any Go string literal
+        run: ./scripts/check-em-dashes.sh --part go
+      - name: Guard — docs prose stays within its em-dash allowance
+        run: ./scripts/check-em-dashes.sh --part docs
       - name: Guard — every language is shown by name, not by its code alone
         run: ./scripts/check-locale-display.sh
       # The docs jobs build two sites in two locales and sit late in CI, so an

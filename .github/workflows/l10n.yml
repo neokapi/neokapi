@@ -59,6 +59,8 @@ on:
       - "Makefile"
       - "scripts/l10n-autofix.sh"
       - "scripts/l10n-loop-report.mjs"
+      - "scripts/check-em-dashes.sh"
+      - "scripts/emdashcheck/**"
       - ".github/workflows/l10n.yml"
   pull_request:
     # GitHub Actions does not expand YAML anchors, so this list is duplicated
@@ -96,6 +98,8 @@ on:
       - "Makefile"
       - "scripts/l10n-autofix.sh"
       - "scripts/l10n-loop-report.mjs"
+      - "scripts/check-em-dashes.sh"
+      - "scripts/emdashcheck/**"
       - ".github/workflows/l10n.yml"
 
 # Never cancel a push to main; supersede stale PR runs.
@@ -142,6 +146,13 @@ jobs:
           AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
         run: bash scripts/l10n-autofix.sh
+
+      # The extract has just run, so every surface's source catalog exists and
+      # --require-extracted can insist on it. This is the only job that can ask
+      # the question: the catalogs are gitignored build artefacts, so no other
+      # workflow (and no fresh clone) has them on disk.
+      - name: Guard — no em dash in the English source of any catalog
+        run: ./scripts/check-em-dashes.sh --part catalogs --require-extracted
 
       # Standing, never gating. Coverage and placeholder parity over the tier
       # the loop owns; low numbers are pending work by design, so this step
