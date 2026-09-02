@@ -4,8 +4,8 @@ description: Run an external command-line program on block text and use its stdo
 overview: |
   The **External Command** tool pipes each block's text through an external
   command-line program and captures the program's standard output as the new
-  text. It lets a pipeline reuse an existing CLI filter — a custom normalizer,
-  a spell-fixer, a transliterator — without writing a native tool.
+  text. It lets a pipeline reuse an existing CLI filter (a custom normalizer,
+  a spell-fixer, a transliterator) without writing a native tool.
 
   Text can be sent to the command on standard input or substituted into the
   argument list via the `${source}` and `${target}` placeholders. A command is
@@ -18,8 +18,8 @@ overview: |
   environment, and a recipe is bound by entering a directory. kapi therefore
   asks once per project, before anything else happens with it, and remembers the
   answer; an unattended run with nobody to ask refuses rather than assumes.
-  `KAPI_TRUST_EXEC=1` grants it where the pipeline author — not the repository
-  being processed — is the one deciding. The same classification withholds this
+  `KAPI_TRUST_EXEC=1` grants it where the pipeline author decides, rather than
+  the repository being processed. The same classification withholds this
   tool from the agent surface, from the engine API, and from any recipe arriving
   inside a `.kpz`. See
   [E-06](/contribute/architecture/engine/e-06-execution-trust).

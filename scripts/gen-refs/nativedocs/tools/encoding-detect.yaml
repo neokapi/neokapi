@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `encoding-detect` tool.
-# Schema source: core/tools/encodingdetect.go (EncodingDetectConfig — no parameters).
+# Schema source: core/tools/encodingdetect.go (EncodingDetectConfig, no parameters).
 description: Classify the source text of each block as ASCII, UTF-8, or unknown.
 overview: |
   The **Encoding Detect** tool inspects the source text of every translatable

@@ -7,7 +7,7 @@ overview: |
   The **Pattern Check** holds each translatable block's source text to regular
   expressions the caller names. `--forbid` gives a pattern that must not appear
   and `--require` one that must, both repeatable, and both reported at major
-  severity — `pattern.forbidden-pattern` when a forbidden pattern is found, and
+  severity: `pattern.forbidden-pattern` when a forbidden pattern is found, and
   `pattern.pattern-missing` when a required one is absent. A forbidden-pattern
   finding carries the text it matched, so the block and the offending words are
   both named.
@@ -20,8 +20,8 @@ overview: |
 
   It is the escape hatch beside the checks that know what they are looking for.
   A voice profile carries the vocabulary a project decided, and terms carry the
-  words it agreed on; a pattern is for the bar that has no vocabulary behind it —
-  a placeholder syntax that must survive, a marker that must never ship.
+  words it agreed on; a pattern is for the bar that has no vocabulary behind it,
+  such as a placeholder syntax that must survive or a marker that must never ship.
 parameters:
   --forbid:
     description: A regular expression that must not appear in the source.

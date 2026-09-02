@@ -16,7 +16,7 @@ parameters:
   extractNonStrings:
     description: Extract non-string scalar values.
     help: |
-      When enabled, non-string scalars — booleans, numbers, and nulls — are
+      When enabled, non-string scalars (booleans, numbers, and nulls) are
       also extracted as translatable blocks. By default only string scalars
       are extracted.
     values: "`true` / `false` (default `false`)"
@@ -26,10 +26,10 @@ parameters:
       An array of glob-style key-path patterns. When non-empty, only keys
       matching one of the patterns are extracted. `*` matches a single key
       segment; `**` matches any number of segments at any depth.
-    values: Array of glob patterns (default empty — all keys extracted)
+    values: Array of glob patterns (default empty, all keys extracted)
     examples:
-      - "`en.**` — extract only keys nested under the top-level `en` key"
-      - "`*.title` — extract the `title` key directly under any top-level key"
+      - "`en.**` extracts only keys nested under the top-level `en` key"
+      - "`*.title` extracts the `title` key directly under any top-level key"
   subfilter:
     description: Subfilter format applied to scalar values.
     help: |
@@ -38,7 +38,7 @@ parameters:
       as inline codes rather than translated as literal text.
     values: Format name (default empty)
     examples:
-      - "`html` — parse HTML inside YAML scalar values"
+      - "`html` parses HTML inside YAML scalar values"
   useCodeFinder:
     description: Enable regex-based inline-code detection.
     help: |

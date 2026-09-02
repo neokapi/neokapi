@@ -47,29 +47,43 @@
 #                    durable fix is to add the directory to an extract glob, at
 #                    which point this list shrinks to nothing.
 #
+#   --part dossier   The authored reference prose and the dataset built from it:
+#                    the sidecars under scripts/gen-refs/nativedocs, the plugin
+#                    manifests and format schemas, the model catalog, and the
+#                    generated packages/reference-data/data JSON. Allowance
+#                    zero. A `config:` block inside a sidecar holds a worked
+#                    recipe snippet and is read past as the code it is, and a
+#                    fenced block in the tree's README likewise.
+#
+#                    The dataset is scanned alongside its inputs because a
+#                    plugin that is absent at generation time contributes no
+#                    entry, so the inputs alone would leave a gap.
+#
 #   --part docs      Every .md/.mdx under web/docs, docs/internals and
-#                    cli/skills/data. Fenced code blocks hold CLI output and
-#                    config, where a dash is data, so they are skipped for both
-#                    the count and the word total behind the allowance. Each
-#                    file may hold floor(words/1000), CLAUDE.md's ceiling.
+#                    cli/skills/data, plus the sample READMEs. Fenced code
+#                    blocks hold CLI output and config, where a dash is data, so
+#                    they are skipped for both the count and the word total
+#                    behind the allowance. Each file may hold floor(words/1000),
+#                    CLAUDE.md's ceiling.
 #
 #                    web/walkthroughs/ is deliberately outside this list. Those
 #                    files are the authored unit the demo pipeline records and
 #                    narrates from, so they are swept with the demos rather than
 #                    with the docs. Add them here when that sweep lands.
 #
-# With no --part, all three run and the script exits non-zero if any failed.
+# With no --part, every part runs and the script exits non-zero if any failed.
 #
 # Usage:
 #     ./scripts/check-em-dashes.sh                     # every part
 #     ./scripts/check-em-dashes.sh --part go
 #     ./scripts/check-em-dashes.sh --part catalogs --require-extracted
 #     ./scripts/check-em-dashes.sh --part ui
+#     ./scripts/check-em-dashes.sh --part dossier
 #     ./scripts/check-em-dashes.sh --self-test         # prove the matchers
 #
 # Wired into `make check-em-dashes` (part of `make lint`), `make pre-push`, the
-# repo-guards job in .github/workflows/ci.yml (go, ui and docs, last in the job
-# so a failure hides no other guard), and the catalogs job in
+# repo-guards job in .github/workflows/ci.yml (go, ui, dossier and docs, last
+# in the job so a failure hides no other guard), and the catalogs job in
 # .github/workflows/l10n.yml, where the extract has just run.
 set -euo pipefail
 
@@ -112,9 +126,9 @@ while [ $# -gt 0 ]; do
 done
 
 case "$PART" in
-  all|go|catalogs|docs|ui) ;;
+  all|go|catalogs|docs|ui|dossier) ;;
   *)
-    echo "check-em-dashes.sh: unknown part $PART (want go, catalogs, docs or ui)" >&2
+    echo "check-em-dashes.sh: unknown part $PART (want go, catalogs, docs, ui or dossier)" >&2
     exit 2
     ;;
 esac
@@ -155,12 +169,15 @@ check_go() {
 
 # ── catalogs ─────────────────────────────────────────────────────────────────
 
-# The two committed inventories, generated from the Go registries and the cobra
-# command tree by `make kapi-i18n-generate` / `make kapi-cli-i18n-generate`. A
-# finding here is fixed in the Go source and the inventory regenerated.
+# The committed source catalogs. The first two are generated from the Go
+# registries and the cobra command tree by `make kapi-i18n-generate` /
+# `make kapi-cli-i18n-generate`, so a finding there is fixed in the Go source
+# and the inventory regenerated. The third is hand-written email subject copy,
+# whose target locales sit beside it as separate files this never reads.
 readonly GO_CATALOGS=(
   host/i18n/commands.json
   core/i18n/builtins/metadata.json
+  bowrain/mailer/subjects/en.json
 )
 
 check_catalogs() {
@@ -234,15 +251,39 @@ check_ui() {
   return 1
 }
 
+# ── dossier ──────────────────────────────────────────────────────────────────
+
+check_dossier() {
+  local out
+  if out=$(git ls-files -- \
+      'scripts/gen-refs/nativedocs' \
+      'packages/reference-data/data/*.json' \
+      'providers/ai/models.json' \
+      'plugins/*/manifest.json' \
+      'plugins/*/formats/*/schema.json' |
+      "$MATCHER" -part dossier 2>&1); then
+    echo "✓ dossier: no em dash in the reference prose or the dataset it produces"
+    return 0
+  fi
+  echo "✖ dossier: fix the sidecar, manifest or catalog, then run 'make generate-reference-docs'."
+  printf '%s\n' "$out"
+  return 1
+}
+
 # ── docs ─────────────────────────────────────────────────────────────────────
 
+# The sample READMEs are documentation about the repo and are read here. The
+# Markdown under samples/<name>/docs/ is not: it is the corpus each sample
+# translates, and rewriting a sentence there orphans the translations and the
+# committed decisions the sample ships to demonstrate the loop.
 check_docs() {
   local out
   if out=$(git ls-files -- \
       'web/docs/**/*.md' 'web/docs/**/*.mdx' \
       'docs/internals/**/*.md' 'docs/internals/**/*.mdx' \
       'cli/skills/data/**/*.md' 'cli/skills/data/**/*.mdx' \
-      'web/blog/**/*.md' 'web/blog/**/*.mdx' |
+      'web/blog/**/*.md' 'web/blog/**/*.mdx' \
+      'samples/README.md' 'samples/*/README.md' |
       "$MATCHER" -part docs 2>&1); then
     echo "✓ docs: every page is within its em-dash allowance"
     return 0
@@ -262,6 +303,9 @@ if [ "$PART" = all ] || [ "$PART" = catalogs ]; then
 fi
 if [ "$PART" = all ] || [ "$PART" = ui ]; then
   check_ui || status=1
+fi
+if [ "$PART" = all ] || [ "$PART" = dossier ]; then
+  check_dossier || status=1
 fi
 if [ "$PART" = all ] || [ "$PART" = docs ]; then
   check_docs || status=1

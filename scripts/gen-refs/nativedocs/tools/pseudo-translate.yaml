@@ -31,7 +31,7 @@ parameters:
     description: Extra padding to simulate translation expansion.
     help: |
       Adds padding characters proportional to the text length, so the output is
-      longer than the source — a common effect of real translation. A value of
+      longer than the source, a common effect of real translation. A value of
       0 adds no padding.
     values: "integer ≥ 0 (default `0`)"
 limitations:

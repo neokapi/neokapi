@@ -5,7 +5,7 @@
 displayName: XLIFF 1.2
 description: Read and write OASIS XLIFF 1.2 bilingual exchange documents.
 overview: |
-  XLIFF 1.2 is the OASIS XML interchange standard for bilingual content —
+  XLIFF 1.2 is the OASIS XML interchange standard for bilingual content,
   the exchange format that translation tools and TMS platforms use
   to move content between extraction and translation. A document groups
   `<trans-unit>` elements under `<file>` containers, each unit holding a
@@ -151,7 +151,7 @@ parameters:
       when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
-      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+      - "`%[0-9]*[sd]` protects `printf`-style format specifiers"
     dependsOn:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect

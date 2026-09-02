@@ -4,8 +4,8 @@ description: Identify tags and placeholders in source text and mark them for dow
 overview: |
   The **Tag Protect** tool finds tags and placeholders in source text using
   regular-expression patterns and records them as an annotation on the block,
-  along with a count property. Downstream tools — for example an MT or AI
-  translation step — can then read the annotation to preserve those tokens
+  along with a count property. Downstream tools (for example an MT or AI
+  translation step) can then read the annotation to preserve those tokens
   rather than translating or reformatting them.
 
   When no patterns are configured, a built-in default set is used, covering
@@ -22,8 +22,8 @@ parameters:
       printf-style placeholders, and `${...}` template expressions).
     values: "array of regular expressions (default: built-in set)"
     examples:
-      - "`<[^>]+>` — matches HTML/XML tags"
-      - "`\\{[^}]+\\}` — matches curly-brace placeholders"
+      - "`<[^>]+>` matches HTML/XML tags"
+      - "`\\{[^}]+\\}` matches curly-brace placeholders"
 limitations:
   - Patterns use Go's RE2 syntax, which does not support backreferences or lookaround.
   - The tool records protected matches as an annotation; it does not itself prevent their modification.

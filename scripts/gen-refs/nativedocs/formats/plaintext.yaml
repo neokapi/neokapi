@@ -6,7 +6,7 @@ description: Extract text from plain `.txt` files, one block per line or per par
 overview: |
   The plain text format reads generic `.txt` documents and emits the
   text content as translatable blocks. It is the fallback for files that
-  carry no markup or structure of their own — release notes, prompts,
+  carry no markup or structure of their own: release notes, prompts,
   word lists, or any free-form text that needs translating.
 
   By default the reader segments by line: each non-empty line becomes one
@@ -23,7 +23,7 @@ parameters:
       becomes its own block. Blank lines and line terminators are kept as
       skeleton and are not extracted.
 
-      When disabled, the reader groups consecutive lines into paragraphs —
+      When disabled, the reader groups consecutive lines into paragraphs, and
       a block ends at a blank line. Use paragraph mode for prose that wraps
       across multiple physical lines, where a sentence should stay in one
       block rather than being split per line.

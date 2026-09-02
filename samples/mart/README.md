@@ -1,4 +1,4 @@
-# Mart — the shared sample dataset
+# Mart: the shared sample dataset
 
 Mart is the canonical sample used across neokapi and bowrain demos, docs,
 videos, and WASM embeds. It exists so that every walkthrough draws on one
@@ -13,7 +13,7 @@ KapiMart is a fictional storefront and order platform for small retailers. The
 sample models a slice of its product surface: navigation, a product and cart and
 checkout flow, an account area, error and empty states, and a short piece of
 marketing copy. The content is written the way a real small-shop product would
-write it — that realism is the point. Note that the restrained prose guideline
+write it, and that realism is the point. Note that the restrained prose guideline
 in `docs/internals/brand-communication.md` governs documentation _about_ this
 sample (including this README), not the in-fiction product copy itself.
 
@@ -25,8 +25,8 @@ boundary clean in each context:
 
 | Instance | Use it for | Product name in copy |
 | --- | --- | --- |
-| KapiMart | kapi and framework examples — CLI recipes, Claude videos, framework WASM embeds, the neokapi landing page | `KapiMart` |
-| BowMart | bowrain examples — adds the multi-user cast and the collaboration / correction-loop history | `BowMart` |
+| KapiMart | kapi and framework examples: CLI recipes, Claude videos, framework WASM embeds, the neokapi landing page | `KapiMart` |
+| BowMart | bowrain examples, adding the multi-user cast and the collaboration / correction-loop history | `BowMart` |
 
 The files in this directory carry the `KapiMart` name as the default instance.
 For BowMart, substitute the product name at record time (a single
@@ -72,8 +72,8 @@ and a "pending" count is simply the number of empty values.
 
 The sample includes ICU messages so plural and select handling can be shown:
 
-- `cart.summary` — an ICU **plural** (`{count, plural, ...}`).
-- `checkout.pay_with` — an ICU **select** on the payment provider.
+- `cart.summary` is an ICU **plural** (`{count, plural, ...}`).
+- `checkout.pay_with` is an ICU **select** on the payment provider.
 
 Plural categories follow CLDR per locale: French and German use `one`/`other`;
 Japanese uses `other` only. Partial locales leave the ICU strings empty where
@@ -82,8 +82,8 @@ that key has not been translated yet.
 ## Terms and brand
 
 `glossary.csv` maps each term to its French, German, and Japanese forms with a
-note column. Do-not-translate terms — the three product names and third-party
-brands (PayPal, Apple Pay) — are marked `DNT` in the note. It also encodes the
+note column. Do-not-translate terms (the three product names and third-party
+brands PayPal and Apple Pay) are marked `DNT` in the note. It also encodes the
 preference for "AI assistant" over "Copilot".
 
 `brand/forbidden-terms.txt` lists marketing words a brand check should flag;
@@ -105,7 +105,7 @@ the correction-learning loop can be shown with the same cast every time:
 This sequence is the recurring story for BowMart correction-loop demos:
 
 1. The AI assistant suggests `tableau de bord` for the German string
-   `account.title` — carrying a French term into German.
+   `account.title`, carrying a French term into German.
 2. **Maya** corrects the German to `Übersicht` (consistent with the
    `Dashboard → de: Übersicht` row in `glossary.csv`).
 3. The correction becomes a rule: "Dashboard in de is `Übersicht`, not

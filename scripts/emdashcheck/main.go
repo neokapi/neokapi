@@ -25,6 +25,14 @@
 //	                template or JSX text, which is all shipped text. The scan
 //	                tracks comment and string state so `//` inside a string
 //	                starts no comment.
+//	-part dossier   The authored reference prose and the dataset it produces:
+//	                the sidecars under scripts/gen-refs/nativedocs, the plugin
+//	                manifests and format schemas, the model catalog, and the
+//	                generated packages/reference-data/data JSON. The allowance
+//	                is zero. A YAML sidecar is read line by line so a `config:`
+//	                block, which holds a worked recipe snippet, is skipped as
+//	                the code it is; JSON is walked by value; Markdown skips its
+//	                fenced blocks for the same reason.
 //
 // The caller owns file selection, so what the guard checks is what the guard
 // was handed.
@@ -90,7 +98,7 @@ type finding struct {
 }
 
 func main() {
-	part := flag.String("part", "go", "which tier to scan: go, catalogs or docs")
+	part := flag.String("part", "go", "which tier to scan: go, catalogs, docs, ui or dossier")
 	selfTestFlag := flag.Bool("self-test", false, "prove the matcher both ways and exit")
 	flag.Parse()
 
@@ -118,8 +126,10 @@ func main() {
 		findings, err = scanDocFiles(paths)
 	case "ui":
 		findings, err = scanUIFiles(paths)
+	case "dossier":
+		findings, err = scanDossierFiles(paths)
 	default:
-		fmt.Fprintf(os.Stderr, "emdashcheck: unknown -part %q (want go, catalogs, docs or ui)\n", *part)
+		fmt.Fprintf(os.Stderr, "emdashcheck: unknown -part %q (want go, catalogs, docs, ui or dossier)\n", *part)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -300,6 +310,23 @@ func scanDocFiles(paths []string) ([]finding, error) {
 
 var fenceRe = regexp.MustCompile("^\\s*(```|~~~)")
 
+// emptyTableCells counts the em dashes in a Markdown table row that are the
+// whole cell. There the character is the rendered empty value, the same
+// placeholder the Go and TSX allowlists admit, rather than a mark in a sentence.
+func emptyTableCells(line string) int {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "|") {
+		return 0
+	}
+	n := 0
+	for _, cell := range strings.Split(trimmed, "|") {
+		if strings.TrimSpace(cell) == emDash {
+			n++
+		}
+	}
+	return n
+}
+
 // scanDocSource counts the em dashes in a document's prose and compares that
 // against the file's allowance. Fenced code blocks hold CLI output and config,
 // where a dash is data, so they are skipped for both the count and the word
@@ -320,7 +347,7 @@ func scanDocSource(path, src string) []finding {
 			continue
 		}
 		words += len(strings.Fields(line))
-		if n := strings.Count(line, emDash); n > 0 {
+		if n := strings.Count(line, emDash) - emptyTableCells(line); n > 0 {
 			dashes += n
 			lines = append(lines, i+1)
 		}
@@ -464,6 +491,99 @@ func uiExcerptAround(runes []rune, i int) string {
 	return strings.TrimSpace(string(runes[lo:hi]))
 }
 
+// ── dossier ──────────────────────────────────────────────────────────────────
+
+// configBlockRe matches the key that introduces a worked recipe snippet in a
+// reference sidecar. Its literal block is code, so the scan reads past it.
+var configBlockRe = regexp.MustCompile(`^(\s*)config:\s*[|>][-+0-9]*\s*$`)
+
+// scanDossierFiles reads the authored reference prose and the dataset built
+// from it. The allowance is zero: this tier is small, hand-written, and shipped
+// as the reference documentation of every format, tool and command.
+func scanDossierFiles(paths []string) ([]finding, error) {
+	var out []finding
+	for _, p := range paths {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return nil, err
+		}
+		switch strings.ToLower(filepath.Ext(p)) {
+		case ".json":
+			var doc any
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				return nil, fmt.Errorf("parsing %s: %w", p, err)
+			}
+			out = append(out, walkCatalog(p, "", doc)...)
+		case ".yaml", ".yml":
+			out = append(out, scanDossierYAML(p, string(raw))...)
+		case ".md", ".mdx":
+			out = append(out, scanZeroToleranceMarkdown(p, string(raw))...)
+		}
+	}
+	return out, nil
+}
+
+// scanDossierYAML reports every em dash in a sidecar except the ones inside a
+// `config:` literal block, where the text is a recipe snippet a reader copies.
+// The block ends at the first non-blank line indented no deeper than the key.
+func scanDossierYAML(path, src string) []finding {
+	var (
+		out         []finding
+		configIndet = -1
+	)
+	for i, line := range strings.Split(src, "\n") {
+		if configIndet >= 0 {
+			if strings.TrimSpace(line) == "" || lineIndent(line) > configIndet {
+				continue
+			}
+			configIndet = -1
+		}
+		if m := configBlockRe.FindStringSubmatch(line); m != nil {
+			configIndet = len(m[1])
+			continue
+		}
+		if strings.Contains(line, emDash) {
+			out = append(out, finding{
+				Path:  path,
+				Where: fmt.Sprintf("%d", i+1),
+				Value: strings.TrimSpace(line),
+			})
+		}
+	}
+	return out
+}
+
+func lineIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
+}
+
+// scanZeroToleranceMarkdown reports every em dash in a Markdown file outside a
+// fenced code block. It is the docs scan with an allowance of zero, for prose
+// small enough that the per-thousand-words ceiling would allow none anyway.
+func scanZeroToleranceMarkdown(path, src string) []finding {
+	var (
+		out     []finding
+		inFence bool
+	)
+	for i, line := range strings.Split(src, "\n") {
+		if fenceRe.MatchString(line) {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		if strings.Contains(line, emDash) {
+			out = append(out, finding{
+				Path:  path,
+				Where: fmt.Sprintf("%d", i+1),
+				Value: strings.TrimSpace(line),
+			})
+		}
+	}
+	return out
+}
+
 // ── shared ───────────────────────────────────────────────────────────────────
 
 func excerpt(v string) string {
@@ -489,7 +609,10 @@ func selfTest() error {
 	if err := selfTestDocs(); err != nil {
 		return err
 	}
-	return selfTestUI()
+	if err := selfTestUI(); err != nil {
+		return err
+	}
+	return selfTestDossier()
 }
 
 func fixture(s string) string { return strings.ReplaceAll(s, "@", emDash) }
@@ -597,6 +720,15 @@ func selfTestDocs() error {
 	if got := scanDocSource("many.md", tooMany); len(got) != 1 {
 		return fmt.Errorf("docs: two dashes in a 1200-word document should fail, got %v", got)
 	}
+
+	cell := fixture("# Title\n\n| a | b |\n| --- | --- |\n| x | @ |\n")
+	if got := scanDocSource("table.md", cell); len(got) != 0 {
+		return fmt.Errorf("docs: an empty table cell was flagged: %v", got)
+	}
+	prose := fixture("# Title\n\n| a | b |\n| --- | --- |\n| x | y @ z |\n")
+	if got := scanDocSource("prose-table.md", prose); len(got) != 1 {
+		return fmt.Errorf("docs: a dash inside a table cell's prose was not flagged: %v", got)
+	}
 	return nil
 }
 
@@ -626,6 +758,35 @@ const nothing = <span>@</span>;
 `)
 	if got := scanUISource("Clean.tsx", clean); len(got) != 0 {
 		return fmt.Errorf("ui: an empty cell or a comment was flagged: %v", got)
+	}
+	return nil
+}
+
+func selfTestDossier() error {
+	sidecar := fixture(`description: A one-line summary @ with a dash.
+overview: |
+  Prose that carries a dash @ here.
+examples:
+  - title: Worked example
+    config: |
+      pattern: "a @ b"
+      other: true
+limitations:
+  - Clean bullet with no dash.
+`)
+	got := scanDossierYAML("format.yaml", sidecar)
+	if len(got) != 2 {
+		return fmt.Errorf("dossier: expected 2 findings (description and overview), got %d: %v", len(got), got)
+	}
+	for _, f := range got {
+		if strings.Contains(f.Value, "pattern") {
+			return fmt.Errorf("dossier: a config block was flagged: %v", f)
+		}
+	}
+
+	readme := fixture("# Title\n\nProse with a dash @ here.\n\n```bash\nmake x @ y\n```\n")
+	if got := scanZeroToleranceMarkdown("README.md", readme); len(got) != 1 {
+		return fmt.Errorf("dossier: expected 1 Markdown finding outside the fence, got %v", got)
 	}
 	return nil
 }

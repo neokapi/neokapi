@@ -16,7 +16,7 @@ overview: |
   inline codes; and a comment immediately preceding an entry becomes a
   translator note. Detection is content-based (a `<resources>` root with at
   least one string/array/plurals element) so generic XML still routes to the
-  XML format. Output is a byte-faithful splice of the original — only changed
+  XML format. Output is a byte-faithful splice of the original: only changed
   values are rewritten, preserving prolog, comments, whitespace, attribute
   order, entities, and Android backslash escapes.
 parameters:

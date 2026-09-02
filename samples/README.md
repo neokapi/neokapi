@@ -6,13 +6,13 @@ throwaway fixture each time.
 
 | Sample | Shape | What it proves |
 | --- | --- | --- |
-| [`northsea/`](northsea/) | A complete repository: operator documentation, interface strings, a marketing page. One language, one product, four channels. | **S0** — the monolingual journey. Discover a context graph, ask where you are, gate prose the way tests gate code, land a correction as a decision, converge. No second language, no server, no provider credential. |
-| [`compass/`](compass/) | A deployable app: interface catalogs in four languages, a committed review record, and the page that reads them. | **S1** — the multilingual journey as an *extension* of S0: the same point, one more axis. Recycle before AI, review as a change-set, and two ship gates driving the deployed page's language picker — including a language deliberately left mid-loop. |
-| [`tidewatch-docs/`](tidewatch-docs/) | A documentation site: four handbook pages, two target languages, a CI workflow, and an i18n tree that is build output. | **S2** — the continuous condition. Coverage reported rather than enforced, front matter converged with the prose, and a build that depends on neither the loop nor a language being ready. |
-| [`mart/`](mart/) | A dataset: source strings, a prose document, three target locales, terms and a content memory. | The multilingual material — recycling, partial coverage, plural and select messages, a review cast. Two brand instances (KapiMart, BowMart) share one design. |
+| [`northsea/`](northsea/) | A complete repository: operator documentation, interface strings, a marketing page. One language, one product, four channels. | **S0**, the monolingual journey. Discover a context graph, ask where you are, gate prose the way tests gate code, land a correction as a decision, converge. No second language, no server, no provider credential. |
+| [`compass/`](compass/) | A deployable app: interface catalogs in four languages, a committed review record, and the page that reads them. | **S1**, the multilingual journey as an *extension* of S0: the same point, one more axis. Recycle before AI, review as a change-set, and two ship gates driving the deployed page's language picker, including a language deliberately left mid-loop. |
+| [`tidewatch-docs/`](tidewatch-docs/) | A documentation site: four handbook pages, two target languages, a CI workflow, and an i18n tree that is build output. | **S2**, the continuous condition. Coverage reported rather than enforced, front matter converged with the prose, and a build that depends on neither the loop nor a language being ready. |
+| [`mart/`](mart/) | A dataset: source strings, a prose document, three target locales, terms and a content memory. | The multilingual material: recycling, partial coverage, plural and select messages, a review cast. Two brand instances (KapiMart, BowMart) share one design. |
 
-The first three are projects you can run a loop in — Compass and Tidewatch are
-Northsea with a locale axis, at the delivery edge and in CI respectively — and
+The first three are projects you can run a loop in. Compass and Tidewatch are
+Northsea with a locale axis, at the delivery edge and in CI respectively, and
 Mart is content you can put through one.
 
 ## Conventions

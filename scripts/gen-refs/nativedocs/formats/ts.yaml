@@ -7,7 +7,7 @@ overview: |
   `lrelease` tools to carry UI translations. A `<TS>` document groups
   one or more `<context>` elements; each context groups `<message>`
   entries with a `<source>` and a `<translation>`. Translation state is
-  encoded on the `<translation>` element's `type` attribute — no type
+  encoded on the `<translation>` element's `type` attribute: no type
   means approved, `unfinished` means pending review, and `obsolete`
   means the entry is unused. Plural messages (`numerus="yes"`) carry one
   `<numerusform>` per locale plural form. Inline non-XML bytes appear as

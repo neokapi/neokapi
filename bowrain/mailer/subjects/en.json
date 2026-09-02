@@ -1,13 +1,13 @@
 {
-  "credits-exhausted": "Your AI credits are exhausted — {{.WorkspaceName}}",
-  "credits-warning": "Your AI credits are running low — {{.WorkspaceName}}",
+  "credits-exhausted": "Your AI credits are exhausted ({{.WorkspaceName}})",
+  "credits-warning": "Your AI credits are running low ({{.WorkspaceName}})",
   "email-change-verify": "Confirm your new Bowrain email",
   "invite": "You've been invited to join {{.WorkspaceName}} on Bowrain",
-  "job-failed": "A {{.JobKind}} job did not finish — {{.WorkspaceName}}",
-  "notification": "{{.Title}} — Bowrain",
-  "payment-failed": "Payment failed for your subscription — {{.WorkspaceName}}",
-  "review-request": "Waiting for your review: {{.ChangeSetName}} — {{.WorkspaceName}}",
-  "subscription-changed": "Your subscription has been updated — {{.WorkspaceName}}",
-  "task-assigned": "{{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}}",
-  "welcome": "Welcome to Bowrain — {{.WorkspaceName}}"
+  "job-failed": "A {{.JobKind}} job did not finish ({{.WorkspaceName}})",
+  "notification": "{{.Title}} (Bowrain)",
+  "payment-failed": "Payment failed for your subscription ({{.WorkspaceName}})",
+  "review-request": "Waiting for your review: {{.ChangeSetName}} ({{.WorkspaceName}})",
+  "subscription-changed": "Your subscription has been updated ({{.WorkspaceName}})",
+  "task-assigned": "{{.Priority}}: {{.TaskTitle}} ({{.WorkspaceName}})",
+  "welcome": "Welcome to Bowrain ({{.WorkspaceName}})"
 }

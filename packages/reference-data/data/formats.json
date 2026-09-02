@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T20:39:28Z",
+  "generatedAt": "2026-09-02T21:04:44Z",
   "kind": "format",
   "entries": [
     {
@@ -60,7 +60,7 @@
         }
       },
       "doc": {
-        "overview": "The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their\nstring-only `.resw` variant — the standard container for translatable\nresources in .NET applications (locale by satellite filename, e.g.\n`Strings.fr.resx`).\n\nString `\u003cdata\u003e` entries become translatable blocks: the `name` attribute is\nthe block name, `\u003cvalue\u003e` is the source, a sibling `\u003ccomment\u003e` becomes a\ntranslator note, and `xml:space=\"preserve\"` is honored. .NET composite-format\nplaceholders such as `{0}` and `{1:t}` are protected as inline codes. Typed\nand binary `\u003cdata\u003e` (those carrying `type`/`mimetype`), `\u003cmetadata\u003e`,\n`\u003cassembly\u003e`, name-reference entries, and the `\u003cresheader\u003e` boilerplate pass\nthrough untouched. Round-trips are byte-faithful — only changed `\u003cvalue\u003e`\ncontent is spliced back into the original document.\n",
+        "overview": "The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their\nstring-only `.resw` variant, the standard container for translatable\nresources in .NET applications (locale by satellite filename, e.g.\n`Strings.fr.resx`).\n\nString `\u003cdata\u003e` entries become translatable blocks: the `name` attribute is\nthe block name, `\u003cvalue\u003e` is the source, a sibling `\u003ccomment\u003e` becomes a\ntranslator note, and `xml:space=\"preserve\"` is honored. .NET composite-format\nplaceholders such as `{0}` and `{1:t}` are protected as inline codes. Typed\nand binary `\u003cdata\u003e` (those carrying `type`/`mimetype`), `\u003cmetadata\u003e`,\n`\u003cassembly\u003e`, name-reference entries, and the `\u003cresheader\u003e` boilerplate pass\nthrough untouched. Round-trips are byte-faithful, and only changed `\u003cvalue\u003e`\ncontent is spliced back into the original document.\n",
         "parameters": {
           "extractComments": {
             "description": "Attach each entry's \u003ccomment\u003e as a translator note.",
@@ -152,7 +152,7 @@
         }
       },
       "doc": {
-        "overview": "The **Android String Resources** format reads `res/values/strings.xml`\nfiles as Android string resources, rather than as generic XML. It\nextracts `\u003cstring\u003e`, `\u003cstring-array\u003e` items, and `\u003cplurals\u003e` items\n(by CLDR `quantity`) as translatable blocks.\n\nAndroid's resource semantics are honored: entries marked\n`translatable=\"false\"` and bare resource references (`@string/foo`,\n`?attr/bar`) are skipped;\npositional/printf arguments (`%1$s`, `%d`, `%%`), `\u003cxliff:g\u003e` do-not-translate\nspans, inline styling tags, and `\u003c![CDATA[…]]\u003e` sections are protected as\ninline codes; and a comment immediately preceding an entry becomes a\ntranslator note. Detection is content-based (a `\u003cresources\u003e` root with at\nleast one string/array/plurals element) so generic XML still routes to the\nXML format. Output is a byte-faithful splice of the original — only changed\nvalues are rewritten, preserving prolog, comments, whitespace, attribute\norder, entities, and Android backslash escapes.\n",
+        "overview": "The **Android String Resources** format reads `res/values/strings.xml`\nfiles as Android string resources, rather than as generic XML. It\nextracts `\u003cstring\u003e`, `\u003cstring-array\u003e` items, and `\u003cplurals\u003e` items\n(by CLDR `quantity`) as translatable blocks.\n\nAndroid's resource semantics are honored: entries marked\n`translatable=\"false\"` and bare resource references (`@string/foo`,\n`?attr/bar`) are skipped;\npositional/printf arguments (`%1$s`, `%d`, `%%`), `\u003cxliff:g\u003e` do-not-translate\nspans, inline styling tags, and `\u003c![CDATA[…]]\u003e` sections are protected as\ninline codes; and a comment immediately preceding an entry becomes a\ntranslator note. Detection is content-based (a `\u003cresources\u003e` root with at\nleast one string/array/plurals element) so generic XML still routes to the\nXML format. Output is a byte-faithful splice of the original: only changed\nvalues are rewritten, preserving prolog, comments, whitespace, attribute\norder, entities, and Android backslash escapes.\n",
         "parameters": {
           "extractComments": {
             "description": "Attach a preceding XML comment as a translator note.",
@@ -247,7 +247,7 @@
         }
       },
       "doc": {
-        "overview": "The **Apple String Catalog** format reads `.xcstrings` files — the default\nstring-resource container for iOS, macOS, and other Apple-platform projects\nsince Xcode 15. Unlike legacy `.strings`/`.stringsdict`, a single catalog\nholds the source language and every translation in one JSON document,\ncarrying per-locale state (`new`, `translated`, `needs_review`),\ndeveloper comments, and plural / device / substitution variations.\n\nEach translatable leaf value becomes a block. The source string (or the\nentry key, when the source language has no entry of its own) is the source;\nper-locale `stringUnit` values are the targets. Developer `comment`s surface\nas translator notes, and `printf` specifiers (`%@`, `%lld`, `%1$@`, and\nApple's `%arg` substitution token) are protected as inline placeholders so\nthey are never altered. Writing back is byte-faithful: only changed values\nand states are rewritten, leaving the rest of the catalog untouched.\n",
+        "overview": "The **Apple String Catalog** format reads `.xcstrings` files, the default\nstring-resource container for iOS, macOS, and other Apple-platform projects\nsince Xcode 15. Unlike legacy `.strings`/`.stringsdict`, a single catalog\nholds the source language and every translation in one JSON document,\ncarrying per-locale state (`new`, `translated`, `needs_review`),\ndeveloper comments, and plural / device / substitution variations.\n\nEach translatable leaf value becomes a block. The source string (or the\nentry key, when the source language has no entry of its own) is the source;\nper-locale `stringUnit` values are the targets. Developer `comment`s surface\nas translator notes, and `printf` specifiers (`%@`, `%lld`, `%1$@`, and\nApple's `%arg` substitution token) are protected as inline placeholders so\nthey are never altered. Writing back is byte-faithful: only changed values\nand states are rewritten, leaving the rest of the catalog untouched.\n",
         "parameters": {
           "extractStale": {
             "description": "Extract entries whose extractionState is \"stale\".",
@@ -261,7 +261,7 @@
           }
         },
         "processingNotes": [
-          "A catalog is multilingual — one file carries the source language and all targets, so reading yields blocks with a source plus multiple target locales.",
+          "A catalog is multilingual, so one file carries the source language and all targets, and reading yields blocks with a source plus multiple target locales.",
           "Plural (CLDR categories), device (iphone/ipad/mac/…), and substitution variations each expand into their own leaf blocks, keyed by the variation path.",
           "printf specifiers and Apple's substitution `%arg` token are extracted as inline placeholders and must not be translated.",
           "Output is byte-faithful: an unchanged catalog round-trips exactly; only modified values and states are rewritten."
@@ -338,7 +338,7 @@
         }
       },
       "doc": {
-        "overview": "The **Apple Strings** format reads both legacy Apple string-resource file\ntypes in one format: the line-based `.strings` key/value tables and the\n`.stringsdict` plist-XML plural dictionaries (locale by `.lproj` directory).\n\nIn `.strings`, a comment preceding an entry becomes a translator note and\nprintf specifiers (`%@`, `%lld`, `%1$@`) are protected as inline codes. In\n`.stringsdict`, each `NSStringLocalizedFormatKey` and every CLDR plural\ncategory (`zero`/`one`/`two`/`few`/`many`/`other`) is modeled as a block,\nwith `%#@var@` tokens protected. Writes are byte-faithful — only changed\nvalues are spliced back — and UTF-8 and UTF-16 (LE/BE) encodings are\npreserved. The modern `.xcstrings` String Catalog is handled by the\nseparate `xcstrings` format.\n",
+        "overview": "The **Apple Strings** format reads both legacy Apple string-resource file\ntypes in one format: the line-based `.strings` key/value tables and the\n`.stringsdict` plist-XML plural dictionaries (locale by `.lproj` directory).\n\nIn `.strings`, a comment preceding an entry becomes a translator note and\nprintf specifiers (`%@`, `%lld`, `%1$@`) are protected as inline codes. In\n`.stringsdict`, each `NSStringLocalizedFormatKey` and every CLDR plural\ncategory (`zero`/`one`/`two`/`few`/`many`/`other`) is modeled as a block,\nwith `%#@var@` tokens protected. Writes splice back only the changed values,\nso they stay byte-faithful, and UTF-8 and UTF-16 (LE/BE) encodings are\npreserved. The modern `.xcstrings` String Catalog is handled by the\nseparate `xcstrings` format.\n",
         "parameters": {
           "extractComments": {
             "description": "Attach a preceding comment as a translator note (.strings).",
@@ -386,15 +386,15 @@
       "hasReader": true,
       "family": "binary-readonly",
       "doc": {
-        "overview": "An archive — a ZIP, TAR, or gzip-compressed TAR (`.tar.gz` / `.tgz`) — is a\nnamespace of inner documents, not a single document. This reader is the\n**inspection** face of that model: it walks the container's entries and, for\neach one neokapi recognises (JSON, Markdown, HTML, XML, `.po`, YAML, …), parses\nit through that format's own reader and surfaces its content as a child layer,\nso `kapi inspect` and analysis tools can see inside the archive. Binary assets,\nnested containers, and unrecognised entries are listed as opaque data members.\n\n**There is no archive writer.** Translating the content inside a container\nis the *container binding*, not a format round-trip: when a ZIP/TAR is given\nto an output-producing command (`kapi translate`, `kapi pseudo-translate`, a\nflow), each eligible entry is run as its **own file** — through the normal\nreader and writer with full skeleton round-trip — and the results are\nrepacked over the original container, copying every other member\nbyte-for-byte. Because each entry is a real, standalone file run, a\nskeleton-bound packaged format such as a DOCX, PPTX, or EPUB *inside* the\narchive round-trips faithfully, and each entry resolves its own format\nconfiguration. Binary assets, nested containers, and bilingual interchange\nfiles (XLIFF/PO/TMX) are copied through unchanged.\n\nBecause the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,\ndetection resolves those specific formats first (by content) and falls back to\nthe generic archive reader for a plain ZIP/TAR. Inspection scope can be\nnarrowed with `include` / `exclude` glob patterns matched against the entry\npath.\n",
+        "overview": "An archive (ZIP, TAR, or gzip-compressed TAR such as `.tar.gz` / `.tgz`) is\na namespace of inner documents rather than a single document. This reader is the\n**inspection** face of that model: it walks the container's entries and, for\neach one neokapi recognises (JSON, Markdown, HTML, XML, `.po`, YAML, …), parses\nit through that format's own reader and surfaces its content as a child layer,\nso `kapi inspect` and analysis tools can see inside the archive. Binary assets,\nnested containers, and unrecognised entries are listed as opaque data members.\n\n**There is no archive writer.** Translating the content inside a container\nis the *container binding*, not a format round-trip: when a ZIP/TAR is given\nto an output-producing command (`kapi translate`, `kapi pseudo-translate`, a\nflow), each eligible entry is run as its **own file** through the normal\nreader and writer with full skeleton round-trip, and the results are\nrepacked over the original container, copying every other member\nbyte-for-byte. Because each entry is a real, standalone file run, a\nskeleton-bound packaged format such as a DOCX, PPTX, or EPUB *inside* the\narchive round-trips faithfully, and each entry resolves its own format\nconfiguration. Binary assets, nested containers, and bilingual interchange\nfiles (XLIFF/PO/TMX) are copied through unchanged.\n\nBecause the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,\ndetection resolves those specific formats first (by content) and falls back to\nthe generic archive reader for a plain ZIP/TAR. Inspection scope can be\nnarrowed with `include` / `exclude` glob patterns matched against the entry\npath.\n",
         "limitations": [
-          "Read-only — this format has no writer; a container is written through the container binding, not by reading and re-writing an \"archive document\".",
+          "Read-only, so this format has no writer; a container is written through the container binding, not by reading and re-writing an \"archive document\".",
           "During inspection, binary assets, nested containers, and unrecognised entries are surfaced as opaque data members rather than parsed.",
           "Archive-wide size and entry-count limits (zip-bomb guards) apply to the whole container and to each entry."
         ],
         "processingNotes": [
           "Each recognised entry is detected and parsed through its own format reader, surfaced as a child layer of the archive document.",
-          "Output is handled by the container binding — per-entry file runs with skeleton round-trip, then an atomic repack — not by an archive writer.",
+          "Output is handled by the container binding rather than an archive writer, through per-entry file runs with skeleton round-trip followed by an atomic repack.",
           "`include` / `exclude` globs (matched against the slash-separated entry path) scope which entries are inspected; `**` matches across path separators."
         ],
         "wikiUrl": "https://en.wikipedia.org/wiki/Archive_file"
@@ -462,7 +462,7 @@
         }
       },
       "doc": {
-        "overview": "The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents — the\nlightweight prose markup language used widely for technical documentation.\nThe reader extracts the logical, translatable content and preserves\neverything else byte-for-byte.\n\nHeadings (the document title `=` and section headings `==`…`======`),\nparagraphs, list items (ordered and unordered, with nesting), block titles\n(`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells\neach become blocks carrying a normalized structural role (heading, paragraph,\nlist-item, caption, table-cell) — tables are reconstructed as table / table-row\ngroups so cell geometry stays intact. Inline markup is linearized into\ncanonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /\n`~sub~`, URL and `link:` macros, attribute references `{name}`, and cross\nreferences `\u003c\u003cid,text\u003e\u003e`. The visible text stays translatable; the markup never\nleaks into it.\n\nVerbatim blocks (listing/literal/source/passthrough), comments, attribute\nentries, and the document header are non-translatable and round-trip as\nskeleton — an untouched document is reproduced byte-for-byte; only changed\nvalues are spliced back in.\n",
+        "overview": "The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents, the\nlightweight prose markup language used widely for technical documentation.\nThe reader extracts the logical, translatable content and preserves\neverything else byte-for-byte.\n\nHeadings (the document title `=` and section headings `==`…`======`),\nparagraphs, list items (ordered and unordered, with nesting), block titles\n(`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells\neach become blocks carrying a normalized structural role (heading, paragraph,\nlist-item, caption, table-cell). Tables are reconstructed as table / table-row\ngroups so cell geometry stays intact. Inline markup is linearized into\ncanonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /\n`~sub~`, URL and `link:` macros, attribute references `{name}`, and cross\nreferences `\u003c\u003cid,text\u003e\u003e`. The visible text stays translatable; the markup never\nleaks into it.\n\nVerbatim blocks (listing/literal/source/passthrough), comments, attribute\nentries, and the document header are non-translatable and round-trip as\nskeleton: an untouched document is reproduced byte-for-byte, and only changed\nvalues are spliced back in.\n",
         "parameters": {
           "extractBlockTitles": {
             "description": "Extract AsciiDoc block titles (`.Title`) as translatable blocks.",
@@ -697,14 +697,14 @@
           "keyColumns": {
             "description": "0-based indices of columns providing the block ID.",
             "help": "The 0-based column indices whose values supply each block's ID\n(source/record identifier). When several are given, their values are\njoined with `.`. When empty, row-based IDs are used.\n",
-            "values": "Array of 0-based integers (default empty — row-based IDs)",
+            "values": "Array of 0-based integers (default empty, row-based IDs)",
             "examples": [
-              "`[0]` — use the first column as the record ID"
+              "`[0]` uses the first column as the record ID"
             ]
           },
           "separator": {
             "description": "Field delimiter character.",
-            "help": "The character separating fields — a comma for CSV, a tab for TSV.\n",
+            "help": "The character separating fields, a comma for CSV and a tab for TSV.\n",
             "values": "Single character (default `,`)"
           },
           "textQualifier": {
@@ -715,9 +715,9 @@
           "translatableColumns": {
             "description": "0-based indices of columns to extract.",
             "help": "The 0-based column indices whose cells are extracted as translatable\ncontent. When empty, every column is treated as translatable.\n",
-            "values": "Array of 0-based integers (default empty — all columns)",
+            "values": "Array of 0-based integers (default empty, all columns)",
             "examples": [
-              "`[1, 2]` — extract the second and third columns"
+              "`[1, 2]` extracts the second and third columns"
             ]
           },
           "trimValues": {
@@ -801,7 +801,7 @@
         }
       },
       "doc": {
-        "overview": "The **Design Tokens (DTCG)** format reads W3C Design Tokens Community Group\ntoken files (`.tokens` / `.tokens.json`) — the JSON interchange format used\nby Style Dictionary, Tokens Studio, and similar tooling.\n\nToken values are typed design data (colors, dimensions, font families,\naliases), not natural language, so the format extracts only the\nhuman-readable `$description` documentation on tokens and groups as\ntranslatable content; every token `$value`, `$type`, `$extensions`, and the\nsurrounding structure passes through untouched. Detection claims the unique\n`.tokens` extension and sniffs DTCG content (`$value` + `$type`); `.tokens.json`\nfiles resolve to the JSON format by extension unless `-f designtokens` is\ngiven. Round-trip is byte-faithful, inherited from the JSON reader/writer.\n",
+        "overview": "The **Design Tokens (DTCG)** format reads W3C Design Tokens Community Group\ntoken files (`.tokens` / `.tokens.json`), the JSON interchange format used\nby Style Dictionary, Tokens Studio, and similar tooling.\n\nToken values are typed design data (colors, dimensions, font families,\naliases), not natural language, so the format extracts only the\nhuman-readable `$description` documentation on tokens and groups as\ntranslatable content; every token `$value`, `$type`, `$extensions`, and the\nsurrounding structure passes through untouched. Detection claims the unique\n`.tokens` extension and sniffs DTCG content (`$value` + `$type`); `.tokens.json`\nfiles resolve to the JSON format by extension unless `-f designtokens` is\ngiven. Round-trip is byte-faithful, inherited from the JSON reader/writer.\n",
         "parameters": {
           "extractDescriptions": {
             "description": "Extract $description documentation as translatable content.",
@@ -811,7 +811,7 @@
         },
         "processingNotes": [
           "Only `$description` is extracted; token values and structure are non-translatable passthrough.",
-          "A token file with no `$description` yields zero translatable blocks — expected for machine-generated token sets."
+          "A token file with no `$description` yields zero translatable blocks, which is expected for machine-generated token sets."
         ],
         "examples": [
           {
@@ -870,9 +870,9 @@
       "hasReader": true,
       "family": "rich-markup",
       "doc": {
-        "overview": "The **DoclingDocument JSON** format reads the native, lossless JSON\nserialization emitted by\n[Docling](https://github.com/docling-project/docling). It follows the\ndocument's reading order (`body.children`), resolving the `$ref` pointers into\nthe `texts`/`tables`/`groups`/`pictures` arrays, into the neokapi content model\nplus the structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This\nis the file-based \"consume Docling\" boundary alongside the DocLang XML reader:\na tool runs Docling, saves the JSON, and neokapi reads it.\n\nCoverage: text items (title, section_header with level, paragraph/text,\nlist_item, caption, footnote, page_header/page_footer → furniture, code,\nformula); groups (lists and inline groups); tables (the resolved cell grid,\nwith column/row-header cells → table-header role) and their captions; picture\ncaptions; and per-item page geometry from `prov[].bbox`. Inline formatting is\nnot part of the base DoclingDocument text model, so each text item is one run.\n\nRead-only — Docling owns the JSON; neokapi re-emits structure via the DocLang\nwriter or projects to Markdown/HTML.\n",
+        "overview": "The **DoclingDocument JSON** format reads the native, lossless JSON\nserialization emitted by\n[Docling](https://github.com/docling-project/docling). It follows the\ndocument's reading order (`body.children`), resolving the `$ref` pointers into\nthe `texts`/`tables`/`groups`/`pictures` arrays, into the neokapi content model\nplus the structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This\nis the file-based \"consume Docling\" boundary alongside the DocLang XML reader:\na tool runs Docling, saves the JSON, and neokapi reads it.\n\nCoverage: text items (title, section_header with level, paragraph/text,\nlist_item, caption, footnote, page_header/page_footer → furniture, code,\nformula); groups (lists and inline groups); tables (the resolved cell grid,\nwith column/row-header cells → table-header role) and their captions; picture\ncaptions; and per-item page geometry from `prov[].bbox`. Inline formatting is\nnot part of the base DoclingDocument text model, so each text item is one run.\n\nRead-only: Docling owns the JSON, and neokapi re-emits structure via the\nDocLang writer or projects to Markdown/HTML.\n",
         "limitations": [
-          "Read-only — there is no DoclingDocument writer; re-emit via the DocLang writer or a Markdown/HTML projection.",
+          "Read-only, with no DoclingDocument writer; re-emit via the DocLang writer or a Markdown/HTML projection.",
           "Inline formatting is not modeled (each text item is a single run)."
         ],
         "processingNotes": [
@@ -951,7 +951,7 @@
       "hasReader": true,
       "family": "plain-text",
       "doc": {
-        "overview": "The exec format is a declarative wrapper around an external\nextractor. Instead of parsing a file format itself, it launches a\nsubprocess you name, feeds it the matched file paths on standard\ninput (NUL-separated), and reads back translatable blocks as\nnewline-delimited JSON (NDJSON) on standard output. Each output line\nis a record of the form `{\"type\":\"block\",\"document\":\"\u003cpath\u003e\",\n\"block\":{ … }}`; lines that are not JSON objects are treated as noise\n(progress or log output) and ignored. A non-zero exit status surfaces\nas an error with the subprocess's captured stderr attached.\n\nUse exec when a format has no built-in reader but you can extract its\nstrings with a script or tool in any language — for example a\nproject-specific source-code extractor. The protocol is transparent\nto inspect (plain JSON) and carries no kapi-specific schema beyond the\nblock shape the subprocess emits.\n\nThe exec format is opt-in per project: it has no file extensions or\nMIME types and is never auto-detected by file type. It is declared on\na collection's `format:` block in a `.kapi` project and run via\n`kapi extract -p project.kapi`, which spawns the declared command once\nper collection with every matched path on stdin. It is not usable as a\nper-file reader; opening a file directly with this format returns an\nerror pointing at the project-driven path.\n",
+        "overview": "The exec format is a declarative wrapper around an external\nextractor. Instead of parsing a file format itself, it launches a\nsubprocess you name, feeds it the matched file paths on standard\ninput (NUL-separated), and reads back translatable blocks as\nnewline-delimited JSON (NDJSON) on standard output. Each output line\nis a record of the form `{\"type\":\"block\",\"document\":\"\u003cpath\u003e\",\n\"block\":{ … }}`; lines that are not JSON objects are treated as noise\n(progress or log output) and ignored. A non-zero exit status surfaces\nas an error with the subprocess's captured stderr attached.\n\nUse exec when a format has no built-in reader but you can extract its\nstrings with a script or tool in any language, for example a\nproject-specific source-code extractor. The protocol is transparent\nto inspect (plain JSON) and carries no kapi-specific schema beyond the\nblock shape the subprocess emits.\n\nThe exec format is opt-in per project: it has no file extensions or\nMIME types and is never auto-detected by file type. It is declared on\na collection's `format:` block in a `.kapi` project and run via\n`kapi extract -p project.kapi`, which spawns the declared command once\nper collection with every matched path on stdin. It is not usable as a\nper-file reader; opening a file directly with this format returns an\nerror pointing at the project-driven path.\n",
         "limitations": [
           "Not usable as a standalone per-file reader; it only runs through the project extraction path (`kapi extract -p`).",
           "The subprocess must implement the NUL-separated-paths-in, NDJSON-blocks-out protocol; no other transport is supported.",
@@ -1020,7 +1020,7 @@
         }
       },
       "doc": {
-        "overview": "The **Flutter ARB** format reads `.arb` files — the JSON message-resource\nformat used by Flutter's `gen-l10n` tooling and the Dart `intl` package.\nEach file is monolingual: one locale (named by `@@locale`, or inferred from\nthe filename), where resource keys map to ICU MessageFormat message strings.\n\nEach message becomes a translatable block. Sibling `@\u003cid\u003e` objects describe a\nresource (its `description` and `placeholders`) and `@@\u003cglobal\u003e` keys hold\nfile metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both\nare preserved verbatim and never extracted. ICU placeholders (`{name}`),\nplurals (`{count, plural, …}`), and select/gender (`{g, select, …}`) are\nprotected as opaque inline codes so their syntax is never translated, and\n`@description` is surfaced as a translator note. Output is byte-faithful:\nkey order, JSON escaping, and all `@`/`@@` metadata round-trip untouched.\n",
+        "overview": "The **Flutter ARB** format reads `.arb` files, the JSON message-resource\nformat used by Flutter's `gen-l10n` tooling and the Dart `intl` package.\nEach file is monolingual: one locale (named by `@@locale`, or inferred from\nthe filename), where resource keys map to ICU MessageFormat message strings.\n\nEach message becomes a translatable block. Sibling `@\u003cid\u003e` objects describe a\nresource (its `description` and `placeholders`) and `@@\u003cglobal\u003e` keys hold\nfile metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both\nare preserved verbatim and never extracted. ICU placeholders (`{name}`),\nplurals (`{count, plural, …}`), and select/gender (`{g, select, …}`) are\nprotected as opaque inline codes so their syntax is never translated, and\n`@description` is surfaced as a translator note. Output is byte-faithful:\nkey order, JSON escaping, and all `@`/`@@` metadata round-trip untouched.\n",
         "parameters": {
           "descriptionNotes": {
             "description": "Surface each resource's @description as a translator note.",
@@ -1164,7 +1164,7 @@
             "help": "A map from attribute name to a rule object. A rule may carry `ruleTypes`\n(`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,\n`ATTRIBUTE_READONLY`), an element scope via `onlyTheseElements` or\n`allElementsExcept`, and a `conditions` triplet.\n",
             "values": "Map of attribute name → rule object (default: built-in rules)",
             "examples": [
-              "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` — extract all `alt` values"
+              "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` extracts all `alt` values"
             ]
           },
           "codeFinderRules": {
@@ -1183,7 +1183,7 @@
             "help": "A map from element name to a rule object that controls how the element\nis treated. A rule may carry `ruleTypes` (`TEXTUNIT`, `INLINE`,\n`EXCLUDE`, `INCLUDE`, `ATTRIBUTES_ONLY`, `PRESERVE_WHITESPACE`, `GROUP`),\na `conditions` triplet, `idAttributes`, and a `translatableAttributes`\nmapping. These override or extend the built-in element handling.\n",
             "values": "Map of element name → rule object (default: built-in rules)",
             "examples": [
-              "`{ summary: { ruleTypes: [TEXTUNIT] } }` — extract `summary` element text"
+              "`{ summary: { ruleTypes: [TEXTUNIT] } }` extracts `summary` element text"
             ]
           },
           "parser.preserveWhitespace": {
@@ -1271,7 +1271,7 @@
         }
       },
       "doc": {
-        "overview": "The **i18next JSON** format reads i18next / react-i18next resource bundles —\nthe conventions of the dominant web i18n library. It is built on the JSON\nformat and selected explicitly (`-f i18next`), because i18next files use the\ngeneric `.json` extension owned by the JSON format and cannot be reliably\nauto-distinguished.\n\nBeyond plain JSON extraction, it protects `{{interpolation}}`,\n`{{var, format}}`, and `$t()` nesting as inline codes; annotates v4 CLDR\nplural sibling keys (`key_zero`/`key_one`/…/`key_other`, plus legacy\n`key_plural` and `key_0`/`key_1`) with their base key and plural category;\nannotates context keys (`key_male`/`key_female`); and names blocks by their\nfull namespace key path. Round-trip is byte-faithful.\n",
+        "overview": "The **i18next JSON** format reads i18next / react-i18next resource bundles,\nthe conventions of the dominant web i18n library. It is built on the JSON\nformat and selected explicitly (`-f i18next`), because i18next files use the\ngeneric `.json` extension owned by the JSON format and cannot be reliably\nauto-distinguished.\n\nBeyond plain JSON extraction, it protects `{{interpolation}}`,\n`{{var, format}}`, and `$t()` nesting as inline codes; annotates v4 CLDR\nplural sibling keys (`key_zero`/`key_one`/…/`key_other`, plus legacy\n`key_plural` and `key_0`/`key_1`) with their base key and plural category;\nannotates context keys (`key_male`/`key_female`); and names blocks by their\nfull namespace key path. Round-trip is byte-faithful.\n",
         "parameters": {
           "subfilterHTMLValues": {
             "description": "Route values whose key ends in _html through the HTML subfilter.",
@@ -1344,7 +1344,7 @@
         }
       },
       "doc": {
-        "overview": "ICU MessageFormat is the pattern syntax used by ICU and many i18n\nlibraries to express messages with placeholders and grammatical\nvariation. This format treats each input line as one independent\nMessageFormat pattern.\n\nA plain-text pattern extracts as a single translatable block. A\npattern with simple placeholders — `{0}`, `{name}`, `{name, type}`,\n`{name, type, style}` — also extracts as a single block, with the\nplaceholders carried as inline runs around the literal text so they\ncannot be accidentally translated or reordered. A pattern with a\nplural, select, or selectordinal picker splits into one block per\nbranch body, so each grammatical form can be translated independently;\nthe picker scaffolding (`{count, plural, …}`, `{gender, select, …}`)\nand any text outside the picker is preserved through the skeleton\nrather than extracted. ICU quoting is decoded before extraction: `''`\nbecomes a literal apostrophe and `'{…}'` protects a literal-brace\npassage. Java's deprecated `choice` format is rejected with an error.\n",
+        "overview": "ICU MessageFormat is the pattern syntax used by ICU and many i18n\nlibraries to express messages with placeholders and grammatical\nvariation. This format treats each input line as one independent\nMessageFormat pattern.\n\nA plain-text pattern extracts as a single translatable block. A\npattern with simple placeholders (`{0}`, `{name}`, `{name, type}`,\n`{name, type, style}`) also extracts as a single block, with the\nplaceholders carried as inline runs around the literal text so they\ncannot be accidentally translated or reordered. A pattern with a\nplural, select, or selectordinal picker splits into one block per\nbranch body, so each grammatical form can be translated independently;\nthe picker scaffolding (`{count, plural, …}`, `{gender, select, …}`)\nand any text outside the picker is preserved through the skeleton\nrather than extracted. ICU quoting is decoded before extraction: `''`\nbecomes a literal apostrophe and `'{…}'` protects a literal-brace\npassage. Java's deprecated `choice` format is rejected with an error.\n",
         "limitations": [
           "Each line is parsed as a self-contained pattern; a single pattern spanning multiple lines is not supported.",
           "The deprecated ICU `choice` format is not supported and is reported as an error.",
@@ -1399,7 +1399,7 @@
       "hasWriter": true,
       "family": "binary-readonly",
       "doc": {
-        "overview": "The **Image** format reads raster images as documents. PNG and JPEG decode\nnatively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF\nstill images HEIC/HEIF and AVIF are transcoded with ffmpeg (the kapi-av\nbundle) when it is available, degrading to a Media-only asset when it is not.\nThe image itself is always emitted as a **Media** part by reference — the\npixel bytes are never loaded into the kapi process — so an image is a valid,\ninspectable document even with no OCR engine installed. This is the\n*whole-image replacement* mode: the picture is an asset to be replaced rather\nthan read.\n\nWhen the **kapi-vision** plugin is installed and `ocr` is enabled, the reader\nrecognizes in-image text and emits positioned text **Blocks**, recovering\ntier-2 structure (headings, paragraphs, tables) from the OCR line geometry the\nsame way the PDF geometry path does. With `layout` enabled it uses ML layout\ndetection (regions + reading order) when the engine supports it, falling back\nto geometric inference otherwise.\n\nAn `\u003cimage\u003e.alt.txt` sidecar beside the source supplies alt-text / caption\ncopy: it is attached to the Media and emitted as a caption Block that\ntranslates through the normal block path; the writer folds the translated text\nback into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is\nread without decoding pixels and mapped onto the document layer.\n",
+        "overview": "The **Image** format reads raster images as documents. PNG and JPEG decode\nnatively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF\nstill images HEIC/HEIF and AVIF are transcoded with ffmpeg (the kapi-av\nbundle) when it is available, degrading to a Media-only asset when it is not.\nThe image itself is always emitted as a **Media** part by reference, and the\npixel bytes are never loaded into the kapi process, so an image is a valid,\ninspectable document even with no OCR engine installed. This is the\n*whole-image replacement* mode: the picture is an asset to be replaced rather\nthan read.\n\nWhen the **kapi-vision** plugin is installed and `ocr` is enabled, the reader\nrecognizes in-image text and emits positioned text **Blocks**, recovering\ntier-2 structure (headings, paragraphs, tables) from the OCR line geometry the\nsame way the PDF geometry path does. With `layout` enabled it uses ML layout\ndetection (regions + reading order) when the engine supports it, falling back\nto geometric inference otherwise.\n\nAn `\u003cimage\u003e.alt.txt` sidecar beside the source supplies alt-text / caption\ncopy: it is attached to the Media and emitted as a caption Block that\ntranslates through the normal block path; the writer folds the translated text\nback into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is\nread without decoding pixels and mapped onto the document layer.\n",
         "parameters": {
           "layout": {
             "description": "Use ML layout detection for regions and reading order.",
@@ -1414,7 +1414,7 @@
           },
           "ocr": {
             "description": "Recognize in-image text via the kapi-vision plugin.",
-            "help": "When enabled (the default), and the kapi-vision plugin is installed, the\nimage's text is recognized and emitted as positioned, structured Blocks.\nWhen disabled — or the plugin is absent — the image is emitted as a Media\nasset only (whole-image replacement).\n",
+            "help": "When enabled (the default), and the kapi-vision plugin is installed, the\nimage's text is recognized and emitted as positioned, structured Blocks.\nWhen disabled, or when the plugin is absent, the image is emitted as a\nMedia asset only (whole-image replacement).\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
@@ -1425,8 +1425,8 @@
         ],
         "processingNotes": [
           "The image is always emitted as a Media part by reference; OCR Blocks are additive enrichment and OCR failures are non-fatal.",
-          "Formats the vision engine can't read natively are normalized to PNG before OCR — GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg — while the emitted Media keeps the original bytes.",
-          "Alt-text / caption copy travels through the standard block path — no special tool support — and is written back to a per-locale `\u003cimage\u003e.alt.txt` sidecar."
+          "Formats the vision engine can't read natively are normalized to PNG before OCR (GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg) while the emitted Media keeps the original bytes.",
+          "Alt-text / caption copy travels through the standard block path with no special tool support, and is written back to a per-locale `\u003cimage\u003e.alt.txt` sidecar."
         ]
       }
     },
@@ -1630,7 +1630,7 @@
             "help": "A regular expression matched against entry keys. Combined with\n`extractOnlyMatchingKey` to decide which entries are extracted. Only\nconsulted when `useKeyCondition` is enabled.\n",
             "values": "Regular expression (default `.*text.*`)",
             "examples": [
-              "`.*text.*` — match keys containing the substring `text`"
+              "`.*text.*` matches keys containing the substring `text`"
             ],
             "dependsOn": [
               {
@@ -1924,7 +1924,7 @@
         }
       },
       "doc": {
-        "overview": "The **JSON** format reads JSON documents, extracts string values as\ntranslatable blocks, and writes the translated values back into the same\nstructure. It is the common format for web and application resource files\n(i18next, Chrome extension messages, generic key/value catalogues).\n\nBy default every key/value string pair is extracted. From there you can\nnarrow extraction with a key-exception or extraction pattern, control how\nblock names are derived from keys, route specific keys to notes, IDs, or\nmetadata, and hand embedded markup (HTML inside a value) to a subfilter.\nTwo presets are provided — *Chrome Extension* and *i18next* — as starting\npoints for those layouts.\n",
+        "overview": "The **JSON** format reads JSON documents, extracts string values as\ntranslatable blocks, and writes the translated values back into the same\nstructure. It is the common format for web and application resource files\n(i18next, Chrome extension messages, generic key/value catalogues).\n\nBy default every key/value string pair is extracted. From there you can\nnarrow extraction with a key-exception or extraction pattern, control how\nblock names are derived from keys, route specific keys to notes, IDs, or\nmetadata, and hand embedded markup (HTML inside a value) to a subfilter.\nTwo presets are provided (*Chrome Extension* and *i18next*) as starting\npoints for those layouts.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regex patterns that match inline codes within values.",
@@ -1947,7 +1947,7 @@
             "help": "A regular expression matched against key names. When `extractAllPairs`\nis `true`, keys matching this pattern are **excluded** from extraction.\nWhen `extractAllPairs` is `false`, only keys matching this pattern are\n**included**. The match is applied to the immediate key, or to the full\nkey path when `useFullKeyPath` is enabled.\n",
             "values": "Regular expression (default empty)",
             "examples": [
-              "`^message$` — with `extractAllPairs: false`, extract only the `message` key"
+              "`^message$` with `extractAllPairs: false` extracts only the `message` key"
             ],
             "dependsOn": [
               {
@@ -1958,12 +1958,12 @@
           },
           "extractAllPairs": {
             "description": "Extract all key/value string pairs for translation.",
-            "help": "When enabled (the default), every string value associated with a key is\nextracted. When disabled, nothing is extracted unless a key matches the\n`exceptions` pattern (the meaning of `exceptions` inverts — see below) or\nan `extractionRules` pattern is set.\n",
+            "help": "When enabled (the default), every string value associated with a key is\nextracted. When disabled, nothing is extracted unless a key matches the\n`exceptions` pattern (the meaning of `exceptions` inverts; see below) or\nan `extractionRules` pattern is set.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "extractIsolatedStrings": {
             "description": "Extract standalone string values inside arrays.",
-            "help": "String values that appear directly in arrays — without an associated\nkey — are not extracted by default. Enable this to treat such isolated\nstrings as translatable blocks.\n",
+            "help": "String values that appear directly in arrays, without an associated\nkey, are not extracted by default. Enable this to treat such isolated\nstrings as translatable blocks.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "extractionRules": {
@@ -1971,7 +1971,7 @@
             "help": "A regular expression matched against key names (or full key paths when\n`useFullKeyPath` is enabled). When set, only matching keys are extracted\nand it overrides `extractAllPairs`.\n",
             "values": "Regular expression (default empty)",
             "examples": [
-              "`/messages/.*|/labels/.*` — extract only keys under `messages` or `labels`"
+              "`/messages/.*|/labels/.*` extracts only keys under `messages` or `labels`"
             ]
           },
           "genericMetaRules": {
@@ -1984,7 +1984,7 @@
             "help": "A regular expression matched against key names. The value of a matching\nkey is used as the name/ID of the next translatable block, overriding\n`useKeyAsName`.\n",
             "values": "Regular expression (default empty)",
             "examples": [
-              "`/id|/key` — use the value of an `id` or `key` field as the block ID"
+              "`/id|/key` uses the value of an `id` or `key` field as the block ID"
             ]
           },
           "maxwidthRules": {
@@ -2008,7 +2008,7 @@
             "help": "A regular expression matched against key names. The value of a matching\nkey is attached as a translator note to the next translatable block.\n",
             "values": "Regular expression (default empty)",
             "examples": [
-              "`/description|/comment` — attach a `description` or `comment` value as a note"
+              "`/description|/comment` attaches a `description` or `comment` value as a note"
             ]
           },
           "subfilter": {
@@ -2016,7 +2016,7 @@
             "help": "The name of a format used as a subfilter (for example `html`) to parse\nembedded markup inside extracted string values. When set, it applies to\nall extracted values unless `subfilterRules` restricts it to specific\nkeys.\n",
             "values": "Format name (default empty)",
             "examples": [
-              "`html` — parse HTML inside JSON string values"
+              "`html` parses HTML inside JSON string values"
             ]
           },
           "subfilterRules": {
@@ -2024,7 +2024,7 @@
             "help": "A regular expression matched against key names. Only values whose key\nmatches are processed by the subfilter. Used together with `subfilter`;\nwhen omitted, the subfilter applies to all extracted values.\n",
             "values": "Regular expression (default empty)",
             "examples": [
-              "`_html$` — subfilter only keys ending in `_html`"
+              "`_html$` subfilters only keys ending in `_html`"
             ],
             "dependsOn": [
               {
@@ -2071,7 +2071,7 @@
           }
         },
         "limitations": [
-          "The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `useFullKeyPath` — not both."
+          "The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `useFullKeyPath`, never both."
         ],
         "processingNotes": [
           "String values become translatable blocks; objects, arrays, and non-string scalars form the surrounding non-translatable structure.",
@@ -2124,14 +2124,14 @@
       "hasWriter": true,
       "family": "rich-markup",
       "doc": {
-        "overview": "This format reads and writes the Kapi Bundle Format (`.kbf.json`), a\nstructured JSON envelope for translatable strings extracted from\nsource code such as JSX / React components. A KBF document is a\n`kind: kapi-bundle` envelope holding one or more\ndocuments, each carrying blocks. Every block has a structured run\nsequence — text plus placeholders, paired inline codes, plurals, and\nselects.\n\nOn read, each KBF block becomes one translatable block. Its source\ntext is the flattened run sequence: placeholders contribute their\nequivalent (wrapped in braces), paired codes elide their wrappers, and\nplural forms collapse to the `other` branch. The block ID is carried\nverbatim, and the full structured run graph travels alongside in an\nannotation so the writer can reassemble the original document. The\nwriter reverses the process; a block that arrives without that\nannotation (for example one inserted by an intermediate tool) is\nwritten as a minimal text-only run sequence so the file stays\nwell-formed.\n",
+        "overview": "This format reads and writes the Kapi Bundle Format (`.kbf.json`), a\nstructured JSON envelope for translatable strings extracted from\nsource code such as JSX / React components. A KBF document is a\n`kind: kapi-bundle` envelope holding one or more\ndocuments, each carrying blocks. Every block has a structured run\nsequence: text plus placeholders, paired inline codes, plurals, and\nselects.\n\nOn read, each KBF block becomes one translatable block. Its source\ntext is the flattened run sequence: placeholders contribute their\nequivalent (wrapped in braces), paired codes elide their wrappers, and\nplural forms collapse to the `other` branch. The block ID is carried\nverbatim, and the full structured run graph travels alongside in an\nannotation so the writer can reassemble the original document. The\nwriter reverses the process; a block that arrives without that\nannotation (for example one inserted by an intermediate tool) is\nwritten as a minimal text-only run sequence so the file stays\nwell-formed.\n",
         "limitations": [
           "This is a neokapi-specific exchange format; the okapi-bridge daemon ships no equivalent filter.",
           "Blocks that lose their structured-run annotation in the pipeline are written back as plain text, without the original placeholder or paired-code structure."
         ],
         "processingNotes": [
           "One translatable block per KBF block; the block ID is preserved verbatim.",
-          "Source text is the flattened run sequence — placeholders become brace-wrapped equivalents, paired codes elide their wrappers, plurals collapse to the `other` branch.",
+          "Source text is the flattened run sequence, where placeholders become brace-wrapped equivalents, paired codes elide their wrappers, and plurals collapse to the `other` branch.",
           "Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping."
         ],
         "examples": [
@@ -2296,7 +2296,7 @@
         }
       },
       "doc": {
-        "overview": "The **Markdown** format reads Markdown documents, extracts prose as\ntranslatable blocks, and writes the translations back while preserving the\ndocument's structure — headings, lists, emphasis, links, and code. Inline\nmarkup (bold, italic, links, inline code) is exposed as inline codes inside\neach block so the surrounding syntax survives translation.\n\nBy default paragraphs, headings, list items, blockquotes, and image alt text\nare translatable, while code blocks, YAML front matter, raw HTML blocks, and\nlink/image URLs are emitted as non-translatable structure. Each of those\ncategories can be toggled, and embedded HTML can be routed to a subfilter.\n",
+        "overview": "The **Markdown** format reads Markdown documents, extracts prose as\ntranslatable blocks, and writes the translations back while preserving the\ndocument's structure: headings, lists, emphasis, links, and code. Inline\nmarkup (bold, italic, links, inline code) is exposed as inline codes inside\neach block so the surrounding syntax survives translation.\n\nBy default paragraphs, headings, list items, blockquotes, and image alt text\nare translatable, while code blocks, YAML front matter, raw HTML blocks, and\nlink/image URLs are emitted as non-translatable structure. Each of those\ncategories can be toggled, and embedded HTML can be routed to a subfilter.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regex patterns that match inline codes within text.",
@@ -2314,7 +2314,7 @@
             "help": "The name of a format used as a subfilter (for example `html`) to parse\nHTML content embedded in the Markdown, so HTML markup is handled\nstructurally instead of as opaque text.\n",
             "values": "Format name (default empty)",
             "examples": [
-              "`html` — parse embedded HTML through the HTML format"
+              "`html` parses embedded HTML through the HTML format"
             ]
           },
           "translateBlockQuotes": {
@@ -2504,7 +2504,7 @@
         }
       },
       "doc": {
-        "overview": "The **MDX** format reads `.mdx` files — CommonMark Markdown extended with\nJSX components, ESM `import`/`export` statements, and `{expression}` braces —\nthe authoring format of modern documentation and content sites (Docusaurus,\nNext.js, Astro).\n\nTranslatable Markdown prose is extracted using the same machinery and\nconfiguration as the Markdown format (paragraphs, headings, list items,\nlink/image text, inline emphasis). MDX-specific constructs — ESM statements,\nJSX tags with their attributes and children, top-level `{expression}` blocks,\nand GFM tables — are preserved byte-for-byte and never translated, with\ncomponent names, attribute values, import paths, and expressions left\nuntouched. Read→write reproduces real-world `.mdx` exactly when nothing is\ntranslated; the reader self-verifies each prose region and falls back to\nopaque preservation if a region would not round-trip byte-faithfully.\n",
+        "overview": "The **MDX** format reads `.mdx` files, CommonMark Markdown extended with\nJSX components, ESM `import`/`export` statements, and `{expression}` braces.\nIt is the authoring format of modern documentation and content sites\n(Docusaurus, Next.js, Astro).\n\nTranslatable Markdown prose is extracted using the same machinery and\nconfiguration as the Markdown format (paragraphs, headings, list items,\nlink/image text, inline emphasis). MDX-specific constructs (ESM statements,\nJSX tags with their attributes and children, top-level `{expression}` blocks,\nand GFM tables) are preserved byte-for-byte and never translated, with\ncomponent names, attribute values, import paths, and expressions left\nuntouched. Read→write reproduces real-world `.mdx` exactly when nothing is\ntranslated; the reader self-verifies each prose region and falls back to\nopaque preservation if a region would not round-trip byte-faithfully.\n",
         "processingNotes": [
           "Markdown prose is translatable; ESM, JSX (including children, in this version), expressions, and GFM tables are opaque and preserved verbatim.",
           "Configuration parameters mirror the Markdown format (e.g. frontmatter and code-block handling).",
@@ -2545,11 +2545,11 @@
         "properties": null
       },
       "doc": {
-        "overview": "MO (Machine Object) is the compiled binary catalog that GNU gettext loads\nat runtime. It stores one entry per `(msgctxt, msgid)` pair together with\nits translation, indexed for lookup by gettext libraries. Where a PO file\nis the editable source catalog, the MO file is the artifact an application\nships and reads.\n\nneokapi provides MO as a **writer only**. The pipeline consumes translatable\nBlocks and emits a binary catalog for a single target locale. `msgctxt` is\nresolved from each Block in order: `Properties[\"context\"]`, then `Name`, then\n`ID` — so Blocks produced by the PO reader (which set the context property)\nand Blocks produced by the JSON reader with full key paths (which set the\nBlock name) both compile to MO without extra configuration. Untranslated\nentries are dropped, since a runtime catalog is expected to carry only\ntranslations, and the required empty-`msgid` metadata header entry is always\nwritten.\n\nMO cannot be read back through the pipeline. Although the format registers a\nreader so that `.mo` is recognised for output routing and extension\ndetection, opening an MO file as a source returns an error directing you to\nload compiled catalogs with a gettext runtime library instead.\n",
+        "overview": "MO (Machine Object) is the compiled binary catalog that GNU gettext loads\nat runtime. It stores one entry per `(msgctxt, msgid)` pair together with\nits translation, indexed for lookup by gettext libraries. Where a PO file\nis the editable source catalog, the MO file is the artifact an application\nships and reads.\n\nneokapi provides MO as a **writer only**. The pipeline consumes translatable\nBlocks and emits a binary catalog for a single target locale. `msgctxt` is\nresolved from each Block in order: `Properties[\"context\"]`, then `Name`, then\n`ID`, so Blocks produced by the PO reader (which set the context property)\nand Blocks produced by the JSON reader with full key paths (which set the\nBlock name) both compile to MO without extra configuration. Untranslated\nentries are dropped, since a runtime catalog is expected to carry only\ntranslations, and the required empty-`msgid` metadata header entry is always\nwritten.\n\nMO cannot be read back through the pipeline. Although the format registers a\nreader so that `.mo` is recognised for output routing and extension\ndetection, opening an MO file as a source returns an error directing you to\nload compiled catalogs with a gettext runtime library instead.\n",
         "limitations": [
           "Write-only in the pipeline; MO files cannot be parsed as a translation source.",
           "Emits a catalog for a single target locale; untranslated entries are omitted.",
-          "The output is a binary catalog, not the editable PO source — keep the PO file as the editable form."
+          "The output is a binary catalog rather than the editable PO source, so keep the PO file as the editable form."
         ],
         "processingNotes": [
           "One MO entry is emitted per translated Block, keyed by `(msgctxt, msgid)`.",
@@ -2634,7 +2634,7 @@
         }
       },
       "doc": {
-        "overview": "ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,\nOpenOffice, and compatible suites. neokapi handles the text (`.odt`),\nspreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,\nauto-detecting the variant from the package's `mimetype` entry. Each file is\na ZIP archive containing a `content.xml` payload plus styles and metadata\nsub-documents; the reader extracts text from the content while preserving\nthe surrounding XML and the package structure as skeleton.\n\nneokapi reads and writes ODF, round-tripping the archive so the translated\noutput remains a valid OpenDocument file. By default it extracts\npresentation notes but skips hidden content — matching the upstream Okapi\nOpenOffice filter behaviour. The native reader applies these defaults but\ndoes not expose them as a configurable JSON schema in this reference.\n",
+        "overview": "ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,\nOpenOffice, and compatible suites. neokapi handles the text (`.odt`),\nspreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,\nauto-detecting the variant from the package's `mimetype` entry. Each file is\na ZIP archive containing a `content.xml` payload plus styles and metadata\nsub-documents; the reader extracts text from the content while preserving\nthe surrounding XML and the package structure as skeleton.\n\nneokapi reads and writes ODF, round-tripping the archive so the translated\noutput remains a valid OpenDocument file. By default it extracts\npresentation notes but skips hidden content, matching the upstream Okapi\nOpenOffice filter behaviour. The native reader applies these defaults but\ndoes not expose them as a configurable JSON schema in this reference.\n",
         "limitations": [
           "Hidden content is not extracted by default.",
           "Extraction toggles match the upstream Okapi OpenOffice filter but are not surfaced as configurable schema properties in this reference."
@@ -2981,7 +2981,7 @@
         }
       },
       "doc": {
-        "overview": "The OpenXML format handles Microsoft Office Open XML documents — Word\n(`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`). All three share a\nZIP-and-XML package, so one filter serves them and auto-detects the\nvariant from the package contents, per ECMA-376 / ISO/IEC 29500.\n\nExtraction is selective: by default the reader pulls the main body text\nplus the parts that are normally user-visible — document properties,\nheaders and footers, footnotes, comments, and hyperlink text in Word;\nshared strings in Excel; and speaker notes in PowerPoint — while leaving\nhidden, structural, or rarely translated content out unless you opt in.\nA set of style and colour filters lets you include or exclude runs by\nparagraph/character style or highlight colour. This mirrors Okapi's\nOpenXML filter, including its default of accepting tracked changes\nbefore extraction.\n",
+        "overview": "The OpenXML format handles Microsoft Office Open XML documents: Word\n(`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`). All three share a\nZIP-and-XML package, so one filter serves them and auto-detects the\nvariant from the package contents, per ECMA-376 / ISO/IEC 29500.\n\nExtraction is selective: by default the reader pulls the main body text\nplus the parts that are normally user-visible (document properties,\nheaders and footers, footnotes, comments, and hyperlink text in Word;\nshared strings in Excel; and speaker notes in PowerPoint) while leaving\nhidden, structural, or rarely translated content out unless you opt in.\nA set of style and colour filters lets you include or exclude runs by\nparagraph/character style or highlight colour. This mirrors Okapi's\nOpenXML filter, including its default of accepting tracked changes\nbefore extraction.\n",
         "parameters": {
           "aggressiveCleanup": {
             "description": "Strip revision ids and proofing noise before merging runs.",
@@ -2998,7 +2998,7 @@
             "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled.\n",
             "values": "Array of regular-expression strings",
             "examples": [
-              "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+              "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
             ],
             "dependsOn": [
               {
@@ -3009,7 +3009,7 @@
           },
           "complexFieldDefinitionsToExtract": {
             "description": "Field-instruction prefixes whose cached display text is extracted.",
-            "help": "A list of complex-field instruction prefixes whose cached display\ntext is extracted for translation. The default is `[\"HYPERLINK\"]`,\nmatching Okapi — without it the user-visible anchor text of HYPERLINK\nfields would round-trip in the source language. Add prefixes such as\n`REF` to translate the display text of other field types.\n",
+            "help": "A list of complex-field instruction prefixes whose cached display\ntext is extracted for translation. The default is `[\"HYPERLINK\"]`,\nmatching Okapi. Without it the user-visible anchor text of HYPERLINK\nfields would round-trip in the source language. Add prefixes such as\n`REF` to translate the display text of other field types.\n",
             "values": "Array of field-prefix strings (default `[\"HYPERLINK\"]`)",
             "examples": [
               "`[\"HYPERLINK\", \"REF\"]`"
@@ -3140,7 +3140,7 @@
           },
           "translateDocProperties": {
             "description": "Extract document properties (title, subject, keywords).",
-            "help": "When enabled (the default), the metadata in `docProps/core.xml` —\ntitle, subject, keywords — is extracted for translation. Disable it\nto leave document properties untouched.\n",
+            "help": "When enabled (the default), the metadata in `docProps/core.xml`\n(title, subject, keywords) is extracted for translation. Disable it\nto leave document properties untouched.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "translateFootnotes": {
@@ -3170,7 +3170,7 @@
           },
           "translateSharedStrings": {
             "description": "Extract shared strings from Excel workbooks.",
-            "help": "When enabled (the default), the cell text held in the workbook's\nshared-strings table is extracted — this is where most Excel text\nlives. Disable it to skip cell content.\n",
+            "help": "When enabled (the default), the cell text held in the workbook's\nshared-strings table is extracted, which is where most Excel text\nlives. Disable it to skip cell content.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "translateSheetNames": {
@@ -3199,7 +3199,7 @@
         ],
         "processingNotes": [
           "The document variant (Word / Excel / PowerPoint) is auto-detected from the package contents.",
-          "The writer is faithful by default — source run properties are preserved inline rather than rewritten into synthesised styles."
+          "The writer is faithful by default, preserving source run properties inline rather than rewriting them into synthesised styles."
         ],
         "examples": [
           {
@@ -3256,7 +3256,7 @@
           "tier3": {
             "type": "boolean",
             "title": "ML layout (tier 3)",
-            "description": "Render each page and run the kapi-vision layout model over it for authoritative structure — multi-column reading order, borderless tables, figure/caption regions — beyond what page geometry alone recovers. Requires the kapi-vision plugin; falls back to geometric structure (tier 2) when it is not installed. Implies geometry.",
+            "description": "Render each page and run the kapi-vision layout model over it for authoritative structure (multi-column reading order, borderless tables, figure/caption regions) beyond what page geometry alone recovers. Requires the kapi-vision plugin; falls back to geometric structure (tier 2) when it is not installed. Implies geometry.",
             "default": false
           }
         }
@@ -3336,11 +3336,11 @@
         }
       },
       "doc": {
-        "overview": "The plain text format reads generic `.txt` documents and emits the\ntext content as translatable blocks. It is the fallback for files that\ncarry no markup or structure of their own — release notes, prompts,\nword lists, or any free-form text that needs translating.\n\nBy default the reader segments by line: each non-empty line becomes one\nblock, and blank lines and the original line endings (LF, CRLF, or bare\nCR) are preserved as skeleton so the document round-trips after merge.\nSwitching to paragraph mode groups runs of lines separated by blank\nlines into a single block, which suits prose where sentences span\nseveral wrapped lines. This mirrors Okapi's plain-text filter.\n",
+        "overview": "The plain text format reads generic `.txt` documents and emits the\ntext content as translatable blocks. It is the fallback for files that\ncarry no markup or structure of their own: release notes, prompts,\nword lists, or any free-form text that needs translating.\n\nBy default the reader segments by line: each non-empty line becomes one\nblock, and blank lines and the original line endings (LF, CRLF, or bare\nCR) are preserved as skeleton so the document round-trips after merge.\nSwitching to paragraph mode groups runs of lines separated by blank\nlines into a single block, which suits prose where sentences span\nseveral wrapped lines. This mirrors Okapi's plain-text filter.\n",
         "parameters": {
           "segmentByLine": {
             "description": "Treat each line as a block, rather than each paragraph.",
-            "help": "When enabled (the default), every non-empty line of the input\nbecomes its own block. Blank lines and line terminators are kept as\nskeleton and are not extracted.\n\nWhen disabled, the reader groups consecutive lines into paragraphs —\na block ends at a blank line. Use paragraph mode for prose that wraps\nacross multiple physical lines, where a sentence should stay in one\nblock rather than being split per line.\n",
+            "help": "When enabled (the default), every non-empty line of the input\nbecomes its own block. Blank lines and line terminators are kept as\nskeleton and are not extracted.\n\nWhen disabled, the reader groups consecutive lines into paragraphs, and\na block ends at a blank line. Use paragraph mode for prose that wraps\nacross multiple physical lines, where a sentence should stay in one\nblock rather than being split per line.\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
@@ -3465,7 +3465,7 @@
         }
       },
       "doc": {
-        "overview": "PO (Portable Object) is the GNU gettext catalogue format. A `.po` file\npairs `msgid` source strings with `msgstr` translations, optionally\ndisambiguated by `msgctxt`, with plural forms via `msgid_plural` and\n`msgstr[N]`, translator and extracted comments, source references, and\n`#, fuzzy` flags. `.pot` templates carry the same structure with empty\ntranslations.\n\nThe reader emits one translatable block per message: in the default\nbilingual mode the `msgid` is the source text and the `msgstr` is the\ntarget. In monolingual mode the `msgid` is treated purely as an\nidentifier and the `msgstr` provides the source text instead — the\nshape used by catalogues that ship message IDs rather than English\nstrings. Comments, context, and references are preserved on the block\nand written back. This mirrors Okapi's PO filter.\n",
+        "overview": "PO (Portable Object) is the GNU gettext catalogue format. A `.po` file\npairs `msgid` source strings with `msgstr` translations, optionally\ndisambiguated by `msgctxt`, with plural forms via `msgid_plural` and\n`msgstr[N]`, translator and extracted comments, source references, and\n`#, fuzzy` flags. `.pot` templates carry the same structure with empty\ntranslations.\n\nThe reader emits one translatable block per message: in the default\nbilingual mode the `msgid` is the source text and the `msgstr` is the\ntarget. In monolingual mode the `msgid` is treated purely as an\nidentifier and the `msgstr` provides the source text instead, the\nshape used by catalogues that ship message IDs rather than English\nstrings. Comments, context, and references are preserved on the block\nand written back. This mirrors Okapi's PO filter.\n",
         "parameters": {
           "allowEmptyOutputTarget": {
             "description": "Write an empty target when no translation is available.",
@@ -3474,7 +3474,7 @@
           },
           "bilingualMode": {
             "description": "Treat msgid as the source text and msgstr as the target.",
-            "help": "When enabled (the default), each message is read bilingually: the\n`msgid` is the source text and the `msgstr` is the target\ntranslation. When disabled (monolingual mode), the `msgid` is used\nonly as an identifier and the `msgstr` is taken as the source text —\nthe layout used by catalogues whose message IDs are symbolic rather\nthan English.\n",
+            "help": "When enabled (the default), each message is read bilingually: the\n`msgid` is the source text and the `msgstr` is the target\ntranslation. When disabled (monolingual mode), the `msgid` is used\nonly as an identifier and the `msgstr` is taken as the source text,\nthe layout used by catalogues whose message IDs are symbolic rather\nthan English.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "codeFinderRules": {
@@ -3482,8 +3482,8 @@
             "help": "A list of regular expressions; each match within a translatable\nblock is protected as an inline code rather than translated. Used to\nshield gettext placeholders or format specifiers. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
-              "`%[0-9]*[sd]` — protect `printf`-style format specifiers",
-              "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+              "`%[0-9]*[sd]` protects `printf`-style format specifiers",
+              "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
             ],
             "dependsOn": [
               {
@@ -3540,7 +3540,7 @@
       "hasWriter": true,
       "family": "bilingual-interchange",
       "doc": {
-        "overview": "Qt Linguist TS is the bilingual XML format used by Qt's `lupdate` and\n`lrelease` tools to carry UI translations. A `\u003cTS\u003e` document groups\none or more `\u003ccontext\u003e` elements; each context groups `\u003cmessage\u003e`\nentries with a `\u003csource\u003e` and a `\u003ctranslation\u003e`. Translation state is\nencoded on the `\u003ctranslation\u003e` element's `type` attribute — no type\nmeans approved, `unfinished` means pending review, and `obsolete`\nmeans the entry is unused. Plural messages (`numerus=\"yes\"`) carry one\n`\u003cnumerusform\u003e` per locale plural form. Inline non-XML bytes appear as\n`\u003cbyte value=\"…\"/\u003e` elements.\n\nThe reader extracts each message's source as a translatable block,\nmatched with its existing translation, and preserves the context and\nmessage structure for the writer. The format is detected by sniffing\nfor a `\u003cTS\u003e` … `\u003c/TS\u003e` document rather than by the `.ts` extension,\nwhich collides with TypeScript.\n",
+        "overview": "Qt Linguist TS is the bilingual XML format used by Qt's `lupdate` and\n`lrelease` tools to carry UI translations. A `\u003cTS\u003e` document groups\none or more `\u003ccontext\u003e` elements; each context groups `\u003cmessage\u003e`\nentries with a `\u003csource\u003e` and a `\u003ctranslation\u003e`. Translation state is\nencoded on the `\u003ctranslation\u003e` element's `type` attribute: no type\nmeans approved, `unfinished` means pending review, and `obsolete`\nmeans the entry is unused. Plural messages (`numerus=\"yes\"`) carry one\n`\u003cnumerusform\u003e` per locale plural form. Inline non-XML bytes appear as\n`\u003cbyte value=\"…\"/\u003e` elements.\n\nThe reader extracts each message's source as a translatable block,\nmatched with its existing translation, and preserves the context and\nmessage structure for the writer. The format is detected by sniffing\nfor a `\u003cTS\u003e` … `\u003c/TS\u003e` document rather than by the `.ts` extension,\nwhich collides with TypeScript.\n",
         "limitations": [
           "The format is not auto-detected by the `.ts` file extension (it conflicts with TypeScript); detection relies on sniffing the `\u003cTS\u003e` root element or an explicit format declaration.",
           "Non-XML bytes (`\u003cbyte value=\"…\"/\u003e` elements) are surfaced as inline placeholder runs and preserved through exchange; they are not decoded to their raw character equivalents on read.",
@@ -3751,14 +3751,14 @@
         }
       },
       "doc": {
-        "overview": "TMX is the XML interchange format for content memories — the portable form\nin which bilingual segment pairs move between tools. A TMX document holds\na header declaring the source language (`srclang`) and a body of `\u003ctu\u003e`\ntranslation units; each unit carries one `\u003ctuv\u003e` translation-unit variant\nper language, with optional unit- and header-level `\u003cnote\u003e` and `\u003cprop\u003e`\nmetadata.\n\nThe reader emits one translatable block per `\u003ctu\u003e`: the source segment\nmatches the header `srclang` and a target segment is produced for each\nother-language `\u003ctuv\u003e`. The header attributes and any header-level note\nor property are surfaced as a single non-translatable data part ahead\nof the blocks, while unit-level notes and properties attach to the\nblock. This makes TMX usable both as an input for review or alignment\nand as an output for exporting a memory. It mirrors Okapi's TMX filter.\n",
+        "overview": "TMX is the XML interchange format for content memories, the portable form\nin which bilingual segment pairs move between tools. A TMX document holds\na header declaring the source language (`srclang`) and a body of `\u003ctu\u003e`\ntranslation units; each unit carries one `\u003ctuv\u003e` translation-unit variant\nper language, with optional unit- and header-level `\u003cnote\u003e` and `\u003cprop\u003e`\nmetadata.\n\nThe reader emits one translatable block per `\u003ctu\u003e`: the source segment\nmatches the header `srclang` and a target segment is produced for each\nother-language `\u003ctuv\u003e`. The header attributes and any header-level note\nor property are surfaced as a single non-translatable data part ahead\nof the blocks, while unit-level notes and properties attach to the\nblock. This makes TMX usable both as an input for review or alignment\nand as an output for exporting a memory. It mirrors Okapi's TMX filter.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in segment text.",
             "help": "A list of regular expressions; each match within a translatable\nblock is protected as an inline code rather than translated. Used to\nshield placeholders or markup carried inside memory segments. Only takes\neffect when `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
-              "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+              "`\\{[0-9]+\\}` protects numbered placeholders like `{0}`"
             ],
             "dependsOn": [
               {
@@ -3774,12 +3774,12 @@
           },
           "exitOnInvalid": {
             "description": "Stop processing when an invalid translation unit is encountered.",
-            "help": "Governs error handling for malformed `\u003ctu\u003e` elements. When disabled\n(the default), invalid units are skipped silently and parsing\ncontinues. When enabled, the first invalid unit aborts processing —\nuse it to fail fast on corrupt or non-conformant input.\n",
+            "help": "Governs error handling for malformed `\u003ctu\u003e` elements. When disabled\n(the default), invalid units are skipped silently and parsing\ncontinues. When enabled, the first invalid unit aborts processing.\nUse it to fail fast on corrupt or non-conformant input.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "processAllTargets": {
             "description": "Read every target-language variant in each translation unit.",
-            "help": "When enabled (the default), all non-source `\u003ctuv\u003e` variants of a\n`\u003ctu\u003e` are read, producing a target segment for each language. When\ndisabled, only the first non-source variant is read and the rest are\nskipped — useful when a multilingual memory should be reduced to a\nsingle target language.\n",
+            "help": "When enabled (the default), all non-source `\u003ctuv\u003e` variants of a\n`\u003ctu\u003e` are read, producing a target segment for each language. When\ndisabled, only the first non-source variant is read and the rest are\nskipped, which suits a multilingual memory that should be reduced to a\nsingle target language.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "useCodeFinder": {
@@ -3984,14 +3984,14 @@
           "keyColumns": {
             "description": "0-based indices of columns providing the block ID.",
             "help": "The 0-based column indices whose values supply each block's ID\n(source/record identifier). When several are given, their values are\njoined with `.`. When empty, row-based IDs are used.\n",
-            "values": "Array of 0-based integers (default empty — row-based IDs)",
+            "values": "Array of 0-based integers (default empty, row-based IDs)",
             "examples": [
-              "`[0]` — use the first column as the record ID"
+              "`[0]` uses the first column as the record ID"
             ]
           },
           "separator": {
             "description": "Field delimiter character.",
-            "help": "The character separating fields — a tab for TSV. The same setting drives\nthe CSV variant with a comma.\n",
+            "help": "The character separating fields, a tab for TSV. The same setting drives\nthe CSV variant with a comma.\n",
             "values": "Single character (default `,`; use a tab for TSV)"
           },
           "textQualifier": {
@@ -4002,9 +4002,9 @@
           "translatableColumns": {
             "description": "0-based indices of columns to extract.",
             "help": "The 0-based column indices whose cells are extracted as translatable\ncontent. When empty, every column is treated as translatable.\n",
-            "values": "Array of 0-based integers (default empty — all columns)",
+            "values": "Array of 0-based integers (default empty, all columns)",
             "examples": [
-              "`[1, 2]` — extract the second and third columns"
+              "`[1, 2]` extracts the second and third columns"
             ]
           },
           "trimValues": {
@@ -4151,7 +4151,7 @@
         }
       },
       "doc": {
-        "overview": "WebVTT (Web Video Text Tracks) is the W3C subtitle and caption format\nused by HTML5 `\u003ctrack\u003e` elements. A `.vtt` file opens with a `WEBVTT`\nheader and then lists cues: an optional cue identifier, a timecode line\n(`HH:MM:SS.mmm --\u003e HH:MM:SS.mmm` plus optional positioning settings),\nand one or more lines of cue text.\n\nThe reader emits the `WEBVTT` header as a non-translatable data part,\neach cue identifier as its own data part, and one translatable block per\ncue. The timecode (including any cue settings) is preserved on the\nblock's `timecode` property and written back verbatim, so the timing\nsurvives the round-trip. Cues are kept separate — captions are not\nmerged by sentence — so each cue is translated independently.\n",
+        "overview": "WebVTT (Web Video Text Tracks) is the W3C subtitle and caption format\nused by HTML5 `\u003ctrack\u003e` elements. A `.vtt` file opens with a `WEBVTT`\nheader and then lists cues: an optional cue identifier, a timecode line\n(`HH:MM:SS.mmm --\u003e HH:MM:SS.mmm` plus optional positioning settings),\nand one or more lines of cue text.\n\nThe reader emits the `WEBVTT` header as a non-translatable data part,\neach cue identifier as its own data part, and one translatable block per\ncue. The timecode (including any cue settings) is preserved on the\nblock's `timecode` property and written back verbatim, so the timing\nsurvives the round-trip. Cues are kept separate, with no merging by\nsentence, so each cue is translated independently.\n",
         "parameters": {
           "cjkCharsPerLine": {
             "description": "Maximum characters per line for CJK languages.",
@@ -4166,7 +4166,7 @@
           },
           "maxCharsPerLine": {
             "description": "Maximum characters per line of cue text on output.",
-            "help": "Caps the line length of written cue text. `0` (the default) means no\nlimit. This is an output-side parameter modelled on Okapi's WebVTT\nwriter; the native writer accepts it for configuration parity but\ndoes not currently rewrap cue text — lines are written as supplied\nby the block.\n",
+            "help": "Caps the line length of written cue text. `0` (the default) means no\nlimit. This is an output-side parameter modelled on Okapi's WebVTT\nwriter; the native writer accepts it for configuration parity but\ndoes not currently rewrap cue text; lines are written as supplied\nby the block.\n",
             "values": "Integer (default `0`, meaning no limit)"
           },
           "maxLinesPerCaption": {
@@ -4382,7 +4382,7 @@
         }
       },
       "doc": {
-        "overview": "XLIFF 1.2 is the OASIS XML interchange standard for bilingual content —\nthe exchange format that translation tools and TMS platforms use\nto move content between extraction and translation. A document groups\n`\u003ctrans-unit\u003e` elements under `\u003cfile\u003e` containers, each unit holding a\n`\u003csource\u003e` and an optional `\u003ctarget\u003e`, with inline markup represented\nthrough paired (`bpt`/`ept`, `g`) or standalone (`x`, `ph`) code\nelements and segmentation expressed via `\u003cseg-source\u003e` and\n`\u003cmrk mtype=\"seg\"\u003e`.\n\nThe reader emits one block per translatable `\u003ctrans-unit\u003e`, carrying\nthe source, any existing target, segmentation, alt-trans matches, and\nunit metadata. The writer updates targets and, by default, the target\n`state` attribute, so a round-tripped file reflects translation\nprogress. This mirrors Okapi's XLIFF 1.2 filter.\n",
+        "overview": "XLIFF 1.2 is the OASIS XML interchange standard for bilingual content,\nthe exchange format that translation tools and TMS platforms use\nto move content between extraction and translation. A document groups\n`\u003ctrans-unit\u003e` elements under `\u003cfile\u003e` containers, each unit holding a\n`\u003csource\u003e` and an optional `\u003ctarget\u003e`, with inline markup represented\nthrough paired (`bpt`/`ept`, `g`) or standalone (`x`, `ph`) code\nelements and segmentation expressed via `\u003cseg-source\u003e` and\n`\u003cmrk mtype=\"seg\"\u003e`.\n\nThe reader emits one block per translatable `\u003ctrans-unit\u003e`, carrying\nthe source, any existing target, segmentation, alt-trans matches, and\nunit metadata. The writer updates targets and, by default, the target\n`state` attribute, so a round-tripped file reflects translation\nprogress. This mirrors Okapi's XLIFF 1.2 filter.\n",
         "parameters": {
           "addAltTrans": {
             "description": "Allow new alt-trans elements to be added.",
@@ -4409,7 +4409,7 @@
             "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
-              "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+              "`%[0-9]*[sd]` protects `printf`-style format specifiers"
             ],
             "dependsOn": [
               {
@@ -4643,7 +4643,7 @@
             "help": "A list of regular expressions; each match within extracted text is\nprotected as an inline code rather than translated. Only takes effect\nwhen `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
-              "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+              "`%[0-9]*[sd]` protects `printf`-style format specifiers"
             ],
             "dependsOn": [
               {
@@ -4677,8 +4677,8 @@
             "help": "Selects the output XLIFF version. Leave it empty (the default) to\npreserve the input document's version on round-trip and to fall back\nto 2.2 for content with no source version. Set `2.0`, `2.1`, or `2.2`\nto force a specific version; 2.0 and 2.1 share the\n`urn:oasis:names:tc:xliff:document:2.0` namespace, while 2.2\nintroduces `urn:oasis:names:tc:xliff:document:2.2`.\n",
             "values": "`\"\"` (auto) / `2.0` / `2.1` / `2.2` (default `\"\"`)",
             "examples": [
-              "`` — auto: preserve input version, default 2.2",
-              "`2.0` — force XLIFF 2.0 output"
+              "`` auto, preserving the input version, default 2.2",
+              "`2.0` forces XLIFF 2.0 output"
             ]
           },
           "writeOriginalData": {
@@ -4879,7 +4879,7 @@
         }
       },
       "doc": {
-        "overview": "The **XML** format reads generic XML documents, extracts the text of\nconfigured elements and attributes as translatable blocks, and writes the\ntranslations back while preserving the surrounding markup. Inline elements\nbecome inline codes within a block, so formatting tags survive translation.\n\nExtraction is rule-driven. The simple lists — `translatableElements`,\n`translatableAttributes`, `inlineElements`, `excludedElements` — cover most\ncases. The advanced `elements` and `attributes` maps express richer,\nITS-style rules with attribute conditions, ID and translatable-attribute\nmappings, and explicit include/exclude behaviour. When no translatable\nelements are listed, all text content is treated as translatable; set\n`excludeByDefault` to invert that and include only what rules opt in.\n",
+        "overview": "The **XML** format reads generic XML documents, extracts the text of\nconfigured elements and attributes as translatable blocks, and writes the\ntranslations back while preserving the surrounding markup. Inline elements\nbecome inline codes within a block, so formatting tags survive translation.\n\nExtraction is rule-driven. The simple lists (`translatableElements`,\n`translatableAttributes`, `inlineElements`, `excludedElements`) cover most\ncases. The advanced `elements` and `attributes` maps express richer,\nITS-style rules with attribute conditions, ID and translatable-attribute\nmappings, and explicit include/exclude behaviour. When no translatable\nelements are listed, all text content is treated as translatable; set\n`excludeByDefault` to invert that and include only what rules opt in.\n",
         "parameters": {
           "attributes": {
             "description": "Advanced attribute-specific rules.",
@@ -4910,7 +4910,7 @@
             "help": "A map of element name (or a single-quoted regex pattern) to a rule\nobject. A rule may carry `ruleTypes` (`TEXTUNIT`, `INLINE`, `EXCLUDE`,\n`INCLUDE`, `PRESERVE_WHITESPACE`, …), an attribute `conditions` triplet,\n`idAttributes`, and a `translatableAttributes` map. Conditions let a rule\nfire only when an attribute matches, mirroring ITS-style selectors.\n",
             "values": "Map of element name → rule object (default empty)",
             "examples": [
-              "`{ p: { ruleTypes: [TEXTUNIT] } }` — extract `p` element text"
+              "`{ p: { ruleTypes: [TEXTUNIT] } }` extracts `p` element text"
             ]
           },
           "excludeByDefault": {
@@ -4923,7 +4923,7 @@
             "help": "A list of element names whose content is not extracted, even when their\ntext would otherwise be translatable.\n",
             "values": "Array of element names (default empty)",
             "examples": [
-              "`[script, style]` — never extract the content of these elements"
+              "`[script, style]` never extracts the content of these elements"
             ]
           },
           "groupElements": {
@@ -4936,15 +4936,15 @@
             "help": "A list of attribute names consulted, in order, to obtain a block's ID\nfrom the enclosing element. When none match, the `id` attribute is used\nas a fallback.\n",
             "values": "Array of attribute names (default empty)",
             "examples": [
-              "`[name, key]` — use a `name` or `key` attribute as the block ID"
+              "`[name, key]` uses a `name` or `key` attribute as the block ID"
             ]
           },
           "inlineElements": {
             "description": "Element names treated as inline spans.",
-            "help": "A list of element names treated as inline — represented as inline codes\nwithin the surrounding text block rather than as block boundaries.\n",
+            "help": "A list of element names treated as inline, represented as inline codes\nwithin the surrounding text block rather than as block boundaries.\n",
             "values": "Array of element names (default empty)",
             "examples": [
-              "`[b, i, span]` — treat these as inline formatting within text"
+              "`[b, i, span]` treats these as inline formatting within text"
             ]
           },
           "preserveWhitespace": {
@@ -4957,7 +4957,7 @@
             "help": "A list of element names whose text content keeps its original whitespace\nregardless of the global `preserveWhitespace` setting.\n",
             "values": "Array of element names (default empty)",
             "examples": [
-              "`[pre, code]` — preserve whitespace inside these elements"
+              "`[pre, code]` preserves whitespace inside these elements"
             ]
           },
           "subfilters": {
@@ -4965,7 +4965,7 @@
             "help": "An array of `{pattern, format}` objects routing the text content of\nmatching element paths to another format reader. Patterns use\ndot-separated element paths with glob support. Each mapping requires a\nnon-empty `pattern` and `format`.\n",
             "values": "Array of `{pattern, format}` objects (default empty)",
             "examples": [
-              "`[{pattern: 'root.body', format: html}]` — parse `body` content as HTML"
+              "`[{pattern: 'root.body', format: html}]` parses `body` content as HTML"
             ]
           },
           "translatableAttributes": {
@@ -4973,15 +4973,15 @@
             "help": "A list of attribute names whose values are extracted as translatable,\non any element that carries them.\n",
             "values": "Array of attribute names (default empty)",
             "examples": [
-              "`[title, alt]` — extract `title` and `alt` attribute values"
+              "`[title, alt]` extracts `title` and `alt` attribute values"
             ]
           },
           "translatableElements": {
             "description": "Element names whose text content is translatable.",
             "help": "A list of element names whose text content is extracted as translatable.\nWhen empty, all text content is treated as translatable.\n",
-            "values": "Array of element names (default empty — all text translatable)",
+            "values": "Array of element names (default empty, all text translatable)",
             "examples": [
-              "`[title, para]` — extract the text of `title` and `para` elements"
+              "`[title, para]` extracts the text of `title` and `para` elements"
             ]
           },
           "useCodeFinder": {
@@ -5128,16 +5128,16 @@
           },
           "extractNonStrings": {
             "description": "Extract non-string scalar values.",
-            "help": "When enabled, non-string scalars — booleans, numbers, and nulls — are\nalso extracted as translatable blocks. By default only string scalars\nare extracted.\n",
+            "help": "When enabled, non-string scalars (booleans, numbers, and nulls) are\nalso extracted as translatable blocks. By default only string scalars\nare extracted.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "keyPathPatterns": {
             "description": "Glob patterns selecting which key paths are extracted.",
             "help": "An array of glob-style key-path patterns. When non-empty, only keys\nmatching one of the patterns are extracted. `*` matches a single key\nsegment; `**` matches any number of segments at any depth.\n",
-            "values": "Array of glob patterns (default empty — all keys extracted)",
+            "values": "Array of glob patterns (default empty, all keys extracted)",
             "examples": [
-              "`en.**` — extract only keys nested under the top-level `en` key",
-              "`*.title` — extract the `title` key directly under any top-level key"
+              "`en.**` extracts only keys nested under the top-level `en` key",
+              "`*.title` extracts the `title` key directly under any top-level key"
             ]
           },
           "subfilter": {
@@ -5145,7 +5145,7 @@
             "help": "The name of a format used as a subfilter (for example `html`) to parse\nembedded markup inside extracted scalar values, so the markup is exposed\nas inline codes rather than translated as literal text.\n",
             "values": "Format name (default empty)",
             "examples": [
-              "`html` — parse HTML inside YAML scalar values"
+              "`html` parses HTML inside YAML scalar values"
             ]
           },
           "useCodeFinder": {

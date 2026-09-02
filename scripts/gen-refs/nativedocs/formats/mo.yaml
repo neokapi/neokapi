@@ -13,7 +13,7 @@ overview: |
   neokapi provides MO as a **writer only**. The pipeline consumes translatable
   Blocks and emits a binary catalog for a single target locale. `msgctxt` is
   resolved from each Block in order: `Properties["context"]`, then `Name`, then
-  `ID` — so Blocks produced by the PO reader (which set the context property)
+  `ID`, so Blocks produced by the PO reader (which set the context property)
   and Blocks produced by the JSON reader with full key paths (which set the
   Block name) both compile to MO without extra configuration. Untranslated
   entries are dropped, since a runtime catalog is expected to carry only
@@ -27,7 +27,7 @@ overview: |
 limitations:
   - Write-only in the pipeline; MO files cannot be parsed as a translation source.
   - Emits a catalog for a single target locale; untranslated entries are omitted.
-  - The output is a binary catalog, not the editable PO source — keep the PO file as the editable form.
+  - The output is a binary catalog rather than the editable PO source, so keep the PO file as the editable form.
 processingNotes:
   - One MO entry is emitted per translated Block, keyed by `(msgctxt, msgid)`.
   - "`msgctxt` is taken from `Block.Properties[\"context\"]`, falling back to `Block.Name`, then `Block.ID`."

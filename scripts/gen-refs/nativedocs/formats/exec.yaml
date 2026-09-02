@@ -14,7 +14,7 @@ overview: |
   as an error with the subprocess's captured stderr attached.
 
   Use exec when a format has no built-in reader but you can extract its
-  strings with a script or tool in any language — for example a
+  strings with a script or tool in any language, for example a
   project-specific source-code extractor. The protocol is transparent
   to inspect (plain JSON) and carries no kapi-specific schema beyond the
   block shape the subprocess emits.

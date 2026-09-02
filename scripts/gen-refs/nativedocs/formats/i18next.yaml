@@ -3,7 +3,7 @@
 # Built on the json format; selected explicitly (-f i18next), not auto-detected.
 description: Extract and update translatable values in i18next / react-i18next JSON resource bundles.
 overview: |
-  The **i18next JSON** format reads i18next / react-i18next resource bundles —
+  The **i18next JSON** format reads i18next / react-i18next resource bundles,
   the conventions of the dominant web i18n library. It is built on the JSON
   format and selected explicitly (`-f i18next`), because i18next files use the
   generic `.json` extension owned by the JSON format and cannot be reliably

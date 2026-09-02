@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "vision",
   "version": "0.1.0",
-  "description": "Document vision for kapi — OCR + ML layout detection (PP-DocLayoutV3; table structure in a later phase) over page images via PP-OCRv5 mobile ONNX models, run in-process and driven over a binary-framed stdin/stdout protocol.",
+  "description": "Document vision for kapi, with OCR and ML layout detection (PP-DocLayoutV3; table structure in a later phase) over page images via PP-OCRv5 mobile ONNX models, run in-process and driven over a binary-framed stdin/stdout protocol.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/vision",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
       "version": "1",
       "default": true,
       "bundled": true,
-      "description": "PP-OCRv5 mobile (text detection + recognition) — bundled OCR model.",
+      "description": "PP-OCRv5 mobile (text detection + recognition), the bundled OCR model.",
       "license": "Apache-2.0",
       "files": [
         { "path": "ppocrv5_det.onnx" },

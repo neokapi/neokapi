@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "sat",
   "version": "0.1.0",
-  "description": "SaT (Segment any Text / wtpsplit) ML sentence segmenter — runs XLM-RoBERTa SaT ONNX models in a Mode-C daemon and answers the segmentation Segment RPC.",
+  "description": "SaT (Segment any Text / wtpsplit) ML sentence segmenter. It runs XLM-RoBERTa SaT ONNX models in a Mode-C daemon and answers the segmentation Segment RPC.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sat",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
@@ -31,7 +31,7 @@
       "id": "sat-3l-sm",
       "version": "1",
       "default": true,
-      "description": "SaT 3-layer small (wtpsplit Segment any Text) — fast multilingual sentence segmenter. Pinned to segment-any-text commit 137da05.",
+      "description": "SaT 3-layer small (wtpsplit Segment any Text), a fast multilingual sentence segmenter. Pinned to segment-any-text commit 137da05.",
       "license": "MIT",
       "files": [
         {
@@ -51,7 +51,7 @@
     {
       "id": "sat-12l-sm",
       "version": "1",
-      "description": "SaT 12-layer small — higher quality, larger. Pinned to segment-any-text commit d70c72a.",
+      "description": "SaT 12-layer small, higher quality and larger. Pinned to segment-any-text commit d70c72a.",
       "license": "MIT",
       "files": [
         {

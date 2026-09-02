@@ -4,7 +4,7 @@ description: Set or modify key-value properties on blocks.
 overview: |
   The **Properties Set** tool writes a fixed set of key-value properties onto
   blocks. Properties are metadata that travel with a block and can influence
-  downstream tools and writers. Use it to tag content — for example marking a
+  downstream tools and writers. Use it to tag content, for example marking a
   set of blocks with a workflow status or a routing hint.
 
   At least one property must be configured. By default the tool overwrites

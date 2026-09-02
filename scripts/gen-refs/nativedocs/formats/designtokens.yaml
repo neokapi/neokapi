@@ -4,7 +4,7 @@
 description: Extract and update human-readable $description documentation in W3C DTCG design token files.
 overview: |
   The **Design Tokens (DTCG)** format reads W3C Design Tokens Community Group
-  token files (`.tokens` / `.tokens.json`) — the JSON interchange format used
+  token files (`.tokens` / `.tokens.json`), the JSON interchange format used
   by Style Dictionary, Tokens Studio, and similar tooling.
 
   Token values are typed design data (colors, dimensions, font families,
@@ -25,7 +25,7 @@ parameters:
     values: "`true` / `false` (default `true`)"
 processingNotes:
   - Only `$description` is extracted; token values and structure are non-translatable passthrough.
-  - A token file with no `$description` yields zero translatable blocks — expected for machine-generated token sets.
+  - A token file with no `$description` yields zero translatable blocks, which is expected for machine-generated token sets.
 examples:
   - title: Disable description extraction
     description: Treat the file as fully non-translatable.

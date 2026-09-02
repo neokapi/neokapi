@@ -14,8 +14,8 @@ overview: |
   each cue identifier as its own data part, and one translatable block per
   cue. The timecode (including any cue settings) is preserved on the
   block's `timecode` property and written back verbatim, so the timing
-  survives the round-trip. Cues are kept separate — captions are not
-  merged by sentence — so each cue is translated independently.
+  survives the round-trip. Cues are kept separate, with no merging by
+  sentence, so each cue is translated independently.
 parameters:
   maxCharsPerLine:
     description: Maximum characters per line of cue text on output.
@@ -23,7 +23,7 @@ parameters:
       Caps the line length of written cue text. `0` (the default) means no
       limit. This is an output-side parameter modelled on Okapi's WebVTT
       writer; the native writer accepts it for configuration parity but
-      does not currently rewrap cue text — lines are written as supplied
+      does not currently rewrap cue text; lines are written as supplied
       by the block.
     values: "Integer (default `0`, meaning no limit)"
   maxLinesPerCaption:

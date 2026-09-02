@@ -273,7 +273,7 @@ check-run-projection: ## Guard: a Run sequence is projected through a declared R
 # catalogs part reports (rather than fails on) a surface `make l10n-extract` has
 # not produced yet, so this target is useful before a full extract; the l10n
 # workflow runs it with --require-extracted, where the extract has just run.
-check-em-dashes: ## Guard: no em dash in Go string literals, extracted source catalogs, or docs prose
+check-em-dashes: ## Guard: no em dash in Go string literals, extracted source catalogs, unextracted UI source, the reference prose, or docs prose
 	@./scripts/check-em-dashes.sh
 
 check-ts-license-boundary: ## Guard: no Apache TypeScript imports the AGPL tree under bowrain/

@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "asr",
   "version": "0.1.0",
-  "description": "Automatic speech recognition for kapi — transcribes audio (and a video's audio track) into timing-anchored text via a bundled whisper.cpp model, driven over a line-delimited JSON protocol on stdin/stdout.",
+  "description": "Automatic speech recognition for kapi. It transcribes audio (and a video's audio track) into timing-anchored text via a bundled whisper.cpp model, driven over a line-delimited JSON protocol on stdin/stdout.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/asr",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
       "version": "1",
       "default": true,
       "bundled": true,
-      "description": "Whisper base.en (whisper.cpp ggml) — bundled speech-recognition model.",
+      "description": "Whisper base.en (whisper.cpp ggml), the bundled speech-recognition model.",
       "license": "MIT",
       "files": [{ "path": "ggml-base.en.bin" }]
     }

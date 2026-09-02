@@ -10,7 +10,7 @@ overview: |
   source code such as JSX / React components. A KBF document is a
   `kind: kapi-bundle` envelope holding one or more
   documents, each carrying blocks. Every block has a structured run
-  sequence — text plus placeholders, paired inline codes, plurals, and
+  sequence: text plus placeholders, paired inline codes, plurals, and
   selects.
 
   On read, each KBF block becomes one translatable block. Its source
@@ -28,7 +28,7 @@ limitations:
   - Blocks that lose their structured-run annotation in the pipeline are written back as plain text, without the original placeholder or paired-code structure.
 processingNotes:
   - One translatable block per KBF block; the block ID is preserved verbatim.
-  - Source text is the flattened run sequence — placeholders become brace-wrapped equivalents, paired codes elide their wrappers, plurals collapse to the `other` branch.
+  - Source text is the flattened run sequence, where placeholders become brace-wrapped equivalents, paired codes elide their wrappers, and plurals collapse to the `other` branch.
   - Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping.
 examples:
   - title: Round-trip a KBF document

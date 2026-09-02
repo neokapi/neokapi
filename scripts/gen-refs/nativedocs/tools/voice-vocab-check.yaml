@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `voice-vocab-check` tool.
-# Schema source: core/tools/voicevocab.go (VoiceVocabConfig — the profile and the
+# Schema source: core/tools/voicevocab.go (VoiceVocabConfig, in which the profile and the
 # terms store are supplied programmatically, so the tool declares no schema
 # properties).
 description: Flag forbidden, competitor and retired wording from a voice profile and the project's terms.
@@ -13,7 +13,7 @@ overview: |
   and Unicode-aware, so `use` never fires inside `user`; style patterns match as
   the regular expression the author wrote them as.
 
-  When the project binds a terms store, the tool enforces that too — the
+  When the project binds a terms store, the tool enforces that too: the
   vocabulary the project *decided*, alongside the lists the profile carries. A
   competitor entry reports critical, a forbidden one major and a retired one
   minor, the softer reading for a word that was the project's own until a
@@ -33,12 +33,12 @@ overview: |
   rule can decide should not be spent on a model.
 limitations:
   - The profile and the terms store are supplied programmatically; neither is a schema parameter.
-  - Matching is lexical — whole-word and case-insensitive, with no account of inflection or morphology.
+  - Matching is lexical, whole-word and case-insensitive, with no account of inflection or morphology.
   - Judges source text only, and skips a block whose source is empty or whitespace-only.
   - Required style patterns are a document-scope question and are evaluated by the check venue, not here.
 processingNotes:
   - Operates on blocks; a block with no findings is left unannotated.
-  - Monolingual by declaration, because it reads the source — a bilingual declaration would yield no pass at all on a project with no target languages.
+  - Monolingual by declaration, because it reads the source; a bilingual declaration would yield no pass at all on a project with no target languages.
   - A term recorded in both a regional and a bare language is one decision and reports once.
   - Every finding carries the run range it matched, so a preview can highlight the exact words.
 examples:

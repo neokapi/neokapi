@@ -7,7 +7,7 @@ overview: |
   to a translation provider), and stashes the originals locally so a later
   `unredact` can restore them. It never emits the original value into the
   rewritten content. It is a recoverable transformer: it produces an edit plan
-  — the span replacements plus the originals to vault — and the framework
+  (the span replacements plus the originals to vault) and the framework
   applier rewrites the source, rebasing surviving run-anchored overlays so an
   upstream annotator's terms or entities follow the rewrite.
 
@@ -49,7 +49,7 @@ parameters:
     description: Entity categories to redact when the `entities` detector is enabled.
     help: |
       Restricts entity redaction to the listed categories. When unset, the
-      default set is person, organization, product, and location — dates, times,
+      default set is person, organization, product, and location. Dates, times,
       currencies, and measurements are intentionally excluded because they need
       locale-specific formatting rather than hiding.
     values: "list of entity categories (default `[person, organization, product, location]`)"
@@ -57,11 +57,11 @@ parameters:
       - property: detectors
         condition: the `entities` detector must be enabled
 limitations:
-  - The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `entity-extract`.
+  - The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself, so pair it with `entity-extract`.
   - Inline rules and the sidecar vault path are supplied programmatically by callers (e.g. extract → merge) rather than through the schema fields documented here.
   - Operates on translatable source spans; dates, times, currencies, and measurements are excluded from the default entity set.
 processingNotes:
-  - A recoverable transformer — it returns an edit plan and the framework applier rewrites the source, rebasing surviving overlays across the rewrite. The placement pass requires it to run before any step that sends source to a remote sink.
+  - A recoverable transformer that returns an edit plan, after which the framework applier rewrites the source, rebasing surviving overlays across the rewrite. The placement pass requires it to run before any step that sends source to a remote sink.
   - Originals are recorded as an in-process secret annotation by default, or in a sidecar vault when a vault path is supplied (external mode); the applier vaults them atomically with the rewrite.
   - A later `unredact` reads the recovery record to restore the originals.
 examples:

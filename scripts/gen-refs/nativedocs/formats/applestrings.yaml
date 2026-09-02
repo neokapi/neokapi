@@ -11,8 +11,8 @@ overview: |
   printf specifiers (`%@`, `%lld`, `%1$@`) are protected as inline codes. In
   `.stringsdict`, each `NSStringLocalizedFormatKey` and every CLDR plural
   category (`zero`/`one`/`two`/`few`/`many`/`other`) is modeled as a block,
-  with `%#@var@` tokens protected. Writes are byte-faithful — only changed
-  values are spliced back — and UTF-8 and UTF-16 (LE/BE) encodings are
+  with `%#@var@` tokens protected. Writes splice back only the changed values,
+  so they stay byte-faithful, and UTF-8 and UTF-16 (LE/BE) encodings are
   preserved. The modern `.xcstrings` String Catalog is handled by the
   separate `xcstrings` format.
 parameters:

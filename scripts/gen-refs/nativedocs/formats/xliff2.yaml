@@ -28,8 +28,8 @@ parameters:
       introduces `urn:oasis:names:tc:xliff:document:2.2`.
     values: "`\"\"` (auto) / `2.0` / `2.1` / `2.2` (default `\"\"`)"
     examples:
-      - "`` — auto: preserve input version, default 2.2"
-      - "`2.0` — force XLIFF 2.0 output"
+      - "`` auto, preserving the input version, default 2.2"
+      - "`2.0` forces XLIFF 2.0 output"
   writeOriginalData:
     description: Include original data in the output when available.
     help: |
@@ -77,7 +77,7 @@ parameters:
       when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:
-      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+      - "`%[0-9]*[sd]` protects `printf`-style format specifiers"
     dependsOn:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect

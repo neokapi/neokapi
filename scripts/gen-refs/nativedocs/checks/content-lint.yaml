@@ -2,21 +2,21 @@
 # Source: core/check/sourcechecks.go (NewContentLintTool, contentLintFindings)
 # and core/check/hygiene.go (the shape predicates it reads).
 # A check, not a registry tool: it has no schema and no flag of its own.
-description: Report the text-hygiene defects of a single source text — emptiness, stray whitespace, spacing and repetition.
+description: Report the text-hygiene defects of a single source text, covering emptiness, stray whitespace, spacing and repetition.
 overview: |
   The **Content Lint** check is the always-on half of `kapi check`. It reads each
-  translatable block's source text on its own — no target, no locale comparison —
-  and reports what is wrong with the shape of the content:
+  translatable block's source text on its own, with no target and no locale
+  comparison, and reports what is wrong with the shape of the content:
 
-  - `hygiene.empty` — the block holds nothing but whitespace. Major, and the only
+  - `hygiene.empty`: the block holds nothing but whitespace. Major, and the only
     finding reported for that block, because the rest have nothing to judge.
-  - `hygiene.leading-whitespace` and `hygiene.trailing-whitespace` — whitespace on
+  - `hygiene.leading-whitespace` and `hygiene.trailing-whitespace`: whitespace on
     an edge that an author left there.
-  - `hygiene.double-spaces` — two or more spaces between two pieces of content on
+  - `hygiene.double-spaces`: two or more spaces between two pieces of content on
     one line.
-  - `hygiene.doubled-word` — a word immediately repeated, compared without regard
+  - `hygiene.doubled-word`: a word immediately repeated, compared without regard
     to case.
-  - `hygiene.control-char` — a stray control character. Tab, carriage return and
+  - `hygiene.control-char`: a stray control character. Tab, carriage return and
     line feed are ordinary whitespace and are not reported.
 
   Everything but the emptiness finding is minor, so a document of nits still
@@ -26,16 +26,16 @@ overview: |
   block's runs rather than its plain text. A placeholder is content: it holds a
   position, so the space beside it separates it from a word rather than trailing
   off the content's edge. An inline code span stands as one unit, so what an
-  author wrote inside backticks is quoted rather than graded — two spaces in a
-  code span are the example, not a defect. And a single terminating line break is
+  author wrote inside backticks is quoted rather than graded, so two spaces in a
+  code span are the example rather than a defect. And a single terminating line break is
   the content's line ending, which formats such as a YAML block scalar require, so
   it is not whitespace anyone left behind.
 limitations:
   - Reads source text only; a mismatch between a source and its translation is the bilingual `qa` check's question.
-  - Judges shape, not language — it performs no spelling, grammar or style analysis.
+  - Judges shape rather than language, and performs no spelling, grammar or style analysis.
   - Runs over translatable blocks; content a reader surfaces as structure or code is never graded.
 processingNotes:
   - Always on. It needs no configuration and has no flag to enable or disable it.
   - Findings carry the stable rule id `hygiene.<category>` and the block's location, so a fix loop can address the exact block and track a rule across iterations.
   - The double-space rule discounts a run of spaces that indents a continuation line, because that is the source's line structure rather than spacing inside a sentence.
-  - The doubled-word rule reports a repeated *word*, so a repeated glyph or bullet — the notation an author meant to show — is not one.
+  - The doubled-word rule reports a repeated *word*, so a repeated glyph or bullet, the notation an author meant to show, is not one.

@@ -2,8 +2,8 @@
 # Schema source: core/tools/inlinecodesremove.go (InlineCodesRemoveConfig).
 description: Strip inline-code runs (placeholders and paired codes) from segments, leaving plain text.
 overview: |
-  The **Inline Codes Remove** tool removes inline-code runs — placeholders and
-  paired open/close codes — from segment content, leaving the surrounding plain
+  The **Inline Codes Remove** tool removes inline-code runs (placeholders and
+  paired open/close codes) from segment content, leaving the surrounding plain
   text. It is useful when a downstream consumer wants the textual content
   without markup, for example to build a plain-text reference or to feed a tool
   that cannot handle coded text.

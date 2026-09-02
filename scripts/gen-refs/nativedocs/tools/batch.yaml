@@ -4,8 +4,8 @@ description: Collect blocks into fixed-size batches before forwarding them downs
 overview: |
   The **Batch Collector** buffers translatable blocks and forwards them in
   groups of a configured size, instead of one at a time. It exists so that a
-  downstream tool which is cheaper to call in bulk — for example a batch
-  translation request — can receive several blocks together rather than block
+  downstream tool which is cheaper to call in bulk (for example a batch
+  translation request) can receive several blocks together rather than block
   by block.
 
   Non-block parts (layer markers, data, media) pass through immediately and are

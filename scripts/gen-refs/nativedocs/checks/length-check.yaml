@@ -37,7 +37,7 @@ parameters:
     values: "integer ≥ 0 (default `0`, off)"
 limitations:
   - Measures the source only; it does not compare a translation against its source.
-  - An absolute ceiling, not a ratio — there is no percentage-of-source model here.
+  - An absolute ceiling rather than a ratio; there is no percentage-of-source model here.
   - The limit is one number for the whole run; a per-collection or per-key ceiling is a recipe-level concern.
 processingNotes:
   - Off unless a limit is given, so an ordinary check run reports nothing from it.

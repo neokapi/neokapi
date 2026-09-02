@@ -1,8 +1,8 @@
-# Northsea — the monolingual sample
+# Northsea: the monolingual sample
 
 Northsea is a small, complete company repository that carries a context graph
 and passes its own gates in **one language**. It exists to show that the first
-journey — govern the content you already have — stands on its own, with no
+journey, govern the content you already have, stands on its own, with no
 second language, no server, and no provider credential anywhere in it.
 
 Everything here runs offline from the committed files. `kapi check` reads
@@ -26,7 +26,7 @@ fixture, eval and recording:
 | **Tidewatch** | The service that compares the forecast with each berth's constraints and raises an alert when a movement stops being safe. |
 | **tidectl** | The command line that drives both. |
 
-The domain vocabulary — berth, vessel, alert, arrival, draught, terminal — is
+The domain vocabulary (berth, vessel, alert, arrival, draught, terminal) is
 the vocabulary the eval corpus already tests against, so a term decision made
 here means the same thing there.
 
@@ -55,7 +55,7 @@ Three surfaces with genuinely different registers, in three formats. The
 operator documentation instructs; the interface strings name controls and state
 what happened; the landing page addresses somebody deciding whether to look
 further. One voice profile carries all three, because a channel override changes
-tone and style — the vocabulary stays in force everywhere.
+tone and style, and the vocabulary stays in force everywhere.
 
 ## The points
 
@@ -76,8 +76,8 @@ channel, which is the finest point the recipe can declare.
 ## The rename, and where it stops
 
 Northsea renamed a place alongside from **mooring** to **berth** on 2026-01-20.
-The decision is in `.kapi/terms.json` as one concept carrying both terms —
-`berth` preferred, `mooring` deprecated — plus a second concept for the API
+The decision is in `.kapi/terms.json` as one concept carrying both terms,
+`berth` preferred and `mooring` deprecated, plus a second concept for the API
 field `mooring_id`, which is `admitted` because the wire contract keeps the name
 the vocabulary retired.
 
@@ -93,8 +93,8 @@ Terms
 
 **What the recipe says, and what it still cannot.** The rename is not in the
 enforced vocabulary, because it does not need to be. A **deprecated** term is
-enforced as a **minor** finding — retiring a word never fails anybody's build —
-so the changelog keeps the retired name, the gate says so, and nothing is
+enforced as a **minor** finding, because retiring a word never fails anybody's
+build, so the changelog keeps the retired name, the gate says so, and nothing is
 blocked. The record and the gate agree without an exception mechanism.
 
 The API reference needs no exception either. `mooring_id` is its own concept,
@@ -103,7 +103,7 @@ project declared, so the field name is not read as a use of the word it
 contains.
 
 What a recipe still cannot say is *permitted in this passage*: an exception
-finer than a file. A file-scoped exception is declarable today — a profile with
+finer than a file. A file-scoped exception is declarable today, through a profile with
 its own `terms:` (or the conventional
 `.kapi/profiles/<name>/terms.json`) governs exactly the files its channels
 carry, because `kapi check` resolves the vocabulary per file the way it resolves
@@ -176,7 +176,7 @@ The two that remain are the changelog's, and they are correct: the record says
 what was announced, in the words it was announced in.
 
 `kapi check --ship` runs the same gates plus the ship and source coverage gates,
-also passes here, and names its findings the way `kapi check` does — the
+also passes here, and names its findings the way `kapi check` does, by the
 project-relative path and the block.
 
 ## The second visit
@@ -184,7 +184,7 @@ project-relative path and the block.
 The journey above is the first visit: a context drafted from the material and
 corrected once. The second visit is what keeps it true. Northsea launched a
 support site and renamed Tidewatch to Tideguard, and neither fact is in the
-record — so the material and the record disagree, which is the only reason to
+record, so the material and the record disagree, which is the only reason to
 refresh.
 
 Seed that drift on a copy of this directory:
@@ -203,8 +203,8 @@ kapi context search Tidewatch        # the name the record still prefers
 ```
 
 `kapi ls --untracked` is the recipe subtracted from the disk. It reports and
-never adopts, so what it finds is a list of candidates a reviewer works through
-— this README appears there too, and declining it is the correct answer.
+never adopts, so what it finds is a list of candidates a reviewer works through.
+This README appears there too, and declining it is the correct answer.
 
 Then apply only what was approved. The new surface takes the point that suits
 it, and the rename is two term decisions:
@@ -226,7 +226,7 @@ Both writes edit the committed file rather than re-emitting it: `kapi.yaml` and
 `.kapi/terms.json` keep their comments and their key order, so `git diff` is
 small enough to read as a decision. The check that follows reports the retired
 name wherever the documentation still carries it, each finding naming Tideguard
-as the fix — advisory, as a retirement always is, and exactly the sweep the
+as the fix, advisory as a retirement always is, and exactly the sweep the
 decision created.
 
 `TestRefresh_NorthseaDrift` (`cli/refresh_northsea_test.go`) drives this same
@@ -249,7 +249,7 @@ left is filed and visible in the sample's own output rather than worked around.
 
 | Gap | Issue |
 | --- | --- |
-| No point beneath the file, so a vocabulary decision cannot carry an exception for a passage. A whole surface can keep a retired name — a profile with its own `terms:` does that — but two paragraphs of one file cannot. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
+| No point beneath the file, so a vocabulary decision cannot carry an exception for a passage. A whole surface can keep a retired name, since a profile with its own `terms:` does that, but two paragraphs of one file cannot. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
 
 Fixed while this sample was being built, each found by running the journey on
 it: [#1900](https://github.com/neokapi/neokapi/issues/1900) (monolingual

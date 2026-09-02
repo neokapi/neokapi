@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `layer-processor` tool.
-# Schema source: core/tools/layerprocessor.go (LayerProcessorConfig — programmatic only).
+# Schema source: core/tools/layerprocessor.go (LayerProcessorConfig, programmatic only).
 description: Apply format-specific tool chains to embedded child layers within a document.
 overview: |
-  The **Layer Processor** intercepts embedded child layers — content of one
-  format nested inside another, such as HTML inside a JSON value — and runs a
+  The **Layer Processor** intercepts embedded child layers (content of one
+  format nested inside another, such as HTML inside a JSON value) and runs a
   format-specific tool chain over the parts of each child layer before emitting
   them. It maps a child layer's format name to the chain of tools that should
   process that layer's content.

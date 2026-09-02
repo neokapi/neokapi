@@ -3,7 +3,7 @@
 description: Draft a voice profile from a body of existing content with an LLM, with per-field confidence and source notes.
 overview: |
   The **AI Voice Inference** tool reads a body of content and proposes the voice
-  profile it is already written in — the inverse of `voice-check`, which holds
+  profile it is already written in, the inverse of `voice-check`, which holds
   content to a profile that exists. It is the onboarding move: a project that has
   been writing in a consistent register for years has a profile, and this reads
   it off the corpus rather than asking someone to write it down.
@@ -12,11 +12,11 @@ overview: |
   unchanged while the tool accumulates each block's source text, and one
   inference runs when the input stream ends. The corpus is truncated on a rune
   boundary before it is sent, so a large document set costs one bounded request.
-  An empty stream is not a failure — there is nothing to infer from, and the
-  tool yields no draft.
+  An empty stream leaves nothing to infer from, so the tool reports success and
+  yields no draft.
 
-  The result is a draft in the ordinary voice-profile shape — tone, style,
-  vocabulary and before/after examples — read from `Draft()` after the flow
+  The result is a draft in the ordinary voice-profile shape (tone, style,
+  vocabulary and before/after examples), read from `Draft()` after the flow
   completes, together with an evidence sidecar carrying the model's confidence
   and a short source note for each top-level field. The evidence stays beside the
   profile rather than inside it, so the draft round-trips through the same
@@ -49,8 +49,8 @@ parameters:
   domain:
     description: Subject-domain hint woven into the prompt.
     help: |
-      A short hint at the subject matter — "medical", "developer tools", "public
-      sector" — which steers the register the model reads the corpus as. Omitted,
+      A short hint at the subject matter ("medical", "developer tools", "public
+      sector") which steers the register the model reads the corpus as. Omitted,
       the corpus speaks for itself.
     values: "string"
   maxExamples:

@@ -16,7 +16,7 @@ overview: |
 
   neokapi reads and writes ODF, round-tripping the archive so the translated
   output remains a valid OpenDocument file. By default it extracts
-  presentation notes but skips hidden content — matching the upstream Okapi
+  presentation notes but skips hidden content, matching the upstream Okapi
   OpenOffice filter behaviour. The native reader applies these defaults but
   does not expose them as a configurable JSON schema in this reference.
 limitations:

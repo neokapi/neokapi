@@ -1,6 +1,6 @@
 {
   "as_of": "2026-08-27",
-  "note": "The curated catalog of models kapi ships support for \u2014 ceilings, provider, and neokapi lifecycle. Single source of truth: limits.go and the provider defaults read from here. Maintained by hand (the vendors' APIs do not carry lifecycle); `make check-models` flags when the live model lists diverge from this file. See scripts/prompts/update-model-catalog.md.",
+  "note": "The curated catalog of models kapi ships support for, with ceilings, provider, and neokapi lifecycle. Single source of truth: limits.go and the provider defaults read from here. Maintained by hand (the vendors' APIs do not carry lifecycle); `make check-models` flags when the live model lists diverge from this file. See scripts/prompts/update-model-catalog.md.",
   "models": [
     {
       "id": "claude-opus-5",
@@ -144,7 +144,7 @@
       "status": "superseded",
       "superseded_by": "gpt-5.6",
       "introduced": "2026-04-03",
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default \u2014 Azure deployments lag the public API, so the default is deliberately conservative."
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
     },
     {
       "id": "o3",

@@ -32,7 +32,7 @@ parameters:
       mapping. These override or extend the built-in element handling.
     values: "Map of element name → rule object (default: built-in rules)"
     examples:
-      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` — extract `summary` element text"
+      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` extracts `summary` element text"
   attributes:
     description: Per-attribute extraction rules.
     help: |
@@ -42,7 +42,7 @@ parameters:
       `allElementsExcept`, and a `conditions` triplet.
     values: "Map of attribute name → rule object (default: built-in rules)"
     examples:
-      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` — extract all `alt` values"
+      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` extracts all `alt` values"
   useCodeFinder:
     description: Enable regex-based inline-code detection.
     help: |

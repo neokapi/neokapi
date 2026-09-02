@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "check",
   "version": "0.1.0",
-  "description": "kapi-check ML checker — runs a small, open, multilingual sentence-embedding ONNX model in-process and speaks a line-delimited JSON protocol on stdin/stdout. Backs the voice/style-similarity and register checks; the deterministic checks need no model.",
+  "description": "kapi-check ML checker. It runs a small, open, multilingual sentence-embedding ONNX model in-process and speaks a line-delimited JSON protocol on stdin/stdout. Backs the voice/style-similarity and register checks; the deterministic checks need no model.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/check",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
