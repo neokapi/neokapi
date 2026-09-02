@@ -56,7 +56,7 @@ const DOCS_ROOT = resolve(__dirname, "..");
 const OUT_ROOT = join(DOCS_ROOT, "docs", "reference");
 
 const HEADER = `{/*
-  GENERATED FILE — DO NOT EDIT.
+  GENERATED FILE. DO NOT EDIT.
   Produced by web/scripts/gen-reference-pages.ts from @neokapi/reference-data.
   To change this page, edit the data (regenerate with \`make generate-reference-docs\`)
   or the page component, then rerun \`make generate-reference-pages\`.

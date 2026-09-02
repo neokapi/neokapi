@@ -2,7 +2,7 @@
 sidebar_position: 0
 title: Implementation Notes Overview
 slug: index
-description: Index of Implementation Notes for the neokapi framework — SQL schemas, wire protocols, algorithm pseudocode, Go interface signatures, and other tactical reference material, grouped by the architecture series each note details.
+description: Index of Implementation Notes for the neokapi framework: SQL schemas, wire protocols, algorithm pseudocode, Go interface signatures, and other tactical reference material, grouped by the architecture series each note details.
 keywords: [implementation notes, neokapi, reference, SQL schema, wire protocol, algorithms, Go interfaces]
 ---
 

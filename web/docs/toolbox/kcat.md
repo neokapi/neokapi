@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: kcat
-description: kcat prints the text of files block by block, regardless of format — a Word document, a JSON catalog and an XLIFF file all print as plain prose.
+description: kcat prints the text of files block by block, regardless of format: a Word document, a JSON catalog and an XLIFF file all print as plain prose.
 keywords: [kcat, cat, print, extract text, docx, json, xliff, multilingual content]
 ---
 

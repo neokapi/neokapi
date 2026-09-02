@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `docling` format.
 # Source: core/formats/docling/{reader.go,config.go,spec.yaml}. Read-only.
 # No Okapi equivalent — DoclingDocument JSON is Docling's native serialization.
-description: Read DoclingDocument JSON — Docling's native, lossless serialization — into the content model with semantic roles and page geometry.
+description: Read DoclingDocument JSON, Docling's native and lossless serialization, into the content model with semantic roles and page geometry.
 overview: |
   The **DoclingDocument JSON** format reads the native, lossless JSON
   serialization emitted by

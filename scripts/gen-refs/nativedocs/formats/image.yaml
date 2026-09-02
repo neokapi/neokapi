@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `image` format.
 # Source: core/formats/image/{reader.go,writer.go,config.go,metadata.go}.
 # No Okapi equivalent — image OCR and image translation are neokapi capabilities.
-description: Translate raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.
+description: Translate raster images by emitting the picture as a translatable Media asset, recognizing embedded text with OCR, and translating alt-text/caption sidecars.
 overview: |
   The **Image** format reads raster images as documents. PNG and JPEG decode
   natively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF
