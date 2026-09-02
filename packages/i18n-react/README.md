@@ -716,6 +716,14 @@ for `t()` when the string genuinely belongs in data.
 <p translate="no">API_KEY_PREFIX_12345</p>
 ```
 
+Inside a sentence the marked element is an island: its text stays out
+of the message and the element travels as one placeholder.
+
+```jsx
+<div>Saved to <span translate="no">{path}</span> just now</div>
+// message: Saved to {=m0} just now
+```
+
 ### Add translator context
 
 ```jsx

@@ -135,6 +135,14 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     name: "unmapped component with self-closing icon child + text",
     code: "<Button><FolderOpen size={12} />Open File...</Button>",
   },
+  {
+    name: 'translate="no" island beside text',
+    code: '<div>Saved to <span translate="no">{path}</span> just now</div>',
+  },
+  {
+    name: 'container whose only text sits in a translate="no" child',
+    code: '<SimpleTooltip content={label}><span translate="no">{file}:{key}</span></SimpleTooltip>',
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {

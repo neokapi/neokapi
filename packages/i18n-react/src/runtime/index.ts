@@ -436,6 +436,18 @@ export function __tx(
     return parts.join("");
   }
 
+  // A message that resolves to one element and nothing else returns
+  // that element. Radix `asChild` consumers (`<TooltipTrigger asChild>`,
+  // `<Slot>`) clone their single child to pass it refs and ARIA props,
+  // and a Fragment accepts neither: React warns about every prop and
+  // the trigger stops working. Empty strings drop out of the count;
+  // a string carrying a real space stays, because that space is
+  // content the message asked for.
+  const substantive = parts.filter((part) => part !== "");
+  if (substantive.length === 1 && isValidElement(substantive[0])) {
+    return substantive[0];
+  }
+
   // Return a React Fragment — NOT a wrapping <span>. A wrapper
   // collapses multi-child content (`<Play /> Run`) into a single
   // flex item of the enclosing inline-flex container, which breaks

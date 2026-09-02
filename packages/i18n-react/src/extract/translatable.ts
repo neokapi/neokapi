@@ -164,6 +164,13 @@ function isChildless(el: JSXElement): boolean {
  * React-element value to "[object Object]". Plugin-side
  * `hasTranslatableText` applies the same rule so extract and
  * transform stay aligned.
+ *
+ * A child carrying `translate="no"` contributes nothing. W3C reads
+ * that subtree as an untranslatable island, and a parent whose only
+ * text sits inside one has no translatable text of its own: promoting
+ * it would pull a file path, an identifier or a code sample into the
+ * message. `buildRuns` emits the same child as an opaque standalone
+ * placeholder, so both halves agree on what the message contains.
  */
 export function hasTranslatableText(el: HasChildren): boolean {
   for (const child of el.children ?? []) {
@@ -171,6 +178,7 @@ export function hasTranslatableText(el: HasChildren): boolean {
     if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) continue;
+      if (getStringAttr(child, "translate") === "no") continue;
       if (isPluralElement(child) || isSelectElement(child)) return true;
       if (inlineElements.has(tag) && hasTranslatableText(child)) return true;
     }

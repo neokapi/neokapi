@@ -8,6 +8,7 @@
  *   JSXExpressionContainer (plain)            → PlaceholderRun ("jsx:var")
  *   JSXExpressionContainer with JSX inside    → PlaceholderRun ("jsx:node", optional)
  *   JSXElement, no children                   → PlaceholderRun ("jsx:element")
+ *   JSXElement, translate="no"                → PlaceholderRun ("jsx:element")
  *   JSXElement, has children                  → PcOpenRun + inner runs + PcCloseRun ("jsx:element")
  *
  * The paired form keeps inline elements like `<a>here</a>` and
@@ -43,7 +44,14 @@ import type {
 } from "@neokapi/kapi-format";
 
 import { hasICUSyntax } from "../runtime/icu.ts";
-import { containsJSX, dedupName, exprToName, getTagName, resolveHTMLElement } from "./ast.ts";
+import {
+  containsJSX,
+  dedupName,
+  exprToName,
+  getStringAttr,
+  getTagName,
+  resolveHTMLElement,
+} from "./ast.ts";
 import {
   isPluralElement,
   isSelectElement,
@@ -252,21 +260,32 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   const tag = getTagName(el);
   if (!tag) return;
 
+  // W3C `translate="no"` marks an untranslatable island. Inside a
+  // translatable parent the element travels whole, as an opaque
+  // standalone placeholder: a file path, an identifier or a code
+  // sample stays out of the message, and the runtime substitutes the
+  // element exactly as the author wrote it. `hasTranslatableText`
+  // reads the same attribute, so a parent whose only text sits in
+  // such a child is never promoted in the first place.
+  const opaque = getStringAttr(el, "translate") === "no";
+
   // Structured plural / select components get special handling —
   // the children carry form contents that must become typed Run[]
   // inside a PluralRun / SelectRun. Everything else falls through
   // to the default `jsx:element` placeholder.
-  if (isPluralElement(el)) {
-    const info = parsePlural(el);
-    if (info) {
-      appendPluralRun(state, el, info);
-      return;
-    }
-  } else if (isSelectElement(el)) {
-    const info = parseSelect(el);
-    if (info) {
-      appendSelectRun(state, el, info);
-      return;
+  if (!opaque) {
+    if (isPluralElement(el)) {
+      const info = parsePlural(el);
+      if (info) {
+        appendPluralRun(state, el, info);
+        return;
+      }
+    } else if (isSelectElement(el)) {
+      const info = parseSelect(el);
+      if (info) {
+        appendSelectRun(state, el, info);
+        return;
+      }
     }
   }
 
@@ -275,10 +294,11 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   const children = el.children ?? [];
 
   // Zero children → standalone PlaceholderRun (icons, <br/>, empty
-  // self-closing components). The runtime resolves these by looking
-  // up `elements["=m<N>"]` and substituting directly — no inner
-  // content to wrap.
-  if (children.length === 0) {
+  // self-closing components), and so is a `translate="no"` island
+  // whatever it holds. The runtime resolves these by looking up
+  // `elements["=m<N>"]` and substituting directly — no inner content
+  // to wrap.
+  if (children.length === 0 || opaque) {
     const src = state.sourceSlice(el.span.start, el.span.end);
     const id = nextId(state);
     const equiv = dedupName(`=m${state.idSeq - 1}`, state.usedNames);
