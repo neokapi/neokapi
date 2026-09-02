@@ -1241,6 +1241,7 @@
   "formats": {
     "androidxml": {
       "displayName": "▒ Àñđŕöîđ Šţŕîñĝ Ŕéšöüŕçéš ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "properties": {
         "extractComments": {
           "title": "▒ Éẋţŕàçţ çöḿḿéñţš àš ñöţéš ▒",
@@ -1262,6 +1263,7 @@
     },
     "applestrings": {
       "displayName": "▒ Àþþļé Šţŕîñĝš ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".strings",
         ".stringsdict"
@@ -1279,6 +1281,7 @@
     },
     "arb": {
       "displayName": "▒ Ƒļüţţéŕ ÀŔƂ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".arb"
       ],
@@ -1291,6 +1294,7 @@
     },
     "archive": {
       "displayName": "▒ Àŕçĥîṽé (ŽÎÞ\/ŢÀŔ) ▒",
+      "family": "▒ ƃîñàŕý-ŕéàđöñļý ▒",
       "extensions": [
         ".zip",
         ".tar",
@@ -1306,6 +1310,7 @@
     },
     "asciidoc": {
       "displayName": "▒ ÀšçîîĐöç ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".adoc",
         ".asciidoc",
@@ -1328,6 +1333,7 @@
     },
     "audio": {
       "displayName": "▒ Àüđîö ▒",
+      "family": "▒ ƃîñàŕý-ŕéàđöñļý ▒",
       "extensions": [
         ".wav",
         ".mp3",
@@ -1347,6 +1353,7 @@
     },
     "csv": {
       "displayName": "▒ ÇŠṼ ▒",
+      "family": "▒ đàţà-çöñƒîĝ ▒",
       "extensions": [
         ".csv"
       ],
@@ -1410,6 +1417,7 @@
     },
     "designtokens": {
       "displayName": "▒ Đéšîĝñ Ţöķéñš (ĐŢÇĜ) ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".tokens"
       ],
@@ -1422,6 +1430,7 @@
     },
     "doclang": {
       "displayName": "▒ ĐöçĻàñĝ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".dclg.xml",
         ".xml"
@@ -1432,6 +1441,7 @@
     },
     "docling": {
       "displayName": "▒ ĐöçļîñĝĐöçüḿéñţ ĴŠÖÑ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".json"
       ],
@@ -1441,6 +1451,7 @@
     },
     "epub": {
       "displayName": "▒ ÉÞÜƂ É-Ƃööķ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".epub"
       ],
@@ -1449,10 +1460,12 @@
       ]
     },
     "exec": {
-      "displayName": "▒ Éẋéç (šüƃþŕöçéšš éẋţŕàçţöŕ) ▒"
+      "displayName": "▒ Éẋéç (šüƃþŕöçéšš éẋţŕàçţöŕ) ▒",
+      "family": "▒ þļàîñ-ţéẋţ ▒"
     },
     "html": {
       "displayName": "▒ ĤŢḾĻ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".html",
         ".htm",
@@ -1491,6 +1504,7 @@
     },
     "i18next": {
       "displayName": "▒ î18ñéẋţ ĴŠÖÑ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "properties": {
         "legacyPluralForms": {
           "title": "▒ Ŕéçöĝñîšé ļéĝàçý þļüŕàļ ƒöŕḿš ▒",
@@ -1508,6 +1522,7 @@
     },
     "image": {
       "displayName": "▒ Îḿàĝé ▒",
+      "family": "▒ ƃîñàŕý-ŕéàđöñļý ▒",
       "extensions": [
         ".png",
         ".jpg",
@@ -1535,6 +1550,7 @@
     },
     "json": {
       "displayName": "▒ ĴŠÖÑ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".json"
       ],
@@ -1634,6 +1650,7 @@
     },
     "kbf": {
       "displayName": "▒ Ķàþî Ƃüñđļé Ƒöŕḿàţ (ĶƂƑ) ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".kbf.json"
       ],
@@ -1643,6 +1660,7 @@
     },
     "markdown": {
       "displayName": "▒ Ḿàŕķđöŵñ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".md",
         ".markdown"
@@ -1704,6 +1722,7 @@
     },
     "mdx": {
       "displayName": "▒ ḾĐẊ ▒",
+      "family": "▒ ŕîçĥ-ḿàŕķüþ ▒",
       "extensions": [
         ".mdx"
       ],
@@ -1755,6 +1774,7 @@
     },
     "messageformat": {
       "displayName": "▒ ÎÇÜ ḾéššàĝéƑöŕḿàţ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".mf",
         ".messageformat"
@@ -1765,6 +1785,7 @@
     },
     "mo": {
       "displayName": "▒ ḾÖ (Ĝéţţéẋţ, ƃîñàŕý) ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".mo"
       ],
@@ -1774,6 +1795,7 @@
     },
     "odf": {
       "displayName": "▒ Öþéñ Đöçüḿéñţ Ƒöŕḿàţ ▒",
+      "family": "▒ öƒƒîçé-đöç ▒",
       "extensions": [
         ".odt",
         ".ods",
@@ -1789,6 +1811,7 @@
     },
     "openxml": {
       "displayName": "▒ Öƒƒîçé Öþéñ ẊḾĻ ▒",
+      "family": "▒ öƒƒîçé-đöç ▒",
       "extensions": [
         ".docx",
         ".docm",
@@ -1949,6 +1972,7 @@
     },
     "plaintext": {
       "displayName": "▒ Þļàîñ Ţéẋţ ▒",
+      "family": "▒ þļàîñ-ţéẋţ ▒",
       "extensions": [
         ".txt",
         ".text"
@@ -1976,6 +2000,7 @@
     },
     "po": {
       "displayName": "▒ ÞÖ (Ĝéţţéẋţ) ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".po",
         ".pot"
@@ -2012,6 +2037,7 @@
     },
     "properties": {
       "displayName": "▒ Ĵàṽà Þŕöþéŕţîéš ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".properties"
       ],
@@ -2067,6 +2093,7 @@
     },
     "resx": {
       "displayName": "▒ .ÑÉŢ ŔÉŠẊ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".resx",
         ".resw"
@@ -2087,6 +2114,7 @@
     },
     "srt": {
       "displayName": "▒ ŠŔŢ Šüƃţîţļéš ▒",
+      "family": "▒ šüƃţîţļé-ţîḿéđţéẋţ ▒",
       "extensions": [
         ".srt"
       ],
@@ -2097,6 +2125,7 @@
     },
     "tmx": {
       "displayName": "▒ ŢḾẊ ▒",
+      "family": "▒ ƃîļîñĝüàļ-îñţéŕçĥàñĝé ▒",
       "extensions": [
         ".tmx"
       ],
@@ -2128,6 +2157,7 @@
     },
     "ts": {
       "displayName": "▒ Ǫţ ŢŠ ▒",
+      "family": "▒ ƃîļîñĝüàļ-îñţéŕçĥàñĝé ▒",
       "mimeTypes": [
         "application\/x-ts",
         "application\/x-linguist"
@@ -2135,6 +2165,7 @@
     },
     "tsv": {
       "displayName": "▒ ŢŠṼ ▒",
+      "family": "▒ đàţà-çöñƒîĝ ▒",
       "extensions": [
         ".tsv"
       ],
@@ -2144,6 +2175,7 @@
     },
     "video": {
       "displayName": "▒ Ṽîđéö ▒",
+      "family": "▒ ƃîñàŕý-ŕéàđöñļý ▒",
       "extensions": [
         ".mp4",
         ".mov",
@@ -2161,6 +2193,7 @@
     },
     "vtt": {
       "displayName": "▒ ŴéƃṼŢŢ ▒",
+      "family": "▒ šüƃţîţļé-ţîḿéđţéẋţ ▒",
       "extensions": [
         ".vtt"
       ],
@@ -2192,6 +2225,7 @@
     },
     "xcstrings": {
       "displayName": "▒ Àþþļé Šţŕîñĝ Çàţàļöĝ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".xcstrings"
       ],
@@ -2215,6 +2249,7 @@
     },
     "xliff": {
       "displayName": "▒ ẊĻÎƑƑ 1.2 ▒",
+      "family": "▒ ƃîļîñĝüàļ-îñţéŕçĥàñĝé ▒",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -2292,6 +2327,7 @@
     },
     "xliff2": {
       "displayName": "▒ ẊĻÎƑƑ 2.ẋ ▒",
+      "family": "▒ ƃîļîñĝüàļ-îñţéŕçĥàñĝé ▒",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -2346,6 +2382,7 @@
     },
     "xml": {
       "displayName": "▒ ẊḾĻ ▒",
+      "family": "▒ đàţà-çöñƒîĝ ▒",
       "extensions": [
         ".xml"
       ],
@@ -2422,6 +2459,7 @@
     },
     "yaml": {
       "displayName": "▒ ÝÀḾĻ ▒",
+      "family": "▒ çàţàļöĝ-ķéýṽàļüé ▒",
       "extensions": [
         ".yaml",
         ".yml"
