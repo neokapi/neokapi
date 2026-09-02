@@ -21,7 +21,8 @@
 //   • PDF / paged formats → one page per page layer (properties.page or a
 //     "page N" layer), else a single doc page.
 //   • Markdown / HTML → a rendered document page (heading/bullet roles honored).
-//   • JSON / PO / properties / XLIFF / resx / … → an entry list (key → text).
+//   • Catalog, bilingual and data-config formats → an entry list (key → text),
+//     decided by the format's family from the registry, not by a list here.
 //   • Generic fallback → the layer/group tree as titled sections of blocks.
 //
 // Each RenderLine/RenderCell carries the originating block's *source* runs plus
@@ -31,6 +32,7 @@
 
 import { otherBranch, projectRuns, type RunSpec } from "@neokapi/kapi-format";
 import { localeOfVariant } from "../../lib/text-direction";
+import { formatFamily } from "./formatFamily";
 import type { SpanInfo } from "../../types/span";
 import type { AnnotationView, ContentNode, ContentTree, OverlayView, Run } from "./types";
 
@@ -700,25 +702,27 @@ export const STRUCTURE_RULES: StructureRule[] = [
   },
 ];
 
-/** Formats whose blocks read best as a flowing document page rather than a list. */
-const DOC_FORMATS = new Set(["markdown", "md", "mdx", "html", "htm"]);
-/** Formats that are key→value catalogs / bilingual stores → an entry list. */
-const LIST_FORMATS = new Set([
-  "json",
-  "yaml",
-  "properties",
-  "po",
-  "xliff",
-  "xliff2",
-  "resx",
-  "arb",
-  "xcstrings",
-  "i18next",
-  "androidxml",
-  "applestrings",
-  "designtokens",
-  "csv",
-]);
+/**
+ * Whether a format's blocks read as a flowing document page or as an entry
+ * list, asked of the format registry rather than of a list kept here.
+ *
+ * The registry states the content shape of every format it knows
+ * (registry.FormatFamily, generated into @neokapi/reference-data), so a format
+ * added to the engine gets the right reading without a second declaration in
+ * the frontend. Marked-up text and word-processor documents flow; catalogs,
+ * bilingual stores and the structured-data carriers are entries.
+ */
+function readsAsDocument(format: string): boolean {
+  const family = formatFamily(format);
+  return family === "rich-markup" || family === "office-doc";
+}
+
+function readsAsEntryList(format: string): boolean {
+  const family = formatFamily(format);
+  return (
+    family === "catalog-keyvalue" || family === "bilingual-interchange" || family === "data-config"
+  );
+}
 
 // ── Public entry point ───────────────────────────────────────────────────────
 
@@ -748,12 +752,12 @@ export function treeToRenderDoc(
   // No structured shape matched — fall back by format family.
   const blocks = allBlocks(tree);
 
-  if (DOC_FORMATS.has(format)) {
+  if (readsAsDocument(format)) {
     const paragraphs = blocks.map((b, i) => lineFromBlock(b, docRole(b, i)));
     return withSource({ kind: "doc", format, locales, paragraphs });
   }
 
-  if (LIST_FORMATS.has(format)) {
+  if (readsAsEntryList(format)) {
     const lines = blocks.map((b) => {
       const l = lineFromBlock(b, "key");
       const k = entryKey(b);

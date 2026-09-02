@@ -40,9 +40,13 @@ export const DocxPage: Story = {
 export const Markdown: Story = {
   render: () => <FormatPreview tree={mdTree} className="max-w-lg" />,
 };
-export const JsonList: Story = {
-  name: "Entry list (json)",
+export const JsonKeys: Story = {
+  name: "Keyed table (json)",
   render: () => <FormatPreview tree={jsonTree} className="max-w-lg" />,
+};
+export const JsonList: Story = {
+  name: "Entry list (json, keyed off)",
+  render: () => <FormatPreview tree={jsonTree} keyed={false} className="max-w-lg" />,
 };
 export const PdfPages: Story = {
   name: "Paged (pdf)",

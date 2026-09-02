@@ -41,6 +41,21 @@ export function semanticLabel(span: SpanInfo): string {
   return getDefaultRegistry().chipLabel(span);
 }
 
+/**
+ * True when the vocabulary reads this span as a newline (`struct:break` and
+ * anything else whose text equivalent is "\n").
+ *
+ * A reading surface asks this because a break carries no literal text: shown as
+ * a chip beside the words it separates, two lines run together into one, which
+ * is how a review pane came to show "Première ligneDeuxième ligne". The answer
+ * comes from the vocabulary's own `equiv`, so a format whose reader names its
+ * break something else is covered the moment the vocabulary says what it reads
+ * as.
+ */
+export function isLineBreakCode(span: SpanInfo): boolean {
+  return getDefaultRegistry().textEquiv(span) === "\n";
+}
+
 /** Tooltip with semantic name and raw data: e.g. "Bold open: <b>" */
 export function semanticTooltip(span: SpanInfo): string {
   const registry = getDefaultRegistry();

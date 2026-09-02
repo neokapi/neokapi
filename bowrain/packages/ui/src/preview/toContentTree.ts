@@ -33,9 +33,10 @@ import type {
   TargetMeta,
 } from "@neokapi/ui-primitives/preview";
 import { rangeAnchorForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
+import { codedToRuns } from "@neokapi/ui-primitives";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
 import type { VoiceFinding } from "../voice/types";
-import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue } from "../types/api";
+import type { BlockInfo, BlockTermMatch, EntityInfo, CheckIssue, SpanInfo } from "../types/api";
 
 /**
  * A run-anchored voice or rule-based finding, as `core/check.Finding` serializes it —
@@ -96,28 +97,61 @@ export interface ContentTreeOptions extends BlockProjectionOptions {
 }
 
 /**
- * Inline-code placeholders in coded text are private-use characters standing in
- * for a span. Falling back to plain text they have nothing to stand for, so they
- * are dropped rather than rendered as tofu — a payload that carries typed runs
- * never reaches this path.
+ * A run sequence from coded text: the flattened `(codedText, spans)` form the
+ * cell renderers consume, read back through the same lossless bridge that
+ * produced it.
+ *
+ * Stripping the private-use markers instead is content loss with no error: a
+ * unit whose source is "First line<marker>Second line" reads as
+ * "First lineSecond line", which is how a review pane came to show
+ * "Première ligneDeuxième ligne". A target carries the source's spans, the way
+ * every other target renderer reads it (see GridTargetRenderer).
  */
-function plainText(text: string): string {
-  return text.replace(/[\uE001-\uE003]/g, "");
+function codedRuns(coded: string | undefined, spans: SpanInfo[] | undefined): Run[] | null {
+  if (!coded) return null;
+  const runs = codedToRuns(coded, spans ?? []) as Run[];
+  return runs.length > 0 ? runs : null;
 }
 
-/** The typed source runs, or the plain source as a single text run. */
+/**
+ * A private-use marker with no span to resolve it stands for content this
+ * payload cannot describe. It becomes a placeholder run carrying no type, so
+ * the preview draws a chip where the code was rather than closing the text over
+ * it.
+ */
+function markersToRuns(text: string): Run[] {
+  const out: Run[] = [];
+  let buffer = "";
+  for (const ch of text) {
+    if (ch >= "\uE001" && ch <= "\uE003") {
+      if (buffer) {
+        out.push({ text: buffer });
+        buffer = "";
+      }
+      out.push({ ph: { id: "", type: "" } } as Run);
+      continue;
+    }
+    buffer += ch;
+  }
+  if (buffer) out.push({ text: buffer });
+  return out;
+}
+
+/** The typed source runs, else the coded source, else its plain text. */
 function sourceRuns(block: BlockInfo): Run[] {
   if (block.source_runs && block.source_runs.length > 0) return block.source_runs;
-  const text = plainText(block.source ?? "");
-  return text ? [{ text }] : [];
+  const coded = codedRuns(block.source_coded, block.source_spans);
+  if (coded) return coded;
+  return markersToRuns(block.source ?? "");
 }
 
-/** The typed target runs for a locale, or its plain text as one text run. */
+/** The typed target runs for a locale, else its coded form, else its plain text. */
 function targetRuns(block: BlockInfo, locale: string): Run[] {
   const runs = block.targets_runs?.[locale];
   if (runs && runs.length > 0) return runs;
-  const text = plainText(getTargetText(block, locale));
-  return text ? [{ text }] : [];
+  const coded = codedRuns(block.targets_coded?.[locale], block.source_spans);
+  if (coded) return coded;
+  return markersToRuns(getTargetText(block, locale));
 }
 
 /** Every locale the block carries a target for, in payload order. */
@@ -278,6 +312,9 @@ export function blockToContentNode(block: BlockInfo, opts: BlockNodeOptions = {}
     translatable: block.translatable,
     source,
   };
+  // The reader's name for the block. For a catalog format it is the unit's key
+  // path, which is what the keyed preview groups and labels rows by.
+  if (block.name) node.name = block.name;
   if (parentId) node.parentId = parentId;
   if (sourceLocale) node.sourceLocale = sourceLocale;
   if (block.properties && Object.keys(block.properties).length > 0) {

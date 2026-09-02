@@ -2,7 +2,10 @@ import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
 import { DirectionalText, type TextDirection } from "../../lib/text-direction";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { semanticLabel, semanticTooltip, tagColors } from "../editor/tagSemantics";
+import { weaveInline } from "./inlineContent";
+import { useBlockElementProps, type BlockAttrs, type BlockElementProps } from "./blockElement";
+import DataPreview, { type DataCodeSource } from "./DataPreview";
+import { isKeyedFormat } from "./formatFamily";
 import type {
   InlineCode,
   RenderCell,
@@ -45,15 +48,7 @@ import styles from "./FormatPreview.module.css";
 /** Which side of each block to render. */
 export type PreviewSide = "source" | (string & {});
 
-/**
- * Host-supplied decoration for one block's element: a class name plus any
- * `data-*` markers. The kit knows nothing about what a host encodes there —
- * review status, a batch mark, a test hook — it only puts the attributes on the
- * element that carries the block, beside the `data-block-id` it always emits.
- */
-export type BlockAttrs = { className?: string } & {
-  [attr: `data-${string}`]: string | undefined;
-};
+export type { BlockAttrs };
 
 export interface FormatPreviewProps {
   /** The engine output to render. Provide one of `tree` or `doc`. */
@@ -98,6 +93,17 @@ export interface FormatPreviewProps {
   selectedBlockId?: string;
   /** Per-block class name and `data-*` markers (see BlockAttrs). */
   blockAttrs?: (id: string) => BlockAttrs | undefined;
+  /**
+   * The written-back file, for the keyed reading's code view. Supplied by a
+   * host that can produce one; absent, the keyed reading shows the table alone.
+   */
+  code?: DataCodeSource;
+  /**
+   * Force the keyed reading on or off. Absent, the format's family decides: a
+   * catalog-keyvalue document reads as a key table, everything else as a
+   * document.
+   */
+  keyed?: boolean;
   className?: string;
 }
 
@@ -152,60 +158,22 @@ function lineDirProps(line: RenderLine, ctx: PreviewCtx): { locale?: string; dir
 
 // ── Block element: identity, host decoration, selection ─────────────────────
 
-/** The attributes every block element carries, whatever structure renders it. */
-type BlockElProps = Record<string, unknown> & { className?: string };
-
 /**
  * `useBlockProps` gives one block's element its identity (`data-block-id`), the
- * host's decoration, and — when the host listens for selection — button
- * semantics: focusable, activated by click, Enter or Space, and marked
- * `aria-current` while selected.
- *
- * A click that ends a text selection is not a selection of the block: the
- * reader was highlighting a phrase (to mark a term, say), and stealing that
- * gesture would close the reading over it.
+ * host's decoration, and button semantics when the host listens for selection.
+ * The contract itself lives in ./blockElement, shared with the keyed table.
  */
-function useBlockProps(id: string, ownClass?: string): BlockElProps {
+function useBlockProps(id: string, ownClass?: string): BlockElementProps {
   const ctx = useCtx();
-  const { onSelectBlock } = ctx;
-  const decoration = ctx.blockAttrs?.(id);
-  const { className: hostClass, ...dataAttrs } = decoration ?? {};
-
-  const activate = React.useCallback(() => {
-    if (!onSelectBlock) return;
-    if (typeof window !== "undefined" && window.getSelection()?.isCollapsed === false) return;
-    onSelectBlock(id);
-  }, [onSelectBlock, id]);
-
-  const onKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      activate();
-    },
-    [activate],
-  );
-
-  const selected = ctx.selectedBlockId === id;
-  const base: BlockElProps = {
-    ...dataAttrs,
-    "data-block-id": id,
-    className: cn(
-      ownClass,
-      onSelectBlock && styles.selectable,
-      selected && styles.selected,
-      hostClass,
-    ),
-  };
-  if (!onSelectBlock) return base;
-  return {
-    ...base,
-    role: "button",
-    tabIndex: 0,
-    "aria-current": selected ? "true" : undefined,
-    onClick: activate,
-    onKeyDown,
-  };
+  return useBlockElementProps({
+    id,
+    attrs: ctx.blockAttrs?.(id),
+    selected: ctx.selectedBlockId === id,
+    ...(ctx.onSelectBlock ? { onSelect: ctx.onSelectBlock } : {}),
+    ...(ownClass ? { className: ownClass } : {}),
+    selectableClass: styles.selectable,
+    selectedClass: styles.selected,
+  });
 }
 
 // ── before-model lookup (word diff) ──────────────────────────────────────────
@@ -461,65 +429,12 @@ function inlineNodes(
   limit: number,
   prev: string | undefined,
 ): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  let ci = 0;
-  let pos = 0;
-
-  const emitCodesAt = (offset: number) => {
-    while (ci < codes.length && codes[ci].offset <= offset) {
-      nodes.push(<InlineCodeChip key={`c${ci}`} code={codes[ci]} />);
-      ci++;
-    }
-  };
-  const emitText = (seg: TextSegment, text: string) => {
-    if (!text) return;
-    const key = `t${nodes.length}`;
-    nodes.push(
-      seg.overlay ? (
-        <OverlayMark key={key} segment={{ text, overlay: seg.overlay }} />
-      ) : (
-        <DiffText key={key} text={text} prev={prev} />
-      ),
-    );
-  };
-
-  for (const seg of segments) {
-    const start = pos;
-    const end = pos + seg.text.length;
-    let cursor = start;
-    while (ci < codes.length && codes[ci].offset < end) {
-      const at = Math.max(codes[ci].offset, start);
-      emitText(seg, seg.text.slice(cursor - start, at - start));
-      cursor = at;
-      emitCodesAt(at);
-    }
-    emitText(seg, seg.text.slice(cursor - start));
-    pos = end;
-  }
-  // Codes trailing the last character (e.g. a closing tag at the end of a line).
-  emitCodesAt(limit);
-  return nodes;
-}
-
-/**
- * One inline code as a chip: the vocabulary's short label in its type color,
- * with the original markup on the tooltip. Deliberately the same pill the
- * editor's cell renderers draw, so a placeholder reads identically wherever it
- * is shown — a source that quietly lost its `{{name}}` reads as a translation
- * that invented one.
- */
-function InlineCodeChip({ code }: { code: InlineCode }): React.ReactElement {
-  const colors = tagColors(code.span);
-  return (
-    <span
-      className={styles.inlineCode}
-      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-      title={semanticTooltip(code.span)}
-      data-inline-code={code.span.span_type}
-      dir="ltr"
-    >
-      {semanticLabel(code.span)}
-    </span>
+  return weaveInline(segments, codes, limit, (seg, text, key) =>
+    seg.overlay ? (
+      <OverlayMark key={key} segment={{ text, overlay: seg.overlay }} />
+    ) : (
+      <DiffText key={key} text={text} prev={prev} />
+    ),
   );
 }
 
@@ -847,6 +762,8 @@ export default function FormatPreview({
   onSelectBlock,
   selectedBlockId,
   blockAttrs,
+  code,
+  keyed,
   className,
 }: FormatPreviewProps): React.ReactElement {
   const model = useMemo<RenderDoc>(() => {
@@ -910,12 +827,28 @@ export default function FormatPreview({
     ],
   );
 
+  // A catalog-keyvalue document reads as a key table: its units are addressed
+  // by a key path, and a column of strings with no keys beside them is what a
+  // reviewer cannot navigate. The reading follows the format's family from the
+  // registry, so a host routes nothing itself; `keyed` overrides it either way.
+  const readsAsKeys = keyed ?? (!doc && !!tree && isKeyedFormat(tree.format));
+
   return (
     <TooltipProvider delayDuration={150}>
       <Ctx.Provider value={ctx}>
         <div className={cn("kapi-reference", styles.root, flush && styles.flush, className)}>
           {needsMarker && <RedactMarkerFilter />}
-          {useProjection && tree?.render ? (
+          {readsAsKeys && tree ? (
+            <DataPreview
+              tree={tree}
+              {...(side !== "source" ? { locale: side } : {})}
+              {...(model.sourceLocale ? { sourceLocale: model.sourceLocale } : {})}
+              {...(onSelectBlock ? { onSelectBlock } : {})}
+              {...(selectedBlockId ? { selectedBlockId } : {})}
+              {...(blockAttrs ? { blockAttrs } : {})}
+              {...(code ? { code } : {})}
+            />
+          ) : useProjection && tree?.render ? (
             <RenderedDocument node={tree.render} locale={model.sourceLocale} />
           ) : (
             <PreviewBody doc={model} gridHeaders={gridHeaders} />

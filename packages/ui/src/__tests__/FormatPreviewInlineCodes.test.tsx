@@ -96,7 +96,10 @@ describe("FormatPreview — inline codes", () => {
   });
 
   it("renders the target's placeholder too, so the two sides read alike", () => {
-    const c = render(createElement(FormatPreview, { tree, side: "nb" }));
+    // The document reading shows one side at a time, so a target reading of a
+    // catalog file carries the target's codes alone. (The keyed reading shows
+    // both sides at once and therefore both sets of codes; see KeyedTable.)
+    const c = render(createElement(FormatPreview, { tree, side: "nb", keyed: false }));
 
     expect(chips(c)).toEqual(["var"]);
     expect(c.textContent).toContain("Kredittene tilbakestilles ");

@@ -811,6 +811,13 @@ export interface BlockInfo {
    * the stored blocks themselves, where the two ids are already the same.
    */
   source_id?: string;
+  /**
+   * The name the format reader gave this block. For a catalog format it is the
+   * unit's key path ("errors.network.timeout" for JSON and YAML, the entry key
+   * for properties), which is what the keyed preview shows beside the value.
+   * Prose formats leave it empty.
+   */
+  name?: string;
   source: string;
   /** RFC 0001 typed source runs — the server's inline-code representation. */
   source_runs?: Run[];
