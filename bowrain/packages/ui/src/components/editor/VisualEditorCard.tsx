@@ -27,7 +27,7 @@ import {
   type UnifiedSaveResult,
   type UnifiedTargetEditorHandle,
 } from "../UnifiedTargetEditor";
-import { HighlightedSource } from "./HighlightedSource";
+import { MarkedSource } from "./MarkedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { ContextPanel } from "./ContextPanel";
@@ -329,7 +329,7 @@ export function VisualEditorCard({
             className="text-sm leading-relaxed"
           >
             {termMatches.length > 0 || (block.entities && block.entities.length > 0) ? (
-              <HighlightedSource
+              <MarkedSource
                 text={block.source}
                 termMatches={termMatches}
                 entities={block.entities}

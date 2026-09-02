@@ -397,8 +397,8 @@ export {
 } from "./components/skeletons";
 
 // Editor components
-export { HighlightedSource } from "./components/editor/HighlightedSource";
-export { entityLabel } from "./components/editor/HighlightedSource";
+export { MarkedSource } from "./components/editor/MarkedSource";
+export { entityLabel } from "./components/editor/entityMarks";
 export { EntityPopover } from "./components/editor/EntityPopover";
 export { EntityMarkPopover } from "./components/editor/EntityMarkPopover";
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";

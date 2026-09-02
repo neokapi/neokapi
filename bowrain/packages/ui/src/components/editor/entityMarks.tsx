@@ -30,6 +30,12 @@ const entityColors: Record<string, { bg: string; border: string }> = {
   "entity:product": { bg: "var(--entity-product-bg)", border: "var(--entity-product-border)" },
 };
 
+/** A short human label for an entity type: "entity:organization" reads "Organization". */
+export function entityLabel(entityType: string): string {
+  const suffix = entityType.replace("entity:", "");
+  return suffix.charAt(0).toUpperCase() + suffix.slice(1);
+}
+
 /** The color pair for an entity type, falling back to the neutral accent. */
 export function entityTypeColors(entityType: string): { bg: string; border: string } {
   return (

@@ -63,7 +63,7 @@ This is in-*Bowrain*-editor, not in-native-editor, but it is the platform's embe
 **Shared UI** — `bowrain/packages/ui/src/components/`:
 - `TranslationEditor.tsx` (grid editor; mounts `editor/TableView` at :745), `UnifiedTargetEditor.tsx`, `ReviewSurface.tsx`, `PreProcessSurface.tsx`; `editor/EditorSurfaceTabs.tsx` switches the three per-file surfaces "Pre-process · Translate · Review" (one strip drives **both** web and desktop, per its doc comment).
 - `editor/DocumentPreview.tsx` — sandboxed iframe of the server-rendered preview; postMessage protocol (`kat-iframe-ready`, block-click selection at :137-, `kat-select-block`/scroll/`kat-update-block` live updates) so editing in the side panel updates the rendered document in place.
-- `editor/VisualEditorCard.tsx` + `GridTargetRenderer/HighlightedSource/TermSidebar/ProblemsPanel/EntityPopover/TermCreationPopover` — block-level editing with content-memory matches, term hits, QA, history.
+- `editor/VisualEditorCard.tsx` + `GridTargetRenderer/MarkedSource/TermSidebar/ProblemsPanel/EntityPopover/TermCreationPopover` — block-level editing with content-memory matches, term hits, QA, history.
 - Note: this editor still authors **coded-text** bridged via `codedToRuns.ts` (`DocumentPreview.tsx:12-50` works on `source_coded` + 0xE001-0xE003 span markers) — tracked in #695.
 
 **Hosts**: web `bowrain/apps/web/src/routes/workspace/translate.tsx:54` mounts `TranslationEditor`; desktop `bowrain/apps/bowrain/frontend/src/components/DesktopTranslateView.tsx:2,86` mounts the same plus `useCollaboration` + `PresenceAvatars`. Desktop backend mirror: `bowrain/apps/bowrain/backend/preview.go` (`RenderDocumentPreview` from stored `PreviewHTML`/`BlockIndex` via `editor.BuildPreviewFromBlockIndex`).

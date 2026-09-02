@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { entityLabel } from "./HighlightedSource";
+import { entityLabel } from "./entityMarks";
 
 const entityTypes = [
   "entity:person",

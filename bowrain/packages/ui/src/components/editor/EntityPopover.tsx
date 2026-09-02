@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { EntityInfo } from "../../types/api";
-import { entityLabel } from "./HighlightedSource";
+import { entityLabel } from "./entityMarks";
 
 const entityTypes = [
   "entity:person",

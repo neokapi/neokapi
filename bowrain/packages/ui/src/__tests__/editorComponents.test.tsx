@@ -41,15 +41,15 @@ function entity(overrides: Partial<EntityInfo> = {}): EntityInfo {
 }
 
 // ---------------------------------------------------------------------------
-// HighlightedSource
+// MarkedSource
 // ---------------------------------------------------------------------------
 
-describe("HighlightedSource", () => {
+describe("MarkedSource", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/HighlightedSource").HighlightedSource>[0],
+    props: Parameters<typeof import("../components/editor/MarkedSource").MarkedSource>[0],
   ) {
-    const { HighlightedSource } = await import("../components/editor/HighlightedSource");
-    return render(<HighlightedSource {...props} />);
+    const { MarkedSource } = await import("../components/editor/MarkedSource");
+    return render(<MarkedSource {...props} />);
   }
 
   it("renders plain text when no matches", async () => {
@@ -97,6 +97,34 @@ describe("HighlightedSource", () => {
     const entitySpan = container.querySelector("[title]");
     expect(entitySpan).not.toBeNull();
     expect(entitySpan!.getAttribute("title")).toContain("Organization");
+  });
+
+  // Offsets arrive as UTF-8 byte offsets, so a non-ASCII character ahead of the
+  // mark shifts every string index past it. "Café " is six bytes and five
+  // characters.
+  it("locates a term reported in byte offsets after a non-ASCII character", async () => {
+    const { container } = await renderComponent({
+      text: "Café hello friend",
+      termMatches: [termMatch({ source_term: "hello", start: 6, end: 11 })],
+    });
+    const highlighted = container.querySelector(".underline.decoration-dotted");
+    expect(highlighted).not.toBeNull();
+    expect(highlighted!.textContent).toBe("hello");
+  });
+
+  // The kit's flattener cuts on overlap with the innermost mark winning, so a
+  // term inside an entity is drawn rather than dropped.
+  it("draws a term nested inside an entity", async () => {
+    const { container } = await renderComponent({
+      text: "Visit Acme Corp today",
+      termMatches: [termMatch({ source_term: "Corp", start: 11, end: 15 })],
+      entities: [entity({ text: "Acme Corp", type: "entity:organization", start: 6, end: 15 })],
+    });
+    const highlighted = container.querySelector(".underline.decoration-dotted");
+    expect(highlighted).not.toBeNull();
+    expect(highlighted!.textContent).toBe("Corp");
+    expect(container.querySelector("[data-entity-key='e1']")).not.toBeNull();
+    expect(container.textContent).toBe("Visit Acme Corp today");
   });
 });
 
