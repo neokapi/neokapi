@@ -133,14 +133,6 @@ type BlockStore interface {
 	ListPendingReview(ctx context.Context, query PendingReviewQuery) ([]PendingReviewRef, int, error)
 	DeleteBlock(ctx context.Context, projectID, stream, blockID string) error
 
-	// ClearBlockTargets removes ALL committed target translations for a block,
-	// leaving the block (and its source + source-side overlays) in place. It is the
-	// "invalidate every locale" primitive behind a back-to-source change: once a
-	// block's source is rewritten, its translations are stale, so clearing them
-	// drops the block back to untranslated and the next convergence pass re-drafts
-	// every locale (the worker skips a block that still carries a target).
-	ClearBlockTargets(ctx context.Context, projectID, stream, blockID string) error
-
 	AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error
 	ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error)
 	DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error

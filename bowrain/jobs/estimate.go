@@ -21,11 +21,11 @@ import (
 // not a separate guess.
 
 // EstimateLocaleWork is the estimated work for one target locale over the
-// READY source: pending units (no target yet), the content memory-recyclable subset, the
+// READY source: pending units (owed a draft), the content memory-recyclable subset, the
 // remaining paid-AI subset, and a rough input-token estimate for that AI work.
 type EstimateLocaleWork struct {
 	Locale        string `json:"locale"`
-	Pending       int    `json:"pending"`        // translatable ready-source blocks with no target
+	Pending       int    `json:"pending"`        // translatable ready-source blocks the locale still owes a draft
 	ViaMemory     int    `json:"via_tm"`         // pending blocks a content memory recycle would fill (free)
 	ViaAI         int    `json:"via_ai"`         // pending blocks left for paid AI
 	TokenEstimate int    `json:"token_estimate"` // ~input tokens for the AI remainder (chars/4)
@@ -87,6 +87,11 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		return est, err
 	}
 
+	// The stream's recorded bases, read once for every locale. The pending
+	// predicate is the run's own (decisionLedger.needsDraft), so a stale unit is
+	// priced here exactly because the run will re-draft it.
+	ledger := loadDecisionLedger(ctx, cs, proj.ID, "main")
+
 	// Partition source blocks by the gate. A disabled gate (none) admits every
 	// block, so Ready == Total and nothing is held — the estimate then covers the
 	// whole corpus, matching the run's raw-MT behavior.
@@ -114,10 +119,11 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		target := loc
 		work := EstimateLocaleWork{Locale: string(loc)}
 
-		// Pending = ready blocks with no target for this locale.
+		// Pending = ready blocks the locale still owes a draft: no target, or one
+		// whose recorded basis names source wording the block no longer holds.
 		var pending []*venue.StoredBlock
 		for _, sb := range ready {
-			if hasLocaleTarget(sb.Block, target) {
+			if !ledger.needsDraft(sb, target) {
 				continue
 			}
 			pending = append(pending, sb)
@@ -131,7 +137,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		// A nil content memory (or an error) means no leverage — everything reads as AI work.
 		remainder := pending
 		if tm != nil {
-			if res, rerr := recycleBlocks(ctx, tm, pending, source, target, minScore); rerr == nil {
+			if res, rerr := recycleBlocks(ctx, tm, pending, source, target, minScore, ledger); rerr == nil {
 				work.ViaMemory = res.memoryCount
 				remainder = filterStoredByRemainder(pending, res.remainder)
 			}

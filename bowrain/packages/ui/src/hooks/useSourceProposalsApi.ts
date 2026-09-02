@@ -49,8 +49,8 @@ export function useDecideSourceProposal(projectId: string) {
       api.decideSourceProposal(projectId, v.proposalId, v.decision, v.reason),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: proposalsKey(ws, projectId) });
-      // Approving a source change clears targets + re-drafts, so the review
-      // session's blocks change — refresh it.
+      // Approving a source change rewrites the source and demotes every
+      // locale's translation, so the review session's blocks change. Refresh it.
       void qc.invalidateQueries({ queryKey: ["review-session"] });
     },
   });

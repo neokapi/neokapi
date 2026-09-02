@@ -620,13 +620,35 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// enforcement that also protects the direct auto-translate path.
 	storedBlocks = gateBlocksBySource(storedBlocks, store.SourceGateFor(proj))
 
+	srcLocale := proj.DefaultSourceLanguage
+	tgtLocale := model.LocaleID(job.TargetLocale)
+
+	// The stream's recorded bases, read once for the job. They decide which blocks
+	// this locale still owes a draft (decisionLedger.needsDraft) and which units
+	// this job may record a basis for once it has written one.
+	//
+	// The filter sits here rather than inside the recycle pass because it holds
+	// whether or not the project has a content memory: a job with no corpus to
+	// recycle from still pays only for the units that are genuinely owed work.
+	ledger := loadDecisionLedger(ctx, deps.ContentStore, job.ProjectID, jobStream)
+	unitByBlockID := make(map[string]*venue.StoredBlock, len(storedBlocks))
+	owed := make([]*venue.StoredBlock, 0, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		if sb == nil || sb.Block == nil {
+			continue
+		}
+		if !ledger.needsDraft(sb, tgtLocale) {
+			continue
+		}
+		unitByBlockID[sb.Block.ID] = sb
+		owed = append(owed, sb)
+	}
+	storedBlocks = owed
+
 	totalBlocks := len(storedBlocks)
 	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
 	}
-
-	srcLocale := proj.DefaultSourceLanguage
-	tgtLocale := model.LocaleID(job.TargetLocale)
 
 	// Lazily resolve the standing voice profile once for draft scoring
 	// (persistDraftVoiceScores) — resolved only when a draft actually persists,
@@ -649,7 +671,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	memoryFilled := 0
 	tm := resolveJobMemory(deps, job)
 	if tm != nil {
-		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectMemoryMinScore(proj))
+		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectMemoryMinScore(proj), ledger)
 		if rerr != nil {
 			// A content memory failure must never block the paid translation path — fall
 			// back to translating everything, exactly as before.
@@ -660,6 +682,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, res.filled); err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
+				recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, res.filled, tgtLocale)
 				emitLog(deps, job.StepID, "info",
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
 					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
@@ -808,13 +831,19 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		// Deduct billing credits and report to Stripe Meters — but only for the
 		// platform-held key (resolved.Source, the shared hybrid-AI gate from
 		// resolveProvider). A workspace bring-your-own key still recorded usage
-		// above (the ai_usage abuse cap) but burns NO credits (Epic 004). The
-		// per-chunk reference id ("<jobID>:<chunkOffset>") is deterministic and
-		// unique per deduction, so the Stripe meter idempotency key neither
-		// collides across chunks nor double-reports on a retried chunk.
+		// above (the ai_usage abuse cap) but burns NO credits (Epic 004).
+		//
+		// The reference id names the WORK, not its position: "<jobID>:<first
+		// block id of the chunk>". A retried attempt covers whatever the job
+		// still owes, so the chunk at offset 0 the second time is a different
+		// set of blocks from the chunk at offset 0 the first time; keying on
+		// the offset made the Stripe meter's idempotency suppress a real
+		// deduction and the job cost less than the work it did. Keyed on the
+		// block, a chunk that is genuinely redone still dedupes and one that is
+		// not still bills.
 		if deps.BillingHooks != nil && job.WorkspaceID != "" && resolved.Source == ProviderSourcePlatform {
 			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, chunkTokens, "ai_translation",
-				fmt.Sprintf("%s:%d", job.ID, i))
+				chunkBillingRef(job.ID, chunk, i))
 		}
 
 		// Store this chunk's translations before its progress is recorded, so
@@ -829,6 +858,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, blocks); err != nil {
 				return fmt.Errorf("store blocks: %w", err)
 			}
+			// The source each draft was translated from, so the next pass can
+			// tell a translation of the current wording from one left over from
+			// wording that has since been rewritten.
+			recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, blocks, tgtLocale)
 			// Score the AI drafts against the standing voice profile (deterministic
 			// vocabulary check, zero AI) so the dashboard's compliance rate is
 			// voice-informed for every drafted block.
@@ -1112,6 +1145,16 @@ func storedBlocksToParts(storedBlocks []*venue.StoredBlock) []*model.Part {
 		})
 	}
 	return parts
+}
+
+// chunkBillingRef is the deduction's idempotency key: the job and the first
+// block the chunk covers. offset is the fallback for a chunk whose first block
+// carries no id, which no store-backed run produces.
+func chunkBillingRef(jobID string, chunk []*venue.StoredBlock, offset int) string {
+	if len(chunk) > 0 && chunk[0] != nil && chunk[0].Block != nil && chunk[0].Block.ID != "" {
+		return jobID + ":" + chunk[0].Block.ID
+	}
+	return fmt.Sprintf("%s:%d", jobID, offset)
 }
 
 // partsToBlocks extracts model.Block objects from parts (same as editor.go).

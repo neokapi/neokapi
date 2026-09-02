@@ -1319,19 +1319,6 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 	return tx.Commit()
 }
 
-// ClearBlockTargets deletes every committed translation for a block (all
-// locales/variants), leaving the block and its source intact.
-func (s *SQLiteStore) ClearBlockTargets(ctx context.Context, projectID, stream, blockID string) error {
-	stream = storeutil.DefaultStream(stream)
-	_, err := s.db.ExecContext(ctx,
-		`DELETE FROM translations WHERE project_id=? AND stream=? AND block_id=?`,
-		projectID, stream, blockID)
-	if err != nil {
-		return fmt.Errorf("clear block targets: %w", err)
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Version management
 // ---------------------------------------------------------------------------

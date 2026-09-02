@@ -23,22 +23,24 @@ import (
 // permissions.
 //
 // The re-draft fan-out is the crux. On approve, applySourceProposal writes the
-// new source and CLEARS the block's targets for every locale, then starts a
-// convergence run. Clearing the targets (not merely demoting their status) is
-// what forces the re-draft: the translation worker skips any block that still
-// carries a non-empty target (memory_recycle.hasLocaleTarget), so a
-// demoted-but-kept target would never be regenerated.
+// new source and KEEPS every locale's translation. The write itself demotes
+// them: a block whose source content hash moves re-derives each target's
+// projection against the decision ledger inside storeBlocks
+// (store.settleDecisionProjectionsPg), so an approval made for the old wording
+// drops to the presence baseline and files a decision.stale event.
 //
-// The local loop keeps the previous translation on disk instead: it records the
+// The translation stays because it is worth something. It is what the content
+// memory recycles from and what a reviewer compares the new draft against, and
+// the producers can now tell it apart from a current one: the ledger records the
+// source each target was written for (unit_decisions.content_hash), and the
+// recycle pass and the estimate both partition on that basis
+// (jobs.decisionLedger.needsDraft) rather than on whether a target exists. The
+// tally grades the same field (store.TallyDecisionBasis).
+//
+// This is the local loop's shape, arrived at by the same route: it records the
 // source each target was translated from (host/basisrecord.go), reads the
 // rewrite as drift against that basis, and re-drafts the unit with the old
-// wording still there for the corpus to recycle and a reviewer to compare
-// against. The ledger here carries the same basis (unit_decisions.content_hash),
-// storeBlocks re-derives each target's projection when a block's source moves
-// (store.settleDecisionProjectionsPg), and the tally grades it
-// (store.TallyDecisionBasis); the recycle job and the estimate read none of it,
-// because hasLocaleTarget asks only whether a target exists. Clearing stays
-// until that predicate reads the basis (#2325).
+// wording still on disk.
 
 // CreateSourceProposalRequest proposes a change to a block's source. Sent from
 // the review session by any reviewer.
@@ -218,18 +220,20 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 	})
 }
 
-// applySourceProposal writes the approved source change to the block and forces a
-// re-draft of every locale. It reports whether a convergence run was started (the
-// nudge that makes the fan-out happen without a second user action).
+// applySourceProposal writes the approved source change to the block and queues
+// every locale for a re-draft. It reports whether a convergence run was started
+// (the nudge that makes the fan-out happen without a second user action).
 //
-// Why CLEAR the targets rather than demote them: the translation worker skips any
-// block that still carries a non-empty target for a locale (memory_recycle
-// hasLocaleTarget), so a target kept at draft would never be regenerated. Clearing
-// the targets removes them from every locale's coverage, the locale re-enters the
-// pending set, and the next convergence pass re-drafts the block from the new
-// source. Demoting instead is what the local loop does, and it costs the previous
-// translation less; it waits on the producer learning to read the basis the ledger
-// already carries (see the note at the top of this file, and #2325).
+// The targets stay where they are. Writing the new source moves the block's
+// content hash, and that write re-derives each target's projection against the
+// decision ledger (store.settleDecisionProjectionsPg): an approval made for the
+// old wording drops to the presence baseline, and the recorded basis now names
+// wording the block no longer holds. The recycle pass reads exactly that and
+// re-drafts the unit with the previous translation still in place for the
+// content memory to recycle from and a reviewer to compare against.
+//
+// A target the ledger has no record of stays untouched and is not re-drafted:
+// the platform did not write it and has nothing to say about what it translates.
 func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSourceChange, actor string) (bool, error) {
 	stream := p.Stream
 	if stream == "" {
@@ -247,18 +251,11 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 	// The source changed, so its authoring status must be re-settled — reset it to
 	// the New baseline so the next run's source-first phase re-checks it.
 	block.SourceStatus = model.SourceStatusNew
-	// Drop the (now-stale) targets from the in-memory block so the write below does
-	// not re-persist them, then persist the new source.
-	block.Targets = map[model.VariantKey]*model.Target{}
+	// Persist the new source with the translations intact. The content hash moves,
+	// which is what makes storeBlocks re-derive every target's projection against
+	// the ledger, and what makes each target's recorded basis name wording the
+	// block no longer holds.
 	if err := s.ContentStore.StoreBlocks(ctx, p.ProjectID, stream, []*model.Block{block}); err != nil {
-		return false, err
-	}
-	// Invalidate every locale: the store's target write is upsert-only, so removing
-	// targets from the block above does not delete their rows — clear them
-	// explicitly. Now the block carries no target for any locale and the next
-	// convergence pass re-drafts them all (the worker skips a block that still has a
-	// target). This is the server analog of the CLI source-drift path.
-	if err := s.ContentStore.ClearBlockTargets(ctx, p.ProjectID, stream, block.ID); err != nil {
 		return false, err
 	}
 
@@ -278,7 +275,7 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 		}
 	}
 
-	// Nudge: start a convergence run so the cleared targets are re-drafted straight
+	// Nudge: start a convergence run so the demoted targets are re-drafted straight
 	// away. The run outlives this request, so a fresh background context is correct
 	// (matching the review-completion run start). It is a no-op for a project with
 	// no convergence wired.
@@ -286,9 +283,9 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 		return false, nil
 	}
 	if _, _, rerr := s.convergence.StartRun(context.WithoutCancel(ctx), p.ProjectID, "", "source-change", nil); rerr != nil {
-		// The source change already persisted; a failed run start is not fatal —
-		// the next converge pass (manual or on-push) still picks up the cleared
-		// targets. Log via the caller's response, not a hard failure.
+		// The source change already persisted; a failed run start is not fatal.
+		// The next converge pass (manual or on-push) reads the same stale basis
+		// and re-drafts. Log via the caller's response, not a hard failure.
 		return false, nil
 	}
 	return true, nil
@@ -301,7 +298,7 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 // the proposal id so the decision path can close the task.
 //
 // The reviewers whose approvals the change would undo are told too. Approving
-// this proposal clears the block's targets for every locale, so their finished
+// this proposal demotes the block's targets in every locale, so their finished
 // work is reopened by a decision they are not party to; hearing about it is the
 // least the summons owes them.
 func (s *Server) createSourceProposalTask(ctx context.Context, proj *platstore.Project, p *bstore.ProposedSourceChange) {
