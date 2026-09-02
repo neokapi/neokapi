@@ -55,7 +55,7 @@ func TestAISetupWizardSelectsDetectedClaudeCode(t *testing.T) {
 	assert.Equal(t, []string{"claude-code/sonnet"}, *checks)
 
 	text := out.String()
-	assert.Contains(t, text, "✓ Claude Code detected — uses your Claude subscription")
+	assert.Contains(t, text, "✓ Claude Code detected: uses your Claude subscription")
 	assert.Contains(t, text, "✓ kapi will translate with Claude Code (sonnet). Try: kapi up")
 
 	// The in-memory config mirrors the choice so the current run continues.

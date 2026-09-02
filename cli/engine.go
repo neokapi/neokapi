@@ -27,12 +27,12 @@ core/proto/engine/v1) on a local Unix socket, so any gRPC-capable language
 can extract documents into the canonical content model, process the part
 stream through tools or flows, and merge it back to document bytes.
 
-On startup the command prints a one-line JSON handshake on stdout —
-{"socket": "<path>", "version": "<kapi version>", "pid": <pid>} — mirroring
+On startup the command prints a one-line JSON handshake on stdout,
+{"socket": "<path>", "version": "<kapi version>", "pid": <pid>}, mirroring
 the plugin daemon convention, then serves until interrupted.
 
 With --stdio the server instead serves exactly ONE gRPC connection over
-stdin/stdout — spawn-per-session callers (an editor extension, a language
+stdin/stdout, so spawn-per-session callers (an editor extension, a language
 SDK that execs kapi) skip socket management entirely. In this mode stdout
 carries nothing but the gRPC byte stream: the handshake and all logging go
 to stderr, and the server exits cleanly when stdin reaches EOF. --stdio and

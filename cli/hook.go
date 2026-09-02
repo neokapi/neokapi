@@ -18,11 +18,11 @@ on stdout. These are wired up by the assistant's plugin, not run by hand.
 
 The decision protocol every kapi hook follows:
 
-  - a decision is JSON on stdout, and the exit code stays 0 — the assistant
-    reads a non-zero exit as a broken hook, not as a denial;
+  - a decision is JSON on stdout, and the exit code stays 0, because the assistant
+    reads a non-zero exit as a broken hook rather than as a denial;
   - a denial names the hook and carries a reason the assistant can act on;
-  - when the guard could not run at all — an unreadable or malformed payload, a
-    session directory that cannot be entered, a project that will not load — the
+  - when the guard could not run at all (an unreadable or malformed payload, a
+    session directory that cannot be entered, a project that will not load) the
     hook allows the operation and emits {"systemMessage":"…"} on stdout plus the
     same warning on stderr, naming the hook. kapi hooks fail open, but an
     unheard hook is never silent: a guard that never ran must not look like a
@@ -51,11 +51,11 @@ verify gates for the project in the session's working directory, and:
   - emits {"decision":"block","reason":"…findings…"} (exit 0) when a gate
     fails, so Claude keeps working and fixes the findings before stopping;
   - emits nothing (exit 0) when the project passes, or when there is no .kapi
-    project to gate — Claude is free to finish; or
+    project to gate, so Claude is free to finish; or
   - emits {"systemMessage":"…"} (exit 0), and the same warning on stderr, when
     the gates could not be evaluated at all: an unreadable, empty, or malformed
     payload, a session directory it cannot enter, or a project whose gates
-    error. Claude is still free to finish — but the run is on record as
+    error. Claude is still free to finish, and the run is on record as
     un-gated rather than passing.
 
 Wire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:
@@ -93,8 +93,8 @@ working directory, and:
     the guard could not run at all: an unreadable, empty, or malformed payload,
     a session directory it cannot enter, or a project that will not load (for
     example because it requires a plugin that is not installed). The edit
-    proceeds — no decision is carried, so the normal permission flow is
-    untouched — but the bypass is on record instead of invisible.
+    proceeds with no decision carried, so the normal permission flow is
+    untouched, and the bypass is on record instead of invisible.
 
 Wire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of
 Edit|Write|MultiEdit. It fails open: anything other than a confirmed target

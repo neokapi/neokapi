@@ -27,8 +27,8 @@ The default surface is deliberately small: retrieving the project's context,
 checking content against it, writing edits back, and running the loop. That is
 what an assistant needs to work inside this project's context.
 
-Everything else the tool registry can do is still reachable — pipeline steps,
-format internals, one-off transforms — but as an explicit opt-in, because a
+Everything else the tool registry can do is still reachable (pipeline steps,
+format internals, one-off transforms) as an explicit opt-in, because a
 surface nobody chose is how it grew to fifty-one tools.
 
   --all-tools   every CLI-visible registry tool

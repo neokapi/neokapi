@@ -194,12 +194,12 @@ func newVoiceRewriteCmd(a *App) *cobra.Command {
 		Short: "Substitute forbidden/competitor terms for their approved wording (offline)",
 		Long: `Rewrite content against a voice profile by substituting forbidden and
 competitor terms with their approved replacements. This is the deterministic,
-offline path — it changes only the terms the profile defines and reports each
+offline path: it changes only the terms the profile defines and reports each
 change; it does not call a model.
 
 Text is read from --input-text or stdin and the rewrite is printed. To fix tone,
 style, or phrasing in voice, rewrite the text yourself with the voice guide as
-context ('kapi voice guide') and apply the edit through 'kapi apply' — kapi does
+context ('kapi voice guide') and apply the edit through 'kapi apply'. kapi does
 not send content to a model to rewrite it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
@@ -342,13 +342,13 @@ then ` + "`kapi voice import`" + ` it.`,
 				if err != nil {
 					return fmt.Errorf("marshal pack %q: %w", pack, err)
 				}
-				data = append([]byte("# Seeded from the "+pack+" starter pack — edit to taste, then `kapi voice import`.\n"), b...)
+				data = append([]byte("# Seeded from the "+pack+" starter pack. Edit to taste, then `kapi voice import`.\n"), b...)
 			}
 			if out != "" {
 				if err := os.WriteFile(out, data, 0o644); err != nil {
 					return fmt.Errorf("write %s: %w", out, err)
 				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %s — fill it in, then: kapi voice import %s\n", out, out)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %s. Fill it in, then: kapi voice import %s\n", out, out)
 				return nil
 			}
 			_, err := cmd.OutOrStdout().Write(data)

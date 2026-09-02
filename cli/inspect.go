@@ -31,8 +31,8 @@ func NewInspectCmd(a *App) *cobra.Command {
 		GroupID: "advanced",
 		Long: `Parse each file into one record per content block: the text, a stable
 content-hash anchor, and the block's structural role (heading, list-item,
-table-cell, …) and nesting level. Any format — a Word document, a JSON catalog,
-Markdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read
+table-cell, …) and nesting level. Any format, whether a Word document, a JSON catalog,
+Markdown or HTML, yields the same shape, so an AI agent or RAG pipeline can read
 content, retrieve against the anchors, and write edits back to the same blocks.
 
 Prints a JSON array by default; --output-format yaml emits a YAML sequence, and

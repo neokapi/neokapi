@@ -10,20 +10,20 @@ import "github.com/spf13/cobra"
 func NewStatsCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "stats [files...]",
-		Short:   "Summarize content metrics for files — blocks, words, characters, segments, by role",
+		Short:   "Summarize content metrics for files: blocks, words, characters, segments, by role",
 		GroupID: "advanced",
 		Args:    cobra.ArbitraryArgs,
 		Long: `Summarize the content of one or more files: total and translatable blocks,
 word and character counts (with and without spaces), segments, and a breakdown
-by structural role (heading, paragraph, list-item, table-cell, …). Any format —
-a Word document, a JSON catalog, Markdown, HTML — yields the same shape.
+by structural role (heading, paragraph, list-item, table-cell, …). Any format, whether
+a Word document, a JSON catalog, Markdown or HTML, yields the same shape.
 
 Word, character, and segment counts cover the translatable content; block and
 role counts cover the whole document. Prints a human table by default;
 --output-format json|yaml emits the structured record for piping into a pipeline.
 
-Positional paths accept glob patterns and directories, expanded by kapi itself —
-quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a project,
+Positional paths accept glob patterns and directories, expanded by kapi itself.
+Quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a project,
 no FILE means the project's tracked content; FILE "-" reads standard input.`,
 		Example: `  kapi stats report.docx
   kapi stats 'src/**'                       # every file under src, any depth

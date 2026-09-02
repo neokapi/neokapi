@@ -30,7 +30,7 @@ var extLatinMap = func() map[rune]rune {
 	oldRunes := []rune(extLatinOldChars)
 	newRunes := []rune(extLatinNewChars)
 	if len(oldRunes) != len(newRunes) {
-		panic("ext-latin map length mismatch — pseudo.go is out of sync with Okapi TextModificationStep")
+		panic("ext-latin map length mismatch: pseudo.go is out of sync with Okapi TextModificationStep")
 	}
 	m := make(map[rune]rune, len(oldRunes))
 	for i, r := range oldRunes {

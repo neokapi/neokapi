@@ -89,10 +89,10 @@ comes from is refused: the collection would re-track its own output as source.
 				// matches yet" rather than "this pattern is broken".
 				matches, gerr := coreproj.ExpandGlob(root, pattern)
 				if gerr != nil {
-					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing — fix it before adding it: %w", pattern, gerr)
+					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing. Fix it before adding it: %w", pattern, gerr)
 				}
 				if bad, feeds := targetFeedsItsOwnCollection(pattern, target, probeLocale(proj), matches); feeds {
-					return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run — point the target outside the collection",
+					return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run. Point the target outside the collection",
 						target, bad, pattern)
 				}
 				var spec *coreproj.FormatSpec
@@ -121,7 +121,7 @@ comes from is refused: the collection would re-track its own output as source.
 	cmd.Flags().StringVarP(&format, "format", "f", "", "file format (e.g. html, json); auto-detected if omitted")
 	cmd.Flags().StringVar(&name, "name", "", "put the patterns in a named collection (created, or extended if it exists)")
 	cmd.Flags().StringVar(&channel, "channel", "", "bind the named collection to a point in the context space (profile/channel)")
-	cmd.Flags().StringVar(&target, "target", "", "where translated files go — a template over {lang} and the path tokens, or a directory to mirror into")
+	cmd.Flags().StringVar(&target, "target", "", "where translated files go: a template over {lang} and the path tokens, or a directory to mirror into")
 	return cmd
 }
 
@@ -168,7 +168,7 @@ func NewLsCmd(a *App) *cobra.Command {
 exclude list). With --stats, also show per-file block and word counts.
 
 --untracked inverts the question: the files kapi can read that NO collection
-tracks. That is what a surface added since the recipe was written looks like —
+tracks. That is what a surface added since the recipe was written looks like:
 governed by nothing, and invisible to every listing that starts from the
 collections. Review it and declare what belongs; like an untracked file in a
 version-control status, it is reported and never adopted.
@@ -217,7 +217,7 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 					if it.Collection != nil && it.Collection.Name != "" {
 						where = fmt.Sprintf("content collection %q", it.Collection.Name)
 					}
-					return fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing — fix the pattern in the recipe: %w",
+					return fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing. Fix the pattern in the recipe: %w",
 						where, it.Item.Path, gerr)
 				}
 				for _, rp := range rels {

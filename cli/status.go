@@ -17,13 +17,13 @@ func NewStatusCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Short:   "Show per-locale translation coverage and ship-gate standing",
 		Long: `Show, per target locale, how much of the project's tracked content is
-translated and whether it clears its ship gate — a derived dashboard, like
+translated and whether it clears its ship gate, a derived dashboard, like
 git status. Coverage is recomputed from the content × target files on every run;
 nothing is tracked as state.
 
 This is the informational counterpart to 'kapi check --ship' (the quality gate). It
-never fails: a locale that is behind is reported as pending, not an error —
-target-language drift is normal, expected work, not a build break.`,
+never fails: a locale that is behind is reported as pending rather than as an error.
+Target-language drift is normal, expected work rather than a build break.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return a.RunStatus(cmd, args) },
 	}

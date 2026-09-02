@@ -23,14 +23,14 @@ func newDiffCmd(a *App) *cobra.Command {
 		GroupID: "advanced",
 		Long: `Compare the human-readable text inside any supported format, block by block,
 rather than byte by byte. A reflowed Word .docx, a re-zipped container or a
-reordered JSON catalog do not register as a diff — only the prose that actually
+reordered JSON catalog do not register as a diff, and only the prose that actually
 changed does.
 
 Two modes:
 
-  Revision diff (two files)   — what translatable content changed between two
+  Revision diff (two files)     what translatable content changed between two
                                 versions of a document.
-  Coverage diff (one file +   — compare a target translation against the source
+  Coverage diff (one file +     compare a target translation against the source
   --target LOCALE)              within one file: which blocks are untranslated or
                                 are still a verbatim copy of the source.
 

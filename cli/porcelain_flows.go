@@ -18,14 +18,14 @@ import (
 func NewTranslateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "translate [files...]",
-		Short:   "Translate files with guardrails — content memory reuse, AI translate, then checks",
+		Short:   "Translate files with guardrails: content memory reuse, AI translate, then checks",
 		GroupID: "translate",
 		Long: `Translate files through the built-in translate flow: leverage a bound
 content memory first (a no-op without one), translate the rest with the
 configured AI provider, then run the deterministic checks (placeholders,
 inline tags, untranslated text) over what was produced.
 
-This is the guardrailed spelling — the same three-step flow 'kapi up' loops
+This is the guardrailed spelling: the same three-step flow 'kapi up' loops
 over a project, applied to ad-hoc files. The raw translate tool (no Memory pass,
 no checks) stays available as 'kapi exec translate'. To bring a whole project
 up to date, use 'kapi up'.`,
@@ -34,7 +34,7 @@ up to date, use 'kapi up'.`,
   kapi translate app.xliff --target-lang ja --provider ollama`,
 		Args: cobra.ArbitraryArgs,
 		RunE: newPorcelainFlowRunE(a, "translate",
-			"kapi translate needs input files: kapi translate <files...> --target-lang <locale> — to translate a whole project, use 'kapi up'"),
+			"kapi translate needs input files: kapi translate <files...> --target-lang <locale>. To translate a whole project, use 'kapi up'"),
 	}
 	AddProjectFlag(cmd)
 	a.AddFlowRunFlags(cmd)
@@ -48,12 +48,12 @@ up to date, use 'kapi up'.`,
 func NewPseudoTranslateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pseudo-translate [files...]",
-		Short:   "Pseudo-translate files to test locale readiness — no AI keys needed",
+		Short:   "Pseudo-translate files to test locale readiness, with no AI keys needed",
 		GroupID: "translate",
 		Long: `Run the built-in pseudo-translate flow: expand every string with
 locale-shaped accents and length padding so truncation, concatenation, and
 hardcoded-string bugs surface before any real translation is bought. Runs
-entirely offline — no AI provider or keys required.
+entirely offline, with no AI provider or keys required.
 
 Use it as the pre-flight check; when the UI holds up, 'kapi translate' (ad
 hoc) or 'kapi up' (project) produce the real translations.`,

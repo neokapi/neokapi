@@ -36,8 +36,8 @@ the gates that decide shippable; kapi up runs the project's default flow
 (defaults.flow) over every target language, looping until every gated scope is
 shippable or parked for a human.
 
-Without defaults.flow, up runs the built-in default flow — Memory reuse (recycle)
-followed by AI translate — so a recipe needs no flow YAML at all to catch up.
+Without defaults.flow, up runs the built-in default flow, Memory reuse (recycle)
+followed by AI translate, so a recipe needs no flow YAML at all to catch up.
 Setting defaults.flow replaces the built-in default.
 
 Before each pass, up re-syncs the project block store with the working tree:
@@ -47,10 +47,10 @@ Re-extract). --no-extract opts out.
 
 Each pass re-derives coverage from the working tree, runs the flow only for
 the locales still short of their gate, and stops when everything ships, a pass
-makes no progress (the remainder parks — it needs a human), or the pass cap is
+makes no progress (the remainder parks, because it needs a human), or the pass cap is
 reached. After each pass the project's bound checks run over what was
 produced: a unit with failing findings (dropped placeholders, terminology
-violations) still counts as translated — it is — and holds its locale out of
+violations) still counts as translated, which it is, and holds its locale out of
 shipping until the finding is fixed. 'kapi status' runs the same checks and
 reports the same verdict. --no-checks opts out.
 
@@ -58,13 +58,13 @@ The materialize policy decides whether the run owns delivery of the
 target-language files. Under 'defaults.materialize: on-converge' (or the
 --materialize flag) it does, and the ship gate holds it back: each pass drafts
 into a run-local tree, and only a locale whose gated scopes are all shippable
-has its files written where the recipe points — a parked locale's files are
+has its files written where the recipe points, and a parked locale's files are
 absent, not merely unblessed. The default ('manual') leaves delivery to
 'kapi merge' and claims no gate.
 
 Venue: in a server-connected project (a recipe with a bowrain: block, with the
-bowrain plugin installed) the loop runs on the Bowrain server by default — on
-the org's keys, against the org's shared Memory and terminology — and this command
+bowrain plugin installed) the loop runs on the Bowrain server by default, on
+the org's keys, against the org's shared Memory and terminology, and this command
 pushes local changes, streams the server run's live progress, and pulls the
 produced targets. --local keeps the loop on this machine and then pushes the
 results so the server never goes stale; --server fails rather than falling
@@ -72,8 +72,8 @@ back to a local run. The resolved venue is printed first whenever the recipe
 connects to a server. Without that block, up is purely local.
 
 --plan is a dry run in every venue: instead of running anything, up reports
-the pending work per (collection, locale) — units missing a target, exact Memory
-leverage, the remaining AI work, and a rough token estimate — computed locally
+the pending work per (collection, locale): units missing a target, exact Memory
+leverage, the remaining AI work, and a rough token estimate, computed locally
 against the working tree, with no provider calls and no writes. Combine with
 --json for agents.
 
@@ -96,7 +96,7 @@ gates (e.g. before a release tag).
 				return err
 			}
 			if projectPath == "" {
-				return errors.New("kapi up needs a project — pass -p <recipe> or run from inside a kapi project directory")
+				return errors.New("kapi up needs a project. Pass -p <recipe> or run from inside a kapi project directory")
 			}
 			return runUpWithVenue(a, cmd, projectPath)
 		},
@@ -161,10 +161,10 @@ func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {
 		target = "server"
 	}
 	if local {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Venue: local (--local) — running the loop on this machine; results push to %s.\n", target)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Venue: local (--local), running the loop on this machine; results push to %s.\n", target)
 		return
 	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server — running the loop on %s (use --local to run it on this machine).\n", target)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server, running the loop on %s (use --local to run it on this machine).\n", target)
 }
 
 // forwardedFlagArgs re-renders the flags the user set as argv for the plugin

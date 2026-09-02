@@ -101,7 +101,7 @@ func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opt
 			// A group whose name collides with a built-in cannot attach; its
 			// members stay top-level-only. This should never happen for
 			// well-named plugins.
-			onConflict(fmt.Sprintf("plugin group %q collides with a built-in command — group spelling unavailable", name))
+			onConflict(fmt.Sprintf("plugin group %q collides with a built-in command, so the group spelling is unavailable", name))
 		} else {
 			parent.AddCommand(g)
 			taken[name] = true
@@ -239,13 +239,13 @@ func AttachContributions(parent *cobra.Command, host *pluginhost.Host, onWarn fu
 		cc := route.Contribution
 		target, ok := byName[cc.Command]
 		if !ok {
-			onWarn(fmt.Sprintf("plugin %q contributes to command %q, which is not a built-in command — skipping", route.Plugin.Name(), cc.Command))
+			onWarn(fmt.Sprintf("plugin %q contributes to command %q, which is not a built-in command, skipping", route.Plugin.Name(), cc.Command))
 			continue
 		}
 
 		for _, fl := range cc.Flags {
 			if target.Flags().Lookup(fl.Name) != nil {
-				onWarn(fmt.Sprintf("plugin %q flag --%s on command %q collides with an existing flag — skipping that flag", route.Plugin.Name(), fl.Name, cc.Command))
+				onWarn(fmt.Sprintf("plugin %q flag --%s on command %q collides with an existing flag, skipping that flag", route.Plugin.Name(), fl.Name, cc.Command))
 				continue
 			}
 			registerContributedFlag(target.Flags(), fl)

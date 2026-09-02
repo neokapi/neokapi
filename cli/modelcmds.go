@@ -24,13 +24,13 @@ func NewModelsCmd(a *App) *cobra.Command {
 		Short:   "Manage attached LLMs and ML models",
 		GroupID: "assets",
 		Long: "A single view of every model kapi can use, across four sources:\n\n" +
-			"  • Detected        — keyless providers found on this machine, like the\n" +
+			"  • Detected:        keyless providers found on this machine, like the\n" +
 			"                      Claude Code CLI (uses your Claude subscription)\n" +
-			"  • Local · Ollama  — on-device models served by a local Ollama runtime\n" +
+			"  • Local · Ollama:  on-device models served by a local Ollama runtime\n" +
 			"                      (`kapi models pull <model>` installs one)\n" +
-			"  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n" +
+			"  • Plugin models:   integrity-pinned assets a plugin downloads and caches\n" +
 			"                      under $XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/\n" +
-			"  • Cloud providers — remote models that require an API key\n\n" +
+			"  • Cloud providers: remote models that require an API key\n\n" +
 			"`kapi models setup` interactively picks and verifies the default provider.\n" +
 			"`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\n" +
 			"models are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.\n" +
@@ -131,7 +131,7 @@ func newModelsListCmd(a *App) *cobra.Command {
 
 			if wantOllama && !ollamaReachable {
 				fmt.Fprintln(cmd.ErrOrStderr(),
-					"note: Ollama not detected — local models show as available to pull; run `kapi models ollama status`.")
+					"note: Ollama not detected, so local models show as available to pull; run `kapi models ollama status`.")
 			}
 			return output.Print(cmd, output.ModelsListOutput{Models: rows, Total: len(rows)})
 		},
@@ -161,7 +161,7 @@ func newModelsPullCmd(a *App) *cobra.Command {
 				return a.PullOllamaModel(cmd, ref)
 			}
 			if asset.Bundled {
-				return fmt.Errorf("%s/%s is bundled with the plugin — nothing to fetch", plugin, asset.ID)
+				return fmt.Errorf("%s/%s is bundled with the plugin, so there is nothing to fetch", plugin, asset.ID)
 			}
 			dir, err := EnsureModel(cmd.Context(), asset, ModelEnsureOptions{
 				Plugin: plugin,
@@ -192,7 +192,7 @@ func newModelsPruneCmd(a *App) *cobra.Command {
 				return a.PruneOllamaModel(cmd, ref)
 			}
 			if asset.Bundled {
-				return fmt.Errorf("%s/%s is bundled with the plugin — cannot remove", plugin, asset.ID)
+				return fmt.Errorf("%s/%s is bundled with the plugin and cannot be removed", plugin, asset.ID)
 			}
 			dir, err := ModelDir(plugin, asset.ID, asset.Version)
 			if err != nil {

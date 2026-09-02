@@ -15,8 +15,8 @@ func NewPackCmd(a *App) *cobra.Command {
 		Use:     "pack -o <snapshot.kpz>",
 		Short:   "Snapshot a kapi project's working state into a .kpz",
 		GroupID: "advanced",
-		Long: `Snapshot a kapi project's working state — the block-store overlays, the
-authoritative content memory, and the terms store — into a portable .kpz.
+		Long: `Snapshot a kapi project's working state (the block-store overlays, the
+authoritative content memory, and the terms store) into a portable .kpz.
 Regenerable caches and secrets are excluded. Move the snapshot to another
 machine and "kapi unpack" it to resume work there.`,
 		Example: `  kapi pack -o snapshot.kpz   # a kapi project
@@ -54,8 +54,8 @@ func NewInfoCmd(a *App) *cobra.Command {
 		Short:   "Report a project's packable state, or a .kpz archive's contents",
 		GroupID: "advanced",
 		Long: `With no argument, reports the project in scope: its languages, how many files
-it tracks, and the parts a ` + "`kapi pack`" + ` snapshot would capture — each with
-whether it is present and how many items it holds — plus what the snapshot
+it tracks, and the parts a ` + "`kapi pack`" + ` snapshot would capture, each with
+whether it is present and how many items it holds, plus what the snapshot
 deliberately leaves out (regenerable caches, credentials, sync tokens).
 
 With a .kpz argument, reports that archive. A project snapshot is reported as the

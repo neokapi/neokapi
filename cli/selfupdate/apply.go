@@ -97,7 +97,7 @@ func PrewarmFirstExec(ctx context.Context, exe string) {
 // verifySignature enforces the cosign keyless signature with pinned trust.
 func verifySignature(ctx context.Context, plat registry.PlatformEntry) error {
 	if plat.Signature == "" {
-		return errors.New("release entry has no signature — refusing to self-update an unsigned build")
+		return errors.New("release entry has no signature, so self-updating an unsigned build is refused an unsigned build")
 	}
 	issuer := plat.CertOIDCIssuer
 	if issuer == "" {

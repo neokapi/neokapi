@@ -290,7 +290,7 @@ func TestContextPath_LocationOutsideTheProjectIsRefused(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "elsewhere.md is not inside this project")
-	assert.Contains(t, err.Error(), "name a location inside it")
+	assert.Contains(t, err.Error(), "Name a location inside it")
 }
 
 // TestContextPath_EscapingRelativePathIsRefused: `../` out of the project is the

@@ -28,7 +28,7 @@ func NewInitCmd(a *App) *cobra.Command {
 adjacent .kapi/ state directory.
 
 By default kapi init scaffolds a content project that keeps your source in
-voice — a voice profile, the project terms store, and a check flow, with no
+voice: a voice profile, the project terms store, and a check flow, with no
 target languages. Pass --target-locale (or --framework) to make it a
 translation project instead.
 
@@ -38,7 +38,7 @@ locale to en. Override with --name, --source-locale, --target-locale
 
 --preset <name> (alias: --framework) pre-fills the content mapping for a known
 stack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,
-angular — and scaffolds the translation project. List every preset (framework
+angular, and scaffolds the translation project. List every preset (framework
 scaffolds plus per-format parsing presets) with --list-presets.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the

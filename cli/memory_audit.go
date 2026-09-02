@@ -30,7 +30,7 @@ Examples:
   kapi memory audit --batch <batch-id> --limit 50  # cap rows
 
 Use "kapi memory stats" for global content-memory metrics (entry counts, per-locale
-breakdown). Audit is narrow by design — it answers "what did this
+breakdown). Audit is narrow by design: it answers "what did this
 merge do?".
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {

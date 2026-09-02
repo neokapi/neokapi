@@ -22,7 +22,7 @@ func newConvCmd(a *App) *cobra.Command {
 		Long: `Convert the content of each file into another format, driven by the structural
 role layer rather than the source bytes. Headings, lists, tables and inline
 formatting are carried across, so a Word .docx, a DocLang document and a Docling
-JSON all project to clean Markdown or HTML — and source or translated content
+JSON all project to clean Markdown or HTML, and source or translated content
 re-expresses as DocLang.
 
 The target format is taken from --to, or inferred from the -o output extension.
@@ -30,8 +30,8 @@ With no -o, the result is written to standard output. With no FILE, or "-",
 standard input is read.
 
 Converting to a binary format (.docx, .idml, …) writes a binary document, so
-when standard output is a terminal that is refused rather than streamed at it —
-pass -o FILE, redirect stdout, or ask for it explicitly with "-o -". Redirected
+when standard output is a terminal that is refused rather than streamed at it.
+Pass -o FILE, redirect stdout, or ask for it explicitly with "-o -". Redirected
 or piped output is never touched.
 
 Several files convert in one run. Give -o a directory (a trailing slash, or a

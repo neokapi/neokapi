@@ -81,11 +81,11 @@ func (r *ParityRunner) Run(t *testing.T) {
 					Name:   t.Name() + "/" + feat.ID + "/" + ex.Name,
 					Mode:   "subfilter",
 					Status: "skip",
-					Detail: "subfilter — not dispatched standalone by okapi-bridge",
+					Detail: "subfilter, not dispatched standalone by okapi-bridge",
 				})
 			}
 		}
-		t.Skipf("subfilter spec %q — parity bridge runner skipped (no standalone dispatch path)", r.Spec.Format)
+		t.Skipf("subfilter spec %q: parity bridge runner skipped (no standalone dispatch path)", r.Spec.Format)
 		return
 	}
 	for _, feat := range r.Spec.Features {
@@ -123,8 +123,8 @@ func (r *ParityRunner) runExample(t *testing.T, feat formatspec.Feature, ex form
 	// is the native runner's concern, not a cross-implementation parity claim.
 	if ex.CaseClass() == formatspec.ClassInvalid {
 		status = "skip"
-		detail = "class: invalid — native-only robustness case (no head-to-head extraction)"
-		t.Skipf("class: invalid case %q — parity skips (native-only)", ex.CaseID())
+		detail = "class: invalid, a native-only robustness case (no head-to-head extraction)"
+		t.Skipf("class: invalid case %q: parity skips (native-only)", ex.CaseID())
 		return
 	}
 
@@ -270,7 +270,7 @@ func (r *ParityRunner) runExample(t *testing.T, feat formatspec.Feature, ex form
 		// as a parity-warn so the dashboard can flag it without
 		// failing CI.
 		status = "parity_warn"
-		detail = "bridge != native (bytewise) — both pass spec assertions independently"
+		detail = "bridge != native (bytewise), and both pass spec assertions independently"
 		t.Logf("parity_warn: bridge=%v native=%v", bridgeTexts, nativeTexts)
 	}
 }
