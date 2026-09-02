@@ -195,6 +195,11 @@ export { ReviewSurface } from "./components/ReviewSurface";
 // Governed review session (the dedicated project-level review surface).
 export { ReviewSession } from "./components/review/ReviewSession";
 export type { ReviewSessionProps } from "./components/review/ReviewSession";
+export { LanguageScopeSelect, ALL_LANGUAGES } from "./components/review/LanguageScopeSelect";
+export type {
+  LanguageScopeSelectProps,
+  LanguageScopeOption,
+} from "./components/review/LanguageScopeSelect";
 export { ReviewQueueList } from "./components/review/ReviewQueueList";
 export type { ReviewQueueListProps } from "./components/review/ReviewQueueList";
 export { FocusedReviewer } from "./components/review/FocusedReviewer";
@@ -263,7 +268,43 @@ export type {
   UnifiedSaveResult,
 } from "./components/UnifiedTargetEditor";
 export { toKapiBlock } from "./components/blockAdapter";
-export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
+// The shared design vocabulary: one coordinate chip, one status badge and one
+// way of naming a language, drawn from the primitives rather than re-declared
+// per surface.
+export {
+  CoordinateChip,
+  AXES,
+  AXIS_IDS,
+  axisMeta,
+  unknownAxis,
+  StatusBadge,
+  CONTENT_STATUS_LADDER,
+  SOURCE_STATUS_LADDER,
+  ATTENTION_STATUSES,
+  STATUS_LADDERS,
+  statusMeta,
+  LocaleLabel,
+  formatLocale,
+  resolveLocaleName,
+  uiLocaleTag,
+} from "@neokapi/ui-primitives";
+export type {
+  AxisId,
+  AxisMeta,
+  CoordinateChipProps,
+  StatusLadder,
+  ContentStatus,
+  SourceStatus,
+  AttentionStatus,
+  LadderStatus,
+  StatusTone,
+  StatusMeta,
+  StatusBadgeProps,
+  LocaleLabelProps,
+  FormatLocaleOptions,
+  FormattedLocale,
+  LocaleNameVariant,
+} from "@neokapi/ui-primitives";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
 export { FileProgressTable, type FileProgressPaging } from "./components/FileProgressTable";
@@ -424,11 +465,11 @@ export {
   getTargetText,
   withTargetEntry,
   withTargetStatus,
-  statusLabel,
+  targetLadderStatus,
+  blockStatusTone,
   statusDotClass,
   statusBorderClass,
-  statusBadgeClass,
-  statusConfig,
+  statusRuleClass,
   memoryScoreClass,
   termStatusClass,
 } from "./components/editor/blockStatus";

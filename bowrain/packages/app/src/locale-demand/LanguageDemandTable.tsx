@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { LanguageLabel, cn } from "@neokapi/ui";
+import { LocaleLabel, cn } from "@neokapi/ui";
 import { CoverageBadge } from "./CoverageBadge";
 import { TrendSparkline } from "./TrendSparkline";
 import {
@@ -154,7 +154,7 @@ export function LanguageDemandTable({
                 )}
               >
                 <td className="px-3 py-2">
-                  <LanguageLabel code={lang.code} />
+                  <LocaleLabel locale={lang.code} />
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">

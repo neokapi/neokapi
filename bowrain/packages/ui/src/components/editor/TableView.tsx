@@ -99,14 +99,14 @@ export function TableView({
             onDoubleClick={() => onStartEditing(index)}
             className={cn(
               "flex px-3 py-2 border-b border-border cursor-pointer items-stretch min-h-[44px] transition-colors border-l-[3px]",
-              isSelected ? "bg-muted/50 border-l-primary" : statusBorderClass[status],
+              isSelected ? "bg-muted/50 border-l-primary" : statusBorderClass(status),
             )}
           >
             <span className="w-10 text-center text-xs text-muted-foreground pt-0.5 shrink-0">
               {index + 1}
             </span>
             <span
-              className={cn("w-2 h-2 rounded-full shrink-0 mt-1.5 mr-2", statusDotClass[status])}
+              className={cn("w-2 h-2 rounded-full shrink-0 mt-1.5 mr-2", statusDotClass(status))}
               data-testid={`status-dot-${index}`}
               title={status}
             />

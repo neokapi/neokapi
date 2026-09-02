@@ -1,9 +1,17 @@
-import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  cn,
+  LocaleLabel,
+} from "@neokapi/ui-primitives";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { DashboardItemSort, ItemTranslationStats } from "../types/api";
-import { LanguageLabel } from "./LanguageLabel";
+
 import { FormattedFileName } from "./FormattedFileName";
 import { ListCapRow } from "./ListCapRow";
 import { itemDisplayPath, relativeItemName } from "./collections/itemBase";
@@ -266,8 +274,8 @@ export function FileProgressTable({
                 />
                 {locales.map((l) => (
                   <th key={l} className="px-1 py-2 text-center font-medium text-muted-foreground">
-                    <LanguageLabel
-                      code={l}
+                    <LocaleLabel
+                      locale={l}
                       displayName={localeDisplayNames?.[l]}
                       variant="short"
                       hideCode

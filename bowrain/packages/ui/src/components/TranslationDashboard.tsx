@@ -1,7 +1,15 @@
-import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  cn,
+  LocaleLabel,
+} from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats, TranslationDashboardStats } from "../types/api";
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
-import { LanguageLabel } from "./LanguageLabel";
+
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
 import { ComplianceRateChip } from "./ComplianceRateChip";
 import { ShipStateBadge } from "./ShipStateBadge";
@@ -65,7 +73,7 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
           {localeStats.map((l) => (
             <li key={l.locale} className="flex items-center justify-between gap-2 text-sm">
               <span className="flex min-w-0 items-center gap-2">
-                <LanguageLabel code={l.locale} displayName={l.display_name} hideCode />
+                <LocaleLabel locale={l.locale} displayName={l.display_name} hideCode />
                 <span className="text-muted-foreground text-xs tabular-nums">
                   {l.translated_blocks}/{l.total_blocks} blocks
                 </span>

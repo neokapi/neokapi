@@ -5,11 +5,12 @@ import {
   CardHeader,
   CardTitle,
   cn,
+  LocaleLabel,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats } from "../types/api";
 import { AlertTriangle, ArrowRight, Clock, Plug } from "./icons";
-import { LanguageLabel } from "./LanguageLabel";
+
 import { ShipStateBadge } from "./ShipStateBadge";
 
 /**
@@ -79,7 +80,7 @@ export function DeliveryPanel({
             const pct = Math.round(ls.percentage);
             return (
               <li key={ls.locale} className="flex items-center justify-between gap-2 text-sm">
-                <LanguageLabel code={ls.locale} displayName={ls.display_name} hideCode />
+                <LocaleLabel locale={ls.locale} displayName={ls.display_name} hideCode />
                 {ls.ship_state ? (
                   <ShipStateBadge
                     state={ls.ship_state}

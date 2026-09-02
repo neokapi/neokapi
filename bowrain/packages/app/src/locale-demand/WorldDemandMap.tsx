@@ -3,7 +3,7 @@ import { geoNaturalEarth1, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import countriesTopo from "world-atlas/countries-110m.json";
-import { cn, localeDisplayName } from "@neokapi/ui";
+import { cn, resolveLocaleName } from "@neokapi/ui";
 import { formatSessions, formatShare, type CountryDemand } from "./locale-demand-fixtures";
 
 // react-simple-maps peer-locks React ≤18, so this renders the world-atlas
@@ -153,7 +153,7 @@ export function WorldDemandMap({
               <div className="mt-1 space-y-0.5 text-muted-foreground">
                 {hoveredCountry.languages.slice(0, 3).map((l) => (
                   <div key={l.code} className="flex items-center justify-between">
-                    <span>{localeDisplayName(l.code) ?? l.code}</span>
+                    <span>{resolveLocaleName(l.code)}</span>
                     <span>{formatShare(l.share)}</span>
                   </div>
                 ))}

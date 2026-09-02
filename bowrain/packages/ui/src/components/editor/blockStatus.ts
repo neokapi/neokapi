@@ -1,10 +1,16 @@
+import { statusMeta, type StatusTone } from "@neokapi/ui-primitives";
 import type { BlockInfo, BlockStatusBucket, TargetEntry, TargetStatus } from "../../types/api";
 
 /**
- * Single source of truth for per-block translation status, its derived CSS
- * classes, and the content memory/term score colourings. TranslationEditor,
- * VisualEditorCard and TermSidebar — and with them the Translate / Review /
- * Pre-process surfaces — all import it from here.
+ * Single source of truth for per-block translation status, the row paint it
+ * derives, and the content memory and term score colourings. TranslationEditor,
+ * VisualEditorCard, TermSidebar and the Translate, Review and Pre-process
+ * surfaces all import it from here.
+ *
+ * A status is *named* by `StatusBadge` from the shared primitives, not here: the
+ * ladder, its wording and its colours are the vocabulary Kapi Desktop and the
+ * platform share. What stays here is the reading of a block's payload and the
+ * dot and margin rule a dense row paints from the resulting rung.
  *
  * A block's `targets` entry is either a bare string (legacy payloads) or a
  * `TargetInfo` object carrying the per-locale `Target.Status` ladder value.
@@ -161,45 +167,72 @@ export function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
   return "translated";
 }
 
-/** Human-readable label for a status. */
-export const statusLabel: Record<BlockStatus, string> = {
-  "not-started": "Not Started",
-  draft: "Draft",
-  translated: "Translated",
-  reviewed: "Reviewed",
+/**
+ * The ladder value to badge for a locale: the wire `Target.Status` the payload
+ * carries, and the derived bucket for one that carries none. Rendering the wire
+ * value is what lets `signed-off` reach a badge at all, since the bucket
+ * collapses it into `reviewed`; a locale with no target text stays
+ * `not-started`, which is what the server counts it as.
+ *
+ * Hand the result to `StatusBadge ladder="content"`.
+ */
+export function targetLadderStatus(block: BlockInfo, locale: string): string {
+  const bucket = getBlockStatus(block, locale);
+  if (bucket === "not-started") return bucket;
+  return getTargetStatus(block, locale) || bucket;
+}
+
+/** Where a bucket sits on the shared content ladder. */
+export function blockStatusTone(status: BlockStatus): StatusTone {
+  return statusMeta("content", status).tone;
+}
+
+// A row's dot and its margin rule are the badge's colour without the badge, so
+// they read the shared ladder's tone rather than a second table of their own:
+// muted at the bottom rung, neutral in the middle, green once a rung has been
+// earned. `not-started` is the exception, and stays blank — a locale with no
+// target text has nothing to paint, and an empty rule is how the pane has
+// always said so.
+const TONE_DOT: Record<StatusTone, string> = {
+  start: "bg-muted-foreground/60",
+  middle: "bg-foreground/40",
+  earned: "bg-success/60",
+  settled: "bg-success",
+  attention: "bg-warning",
 };
 
-/** Status dot fill (used in compact rows). */
-export const statusDotClass: Record<BlockStatus, string> = {
-  "not-started": "bg-transparent",
-  draft: "bg-warning",
-  translated: "bg-info",
-  reviewed: "bg-success",
+const TONE_BORDER: Record<StatusTone, string> = {
+  start: "border-l-muted-foreground/60",
+  middle: "border-l-foreground/40",
+  earned: "border-l-success/60",
+  settled: "border-l-success",
+  attention: "border-l-warning",
 };
 
-/** Left-border accent for a row keyed by status. */
-export const statusBorderClass: Record<BlockStatus, string> = {
-  "not-started": "border-l-transparent",
-  draft: "border-l-warning",
-  translated: "border-l-info",
-  reviewed: "border-l-success",
+const TONE_RULE: Record<StatusTone, string> = {
+  start: "[--kapi-block-rule:var(--color-muted-foreground)]",
+  middle: "[--kapi-block-rule:var(--color-foreground)]",
+  earned: "[--kapi-block-rule:var(--color-success)]",
+  settled: "[--kapi-block-rule:var(--color-success)]",
+  attention: "[--kapi-block-rule:var(--color-warning)]",
 };
 
-/** Solid pill badge for a status. */
-export const statusBadgeClass: Record<BlockStatus, string> = {
-  "not-started": "bg-muted-foreground text-white",
-  draft: "bg-warning text-white",
-  translated: "bg-info text-white",
-  reviewed: "bg-success text-white",
-};
+/** Status dot fill for a compact row. */
+export function statusDotClass(status: BlockStatus): string {
+  return status === "not-started" ? "bg-transparent" : TONE_DOT[blockStatusTone(status)];
+}
 
-/** Tinted badge config (subtler than statusBadgeClass) for cards. */
-export const statusConfig: Record<BlockStatus, { label: string; className: string }> = {
-  "not-started": { label: "Not Started", className: "bg-muted text-muted-foreground" },
-  draft: { label: "Draft", className: "bg-warning/15 text-warning dark:text-warning" },
-  translated: { label: "Translated", className: "bg-info/15 text-info dark:text-info" },
-  reviewed: { label: "Reviewed", className: "bg-success/15 text-success dark:text-success" },
-};
+/** Left-border accent for a dense table row. */
+export function statusBorderClass(status: BlockStatus): string {
+  return status === "not-started" ? "border-l-transparent" : TONE_BORDER[blockStatusTone(status)];
+}
+
+/** The margin rule the reading pane paints beside a block. */
+export function statusRuleClass(status: BlockStatus): string {
+  return status === "not-started"
+    ? "[--kapi-block-rule:var(--color-muted-foreground)] opacity-80"
+    : TONE_RULE[blockStatusTone(status)];
+}
 
 /** Colour class for a content-memory match score badge. */
 export function memoryScoreClass(score: number): string {

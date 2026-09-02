@@ -275,7 +275,7 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
     // fabricate a phantom {text: "", status} entry that is never rolled back.
     await user.click(screen.getByTestId("reject-btn"));
     expect(adapter.reviewBlockCalls).toHaveLength(0);
-    expect(screen.getByText("Not Started")).toBeInTheDocument();
+    expect(screen.getByText("Not started")).toBeInTheDocument();
   });
 });
 

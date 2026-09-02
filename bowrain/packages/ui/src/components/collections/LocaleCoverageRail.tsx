@@ -1,6 +1,6 @@
-import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
+import { cn, resolveLocaleName, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats } from "../../types/api";
-import { localeDisplayName } from "../LanguageLabel";
+
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { ShipStateBadge } from "../ShipStateBadge";
 
@@ -49,7 +49,7 @@ export function LocaleCoverageRail({
   const translatedPct = pct(stats.translated_blocks, total);
   const pendingPct = Math.max(0, translatedPct - approvedPct);
   const coverage = Math.round(stats.percentage);
-  const name = stats.display_name ?? localeDisplayName(stats.locale, "short");
+  const name = stats.display_name ?? resolveLocaleName(stats.locale, undefined, "short");
 
   const tooltip = (
     <div className="max-w-60 space-y-1">

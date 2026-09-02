@@ -4,11 +4,12 @@ import {
   CardHeader,
   CardTitle,
   ChartContainer,
+  LocaleLabel,
+  resolveLocaleName,
   type ChartConfig,
 } from "@neokapi/ui-primitives";
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import type { LocaleTranslationStats } from "../types/api";
-import { LanguageLabel, localeDisplayName } from "./LanguageLabel";
 
 interface LocaleCompletionChartProps {
   localeStats: LocaleTranslationStats[];
@@ -41,7 +42,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   return (
     <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
       <div className="font-medium">
-        <LanguageLabel code={d.localeCode ?? d.locale ?? ""} displayName={d.displayName} hideCode />
+        <LocaleLabel locale={d.localeCode ?? d.locale ?? ""} displayName={d.displayName} hideCode />
         : {d.percentage}% complete
       </div>
       <div className="text-muted-foreground">
@@ -57,7 +58,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function LocaleCompletionChart({ localeStats }: LocaleCompletionChartProps) {
   const data = localeStats.map((l) => ({
-    locale: l.display_name ?? localeDisplayName(l.locale, "short"),
+    locale: l.display_name ?? resolveLocaleName(l.locale, undefined, "short"),
     localeCode: l.locale,
     displayName: l.display_name,
     percentage: Math.round(l.percentage * 10) / 10,
