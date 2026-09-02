@@ -669,15 +669,29 @@ async function landOnHome(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 20_000 });
 }
 
-/** Open the KapiMart sample project from the home screen. Idempotent across
- *  theme passes: the scaffold is re-created under the isolated home, and a
- *  project the previous pass left open is reached through the home screen. */
+/**
+ * Open the KapiMart sample project, from either state a theme pass can start in.
+ *
+ * The two passes share one backend and the app restores its session, so the
+ * second pass starts with the project already open. Clicking the sample card
+ * in that state re-runs the scaffold and lands on the Get Started template
+ * picker, which replaces the project home, and the walk films that instead.
+ * A rail item is enabled exactly when a project tab is open, so read it to
+ * tell the two states apart and go back through the project home button.
+ */
 async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
+  const ready = `button[aria-label="${readyLabel}"]:not([disabled])`;
+  if (await page.locator(ready).count()) {
+    const home = page.locator('button[aria-label="Project"]');
+    if (await home.count()) await humanClick(page, home);
+    await page.waitForTimeout(1400);
+    return;
+  }
   await landOnHome(page);
   await humanClick(page, page.getByTestId(testid));
   // Wait until the project has opened and its plugins resolve (the gated sidebar
   // item becomes enabled), so subsequent clicks land on a ready project.
-  await page.waitForSelector(`button[aria-label="${readyLabel}"]:not([disabled])`, { timeout: 60_000 });
+  await page.waitForSelector(ready, { timeout: 60_000 });
   await page.waitForTimeout(1200);
 }
 
@@ -831,6 +845,10 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   await beat("open-flow", null, async () => {
     await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
     await page.waitForSelector('button[aria-label="Back to flow list"]', { timeout: 30_000 });
+    // The narration says the pipeline is on screen. Waiting for a node makes a
+    // canvas that mounts without its steps fail the capture instead of filming
+    // an empty frame.
+    await page.waitForSelector(".react-flow__node", { timeout: 30_000 });
     await page.waitForTimeout(2200);
   });
   // Zoom the pipeline canvas.
