@@ -1,0 +1,174 @@
+id: 10-cli-governance
+title: Governance from the terminal
+subtitle: One product, two brands, three surfaces. Where content sits, what governs it there, and who still has to look.
+tagline: the context graph, driven from a shell.
+kind: use-case
+# A scripted plain-shell demo: every command is deterministic and offline, so it
+# runs for real and its output is recorded exactly. The drafting leg uses the
+# built-in `demo` provider, which needs no key and no network and marks its own
+# output, so a take costs nothing and claims nothing.
+#
+# One `kapi check --strict` run exits 3 on purpose (the failing gate is the
+# point of that beat) and declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/voltway
+needsAi: false
+# The sandbox IS the project: a recipe at its root, so every command reads the
+# way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
+project: true
+captureTimeoutSec: 180
+aspects:
+  - coordinates, not folders
+  - the voice in force here
+  - one list of term rules
+  - one review queue, two lanes
+
+script:
+  # --- 1. Where content sits ------------------------------------------------
+  - comment: Voltway sells metering software. Operator documentation, console strings, and a portal that ships under a partner's brand.
+  - command: ls
+  - comment: The recipe places each surface at a point, and one collection sits somewhere else on the brand axis.
+  - command: cat kapi.yaml
+  - comment: The brand every other collection inherits is a decision, so it is recorded as one rather than typed into the file.
+  - command: echo '{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
+  - command: kapi apply coordinates.jsonl
+  - comment: Ask any file where it is. The documentation answers with the docs channel.
+  - command: kapi context docs/quickstart.md | head -4
+  - comment: The partner page answers with the portal channel and the Helios collection, three directories away.
+  - command: kapi context partner/index.md | head -4
+
+  # --- 2. The voice in force at that point ----------------------------------
+  - comment: A voice profile is a file in the repository. Five starter packs ship with kapi; Voltway wrote its own.
+  - command: kapi voice profiles
+  - command: kapi voice validate .kapi/voice.yaml
+  - comment: This is what an assistant is handed before it writes a portal page. The register is the portal's; the vocabulary is the company's.
+  - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal | head -14
+  - comment: And this is the gate, over every surface, with no flags.
+  # The gate must fail here: the forbidden word on the partner page is the beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - command: ksed -i 's/Our seamless platform/Our unified platform/' partner/index.md
+  - command: kapi check --strict
+
+  # --- 3. One list of term rules --------------------------------------------
+  - comment: Terminology is a list under term_rules, on the step that uses it. The French renderings Voltway requires are two lines in the recipe.
+  - comment: The model that drafts is handed exactly that list, so the gate and the model are told the same thing.
+  - command: kapi run converge -i app/strings.en.json --target-lang fr --explain-prompts 2>&1 | grep -A2 "Terminology (use these renderings)" | head -3
+
+  # --- 4. One queue, two lanes ----------------------------------------------
+  - comment: Where the project stands. French is drafted and translated; nothing in either language has been read by a person.
+  - command: kapi status
+  - comment: One queue holds every language, the source among them. The tail says what each lane needs.
+  - command: kapi status --review | tail -8
+  - comment: Narrow it to the language you are reviewing.
+  - command: kapi status --review --lang fr
+  - comment: The queue is already the shape of a change-set, so approving is one pass over it.
+  - command: >-
+      kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
+  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+  - command: kapi apply reviewed.json 2>&1 | tail -3
+  - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
+  - command: kapi commit
+  - command: kapi status --review --lang fr
+  - comment: French is reviewed. The source lane is still open, because Voltway signs off its own wording before a translation ships from it.
+  - command: kapi status
+
+artifacts:
+  - id: recipe
+    caption: "kapi.yaml: the coordinates, the points, and the term rules"
+    source: report
+    report: code
+    path: kapi.yaml
+    width: 1200
+    height: 1000
+  - id: queue
+    caption: "kapi status --review: one queue, the source language among the rest"
+    source: command
+    command: kapi status --review
+    from: fixture
+    report: markdown
+    reportTitle: "kapi status --review"
+    reportSub: "what is waiting for a person, in every language"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A company ships one product on three surfaces, and one of them carries a
+      partner's name. Nothing here is translated by a model you have to pay for,
+      and nothing leaves the machine. This is what governing that looks like
+      from a terminal.
+
+  - id: where
+    kind: terminal
+    text: >
+      Voltway sells metering software. Its repository holds operator
+      documentation, the strings inside its console, and a portal page that
+      ships under Helios branding. The recipe places each surface at a point:
+      the product, and the channel it ships on. The portal collection moves on
+      one axis only, the brand, and keeps the product and the channel it
+      inherits.
+    caption: "three surfaces, two brands, one recipe"
+
+  - id: recipe
+    kind: artifact
+    artifact: recipe
+    text: >
+      The brand every other collection inherits is written under defaults, and
+      it arrives the way every other decision does, as a change set kapi
+      applies. Ask any file where it is and the answer names the point, the
+      voice bound there, and the collection it belongs to.
+
+  - id: voice
+    kind: terminal
+    text: >
+      A voice profile is a file in the repository. Five starter packs ship with
+      kapi, and Voltway wrote its own from them. Print the guide and you get
+      what an assistant is handed before it writes: the register that suits the
+      portal, and the vocabulary the whole company keeps. The gate reads the
+      same file. One forbidden word on the partner page, one major finding, one
+      failing check.
+    caption: "the voice at that point, and the gate that reads it"
+
+  - id: terms
+    kind: terminal
+    text: >
+      Terminology sits under one key, term rules, on the step that uses it. Each
+      rule names a term, what the French must say for it, and how hard it bites.
+      A rule marked minor reports; a rule with no severity fails. Ask the
+      drafting step to show its prompt and the same two rules are in it, so the
+      model and the check are told the same thing.
+    caption: "term rules reach the model and the gate alike"
+
+  - id: queue
+    kind: artifact
+    artifact: queue
+    text: >
+      One queue holds every language that is waiting for a person, with the
+      source language among them. A source row carries its own marker, because
+      the two lanes are decided in different places: kapi apply records a
+      target-language decision, and source wording is approved in the Review
+      page of Kapi Desktop.
+
+  - id: review
+    kind: terminal
+    text: >
+      Narrow the queue to the language you are reading. It comes back in the
+      shape of a change set already, so approving four units is one pass over
+      it. Approvals stage, then commit, and they land in the record with a name
+      against them. French moves to fully reviewed. The source lane stays open,
+      because Voltway signs off its own wording before a translation ships from
+      it.
+    caption: "reviewed, committed, and visible in status"
+
+  - id: outro
+    kind: outro
+    text: >
+      Coordinates say where content sits. A voice profile and a list of term
+      rules say what governs it there. One queue says who still has to look. All
+      of it is files in the repository, and every command in this recording ran
+      offline.

@@ -1,0 +1,6 @@
+{
+  "site.add": "Add a site",
+  "meter.register": "Register a meter",
+  "reading.late": "This reading arrived after the billing period closed.",
+  "billing.export": "Export the billing period"
+}

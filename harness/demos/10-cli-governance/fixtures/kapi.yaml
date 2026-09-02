@@ -1,0 +1,80 @@
+# Voltway: one product, three surfaces, two brands.
+#
+# Everything this recipe binds is a file in the repository. The gate runs from
+# the committed context alone, with no server and no provider credential.
+version: v1
+name: voltway
+defaults:
+  source_language: en
+  target_languages: [fr]
+  # Voltway signs off its own source wording; a translation carries whatever
+  # the source said, so the source ladder gates the loop as well.
+  source_gate: approved
+  flow: converge
+  voice:
+    profile_file: .kapi/voice.yaml
+  exclude:
+    - "**/node_modules/**"
+    - "**/.git/**"
+
+profiles:
+  voltway:
+    channels: [docs, app, portal]
+    voice: .kapi/voice.yaml
+
+collections:
+  # Operator documentation.
+  - name: voltway-docs
+    channel: voltway/docs
+    base: docs
+    source_only: true
+    content:
+      - path: "*.md"
+
+  # Console strings, one block per key, with a French catalog beside them.
+  - name: voltway-app
+    channel: voltway/app
+    base: app
+    content:
+      - path: strings.en.json
+        format:
+          name: json
+        target: "strings.{lang}.json"
+
+  # The same product, shipped under a partner's brand. This collection moves on
+  # the brand axis alone and keeps the product and channel it inherits.
+  - name: helios-portal
+    channel: voltway/portal
+    base: partner
+    coordinates:
+      brand: helios
+    source_only: true
+    content:
+      - path: index.md
+
+flows:
+  # term_rules is the one key the terminology tools all read: one term, what the
+  # translation must say for it, and how hard it bites. A rule with severity
+  # minor reports; a rule with none fails. The same list is handed to the model
+  # that drafts and to the check that holds the draft to it.
+  converge:
+    steps:
+      - tool: recycle
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
+      - tool: translate
+        config:
+          provider: demo
+          skipMatched: true
+          term_rules: &term_rules
+            - term: billing period
+              replacement: période de facturation
+              note: The invoice window has one French name, and the console and the documentation both use it
+            - term: reading
+              replacement: relevé
+              severity: minor
+              note: Prefer relevé over lecture for a measurement taken from a meter
+      - tool: term-check
+        config:
+          term_rules: *term_rules
