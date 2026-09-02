@@ -30,7 +30,7 @@ See the corresponding upstream test fixtures under
 | `UnwrapSingleSegMrk` | yes | content-aware: drops `<seg-source>` and unwraps `<mrk mtype="seg">` in target only when source text differs from seg-source text (matches `XLIFFFilter.java:2278`) |
 | `StripApprovedWhenNoSourceTarget` | yes | drops `approved="…"` from trans-units whose source had no `<target>` element (matches `XLIFFFilter.java:2475` + `XLIFFSkeletonWriter.java:756`) |
 | `EscapeBeyondLatin1AsEntities` | yes | encoder-aware: escapes only chars the source-declared encoding cannot represent (matches `XMLEncoder.java:101-110, 191-213`); no-op for UTF-8 sources |
-| `StripTransUnitApprovedAttr` | **no** | unconditional `approved` strip — kept as dead code in case a future fixture needs it; the actual okapi rule is `StripApprovedWhenNoSourceTarget` |
+| `StripTransUnitApprovedAttr` | **no** | unconditional `approved` strip, kept as dead code in case a future fixture needs it; the actual okapi rule is `StripApprovedWhenNoSourceTarget` |
 
 ## Quirk details
 
@@ -46,7 +46,7 @@ but neokapi otherwise echoes the source's casing verbatim.
 
 XLIFF 1.2 §2.3.1 defines `<phase date="…">` as optional. okapi's
 `Phase` Java model field for `date` is read but never re-emitted on
-write — the writer omits the attribute entirely. Native preserves it.
+write, and the writer omits the attribute entirely. Native preserves it.
 
 Fixtures: any file with `<phase date="…">` in `<header>` (e.g.
 `about_the.htm.xlf`).
@@ -68,7 +68,7 @@ all trans-unit notes BEFORE the `<alt-trans>` element. The original
 "this note belongs to alt-trans alternate X" relationship is lost.
 
 XLIFF 1.2 §2.5 places `<note>` at trans-unit and alt-trans level
-both — okapi's flattening is lossy but spec-compatible because the
+both. okapi's flattening is lossy but spec-compatible because the
 output is still a valid xliff document with the note attached to the
 trans-unit instead of the alternate.
 
@@ -82,14 +82,14 @@ order. okapi's reader collects header children into typed bags
 `reference`, `skl`) and the writer emits them in a fixed order
 that places `<tool>` after `<note>` siblings.
 
-Fixtures: `RB-11-Test01.xlf`, `SF-12-Test02.xlf` — both have a
+Fixtures: `RB-11-Test01.xlf`, `SF-12-Test02.xlf`, both of which have a
 `<tool>` before any `<note>` in the source; okapi reorders.
 
 ### SimulateBrokenWindows1252Read (reader-side)
 
 okapi's `XLIFFFilter` opens the file with the declared XML encoding,
 but the internal `TextFragment` data structure normalizes some
-codepoints during parse — specifically, characters from Windows-1252
+codepoints during parse. Specifically, characters from Windows-1252
 positions 0x80-0x9F that aren't valid ISO-8859-1 (e.g. `€` at 0x80,
 typographic quotes 0x91-0x94, em/en-dashes 0x96-0x97) end up as
 U+FFFD REPLACEMENT CHARACTER in the okapi output. Our flag
@@ -97,7 +97,7 @@ reproduces the same loss by replacing every non-ASCII rune with
 U+FFFD when the source file declared (or fell back to) a non-UTF-8
 charset.
 
-Fixtures: `SF-12-Test03.xlf` — declares `encoding="UTF-8"` but
+Fixtures: `SF-12-Test03.xlf`, which declares `encoding="UTF-8"` but
 arrives via Swordfish workflow that touched windows-1252 encoded
 intermediate. The `?` chars in the okapi output (`accents: �, �, �`)
 match the U+FFFD pattern.
@@ -140,7 +140,7 @@ Implemented as a writer post-process pass that tracks trans-units by
 document-order POSITION (not by id, since XLIFF allows duplicate
 trans-unit ids) and reads a "had-target" set populated by the reader.
 
-Fixture: `SF-12-Test03.xlf` — 944 trans-units with `approved="no"`;
+Fixture: `SF-12-Test03.xlf`, 944 trans-units with `approved="no"`;
 only the first id="1" has a source target → keeps approved on
 round-trip; the other 943 drop it. Matches okapi byte-for-byte.
 
@@ -165,21 +165,21 @@ Latin-1 get escaped.
 The reader records the source charset in
 `layer.Properties["xliff:source-encoding"]` when the XML declaration
 named a non-UTF-8 charset. UTF-8 sources skip the path entirely so the
-flag is a no-op for the common case — it only fires on legacy
+flag is a no-op for the common case; it only fires on legacy
 encodings, exactly when okapi fires it.
 
 Fixture: `SF-12-Test03.xlf` (declared windows-1252, pseudo-output
 contains `Ţàĉƒ` → emits `&#x0162;à&#x0109;ƒ`, keeping ƒ literal because
 it's representable in windows-1252).
 
-The earlier `EscapeNonASCIIAsEntities` flag — which escaped
-indiscriminately above U+007F — was renamed and rewritten to use the
+The earlier `EscapeNonASCIIAsEntities` flag, which escaped
+indiscriminately above U+007F, was renamed and rewritten to use the
 encoder check. The old name no longer exists.
 
 ## Investigation tracker
 
 [neokapi#549](https://github.com/neokapi/neokapi/issues/549) is
-**resolved** — all 5 originally divergent xliff fixtures
+**resolved**: all 5 originally divergent xliff fixtures
 (MQ-12-Test01, SF-12-Test03, Test_Context_and_PH, Typo3Draft,
 about_the.htm) reach canonical-equal in the parity test, and each of
 the three previously uncharacterized quirks now has a documented,

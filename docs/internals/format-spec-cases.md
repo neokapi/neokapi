@@ -1,4 +1,4 @@
-# Format Spec Cases — The Executable Spec-Case Model
+# Format Spec Cases: The Executable Spec-Case Model
 
 This document defines neokapi's spec-case model: the grammar of an executable
 format-specification case, the neutral oracle encoding that any implementation
@@ -7,8 +7,8 @@ the design that [format-maturity.md](./format-maturity.md) references for the
 multi-view expected model (Engine L1/L3/L4 view mapping, §2.1 there), the E2
 anchor-survivability case (§2.3 there), and the citation contract (§2.4
 there); and that [format-ops.md §3](./format-ops.md) ritual 9 (`case-gen`)
-executes against. **Implementation status (#847): the multi-view runner has
-landed — the block-event dump (`core/format/spec/blockevents.go`,
+executes against. **Implementation status (#847): the multi-view runner is in
+place, comprising the block-event dump (`core/format/spec/blockevents.go`,
 `DumpBlockEvents`), the additive case grammar + meta-schema gate
 (`spec.go`, `validate.go`), the multi-view + accept-mode runner
 (`core/format/spectest/`), and the case-gen differential-oracle hook
@@ -34,8 +34,8 @@ its citation.
 ## 1. Why not the status quo
 
 The current engine (`core/format/spec/spec.go`, `core/format/spectest/`,
-`cli/parity/spec/`) is genuinely good at one thing — reader-contract
-verification across 41 formats with parity wiring for 38 — and structurally
+`cli/parity/spec/`) is genuinely good at one thing, reader-contract
+verification across 41 formats with parity wiring for 38, and structurally
 incapable of three things:
 
 1. **The round-trip IOU.** The writer-output assertion type is promised in
@@ -51,11 +51,11 @@ incapable of three things:
 2. **Assertions see only translatable block source text.** The complete
    assertion vocabulary is seven fields (`block_count`, `block_count_min`,
    `block_count_max`, `first_block_text`, `block_texts`,
-   `has_block_with_text`, `no_block_with_text` — `Assertions`, spec.go:225);
+   `has_block_with_text`, `no_block_with_text`, per `Assertions`, spec.go:225);
    the entire observable universe is `BlockTexts(parts)`, i.e.
    `model.RunsText(blk.Source)` over translatable blocks. Run structure,
    typed inline codes, targets, overlays, layers, Data parts, and writer
-   output are all unassertable — the actual format-engine contract (what
+   output are all unassertable: the actual format-engine contract (what
    *structure* comes out, and whether it goes back in) lives only in Go test
    code.
 3. **The Go engine is the blessed oracle.** Expected behavior is encoded as
@@ -119,7 +119,7 @@ read→transform→write unit and is adopted whole
 | Class | Semantics | Expected |
 |---|---|---|
 | `valid` | The input parses; extraction produces the asserted model. | Any of the §5 views. |
-| `invalid` | The input **must be rejected**, cleanly (no panic, bounded resources). One fault per case, fault-named. | `expected.error: {category}` — the error-category assertion. Never auto-updated (§8). |
+| `invalid` | The input **must be rejected**, cleanly (no panic, bounded resources). One fault per case, fault-named. | `expected.error: {category}`, the error-category assertion. Never auto-updated (§8). |
 | `operation` | An in-out pair: input + named operation → expected output. | Operation-specific (below). |
 
 Operations are the executable form of the engine's actual value proposition:
@@ -130,11 +130,11 @@ Operations are the executable form of the engine's actual value proposition:
 | `merge` | block-event dump (typically the extract dump with targets edited) → native | `expected.roundtrip` against committed native output |
 | `segment` | native (+ segmenter config) → block-event dump with segmentation overlays | `expected.blocks` including `overlays` |
 | `redact` | native → block-event dump with placeholder substitutions, then restore → native | `expected.blocks` + `expected.roundtrip` |
-| `anchor` | extract → edit-in-native-editor fixture → re-extract | the **E2 anchor-survivability case**: the `editor-anchor` overlay survives the edit cycle, per [format-maturity.md §2.3](./format-maturity.md) — E2 evidence is "an `in-out` anchor-survivability case", not a demo |
+| `anchor` | extract → edit-in-native-editor fixture → re-extract | the **E2 anchor-survivability case**: the `editor-anchor` overlay survives the edit cycle, per [format-maturity.md §2.3](./format-maturity.md). E2 evidence is "an `in-out` anchor-survivability case", not a demo |
 
 ## 4. The neutral expected encoding: the block-event dump
 
-The canonical oracle is a deterministic JSON event dump of the part stream —
+The canonical oracle is a deterministic JSON event dump of the part stream,
 the analog of yaml-test-suite's `test.event` DSL plus toml-test's tagged-value
 JSON (https://github.com/yaml/yaml-test-suite,
 https://github.com/toml-lang/toml-test). It (a) prevents the Go engine from
@@ -146,7 +146,7 @@ AI generation a schema-checkable target.
 ### 4.1 Shape
 
 JSON Lines: one event object per `model.Part`, with exactly one top-level key
-naming the part type — mirroring the Run discriminated-union convention. The
+naming the part type, mirroring the Run discriminated-union convention. The
 part types are the model's own (`core/model/part.go`: LayerStart, LayerEnd,
 GroupStart, GroupEnd, Block, Data, Media).
 
@@ -160,16 +160,16 @@ GroupStart, GroupEnd, Block, Data, Media).
 
 Field contracts, grounded in `core/model`:
 
-- **`layer_start` / `layer_end`** — from `model.Layer`: `id`, optional
+- **`layer_start` / `layer_end`** come from `model.Layer`: `id`, optional
   `name`, `format`, `locale`, `mime_type`, `encoding`, `multilingual`,
   `properties`. `layer_end` carries `id` only.
-- **`group_start` / `group_end`** — `id`, optional `name`, `properties`.
-- **`block`** — from `model.Block`: `id`, optional `name`, `type`,
+- **`group_start` / `group_end`**: `id`, optional `name`, `properties`.
+- **`block`** comes from `model.Block`: `id`, optional `name`, `type`,
   `translatable`, `source` (run list), optional `targets` (map keyed by the
-  `VariantKey` text form — bare locale, `;tone=`/`;channel=` suffixes, per
-  `VariantKey.MarshalText` — to a run list), optional `properties` (sorted
+  `VariantKey` text form (bare locale, `;tone=`/`;channel=` suffixes, per
+  `VariantKey.MarshalText`) to a run list), optional `properties` (sorted
   keys), optional `overlays`, optional `preserve_whitespace`.
-- **runs** — each run dumps as `{type, …}` where `type` is the Run
+- **runs**: each run dumps as `{type, …}` where `type` is the Run
   discriminator (`text|ph|pcOpen|pcClose|sub|plural|select`,
   `model.RunKind`): `text` → `{type,text}`; `ph`/`pcOpen`/`pcClose` →
   `{type, id, semantic?, subtype?, data?, equiv?}` where `semantic` is the
@@ -179,12 +179,12 @@ Field contracts, grounded in `core/model`:
   with branches recursing (sorted branch keys). This is what finally makes
   typed-code behavior (`<b>` → `pcOpen` with `semantic: fmt:bold`) part of
   the executable contract rather than prose in the html spec.
-- **overlays** — `{type, layer?, variant?, spans: [{id?, range:
+- **overlays**: `{type, layer?, variant?, spans: [{id?, range:
   [startRun, startOffset, endRun, endOffset], props?}]}` per `model.Overlay`
   / `model.Span` / `model.Anchor` (half-open, rune offsets). Present when
   the case's operation produces them (`segment`, `anchor`); absent
   otherwise.
-- **`data` / `media`** — `id`, optional `name`, `properties`.
+- **`data` / `media`**: `id`, optional `name`, `properties`.
 
 ### 4.2 Determinism rules
 
@@ -194,9 +194,9 @@ select `cases`) sorted by key; empty/zero fields omitted; HTML escaping
 disabled (matching `Run.MarshalJSON` and the KBF wire form, so `<b>` stays
 literal and content hashes are implementation-independent); UTF-8, LF
 separators, no trailing whitespace. Excluded by design: `Skeleton`,
-`Identity`, `ContentRef`, `DisplayHint`, `Annotations`, `IsReferent` — engine
-internals and tool products, not the reader contract. `kapi spec-dump` emits
-it; the same encoder backs accept-mode (§8).
+`Identity`, `ContentRef`, `DisplayHint`, `Annotations`, `IsReferent`, all of
+them engine internals and tool products rather than the reader contract.
+`kapi spec-dump` emits it; the same encoder backs accept-mode (§8).
 
 ### 4.3 The shim contract
 
@@ -219,7 +219,7 @@ binary compiled cgo-less; a hypothetical Rust port needs only the 30 lines.
 
 ## 5. Expected views and the Engine-level mapping
 
-One input, multiple assertion planes, adopted incrementally — yaml-test-suite
+One input, multiple assertion planes, adopted incrementally, following
 (`test.event` / `in.json` / `out.yaml`) and Unicode DDT test/verify pairs
 (https://github.com/yaml/yaml-test-suite,
 https://github.com/unicode-org/conformance).
@@ -228,7 +228,7 @@ https://github.com/unicode-org/conformance).
 |---|---|---|
 | `expected.blocks` | The full structural contract: the §4 event dump, compared structurally. | Inline JSONL or sibling file `cases/<id>.events.jsonl`. |
 | `expected.extracted` | Text-only extraction. **The assertion set is today's `Assertions` vocabulary, unchanged** (the seven fields of spec.go:225). | Inline assertion fields. |
-| `expected.roundtrip` | Writer output. `mode: byte_exact` (output == input), `idempotent` (read→write→read→write fixpoint), or `normalized` (output == committed normalized fixture — the xliff2 normalizing-DOM-writer class, #560). | Mode + optional `output_file`. |
+| `expected.roundtrip` | Writer output. `mode: byte_exact` (output == input), `idempotent` (read→write→read→write fixpoint), or `normalized` (output == committed normalized fixture, the xliff2 normalizing-DOM-writer class, #560). | Mode + optional `output_file`. |
 | `expected.valid_by` | Writer output passes an external validator: ODF Validator, Open XML SDK / openxml-audit, Okapi Lynx/Schematron for XLIFF, `msgfmt -c`, CommonMark `spec_tests.py` (https://odftoolkit.org/conformance/ODFValidator.html, https://github.com/dotnet/Open-XML-SDK). | Validator id from the acceptance harness. |
 | `expected.error` | (`class: invalid` only) clean rejection with category. | `{category, message_contains?}`. |
 
@@ -242,7 +242,7 @@ has.
 
 ## 6. Machine-checkable citations
 
-Free-text `spec_refs` ("CommonMark §6.7") become a resolvable structure —
+Free-text `spec_refs` ("CommonMark §6.7") become a resolvable structure, after
 test262's `esid`, WPT's `<link rel=help>` (lint-verified anchors), and BCD's
 "Each URL must contain a fragment identifier" rule
 (https://github.com/tc39/test262/blob/main/CONTRIBUTING.md,
@@ -258,7 +258,7 @@ cite: { spec: <catalog-id>, version: "…", url: "…#fragment",
 Citations resolve against the **pinned snapshot** in the spec knowledge base
 (`specs/catalog.yaml` + `snapshots/` + `sections/`,
 [format-maturity.md §2.4](./format-maturity.md)) via
-`scripts/format-ops/check-citations.mjs` — never the live network. PDF-only
+`scripts/format-ops/check-citations.mjs`, never the live network. PDF-only
 specs resolve by quote-hash. When a watch run detects a moved anchor, the
 relocation proposal arrives as a diff (the webref raw→patch→curated pattern,
 https://github.com/w3c/webref). The `cite.url` fragment doubles as the
@@ -297,17 +297,17 @@ disjoint annotation planes (spec.yaml xfails and
 | Known-divergence | Mismatch matching an expectations entry, with attributed `kind`. | `expected_fail`, `parity_warn` |
 
 Known-divergence `kind` keeps the existing `divergence_kind` vocabulary
-verbatim (spec.go:178–192): `native-bug` ("the neokapi reader is wrong —
-should be ~0"), `bridge-gap`, `okapi-bug`, `scope-diff`, `default-diff`,
+verbatim (spec.go:178–192): `native-bug` ("the neokapi reader is wrong", and
+should be ~0), `bridge-gap`, `okapi-bug`, `scope-diff`, `default-diff`,
 `missing-filter`, `fixture`, `contract`. Under the expectations model the
-`kind` is **mandatory** on every FAIL entry — closing today's gap of 3
+`kind` is **mandatory** on every FAIL entry, closing today's gap of 3
 explicit kinds against 140+ xfails attributed only by contract-audit's text
 heuristic. `parity_warn` disappears as a status: bridge↔native representation
 divergence is a Known-divergence entry in the bridge tree, because the
 blocks-view structural diff is the strict comparison by default.
 
 **Meta-schema.** The case files validate against a JSON Schema
-(`core/format/spec/case-schema.json`), gated in CI — the JSON Schema Test
+(`core/format/spec/case-schema.json`), gated in CI, on the JSON Schema Test
 Suite's `test-schema.json` pattern with DDT's three checkpoints: after
 generation, before run, after run (result objects validate too)
 (https://github.com/json-schema-org/JSON-Schema-Test-Suite/blob/main/test-schema.json).
@@ -317,7 +317,7 @@ shape, duplicate names) and add case-ID format/uniqueness and content-hash
 dedup (§10).
 
 **Accept mode.** `kapi spec-test -u <format>` rewrites `expected.*` views
-from current engine output; git diff is the review surface — tree-sitter's
+from current engine output; git diff is the review surface. Tree-sitter's
 `-u` made thousands of community grammars maintainable solo
 (https://tree-sitter.github.io/tree-sitter/creating-parsers/5-writing-tests.html).
 The guard rail comes with it: **accept mode refuses to rewrite `class:
@@ -332,10 +332,10 @@ Format-version applicability uses two complementary mechanisms, both from
 toml-test (https://github.com/toml-lang/toml-test):
 
 - `since:`/`until:` bounds on the case (inline, for the simple majority);
-- **per-format-version manifests** — plain case-ID lists
+- **per-format-version manifests**: plain case-ID lists
   (`cases-xliff-2.0`, `cases-xliff-2.1`, `cases-xliff-2.2`, the
-  `files-toml-1.0.0` pattern) generated from the bounds — one corpus, several
-  spec versions, no duplicated cases. The runner takes
+  `files-toml-1.0.0` pattern) generated from the bounds, giving one corpus over
+  several spec versions with no duplicated cases. The runner takes
   `kapi spec-test xliff --format-version 2.1`.
 
 If the corpus is ever shared outside the repo, releases are immutable and
@@ -364,28 +364,28 @@ only with machine validation in the loop
 (https://arxiv.org/pdf/2507.00378, https://arxiv.org/pdf/2410.04249,
 https://arxiv.org/html/2510.23350v1):
 
-1. **Anchor** — pick a spec section: one clause file from
+1. **Anchor.** Pick a spec section: one clause file from
    `specs/sections/<spec>/<version>/<anchor>.md` (the knowledge-base
    retrieval unit; section-anchored retrieval beats embedding chunks on
    standards text).
-2. **Generate** — candidate cases, **positive and negative**, each citing the
+2. **Generate.** Candidate cases, **positive and negative**, each citing the
    anchor (`cite.url#fragment` = the section), schema-shaped.
-3. **Validate** — meta-schema (§8 checkpoint 1) plus `Validate()` semantics;
+3. **Validate.** Meta-schema (§8 checkpoint 1) plus `Validate()` semantics;
    a hallucinated config key dies before any reader runs. **Content-hash
    dedup**: a hash over `(normalized input, config, operation)` across the
    format's corpus rejects candidates identical to existing cases.
-4. **Adjudicate** — the differential oracle: execute against neokapi *and*
+4. **Adjudicate.** The differential oracle: execute against neokapi *and*
    okapi-bridge via the §4.3 shims. Both agree → candidate-pass (lands
    `informational` until promoted). Disagree → divergence triage (an
    expectations entry with `kind`, or a bug). Both reject → the candidate
    becomes a `class: invalid` case if the rejection matches the cited clause,
    else discarded.
-5. **Review** — the human sees only the diffs: triage items and the
+5. **Review.** The human sees only the diffs: triage items and the
    accept-mode delta. Assertion values are *observed* (filled by the runner),
    never model-predicted.
-6. **Account** — per-section case counts update the coverage stats
+6. **Account.** Per-section case counts update the coverage stats
    (CommonMark's `-s` per-section pass percentages; WPT's heading-id
-   directories) — the ledger's `case-gen.watermarks.per_section_coverage`
+   directories), the ledger's `case-gen.watermarks.per_section_coverage`
    and a Knowledge-axis signal: coverage gaps make the next anchor choice.
 
 **Implementation entrypoints (the surface the ritual drives, #847).** Step 4
@@ -394,7 +394,7 @@ https://arxiv.org/html/2510.23350v1):
 (`core/format/spec/oracle.go`): the native side of the §4.3 shim. The parity
 `ParityRunner` (`cli/parity/spec`, build tag `parity`) consumes the **same**
 `Spec`/`Example` and can call `spec.DumpBlockEvents` on the bridge parts, so
-the two `CaseResult` dumps compare structurally — both-agree → candidate-pass,
+the two `CaseResult` dumps compare structurally: both-agree → candidate-pass,
 disagree → divergence triage, both-reject → promote to `class: invalid`. Step 3
 (validate) is `spec.Load`/`Spec.Validate` (`core/format/spec/validate.go`, the
 §8 meta-schema gate). Step 5 (review) uses accept-mode
@@ -424,7 +424,7 @@ the `Example` layer. Field-precise mapping from `core/format/spec/spec.go`:
 | `Feature.OkapiRefs`, `NativeRefs` | unchanged, on the section | Drift checks (`detectSpecRefDrift`) unaffected. |
 | `Feature.SpecRefs` (free text) | `cite:` per case (§6) | Free-text refs may remain on sections as prose; the resolvable citation lives on the case. |
 | `Example.Name` | `case.name` | |
-| — | `case.id` | New: stable 4–6 char, assigned at migration, never reused. |
+| (none) | `case.id` | New: stable 4–6 char, assigned at migration, never reused. |
 | `Example.InputFile` / `InputXML` / `InputBytes` | `input: {file: \| inline: \| bytes:}` | `okapi:` scheme unchanged; `corpus:` scheme added. |
 | `Example.Variant`, `Config` | unchanged | |
 | `Example.BridgeOnly` | expectations entry `native: UNSUPPORTED` | Out of the corpus. |
@@ -432,10 +432,10 @@ the `Example` layer. Field-precise mapping from `core/format/spec/spec.go`:
 | `Example.DivergenceKind` | expectations entry `kind:` | Same 8-value enum; now mandatory on FAIL. |
 | `Example.ParityStrict` | retired | Blocks-view structural diff is strict by default; representation divergence is a Known-divergence entry. |
 | `Example.Origin` (free text: `authored:` / `okapi-fixture:` / `real-world:`) | `origin: {kind, …}` structured | Three existing kinds map 1:1; `suite`, `bug`, `generated` added. |
-| `Assertions` (7 fields) | `expected.extracted` | **Vocabulary unchanged and valid as-is** — every existing example becomes a `class: valid` case with one view; `EvalAssertions` (helpers.go:153) is that view's evaluator. |
-| — | `class:` | All existing examples are `class: valid`. |
-| — | `expected.blocks` / `roundtrip` / `valid_by` / `error` | New views, adopted per Engine level (§5). |
-| — | `since` / `until`, `tags` | New. |
+| `Assertions` (7 fields) | `expected.extracted` | **Vocabulary unchanged and valid as-is**: every existing example becomes a `class: valid` case with one view; `EvalAssertions` (helpers.go:153) is that view's evaluator. |
+| (none) | `class:` | All existing examples are `class: valid`. |
+| (none) | `expected.blocks` / `roundtrip` / `valid_by` / `error` | New views, adopted per Engine level (§5). |
+| (none) | `since` / `until`, `tags` | New. |
 
 The migration is mechanical (a script emits IDs, wraps assertions, moves
 xfails into expectations trees), which is what makes the wholesale change
@@ -447,7 +447,7 @@ fold in as `origin: {kind: okapi-fixture}` informational cases
 
 The per-format `vocabulary.yaml` (Vocabulary axis,
 [format-maturity.md §2.2](./format-maturity.md)) binds every fidelity claim to
-passing case IDs via its `evidence:` field — claims-must-bind-to-tests, WPT
+passing case IDs via its `evidence:` field, the claims-must-bind-to-tests, WPT
 `WEB_FEATURES.yml` style
 (https://github.com/web-platform-tests/wpt/blob/master/css/css-transforms/WEB_FEATURES.yml);
 construct rows seed from ITS 2.0's data categories and the XLIFF 2.x
@@ -459,10 +459,10 @@ https://github.com/jgm/pandoc/issues/4301) and partial-never-counts scoring
 https://github.com/web-platform-dx/web-features/blob/main/docs/baseline.md).
 The three nested round-trip evidence tiers map exactly onto this document's
 views: text-content equality (`expected.extracted`) ⊂ canonical
-construct-dump equality (`expected.blocks` — the ITS test-suite normalization
+construct-dump equality (`expected.blocks`, the ITS test-suite normalization
 trick, https://github.com/w3c/its-2.0-testsuite) ⊂ byte equality
-(`expected.roundtrip: byte_exact` — SCORE-Bench's "distinguish legitimate
+(`expected.roundtrip: byte_exact`, per SCORE-Bench's "distinguish legitimate
 representational variation from actual data loss",
 https://unstructured.io/blog/introducing-score-bench-an-open-benchmark-for-document-parsing).
 A vocabulary cell citing a case ID that asserts only the weaker tier does not
-support the stronger claim — the audit resolves evidence at view granularity.
+support the stronger claim; the audit resolves evidence at view granularity.

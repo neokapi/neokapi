@@ -1,4 +1,4 @@
-# DocLang Capability Inventory (Task 1 — completeness yardstick)
+# DocLang Capability Inventory (Task 1: completeness yardstick)
 
 Source: `$NEOKAPI_DOCLANG_DIR/spec.md` (v0.6, 3734 lines, read in full).
 Purpose: exhaustive enumeration of everything DocLang can express, so the gap analysis (vs neokapi `core/model/structure.go`, 276 lines) and the **Structure & Geometry G0–G4** ladder can be measured against a complete list. Line refs are `spec.md` line numbers. "FUTURE" = Appendix C (planned, non-normative for v0.6 body but published in the spec).
@@ -8,9 +8,9 @@ DocLang is XML (UTF-8 default; XML prolog may override; entities or CDATA for re
 ## 0. Cross-cutting structural model (referenced by all groups below)
 
 - **Property Semantics** (L118–132): properties expressed as *leading child elements* of an element's body (LLM-token-friendly) rather than XML attributes, except for strictly-bounded enums which stay attributes. E.g. `<size>250</size>` style. Drives the "element head" design.
-- **Element head / element body** (§Head and Body Areas L142–199). Every *semantic element* may begin with an **element head** — a fixed-order property sequence: `<label>` → `<thread>` → (`<xref>` | `<href>`, mutually exclusive) → `<layer>` → **exactly 4 `<location>`** (x_min,y_min,x_max,y_max) → `<caption>` → `<custom>` (all optional) (L149–156). Remaining content = **element body** (payload).
+- **Element head / element body** (§Head and Body Areas L142–199). Every *semantic element* may begin with an **element head**, a fixed-order property sequence: `<label>` → `<thread>` → (`<xref>` | `<href>`, mutually exclusive) → `<layer>` → **exactly 4 `<location>`** (x_min,y_min,x_max,y_max) → `<caption>` → `<custom>` (all optional) (L149–156). Remaining content = **element body** (paragraph-ish inline content, or nested semantic elements).
 - **Document head / document body** (L162–168): `<doclang>` may start with optional `<head>` (global metadata); the rest is the document body.
-- **Subclasses** (§Subclasses L201–217): two extensibility levers — `<label value="...">` (free, **not validated**, conveys fine subclass) and a bounded `class` attribute on some elements (validated enum, carries structural semantics, e.g. `picture class="chart"` enables `<tabular>` chart data).
+- **Subclasses** (§Subclasses L201–217): two extensibility levers, `<label value="...">` (free, **not validated**, conveys fine subclass) and a bounded `class` attribute on some elements (validated enum, carries structural semantics, e.g. `picture class="chart"` enables `<tabular>` chart data).
 - **Version management** (§L219–245): `version` = `MAJOR.MINOR`; SemVer forward-compat within a major; `0.x` every minor is breaking. XSD may carry patch (L243).
 - **Conformance**: machine-checkable via the DocLang reference validator / XSD (L255). Whitespace: app-decided default (`xml:space="default"`); `<content>` forces preserve (L134–140, L2653–2671).
 - **Two non-content sinks of content**: virtual `<text>` (unwrapped text acting as if wrapped in `<text>`) inside list items and table cells (L478–481, L2048, L2170, L2192).
@@ -31,30 +31,30 @@ DocLang is XML (UTF-8 default; XML prolog may override; entities or CDATA for re
 | Default coordinate grid | `<default_resolution width height>` (head; default 512×512) | L3025–3042 |
 | Per-page physical size | `<page_size width height [page_no]>` (head, **FUTURE**; no page_no = default, page_no from 1) | L3222, L3253–3254 |
 
-Notes: there is **no dedicated `<section>`/`<chapter>`/`<article>` element** — sectioning is *implied* by `<heading>` level hierarchy + reading order + optional `<group>`. Pages are delimited by `<page_break/>`, not wrapped in a page element. Document order = logical order.
+Notes: there is **no dedicated `<section>`/`<chapter>`/`<article>` element**; sectioning is *implied* by `<heading>` level hierarchy + reading order + optional `<group>`. Pages are delimited by `<page_break/>`, not wrapped in a page element. Document order = logical order.
 
 ## (b) Logical roles (every role / element type)
 
 **Semantic elements** (§Semantic Elements L2042–2454). *Primary* = may appear at doclang top level; *secondary* = only nested:
-- `<text>` — cohesive paragraph text; also "virtual text" form in lists/cells (L2046–2064).
-- `<heading level>` — heading, depth via `level` (L2066–2087).
+- `<text>`: cohesive paragraph text; also "virtual text" form in lists/cells (L2046–2064).
+- `<heading level>`: heading, depth via `level` (L2066–2087).
 - `<footnote>` (L2088–2106).
 - `<page_header>`, `<page_footer>` (L2108–2146).
-- `<field_region>` — form container (L2148–2166); raw text not allowed.
-- `<list class="unordered|ordered">` — list; body must begin with `<ldiv>` (L2168–2188).
-- `<table>` — OTSL table; body must begin with a cell-structural element (L2190–2208).
-- `<index>` — TOC / glossary, OTSL-based (same cell model as table) (L2210–2228).
-- `<formula>` — raw LaTeX, no delimiters (L2230–2248).
-- `<code>` — code block or inline; language via `<label>` (L2250–2268).
-- `<picture class="undefined|chart">` — image; body starts with optional `<src>` then optional `<tabular>` (chart only) then any semantic content (L2270–2290).
-- `<marker>` — visible list/field glyph or number; can have own element head (L2292–2310).
-- `<group>` — container (L2312–2330).
-- `<field_heading level>` — heading scoped inside field_region (L2332–2352).
-- `<field_item>` — scopes 0–1 `<key>` + 0–N `<value>` (L2354–2372).
-- `<key>` — field key (descendant of field_item) (L2374–2392).
-- `<value class="read_only|fillable">` — field value (L2394–2414).
-- `<hint>` — guidance for a (fillable) field (L2416–2434).
-- `<caption>` — associated caption; **part of element head**, not body (L2436–2454).
+- `<field_region>`: form container (L2148–2166); raw text not allowed.
+- `<list class="unordered|ordered">`: list; body must begin with `<ldiv>` (L2168–2188).
+- `<table>`: OTSL table; body must begin with a cell-structural element (L2190–2208).
+- `<index>`: TOC / glossary, OTSL-based (same cell model as table) (L2210–2228).
+- `<formula>`: raw LaTeX, no delimiters (L2230–2248).
+- `<code>`: code block or inline; language via `<label>` (L2250–2268).
+- `<picture class="undefined|chart">`: image; body starts with optional `<src>` then optional `<tabular>` (chart only) then any semantic content (L2270–2290).
+- `<marker>`: visible list/field glyph or number; can have own element head (L2292–2310).
+- `<group>`: container (L2312–2330).
+- `<field_heading level>`: heading scoped inside field_region (L2332–2352).
+- `<field_item>`: scopes 0–1 `<key>` + 0–N `<value>` (L2354–2372).
+- `<key>`: field key (descendant of field_item) (L2374–2392).
+- `<value class="read_only|fillable">`: field value (L2394–2414).
+- `<hint>`: guidance for a (fillable) field (L2416–2434).
+- `<caption>`: associated caption; **part of element head**, not body (L2436–2454).
 
 **Table / index / tabular cell roles** (OTSL structural elements §L2837–3019; rectangular-grid rule L702):
 - `<fcel/>` full/regular cell (L2841); `<ecel/>` empty cell (L2857).
@@ -78,14 +78,14 @@ Notes: there is **no dedicated `<section>`/`<chapter>`/`<article>` element** —
 **Formatting elements** (§L2673–2835; inline, nestable, allowed in any raw-text context; **no attributes**):
 - `<bold>`, `<italic>`, `<underline>`, `<strikethrough>` (L2677–2755).
 - `<superscript>`, `<subscript>` (L2757–2795).
-- `<handwriting>` — handwritten text/annotation (L2797–2815).
-- `<rtl>` — right-to-left direction marker (L2817–2835). (Only RTL; LTR is the implicit default — no `<ltr>`.)
+- `<handwriting>`: handwritten text/annotation (L2797–2815).
+- `<rtl>`: right-to-left direction marker (L2817–2835). (Only RTL; LTR is the implicit default, with no `<ltr>`.)
 
 Other inline constructs:
 - Inline `<code>` and inline `<formula>` (same tags as block; tag conveys context) (L343–350, L407–417).
 - `<checkbox/>` inline empty element (L2635).
-- `<content>` — whitespace-preserving inline text container (`xml:space="preserve"`); also for code/whitespace-sensitive runs (L2653–2671); CDATA alternative for special chars.
-- `<marker>` — inline glyph (L2292).
+- `<content>`: whitespace-preserving inline text container (`xml:space="preserve"`); also for code/whitespace-sensitive runs (L2653–2671); CDATA alternative for special chars.
+- `<marker>`: inline glyph (L2292).
 - Inline cross-reference: nested `<text><xref thread_id="N"/>…</text>` (L1779–1799).
 - Inline hyperlink: `<text><href uri="…"/>label</text>` (L1801–1813).
 - Sub/superscript used for chemistry/footnote markers etc.
@@ -94,41 +94,41 @@ Other inline constructs:
 
 ## (d) Geometry / layout
 
-- **Bounding box**: `<location resolution value/>` — sequence of **exactly 4**, interpreted alternating-axis as x0,y0,x1,y1, top-left origin; constraint x0_norm≤x1_norm, y0_norm≤y1_norm (L2556–2573; §L150–156; examples L275–299). Coordinates live **only on semantic elements** (and head sub-parts), **never on `<group>`** (L275).
+- **Bounding box**: `<location resolution value/>`, a sequence of **exactly 4**, interpreted alternating-axis as x0,y0,x1,y1, top-left origin; constraint x0_norm≤x1_norm, y0_norm≤y1_norm (L2556–2573; §L150–156; examples L275–299). Coordinates live **only on semantic elements** (and head sub-parts), **never on `<group>`** (L275).
 - **Per-axis resolution / normalization**: `location@resolution` (exclusive axis bound), defaults to `default_resolution@width|height` or 512 (L2568). `<default_resolution width height>` sets the grid (L3025–3042). Coordinates are integer pixel-grid values normalized to resolution. Tokenizer pre-mints `<location value="0..511"/>` (L3093, L3201).
 - **Sub-element geometry**: `<marker>`, `<caption>` may carry their own element head incl. `<location>` (e.g. bullet glyph bbox L499–503; caption bbox L373, L633–638).
-- **Conceptual layer / z-order proxy**: `<layer value="body|background|furniture">` — body = main content, background = watermarks/etc., furniture = navigation/decoration (L2575–2591). This is a 3-value enum, **not** a numeric z-index.
+- **Conceptual layer / z-order proxy**: `<layer value="body|background|furniture">`, where body = main content, background = watermarks/etc., furniture = navigation/decoration (L2575–2591). This is a 3-value enum, **not** a numeric z-index.
 - **Page physical size**: `<page_size>` head element (FUTURE) (L3222).
 
-**Explicit geometry absences**: bbox is **axis-aligned rectangle only** — no rotated/oriented boxes, no polygons/quad points, no skew angle, no baseline, **no per-glyph/per-character coordinates or glyph boxes**, no per-word boxes, no font metrics. Columns/regions are **not** expressed geometrically — multi-column flow is captured by `<thread>` linking (see (e)), not by region/column geometry. No explicit reading-region or page-margin geometry. z-order is the 3-bucket `layer` only.
+**Explicit geometry absences**: bbox is **axis-aligned rectangle only**, with no rotated/oriented boxes, no polygons/quad points, no skew angle, no baseline, **no per-glyph/per-character coordinates or glyph boxes**, no per-word boxes, no font metrics. Columns/regions are **not** expressed geometrically: multi-column flow is captured by `<thread>` linking (see (e)), not by region/column geometry.
 
 ## (e) Reading order / relations / cross-references
 
 - **Reading order** = document (serialization) order; at page breaks, all open elements are closed in reading order before `<page_break/>` and reopened after (L1873, §L1868–1916).
-- **`<thread thread_id="N"/>`** — logical-component linking (element head, required `thread_id` positive int). Joins fragments of one component split across bounding boxes / columns / pages. Constraint: all threads sharing an id must be under the **same host element type** (L2478–2494; §Split structure L1530–1588; cross-column L1548–1588; cross-page L1590–1660). A list and a broken list-item can each carry their own thread id (L1889–1915).
-- **`<xref thread_id="N"/>`** — outgoing cross-reference (element head; mutually exclusive with `<href>`); target must be a `<thread>`-defined id in the doc (L2496–2512; example L1779–1799).
-- **`<href uri="…"/>`** — hyperlink to a URI (element head; works from text or non-text elements e.g. picture) (L2514–2534; §L1801–1822).
-- **`<h_thread h_thread_id>`** — horizontal threading for table content spanning pages sidewise (**FUTURE**, Appendix C L3207–3209; full commented example L1662–1771). When `ucel`/`lcel`/`h_thread` resolve linkage, `<thread>` is omitted as redundant.
+- **`<thread thread_id="N"/>`**: logical-component linking (element head, required `thread_id` positive int). Joins fragments of one component split across bounding boxes / columns / pages. Constraint: all threads sharing an id must be under the **same host element type** (L2478–2494; §Split structure L1530–1588; cross-column L1548–1588; cross-page L1590–1660). A list and a broken list-item can each carry their own thread id (L1889–1915).
+- **`<xref thread_id="N"/>`**: outgoing cross-reference (element head; mutually exclusive with `<href>`); target must be a `<thread>`-defined id in the doc (L2496–2512; example L1779–1799).
+- **`<href uri="…"/>`**: hyperlink to a URI (element head; works from text or non-text elements e.g. picture) (L2514–2534; §L1801–1822).
+- **`<h_thread h_thread_id>`**: horizontal threading for table content spanning pages sidewise (**FUTURE**, Appendix C L3207–3209; full commented example L1662–1771). When `ucel`/`lcel`/`h_thread` resolve linkage, `<thread>` is omitted as redundant.
 - **Caption ↔ host** association via element-head `<caption>` (L2436).
 - **Key ↔ value(s)** association via `<field_item>` scoping (L722–733).
 - **Spanning relations** in tables via `lcel`/`ucel`/`xcel` (see (b)).
 
 ## (f) Provenance / authority / confidence / source-tier
 
-- `<generated_by>` — upstream pipeline / VLM id (head, FUTURE) (L3224, L3251).
-- `<language classifier="…" score="0..1">` — detection tool + confidence (L3223, L3245–3246).
-- `<topic topic_taxonomy="…" score="0..1">` — topic classification + confidence; multiple allowed (L3225, L3247–3248).
-- `<document_hash hash_function="…">` — integrity hash; multiple allowed (L3227, L3249).
+- `<generated_by>`: upstream pipeline / VLM id (head, FUTURE) (L3224, L3251).
+- `<language classifier="…" score="0..1">`: detection tool + confidence (L3223, L3245–3246).
+- `<topic topic_taxonomy="…" score="0..1">`: topic classification + confidence; multiple allowed (L3225, L3247–3248).
+- `<document_hash hash_function="…">`: integrity hash; multiple allowed (L3227, L3249).
 - `training_provenance_required` governance flag (L3501).
 - `pii_source_type` (provided/derived/third-party) (L3399).
 
-**Authority / source-tier absences**: confidence (`score`) exists **only** for `language` and `topic` head classifiers — there is **no per-block, per-run, or per-cell confidence/authority/source-tier annotation** on document content. No "extracted vs authored", no OCR-confidence per span, no element-level provenance other than via free `<custom>`/governance overrides.
+**Authority / source-tier absences**: confidence (`score`) exists **only** for `language` and `topic` head classifiers, and there is **no per-block, per-run, or per-cell confidence/authority/source-tier annotation** on document content. No "extracted vs authored", no OCR-confidence per span, no element-level provenance other than via free `<custom>`/governance overrides.
 
 ## (g) Metadata
 
 - **Document head `<head>`** (L1996; reserved core elements FUTURE §L3211–3263):
   - `<title>`; `<author_info>`/`<author>` with 0+ `<affiliation>`; `<date>` (ISO 8601); `<page_size>`; `<language>` (ISO 639-3, multi, with classifier/score); `<generated_by>`; `<topic>` (taxonomy, score, multi); `<summary>`; `<document_hash>` (multi); `<default_resolution>` (L3217–3254).
-  - **Head-level custom elements** allowed (e.g. `<my_company_hap_filter_hate>`) — namespaced (L3256–3259).
+  - **Head-level custom elements** allowed (e.g. `<my_company_hap_filter_hate>`), namespaced (L3256–3259).
 - **Element-head custom metadata**: `<custom>` carrying namespaced/prefixed app-specific XML (e.g. SMILES) (L2536–2554; §Custom vocabularies L1917–1945; naming/namespacing guidance Appendix B L3077–3086).
 - **Governance & compliance metadata** (FUTURE, §L3265–3712; head-level, MAY be overridden per-component L3270):
   - Licensing/rights: `<licenses>`/`<license>` (L3357, L3556).
@@ -146,8 +146,8 @@ Other inline constructs:
 
 ## (h) Annotations / overlays (segmentation, comments, change-tracking)
 
-**Largely ABSENT — no stand-off annotation layer.** DocLang carries structure as inline XML markup, not as offset-anchored overlays. Specifically:
-- **No segmentation overlay** — no sentence/segment element or stand-off range annotation. (`<text>` = paragraph-level cohesive text; "virtual text" is structural, not segmentation.)
+**Largely ABSENT, with no stand-off annotation layer.** DocLang carries structure as inline XML markup, not as offset-anchored overlays. Specifically:
+- **No segmentation overlay**: no sentence/segment element or stand-off range annotation. (`<text>` = paragraph-level cohesive text; "virtual text" is structural, not segmentation.)
 - **No comments / review notes** element.
 - **No change-tracking / revision / redline / insertion-deletion** element (only `<strikethrough>` as visual formatting, L2737).
 - **No highlight/markup annotation** layer.
@@ -155,20 +155,20 @@ Other inline constructs:
 
 ## (i) Localization-specific constructs
 
-**Largely ABSENT — DocLang is a monolingual document representation.**
-- `<language>` (ISO 639-3) in head, multiple entries allowed — but these are *document language detection* signals, not a multilingual content model (L3223).
-- `<rtl>` text-direction marker (L2817) — bidi support.
+**Largely ABSENT: DocLang is a monolingual document representation.**
+- `<language>` (ISO 639-3) in head, multiple entries allowed, though these are *document language detection* signals, not a multilingual content model (L3223).
+- `<rtl>` text-direction marker (L2817) for bidi support.
 - **No translation units, no source/target pairing, no variants, no locale-keyed content, no bilingual/multilingual alternation, no `xml:lang` per element, no segmentation for translation.** DocLang expresses one document in one language; translation state (targets, content-memory matches, segments, variants) is entirely out of scope and would be layered externally.
 
 ## (j) Anything else (assets/media, embedded content, versioning, profiles, extension mechanisms)
 
-- **Assets / media**: `<picture>` with `<src uri="…"/>` — by reference (http/relative URI) **or** inline base64 `data:` URI (RFC 2397) (L2597–2613; §Pictures L301–335). `<href>` for link targets. (No `<video>`/`<audio>`/binary-media element beyond picture src.)
-- **Embedded / nested content**: arbitrary nesting — semantic elements inline via nesting (L2044); nested tables/lists/pictures inside table cells (L645–698); inline code/formula; chart-structured data via `<tabular>` (OTSL) inside `<picture class="chart">` (L323–335, L2615–2633); foreign XML via `<custom>` + namespaces (SMILES example L1925–1945).
+- **Assets / media**: `<picture>` with `<src uri="…"/>`, by reference (http/relative URI) **or** inline base64 `data:` URI (RFC 2397) (L2597–2613; §Pictures L301–335). `<href>` for link targets. (No `<video>`/`<audio>`/binary-media element beyond picture src.)
+- **Embedded / nested content**: arbitrary nesting, with semantic elements inline via nesting (L2044); nested tables/lists/pictures inside table cells (L645–698); inline code/formula; chart-structured data via `<tabular>` (OTSL) inside `<picture class="chart">` (L323–335, L2615–2633); foreign XML via `<custom>` + namespaces (SMILES example L1925–1945).
 - **Whitespace / escaping**: `<content>` (preserve), CDATA `<![CDATA[…]]>`, XML entities (L134–140, L2653–2671).
 - **Versioning**: `version` MAJOR.MINOR with SemVer compatibility semantics; 0.x all-breaking; XSD patch level (§L219–245).
 - **Profiles / conformance levels**: governance minimal/full profiles (L3510–3535); machine conformance via reference validator + XSD (L255, L1958).
 - **Extension mechanisms** (three): (1) `<custom>` element-head + head-level custom elements with XML namespaces / collision-resistant prefixes (L2536, L1917–1945, L3077–3086); (2) `<label value>` free-form subclass, explicitly **not validated** for extensibility (L203, L2472); (3) `class` attribute bounded enums for structurally-significant subtypes.
-- **Token vocabulary** (Appendix B L3088–3201): defines the DocLang-compliant tokenizer token set — start/end tags per element, pre-minted heading/field_heading levels 1–6, `<location value="0">..511`, checkbox states, CDATA markers, custom SMILES tokens — a normative-ish artifact for LLM tokenizer alignment.
+- **Token vocabulary** (Appendix B L3088–3201): defines the DocLang-compliant tokenizer token set (start/end tags per element, pre-minted heading/field_heading levels 1–6, `<location value="0">..511`, checkbox states, CDATA markers, custom SMILES tokens), a normative-ish artifact for LLM tokenizer alignment.
 - **Property-as-element encoding** (L118–132) is itself a reusable mechanism for adding bounded properties token-efficiently.
 
 ---
@@ -186,6 +186,6 @@ Doc-head metadata (1 normative + FUTURE set): `default_resolution`; FUTURE: `tit
 
 ## Headline structural conclusions (for the G-axis yardstick)
 
-1. DocLang reaches **G3 fully and G4 partially**: rich logical roles, header/spanned/section cells, list/field structure, reading-order via threads, captions, cross-refs — plus **axis-aligned bbox + resolution + 3-value layer** geometry. It does **NOT** carry rotation, polygons, per-glyph/per-word boxes, baselines, font metrics, or column/region geometry (columns are thread-linked, not geometric). So "G4 +geometry/bbox/glyphs" — DocLang has bbox but **not glyphs**.
+1. DocLang reaches **G3 fully and G4 partially**: rich logical roles, header/spanned/section cells, list/field structure, reading-order via threads, captions, cross-refs, plus **axis-aligned bbox + resolution + 3-value layer** geometry. It does **NOT** carry rotation, polygons, per-glyph/per-word boxes, baselines, font metrics, or column/region geometry (columns are thread-linked, not geometric).
 2. Strong on **semantic structure (b)**, **tables (b)**, **forms/fields (b)**, **geometry-as-bbox (d)**, **governance/PII/RAG/training metadata (g)**, **provenance-as-classifier-scores (f)**.
-3. Deliberately thin on **inline styling (c)** (8 formatting tags, no color/font), and **absent** on **annotation/overlay (h)** (no segmentation/comments/change-tracking) and **localization (i)** (monolingual; no targets/variants/TUs) — these are where neokapi's overlay + variant/target model *exceeds* DocLang and where DocLang offers no yardstick element.
+3. Deliberately thin on **inline styling (c)** (8 formatting tags, no color/font), and **absent** on **annotation/overlay (h)** (no segmentation/comments/change-tracking) and **localization (i)** (monolingual; no targets/variants/TUs). Those are where neokapi's overlay + variant/target model *exceeds* DocLang and where DocLang offers no yardstick element.

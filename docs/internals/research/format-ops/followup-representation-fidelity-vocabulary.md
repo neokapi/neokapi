@@ -2,15 +2,15 @@
 
 Research date: 2026-06-11. Question: how to systematically enumerate, per format, the semantic
 constructs the format can express, and score whether neokapi's Block/Run/Overlay model represents
-each losslessly, lossily, or not at all — turning "vocabulary fidelity" into a measurable axis of
+each losslessly, lossily, or not at all, turning "vocabulary fidelity" into a measurable axis of
 the L0–L4 format-maturity model.
 
 ## Findings
 
-### 1. W3C ITS 2.0 — the canonical, format-independent localization-semantics vocabulary
+### 1. W3C ITS 2.0: the canonical, format-independent localization-semantics vocabulary
 
 ITS 2.0 (W3C Recommendation, 29 Oct 2013) defines exactly the construct list neokapi is looking
-for, as **data categories** — format-independent semantic concepts that are then *mapped* into
+for, as **data categories**: format-independent semantic concepts that are then *mapped* into
 concrete formats. Section 2.1 of the spec enumerates the full set
 (https://www.w3.org/TR/its20/):
 
@@ -19,14 +19,14 @@ concrete formats. Section 2.1 of the spec enumerates the full set
 3. Terminology (term flags + definition/reference pointers)
 4. Directionality (base writing direction / bidi)
 5. Language Information (language of content)
-6. Elements Within Text (inline vs block vs nested-flow semantics — i.e. neokapi's "is this a
+6. Elements Within Text (inline vs block vs nested-flow semantics, i.e. neokapi's "is this a
    sub-flow or inline code" question)
 7. Domain (subject-matter for MT/content memory routing)
 8. Text Analysis (entity/concept annotation)
-9. Locale Filter (content applies only to certain locales — conditional text)
-10. Provenance (who/what touched the content — human/MT/reviser agents)
-11. External Resource (references to external localizable resources — embedded media)
-12. Target Pointer (where the target lives relative to source in the same doc — e.g. bilingual
+9. Locale Filter (content applies only to certain locales: conditional text)
+10. Provenance (who/what touched the content: human/MT/reviser agents)
+11. External Resource (references to external localizable resources: embedded media)
+12. Target Pointer (where the target lives relative to source in the same doc, e.g. bilingual
     key-value files)
 13. Id Value (stable unique ID / context key for a unit)
 14. Preserve Space (whitespace semantics)
@@ -34,7 +34,7 @@ concrete formats. Section 2.1 of the spec enumerates the full set
 16. Localization Quality Rating (doc/unit-level quality score)
 17. MT Confidence (per-segment MT score)
 18. Allowed Characters (character-class constraints on target)
-19. Storage Size (max storage size with encoding — length constraints)
+19. Storage Size (max storage size with encoding: length constraints)
 20. (+ ITS Tools Annotation, processor provenance, §2.6)
 
 Three properties make ITS the right seed taxonomy:
@@ -42,9 +42,9 @@ Three properties make ITS the right seed taxonomy:
 - **Per-category conformance as a coverage matrix.** ITS conformance is claimed *per data
   category*: a processor must implement at least one, and "must list all data categories they
   implement, and for each data category, which type of selection they support" (global rules vs
-  local markup) — Conformance clause 2-1, §4.2 (https://www.w3.org/TR/its20/). The conformance
-  statement *is* a per-construct support matrix; this is precisely the publication shape
-  vocabulary.yaml needs.
+  local markup), per Conformance clause 2-1, §4.2 (https://www.w3.org/TR/its20/). The
+  conformance statement *is* a per-construct support matrix; this is precisely the publication
+  shape vocabulary.yaml needs.
 - **Format mapping discipline.** ITS shows how one abstract category surfaces differently per
   format: in HTML5 each local data category is realized as an `its-*` attribute (Appendix I), and
   four categories are deliberately mapped onto *native* HTML markup (`lang`, `id`, `translate`,
@@ -58,23 +58,23 @@ Three properties make ITS the right seed taxonomy:
   implementation × test as OK / error / fnf / N-A. The W3C exit criterion was "two or more
   independent implementations pass each test" (§4.2, https://www.w3.org/TR/its20/). Note the
   comparison trick: semantic conformance is checked by **canonicalizing into a neutral
-  expected-output format and then comparing exactly** — semantic comparison reduced to byte
+  expected-output format and then comparing exactly**, reducing semantic comparison to byte
   comparison of a canonical dump.
 
 ITS also closes the loop with XLIFF: the ITS Interest Group maintained a category-by-category
 ITS→XLIFF mapping (https://www.w3.org/International/its/wiki/XLIFF_Mapping, with
 https://www.w3.org/International/its/wiki/XLIFF_2.html for 2.0), which became the official
-**ITS Module in XLIFF 2.1** — mostly reusing the W3C namespace `https://www.w3.org/2005/11/its/`,
+**ITS Module in XLIFF 2.1**, mostly reusing the W3C namespace `https://www.w3.org/2005/11/its/`,
 with an OASIS namespace `urn:oasis:names:tc:xliff:itsm:2.1` only for attributes ITS itself lacks
 (e.g. `itsm:domains`, `itsm:lang`)
 (https://docs.oasis-open.org/xliff/xliff-core/v2.1/xliff-core-v2.1.html). So ITS categories are
 already the lingua franca between source formats and the interchange format.
 
-### 2. TTML feature designators — the cleanest machine-readable "format vocabulary" mechanism
+### 2. TTML feature designators: the cleanest machine-readable "format vocabulary" mechanism
 
-TTML2 (https://www.w3.org/TR/ttml2/) defines ~254 **feature designators** in Appendix E — stable
+TTML2 (https://www.w3.org/TR/ttml2/) defines ~254 **feature designators** in Appendix E: stable
 URI fragments naming individual format constructs (`#ruby`, `#textOrientation`, `#animate`,
-`#backgroundColor`, …) — plus Appendix F **extension designators** for constructs defined outside
+`#backgroundColor`, …), plus Appendix F **extension designators** for constructs defined outside
 the spec. A **profile definition document** (`ttp:profile` containing `ttp:feature` elements with
 `value="required|optional|use"`) then declares, per feature, what a *document class* requires or
 a *processor* supports. Two distinct profile kinds matter:
@@ -92,28 +92,28 @@ URIs to profiles so codecs/players can negotiate by designator. IMSC and DAPT ar
 The structural insight for neokapi: TTML separates (a) the universe of constructs (flat list of
 stable URIs anchored in the spec), (b) what a given document/format *can express* (content
 profile), and (c) what a given implementation *supports* (processor profile). "Vocabulary
-fidelity" is the delta between (b) and (c) — and only constructs in (b) should ever be scored
+fidelity" is the delta between (b) and (c), and only constructs in (b) should ever be scored
 against an implementation.
 
-### 3. XLIFF 2.x — core/modules as a vocabulary partition; SOUs as a cautionary tale
+### 3. XLIFF 2.x: core/modules as a vocabulary partition; SOUs as a cautionary tale
 
 XLIFF 2.0 split the standard into a small Core plus independent modules: Translation Candidates,
 Glossary, Format Style, Metadata, Resource Data, Change Tracking, Size and Length Restriction,
-Validation (each with its own namespace, evolvable independently —
+Validation (each with its own namespace, evolvable independently;
 https://multilingual.com/articles/an-introduction-to-xliff-2-0/). XLIFF 2.1 added the ITS module
 (https://docs.oasis-open.org/xliff/xliff-core/v2.1/xliff-core-v2.1.html). XLIFF 2.2 (Committee
 Specification, 13 March 2025) restructured into Part 1 Core
 (https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html) and Part 2
 Extended (https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html),
 adding the **Plural, Gender, and Select module** (`urn:oasis:names:tc:xliff:pgs:1.0`) for message
-variants — the direct interchange counterpart of neokapi's Plural/Select runs.
+variants, the direct interchange counterpart of neokapi's Plural/Select runs.
 
 The modules are themselves a ready-made construct taxonomy chunk: each module ≈ one
 localization-relevant capability family (alt-trans candidates, glossary/term links, HTML-ish
 formatting hints via `fs:fs`/`fs:subFs`, custom metadata, embedded reference binaries, tracked
 changes, size/length restriction with pluggable profiles, validation rules). Inline codes add a
 second chunk: XLIFF 2 `<ph>/<pc>/<sc>/<ec>/<mrk>/<sm>/<em>` with `type`/`subType`, and `dir`,
-`canCopy/canDelete/canReorder` editing constraints (Part 1 Core spec above) — neokapi's Run union
+`canCopy/canDelete/canReorder` editing constraints (Part 1 Core spec above). neokapi's Run union
 maps 1:1 onto this, so the inline-code attribute vocabulary (type categories `fmt`, `ui`,
 `quote`, `link`, `image`, `other` + `subType`) is the canonical inline-markup category list.
 
@@ -121,11 +121,11 @@ How support is *evidenced* in the XLIFF world is the cautionary tale. OASIS stan
 relies on **Statements of Use**: the "XLIFF 2.1 support in CAT tools" report (Morado Vázquez &
 Filip, 2018, https://archive-ouverte.unige.ch/unige:105631; Semantic Scholar:
 https://www.semanticscholar.org/paper/XLIFF-2.1-support-in-CAT-tools-V%C3%A1zquez-David/3f1f0ba3b44d72c93c3b5e74aca924ef927f4cd7)
-documents just five voluntary SOUs collected Aug–Oct 2017 — self-declared, no shared test
+documents just five voluntary SOUs collected Aug–Oct 2017: self-declared, no shared test
 harness, no per-module matrix. The earlier "XLIFF Version 2.0 Support in CAT Tools" (Morado
 Vázquez & Filip, 2014, https://archive-ouverte.unige.ch/unige:75409) did build a small test-file-
 driven matrix. Net: self-declaration without executable evidence produced support claims nobody
-can verify — the anti-pattern vocabulary.yaml must avoid.
+can verify. That is the anti-pattern vocabulary.yaml must avoid.
 
 ### 4. Feature-support matrices that work: BCD, caniuse, web-features/Baseline, WPT linkage
 
@@ -133,19 +133,19 @@ These four artifacts converge on one record shape and add three distinct governa
 
 **MDN browser-compat-data** (schema:
 https://github.com/mdn/browser-compat-data/blob/main/schemas/compat-data-schema.md). Per feature,
-a `__compat` object holds `description`, `spec_url` (mandatory when `standard_track: true` —
+a `__compat` object holds `description`, `spec_url` (mandatory when `standard_track: true`;
 *every feature must cite its spec*), `status: {experimental, standard_track, deprecated}`, and
 per-browser support statements: `version_added` (mandatory; string version or `false`),
 `version_removed`, `prefix`/`alternative_name`, `flags`, `impl_url` (link to implementation
 tracking), `notes` (markdown), and crucially **`partial_implementation: true` which by
 convention requires an accompanying note explaining the divergence** (e.g. `{"version_added":
 "6", "partial_implementation": true, "notes": "The event handler is supported, but the event
-never fires."}`). Partiality is never a bare flag — it always carries prose explaining *what* is
-lossy. A `"mirror"` value lets derivative browsers inherit upstream data (maintenance economy).
+never fires."}`). A partial flag always carries prose explaining *what* is lossy. A `"mirror"`
+value lets derivative browsers inherit upstream data (maintenance economy).
 
 **caniuse** (https://github.com/Fyrd/caniuse/blob/main/CONTRIBUTING.md) encodes per-version
-support as compact letter codes — `y` yes, `a` almost/partial, `n` no, `p` polyfill-only, `u`
-unknown, `x` prefixed, `d` behind-flag — with `#n` note references into a `notes_by_num` map, so
+support as compact letter codes (`y` yes, `a` almost/partial, `n` no, `p` polyfill-only, `u`
+unknown, `x` prefixed, `d` behind-flag) with `#n` note references into a `notes_by_num` map, so
 every `a` (partial) is resolvable to a specific explanation. Feature metadata carries `spec`,
 `status` (ls/wd/cr/pr/rec/unoff), `links`, `bugs`. The takeaway is the **closed status enum with
 mandatory note linkage for the partial state**, plus `u` (unknown) as an honest first-class state
@@ -193,38 +193,38 @@ lossy," while "conversions from pandoc's Markdown to all formats aspire to be pe
 
 - **A declared fidelity anchor.** Pandoc names its native model (Pandoc-Markdown/AST) and makes
   loss *directional and predictable* relative to it, instead of promising per-pair fidelity.
-- **Per-construct loss policy, user-selectable.** For docx tracked changes — a construct its AST
-  cannot represent natively — `--track-changes accept|reject|all` offers three policies: resolve
+- **Per-construct loss policy, user-selectable.** For docx tracked changes (a construct its AST
+  cannot represent natively), `--track-changes accept|reject|all` offers three policies: resolve
   (accept), discard (reject), or lossy-preserve as spans with `insertion`/`deletion`/
   `comment-start`/`comment-end` classes (https://pandoc.org/MANUAL.html). The failure mode is
   also documented in issues: the preserved spans "clutter the output" of other writers
   (https://github.com/jgm/pandoc/issues/4301) and writer support regressed independently of the
-  reader (https://github.com/jgm/pandoc/issues/4303) — proof that **reader-side and writer-side
+  reader (https://github.com/jgm/pandoc/issues/4303), proof that **reader-side and writer-side
   support for the same construct must be tracked as separate cells**, or asymmetries rot
   silently.
 
 **Sanity Portable Text** (https://github.com/portabletext/portabletext) is a spec'd minimal
 rich-text vocabulary: blocks with `children` spans; marks split into **decorators** (plain
 strings, e.g. `"emphasis"`) and **annotations** (keys into a stand-off `markDefs` array carrying
-data) — structurally the same split as neokapi's Run flags vs Overlays. Custom constructs ride on
+data), structurally the same split as neokapi's Run flags vs Overlays. Custom constructs ride on
 `_type`, and serializers are expected to handle unknown `_type`s. **Contentful Rich Text**
 (https://www.contentful.com/developers/docs/concepts/rich-text/) sits at the opposite pole: a
 closed node/mark vocabulary where "Custom node types and marks are not allowed" and invalid
-structures are *rejected by validation* rather than degraded. The spectrum — reject / drop /
-lossy-preserve / extend — is the policy enum a vocabulary entry needs when support ≠ lossless.
+structures are *rejected by validation* rather than degraded. The spectrum (reject / drop /
+lossy-preserve / extend) is the policy enum a vocabulary entry needs when support ≠ lossless.
 
 ### 6. Okapi Framework's own approach
 
 Okapi documents capability per filter in two ways, neither machine-checked: (1)
 `IFilter.QueryProperty()` lets callers probe a handful of coarse runtime capabilities
 (https://okapi.sourceforge.net/IFilter.html); (2) per-filter wiki pages carry hand-written
-support/limitation bullets — e.g. the XLIFF-2 filter page lists "Basic support for XLIFF 2.x
+support/limitation bullets: e.g. the XLIFF-2 filter page lists "Basic support for XLIFF 2.x
 core," support for inline codes, notes, groups and the **Metadata module only**, and limitations
 like "Skeleton not supported," "Comments are lost in the merged document," "Original XML
 formatting lost in merged document," "Attributes can be reordered"
 (https://okapiframework.org/wiki/index.php/XLIFF-2_Filter; filter index:
 https://okapiframework.org/wiki/index.php/Filters). The limitation lists are genuinely useful
-prose, but they are unversioned, untested, and not enumerable across filters — exactly the
+prose, but they are unversioned, untested, and not enumerable across filters, exactly the
 "vibes" state neokapi wants to leave. (Okapi's MultilingualWeb-LT deliverable D3.1.4 also shows
 its ITS-categories-onto-filters work: https://www.w3.org/International/multilingualweb/lt/wiki/images/8/8b/D3.1.4.pdf.)
 
@@ -235,7 +235,7 @@ its ITS-categories-onto-filters work: https://www.w3.org/International/multiling
   (https://github.com/w3c/its-2.0-testsuite). Generalization: define a canonical *construct
   dump* (every construct instance found, normalized, ordered), and compare dumps across
   read→write→read round-trips. Byte-inequality of the file with byte-equality of the dump =
-  "semantically faithful, serialization divergent" — a measurable middle state.
+  "semantically faithful, serialization divergent", a measurable middle state.
 - **SCORE-Bench** (Unstructured, 2 Dec 2025,
   https://unstructured.io/blog/introducing-score-bench-an-open-benchmark-for-document-parsing)
   measures parsing fidelity on three axes: content fidelity via **Adjusted CCT** (word-weighted
@@ -248,7 +248,7 @@ its ITS-categories-onto-filters work: https://www.w3.org/International/multiling
 - Generic round-trip-testing framing (convert A→B→A, diff) is widely described
   (e.g. https://en.wikipedia.org/wiki/Round-trip_format_conversion); the academic work found is
   mostly domain-specific (math expressions: https://arxiv.org/pdf/1906.11485). No off-the-shelf
-  "localization construct preservation" benchmark exists — neokapi would be first.
+  "localization construct preservation" benchmark exists, so neokapi would be first.
 
 ## Design implications for neokapi
 
@@ -275,7 +275,7 @@ mandatory `notes` whenever status ≠ lossless ∧ ≠ none (BCD `partial_implem
 error`, the pandoc `--track-changes` pattern), `since` version, and `evidence` pointing at
 spec.yaml test IDs.
 
-**(b) Canonical construct taxonomy** — a single repo-level `constructs.yaml` (the "feature
+**(b) Canonical construct taxonomy**: a single repo-level `constructs.yaml` (the "feature
 designator registry," TTML Appendix-E style, with stable IDs and spec URLs), seeded from:
 
 - **ITS 2.0's 19 data categories** (translate flags, loc-notes, terminology, directionality,
@@ -293,11 +293,11 @@ designator registry," TTML Appendix-E style, with stable IDs and spec URLs), see
   https://www.w3.org/TR/ttml2/), timing (subtitles), message references/linked strings.
 
 Most entries map per-format to either a Run kind, an Overlay kind, Block/Layer properties, or
-skeleton — recording *which* (`model_mapping`) makes gaps in the Block/Run/Overlay model itself
+skeleton. Recording *which* (`model_mapping`) makes gaps in the Block/Run/Overlay model itself
 visible (e.g. if many formats map a construct to `skeleton`, the model is missing a vocabulary
-item — the pandoc "IR less expressive" confession, made queryable).
+item, the pandoc "IR less expressive" confession, made queryable).
 
-**(c) Make every claim executable — the WPT pattern.** Any `status: lossless|lossy` must cite
+**(c) Make every claim executable: the WPT pattern.** Any `status: lossless|lossy` must cite
 ≥1 passing spec.yaml case (`evidence:`); a drift gate (like the existing
 `make check-contract-types`) fails CI when (1) a construct claim has no evidence, (2) an
 evidence ID doesn't exist or doesn't pass, or (3) a spec.yaml test exercises a construct absent
@@ -312,7 +312,7 @@ constructs" table and the /format-maturity dashboard from vocabulary.yaml (never
 Okapi-wiki-style bullets); render `lossy`/`dropped` rows with their mandatory notes (BCD
 pattern); state the pandoc-style directional anchor once ("the Block/Run/Overlay model is the
 fidelity anchor; conversions from formats more expressive than it are lossy in these enumerated
-ways"); record intentional divergences as Baseline-style **editorial overrides** — explicit,
+ways"); record intentional divergences as Baseline-style **editorial overrides**: explicit,
 attributed entries (`divergence: {reason, link}`) rather than silently downgraded scores
 (https://github.com/web-platform-dx/web-features/blob/main/docs/baseline.md). Keep `unknown` as
 a first-class status (caniuse `u`) so unaudited constructs aren't silently counted as
@@ -338,6 +338,6 @@ unsupported or supported.
   which tier they prove, so "lossless" formally means "construct-dump-equal under round-trip,"
   decoupled from the existing byte-equality parity tests.
 - **Aggregate view:** a caniuse-style cross-format × construct matrix (statuses + note popovers)
-  becomes the headline artifact of the /format-maturity dashboard — and doubles as the honest
+  becomes the headline artifact of the /format-maturity dashboard, and doubles as the honest
   competitive matrix vs Okapi (whose own per-filter support is prose-only,
   https://okapiframework.org/wiki/index.php/XLIFF-2_Filter).

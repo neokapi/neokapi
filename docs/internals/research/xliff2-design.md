@@ -1,4 +1,4 @@
-# XLIFF 2.x Reader/Writer — Design Spec
+# XLIFF 2.x Reader/Writer: Design Spec
 
 **Status**: design doc, pre-implementation. Companion to `core/formats/xliff2/spec.yaml` (which currently mirrors okapi parameter parity and will be repointed at this design once implementation lands).
 
@@ -15,11 +15,11 @@ XLIFF 2.x sits at neokapi's **system boundary**: it's the format we exchange wit
 
 | Direction | Contract | Status |
 |---|---|---|
-| **Read** | Lossless to neokapi's content model — every spec attribute is either decoded into a typed model field or preserved as opaque metadata for re-emission. | ✅ |
+| **Read** | Lossless to neokapi's content model: every spec attribute is either decoded into a typed model field or preserved as opaque metadata for re-emission. | ✅ |
 | **Write (generation/canonical)** | Spec-conformant, well-indented output with canonical attribute ordering (id first, then alphabetical groups). XLIFF-aware indenter respects mixed-content semantics. Used when no source DOM is available (e.g. HTML→XLIFF 2). | ✅ |
 | **Idempotent** | `read → write → read → write` produces byte-equal output on the second iteration regardless of the first. Exercised by `TestRoundTrip_AllFixtures` against 40 okapi-testdata fixtures. | ✅ 40/40 |
 | **Write (untouched round-trip)** | Read an existing XLIFF 2 file and write it back without modifying any segment → byte-equal output. The writer captures the source bytes and emits them verbatim when no patching was needed, bypassing etree's serialization quirks. Exercised by `TestRoundTrip_ByteEqualUntouched`. | ✅ 37/37 (3 fixtures excluded for documented reader normalizations: XML 1.1→1.0 coercion, CR-entity→LF normalization) |
-| **Write (modified round-trip, minimal diff)** | When some segments were modified, patch only those `<source>`/`<target>` elements in the source DOM; everything else (comments, module data, attribute order on untouched units, custom namespaces) survives verbatim through etree. Stale-IR detection is automatic — when `Segment.Runs` text disagrees with `SegmentInlineAnnotation` text, the writer falls back to `Runs`. No caller contract required. | ✅ |
+| **Write (modified round-trip, minimal diff)** | When some segments were modified, patch only those `<source>`/`<target>` elements in the source DOM; everything else (comments, module data, attribute order on untouched units, custom namespaces) survives verbatim through etree. Stale-IR detection is automatic: when `Segment.Runs` text disagrees with `SegmentInlineAnnotation` text, the writer falls back to `Runs`. No caller contract required. | ✅ |
 
 We deliberately **do not** inherit the Okapi XLIFF 2 toolkit's documented losses (skeleton dropped, comments dropped, formatting dropped, attributes reordered/added/removed). Okapi's losses come from collapsing XLIFF 2 down to its Java `TextFragment` IR; neokapi's content model is richer and we own the full pipeline, so we can do better.
 
@@ -32,10 +32,10 @@ We move off `encoding/xml` for XLIFF 2 and onto **`github.com/beevik/etree`**:
 - Preserves attribute order, comments, processing instructions, and the original namespace prefix bindings.
 - Handles `xmlns:*` correctly (the bug that motivated this refactor).
 - Captures all whitespace (significant and insignificant) in `Text`/`Tail` fields on load.
-- **Round-trip is byte-equal when we don't call `Indent()`** — verified with mixed content, `xml:space="preserve"`, multi-line text, trailing spaces, and inline codes (`<sc/>Hello<ec/>`).
+- **Round-trip is byte-equal when we don't call `Indent()`**, verified with mixed content, `xml:space="preserve"`, multi-line text, trailing spaces, and inline codes (`<sc/>Hello<ec/>`).
 - Patching one element's text leaves all surrounding whitespace untouched (minimal-diff).
 
-The one trap: `Document.Indent(n)` has a known etree limitation ([etree#88](https://github.com/beevik/etree/issues/88)) — it honors `xml:space="preserve"` for **leaf** text-only elements (when `IndentSettings.PreserveLeafWhitespace=true`) but **not** for mixed content (text + child elements). A `<source xml:space="preserve"><sc/>Hello<ec/></source>` will get newlines injected between siblings, violating XML 1.0 §2.10. We avoid this by:
+The one trap: `Document.Indent(n)` has a known etree limitation ([etree#88](https://github.com/beevik/etree/issues/88)). It honors `xml:space="preserve"` for **leaf** text-only elements (when `IndentSettings.PreserveLeafWhitespace=true`) but **not** for mixed content (text + child elements). A `<source xml:space="preserve"><sc/>Hello<ec/></source>` will get newlines injected between siblings, violating XML 1.0 §2.10. We avoid this by:
 
 - **Round-trip mode**: never calling `Indent()`. etree captured the source whitespace into `Text`/`Tail` on load; passthrough write reproduces it byte-for-byte.
 - **Generation mode**: building the DOM with explicit `Text`/`Tail` values during construction rather than calling `Indent()` at the end. We control whitespace per-element, mixed-content elements get empty `Text`/`Tail` between their children, and the etree limitation never engages.
@@ -69,7 +69,7 @@ XLIFF 2.x element        →  neokapi model
 
 ### Inline content (the hard part)
 
-`<source>` and `<target>` allow nested mixed content with up to 8 inline element types in any order, themselves nestable inside `<pc>` and `<mrk>`. We model this as a **typed Run sequence** (already partially present in `core/model/segment.go` for xliff 1.x — extend rather than introduce a parallel type).
+`<source>` and `<target>` allow nested mixed content with up to 8 inline element types in any order, themselves nestable inside `<pc>` and `<mrk>`. We model this as a **typed Run sequence** (already partially present in `core/model/segment.go` for xliff 1.x, so extend it rather than introduce a parallel type).
 
 Each inline element preserves all its spec attributes:
 
@@ -101,13 +101,13 @@ type CodeAttrs struct {
 }
 ```
 
-`<originalData>` is preserved at the unit (Block) level as an `OriginalDataAnnotation` — a map of `id → bytes` — and the writer re-emits it iff at least one inline code on the unit references it via `dataRef`/`dataRefStart`/`dataRefEnd`.
+`<originalData>` is preserved at the unit (Block) level as an `OriginalDataAnnotation`, a map of `id → bytes`, and the writer re-emits it iff at least one inline code on the unit references it via `dataRef`/`dataRefStart`/`dataRefEnd`.
 
 ### Module data
 
 Module elements (mda, mtc, gls, fs, res, slr, val, its, pgs) appearing on `<file>`, `<group>`, `<unit>`, or inside `<source>`/`<target>` are **preserved opaquely**: the reader stashes the etree subtree on the parent's `Annotations` under a typed annotation, and the writer re-attaches it on emit.
 
-We do not interpret module semantics in the v1 implementation — but because we preserve the subtree, no data is lost across round-trip.
+We do not interpret module semantics in the v1 implementation, and because we preserve the subtree, no data is lost across round-trip.
 
 Specific exceptions where we DO interpret modules in v1:
 - `mda:metadata` on `<file>` → expose select keys as Layer.Properties (e.g. tool name/version) for downstream display.
@@ -145,7 +145,7 @@ Note: we use **nested Layers** (xliff root + file) rather than just one Layer-pe
 | Unknown extension elements | Preserved as opaque annotation subtrees. |
 | `<skeleton>` (inline) | Preserved as Layer.Annotation; opaque, not parsed. |
 | `<skeleton href="…">` | Layer.Properties["xliff2:skeleton-href"]. |
-| `xml:space="preserve"` | Honored — segment whitespace not normalized. |
+| `xml:space="preserve"` | Honored; segment whitespace not normalized. |
 | `xml:lang` on source/target | Validated against srcLang/trgLang per spec; kept as Segment metadata. |
 
 ## 5. Writer contract
@@ -184,17 +184,17 @@ The reader rejects documents that:
 - Have `<unit>` with zero `<segment>` children (per spec §3.2.2).
 
 The reader does NOT validate:
-- ID uniqueness scopes — preserved as-is.
-- Inline code pairing rules (sc/ec matching, isolated semantics) — preserved as-is.
-- Module-specific constraints — out of scope for v1.
+- ID uniqueness scopes: preserved as-is.
+- Inline code pairing rules (sc/ec matching, isolated semantics): preserved as-is.
+- Module-specific constraints: out of scope for v1.
 
 ## 7. Testing strategy
 
 Three tiers:
 
-1. **Spec conformance** — every element/attribute documented in this spec has at least one targeted unit test (`reader_test.go`, `writer_test.go`).
-2. **Self round-trip** — `TestRoundTrip_AllFixtures` runs every fixture in `okapi-testdata/1.48.0-v4/{okapi,integration-tests}/.../xliff2/` through `read → write → read → write` and asserts pass1 == pass2.
-3. **Fixture diff bound** — for the round-trip case (input is well-formed XLIFF 2), pass1 must differ from input only in normalized formatting (whitespace) and namespace prefix order. Tracked as a separate optional test.
+1. **Spec conformance**: every element/attribute documented in this spec has at least one targeted unit test (`reader_test.go`, `writer_test.go`).
+2. **Self round-trip**: `TestRoundTrip_AllFixtures` runs every fixture in `okapi-testdata/1.48.0-v4/{okapi,integration-tests}/.../xliff2/` through `read → write → read → write` and asserts pass1 == pass2.
+3. **Fixture diff bound**: for the round-trip case (input is well-formed XLIFF 2), pass1 must differ from input only in normalized formatting (whitespace) and namespace prefix order. Tracked as a separate optional test.
 
 ## 8. Out of scope (deferred to v2 of this spec)
 
@@ -219,5 +219,5 @@ Three tiers:
 
 - **Code attrs**: **typed Go fields** (`CodeAttrs` struct as defined in §3). Full DX for downstream tools (checks, MT, segmentation) at the cost of a deeper change.
 - **`<cp hex="X"/>` on read**: **resolve to the actual code point** in `Run.Text`. Loses the `<cp>` marker but produces a clean text stream for tools. The writer re-encodes invalid XML characters as `<cp>` on output per spec §3.7.2 processing requirement.
-- **Skeleton**: **treated as a separate flow** — out of scope for the v1 reader/writer. External `<skeleton href>` is captured in `Layer.Properties["xliff2:skeleton-href"]` for future consumers; inline `<skeleton>` is preserved opaquely. The kapi merge step will gain a dedicated skeleton-aware path later.
+- **Skeleton**: **treated as a separate flow**, out of scope for the v1 reader/writer. External `<skeleton href>` is captured in `Layer.Properties["xliff2:skeleton-href"]` for future consumers; inline `<skeleton>` is preserved opaquely. The kapi merge step will gain a dedicated skeleton-aware path later.
 - **Patching strategy**: round-trip mode walks the etree subtree and surgically replaces TextRun content within `<target>`; generation mode re-serializes the full `<target>` from the model. (Refined during implementation as needed.)
