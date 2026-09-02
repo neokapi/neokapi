@@ -21,7 +21,7 @@ func TestDiffOutput_FormatText(t *testing.T) {
 		{
 			name:  "no changes, offline",
 			out:   DiffOutput{Connected: false},
-			exact: "No local changes since the last sync.\n  (no server configured — comparing against the local sync cache)\n",
+			exact: "No local changes since the last sync.\n  (no server configured, comparing against the local sync cache)\n",
 		},
 		{
 			name: "no local changes but remote pending",
@@ -71,8 +71,8 @@ func TestDiffOutput_FormatText(t *testing.T) {
 				Changed: 1,
 			},
 			contains: []string{
-				"+ greeting — Hello",
-				"~ farewell — Bye",
+				"+ greeting: Hello",
+				"~ farewell: Bye",
 				"1 file(s) changed: +1 ~1",
 			},
 		},

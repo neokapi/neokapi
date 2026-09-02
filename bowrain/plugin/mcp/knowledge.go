@@ -278,7 +278,7 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 			// sentence must not restate that: it says what the numbers mean,
 			// which is the part the reader needs.
 			if impact.Partial {
-				out.BlastRadius.CountsAre = "lower bounds — any project the scan did not reach contributes nothing to these totals"
+				out.BlastRadius.CountsAre = "lower bounds: any project the scan did not reach contributes nothing to these totals"
 				if impact.PartialReason != "" {
 					out.BlastRadius.CountsAre += " (" + impact.PartialReason + ")"
 				}

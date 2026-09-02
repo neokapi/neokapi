@@ -39,7 +39,7 @@ Server URL is resolved from (first match wins):
   1. --server flag
   2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
   3. The server of the stored login on this machine
-  4. The hosted service (https://app.bowrain.cloud) — self-hosted deployments
+  4. The hosted service (https://app.bowrain.cloud); self-hosted deployments
      set BOWRAIN_SERVER_URL or pass --server`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		_, err := performLogin(cmd, clivenue.ResolveServerURLOrDefault(authServerURL))
@@ -132,7 +132,7 @@ Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: kapi auth login")
+			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
 		var claimToken string
@@ -146,7 +146,7 @@ Requires authentication (run 'kapi auth login' first).`,
 			}
 			cache := project.LoadSyncCache(proj.Layout)
 			if cache.ClaimToken == "" {
-				return errors.New("no claim token in the project sync cache — provide token as argument")
+				return errors.New("no claim token in the project sync cache. Provide token as argument")
 			}
 			claimToken = cache.ClaimToken
 		}

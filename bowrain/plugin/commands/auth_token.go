@@ -27,17 +27,17 @@ var authTokenCreateCmd = &cobra.Command{
 	Short: "Create an API token",
 	Long: `Create a new API token for the current workspace.
 
-The token is displayed once — save it immediately.
+The token is displayed once, so save it immediately.
 Requires a .bowrain/ project with a configured workspace.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: kapi auth login")
+			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: kapi init")
+			return errors.New("no kapi project found. Run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -64,12 +64,12 @@ var authTokenListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: kapi auth login")
+			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: kapi init")
+			return errors.New("no kapi project found. Run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -103,12 +103,12 @@ var authTokenDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: kapi auth login")
+			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: kapi init")
+			return errors.New("no kapi project found. Run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")

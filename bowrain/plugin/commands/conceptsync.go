@@ -883,7 +883,7 @@ func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
 // The handle belongs to the App: do not close it.
 func projectTerms(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
 	if app == nil {
-		return nil, errors.New("terminology sync has no host app — the project store is unreachable")
+		return nil, errors.New("terminology sync has no host app, so the project store is unreachable")
 	}
 	db, err := app.ProjectDB(ctx, proj.Root)
 	if err != nil {
@@ -897,7 +897,7 @@ func projectTerms(ctx context.Context, proj *bproject.Project) (*terms.SQLiteSto
 // the row question that replaced the stat of `.kapi/terms.db`.
 func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
 	if app == nil {
-		return nil, errors.New("terminology sync has no host app — the project store is unreachable")
+		return nil, errors.New("terminology sync has no host app, so the project store is unreachable")
 	}
 	db, err := app.ProjectDB(ctx, proj.Root)
 	if err != nil {
