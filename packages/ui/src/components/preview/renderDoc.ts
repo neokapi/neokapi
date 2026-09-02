@@ -244,6 +244,34 @@ export function blockSideText(
 }
 
 /**
+ * What a rendered line shows for one side, paired the way {@link blockSideText}
+ * pairs a node's text and locale: the text, the inline codes positioned in it,
+ * and the locale whose writing direction it takes. A line with no target for
+ * `side` reads as its source, in the source's locale and with the source's
+ * codes; `documentSourceLocale` stands in for a line that carries none of its
+ * own. The renderer takes text and direction from this one result, so an
+ * untranslated line falling back to its source is never laid out in the
+ * target's direction.
+ */
+export function lineSideText(
+  line: Pick<RenderLine, "text" | "codes" | "targets" | "targetCodes" | "sourceLocale">,
+  side: string,
+  documentSourceLocale?: string,
+): { text: string; codes: InlineCode[]; locale: string | undefined; fromTarget: boolean } {
+  if (side !== "source") {
+    const t = line.targets?.[side];
+    if (t)
+      return { text: t, codes: line.targetCodes?.[side] ?? [], locale: side, fromTarget: true };
+  }
+  return {
+    text: line.text,
+    codes: line.codes ?? [],
+    locale: line.sourceLocale ?? documentSourceLocale,
+    fromTarget: false,
+  };
+}
+
+/**
  * One inline code — a placeholder or half a paired code — located in the text
  * `runsText` produces for the same run sequence.
  *
