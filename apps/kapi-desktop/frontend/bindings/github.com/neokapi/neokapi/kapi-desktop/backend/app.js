@@ -2604,6 +2604,11 @@ export function UpdateProject(tabID, proj) {
  * After the write, any prior hash-bound decision for the unit is stale by
  * construction (decisions bind to the content hash of the text they judged), so
  * a subsequent approval blesses the NEW text.
+ * 
+ * The edit is a production step, so it is recorded as one: a state record with
+ * a human origin, the new translation's hash and the source it renders, and no
+ * decision on it. The unit stays in the review queue until a reviewer approves
+ * the wording they typed.
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file
