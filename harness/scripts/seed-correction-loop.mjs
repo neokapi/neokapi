@@ -148,7 +148,9 @@ async function main() {
         project_id: projectId,
         corrections_posted: posted,
         candidates: Array.isArray(cand) ? cand.map((c) => `${c.term}→${c.replacement} (${c.correction_count})`) : cand,
-        review_url: `${BASE}/${wsSlug}/brand/review/${profileId}`,
+        // The candidate rules sit under the Context hub's Voice section
+        // (routes/index.tsx: context → voice → review/$profileId).
+        review_url: `${BASE}/${wsSlug}/context/voice/review/${profileId}`,
         token,
       },
       null,
