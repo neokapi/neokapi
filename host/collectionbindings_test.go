@@ -474,10 +474,10 @@ func resolveAtChannel(t *testing.T, a *App, channel string) (*profile.VoiceProfi
 	return b.profile, recipe
 }
 
-// TestResolveGroupBindings_SingleRunWhenUngoverned is the regression guard: a
+// TestGroupBindings_SingleRunWhenUngoverned is the regression guard: a
 // project where no collection names a channel must resolve its bindings once —
 // one group, one tool chain, the run it has always been.
-func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
+func TestGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 	recipe, root := governedProject(t, "")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
@@ -493,9 +493,10 @@ func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 	assert.Empty(t, resolvedPoint(t, proj, groups[0].Point), "the single group resolves the project-wide bindings")
 	assert.Equal(t, inputs, groups[0].Inputs)
 
-	require.NoError(t, a.resolveGroupBindings(bindingsCmd(t, recipe), proj, recipe, groups))
-	require.NotNil(t, groups[0].bindings)
-	assert.Equal(t, "House Style", groups[0].bindings.profile.Name)
+	b, berr := a.newLocaleBindings(bindingsCmd(t, recipe), proj, recipe).at(groups[0].Point, "nb")
+	require.NoError(t, berr)
+	require.NotNil(t, b)
+	assert.Equal(t, "House Style", b.profile.Name)
 
 	// And with a channel, the same inputs split into two — so the assertion
 	// above is about the recipe, not about grouping being inert.

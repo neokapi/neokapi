@@ -3,6 +3,7 @@ package host
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -27,9 +28,6 @@ type bindingGroup struct {
 	Point project.GovernancePoint
 	// Inputs are the group's source files, in the order they were given.
 	Inputs []string
-	// bindings is the resolved governance, filled in by resolveGroupBindings.
-	// nil is valid: the project carries no bindings.
-	bindings *ProjectBindings
 }
 
 // groupInputsByBinding partitions inputPaths by the governance that applies to
@@ -135,19 +133,59 @@ func bindingKey(rc *project.ResolvedGovernance) string {
 	return b.String()
 }
 
-// resolveGroupBindings fills in each group's governance. Bindings are resolved
-// once per group, before the locale passes run, so a grouped run costs one
-// resolution per distinct point rather than one per file — and a single
-// default-point group costs the one project-wide resolution it always did.
-func (a *App) resolveGroupBindings(cmd Command, proj *project.KapiProject, projectPath string, groups []bindingGroup) error {
-	for i := range groups {
-		b, err := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Point)
-		if err != nil {
-			return err
-		}
-		groups[i].bindings = b
+// localeBindings resolves the governance in force at a point for one target
+// locale, and remembers each answer for the length of a run.
+//
+// A run that fans out over locales resolves at (point, locale) rather than once
+// for the whole run, because a term rule pairs a source term with the wording
+// approved for THIS target (terms.Concept.PreferredTerm). Resolved before the
+// fan-out, with no locale to ask about, a set holds the do-not-translate
+// concepts alone, and every producer in the run is handed that. The staleness
+// gate resolves per locale (host/verify_staleness.go), so resolving the same
+// way here is also what lets the gate recompute a context fingerprint over the
+// rules the producer had.
+//
+// The cache is keyed on the point and the locale, so a run with many groups and
+// many locales pays one resolution per distinct pair. at is safe for concurrent
+// use: a convergence pass fans its locales out over workers, and each worker
+// asks for its own.
+type localeBindings struct {
+	app         *App
+	cmd         Command
+	proj        *project.KapiProject
+	projectPath string
+
+	mu    sync.Mutex
+	cache map[string]*ProjectBindings
+}
+
+// newLocaleBindings builds the resolver a run keeps for its whole fan-out.
+func (a *App) newLocaleBindings(cmd Command, proj *project.KapiProject, projectPath string) *localeBindings {
+	return &localeBindings{
+		app:         a,
+		cmd:         cmd,
+		proj:        proj,
+		projectPath: projectPath,
+		cache:       map[string]*ProjectBindings{},
 	}
-	return nil
+}
+
+// at returns the bindings governing point for targetLang, resolving them on
+// first ask. A nil result is an answer and is cached with the rest: the project
+// carries no bindings at all.
+func (l *localeBindings) at(point project.GovernancePoint, targetLang string) (*ProjectBindings, error) {
+	key := strings.Join([]string{point.Profile, point.Collection, point.Path, targetLang}, "\x00")
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if b, ok := l.cache[key]; ok {
+		return b, nil
+	}
+	b, err := l.app.resolveBindingsFor(l.cmd, l.proj, l.projectPath, point, targetLang)
+	if err != nil {
+		return nil, err
+	}
+	l.cache[key] = b
+	return b, nil
 }
 
 // projectRelPath returns path relative to the project root, slash-separated,

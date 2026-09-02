@@ -15,8 +15,8 @@ import (
 
 // The run path — `kapi up`, `kapi run`, `kapi translate` inside a project —
 // picks its voice by partitioning the input set (groupInputsByBinding) and
-// resolving one binding set per partition (resolveGroupBindings). These are the
-// two calls every run makes, in that order, so what they produce IS what
+// resolving one binding set per partition and locale (localeBindings.at). These
+// are the two calls every run makes, in that order, so what they produce IS what
 // governs a file during a run.
 
 // governanceRunProject writes a project with two source files, three voices, and
@@ -87,14 +87,16 @@ func TestUp_ItemChannelOverrideGovernsItsFileSeparately(t *testing.T) {
 	groups, err := a.groupInputsByBinding(cmd, proj, root, []string{guide, legal})
 	require.NoError(t, err)
 	require.Len(t, groups, 2, "the override partitions its file out of the collection")
-	require.NoError(t, a.resolveGroupBindings(cmd, proj, recipe, groups))
+	bindings := a.newLocaleBindings(cmd, proj, recipe)
 
 	byInput := map[string]string{}
 	for _, g := range groups {
-		require.NotNil(t, g.bindings)
-		require.NotNil(t, g.bindings.profile)
+		b, berr := bindings.at(g.Point, "nb")
+		require.NoError(t, berr)
+		require.NotNil(t, b)
+		require.NotNil(t, b.profile)
 		for _, in := range g.Inputs {
-			byInput[in] = g.bindings.profile.Name
+			byInput[in] = b.profile.Name
 		}
 	}
 	assert.Equal(t, "Promo Voice", byInput[guide], "the collection's channel governs the ordinary file")
@@ -161,10 +163,11 @@ profiles:
 			groups, err := a.groupInputsByBinding(cmd, proj, root, []string{guide})
 			require.NoError(t, err)
 			require.Len(t, groups, 1)
-			require.NoError(t, a.resolveGroupBindings(cmd, proj, recipe, groups))
-			require.NotNil(t, groups[0].bindings)
-			require.NotNil(t, groups[0].bindings.profile)
-			assert.Equal(t, tt.wantVoice, groups[0].bindings.profile.Name)
+			b, berr := a.newLocaleBindings(cmd, proj, recipe).at(groups[0].Point, "nb")
+			require.NoError(t, berr)
+			require.NotNil(t, b)
+			require.NotNil(t, b.profile)
+			assert.Equal(t, tt.wantVoice, b.profile.Name)
 
 			if tt.wantNote == "" {
 				assert.Empty(t, stderr.String(), "nothing lapsed, so nothing to report")

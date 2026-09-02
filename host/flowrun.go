@@ -258,15 +258,14 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// so a run cancelled before it starts turns every query into
 	// "context canceled" — and this function's contract is that cancellation
 	// ends the run early with a terminal event, never with an error. Checked
-	// here rather than swallowed inside each reader, so a genuine store fault
-	// still surfaces.
-	bound := opts.ProjectPath != "" && ctx.Err() == nil
-	if bound {
-
-		if err := a.resolveGroupBindings(cmd, proj, opts.ProjectPath, groups); err != nil {
-			return nil, err
-		}
-	}
+	// where each pass resolves, rather than swallowed inside each reader, so a
+	// genuine store fault still surfaces.
+	//
+	// Each pass resolves its own group's bindings for its own locale: the term
+	// rules in them are the wording approved for that target, so one set shared
+	// across the passes would carry the rules of none of them.
+	groupBindings := a.newLocaleBindings(cmd, proj, opts.ProjectPath)
+	bound := opts.ProjectPath != ""
 
 	// The run's own project store: the files it writes are half the deliverable,
 	// and the `targets/<locale>` overlays it commits are the half a later merge
@@ -372,11 +371,16 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 		// Tools are rebuilt per pass: the target locale is baked into tool
 		// config, and each pass's cleanup releases what its assembly opened.
-		// The group's bindings are on the App before assembly, because that is
-		// where they reach the steps (buildProjectFlowTools → applyBindings).
+		// The group's bindings for this locale are on the App before assembly,
+		// because that is where they reach the steps (buildProjectFlowTools →
+		// applyBindings).
 		a.TargetLang = lang
-		if bound {
-			a.ProjectBindings = group.bindings
+		if bound && ctx.Err() == nil {
+			b, berr := groupBindings.at(group.Point, lang)
+			if berr != nil {
+				return berr
+			}
+			a.ProjectBindings = b
 		}
 		rCtx := flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: source, TargetLocale: lang}
 		tools, cleanup, err := a.buildProjectFlowTools(cmd, opts.FlowName, spec, &rCtx, onProgress)
