@@ -222,55 +222,49 @@ export function ReviewSurface({
     });
   }, [visible]);
 
+  // What the surface has already asked for, keyed by (block, locale). It is a
+  // ref rather than a dependency because the answers land in state: an effect
+  // that lists its own cache as a dependency re-runs the moment the answer
+  // arrives, and its cleanup then cancels the very request that answered it.
+  // That is how the inspector came to sit on "Looking up terms…" over a block
+  // whose terms the server had already returned.
+  const asked = useRef(new Set<string>());
+  const blockKey = selectedId && targetLocale ? `${selectedId}::${targetLocale}` : "";
+
   // Terms are looked up for the block being read, once, and cached for the
   // session: the projection then shows them inline on that block as well as in
   // the inspector. There is no file-level term query, and a request per block of
   // the document would be one too many.
   useEffect(() => {
-    if (!selectedId || !targetLocale || termsByBlock[selectedId]) return;
-    let cancelled = false;
+    if (!selectedId || !targetLocale || asked.current.has(`terms:${blockKey}`)) return;
+    asked.current.add(`terms:${blockKey}`);
     setTermsLoading(true);
     api
       .lookupTermsForBlock(project.id, fileName, selectedId, targetLocale)
-      .then((t) => {
-        if (!cancelled) setTermsByBlock((prev) => ({ ...prev, [selectedId]: t ?? [] }));
-      })
-      .catch(() => {
-        if (!cancelled) setTermsByBlock((prev) => ({ ...prev, [selectedId]: [] }));
-      })
-      .finally(() => {
-        if (!cancelled) setTermsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, selectedId, project.id, fileName, targetLocale, termsByBlock]);
+      .then((t) => setTermsByBlock((prev) => ({ ...prev, [selectedId]: t ?? [] })))
+      .catch(() => setTermsByBlock((prev) => ({ ...prev, [selectedId]: [] })))
+      .finally(() => setTermsLoading(false));
+  }, [api, selectedId, blockKey, project.id, fileName, targetLocale]);
 
   // The rest of what governs and precedes the open block: the content-memory
   // match with its wording, the last decision and its note, the target's
   // origin, and the findings behind its voice score. Asked for once per block
-  // opened, like the term lookup beside it, and cached for the session.
+  // opened, like the term lookup beside it, and cached for the session. Keyed
+  // by block AND locale, because the memory match, the decision and the origin
+  // are all per-locale — a locale switch asks again rather than showing the
+  // previous language's answer.
   useEffect(() => {
-    if (!selectedId || !targetLocale) return;
-    // Keyed by block AND locale: the memory match, the decision and the origin
-    // are all per-locale, so a locale switch asks again rather than showing the
-    // previous language's answer.
-    const key = `${selectedId}::${targetLocale}`;
-    if (contextByBlock[key]) return;
-    let cancelled = false;
+    if (!selectedId || !targetLocale || asked.current.has(`context:${blockKey}`)) return;
+    asked.current.add(`context:${blockKey}`);
     api
       .getReviewContext(project.id, fileName, selectedId, targetLocale)
-      .then((ctx) => {
-        if (!cancelled) setContextByBlock((prev) => ({ ...prev, [key]: ctx }));
-      })
+      .then((ctx) => setContextByBlock((prev) => ({ ...prev, [blockKey]: ctx })))
       .catch(() => {
         // Non-fatal: the inspector draws its empty states and the decision
-        // buttons keep working.
+        // buttons keep working. The key stays marked as asked, so a failure is
+        // not retried on every render.
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, selectedId, project.id, fileName, targetLocale, contextByBlock]);
+  }, [api, selectedId, blockKey, project.id, fileName, targetLocale]);
 
   // Persist a per-block review decision: optimistic per-locale Target.Status
   // write (matches what a reload fetches), server call, rollback on failure.

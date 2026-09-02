@@ -48,12 +48,22 @@ export function ContextEmpty({ children }: { children: React.ReactNode }) {
 export function PointRail({
   context,
   loading,
+  terms: termsOverride,
+  termsLoading,
 }: {
   context: ReviewContext | null;
   loading?: boolean;
+  /**
+   * The term hits to show, when the surface already holds them from its own
+   * lookup. The document surface does: the same hits drive its inline marks,
+   * so passing them here keeps one list rather than two copies of it.
+   */
+  terms?: BlockTermMatch[];
+  /** That lookup is still in flight. */
+  termsLoading?: boolean;
 }) {
   const profile = context?.voice_profile;
-  const terms = context?.terms ?? [];
+  const terms = termsOverride ?? context?.terms ?? [];
   const coordinates = Object.entries(context?.coordinates ?? {});
 
   return (
@@ -110,7 +120,9 @@ export function PointRail({
 
           <div className="space-y-1 border-t border-border/60 pt-2">
             <ContextHeading>Terms</ContextHeading>
-            {terms.length === 0 ? (
+            {termsLoading ? (
+              <ContextEmpty>Looking up terms…</ContextEmpty>
+            ) : terms.length === 0 ? (
               <ContextEmpty>No terms matched this block.</ContextEmpty>
             ) : (
               <ul className="flex flex-wrap gap-1.5" data-testid="point-terms">

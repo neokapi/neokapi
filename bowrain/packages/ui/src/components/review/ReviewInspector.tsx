@@ -15,11 +15,10 @@ import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEdi
 import { getBlockStatus, getTargetText, statusConfig } from "../editor/blockStatus";
 import {
   ContextHeading,
-  ContextEmpty,
   FindingsList,
   MemoryMatchCard,
+  PointRail,
   ProvenanceBlock,
-  TermChip,
 } from "./reviewContext";
 import { Check, Pencil, X } from "../icons";
 
@@ -198,6 +197,14 @@ export function ReviewInspector({
             )}
           </section>
 
+          {/* What governs this point: the same rail the queue draws, fed the
+              term hits this surface already looked up — the ones behind the
+              inline marks in the document, so the rail and the marks cannot
+              disagree. */}
+          <div data-testid="inspector-point">
+            <PointRail context={context} terms={terms} termsLoading={termsLoading} />
+          </div>
+
           {/* Findings — the check results and the findings behind the block's
               voice score, read as one list. A positioned finding is already
               marked in the document; each says what it was raised against and
@@ -205,23 +212,6 @@ export function ReviewInspector({
           <section className="space-y-2" data-testid="inspector-qa">
             <ContextHeading>Findings</ContextHeading>
             <FindingsList issues={issues} findings={context?.voice_findings ?? []} />
-          </section>
-
-          {/* Terms — a per-block lookup, so it is asked for when a block is
-              opened rather than once per block of the whole document. */}
-          <section className="space-y-2" data-testid="inspector-terms">
-            <ContextHeading>Terms</ContextHeading>
-            {termsLoading ? (
-              <ContextEmpty>Looking up terms…</ContextEmpty>
-            ) : terms.length === 0 ? (
-              <ContextEmpty>No terms matched this block.</ContextEmpty>
-            ) : (
-              <ul className="flex flex-wrap gap-1.5">
-                {terms.map((term, i) => (
-                  <TermChip key={`${term.source_term}-${i}`} term={term} />
-                ))}
-              </ul>
-            )}
           </section>
 
           {/* Content memory — the wording the corpus already blessed for this

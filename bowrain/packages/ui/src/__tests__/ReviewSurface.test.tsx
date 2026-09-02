@@ -416,6 +416,45 @@ describe("ReviewSurface — the inspector carries the block's evidence", () => {
     expect(terms).toHaveBeenCalledTimes(1);
   });
 
+  it("asks for the block's context once, and once more for another block", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const ctx = vi.spyOn(adapter, "getReviewContext");
+    await waitForDocument();
+
+    await openBlock(user, "b1");
+    await waitFor(() => expect(ctx).toHaveBeenCalledTimes(1));
+    expect(ctx.mock.calls[0].slice(1, 5)).toEqual([
+      sampleProject.id,
+      "messages.json",
+      "b1",
+      "fr-FR",
+    ]);
+
+    // The answer lands in state, and the render that shows it must not ask
+    // again — an effect that lists its own cache as a dependency does.
+    await user.keyboard("{Escape}");
+    await openBlock(user, "b1");
+    expect(ctx).toHaveBeenCalledTimes(1);
+
+    // A different block is a different point, so it is asked for.
+    await user.keyboard("{Escape}");
+    await openBlock(user, "b2");
+    await waitFor(() => expect(ctx).toHaveBeenCalledTimes(2));
+  });
+
+  it("draws the same point rail the queue draws", async () => {
+    const user = userEvent.setup();
+    renderSurface();
+    await waitForDocument();
+    await openBlock(user, "b1");
+
+    // One review model, two surfaces: the document's inspector names what
+    // governs the block as the queue's reviewer does.
+    const point = await screen.findByTestId("inspector-point");
+    await waitFor(() => expect(point.textContent).toContain("In force here"));
+  });
+
   it("lists the QA findings the payload gives no position for", async () => {
     const user = userEvent.setup();
     renderSurface(testBlocks, (adapter) => {
