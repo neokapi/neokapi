@@ -1,0 +1,156 @@
+---
+id: s-07-context-centric-review
+sidebar_position: 7
+title: "S-07: The review model"
+description: "A review decision is made at a point. Host assembles one review model per unit, from the retrieval primitives every other surface uses, and every review client renders it: the desktop queue, the CLI, the MCP tools, and any host that records a decision with an identity."
+keywords: [neokapi, architecture decision, review, context, coordinates, voice profile, terms, neighbourhood, prior version, provenance, review queue, MCP]
+---
+
+# S-07: The review model
+
+## Summary
+
+A reviewer decides **at a point**. The unit under decision sits in a document,
+at a coordinate, governed by a voice profile and a vocabulary, beside the blocks
+that precede and follow it, after a version that was approved before it.
+
+Review consumes the two retrieval primitives
+[C-06](../context/c-06-retrieval.md) defines: *what applies here* for the unit's path, and *what do we know about
+this* for its content. Host assembles one **review model** from those answers,
+once per unit, and every client renders it. The desktop's detail pane and the
+MCP `review_unit` tool receive the same object; a client that draws a subset
+chooses it in its own projection, and every client receives the whole.
+
+The bar the design is held to is an invariant:
+
+> **A reviewer sees at least what the model was told.**
+
+The reference is the tool configuration the translate call received for that
+unit. `prompt.Context` (`core/ai/prompt/context_sections.go`) enumerates what a
+translate prompt carries about a block beyond the block: its key, the blocks
+before it, the blocks after it, and the prior approved version. Each of those is
+a field of the review model, and a reflection test in `host`
+(`TestReviewContextAnswersPromptContext`) holds the model to the struct: a field
+added to `prompt.Context` fails the test until the review model answers for it,
+the way `check-run-projection.sh` holds every run projection to `RUN_KINDS`.
+
+## Context
+
+The engine has a context graph, coordinate axes, per-point governance,
+run-anchored findings and a version chain. A review client addresses a
+`(file, key, locale)` triple and, on its own, can reach only the two texts and
+the unit's status. The point is resolved on every request to select which
+checkers run; the neighbourhood is read from disk to build the prompt; the
+content-memory match is fetched to seed the draft. Each of these exists at the
+moment the unit is translated and is gone by the time it is reviewed, unless
+something keeps it.
+
+The review clients differ in who is behind them. The desktop queue is the
+repository owner triaging their own project. The CLI is the same person in a
+terminal or a CI log. The MCP tools are an assistant acting on a person's
+behalf, recording decisions as `agent/<client>`. An assistant with only the two
+texts approves against nothing; the same is true of a person, with a slower
+failure.
+
+## Decision
+
+### One model, assembled in host
+
+The review model binds a decision to its context. Host assembles it from
+answers that already exist and serves it unchanged to every client.
+
+| Layer | What it carries | Source |
+| --- | --- | --- |
+| Point | profile, channel, collection, coordinates, the voice in force with its rendered guidance, the terms in force, profile validity | `host.ContextAnswer`, resolved per file |
+| Neighbourhood | the block's key, and the blocks before and after it in document order | the file's blocks as the reader returns them |
+| History | the prior approved version (source and target, and whether the context it was approved under still governs); the content-memory match with its wording and score | the version chain, `memory.Lookup` |
+| Judgement | check findings anchored to their run positions; the AI pre-review score, model and remarks when one has run | the checkers bound at the point, `core/state` |
+| Provenance | origin of the current target; the decision in force, with identity, time and note; whether that decision was recorded against source wording that has since changed | `core/state` |
+
+Provenance is named provenance. A card labelled Context that holds only this row
+is mislabelled.
+
+Provenance carries the decision **in force**. `core/state` keeps one record per
+(scope, unit, variant) and `Put` overwrites it; the model exposes what the store
+holds and invents no chain. A client that wants a chain wants a store change,
+which is a [C-04](../context/c-04-unit-state-and-decisions.md) decision.
+
+### Every client renders the same object
+
+The model is one Go type, `host.ReviewContext`, assembled by
+`App.AssembleReviewContext` and attached to the unit (`ReviewUnitInfo.Context`)
+when a client asks for a unit with its context. The queue itself stays a list
+of units; a file's point is resolved once per queue and shared by its units.
+The clients are:
+
+| Client | How it renders the model |
+| --- | --- |
+| Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: a point rail, the neighbourhood, the history, findings, and a provenance card; the document view opens at the unit with review state drawn as marks |
+| `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, and as JSON with `--json` |
+| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit` |
+
+A host that records a review decision with an identity is a client of this
+model by shape: the layers are the contract, whatever renders them.
+
+### The AI actions inherit the point
+
+An AI action taken from a review client builds its tool through the same
+configuration assembly the flow runner uses, `App.ToolConfigForUnit` in `host`,
+never from a hand-written map. Eight fields carry context into the translate tool (term
+rules, profile, memory, point, reuse, DNT, context, context window), and an
+equality test holds the review path to the flow path over all eight. The AI
+pre-review judge scores against the same assembly, so it judges the unit against
+the voice and vocabulary in force rather than against a bare pair of strings.
+
+### Source and target are two rungs of one ladder
+
+Source review and target review are the same act at different rungs of the
+ladders [C-04](../context/c-04-unit-state-and-decisions.md) defines, and both
+lanes render the same review model. Approving source wording without the voice
+it is approved against is the target defect in reverse. A source decision is
+recorded with the same identity a target decision carries.
+
+### What a source change does to an undecided target
+
+A decision records the source it was taken against, and coverage grades a
+decided unit stale once the source moves away from that basis. An undecided
+translation gets the same anchor from the loop itself: for every unit a run
+writes a target for, it records a decision-less state entry carrying the hash of
+the source it translated and the hash of the target it produced. The record is
+committed state, so a fresh clone carries it, and it is written unstaged, so
+loop output is never counted as a person's pending decision.
+
+Coverage derives the basis for both classes alike. A source change under an
+undecided target grades the unit stale, the plan counts it, and the next pass
+re-drafts it with the old wording still on disk. Only a decision moves a unit on
+its ladder. A target that no longer matches its recorded hash was taken over by
+a person; it grades as basis unknown and is left alone and reported. No host
+clears targets to force the loop's attention, and the records travel with the
+decisions on push, so a venue receives the same basis the loop worked from.
+
+## Consequences
+
+The context graph gains its first reader on a decision surface. The model is
+retrieval over stores that exist, plus one new fact per written target (its
+basis), which is a state record; what governs a point is still read from the
+graph.
+
+Rendering stays with each host. The model crosses no licence line: `host` is
+Apache-2.0 and every client already depends on it. No file moves between
+licence subtrees, and no module above the line imports from below it, which
+`make audit-modules` asserts for Go and for TypeScript.
+
+The invariant is enforced. The reflection
+test holds the model to `prompt.Context`; the equality test holds the review AI
+path to the flow path; and the MCP tool returns the model whole, so the client
+with the least screen has the same facts as the one with the most.
+
+## Related
+
+- [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the point a decision is made at
+- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a decision records
+- [C-06: Context retrieval](../context/c-06-retrieval.md): the two primitives Review consumes
+- [S-01: The kapi CLI](s-01-kapi-cli.md): `kapi status --review` and `kapi apply`
+- [S-02: Kapi Desktop](s-02-kapi-desktop.md): the queue and the document view
+- [S-03: Agent surfaces](s-03-agent-surfaces.md): the MCP review tools
+- [S-06: The visual editor data model](s-06-visual-editor.md): the kit the document view is built on

@@ -342,6 +342,7 @@ output.
 
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the command surface the skill drives and the exit-code contract it consumes
 - [S-04: Toolbox utilities](s-04-toolbox.md): the format-aware utilities a skill reaches for; `kapi apply` is the deliberate, reviewed sibling of `ksed`'s regex substitution
+- [S-07: The review model](s-07-context-centric-review.md): the object `review_unit` returns whole
 - [F-03: Identity](../foundations/f-03-identity.md): the `content_hash` a change-set pins as its drift anchor
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
