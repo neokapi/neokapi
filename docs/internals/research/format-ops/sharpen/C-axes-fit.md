@@ -1,4 +1,4 @@
-# DEEP-DIVE C — the current axes + how the new vision formats (mis)fit
+# DEEP-DIVE C: the current axes + how the new vision formats (mis)fit
 
 Survey of `docs/internals/format-maturity.md` (§1 tiers, §2 the six axes),
 `.claude/workflows/format-triage.js` (AXES table / dims / gates), and the
@@ -7,17 +7,17 @@ vision/structure formats (`image`, `pdf`, `docling`, `doclang`), grounded
 against the new content-model `core/model/structure.go`. Read-only.
 
 Headline: the support-gate/universe machinery **absorbed the new formats
-cleanly and is green** — the only stale artifact is the *published dashboard
+cleanly and is green**; the only stale artifact is the *published dashboard
 JSON*. But the six axes are **structurally blind to document
 structure + geometry**: a reader whose entire purpose is OCR + table/heading
 recovery + reading-order + bounding-boxes (`image`) scores the **same all-zero
-maturity vector as a trivial stub**, because no axis — and no floor signal,
-dimension, or gate term — measures structural/geometric fidelity. Vocabulary
+maturity vector as a trivial stub**, because no axis, and no floor signal,
+dimension, or gate term, measures structural/geometric fidelity. Vocabulary
 is the conceptual nearest neighbor but misses it three independent ways.
 
 ---
 
-## (1) The six axes — crisp table of exactly what each measures
+## (1) The six axes: a crisp table of exactly what each measures
 
 Quoted "Measures" column verbatim from `docs/internals/format-maturity.md:99-106`
 (§2 axis table), with the gate function each axis actually computes
@@ -37,14 +37,14 @@ Quoted "Measures" column verbatim from `docs/internals/format-maturity.md:99-106
 The six collapse into **three natural families**, which is the cleaner mental
 model to design from:
 
-1. **THE BYTES (engine correctness)** — *Engine* (does the serialization
+1. **THE BYTES (engine correctness)**: *Engine* (does the serialization
    round-trip faithfully against the spec/Okapi?) + *Security* (does the parser
    survive hostile bytes?). Both live at the wire/byte boundary.
-2. **THE MODEL (representation fidelity)** — *Vocabulary* (does the format's
+2. **THE MODEL (representation fidelity)**: *Vocabulary* (does the format's
    *meaning* land in the canonical content model and back?). Today this is the
    **only** axis about content-model fidelity, and it covers **only inline +
    block-kind** meaning.
-3. **THE ECOSYSTEM (product/process around the format)** — *Editor* (native
+3. **THE ECOSYSTEM (product/process around the format)**: *Editor* (native
    surface), *Knowledge* (specs/learning assets), *Corpus* (provenanced
    evidence). These measure how well a format is *supported as a product*, not
    what the engine extracts.
@@ -57,7 +57,7 @@ Engine concern (round-trip) and *not* an Editor concern (rendering surface).
 
 ---
 
-## (2) How the new vision formats score today — and where the axes fail
+## (2) How the new vision formats score today, and where the axes fail
 
 ### Scores (deterministic floor, `audit-format.py --json`, run this survey)
 
@@ -66,7 +66,7 @@ Engine concern (round-trip) and *not* an Editor concern (rendering surface).
 | `image` | harvest* | **L0** | V0 | E0 | K0 | C0 | S0 | reader✓ writer✓ **config✗** spec✗ testdata✗ |
 | `docling` | harvest* | **L0** | V0 | E0 | K0 | C0 | S0 | reader✓ writer✗(read-only) config✓ spec✓ testdata✓ |
 | `doclang` | harvest* | **L1** | V0 | E0 | K0 | C0 | S0 | reader✓ writer✓ config✓ spec✓ testdata✓ |
-| `pdf` | read-only | (L0; **excluded from `--all`**) | — | — | — | — | — | reader✗ writer✗ config✓ |
+| `pdf` | read-only | (L0; **excluded from `--all`**) | n/a | n/a | n/a | n/a | n/a | reader✗ writer✗ config✓ |
 
 `*` All three are classed **type=harvest** purely because they have no Okapi
 counterpart (`ftype` in format-triage.js:561-567 only models
@@ -118,7 +118,7 @@ JSON", package doc L18).
 faithful structure round-trip (roundtrip_test, conformance_test,
 writer_schema_test).
 
-### Which axis reflects "this reader understands tables/headings/reading-order/geometry"? — **NONE.** (hypothesis confirmed, and stronger)
+### Which axis reflects "this reader understands tables/headings/reading-order/geometry"? **NONE.** (hypothesis confirmed, and stronger)
 
 - **Engine** measures *only* serialization round-trip/parity. It is **orthogonal
   to structure**: a reader that recovers perfect structure+geometry but doesn't
@@ -134,14 +134,14 @@ writer_schema_test).
   2. *Wrong field.* The block-kind rows in `core/formats/constructs.yaml`
      (`block.heading` L612, `block.paragraph` L633, …) map to `block:type`
      (the free-form `Block.Type`, "grounded in core/formats/html/reader.go
-     blockTypeMap and the markdown reader", L80-82, L608-611) — the **old**
-     structure representation. The vision/docling readers populate the **new**
+     blockTypeMap and the markdown reader", L80-82, L608-611), the earlier
+     structure representation. The vision/docling readers populate the
      `StructureAnnotation.Role` stand-off layer via `SetSemanticRole`, which
      `constructs.yaml` does **not** model at all. Two parallel structure
      representations now exist; the axis tracks the one the new formats don't use.
   3. *Inline-only oracle.* The equivalence test
      (`core/formats/vocab_equivalence_test.go`) asserts a **"bold/italic/link/
-     image" sentence** yields the same canonical `Type` sequence (rubric L196) —
+     image" sentence** yields the same canonical `Type` sequence (rubric L196),
      purely inline. It never asserts a role, bbox, reading-order, or relation.
 - **Editor E1** ("structure-true preview", rubric L229) is the closest *in
   spirit* but measures a *rendering surface* (PreviewBuilder/STRUCTURE_RULES),
@@ -149,9 +149,9 @@ writer_schema_test).
 - **Knowledge / Corpus / Security**: unrelated to structure extraction.
 
 **Net:** the maturity vector is blind to the single most valuable thing the
-vision stack does. The user's named depth ladder — image extracts *(a)* just
-metadata, *(b)* OCR plain text, *(c)* OCR + structure (tables/headings/reading
-order) + geometry (bounding boxes/layout) — has **no axis to live on**. This is
+vision stack does. The user's named depth ladder, where an image extracts *(a)*
+just metadata, *(b)* OCR plain text, *(c)* OCR + structure (tables/headings/
+reading order) + geometry (bounding boxes/layout), has **no axis to live on**. This is
 the gap the sharpening should fill: a structural/geometric-fidelity axis (call
 it a sibling of Vocabulary in family "THE MODEL") whose rungs ladder exactly
 that: G0 none → G1 plain text only → G2 semantic roles (`SemanticRole`) → G3
@@ -185,10 +185,10 @@ Even the **Engine** scores are artifactually depressed:
 
 ---
 
-## (3) Did adding the new formats break support-gates / the universe? — **No. Green. Only the published dashboard is stale.**
+## (3) Did adding the new formats break support-gates / the universe? **No. Green. Only the published dashboard is stale.**
 
 The universe is the **dir-walk over `core/formats/` keeping dirs that ship a
-`reader.go`, minus `exec`/`jsx`/`memorytest`** — defined once and mirrored
+`reader.go`, minus `exec`/`jsx`/`memorytest`**, defined once and mirrored
 everywhere:
 
 - `scripts/format-ops/lib.mjs:94-101` `realFormatDirs()` (filters `reader.go`;
@@ -201,7 +201,7 @@ everywhere:
 **Filesystem reality:** 52 real format dirs exist (incl. `image`/`docling`/
 `doclang`/`pdf`). `pdf` has **no `reader.go`** (dir =
 `config.go`/`grouping.go`/`grouping_test.go`/`wasm_bridge.go`; native PDF is
-read out-of-core by the kapi-pdfium plugin, browser by PDFium-wasm — see
+read out-of-core by the kapi-pdfium plugin, browser by PDFium-wasm; see
 `core/formats/register_pdf_js.go` / `register_pdf_other.go`). So the
 reader.go-gated universe = **51** (52 − pdf).
 
@@ -211,7 +211,7 @@ reader.go-gated universe = **51** (52 − pdf).
   present, `pdf` absent.
 - `core/formats/support.yaml` → **51** entries; `doclang` (L53), `docling`
   (L60), `image` (L67) all added (tier `available`, `grandfathered: true`, no
-  `last_certified` yet — awaiting first cert); `pdf` correctly **absent**.
+  `last_certified` yet, awaiting first cert); `pdf` correctly **absent**.
 - `node scripts/format-ops/check-support-gates.mjs` → `OK — 51 formats
   (available: 16, maintained: 35)`, **EXIT 0**.
 - `go test ./core/formats/ -run 'TestSupportYAML|TestRealFormatDirs|TestMaturity'`
@@ -226,7 +226,7 @@ So the dir-walk auto-discovery did its job; the three were also hand-added to
 universe.
 
 **The one stale artifact** is the *published* dashboard dataset and its
-committed mirror — regenerated only by a `format-triage` **Publish** run
+committed mirror, regenerated only by a `format-triage` **Publish** run
 (`bootstrap-publish.mjs` / the workflow's Publish phase), never auto:
 
 - `web/static/data/format-maturity.json` → **49** formats, still includes
@@ -237,7 +237,7 @@ committed mirror — regenerated only by a `format-triage` **Publish** run
 No test or CI gates the dashboard JSON against the dir-walk, so this is **stale,
 not red**. The next triage-score run will **add** `image`/`docling`/`doclang`
 and **drop** `pdf`. (Note: `pdf` will vanish from the dashboard even though it
-remains a usable format — a UX wrinkle worth a sharpening decision: an
+remains a usable format, a UX wrinkle worth a sharpening decision: an
 out-of-core/plugin-provided format like `pdf` arguably deserves a place in the
 vector even without an in-core `reader.go`.)
 
