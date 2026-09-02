@@ -38,6 +38,10 @@ export const DEMOS: RegistryEntry[] = [
     "title": "grep, sed and cat — for any format"
   },
   {
+    "id": "10-cli-governance",
+    "title": "Governance from the terminal"
+  },
+  {
     "id": "bowrain-cli-auth-and-workspaces",
     "title": "Sign in, find your workspaces, test locally"
   },
