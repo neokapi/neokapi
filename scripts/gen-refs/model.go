@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // Source identifies which engine provides an entry.
 const (
@@ -42,6 +45,12 @@ type Entry struct {
 	MimeTypes  []string `json:"mimeTypes,omitempty"`
 	HasReader  bool     `json:"hasReader,omitempty"`
 	HasWriter  bool     `json:"hasWriter,omitempty"`
+	// Family is the content shape the format carries: one of the eight classes
+	// in core/formats/constructs.yaml. Reading surfaces pick a rendering from
+	// it (a catalog-keyvalue file reads as a key table), so it is also emitted
+	// on its own into format-families.json for consumers that want the map
+	// without the schemas.
+	Family string `json:"family,omitempty"`
 
 	// Tool-only metadata.
 	Category    string   `json:"category,omitempty"`
@@ -145,6 +154,70 @@ type Dataset struct {
 	GeneratedAt string  `json:"generatedAt"`
 	Kind        string  `json:"kind"` // "format" | "tool"
 	Entries     []Entry `json:"entries"`
+}
+
+// KindFormatFamily is the `kind` FamilyDataset carries.
+const KindFormatFamily = "format-family"
+
+// FamilyDataset is the content shape of every built-in format, keyed both by
+// format id and by file extension, with nothing else in it.
+//
+// formats.json carries the same `family` field, and a quarter of a megabyte of
+// parameter schemas beside it. A frontend that only needs to know whether a
+// file reads as a key table imports this instead, so choosing a preview costs
+// a kilobyte rather than the whole reference dataset.
+type FamilyDataset struct {
+	GeneratedAt string `json:"generatedAt"`
+	Kind        string `json:"kind"` // "format-family"
+	// Formats maps a format id ("json") to its family ("catalog-keyvalue").
+	Formats map[string]string `json:"formats"`
+	// Extensions maps a lowercased extension with its dot (".json") to the same
+	// family. A surface that knows only a file name resolves through this.
+	// An extension claimed by two formats is omitted when they disagree, so an
+	// ambiguous name falls back to the document reading.
+	Extensions map[string]string `json:"extensions"`
+}
+
+// buildFamilyDataset projects the built-in format entries into the family map.
+// Plugin and bridge entries are left out for the same reason the committed
+// dataset gates only the built-in subset: they depend on what is installed.
+//
+// resolveExt names the format an extension resolves to, so an extension two
+// formats claim (".json" is claimed by json, docling and kbf) takes the family
+// of the one detection would pick. Nil resolves nothing and the extension map
+// keeps only the extensions a single format claims.
+func buildFamilyDataset(generatedAt string, formats []Entry, resolveExt func(string) string) FamilyDataset {
+	out := FamilyDataset{
+		GeneratedAt: generatedAt,
+		Kind:        KindFormatFamily,
+		Formats:     map[string]string{},
+		Extensions:  map[string]string{},
+	}
+	claimed := map[string][]string{}
+	for _, e := range formats {
+		if e.Source != SourceBuiltIn || e.Family == "" {
+			continue
+		}
+		out.Formats[e.ID] = e.Family
+		for _, ext := range e.Extensions {
+			ext = strings.ToLower(ext)
+			claimed[ext] = append(claimed[ext], e.ID)
+		}
+	}
+	for ext, ids := range claimed {
+		if len(ids) > 1 {
+			winner := ""
+			if resolveExt != nil {
+				winner = resolveExt(ext)
+			}
+			if family, ok := out.Formats[winner]; ok {
+				out.Extensions[ext] = family
+			}
+			continue
+		}
+		out.Extensions[ext] = out.Formats[ids[0]]
+	}
+	return out
 }
 
 // CommandFlag describes one flag on a CLI command.

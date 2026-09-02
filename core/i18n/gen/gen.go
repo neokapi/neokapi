@@ -29,15 +29,20 @@ import (
 // Maps 1:1 to object keys on the tools / formats / plugins object —
 // the entry's parent object key (e.g. "translate") is the owner ID.
 type Entry struct {
-	DisplayName string                       `json:"displayName,omitempty"`
-	Description string                       `json:"description,omitempty"`
-	Category    string                       `json:"category,omitempty"`
-	Extensions  []string                     `json:"extensions,omitempty"`
-	MimeTypes   []string                     `json:"mimeTypes,omitempty"`
-	Properties  map[string]PropertyEntry     `json:"properties,omitempty"`
-	Groups      map[string]GroupEntry        `json:"groups,omitempty"`
-	Options     map[string]OptionEntry       `json:"options,omitempty"` // enum options on the entry root
-	Enums       map[string]map[string]string `json:"enumDescriptions,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
+	// Family is a format's content shape (registry.FormatFamily). Like
+	// Category on a tool it is an enum rather than prose, so the recipe's
+	// extraction rule leaves it alone; it rides along so the generated
+	// metadata says everything the registry says about a format.
+	Family     string                       `json:"family,omitempty"`
+	Extensions []string                     `json:"extensions,omitempty"`
+	MimeTypes  []string                     `json:"mimeTypes,omitempty"`
+	Properties map[string]PropertyEntry     `json:"properties,omitempty"`
+	Groups     map[string]GroupEntry        `json:"groups,omitempty"`
+	Options    map[string]OptionEntry       `json:"options,omitempty"` // enum options on the entry root
+	Enums      map[string]map[string]string `json:"enumDescriptions,omitempty"`
 }
 
 // PropertyEntry mirrors schema.PropertySchema's translatable subset.
@@ -139,6 +144,7 @@ func buildDocument(
 		name := string(info.Name)
 		e := Entry{
 			DisplayName: info.DisplayName,
+			Family:      string(info.Family),
 			Extensions:  info.Extensions,
 			MimeTypes:   info.MimeTypes,
 		}

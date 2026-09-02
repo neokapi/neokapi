@@ -69,6 +69,7 @@ func collectNativeFormats(freg *registry.FormatRegistry, meta *nativeMeta) []Ent
 			MimeTypes:   info.MimeTypes,
 			HasReader:   info.HasReader,
 			HasWriter:   info.HasWriter,
+			Family:      string(info.Family),
 		}
 
 		if info.HasReader {
@@ -213,4 +214,18 @@ func schemaPropertyNames(raw json.RawMessage) []string {
 		names = append(names, k)
 	}
 	return names
+}
+
+// extensionResolver answers which format an extension resolves to, using the
+// registry's own detector so a shared extension goes to the format detection
+// would pick (json over docling and kbf for ".json", both of which sit below
+// the default priority and win only on a content sniff).
+func extensionResolver(freg *registry.FormatRegistry) func(string) string {
+	return func(ext string) string {
+		id, err := freg.DetectByExtension(ext)
+		if err != nil {
+			return ""
+		}
+		return string(id)
+	}
 }

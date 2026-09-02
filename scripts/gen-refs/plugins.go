@@ -23,6 +23,7 @@ type pluginFormat struct {
 	Description  string   `json:"description"`
 	Extensions   []string `json:"extensions"`
 	MimeTypes    []string `json:"mime_types"`
+	Family       string   `json:"family"`       // one of core/formats/constructs.yaml's eight classes
 	Capabilities []string `json:"capabilities"` // "read","write"
 	Schema       string   `json:"schema"`       // relative path to a JSON Schema
 }
@@ -62,6 +63,7 @@ func collectPlugins(pluginsDir string) (formats []Entry, err error) {
 				MimeTypes:   f.MimeTypes,
 				HasReader:   sliceContains(f.Capabilities, "read"),
 				HasWriter:   sliceContains(f.Capabilities, "write"),
+				Family:      f.Family,
 			}
 			if f.Schema != "" {
 				if raw, srr := os.ReadFile(filepath.Join(dir, f.Schema)); srr == nil {

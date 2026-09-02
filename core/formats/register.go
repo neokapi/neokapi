@@ -642,6 +642,9 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	// plugin (cgo + tree-sitter grammars). Same seam as PDF above, minus the
 	// browser path: the grammars cannot link into wasm at all.
 	registerSourceCode(reg)
+
+	// The content shape each format carries, once every id above exists.
+	RegisterFamilies(reg)
 }
 
 // registerSchemaAndDecoder registers a format's schema and config decoder

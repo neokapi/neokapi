@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T16:29:17Z",
+  "generatedAt": "2026-09-02T17:27:33Z",
   "kind": "format",
   "entries": [
     {
@@ -17,6 +17,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -97,6 +98,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -196,6 +198,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -292,6 +295,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -380,6 +384,7 @@
         "application/x-gzip"
       ],
       "hasReader": true,
+      "family": "binary-readonly",
       "doc": {
         "overview": "An archive — a ZIP, TAR, or gzip-compressed TAR (`.tar.gz` / `.tgz`) — is a\nnamespace of inner documents, not a single document. This reader is the\n**inspection** face of that model: it walks the container's entries and, for\neach one neokapi recognises (JSON, Markdown, HTML, XML, `.po`, YAML, …), parses\nit through that format's own reader and surfaces its content as a child layer,\nso `kapi inspect` and analysis tools can see inside the archive. Binary assets,\nnested containers, and unrecognised entries are listed as opaque data members.\n\n**There is no archive writer.** Translating the content inside a container\nis the *container binding*, not a format round-trip: when a ZIP/TAR is given\nto an output-producing command (`kapi translate`, `kapi pseudo-translate`, a\nflow), each eligible entry is run as its **own file** — through the normal\nreader and writer with full skeleton round-trip — and the results are\nrepacked over the original container, copying every other member\nbyte-for-byte. Because each entry is a real, standalone file run, a\nskeleton-bound packaged format such as a DOCX, PPTX, or EPUB *inside* the\narchive round-trips faithfully, and each entry resolves its own format\nconfiguration. Binary assets, nested containers, and bilingual interchange\nfiles (XLIFF/PO/TMX) are copied through unchanged.\n\nBecause the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,\ndetection resolves those specific formats first (by content) and falls back to\nthe generic archive reader for a plain ZIP/TAR. Inspection scope can be\nnarrowed with `include` / `exclude` glob patterns matched against the entry\npath.\n",
         "limitations": [
@@ -412,6 +417,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "schema": {
         "$id": "",
         "$version": "",
@@ -511,7 +517,8 @@
         "audio/ogg"
       ],
       "hasReader": true,
-      "hasWriter": true
+      "hasWriter": true,
+      "family": "binary-readonly"
     },
     {
       "id": "csv",
@@ -527,6 +534,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "data-config",
       "schema": {
         "$id": "",
         "$version": "",
@@ -760,6 +768,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -828,6 +837,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "doc": {
         "overview": "The **DocLang** format reads and writes\n[DocLang](https://doclang.ai), the LF AI \u0026 Data open standard for AI-native\ndocuments, pinned to spec v0.6. It maps `.dclg.xml` into the neokapi content\nmodel plus the structural layer (SemanticRole, GeometryAnnotation,\nLayoutLayer). This is the file-based \"consume Docling\" boundary: a tool runs\nDocling, emits DocLang, and neokapi reads it.\n\nCoverage (v0.6): the document root + head; the block-level semantic elements\n(heading, text, footnote, page_header, page_footer, code, formula); lists\n(with ldiv-delimited items); groups; OTSL table/index cells (fcel, ched, rhed,\necel, srow, corn) with `nl` row terminators; the element-head properties layer\nand the 4-value location block (mapped to page geometry); and inline formatting\n(bold, italic, underline, strikethrough, superscript, subscript).\n\nNot yet mapped (skipped without losing surrounding content): OTSL span\ncontinuations (lcel/ucel/xcel), picture/field/marker/checkbox constructs, and\nthread/xref/href continuity.\n",
         "parameters": {
@@ -858,6 +868,7 @@
         "application/json"
       ],
       "hasReader": true,
+      "family": "rich-markup",
       "doc": {
         "overview": "The **DoclingDocument JSON** format reads the native, lossless JSON\nserialization emitted by\n[Docling](https://github.com/docling-project/docling). It follows the\ndocument's reading order (`body.children`), resolving the `$ref` pointers into\nthe `texts`/`tables`/`groups`/`pictures` arrays, into the neokapi content model\nplus the structural layer (SemanticRole, GeometryAnnotation, LayoutLayer). This\nis the file-based \"consume Docling\" boundary alongside the DocLang XML reader:\na tool runs Docling, saves the JSON, and neokapi reads it.\n\nCoverage: text items (title, section_header with level, paragraph/text,\nlist_item, caption, footnote, page_header/page_footer → furniture, code,\nformula); groups (lists and inline groups); tables (the resolved cell grid,\nwith column/row-header cells → table-header role) and their captions; picture\ncaptions; and per-item page geometry from `prov[].bbox`. Inline formatting is\nnot part of the base DoclingDocument text model, so each text item is one run.\n\nRead-only — Docling owns the JSON; neokapi re-emits structure via the DocLang\nwriter or projects to Markdown/HTML.\n",
         "limitations": [
@@ -883,6 +894,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "schema": {
         "$id": "",
         "$version": "",
@@ -937,6 +949,7 @@
       "displayName": "Exec (subprocess extractor)",
       "description": "Run an external subprocess as a custom extractor that streams blocks as NDJSON.",
       "hasReader": true,
+      "family": "plain-text",
       "doc": {
         "overview": "The exec format is a declarative wrapper around an external\nextractor. Instead of parsing a file format itself, it launches a\nsubprocess you name, feeds it the matched file paths on standard\ninput (NUL-separated), and reads back translatable blocks as\nnewline-delimited JSON (NDJSON) on standard output. Each output line\nis a record of the form `{\"type\":\"block\",\"document\":\"\u003cpath\u003e\",\n\"block\":{ … }}`; lines that are not JSON objects are treated as noise\n(progress or log output) and ignored. A non-zero exit status surfaces\nas an error with the subprocess's captured stderr attached.\n\nUse exec when a format has no built-in reader but you can extract its\nstrings with a script or tool in any language — for example a\nproject-specific source-code extractor. The protocol is transparent\nto inspect (plain JSON) and carries no kapi-specific schema beyond the\nblock shape the subprocess emits.\n\nThe exec format is opt-in per project: it has no file extensions or\nMIME types and is never auto-detected by file type. It is declared on\na collection's `format:` block in a `.kapi` project and run via\n`kapi extract -p project.kapi`, which spawns the declared command once\nper collection with every matched path on stdin. It is not usable as a\nper-file reader; opening a file directly with this format returns an\nerror pointing at the project-driven path.\n",
         "limitations": [
@@ -972,6 +985,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -1045,6 +1059,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "schema": {
         "$id": "",
         "$version": "",
@@ -1211,6 +1226,7 @@
       "description": "Extract and update translatable values in i18next / react-i18next JSON resource bundles.",
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -1292,6 +1308,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -1380,6 +1397,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "binary-readonly",
       "doc": {
         "overview": "The **Image** format reads raster images as documents. PNG and JPEG decode\nnatively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF\nstill images HEIC/HEIF and AVIF are transcoded with ffmpeg (the kapi-av\nbundle) when it is available, degrading to a Media-only asset when it is not.\nThe image itself is always emitted as a **Media** part by reference — the\npixel bytes are never loaded into the kapi process — so an image is a valid,\ninspectable document even with no OCR engine installed. This is the\n*whole-image replacement* mode: the picture is an asset to be replaced rather\nthan read.\n\nWhen the **kapi-vision** plugin is installed and `ocr` is enabled, the reader\nrecognizes in-image text and emits positioned text **Blocks**, recovering\ntier-2 structure (headings, paragraphs, tables) from the OCR line geometry the\nsame way the PDF geometry path does. With `layout` enabled it uses ML layout\ndetection (regions + reading order) when the engine supports it, falling back\nto geometric inference otherwise.\n\nAn `\u003cimage\u003e.alt.txt` sidecar beside the source supplies alt-text / caption\ncopy: it is attached to the Media and emitted as a caption Block that\ntranslates through the normal block path; the writer folds the translated text\nback into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is\nread without decoding pixels and mapped onto the document layer.\n",
         "parameters": {
@@ -1426,6 +1444,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -1676,6 +1695,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -2102,6 +2122,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "doc": {
         "overview": "This format reads and writes the Kapi Bundle Format (`.kbf.json`), a\nstructured JSON envelope for translatable strings extracted from\nsource code such as JSX / React components. A KBF document is a\n`kind: kapi-bundle` envelope holding one or more\ndocuments, each carrying blocks. Every block has a structured run\nsequence — text plus placeholders, paired inline codes, plurals, and\nselects.\n\nOn read, each KBF block becomes one translatable block. Its source\ntext is the flattened run sequence: placeholders contribute their\nequivalent (wrapped in braces), paired codes elide their wrappers, and\nplural forms collapse to the `other` branch. The block ID is carried\nverbatim, and the full structured run graph travels alongside in an\nannotation so the writer can reassemble the original document. The\nwriter reverses the process; a block that arrives without that\nannotation (for example one inserted by an intermediate tool) is\nwritten as a minimal text-only run sequence so the file stays\nwell-formed.\n",
         "limitations": [
@@ -2138,6 +2159,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "schema": {
         "$id": "",
         "$version": "",
@@ -2371,6 +2393,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "rich-markup",
       "schema": {
         "$id": "",
         "$version": "",
@@ -2503,6 +2526,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -2555,6 +2579,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "office-doc",
       "schema": {
         "$id": "",
         "$version": "",
@@ -2649,6 +2674,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "office-doc",
       "schema": {
         "$id": "",
         "$version": "",
@@ -3251,6 +3277,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "plain-text",
       "schema": {
         "$id": "",
         "$version": "",
@@ -3345,6 +3372,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
@@ -3510,6 +3538,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "bilingual-interchange",
       "doc": {
         "overview": "Qt Linguist TS is the bilingual XML format used by Qt's `lupdate` and\n`lrelease` tools to carry UI translations. A `\u003cTS\u003e` document groups\none or more `\u003ccontext\u003e` elements; each context groups `\u003cmessage\u003e`\nentries with a `\u003csource\u003e` and a `\u003ctranslation\u003e`. Translation state is\nencoded on the `\u003ctranslation\u003e` element's `type` attribute — no type\nmeans approved, `unfinished` means pending review, and `obsolete`\nmeans the entry is unused. Plural messages (`numerus=\"yes\"`) carry one\n`\u003cnumerusform\u003e` per locale plural form. Inline non-XML bytes appear as\n`\u003cbyte value=\"…\"/\u003e` elements.\n\nThe reader extracts each message's source as a translatable block,\nmatched with its existing translation, and preserves the context and\nmessage structure for the writer. The format is detected by sniffing\nfor a `\u003cTS\u003e` … `\u003c/TS\u003e` document rather than by the `.ts` extension,\nwhich collides with TypeScript.\n",
         "limitations": [
@@ -3591,6 +3620,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "subtitle-timedtext",
       "schema": {
         "$id": "",
         "$version": "",
@@ -3642,6 +3672,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "bilingual-interchange",
       "schema": {
         "$id": "",
         "$version": "",
@@ -3790,6 +3821,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "data-config",
       "schema": {
         "$id": "",
         "$version": "",
@@ -4033,7 +4065,8 @@
         "video/webm"
       ],
       "hasReader": true,
-      "hasWriter": true
+      "hasWriter": true,
+      "family": "binary-readonly"
     },
     {
       "id": "vtt",
@@ -4049,6 +4082,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "subtitle-timedtext",
       "schema": {
         "$id": "",
         "$version": "",
@@ -4185,6 +4219,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "bilingual-interchange",
       "schema": {
         "$id": "",
         "$version": "",
@@ -4483,6 +4518,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "bilingual-interchange",
       "schema": {
         "$id": "",
         "$version": "",
@@ -4685,6 +4721,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "data-config",
       "schema": {
         "$id": "",
         "$version": "",
@@ -4997,6 +5034,7 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "family": "catalog-keyvalue",
       "schema": {
         "$id": "",
         "$version": "",
