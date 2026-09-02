@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
@@ -442,7 +443,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
-	facts := convergeFacts{monolingual: monolingual}
+	facts := &convergeFacts{monolingual: monolingual}
 
 	// The venue-neutral loop (core/convergence.Loop) owns the semantics —
 	// pass barrier, per-locale fan-out, stall-parks-the-rest; these closures
@@ -488,6 +489,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if err != nil {
 				return 0, 0, 0, err
 			}
+			facts.notePassed(locale)
 			done, viaMemory, viaAI := tap.snapshot()
 			return done, viaMemory, viaAI, nil
 		},
@@ -627,10 +629,36 @@ type convergeFacts struct {
 	extractedBlocks int
 	// redraftable is, per locale, how many stale units the run STARTED with in
 	// scopes it then fanned out over. The final rollup cannot recover it: a
-	// re-drafted unit is still stale (its decision blessed source that is gone,
-	// and producing a translation does not decide it), so the count that says
-	// "the loop did its half" has to be taken before the half is done.
+	// re-drafted unit is still stale (its basis names source that is gone, and
+	// producing a translation does not decide it), so the count that says "the
+	// loop did its half" has to be taken before the half is done.
 	redraftable map[string]int
+	// passed is the locales a pass actually ran for. Together with the delivery
+	// policy it decides which target files hold this run's own output, which is
+	// what entitles the run to record a basis for the units inside them
+	// (host/basisrecord.go): a file the run did not write holds somebody else's
+	// translation of a source the run cannot name.
+	//
+	// Guarded because the loop fans its passes out across locales in parallel.
+	mu     sync.Mutex
+	passed map[string]bool
+}
+
+// notePassed records that a pass ran for this locale.
+func (f *convergeFacts) notePassed(locale string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.passed == nil {
+		f.passed = map[string]bool{}
+	}
+	f.passed[locale] = true
+}
+
+// ranPass reports whether any pass ran for this locale.
+func (f *convergeFacts) ranPass(locale string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.passed[locale]
 }
 
 // noteRedraftable records the first pass's stale-unit count for the locales that
@@ -877,7 +905,7 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its target files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
+func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Monolingual = facts.monolingual
 	out.ExtractedFiles = facts.extractedFiles
@@ -913,7 +941,18 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// prevent. This mirrors the server, which skips its post-run work when the run
 	// stalled on source_not_ready (convergence_orchestrator.go). Materialize only
 	// once the source is settled and real targets exist.
-	if deliveryIsGated(proj, opts) && out.StallReason != convergence.StallSourceNotReady {
+	// Which translations on disk this run wrote, which is what entitles it to
+	// record a basis for them. Under a gate the pass drafts and delivery names
+	// the files; ungated, the pass wrote where the recipe points, so a locale it
+	// ran for is the answer.
+	gated := deliveryIsGated(proj, opts)
+	written := writtenTargets{}
+	produced := func(locale, _ string) bool { return facts.ranPass(locale) }
+	if gated {
+		produced = written.wrote
+	}
+
+	if gated && out.StallReason != convergence.StallSourceNotReady {
 		for i := range out.Locales {
 			lc := &out.Locales[i]
 			if !lc.Shippable {
@@ -932,14 +971,17 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
 			}
+			for _, dest := range delivered {
+				written.note(lc.Locale, dest)
+			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.
 			n, merr := a.materializeFromProjectStore(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false)
 			if merr != nil {
 				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
 			}
-			if n < delivered {
-				n = delivered
+			if n < len(delivered) {
+				n = len(delivered)
 			}
 			lc.Materialized = n
 			out.MaterializedFiles += n
@@ -989,6 +1031,16 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// absorbed is what keeps the next run from reading its own materialization
 	// back as a statement from git; see stampCommittedRecord.
 	a.stampCommittedRecord(ctx, proj, projectPath)
+
+	// And the basis for each translation it wrote, so the next run can see a
+	// source rewritten under an undecided one. Reported and never fatal: the run
+	// has already produced its output, and a state store that could not take the
+	// records leaves the following run to write them (host/basisrecord.go).
+	if berr := a.recordProducedBasis(ctx, proj, filepath.Dir(projectPath), produced); berr != nil && !a.Quiet {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"warning: could not record what this run translated, so the next run cannot tell "+
+				"a rewritten source from a new one: %v\n", berr)
+	}
 
 	state := convergence.RunConverged
 	if !out.Converged {

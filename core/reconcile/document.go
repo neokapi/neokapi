@@ -2,6 +2,7 @@ package reconcile
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -153,13 +154,41 @@ func DocumentUnits(current []DocUnit, prior []DocUnit) []DocResult {
 	return out
 }
 
+// DocumentKeyFor is the key a document gets when nothing prior claims it: a
+// function of its path alone, so a project that has recorded nothing yet and one
+// that has recorded everything name the same file the same way.
+//
+// It is exported because a decision is filed against a document key, and a
+// surface reading a project before its first extraction has to be able to name
+// the document a committed decision was filed under. Deriving it there rather
+// than falling back to the path is what stops a fresh clone from reading its own
+// committed record as belonging to documents it has never heard of.
+func DocumentKeyFor(path string) string {
+	return "d-" + model.ComputeContentHash(path)[:16]
+}
+
+// IsDocumentKey reports whether a string is already a document key rather than
+// the address of a document. It matches the exact shape DocumentKeyFor mints, so
+// a file that happens to be called `d-notes.md` is an address.
+func IsDocumentKey(s string) bool {
+	if len(s) != len("d-")+16 || !strings.HasPrefix(s, "d-") {
+		return false
+	}
+	for _, r := range s[2:] {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
 func mintDocs(out []DocResult, units []DocUnit) {
 	seen := map[string]int{}
 	for i := range out {
 		if out[i].Key != "" {
 			continue
 		}
-		key := "d-" + model.ComputeContentHash(units[i].Path)[:16]
+		key := DocumentKeyFor(units[i].Path)
 		seen[key]++
 		if n := seen[key]; n > 1 {
 			key += "-" + strconv.Itoa(n)

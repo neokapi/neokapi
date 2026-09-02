@@ -72,20 +72,22 @@ func (t *CoverageTally) AddAIDecided(s Scope, state, baseline string) {
 	st.aiReviewed++
 }
 
-// AddStale tallies one unit whose decision was recorded against source wording
-// that has since changed. It counts at `draft` — a committed target exists, so
-// the unit is not below the ladder, but it is not a translation of the current
-// source either — and again as stale, which is what withholds the scope from
-// shipping.
+// AddStale tallies one unit whose recorded basis — a decision's, or the loop's
+// own record of the source it translated — names source wording that has since
+// changed. It counts at `draft` — a committed target exists, so the unit is not
+// below the ladder, but it is not a translation of the current source either —
+// and again as stale, which is what withholds the scope from shipping.
 func (t *CoverageTally) AddStale(s Scope) {
 	st := t.tally(s)
 	st.cov.Add(string(model.TargetStatusDraft))
 	st.stale++
 }
 
-// NoteUnknownBasis records that a unit's decision carries no basis, without
-// tallying it: the unit is counted at its rung by the accompanying Add, and
-// this only makes the assumption behind that rung countable.
+// NoteUnknownBasis records that a unit's record says nothing about the source in
+// front of the reader — a decision written before the basis was tracked, or a
+// basis the loop recorded for a translation somebody has since rewritten —
+// without tallying it: the unit is counted at its rung by the accompanying Add,
+// and this only makes the assumption behind that rung countable.
 func (t *CoverageTally) NoteUnknownBasis(s Scope) { t.tally(s).basisUnknown++ }
 
 // NoteFailingCheck records that a unit fails the project's bound checks,

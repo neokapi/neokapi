@@ -24,27 +24,30 @@ func readCatalog(t *testing.T, path string) map[string]string {
 	return out
 }
 
-// A source edit made during review has to reach every language. The converge
-// flow translates with skipMatched, so a target left in place is skipped
-// forever: without clearing, each locale would keep a translation of a sentence
-// that no longer exists and the loop would never notice.
-func TestUpdateSourceText_ClearsEveryLocaleTarget(t *testing.T) {
+// A source edit made during review names the languages the next run will
+// re-draft, and leaves their translations alone. The loop records the source it
+// translated for every target it writes, so it reads the rewrite as drift and
+// heals it; emptying the files here destroyed the wording a reviewer compares
+// the new draft against and the corpus recycles from.
+func TestUpdateSourceText_NamesTheLocalesAwaitingARedraft(t *testing.T) {
 	app := newAIReviewApp(t, aiprovider.NewMockProvider())
 	tab, root := newReviewProject(t, app)
 
 	fr := filepath.Join(root, "locales", "fr-FR.json")
 	de := filepath.Join(root, "locales", "de-DE.json")
-	require.NotEmpty(t, readCatalog(t, fr)["greeting"])
-	require.NotEmpty(t, readCatalog(t, de)["greeting"])
+	frBefore := readCatalog(t, fr)["greeting"]
+	deBefore := readCatalog(t, de)["greeting"]
+	require.NotEmpty(t, frBefore)
+	require.NotEmpty(t, deBefore)
 
-	cleared, err := app.UpdateSourceText(tab.ID, "locales/en.json", "greeting", "Hi {name}!")
+	pending, err := app.UpdateSourceText(tab.ID, "locales/en.json", "greeting", "Hi {name}!")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"de-DE", "fr-FR"}, cleared)
+	assert.ElementsMatch(t, []string{"de-DE", "fr-FR"}, pending)
 
 	assert.Equal(t, "Hi {name}!", readCatalog(t, filepath.Join(root, "locales", "en.json"))["greeting"],
 		"the source carries the new wording")
-	assert.Empty(t, readCatalog(t, fr)["greeting"], "fr is cleared for a re-draft")
-	assert.Empty(t, readCatalog(t, de)["greeting"], "de is cleared for a re-draft")
+	assert.Equal(t, frBefore, readCatalog(t, fr)["greeting"], "fr keeps its translation for the loop to supersede")
+	assert.Equal(t, deBefore, readCatalog(t, de)["greeting"], "de keeps its translation for the loop to supersede")
 
 	// The unit nobody edited is untouched in every language.
 	assert.NotEmpty(t, readCatalog(t, fr)["farewell"])

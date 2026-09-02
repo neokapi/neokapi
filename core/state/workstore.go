@@ -357,6 +357,54 @@ func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
 // Put records a unit's state and stages it for the next commit.
 func (w *WorkStore) Put(ctx context.Context, u UnitState) error { return w.put(ctx, u, true) }
 
+// Record stores what the loop produced rather than what a person decided: a
+// unit's basis (the source it translated and the translation it wrote) with no
+// Decision on it.
+//
+// It is deliberately not staged. Staging answers "you have N uncommitted
+// decisions", and a convergence pass produces one of these for every unit it
+// writes a target for, and counting them there would bury a person's two
+// pending approvals under fourteen thousand machine records. The loop persists its own
+// output with PersistRecords instead.
+func (w *WorkStore) Record(ctx context.Context, u UnitState) error { return w.put(ctx, u, false) }
+
+// PersistRecords writes the committed serialization from the units that are NOT
+// staged: everything already committed, plus whatever the loop has recorded
+// since.
+//
+// It exists so a run can make its own output durable without publishing a
+// person's pending decisions along with it. Commit is still the only thing that
+// moves a staged decision into the committed record, and it still clears the
+// staged flag; this writes around it.
+func (w *WorkStore) PersistRecords(ctx context.Context) error {
+	units, err := w.unstaged(ctx)
+	if err != nil {
+		return err
+	}
+	return WriteCommitted(w.committed, units)
+}
+
+// unstaged returns every recorded state that is not waiting for a commit.
+func (w *WorkStore) unstaged(ctx context.Context) ([]UnitState, error) {
+	if w.mem != nil {
+		out := make([]UnitState, 0, len(w.mem.units))
+		for _, mu := range w.mem.units {
+			if !mu.Staged {
+				out = append(out, mu.Unit)
+			}
+		}
+		sortUnits(out)
+		return out, nil
+	}
+	rows, err := w.db.QueryContext(ctx,
+		`SELECT payload FROM unit_state WHERE staged = 0 ORDER BY scope, unit, variant`)
+	if err != nil {
+		return nil, fmt.Errorf("state: list unstaged: %w", err)
+	}
+	defer rows.Close()
+	return scanUnits(rows)
+}
+
 func (w *WorkStore) put(ctx context.Context, u UnitState, staged bool) error {
 	if w.mem != nil {
 		k := u.Key()

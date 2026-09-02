@@ -155,15 +155,19 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 }
 
 // producedTargets indexes the state store by document, unit and locale, keeping
-// only the records that describe a target something actually produced.
+// only the records that carry PROVENANCE: a stamp saying what governed the
+// target, or a decision saying a person judged it.
 //
-// A unit with neither a target hash nor an origin is a unit the project knows
-// about and has not translated. It has no provenance to be stale, and counting
-// it would report every untranslated string in the project as unstamped.
+// A unit with neither is one the project knows about and has not judged. It has
+// no provenance to be stale, and counting it would report every untranslated
+// string in the project as unstamped. The basis a convergence pass records for a
+// target it wrote is not provenance either: it says which source the target
+// translates, which is the drift question, and answering the governance question
+// with it would report the whole project as produced under no context at all.
 func producedTargets(recorded []state.UnitState) map[string]model.Origin {
 	out := make(map[string]model.Origin, len(recorded))
 	for _, u := range recorded {
-		if u.TargetHash == "" && u.Origin == (model.Origin{}) {
+		if u.Origin == (model.Origin{}) && u.Decision.ReviewState == "" {
 			continue
 		}
 		out[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = u.Origin

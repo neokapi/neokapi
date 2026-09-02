@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+
+	"github.com/neokapi/neokapi/core/reconcile"
 )
 
 // DocumentIndex answers which document a source file IS, for one run.
@@ -10,10 +12,11 @@ import (
 // and every decision read back has to name the same document the same way, and
 // a per-unit lookup would ask the store the same question once per block.
 //
-// The zero value answers every path with itself, which is what the project did
-// before documents had durable keys and is still the right answer for a store
-// that holds none: a path is a document's address, and where nothing better is
-// known the address is the identity.
+// The zero value answers every path with the key that path derives to
+// (reconcile.DocumentKeyFor), which is the key the next extraction mints for it.
+// So a project that has recorded nothing yet and one that has recorded
+// everything name the same file the same way, and a fresh clone can read its own
+// committed record before it has extracted anything.
 type DocumentIndex struct {
 	byPath map[string]string
 }
@@ -80,10 +83,18 @@ func (a *App) DocumentScope(ctx context.Context, root, sourcePath string) string
 // not what it is. Keying on the address means renaming a file detaches every
 // approval inside it, silently — the venue stopped doing that when it learned
 // to reconcile a declared tree, and this is the same fix on the local side.
+// A file the store has no key for is named by the key its path derives to,
+// which is the one the next extraction mints for it. Falling back to the path
+// instead made a project's own committed record unreadable until it had been
+// extracted once: on a fresh clone every decision and every recorded basis is
+// filed under a document key, the store that maps keys to paths is derived and
+// absent, and a run reading paths matched none of them. Deriving the key is
+// exact wherever the store is silent, because silence means nothing prior
+// claims the file and minting is a function of the path.
 func (d DocumentIndex) Scope(root, sourcePath string) string {
 	rel := DecisionScope(root, sourcePath)
 	if key, ok := d.byPath[rel]; ok && key != "" {
 		return key
 	}
-	return rel
+	return reconcile.DocumentKeyFor(rel)
 }

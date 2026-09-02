@@ -73,17 +73,16 @@ func (a *App) ApproveSourceUnit(tabID, file, key string) error {
 	return err
 }
 
-// UpdateSourceText rewrites one source unit and clears that unit's translation
-// in every target locale, so the next run re-drafts them.
+// UpdateSourceText rewrites one source unit and reports the locales whose
+// translation the next run will re-draft.
 //
-// Clearing is the whole point, and it is not the obvious half. The converge flow
-// translates with `skipMatched`, so a block that still carries a target is
-// skipped: leaving the old translations in place would leave every language
-// holding a translation of a sentence that no longer exists, and the loop would
-// never notice. This is the local counterpart of the server's
-// applySourceProposal, which clears targets for exactly the same reason.
-//
-// It returns the locales whose target was cleared.
+// The translations stay where they are. Each one renders the sentence that was
+// there a moment ago, and the loop knows that: `kapi up` records the source it
+// translated for every target it writes, so the rewrite reads as drift on the
+// next run, the unit is re-drafted against the wording the project has now, and
+// the run reports how many it re-drafted. Emptying them here destroyed the
+// previous translation, which is what the content memory recycles from and what
+// a reviewer compares the new draft against.
 func (a *App) UpdateSourceText(tabID, file, key, text string) ([]string, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -151,24 +150,25 @@ func (a *App) UpdateSourceText(tabID, file, key, text string) ([]string, error) 
 		return nil, fmt.Errorf("unit %q not found in %q", key, filepath.Base(rf.Path))
 	}
 
-	return a.clearTargetsForUnit(ctx, op, pctx, rf, fmtName, sourceLang, key), nil
+	return a.localesAwaitingRedraft(ctx, op, pctx, rf, fmtName, key), nil
 }
 
-// clearTargetsForUnit empties one unit's text in every target locale that has a
-// file for it, returning the locales it cleared.
+// localesAwaitingRedraft names the target locales holding a translation of one
+// unit, so the source lane can say which languages the next run will re-draft.
 //
-// Failures are collected as skips rather than aborting: the source is already
-// rewritten by the time this runs, and refusing to clear the rest because one
-// locale's file is unreadable would leave more stale translations behind, not
-// fewer.
-func (a *App) clearTargetsForUnit(ctx context.Context, op *openProject, pctx *project.ProjectContext, rf project.ResolvedFile, fmtName, sourceLang, key string) []string {
+// It reads and writes nothing else. Failures are skipped rather than aborting:
+// the source is already rewritten by the time this runs, and one unreadable
+// locale file is a reason to say less, never a reason to fail the edit.
+func (a *App) localesAwaitingRedraft(ctx context.Context, op *openProject, pctx *project.ProjectContext, rf project.ResolvedFile, fmtName, key string) []string {
 	if rf.Item == nil || rf.Item.Target == "" {
 		return nil
 	}
 	root := filepath.Dir(op.Path)
 	localeFormat := op.Project.Defaults.LocaleFormat
+	sourceLang := string(pctx.SourceLocale)
+	fmtCfg := pctx.FormatConfigFor(rf.Format, rf.Item)
 
-	var cleared []string
+	var pending []string
 	for _, loc := range op.Project.Defaults.TargetLanguages {
 		lang := string(loc)
 		tgt := expandReviewTargetPath(rf, localeFormat, lang, root)
@@ -180,22 +180,18 @@ func (a *App) clearTargetsForUnit(ctx context.Context, op *openProject, pctx *pr
 		}
 		// A target file is read monolingually: its translated text lives in each
 		// block's SOURCE runs, the same convention UpdateReviewTarget relies on.
-		emptied := false
-		blank := func(b *model.Block) {
-			if convergence.BlockKey(b) != key || !isSinglePlainTextRun(b.SourceRuns()) {
-				return
-			}
-			b.SetSourceText("")
-			emptied = true
-		}
-		if err := a.rewriteFile(ctx, tgt, fmtName, sourceLang, pctx, rf.Item, blank); err != nil {
-			a.logger.Printf("source edit: could not clear %s in %s: %v", key, tgt, err)
+		blocks, berr := a.readBlocksForChecks(ctx, tgt, fmtName, fmtCfg, sourceLang)
+		if berr != nil {
+			a.logger.Printf("source edit: could not read %s to report the pending re-draft: %v", tgt, berr)
 			continue
 		}
-		if emptied {
-			cleared = append(cleared, lang)
+		for _, b := range blocks {
+			if convergence.BlockKey(b) == key && model.RunsHaveContent(b.SourceRuns()) {
+				pending = append(pending, lang)
+				break
+			}
 		}
 	}
-	slices.Sort(cleared)
-	return cleared
+	slices.Sort(pending)
+	return pending
 }
