@@ -222,6 +222,6 @@ func TestReviewContext_RequiresViewContent(t *testing.T) {
 	c.SetParamValues("rc", projID, "main", ids["Hello"])
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.Permission(0))
-	assert.Error(t, s.HandleGetReviewContext(c))
+	require.Error(t, s.HandleGetReviewContext(c))
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
