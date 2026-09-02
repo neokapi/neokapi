@@ -1017,7 +1017,12 @@ export function ReviewPage({
         >
           <CheckCheck size={13} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
-            {t("{count} clean units (no findings) in this view", { count: cleanVisible.length })}
+            {t(
+              "{count, plural, one {# clean unit (no findings) in this view} other {# clean units (no findings) in this view}}",
+              {
+                count: cleanVisible.length,
+              },
+            )}
           </span>
           <Button
             size="xs"
@@ -1034,7 +1039,9 @@ export function ReviewPage({
             ) : (
               <>
                 <Check size={12} />
-                {t("Approve {count} clean units", { count: cleanVisible.length })}
+                {t("{count, plural, one {Approve # clean unit} other {Approve # clean units}}", {
+                  count: cleanVisible.length,
+                })}
               </>
             )}
           </Button>
